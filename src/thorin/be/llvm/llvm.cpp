@@ -327,6 +327,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     THORIN_UNREACHABLE;
                 }
 #endif
+                // ignore branch/switch
+                if ((def->isa<Tuple>() || def->isa<Pack>()) && def->type()->order() > 0) continue;
+                if (def->isa<Extract>() && def->type()->order() > 0) continue;
 
                 if (auto llvm_value = emit(def))
                     defs_[def] = llvm_value;
@@ -364,11 +367,13 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         irbuilder_.CreateRet(agg);
                     }
                 }
-            } else if (auto select = isa<Tag::Select>(lam->app()->callee())) {
-                auto [cond, a, b] = select->args<3>();
-                auto tbb = bb2lam[a->as_nominal<Lam>()];
-                auto fbb = bb2lam[b->as_nominal<Lam>()];
-                irbuilder_.CreateCondBr(lookup(cond), tbb, fbb);
+            } else if (auto extract = lam->app()->callee()->isa<Extract>()) {
+                // TODO support switch
+                auto [f, t] = extract->tuple()->split<2>();
+                auto cond = lookup(extract->index());
+                auto tbb = bb2lam[t->as_nominal<Lam>()];
+                auto fbb = bb2lam[f->as_nominal<Lam>()];
+                irbuilder_.CreateCondBr(cond, tbb, fbb);
             } else if (lam->app()->callee()->isa<Lam>() &&
                        lam->app()->callee()->as<Lam>()->intrinsic() == Lam::Intrinsic::Match) {
                 auto val = lookup(lam->app()->arg(0));
@@ -717,11 +722,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return emit_bitcast(bitcast->arg(), bitcast->type());
     } else if (auto lea = isa<Tag::LEA>(def)) {
         return emit_lea(lea);
-    } else if (auto select = isa<Tag::Select>(def)) {
-        if (def->type()->isa<Pi>()) return nullptr;
-
-        auto [cond, tval, fval] = select->args<3>([&](auto def) { return lookup(def); });
-        return irbuilder_.CreateSelect(cond, tval, fval);
     } else if (auto size_of = isa<Tag::Sizeof>(def)) {
         auto type = convert(size_of->arg());
         auto layout = llvm::DataLayout(module_->getDataLayout());
@@ -803,10 +803,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = def->isa<Extract>()) {
-            if (is_memop(extract->agg()))
-                return lookup(extract->agg());
+            if (is_memop(extract->tuple()))
+                return lookup(extract->tuple());
 
-            if (extract->agg()->type()->isa<Variadic>())
+            if (extract->tuple()->type()->isa<Variadic>())
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             // tuple/struct
@@ -816,7 +816,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto insert = def->as<Insert>();
         auto val = lookup(insert->val());
 
-        if (insert->agg()->type()->isa<Variadic>()) {
+        if (insert->tuple()->type()->isa<Variadic>()) {
             auto p = copy_to_alloca();
             irbuilder_.CreateStore(lookup(insert->val()), p.second);
             return irbuilder_.CreateLoad(p.first);
@@ -945,6 +945,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
     assert(!type->isa<Mem>());
 
     if (type->type()->isa<KindArity>()) {
+        if (auto a = isa_lit<u64>(type); a && *a == 2)
+            return types_[type] = irbuilder_.getInt1Ty();
         return types_[type] = irbuilder_.getInt64Ty();
     } else if (auto int_ = isa<Tag::Int>(type)) {
         switch (as_lit<nat_t>(int_->arg())) {

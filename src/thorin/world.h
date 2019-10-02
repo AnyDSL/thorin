@@ -208,6 +208,16 @@ public:
     const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->type()->arity(), i, dbg), dbg); }
     const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_int(i), dbg); }
     //@}
+    /// @name Bool operations - extracts on truth tables (tuples)
+    //@{
+    const Def* table_and() const { return cache_.table_and; }
+    const Def* table_or () const { return cache_.table_or ; }
+    const Def* table_xor() const { return cache_.table_xor; }
+    const Def* extract_and(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_and(), a, dbg), b, dbg); }
+    const Def* extract_or (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_or (), a, dbg), b, dbg); }
+    const Def* extract_xor(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xor(), a, dbg), b, dbg); }
+    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract_xor(lit_true(), a, dbg); }
+    //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
@@ -235,6 +245,9 @@ public:
     const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
+    const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
+    const Lit* lit_false() { return cache_.lit_bool_[0]; }
+    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
     //@}
     /// @name Lit: Nat
     //@{
@@ -247,9 +260,6 @@ public:
         static_assert(std::is_integral<I>());
         return lit(type_int(sizeof(I)*8), val, dbg);
     }
-    const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
-    const Lit* lit_false() { return cache_.lit_bool_[0]; }
-    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
     //@}
     /// @name Lit: Real
     //@{
@@ -290,11 +300,11 @@ public:
     //@{
     const Nat* type_nat() { return cache_.type_nat_; }
     const Mem* type_mem() { return cache_.type_mem_; }
+    const Lit* type_bool() { return cache_.type_bool_; }
     const Axiom* type_int()  { return cache_.type_int_; }
     const Axiom* type_sint() { return cache_.type_sint_; }
     const Axiom* type_real() { return cache_.type_real_; }
     const Axiom* type_ptr()  { return cache_.type_ptr_; }
-    const App* type_bool() { return cache_.type_bool_; }
     const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
     const App* type_sint(nat_t w) { return type_sint(lit_nat(w)); }
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
@@ -390,12 +400,10 @@ public:
     /// @name misc operations
     //@{
     const Axiom* op_lea()     const { return cache_.op_lea_;     }
-    const Axiom* op_select()  const { return cache_.op_select_;  }
     const Axiom* op_sizeof()  const { return cache_.op_sizeof_;  }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
-    const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
     Axiom* op_end() const { return cache_.op_end_; }
@@ -650,9 +658,13 @@ private:
         const Tuple* tuple_;
         const Nat* type_nat_;
         const Mem* type_mem_;
+        const Lit* type_bool_;
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
+        const Def* table_and;
+        const Def* table_or;
+        const Def* table_xor;
         std::array<Axiom*, Num<IOp>>  IOp_;
         std::array<Axiom*, Num<WOp>>  WOp_;
         std::array<Axiom*, Num<ZOp>>  ZOp_;
@@ -666,10 +678,8 @@ private:
         Axiom* type_sint_;
         Axiom* type_real_;
         Axiom* type_ptr_;
-        const App* type_bool_;
         Axiom* op_bitcast_;
         Axiom* op_lea_;
-        Axiom* op_select_;
         Axiom* op_sizeof_;
         Axiom* op_alloc_;
         Axiom* op_slot_;

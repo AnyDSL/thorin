@@ -213,7 +213,9 @@ void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
     set(filter, world().app(callee, arg, dbg));
 }
 void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
-void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return app(world().op_select(cond, t, f, dbg), mem, dbg); }
+void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) {
+    return app(world().extract(world().tuple({f, t}), cond, dbg), mem, dbg);
+}
 
 void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {
     Array<const Def*> args(patterns.size() + 2);

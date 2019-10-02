@@ -8,6 +8,7 @@ namespace thorin {
  * small helpers
  */
 
+#if 0
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
         if (auto w = get_width(def->type()))
@@ -23,6 +24,7 @@ static const Def* is_not(const Def* def) {
     }
     return nullptr;
 }
+#endif
 
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
@@ -84,13 +86,14 @@ template<nat_t w> struct Fold<WOp, WOp::sub, w> {
 };
 
 template<nat_t w> struct Fold<WOp, WOp::mul, w> {
-    static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
+    static Res run(u64 a, u64 b, bool /*nsw*/, bool /*nuw*/) {
         using UT = w2u<w>;
         auto x = get<UT>(a), y = get<UT>(b);
-        decltype(x) res = x * y;
-        if (nuw && y && x > std::numeric_limits<UT>::max() / y) return {};
-        // TODO nsw
-        return res;
+        if constexpr (std::is_same_v<UT, bool>)
+            return UT(x & y);
+        else
+            return UT(x * y);
+        // TODO nsw/nuw
     }
 };
 
@@ -98,8 +101,12 @@ template<nat_t w> struct Fold<WOp, WOp::shl, w> {
     static Res run(u64 a, u64 b, bool nsw, bool nuw) {
         using T = w2u<w>;
         auto x = get<T>(a), y = get<T>(b);
-        if (y > w) return {};
-        decltype(x) res = x << y;
+        if (u64(y) > w) return {};
+        decltype(x) res;
+        if constexpr (std::is_same_v<T, bool>)
+            res = bool(u64(x) << u64(y));
+        else
+            res = x << y;
         if (nuw && res < x) return {};
         if (nsw && get_sign(x) != get_sign(res)) return {};
         return res;
@@ -166,8 +173,9 @@ template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2r, dw, sw> { static Res run
  */
 
 /// @attention Note that @p a and @p b are passed by reference as fold also commutes if possible. See commute().
-template<nat_t min_w, class Op, Op op>
+template<class Op, Op op>
 static const Def* fold(World& world, const Def* type, const App* callee, const Def*& a, const Def*& b, const Def* dbg) {
+    static constexpr int min_w = std::is_same_v<Op, ROp> || std::is_same_v<Op, RCmp> ? 16 : 1;
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
 
     if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
@@ -175,7 +183,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
     if (la && lb) {
         nat_t width;
         [[maybe_unused]] bool nsw = false, nuw = false;
-        if constexpr (std::is_same<Op, WOp>()) {
+        if constexpr (std::is_same_v<Op, WOp>) {
             auto [mode, w] = callee->args<2>(as_lit<nat_t>);
             nsw = mode & WMode::nsw;
             nuw = mode & WMode::nuw;
@@ -189,7 +197,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
 #define CODE(i)                                                                     \
             case i:                                                                 \
                 if constexpr (i >= min_w) {                                         \
-                    if constexpr (std::is_same<Op, WOp>())                          \
+                    if constexpr (std::is_same_v<Op, WOp>)                          \
                         res = Fold<Op, op, i>::run(la->get(), lb->get(), nsw, nuw); \
                     else                                                            \
                         res = Fold<Op, op, i>::run(la->get(), lb->get());           \
@@ -296,7 +304,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     auto [a, b] = arg->split<2>();
     auto w = isa_lit<nat_t>(callee->arg());
 
-    if (auto result = fold<1, IOp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<IOp, op>(world, type, callee, a, b, dbg)) return result;
 
     if (op == IOp::iand) {
         if (auto res = merge_cmps<std::bit_and<flags_t>>(world, a, b)) return res;
@@ -370,7 +378,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
     auto [a, b] = arg->split<2>();
     auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
 
-    if (auto result = fold<8, WOp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<WOp, op>(world, type, callee, a, b, dbg)) return result;
 
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) {
@@ -432,7 +440,7 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
     type = type->as<Sigma>()->op(1); // peel of actual type
     auto make_res = [&](const Def* res) { return world.tuple({mem, res}, dbg); };
 
-    if (auto result = fold<8, ZOp, op>(world, type, callee, a, b, dbg)) return make_res(result);
+    if (auto result = fold<ZOp, op>(world, type, callee, a, b, dbg)) return make_res(result);
 
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) return make_res(la); // 0 / b -> 0 and 0 % b -> 0
@@ -472,7 +480,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
     auto [a, b] = arg->split<2>();
     auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
 
-    if (auto result = fold<16, ROp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<ROp, op>(world, type, callee, a, b, dbg)) return result;
 
     // TODO check rmode properly
     if (m && *m == RMode::fast) {
@@ -535,7 +543,7 @@ const Def* normalize_ICmp(const Def* type, const Def* c, const Def* arg, const D
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
 
-    if (auto result = fold<1, ICmp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<ICmp, op>(world, type, callee, a, b, dbg)) return result;
     if constexpr (op == ICmp::_f) return world.lit_false();
     if constexpr (op == ICmp::_t) return world.lit_true();
 
@@ -548,7 +556,7 @@ const Def* normalize_RCmp(const Def* type, const Def* c, const Def* arg, const D
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
 
-    if (auto result = fold<16, RCmp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<RCmp, op>(world, type, callee, a, b, dbg)) return result;
     if constexpr (op == RCmp::f) return world.lit_false();
     if constexpr (op == RCmp::t) return world.lit_true();
 
@@ -650,6 +658,7 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     return world.raw_app(callee, {ptr, index}, dbg);
 }
 
+#if 0
 const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [cond, a, b] = arg->split<3>();
@@ -661,6 +670,7 @@ const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, 
 
     return world.raw_app(callee, {cond, a, b}, dbg);
 }
+#endif
 
 const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = t->world();

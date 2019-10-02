@@ -35,7 +35,7 @@ std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
 // TODO remove
 Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return extract->agg()->as<Param>()->lam();
+        return extract->tuple()->as<Param>()->lam();
     return def->as<Param>()->lam();
 }
 

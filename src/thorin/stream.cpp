@@ -1,5 +1,6 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
+#include "thorin/world.h"
 
 namespace thorin {
 
@@ -76,6 +77,9 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         if (sigma->isa_nominal()) s.fmt("{}: {}", sigma->unique_name(), sigma->type());
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
+        if (tuple == def->world().table_and()) return s.fmt("AND");
+        if (tuple == def->world().table_or ()) return s.fmt( "OR");
+        if (tuple == def->world().table_xor()) return s.fmt("XOR");
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto variadic = def->isa<Variadic>()) {

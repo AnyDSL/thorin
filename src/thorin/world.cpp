@@ -48,6 +48,9 @@ World::World(const std::string& name)
     cache_.type_mem_      = insert<Mem>(0, *this);
     cache_.type_nat_      = insert<Nat>(0, *this);
     cache_.lit_arity_1_   = lit_arity(1);
+    cache_.type_bool_     = lit_arity(2);
+    cache_.lit_bool_[0]   = lit_index(2, 0);
+    cache_.lit_bool_[1]   = lit_index(2, 1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
     cache_.op_end_        = axiom(bot_star(), Tag::End, 0, {"end"});
 
@@ -55,14 +58,17 @@ World::World(const std::string& name)
     auto nat = type_nat();
     auto mem = type_mem();
 
+    cache_.table_and = tuple({tuple({lit_false(), lit_false()}),
+                              tuple({lit_false(), lit_true ()})}, {"and"});
+    cache_.table_or  = tuple({tuple({lit_false(), lit_true ()}),
+                              tuple({lit_true (), lit_true ()})}, { "or"});
+    cache_.table_xor = tuple({tuple({lit_false(), lit_false()}),
+                              tuple({lit_true (), lit_false()})}, {"xor"});
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
         cache_.type_int_  = axiom(p, Tag::Int,  0, {"int "});
         cache_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
         cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
-        cache_.type_bool_ = type_int(1);
-        cache_.lit_bool_[0] = lit(type_bool(), false);
-        cache_.lit_bool_[1] = lit(type_bool(),  true);
     } { // ptr: Π[T: *, as: nat]. *
         cache_.type_ptr_ = axiom(pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
     }
@@ -131,10 +137,6 @@ World::World(const std::string& name)
         auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
         cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
-    } { // select: ΠT: *. Π[bool, T, T]. T
-        auto type = pi(star)->set_domain(star);
-        auto T = type->param({"T"});
-        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
     } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
@@ -222,10 +224,8 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto type = pi->apply(arg);
 
     auto [axiom, currying_depth] = get_axiom(callee); // TODO move down again
-#if 0
     if (axiom == nullptr || (axiom->tag() != Tag::Bitcast && axiom->tag() != Tag::LEA)) // HACK
         assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
-#endif
 
     if (auto lam = callee->isa<Lam>()) {
         if (lam->intrinsic() == Lam::Intrinsic::Match) {
@@ -292,18 +292,18 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         return pack(n, ops[0]);
 
     // eta rule for tuples:
-    // (extract(agg, 0), extract(agg, 1), extract(agg, 2)) -> agg
+    // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup
     bool eta = true;
-    const Def* agg = nullptr;
+    const Def* tup = nullptr;
     for (size_t i = 0; i != n && eta; ++i) {
         if (auto extract = ops[i]->isa<Extract>()) {
             if (auto index = isa_lit<u64>(extract->index())) {
                 if (eta &= u64(i) == *index) {
                     if (i == 0) {
-                        agg = extract->agg();
-                        eta &= agg->type() == type;
+                        tup = extract->tuple();
+                        eta &= tup->type() == type;
                     } else {
-                        eta &= extract->agg() == agg;
+                        eta &= extract->tuple() == tup;
                     }
                     continue;
                 }
@@ -312,7 +312,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         eta = false;
     }
 
-    if (eta) return agg;
+    if (eta) return tup;
     return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 }
 
@@ -374,51 +374,57 @@ const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
     return unify<Match_>(cases.size() + 1, type, ops, debug(dbg));
 }
 
-const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
-    assertf(alpha_equiv(agg->type()->arity(), index->type()),
-            "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->type()->arity(), index, index->type());
+#if 0
+static bool is_symetric(const Def* a) {
 
-    if (index->type() == lit_arity_1()) return agg;
-    if (auto pack = agg->isa<Pack>()) return pack->body();
+}
+#endif
+
+const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
+    assertf(alpha_equiv(tup->type()->arity(), index->type()),
+            "extracting from tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
+
+    if (index->type() == lit_arity_1()) return tup;
+    if (auto pack = tup->isa<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val
-    if (auto insert = agg->isa<Insert>()) {
+    if (auto insert = tup->isa<Insert>()) {
         if (index == insert->index())
             return insert->val();
     }
 
     if (auto i = isa_lit<u64>(index)) {
-        if (auto tuple = agg->isa<Tuple>()) return tuple->op(*i);
+        if (auto tuple = tup->isa<Tuple>()) return tuple->op(*i);
 
         // extract(insert(x, j, val), i) -> extract(x, i) where i != j (guaranteed by rule above)
-        if (auto insert = agg->isa<Insert>()) {
+        if (auto insert = tup->isa<Insert>()) {
             if (insert->index()->isa<Lit>())
-                return extract(insert->agg(), index, dbg);
+                return extract(insert->tuple(), index, dbg);
         }
 
-        if (auto sigma = agg->type()->isa<Sigma>())
-            return unify<Extract>(2, sigma->op(*i), agg, index, debug(dbg));
+        if (auto sigma = tup->type()->isa<Sigma>())
+            return unify<Extract>(2, sigma->op(*i), tup, index, debug(dbg));
     }
 
-    auto type = agg->type()->as<Variadic>()->codomain();
-    return unify<Extract>(2, type, agg, index, debug(dbg));
+    auto type = tup->type()->as<Variadic>()->codomain();
+    return unify<Extract>(2, type, tup, index, debug(dbg));
 }
 
-const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug dbg) {
-    assertf(alpha_equiv(agg->type()->arity(), index->type()),
-            "inserting into aggregate {} of arity {} with index {} of type {}", agg, agg->type()->arity(), index, index->type());
+const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug dbg) {
+    assertf(alpha_equiv(tup->type()->arity(), index->type()),
+            "inserting into tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
 
     if (index->type() == lit_arity_1()) return val;
 
     // insert((a, b, c, d), 2, x) -> (a, b, x, d)
-    if (auto tup = agg->isa<Tuple>()) {
-        Array<const Def*> new_ops = tup->ops();
+    if (auto t = tup->isa<Tuple>()) {
+        Array<const Def*> new_ops = t->ops();
         new_ops[as_lit<u64>(index)] = val;
-        return tuple(tup->type(), new_ops, dbg);
+        return tuple(t->type(), new_ops, dbg);
     }
 
     // insert(‹4; x›, 2, y) -> (x, x, y, x)
-    if (auto pack = agg->isa<Pack>()) {
+    if (auto pack = tup->isa<Pack>()) {
         if (auto a = isa_lit<u64>(pack->arity())) {
             Array<const Def*> new_ops(*a, pack->body());
             new_ops[as_lit<u64>(index)] = val;
@@ -427,12 +433,12 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug
     }
 
     // insert(insert(x, index, y), index, val) -> insert(x, index, val)
-    if (auto insert = agg->isa<Insert>()) {
+    if (auto insert = tup->isa<Insert>()) {
         if (insert->index() == index)
-            agg = insert->agg();
+            tup = insert->tuple();
     }
 
-    return unify<Insert>(3, agg, index, val, debug(dbg));
+    return unify<Insert>(3, tup, index, val, debug(dbg));
 }
 
 const Def* World::variadic(const Def* domain, const Def* codomain, Debug dbg) {

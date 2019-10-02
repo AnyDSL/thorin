@@ -820,15 +820,15 @@ public:
     friend class World;
 };
 
-/// Extracts from aggregate <tt>agg</tt> the element at position <tt>index</tt>.
+/// Extracts from aggregate <tt>tuple</tt> the element at position <tt>index</tt>.
 class Extract : public Def {
 private:
-    Extract(const Def* type, const Def* agg, const Def* index, const Def* dbg)
-        : Def(Node, rebuild, type, {agg, index}, 0, dbg)
+    Extract(const Def* type, const Def* tuple, const Def* index, const Def* dbg)
+        : Def(Node, rebuild, type, {tuple, index}, 0, dbg)
     {}
 
 public:
-    const Def* agg() const { return op(0); }
+    const Def* tuple() const { return op(0); }
     const Def* index() const { return op(1); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
@@ -837,19 +837,19 @@ public:
 };
 
 /**
- * Creates a new aggregate by inserting <tt>val</tt> at position <tt>index</tt> into <tt>agg</tt>.
+ * Creates a new Tuple by inserting <tt>val</tt> at position <tt>index</tt> into <tt>tuple</tt>.
  * @attention { This is a @em functional insert.
- *              The val <tt>agg</tt> remains untouched.
- *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>val</tt>. }
+ *              The val <tt>tuple</tt> remains untouched.
+ *              The \p Insert itself is a \em new Tuple which contains the newly created <tt>val</tt>. }
  */
 class Insert : public Def {
 private:
-    Insert(const Def* agg, const Def* index, const Def* val, const Def* dbg)
-        : Def(Node, rebuild, agg->type(), {agg, index, val}, 0, dbg)
+    Insert(const Def* tuple, const Def* index, const Def* val, const Def* dbg)
+        : Def(Node, rebuild, tuple->type(), {tuple, index, val}, 0, dbg)
     {}
 
 public:
-    const Def* agg() const { return op(0); }
+    const Def* tuple() const { return op(0); }
     const Def* index() const { return op(1); }
     const Def* val() const { return op(2); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);

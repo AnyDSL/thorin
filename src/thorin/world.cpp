@@ -60,7 +60,7 @@ World::World(const std::string& name)
     } { // ptr: Π[T: *, as: nat]. *
         cache_.type_ptr_ = axiom(pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
     }
-#define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, 0, Tag::T, flags_t(T::o), {op2str(T::o)});
+#define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
@@ -105,30 +105,30 @@ World::World(const std::string& name)
             auto type_sw = o == Conv::r2s || o == Conv::r2u || o == Conv::r2r ? type_real(sw) : type_int(sw);
             return type->set_codomain(pi(type_sw, type_dw));
         };
-#define CODE(T, o) cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), 0, Tag::Conv, flags_t(T::o), {op2str(T::o)});
+#define CODE(T, o) cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), Tag::Conv, flags_t(T::o), {op2str(T::o)});
         THORIN_CONV(CODE)
 #undef Code
     } { // hlt/run: ΠT: *. ΠT. T
         auto type = pi(star)->set_domain(star);
         auto T = type->param({"T"});
         type->set_codomain(pi(T, T));
-        cache_.PE_[size_t(PE::hlt)] = axiom(normalize_PE<PE::hlt>, type, 0, Tag::PE, flags_t(PE::hlt), {op2str(PE::hlt)});
-        cache_.PE_[size_t(PE::run)] = axiom(normalize_PE<PE::run>, type, 0, Tag::PE, flags_t(PE::run), {op2str(PE::run)});
+        cache_.PE_[size_t(PE::hlt)] = axiom(normalize_PE<PE::hlt>, type, Tag::PE, flags_t(PE::hlt), {op2str(PE::hlt)});
+        cache_.PE_[size_t(PE::run)] = axiom(normalize_PE<PE::run>, type, Tag::PE, flags_t(PE::run), {op2str(PE::run)});
     } { // known: ΠT: *. ΠT. bool
         auto type = pi(star)->set_domain(star);
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
-        cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, 0, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
+        cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
     } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
         auto D = type->param(0, {"D"});
         auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
-        cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
+        cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
     } { // select: ΠT: *. Π[bool, T, T]. T
         auto type = pi(star)->set_domain(star);
         auto T = type->param({"T"});
-        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
+        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});
     } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
@@ -144,37 +144,37 @@ World::World(const std::string& name)
         auto pi2 = pi(star)->set_domain({src_ptr, s});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
-        cache_.op_lea_ = axiom(normalize_lea, pi1, 0 , Tag::LEA, 0, {"lea"});
+        cache_.op_lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, {"lea"});
     } { // sizeof: ΠT: *. nat
-        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(star, nat), 0, Tag::Sizeof, 0, {"sizeof"});
+        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(star, nat), Tag::Sizeof, 0, {"sizeof"});
     } { // load:  Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr}, sigma({mem, T})));
-        cache_.op_load_ = axiom(normalize_load, type, 0, Tag::Load, 0, {"load"});
+        cache_.op_load_ = axiom(normalize_load, type, Tag::Load, 0, {"load"});
     } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr, T}, mem));
-        cache_.op_store_ = axiom(normalize_store, type, 0, Tag::Store, 0, {"store"});
+        cache_.op_store_ = axiom(normalize_store, type, Tag::Store, 0, {"store"});
     } { // alloc: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
-        cache_.op_alloc_ = axiom(nullptr, type, 0, Tag::Alloc, 0, {"alloc"});
+        cache_.op_alloc_ = axiom(nullptr, type, Tag::Alloc, 0, {"alloc"});
     } { // slot: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
-        cache_.op_slot_ = axiom(nullptr, type, 0, Tag::Slot, 0, {"slot"});
+        cache_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     }
 }
 
@@ -182,8 +182,8 @@ World::World(const std::string& name)
  * core calculus
  */
 
-Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg) {
-    auto a = insert<Axiom>(num_ops, normalize, type, num_ops, tag, flags, debug(dbg));
+Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg) {
+    auto a = insert<Axiom>(0, normalize, type, tag, flags, debug(dbg));
     a->make_external();
     assert(lookup(a->name()) == a);
     return a;

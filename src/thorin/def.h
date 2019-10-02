@@ -383,7 +383,7 @@ public:
 
 class Axiom : public Def {
 private:
-    Axiom(NormalizeFn normalizer, const Def* type, size_t num_ops, tag_t tag, flags_t flags, const Def* dbg);
+    Axiom(NormalizeFn normalizer, const Def* type, tag_t tag, flags_t flags, const Def* dbg);
 
 public:
     tag_t tag() const { return fields() >> 32_u64; }

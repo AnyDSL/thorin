@@ -100,8 +100,8 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg = {});
-    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, 0, tag, flags, dbg); }
+    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg = {});
+    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, tag, flags, dbg); }
     //@}
     /// @name Pi
     //@{

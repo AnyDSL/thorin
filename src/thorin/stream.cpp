@@ -19,40 +19,34 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
     if (false) {}
     else if (def->isa<Universe>())  return s.fmt("□");
     else if (def->isa<KindStar>())  return s.fmt("*");
-    else if (def->isa<KindMulti>()) return s.fmt("*M");
-    else if (def->isa<KindArity>()) return s.fmt("*A");
+    else if (def->isa<KindMulti>()) return s.fmt("μ");
+    else if (def->isa<KindArity>()) return s.fmt("α");
     else if (def->isa<Mem>())       return s.fmt("mem");
     else if (def->isa<Nat>())       return s.fmt("nat");
-    else if (auto bot = def->isa<Bot>()) return s.fmt("{{⊥: {}}}", bot->type());
-    else if (auto top = def->isa<Top>()) return s.fmt("{{⊤: {}}}", top->type());
+    else if (auto bot = def->isa<Bot>()) return s.fmt("⊥::{}", bot->type());
+    else if (auto top = def->isa<Top>()) return s.fmt("⊤::{}", top->type());
     else if (auto axiom = def->isa<Axiom>()) return s.fmt("{}", axiom->name());
     else if (auto lit = def->isa<Lit>()) {
-        if (false) {}
-        else if (lit->type()->isa<Nat>())       return s.fmt("{}_nat", lit->get());
-        else if (lit->type()->isa<KindArity>()) return s.fmt("{}ₐ",    lit->get());
-        else if (auto _int = thorin::isa<Tag:: Int>(lit->type())) return s.fmt("{}_i{}", lit->get(), *get_width(_int));
-        else if (auto sint = thorin::isa<Tag::SInt>(lit->type())) return s.fmt("{}_s{}", lit->get(), *get_width(sint));
-        else if (auto real = thorin::isa<Tag::Real>(lit->type())) return s.fmt("{}_r{}", lit->get(), *get_width(real));
-        else if (lit->type()->type()->isa<KindArity>()) {
-            if (lit->type()->isa<Top>()) return s.fmt("{}T", lit->get());
-
-            // append utf-8 subscripts in reverse order
-            std::string str;
-            for (size_t aa = as_lit<nat_t>(lit->type()); aa > 0; aa /= 10)
-                ((str += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
-            std::reverse(str.begin(), str.end());
-
-            return s.fmt("{}{}", lit->get(), str);
-        } else if (auto real = thorin::isa<Tag::Real>(lit->type())) {
+        if (auto real = thorin::isa<Tag::Real>(lit->type())) {
             switch (as_lit<nat_t>(real->arg())) {
-                case 16: return s.fmt("{}_r16", lit->get<r16>());
-                case 32: return s.fmt("{}_r32", lit->get<r32>());
-                case 64: return s.fmt("{}_r64", lit->get<r64>());
+                case 16: return s.fmt("{}::r16", lit->get<r16>());
+                case 32: return s.fmt("{}::r32", lit->get<r32>());
+                case 64: return s.fmt("{}::r64", lit->get<r64>());
                 default: THORIN_UNREACHABLE;
+            }
+        } else if (lit->type()->type()->isa<KindArity>()) {
+            if (!lit->type()->isa<Top>()) {
+                // append utf-8 subscripts in reverse order
+                std::string str;
+                for (size_t aa = as_lit<nat_t>(lit->type()); aa > 0; aa /= 10)
+                    ((str += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
+                std::reverse(str.begin(), str.end());
+
+                return s.fmt("{}{}", lit->get(), str);
             }
         }
 
-        return s.fmt("{{{}: {}}}", lit->type(), lit->get());
+        return s.fmt("{}::{}", lit->get(), lit->type());
     } else if (auto pi = def->isa<Pi>()) {
         if (pi->is_cn()) {
             if (auto nom_pi = pi->isa_nominal<Pi>())
@@ -92,47 +86,19 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         if (sigma->isa_nominal()) s.fmt("{}: {}", sigma->unique_name(), sigma->type());
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
-#if 0
-        // special case for string
-        if (std::all_of(ops().begin(), ops().end(), [&](const Def* op) { return op->isa<Lit>(); })) {
-            if (auto variadic = type()->isa<Variadic>()) {
-                if (auto i = variadic->body()->isa<Sint>()) {
-                    if (i->lit_num_bits() == 8) {
-                        for (auto op : ops()) os << as_lit<char>(op);
-                        return os;
-                    }
-                }
-            }
-        }
-#endif
         s.fmt("({, })", tuple->ops());
-        return tuple->type()->isa_nominal() ? s.fmt(": {}", tuple->type()) : s;
+        return tuple->type()->isa_nominal() ? s.fmt("::{}", tuple->type()) : s;
     } else if (auto variadic = def->isa<Variadic>()) {
         if (auto nom_variadic = variadic->isa_nominal<Variadic>())
             return s.fmt("«{}: {}; {}»", nom_variadic->param(), nom_variadic->domain(), nom_variadic->codomain());
         return s.fmt("«{}; {}»", variadic->domain(), variadic->codomain());
     } else if (auto pack = def->isa<Pack>()) {
-#if 0
-        // special case for string
-        if (auto variadic = type()->isa<Variadic>()) {
-            if (auto i = variadic->body()->isa<Sint>()) {
-                if (i->lit_num_bits() == 8) {
-                    if (auto a = isa_lit<u64>(arity())) {
-                        if (auto lit = body()->isa<Lit>()) {
-                            for (size_t i = 0, e = *a; i != e; ++i) os << lit->get<char>();
-                            return os;
-                        }
-                    }
-                }
-            }
-        }
-#endif
         if (auto nom_pack = pack->isa_nominal<Pack>())
             return s.fmt("‹{}: {}; {}›", nom_pack->param(), nom_pack->domain(), nom_pack->body());
         return s.fmt("‹{}; {}›", pack->domain(), pack->body());
     } else if (auto union_ = def->isa<Union>()) {
         if (union_->isa_nominal()) s.fmt("{}: {}", union_->unique_name(), union_->type());
-        return s.fmt("⋃[{, }]", union_->ops());
+        return s.fmt("⋃({, }]", union_->ops());
     }
 
     // unknown node type

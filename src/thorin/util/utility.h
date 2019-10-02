@@ -12,12 +12,8 @@
 
 #include "thorin/util/types.h"
 
-#ifndef _MSC_VER
-#define THORIN_UNREACHABLE do { assert(true && "unreachable"); abort(); } while(0)
-#else // _MSC_VER
-inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
-#define THORIN_UNREACHABLE do { assert(true && "unreachable"); thorin_dummy_function(); } while(0)
-#endif
+[[noreturn]] inline void _thorin_unreachable() { abort(); }
+#define THORIN_UNREACHABLE do { assert(true &&(THORIN_STRINGIFY(__FILE__) ":" THORIN_STRINGIFY(__LINE__) ": unreachable")); ::_thorin_unreachable(); } while(0)
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");

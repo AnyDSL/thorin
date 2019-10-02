@@ -87,9 +87,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             return s.fmt("[{}]", addr_space);
         }
 
-        if (app->arg()->isa<Tuple>() || app->arg()->isa<Pack>())
-            return s.fmt("{}{}", app->callee(), app->arg());
-        return s.fmt("{}({})", app->callee(), app->arg());
+        return s.fmt("{} {}", app->callee(), app->arg());
     } else if (auto sigma = def->isa<Sigma>()) {
         if (sigma->isa_nominal()) s.fmt("{}: {}", sigma->unique_name(), sigma->type());
         return s.fmt("[{, }]", sigma->ops());
@@ -139,9 +137,9 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
 
     // unknown node type
     if (def->fields() != 0)
-        return s.fmt("({} {})({, })", def->node_name(), def->fields(), def->ops());
+        return s.fmt("{}#{} {, }", def->node_name(), def->fields(), def->ops());
     else
-        return s.fmt("{}({, })", def->node_name(),def->ops());
+        return s.fmt("{} {, }", def->node_name(), def->ops());
 }
 
 Stream& stream_assignment(Stream& s, const Def* def) {

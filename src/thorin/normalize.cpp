@@ -620,9 +620,11 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
 const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
 
-    if (src->isa<Bot>())                     return world.bot(dst_type);
-    if (src->type() == dst_type)             return src;
-    if (auto other = isa<Tag::Bitcast>(src)) return world.op_bitcast(dst_type, other->arg(), dbg);
+    if (src->isa<Bot>())         return world.bot(dst_type);
+    if (src->type() == dst_type) return src;
+
+    if (auto other = isa<Tag::Bitcast>(src))
+        return other->arg()->type == dst_type ? other->arg() : world.op_bitcast(dst_type, other->arg(), dbg);
 
     if (auto lit = src->isa<Lit>()) {
         if (dst_type->type()->isa<KindArity>()) return world.lit_index(dst_type, lit->get());

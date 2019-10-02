@@ -21,8 +21,6 @@ using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
 using RewriteFn = std::function<const Def*(const Def*)>;
 
-const Def* infer_width(const Def*);
-
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).
  * In particular, the following things are done by this class:

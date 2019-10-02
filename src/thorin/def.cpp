@@ -141,12 +141,7 @@ void Def::make_external() { return world().make_external(this); }
 void Def::make_internal() { return world().make_internal(this); }
 bool Def::is_external() const { return world().is_external(this); }
 
-std::string Def::unique_name() const {
-    std::ostringstream oss;
-    if (!name().empty()) oss << name();
-    oss <<  '_' << gid();
-    return oss.str();
-}
+std::string Def::unique_name() const { return name() + "_" + std::to_string(gid()); }
 
 void Def::replace(Tracker with) const {
     world().DLOG("replace: {} -> {}", this, with);

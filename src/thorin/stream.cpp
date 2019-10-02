@@ -8,8 +8,9 @@ Stream& Def::stream(Stream& s) const {
 }
 
 Stream& operator<<(Stream& s, const Def* def) {
-    if (def == nullptr) return s << "<nullptr>";
-    if (is_const(def)) return stream(s, def, Recurse::No);
+    if (def == nullptr)     return s << "<nullptr>";
+    if (def->isa<Axiom>())  return s << def->name();
+    if (is_const(def))      return stream(s, def, Recurse::No);
     return s << def->unique_name();
 }
 
@@ -18,20 +19,20 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
 
     if (false) {}
     else if (def->isa<Universe>())  return s.fmt("□");
-    else if (def->isa<KindStar>())  return s.fmt("*");
-    else if (def->isa<KindMulti>()) return s.fmt("μ");
-    else if (def->isa<KindArity>()) return s.fmt("α");
+    else if (def->isa<KindStar>())  return s.fmt("★");
+    else if (def->isa<KindMulti>()) return s.fmt("•");
+    else if (def->isa<KindArity>()) return s.fmt("◦");
     else if (def->isa<Mem>())       return s.fmt("mem");
     else if (def->isa<Nat>())       return s.fmt("nat");
-    else if (auto bot = def->isa<Bot>()) return s.fmt("⊥::{}", bot->type());
-    else if (auto top = def->isa<Top>()) return s.fmt("⊤::{}", top->type());
+    else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
+    else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());
     else if (auto axiom = def->isa<Axiom>()) return s.fmt("{}", axiom->name());
     else if (auto lit = def->isa<Lit>()) {
         if (auto real = thorin::isa<Tag::Real>(lit->type())) {
             switch (as_lit<nat_t>(real->arg())) {
-                case 16: return s.fmt("{}::r16", lit->get<r16>());
-                case 32: return s.fmt("{}::r32", lit->get<r32>());
-                case 64: return s.fmt("{}::r64", lit->get<r64>());
+                case 16: return s.fmt("{}∷r16", lit->get<r16>());
+                case 32: return s.fmt("{}∷r32", lit->get<r32>());
+                case 64: return s.fmt("{}∷r64", lit->get<r64>());
                 default: THORIN_UNREACHABLE;
             }
         } else if (lit->type()->type()->isa<KindArity>()) {
@@ -46,7 +47,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             }
         }
 
-        return s.fmt("{}::{}", lit->get(), lit->type());
+        return s.fmt("{}∷{}", lit->get(), lit->type());
     } else if (auto pi = def->isa<Pi>()) {
         if (pi->is_cn()) {
             if (auto nom_pi = pi->isa_nominal<Pi>())
@@ -67,18 +68,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             return s.fmt("i{}", *w);
         } else if (auto ptr = thorin::isa<Tag::Ptr>(app)) {
             auto [pointee, addr_space] = ptr->args<2>();
-            s.fmt("{}*", pointee);
-            if (auto as = isa_lit<nat_t>(addr_space)) {
-                switch (*as) {
-                    case AddrSpace::Generic:  return s.fmt("");
-                    case AddrSpace::Global:   return s.fmt("[Global]");
-                    case AddrSpace::Texture:  return s.fmt("[Tex]");
-                    case AddrSpace::Shared:   return s.fmt("[Shared]");
-                    case AddrSpace::Constant: return s.fmt("[Constant]");
-                    default:;
-                }
-            }
-            return s.fmt("[{}]", addr_space);
+            if (auto as = isa_lit<nat_t>(addr_space); as && *as == 0) return s.fmt("{}*", pointee);
         }
 
         return s.fmt("{} {}", app->callee(), app->arg());
@@ -87,7 +77,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
         s.fmt("({, })", tuple->ops());
-        return tuple->type()->isa_nominal() ? s.fmt("::{}", tuple->type()) : s;
+        return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto variadic = def->isa<Variadic>()) {
         if (auto nom_variadic = variadic->isa_nominal<Variadic>())
             return s.fmt("«{}: {}; {}»", nom_variadic->param(), nom_variadic->domain(), nom_variadic->codomain());

@@ -556,13 +556,6 @@ private:
         assert_unused(p.second);
         return def;
     }
-
-    static constexpr inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
-
-    template<class T> static constexpr inline size_t num_bytes_of(size_t num_ops) {
-        size_t result = sizeof(Def) + sizeof(const Def*)*num_ops;
-        return align(result);
-    }
     //@}
 
     class Arena {
@@ -618,6 +611,13 @@ private:
             if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
                 buffer_index_-= num_bytes;
             assert(buffer_index_ % alignof(T) == 0);
+        }
+
+        static constexpr inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
+
+        template<class T> static constexpr inline size_t num_bytes_of(size_t num_ops) {
+            size_t result = sizeof(Def) + sizeof(const Def*)*num_ops;
+            return align(result);
         }
 
     private:

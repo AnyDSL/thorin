@@ -840,7 +840,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        if (lit->type()->type()->isa<KindArity>()) return irbuilder_.getInt64(lit->get());
+        if (lit->type()->type()->isa<KindArity>()) {
+            if (auto a = isa_lit<u64>(lit->type()); a && *a == 2)
+                return irbuilder_.getInt1(lit->get());
+            return irbuilder_.getInt64(lit->get());
+        }
 
         if (auto int_ = isa<Tag::Int>(lit->type())) {
             switch (as_lit<nat_t>(int_->arg())) {

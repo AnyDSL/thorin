@@ -339,17 +339,17 @@ public:
     const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op_ROp_minus(lit_nat(rmode), a, dbg); }
     const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op_ROp_minus(RMode::none, a, dbg); }
     //@}
-    /// @name ICmp
+    /// @name Cmp
     //@{
     const Axiom* op(ICmp o) { return cache_.ICmp_[size_t(o)]; }
-    const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {toi(a), toi(b)}, dbg); }
-    //@}
-    /// @name RCmp
-    //@{
     const Axiom* op(RCmp o) { return cache_.RCmp_[size_t(o)]; }
+    const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
     const Def* op(RCmp o, const Def* a, const Def* b, Debug dbg = {}) { return op(o, RMode::none, a, b, dbg); }
     const Def* op(RCmp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(RCmp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
+    enum class Cmp { eq, ne, lt, le, gt, ge };
+    /// Automatically selects the proper @p Cmp or @p Bitcast.
+    const Def* op(Cmp cmp, const Def* a, const Def* b, Debug dbg = {});
     //@}
     /// @name Casts
     //@{

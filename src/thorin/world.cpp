@@ -561,6 +561,49 @@ const Def* World::op_cast(const Def* dst_type, const Def* src, Debug dbg) {
     return op_bitcast(dst_type, src, dbg);
 }
 
+const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
+    if (auto _int = isa<Tag::Int>(a->type())) {
+        switch (cmp) {
+            case Cmp::eq: return op(ICmp::  e, a, b, dbg);
+            case Cmp::ne: return op(ICmp:: ne, a, b, dbg);
+            case Cmp::lt: return op(ICmp::ul , a, b, dbg);
+            case Cmp::le: return op(ICmp::ule, a, b, dbg);
+            case Cmp::gt: return op(ICmp::ug , a, b, dbg);
+            case Cmp::ge: return op(ICmp::uge, a, b, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto sint = isa<Tag::SInt>(a->type())) {
+        switch (cmp) {
+            case Cmp::eq: return op(ICmp::  e, toi(a), toi(b), dbg);
+            case Cmp::ne: return op(ICmp:: ne, toi(a), toi(b), dbg);
+            case Cmp::lt: return op(ICmp::sl , toi(a), toi(b), dbg);
+            case Cmp::le: return op(ICmp::sle, toi(a), toi(b), dbg);
+            case Cmp::gt: return op(ICmp::sg , toi(a), toi(b), dbg);
+            case Cmp::ge: return op(ICmp::sge, toi(a), toi(b), dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto real = isa<Tag::Real>(a->type())) {
+        switch (cmp) {
+            case Cmp::eq: return op(RCmp::  e, a, b, dbg);
+            case Cmp::ne: return op(RCmp::une, a, b, dbg);
+            case Cmp::lt: return op(RCmp:: l , a, b, dbg);
+            case Cmp::le: return op(RCmp:: le, a, b, dbg);
+            case Cmp::gt: return op(RCmp:: g , a, b, dbg);
+            case Cmp::ge: return op(RCmp:: ge, a, b, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (isa<Tag::Ptr>(a->type())) {
+        auto x = op_bitcast(type_int(64), a);
+        auto y = op_bitcast(type_int(64), b);
+        switch (cmp) {
+            case Cmp::eq: return op(ICmp:: e, x, y, dbg);
+            case Cmp::ne: return op(ICmp::ne, x, y, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    THORIN_UNREACHABLE;
+}
+
 /*
  * deprecated
  */

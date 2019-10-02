@@ -43,7 +43,6 @@ World::World(const std::string& name)
     cache_.type_nat_      = insert<Nat>(0, *this);
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
-    cache_.op_end_        = axiom(bot_star(), Tag::End, 0, {"end"});
 
     auto star = kind_star();
     auto nat = type_nat();

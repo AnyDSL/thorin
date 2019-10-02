@@ -23,7 +23,6 @@ std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
 // TODO put this somewhere else
 template<tag_t tag> struct Tag2Def_   { using type = App; };
-template<> struct Tag2Def_<Tag::End> { using type = Axiom; };
 template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
 
 template<class F, class D>

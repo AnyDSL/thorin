@@ -268,7 +268,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         for (const auto& block : schedule) {
             auto nom = block.nominal();
-            if (isa<Tag::End>(nom)) continue;
+            if (nom == schedule.exit()) continue;
 
             // map all bb-like lams to llvm bb stubs
             auto lam = nom->as<Lam>();
@@ -295,7 +295,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         for (auto& block : schedule) {
             auto nom = block.nominal();
-            if (isa<Tag::End>(nom)) continue;
+            if (nom == schedule.exit()) continue;
 
             auto lam = nom->as<Lam>();
             assert(lam == entry_ || lam->is_basicblock());

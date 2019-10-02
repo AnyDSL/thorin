@@ -372,7 +372,7 @@ size_t Def::num_params() { return param()->type()->lit_arity(); }
  * rebuild
  */
 
-const Def* Axiom      ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def*    ) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags()); }
+const Def* Axiom      ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags(), dbg); }
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* CPS2DS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
 const Def* DS2CPS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }

@@ -21,8 +21,6 @@ using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
 using RewriteFn = std::function<const Def*(const Def*)>;
 
-const Def* infer_width(const Def*);
-
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).
  * In particular, the following things are done by this class:
@@ -102,8 +100,10 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg = {});
-    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, 0, tag, flags, dbg); }
+    const Axiom* axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) {
+        return unify<Axiom>(0, normalize, type, tag, flags, debug(dbg));
+    }
+    const Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, tag, flags, debug(dbg)); }
     //@}
     /// @name Pi
     //@{
@@ -406,7 +406,6 @@ public:
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
-    Axiom* op_end() const { return cache_.op_end_; }
     //@}
     /// @name helpers for optional/variant arguments
     //@{
@@ -665,26 +664,26 @@ private:
         const Def* table_and;
         const Def* table_or;
         const Def* table_xor;
-        std::array<Axiom*, Num<IOp>>  IOp_;
-        std::array<Axiom*, Num<WOp>>  WOp_;
-        std::array<Axiom*, Num<ZOp>>  ZOp_;
-        std::array<Axiom*, Num<ROp>>  ROp_;
-        std::array<Axiom*, Num<ICmp>> ICmp_;
-        std::array<Axiom*, Num<RCmp>> RCmp_;
-        std::array<Axiom*, Num<Conv>> Conv_;
-        std::array<Axiom*, Num<PE>>   PE_;
-        Axiom* op_end_;
-        Axiom* type_int_;
-        Axiom* type_sint_;
-        Axiom* type_real_;
-        Axiom* type_ptr_;
-        Axiom* op_bitcast_;
-        Axiom* op_lea_;
-        Axiom* op_sizeof_;
-        Axiom* op_alloc_;
-        Axiom* op_slot_;
-        Axiom* op_load_;
-        Axiom* op_store_;
+        std::array<const Axiom*, Num<IOp>>  IOp_;
+        std::array<const Axiom*, Num<WOp>>  WOp_;
+        std::array<const Axiom*, Num<ZOp>>  ZOp_;
+        std::array<const Axiom*, Num<ROp>>  ROp_;
+        std::array<const Axiom*, Num<ICmp>> ICmp_;
+        std::array<const Axiom*, Num<RCmp>> RCmp_;
+        std::array<const Axiom*, Num<Conv>> Conv_;
+        std::array<const Axiom*, Num<PE>>   PE_;
+        const Axiom* type_int_;
+        const Axiom* type_sint_;
+        const Axiom* type_real_;
+        const Axiom* type_ptr_;
+        const Axiom* op_bitcast_;
+        const Axiom* op_lea_;
+        const Axiom* op_select_;
+        const Axiom* op_sizeof_;
+        const Axiom* op_alloc_;
+        const Axiom* op_slot_;
+        const Axiom* op_load_;
+        const Axiom* op_store_;
     } cache_;
 
     std::string name_;

@@ -285,7 +285,7 @@ void Schedule::verify() {
 Stream& Schedule::stream(Stream& s) const {
     for (auto& block : *this) {
         auto nom = block.nominal();
-        if (isa<Tag::End>(nom)) continue;
+        if (nom == scope_.exit()) continue;
 
         bool indent = nom != scope().entry();
         if (indent) s.indent();

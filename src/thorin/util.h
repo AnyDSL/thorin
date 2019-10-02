@@ -23,7 +23,6 @@ std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
 // TODO put this somewhere else
 template<tag_t tag> struct Tag2Def_   { using type = App; };
-template<> struct Tag2Def_<Tag::End> { using type = Axiom; };
 template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
 
 template<class F, class D>
@@ -67,13 +66,21 @@ Query<Tag2Enum<tag>, Tag2Def<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
     return {};
 }
 
-inline std::optional<nat_t> get_width(const Def* type) {
+inline const Def* get_width_as_def(const Def* type) {
     if (false) {}
-    else if (auto _int = isa<Tag:: Int>(type)) return isa_lit<nat_t>(_int->arg());
-    else if (auto sint = isa<Tag::SInt>(type)) return isa_lit<nat_t>(sint->arg());
-    else if (auto real = isa<Tag::Real>(type)) return isa_lit<nat_t>(real->arg());
-    return {};
+    else if (auto int_ = isa<Tag:: Int>(type)) return int_->arg();
+    else if (auto sint = isa<Tag::SInt>(type)) return sint->arg();
+    else if (auto real = isa<Tag::Real>(type)) return real->arg();
+    return nullptr;
 }
+
+inline std::optional<nat_t> get_width(const Def* type) {
+    if (auto def = get_width_as_def(type))
+        return isa_lit<nat_t>(def);
+    return std::nullopt;
+}
+
+inline const Def* infer_width(const Def* def) { return get_width_as_def(def->type()); }
 
 template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }

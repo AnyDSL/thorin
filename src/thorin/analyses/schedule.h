@@ -52,6 +52,8 @@ public:
 
     Mode mode() const { return mode_; }
     const Scope& scope() const { return scope_; }
+    Def* entry() const { return scope().entry(); }
+    Def* exit()  const { return scope().exit(); }
     World& world() const { return scope().world(); }
     std::string name() const { return scope().name(); }
     const CFA& cfa() const { return scope().cfa(); }

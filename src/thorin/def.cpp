@@ -327,8 +327,8 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-Axiom::Axiom(NormalizeFn normalizer, const Def* type, size_t num_ops, u32 tag, u32 flags, const Def* dbg)
-    : Def(Node, stub, type, num_ops, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
+Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg)
+    : Def(Node, rebuild, type, Defs{}, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
 {
     u16 currying_depth = 0;
     while (auto pi = type->isa<Pi>()) {
@@ -365,11 +365,6 @@ const Param* Def::param(Debug dbg) {
     if (auto pack     = isa<Pack    >()) return world().param(pack->domain(),     pack,     dbg);
     if (auto sigma    = isa<Sigma   >()) return world().param(sigma,              sigma,    dbg);
     if (auto variadic = isa<Variadic>()) return world().param(variadic->domain(), variadic, dbg);
-    if (auto axiom    = isa<Axiom   >()) {
-        if (auto pi = axiom->type()->isa<Pi>())
-            return world().param(pi->domain(), axiom, dbg);
-        return world().param(world().bot_star(), axiom, dbg);
-    }
     THORIN_UNREACHABLE;
 }
 
@@ -379,6 +374,7 @@ size_t Def::num_params() { return param()->type()->lit_arity(); }
  * rebuild
  */
 
+const Def* Axiom      ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags(), dbg); }
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* CPS2DS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
 const Def* DS2CPS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
@@ -411,14 +407,13 @@ const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, co
  * stub
  */
 
-Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*    ) { return const_cast<Universe*>(to.universe()); }
-Def* Axiom   ::stub(const Def* d, World& to, const Def*  , const Def*    ) { assert(d->isa_nominal()); auto axiom = to.lookup(d->name()); assert(axiom); return axiom; }
-Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
-Def* Pack    ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pack(t, Debug{dbg}); }
-Def* Pi      ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pi(t, Debug{dbg}); }
-Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
-Def* Union   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.union_(t, d->num_ops(), dbg); }
-Def* Variadic::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.variadic(t, Debug{dbg}); }
+Def* Universe::stub(const Def*  , World& w, const Def*  , const Def*    ) { return const_cast<Universe*>(w.universe()); }
+Def* Lam     ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Pack    ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pack(t, Debug{dbg}); }
+Def* Pi      ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pi(t, Debug{dbg}); }
+Def* Sigma   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.sigma(t, d->num_ops(), dbg); }
+Def* Union   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.union_(t, d->num_ops(), dbg); }
+Def* Variadic::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.variadic(t, Debug{dbg}); }
 
 template void Streamable<Def>::dump() const;
 

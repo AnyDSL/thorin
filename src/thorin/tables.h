@@ -32,7 +32,6 @@ using nat_t    = u64;
     m(Int, int) m(SInt, sint) m(Real, real) m(Ptr, ptr)                                                 \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
     m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                   \
-    m(End, end)                                                                                         \
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)
 
 namespace WMode {

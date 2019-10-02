@@ -383,14 +383,14 @@ public:
 
 class Axiom : public Def {
 private:
-    Axiom(NormalizeFn normalizer, const Def* type, size_t num_ops, tag_t tag, flags_t flags, const Def* dbg);
+    Axiom(NormalizeFn normalizer, const Def* type, tag_t tag, flags_t flags, const Def* dbg);
 
 public:
     tag_t tag() const { return fields() >> 32_u64; }
     flags_t flags() const { return fields(); }
     NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
     u16 currying_depth() const { return normalizer_depth_.index(); }
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Axiom;
     friend class World;

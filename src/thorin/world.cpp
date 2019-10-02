@@ -50,14 +50,14 @@ World::World(const std::string& name)
 
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
-        cache_.type_int_  = axiom(p, Tag::Int,  0, {"int "});
-        cache_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
-        cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
+        cache_.type_int_  = axiom(nullptr, p, Tag::Int,  0, {"int "});
+        cache_.type_sint_ = axiom(nullptr, p, Tag::SInt, 0, {"sint"});
+        cache_.type_real_ = axiom(nullptr, p, Tag::Real, 0, {"real"});
         cache_.type_bool_ = type_int(1);
         cache_.lit_bool_[0] = lit(type_bool(), false);
         cache_.lit_bool_[1] = lit(type_bool(),  true);
     } { // ptr: Π[T: *, as: nat]. *
-        cache_.type_ptr_ = axiom(pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
+        cache_.type_ptr_ = axiom(nullptr, pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
     }
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
@@ -180,13 +180,6 @@ World::World(const std::string& name)
 /*
  * core calculus
  */
-
-Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg) {
-    auto a = insert<Axiom>(0, normalize, type, tag, flags, debug(dbg));
-    a->make_external();
-    assert(lookup(a->name()) == a);
-    return a;
-}
 
 static const Def* lub(const Def* t1, const Def* t2) { // TODO broken
     if (t1->isa<Universe>()) return t1;

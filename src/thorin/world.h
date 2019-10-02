@@ -100,8 +100,10 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg = {});
-    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, tag, flags, dbg); }
+    const Axiom* axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) {
+        return unify<Axiom>(0, normalize, type, tag, flags, debug(dbg));
+    }
+    const Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, tag, flags, debug(dbg)); }
     //@}
     /// @name Pi
     //@{
@@ -650,27 +652,27 @@ private:
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
-        std::array<Axiom*, Num<IOp>>  IOp_;
-        std::array<Axiom*, Num<WOp>>  WOp_;
-        std::array<Axiom*, Num<ZOp>>  ZOp_;
-        std::array<Axiom*, Num<ROp>>  ROp_;
-        std::array<Axiom*, Num<ICmp>> ICmp_;
-        std::array<Axiom*, Num<RCmp>> RCmp_;
-        std::array<Axiom*, Num<Conv>> Conv_;
-        std::array<Axiom*, Num<PE>>   PE_;
-        Axiom* type_int_;
-        Axiom* type_sint_;
-        Axiom* type_real_;
-        Axiom* type_ptr_;
+        std::array<const Axiom*, Num<IOp>>  IOp_;
+        std::array<const Axiom*, Num<WOp>>  WOp_;
+        std::array<const Axiom*, Num<ZOp>>  ZOp_;
+        std::array<const Axiom*, Num<ROp>>  ROp_;
+        std::array<const Axiom*, Num<ICmp>> ICmp_;
+        std::array<const Axiom*, Num<RCmp>> RCmp_;
+        std::array<const Axiom*, Num<Conv>> Conv_;
+        std::array<const Axiom*, Num<PE>>   PE_;
+        const Axiom* type_int_;
+        const Axiom* type_sint_;
+        const Axiom* type_real_;
+        const Axiom* type_ptr_;
         const App* type_bool_;
-        Axiom* op_bitcast_;
-        Axiom* op_lea_;
-        Axiom* op_select_;
-        Axiom* op_sizeof_;
-        Axiom* op_alloc_;
-        Axiom* op_slot_;
-        Axiom* op_load_;
-        Axiom* op_store_;
+        const Axiom* op_bitcast_;
+        const Axiom* op_lea_;
+        const Axiom* op_select_;
+        const Axiom* op_sizeof_;
+        const Axiom* op_alloc_;
+        const Axiom* op_slot_;
+        const Axiom* op_load_;
+        const Axiom* op_store_;
     } cache_;
 
     std::string name_;

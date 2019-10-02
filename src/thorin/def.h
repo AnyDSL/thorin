@@ -390,7 +390,7 @@ public:
     flags_t flags() const { return fields(); }
     NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
     u16 currying_depth() const { return normalizer_depth_.index(); }
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Axiom;
     friend class World;

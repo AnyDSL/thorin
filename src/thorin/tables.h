@@ -11,40 +11,27 @@ using flags_t  = u32;
 using fields_t = u64;
 using nat_t    = u64;
 
-#define THORIN_NODE(m) m(KindArity, *A)      /* don't  */ \
-                       m(KindMulti, *M)      /* change */ \
-                       m(KindStar,  *)       /* this   */ \
-                       m(Universe, universe) /* order  */ \
-                       m(App, app)                        \
-                       m(Axiom, axiom)                    \
-                       m(Bot, bot)                        \
-                       m(Extract, extract)                \
-                       m(Insert, insert)                  \
-                       m(Lam, lam)                        \
-                       m(CPS2DS, cps2ds)                  \
-                       m(DS2CPS, ds2cps)                  \
-                       m(Lit, lit)                        \
-                       m(Pack, pack)                      \
-                       m(Pi, pi)                          \
-                       m(Union, union_)                   \
-                       m(Sigma, sigma)                    \
-                       m(Top, top)                        \
-                       m(Tuple, tuple)                    \
-                       m(Variadic, variadic)              \
-                       m(VariantType, variant_type)       \
-                       m(Match_, match_)                  \
-                       m(Nat, nat)                        \
-                       m(Mem, mem)                        \
-                       m(Global, global)                  \
-                       m(Variant, variant)                \
-                       m(Variant_, variant_)              \
-                       m(Analyze, analyze)                \
-                       m(Param, param)
+#define THORIN_NODE(m)                                                                  \
+    m(KindArity, *A) m(KindMulti, *M) m(KindStar,  *) m(Universe, universe)             \
+    m(Pi, pi)             m(Lam, lam)           m(App, app)                             \
+    m(Sigma, sigma)       m(Tuple, tuple)       m(Extract, extract) m(Insert, insert)   \
+    m(Variadic, variadic) m(Pack, pack)                                                 \
+    m(Union, union_)      m(Variant_, variant_) m(Match_, match_)                       \
+    m(Bot, bot) m(Top, top)                                                             \
+    m(CPS2DS, cps2ds) m(DS2CPS, ds2cps)                                                 \
+    m(Analyze, analyze)                                                                 \
+    m(Axiom, axiom)                                                                     \
+    m(Lit, lit)                                                                         \
+    m(Mem, mem)                                                                         \
+    m(Nat, nat)                                                                         \
+    m(Param, param)                                                                     \
+    m(Global, global)                                                                   \
+    m(VariantType, variant_type) m(Variant, variant)
 
 #define THORIN_TAG(m)                                                                                   \
-    m(Int, int) m(Real, real) m(Ptr, ptr)                                                               \
+    m(Int, int) m(SInt, sint) m(Real, real) m(Ptr, ptr)                                                 \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
-    m(Bitcast, bitcast) m(LEA, lea) m(Select, select) m(Sizeof, sizeof)               \
+    m(Bitcast, bitcast) m(LEA, lea) m(Select, select) m(Sizeof, sizeof)                                 \
     m(End, end)                                                                                         \
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)
 

@@ -55,9 +55,10 @@ World::World(const std::string& name)
     auto nat = type_nat();
     auto mem = type_mem();
 
-    {   // int/real: Πw: Nat. *
+    {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
-        cache_.type_int_  = axiom(p, Tag::Int,  0, {"int"});
+        cache_.type_int_  = axiom(p, Tag::Int,  0, {"int "});
+        cache_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
         cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
         cache_.type_bool_ = type_int(1);
         cache_.lit_bool_[0] = lit(type_bool(), false);
@@ -536,6 +537,28 @@ const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
     auto Ts = tuple_of_types(pointee);
     return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, debug(dbg));
+}
+
+const Def* World::op_cast(const Def* dst_type, const Def* src, Debug dbg) {
+    if (auto _int = isa<Tag::Int>(src->type())) {
+        if (false) {}
+        else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::u2u, dst_type, src, dbg);
+        else if (auto sint = isa<Tag::SInt>(dst_type)) return tos(op(Conv::u2u, dst_type, src, dbg));
+        else if (auto real = isa<Tag::Real>(dst_type)) return     op(Conv::u2r, dst_type, src, dbg);
+    } else if (auto sint = isa<Tag::SInt>(src->type())) {
+        src = toi(src);
+        if (false) {}
+        else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::s2s, dst_type, src, dbg);
+        else if (auto sint = isa<Tag::SInt>(dst_type)) return tos(op(Conv::s2s, dst_type, src, dbg));
+        else if (auto real = isa<Tag::Real>(dst_type)) return     op(Conv::s2r, dst_type, src, dbg);
+    } else if (auto real = isa<Tag::Real>(src->type())) {
+        if (false) {}
+        else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::r2u, dst_type, src, dbg);
+        else if (auto sint = isa<Tag::SInt>(dst_type)) return tos(op(Conv::r2s, dst_type, src, dbg));
+        else if (auto real = isa<Tag::Real>(dst_type)) return     op(Conv::r2r, dst_type, src, dbg);
+    }
+
+    return op_bitcast(dst_type, src, dbg);
 }
 
 /*

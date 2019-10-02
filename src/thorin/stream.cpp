@@ -27,9 +27,13 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
     else if (auto top = def->isa<Top>()) return s.fmt("{{⊤: {}}}", top->type());
     else if (auto axiom = def->isa<Axiom>()) return s.fmt("{}", axiom->name());
     else if (auto lit = def->isa<Lit>()) {
-        if (lit->type()->isa<KindArity>()) return s.fmt("{}ₐ", lit->get());
-
-        if (lit->type()->type()->isa<KindArity>()) {
+        if (false) {}
+        else if (lit->type()->isa<Nat>())       return s.fmt("{}_nat", lit->get());
+        else if (lit->type()->isa<KindArity>()) return s.fmt("{}ₐ",    lit->get());
+        else if (auto _int = thorin::isa<Tag:: Int>(lit->type())) return s.fmt("{}_i{}", lit->get(), *get_width(_int));
+        else if (auto sint = thorin::isa<Tag::SInt>(lit->type())) return s.fmt("{}_s{}", lit->get(), *get_width(sint));
+        else if (auto real = thorin::isa<Tag::Real>(lit->type())) return s.fmt("{}_r{}", lit->get(), *get_width(real));
+        else if (lit->type()->type()->isa<KindArity>()) {
             if (lit->type()->isa<Top>()) return s.fmt("{}T", lit->get());
 
             // append utf-8 subscripts in reverse order
@@ -39,10 +43,6 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             std::reverse(str.begin(), str.end());
 
             return s.fmt("{}{}", lit->get(), str);
-        } else if (lit->type()->isa<Nat>()) {
-            return s.fmt("{}_nat", lit->get());
-        } else if (auto int_ = thorin::isa<Tag::Int >(lit->type())) {
-            return s.fmt("{}_i{}", lit->get(), as_lit<nat_t>(int_->arg()));
         } else if (auto real = thorin::isa<Tag::Real>(lit->type())) {
             switch (as_lit<nat_t>(real->arg())) {
                 case 16: return s.fmt("{}_r16", lit->get<r16>());

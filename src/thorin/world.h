@@ -251,7 +251,7 @@ public:
     const Lit* lit_false() { return cache_.lit_bool_[0]; }
     const Lit* lit_true()  { return cache_.lit_bool_[1]; }
     //@}
-    /// @name Lit: Int, Real
+    /// @name Lit: Real
     //@{
     const Lit* lit_real(nat_t width, r64 val, Debug dbg = {}) {
         switch (width) {
@@ -261,25 +261,10 @@ public:
             default: THORIN_UNREACHABLE;
         }
     }
+
     template<class R> const Lit* lit_real(R val, Debug dbg = {}) {
         static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
         return lit(type_real(sizeof(R)*8), val, dbg);
-    }
-    const Lit* lit_real_inf(nat_t w, Debug dbg = {}) {
-        switch (w) {
-            case 16: return lit_real(std::numeric_limits<r16>::infinity(), dbg);
-            case 32: return lit_real(std::numeric_limits<r32>::infinity(), dbg);
-            case 64: return lit_real(std::numeric_limits<r64>::infinity(), dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-    const Lit* lit_real_minus_inf(nat_t w, Debug dbg = {}) {
-        switch (w) {
-            case 16: return lit_real(-std::numeric_limits<r16>::infinity(), dbg);
-            case 32: return lit_real(-std::numeric_limits<r32>::infinity(), dbg);
-            case 64: return lit_real(-std::numeric_limits<r64>::infinity(), dbg);
-            default: THORIN_UNREACHABLE;
-        }
     }
     //@}
     /// @name Top/Bottom
@@ -306,12 +291,15 @@ public:
     const Nat* type_nat() { return cache_.type_nat_; }
     const Mem* type_mem() { return cache_.type_mem_; }
     const Axiom* type_int()  { return cache_.type_int_; }
+    const Axiom* type_sint() { return cache_.type_sint_; }
     const Axiom* type_real() { return cache_.type_real_; }
     const Axiom* type_ptr()  { return cache_.type_ptr_; }
     const App* type_bool() { return cache_.type_bool_; }
     const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
+    const App* type_sint(nat_t w) { return type_sint(lit_nat(w)); }
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
     const App* type_int (const Def* w) { return app(type_int(),  w)->as<App>(); }
+    const App* type_sint(const Def* w) { return app(type_sint(), w)->as<App>(); }
     const App* type_real(const Def* w) { return app(type_real(), w)->as<App>(); }
     const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     const App* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
@@ -319,20 +307,27 @@ public:
     /// @name IOp
     //@{
     const Axiom* op(IOp o) { return cache_.IOp_[size_t(o)]; }
-    const Def* op(IOp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
+    const Def* op(IOp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
     const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(IOp::ixor, lit_int(*w, u64(-1)), a, dbg); }
     //@}
     /// @name WOp
     //@{
     const Axiom* op(WOp o) { return cache_.WOp_[size_t(o)]; }
+    const Def* op(WOp o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) {
+        auto w = infer_width(a);
+        return tos(a, app(app(op(o), {wmode, w}), {toi(a), toi(b)}, dbg));
+    }
     const Def* op(WOp o, nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(wmode), a, b, dbg); }
-    const Def* op(WOp o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {wmode, w}), {a, b}, dbg); }
     const Def* op_WOp_minus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(WOp::sub, wmode, lit_int(*w, 0), a, dbg); }
     //@}
     /// @name ZOp
     //@{
     const Axiom* op(ZOp o) { return cache_.ZOp_[size_t(o)]; }
-    const Def* op(ZOp o, const Def* mem, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {mem, a, b}, dbg); }
+    const Def* op(ZOp o, const Def* mem, const Def* a, const Def* b, Debug dbg = {}) {
+        auto w = infer_width(a);
+        auto [m, x] = app(app(op(o), w), {mem, toi(a), toi(b)}, dbg)->split<2>();
+        return tuple({m, tos(a, x)});
+    }
     //@}
     /// @name ROp
     //@{
@@ -347,7 +342,7 @@ public:
     /// @name ICmp
     //@{
     const Axiom* op(ICmp o) { return cache_.ICmp_[size_t(o)]; }
-    const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
+    const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {toi(a), toi(b)}, dbg); }
     //@}
     /// @name RCmp
     //@{
@@ -356,7 +351,7 @@ public:
     const Def* op(RCmp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(RCmp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
     //@}
-    /// @name Conv
+    /// @name Casts
     //@{
     const Axiom* op(Conv o) { return cache_.Conv_[size_t(o)]; }
     const Def* op(Conv o, const Def* dst_type, const Def* src, Debug dbg = {}) {
@@ -364,6 +359,10 @@ public:
         auto s = src->type()->as<App>()->arg();
         return app(app(op(o), {d, s}), src, dbg);
     }
+    const Axiom* op_bitcast() const { return cache_.op_bitcast_; }
+    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
+    /// Automatically builds the proper @p Conv or @p Bitcast.
+    const Def* op_cast(const Def* dst_type, const Def* src, Debug dbg = {});
     //@}
     /// @name memory-related operations
     //@{
@@ -390,11 +389,9 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Axiom* op_bitcast() const { return cache_.op_bitcast_; }
     const Axiom* op_lea()     const { return cache_.op_lea_;     }
     const Axiom* op_select()  const { return cache_.op_select_;  }
     const Axiom* op_sizeof()  const { return cache_.op_sizeof_;  }
-    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
@@ -410,6 +407,7 @@ public:
         if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
         return std::get<const Def*>(n);
     }
+
     const Def* debug(Debug dbg) {
         if (auto d = std::get_if<0>(&*dbg)) {
             auto n = name2def(std::get<0>(*d));
@@ -519,6 +517,16 @@ public:
     }
 
 private:
+    /// @name convert from int to sint and vice versa
+    //@{
+    const Def* toi(const Def* a) { return op_bitcast(type_int (a->type()->as<App>()->arg()), a); }
+    const Def* tos(const Def* a) { return op_bitcast(type_sint(a->type()->as<App>()->arg()), a); }
+    const Def* tos(const Def* a, const Def* app) {
+        if (auto sint = isa<Tag::SInt>(a->type()))
+            return op_bitcast(sint, app);
+        return app;
+    }
+    //@}
     /// @name put into sea of nodes
     //@{
     template<class T, class... Args>
@@ -549,9 +557,9 @@ private:
         return def;
     }
 
-    static inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
+    static constexpr inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
 
-    template<class T> static inline size_t num_bytes_of(size_t num_ops) {
+    template<class T> static constexpr inline size_t num_bytes_of(size_t num_ops) {
         size_t result = sizeof(Def) + sizeof(const Def*)*num_ops;
         return align(result);
     }
@@ -655,6 +663,7 @@ private:
         std::array<Axiom*, Num<PE>>   PE_;
         Axiom* op_end_;
         Axiom* type_int_;
+        Axiom* type_sint_;
         Axiom* type_real_;
         Axiom* type_ptr_;
         const App* type_bool_;

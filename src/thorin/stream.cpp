@@ -65,8 +65,10 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         // TODO
     } else if (auto app = def->isa<App>()) {
         if (auto w = get_width(app)) {
+            if (auto _int = thorin::isa<Tag:: Int>(app)) return s.fmt("i{}", *w);
+            if (auto sint = thorin::isa<Tag::SInt>(app)) return s.fmt("s{}", *w);
             if (auto real = thorin::isa<Tag::Real>(app)) return s.fmt("r{}", *w);
-            return s.fmt("i{}", *w);
+            THORIN_UNREACHABLE;
         } else if (auto ptr = thorin::isa<Tag::Ptr>(app)) {
             auto [pointee, addr_space] = ptr->args<2>();
             if (auto as = isa_lit<nat_t>(addr_space); as && *as == 0) return s.fmt("{}*", pointee);
@@ -80,6 +82,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         if (tuple == def->world().table_and()) return s.fmt("AND");
         if (tuple == def->world().table_or ()) return s.fmt( "OR");
         if (tuple == def->world().table_xor()) return s.fmt("XOR");
+        if (tuple == def->world().table_not()) return s.fmt("NOT");
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto variadic = def->isa<Variadic>()) {

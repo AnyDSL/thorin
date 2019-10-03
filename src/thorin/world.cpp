@@ -57,9 +57,10 @@ World::World(const std::string& name)
                               tuple({lit_true (), lit_true ()})}, { "or"});
     cache_.table_xor = tuple({tuple({lit_false(), lit_false()}),
                               tuple({lit_true (), lit_false()})}, {"xor"});
+    cache_.table_not =        tuple({lit_true (), lit_false()}  , {"not"}); // AKA extract(xor, 1)
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
-        cache_.type_int_  = axiom(p, Tag::Int,  0, { "int"});
+        cache_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
         cache_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
         cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
     } { // ptr: Π[T: *, as: nat]. *

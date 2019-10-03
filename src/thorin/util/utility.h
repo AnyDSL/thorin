@@ -13,7 +13,7 @@
 #include "thorin/util/types.h"
 
 [[noreturn]] inline void _thorin_unreachable() { abort(); }
-#define THORIN_UNREACHABLE do { assert(true &&(THORIN_STRINGIFY(__FILE__) ":" THORIN_STRINGIFY(__LINE__) ": unreachable")); ::_thorin_unreachable(); } while(0)
+#define THORIN_UNREACHABLE do { assert(false && "unreachable"); ::_thorin_unreachable(); } while(0)
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");

@@ -213,10 +213,11 @@ public:
     const Def* table_and() const { return cache_.table_and; }
     const Def* table_or () const { return cache_.table_or ; }
     const Def* table_xor() const { return cache_.table_xor; }
+    const Def* table_not() const { return cache_.table_not; }
     const Def* extract_and(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_and(), a, dbg), b, dbg); }
     const Def* extract_or (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_or (), a, dbg), b, dbg); }
     const Def* extract_xor(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xor(), a, dbg), b, dbg); }
-    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract_xor(lit_true(), a, dbg); }
+    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract(table_not(), a, dbg); }
     //@}
     /// @name Insert
     //@{
@@ -252,6 +253,14 @@ public:
     /// @name Lit: Nat
     //@{
     const Lit* lit_nat(u64 a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
+    //@}
+    /// @name Lit: SInt
+    //@{
+    const Lit* lit_sint(nat_t width, s64 val, Debug dbg = {}) { return lit(type_sint(width), (u64(-1) >> (64_u64 - width)) & val, dbg); }
+    template<class I> const Lit* lit_sint(I val, Debug dbg = {}) {
+        static_assert(std::is_integral<I>() && std::is_signed_v<I>);
+        return lit(type_sint(sizeof(I)*8), val, dbg);
+    }
     //@}
     /// @name Lit: Int
     //@{
@@ -664,6 +673,7 @@ private:
         const Def* table_and;
         const Def* table_or;
         const Def* table_xor;
+        const Def* table_not;
         std::array<const Axiom*, Num<IOp>>  IOp_;
         std::array<const Axiom*, Num<WOp>>  WOp_;
         std::array<const Axiom*, Num<ZOp>>  ZOp_;

@@ -463,13 +463,15 @@ private:
 
 #if THORIN_ENABLE_PROFILING
     void debug(size_t i) {
-        auto dib = probe_distance(i);
-        if (dib > 2_s*log2(capacity())) {
-            // don't use LOG here - this results in a header dependency hell
-            printf("poor hash function; element %zu has distance %zu with size/capacity: %zu/%zu\n", i, dib, size(), capacity());
-            for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                printf("elem:desired_pos:hash: %zu:%zu:%" PRIu32 "\n", j, desired_pos(key(&nodes_[j])), hash(j));
-            debug_hash();
+        if (capacity() >= 32) {
+            auto dib = probe_distance(i);
+            if (dib > 2_s*log2(capacity())) {
+                // don't use LOG here - this results in a header dependency hell
+                printf("poor hash function; element %zu has distance %zu with size/capacity: %zu/%zu\n", i, dib, size(), capacity());
+                for (size_t j = mod(i-dib); j != i; j = mod(j+1))
+                    printf("elem:desired_pos:hash: %zu:%zu:%" PRIu32 "\n", j, desired_pos(key(&nodes_[j])), hash(j));
+                debug_hash();
+            }
         }
     }
 #else

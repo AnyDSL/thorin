@@ -72,6 +72,7 @@ private:
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
 protected:
+    llvm::Value* i1toi32(llvm::Value*);
     void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
     llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 

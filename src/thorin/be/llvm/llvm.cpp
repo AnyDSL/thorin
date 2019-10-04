@@ -514,6 +514,13 @@ void CodeGen::emit(std::ostream& stream, int opt, bool debug) {
     emit(opt, debug)->print(llvm_stream, nullptr);
 }
 
+// work-around stupid llvm bahvior that sexts i1s
+llvm::Value* CodeGen::i1toi32(llvm::Value* val) {
+    if (val->getType()->isIntegerTy(1))
+        return irbuilder_.CreateZExt(val, irbuilder_.getInt32Ty());
+    return val;
+}
+
 void CodeGen::optimize(int opt) {
     if (opt != 0) {
         llvm::PassManagerBuilder pmbuilder;
@@ -789,7 +796,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto alloca = emit_alloca(llvm_agg->getType(), def->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
-            llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
+            llvm::Value* args[2] = { irbuilder_.getInt64(0), i1toi32(llvm_idx) };
             auto gep = irbuilder_.CreateInBoundsGEP(alloca, args);
             return std::make_pair(alloca, gep);
         };
@@ -797,17 +804,39 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
                 auto global = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(def->op(0)->unique_name().c_str(), llvm_agg->getType()));
                 global->setInitializer(constant);
-                return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), llvm_idx });
+                return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), i1toi32(llvm_idx) });
             }
             return copy_to_alloca().second;
         };
 
         if (auto extract = def->isa<Extract>()) {
-            if (is_memop(extract->tuple()))
-                return lookup(extract->tuple());
+            if (extract->tuple() == world().table_not()) return irbuilder_.CreateNeg(llvm_idx);
+            if (auto inner = extract->tuple()->isa<Extract>()) {
+                if (extract->tuple()->type() == world().variadic({2, 2}, world().type_bool())) {
+                    // this is a truth table
+                    auto check = [&](bool aa, bool bb, bool cc, bool dd) {
+                        auto [ab, cd] = extract->tuple()->split<2>();
+                        auto [ a,  b] = ab->split<2>(isa_lit<bool>);
+                        auto [ c,  d] = cd->split<2>(isa_lit<bool>);
+                        return (a && b && c && d) && *a == aa && *b == bb && *c == cc && *d == dd;
+                    };
 
-            if (extract->tuple()->type()->isa<Variadic>())
-                return irbuilder_.CreateLoad(copy_to_alloca_or_global());
+                    auto llvm_inner_idx = lookup(inner->index());
+                    if (check(false, false, false, true )) return irbuilder_.CreateAnd(llvm_inner_idx, llvm_idx);
+                    if (check(false, false, true , false)) return irbuilder_.CreateAnd(irbuilder_.CreateNeg(llvm_inner_idx), llvm_idx);
+                    if (check(false, true , false, false)) return irbuilder_.CreateAnd(llvm_inner_idx, irbuilder_.CreateNeg(llvm_idx));
+                    if (check(false, true , true , false)) return irbuilder_.CreateXor(llvm_inner_idx, llvm_idx);
+                    if (check(false, true , true , true )) return irbuilder_.CreateOr (llvm_inner_idx, llvm_idx);
+                    if (check(true , false, false, false)) return irbuilder_.CreateNeg(irbuilder_.CreateOr (llvm_inner_idx, llvm_idx));
+                    if (check(true , false, false, true )) return irbuilder_.CreateNeg(irbuilder_.CreateXor(llvm_inner_idx, llvm_idx));
+                    if (check(true , false, true , true )) return irbuilder_.CreateOr (llvm_inner_idx, irbuilder_.CreateNeg(llvm_idx));
+                    if (check(true , true , false, true )) return irbuilder_.CreateOr (irbuilder_.CreateNeg(llvm_inner_idx), llvm_idx);
+                    if (check(true , true , true , false)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(llvm_inner_idx, llvm_idx));
+                }
+            }
+
+            if (is_memop(extract->tuple())) return lookup(extract->tuple());
+            if (extract->tuple()->type()->isa<Variadic>()) return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             // tuple/struct
             return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index())});
@@ -908,7 +937,7 @@ llvm::Value* CodeGen::emit_lea(const App* lea) {
         return irbuilder_.CreateStructGEP(convert(pointee), lookup(ptr), as_lit<u64>(index));
 
     assert(pointee->isa<Variadic>());
-    llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(index) };
+    llvm::Value* args[2] = { irbuilder_.getInt64(0), i1toi32(lookup(index)) };
     return irbuilder_.CreateInBoundsGEP(lookup(ptr), args);
 }
 

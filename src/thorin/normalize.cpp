@@ -635,9 +635,13 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
         return other->arg()->type() == dst_type ? other->arg() : world.op_bitcast(dst_type, other->arg(), dbg);
 
     if (auto lit = src->isa<Lit>()) {
-        if (dst_type->type()->isa<KindArity>()) return world.lit_index(dst_type, lit->get());
-        if (dst_type->isa<Nat>())               return world.lit(dst_type, lit->get());
-        if (get_width(dst_type))                return world.lit(dst_type, lit->get());
+        if (dst_type->isa<Nat>()) return world.lit(dst_type, lit->get(), dbg);
+        if (get_width(dst_type))  return world.lit(dst_type, lit->get(), dbg);
+
+        if (auto a = isa_arity(dst_type)) {
+            if (lit->get() < a) return world.lit_index(dst_type, lit->get(), dbg);
+            return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
+        }
     }
 
     if (auto variant = src->isa<Variant>()) {

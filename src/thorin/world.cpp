@@ -367,7 +367,7 @@ static const Def* ex(const Def* def, u64 i) {
     return nullptr;
 }
 
-static bool is_symetric(const Def* def) {
+static bool is_symmetric(const Def* def) {
     // we can't use Def::out - this would cause an endless recursion
     if (auto a = isa_lit_arity(def->type()->arity())) {
         if (auto z = ex(def, 0)) {
@@ -453,7 +453,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         }
     }
 
-    if (auto inner = tup->isa<Extract>(); inner && is_symetric(inner->tuple())) {
+    if (auto inner = tup->isa<Extract>(); inner && is_symmetric(inner->tuple())) {
         if (index == inner->index()) {
             // extract(extract(sym, i), i) -> extract(diag(sym), i)
             auto a = inner->tuple()->type()->lit_arity();

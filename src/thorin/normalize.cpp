@@ -639,7 +639,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
         if (get_width(dst_type))  return world.lit(dst_type, lit->get(), dbg);
 
         if (auto a = isa_arity(dst_type)) {
-            if (lit->get() < a) return world.lit_index(dst_type, lit->get(), dbg);
+            if (lit->get() < *a) return world.lit_index(dst_type, lit->get(), dbg);
             return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
         }
     }

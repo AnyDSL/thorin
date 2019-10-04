@@ -55,7 +55,7 @@ World::World(const std::string& name)
                               tuple({lit_false(), lit_true ()})}, {"and"});
     cache_.table_or  = tuple({tuple({lit_false(), lit_true ()}),
                               tuple({lit_true (), lit_true ()})}, { "or"});
-    cache_.table_xor = tuple({tuple({lit_false(), lit_false()}),
+    cache_.table_xor = tuple({tuple({lit_false(), lit_true()}),
                               tuple({lit_true (), lit_false()})}, {"xor"});
     cache_.table_not =        tuple({lit_true (), lit_false()}  , {"not"}); // AKA extract(xor, 1)
     {   // int/sint/real: Πw: Nat. *

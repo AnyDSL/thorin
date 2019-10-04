@@ -360,17 +360,39 @@ const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
     return unify<Match_>(cases.size() + 1, type, ops, debug(dbg));
 }
 
-#if 0
-static bool is_symetric(const Def* a) {
-
+// TODO put this somewhere else
+static const Def* ex(const Def* def, u64 i) {
+    if (auto tuple = def->isa<Tuple>()) return tuple->op(i);
+    if (auto pack  = def->isa<Pack >()) return pack->body();
+    return nullptr;
 }
-#endif
+
+static bool is_symetric(const Def* def) {
+    // we can't use Def::out - this would cause an endless recursion
+    if (auto a = isa_lit_arity(def->type()->arity())) {
+        if (auto z = ex(def, 0)) {
+            if (auto b = isa_lit_arity(z->type()->arity())) {
+                if (*a == *b) {
+                    for (size_t i = 0; i != *a; ++i) {
+                        for (size_t j = i+1; j != *a; ++j) {
+                            auto ij = ex(ex(def, i), j);
+                            auto ji = ex(ex(def, j), i);
+                            if (ij == nullptr || ji == nullptr || ij != ji) return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 
 const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
             "extracting from tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
 
-    if (isa_arity(index->type(), 1)) return tup;
+    if (isa_lit_arity(index->type(), 1)) return tup;
     if (auto pack = tup->isa<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val
@@ -431,6 +453,17 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         }
     }
 
+    if (auto inner = tup->isa<Extract>(); inner && is_symetric(inner->tuple())) {
+        if (index == inner->index()) {
+            // extract(extract(sym, i), i) -> extract(diag(sym), i)
+            auto a = inner->tuple()->type()->lit_arity();
+            auto ops = Array<const Def*>(a, [&](size_t i) { return ex(ex(inner->tuple(), i), i); });
+            return extract(tuple(ops), index, dbg);
+        } else if (inner->index()->gid() > index->gid()) {
+            // extract(extract(sym, j), i) -> extract(extract(sym, i), j)
+            return extract(extract(inner->tuple(), index, inner->debug()), inner->index(), dbg);
+        }
+    }
 
     auto type = tup->type()->as<Variadic>()->codomain();
     return unify<Extract>(2, type, tup, index, debug(dbg));
@@ -440,7 +473,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
             "inserting into tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
 
-    if (isa_arity(index->type(), 1)) return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
+    if (isa_lit_arity(index->type(), 1)) return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
 
     // insert((a, b, c, d), 2, x) -> (a, b, x, d)
     if (auto t = tup->isa<Tuple>()) {
@@ -572,7 +605,7 @@ const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
 }
 
 const Def* World::op_cast(const Def* dst_type, const Def* src, Debug dbg) {
-    if (isa_arity(src->type(), 2) && get_width(dst_type))
+    if (isa_lit_arity(src->type(), 2) && get_width(dst_type))
         src = op_bitcast(type_int(1), src); // cast bool first to i1
 
     if (auto _int = isa<Tag::Int>(src->type())) {

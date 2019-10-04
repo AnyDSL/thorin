@@ -638,7 +638,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
         if (dst_type->isa<Nat>()) return world.lit(dst_type, lit->get(), dbg);
         if (get_width(dst_type))  return world.lit(dst_type, lit->get(), dbg);
 
-        if (auto a = isa_arity(dst_type)) {
+        if (auto a = isa_lit_arity(dst_type)) {
             if (lit->get() < *a) return world.lit_index(dst_type, lit->get(), dbg);
             return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
         }
@@ -657,7 +657,7 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     auto [ptr, index] = arg->split<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
-    if (isa_arity(pointee->arity(), 1)) return ptr;
+    if (isa_lit_arity(pointee->arity(), 1)) return ptr;
 
     return world.raw_app(callee, {ptr, index}, dbg);
 }

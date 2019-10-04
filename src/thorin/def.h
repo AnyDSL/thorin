@@ -444,6 +444,10 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
+inline nat_t as_arity(const Def* def) { assert(def->type()->isa<KindArity>()); return  as_lit<nat_t>(def); }
+inline std::optional<nat_t> isa_arity(const Def* def) { return def->type()->isa<KindArity>() ? isa_lit<nat_t>(def) : std::nullopt; }
+inline bool isa_arity(const Def* def, nat_t arity) { if (auto a = isa_arity(def)) return *a == arity; return false; }
+
 /// A function type AKA Pi type.
 class Pi : public Def {
 protected:

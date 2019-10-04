@@ -534,6 +534,9 @@ const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
 }
 
 const Def* World::op_cast(const Def* dst_type, const Def* src, Debug dbg) {
+    if (isa_arity(src->type(), 2) && get_width(dst_type))
+        src = op_bitcast(type_int(1), src); // cast bool first to i1
+
     if (auto _int = isa<Tag::Int>(src->type())) {
         if (false) {}
         else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::u2u, dst_type, src, dbg);

@@ -783,9 +783,6 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
     VLOG("end: {},", info);
 }
 
-template void World::visit<true> (VisitFn) const;
-template void World::visit<false>(VisitFn) const;
-
 /*
  * logging
  */
@@ -847,5 +844,11 @@ Stream& World::stream(Stream& s) const {
     });
     return s;
 }
+
+template void Streamable<World>::write(const std::string& filename) const;
+template void Streamable<World>::write() const;
+template void Streamable<World>::dump() const;
+template void World::visit<true> (VisitFn) const;
+template void World::visit<false>(VisitFn) const;
 
 }

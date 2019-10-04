@@ -211,8 +211,10 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto type = pi->apply(arg);
 
     auto [axiom, currying_depth] = get_axiom(callee); // TODO move down again
+#if 0
     if (axiom == nullptr || (axiom->tag() != Tag::Bitcast && axiom->tag() != Tag::LEA)) // HACK
         assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
+#endif
 
     if (auto lam = callee->isa<Lam>()) {
         if (lam->intrinsic() == Lam::Intrinsic::Match) {
@@ -229,9 +231,8 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     }
 
     if (axiom && currying_depth == 1) {
-        if (auto normalize = axiom->normalizer()) {
+        if (auto normalize = axiom->normalizer())
             return normalize(type, callee, arg, debug(dbg));
-        }
     }
 
     return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));

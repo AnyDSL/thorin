@@ -637,7 +637,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
     if (auto lit = src->isa<Lit>()) {
         if (dst_type->type()->isa<KindArity>()) return world.lit_index(dst_type, lit->get());
         if (dst_type->isa<Nat>())               return world.lit(dst_type, lit->get());
-        if (auto w = get_width(dst_type))       return world.lit_int(*w, lit->get());
+        if (get_width(dst_type))                return world.lit(dst_type, lit->get());
     }
 
     if (auto variant = src->isa<Variant>()) {

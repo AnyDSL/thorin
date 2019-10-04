@@ -41,11 +41,9 @@ World::World(const std::string& name)
     cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     cache_.type_mem_      = insert<Mem>(0, *this);
     cache_.type_nat_      = insert<Nat>(0, *this);
-    cache_.lit_arity_1_   = lit_arity(1);
     cache_.type_bool_     = lit_arity(2);
     cache_.lit_bool_[0]   = lit_index(2, 0);
     cache_.lit_bool_[1]   = lit_index(2, 1);
-    cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
 
     auto star = kind_star();
     auto nat = type_nat();
@@ -372,7 +370,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
             "extracting from tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
 
-    if (index->type() == lit_arity_1()) return tup;
+    if (isa_arity(index->type(), 1)) return tup;
     if (auto pack = tup->isa<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val
@@ -402,7 +400,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
             "inserting into tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
 
-    if (index->type() == lit_arity_1()) return val;
+    if (isa_arity(index->type(), 1)) return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
 
     // insert((a, b, c, d), 2, x) -> (a, b, x, d)
     if (auto t = tup->isa<Tuple>()) {

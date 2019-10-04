@@ -22,7 +22,7 @@ const Def* Def::arity() const {
     if (auto sigma    = isa<Sigma   >()) return world().lit_arity(sigma->num_ops());
     if (auto union_   = isa<Union   >()) return world().lit_arity(union_->num_ops());
     if (auto variadic = isa<Variadic>()) return variadic->domain();
-    return world().lit_arity_1();
+    return world().lit_arity(1);
 }
 
 nat_t Def::lit_arity() const {

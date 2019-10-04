@@ -239,13 +239,11 @@ public:
     /// @name Lit: Arity - note that this is a type
     //@{
     const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), a, dbg); }
-    const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
     /// @name Lit: Index - the inhabitants of an Arity
     //@{
     const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
-    const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return cache_.lit_bool_[0]; }
     const Lit* lit_true()  { return cache_.lit_bool_[1]; }
@@ -668,8 +666,6 @@ private:
         const Mem* type_mem_;
         const Lit* type_bool_;
         std::array<const Lit*, 2> lit_bool_;
-        const Lit* lit_arity_1_;
-        const Lit* lit_index_0_1_;
         const Def* table_and;
         const Def* table_or;
         const Def* table_xor;

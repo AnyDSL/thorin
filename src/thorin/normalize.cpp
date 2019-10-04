@@ -657,7 +657,7 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     auto [ptr, index] = arg->split<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
-    if (pointee->arity() == world.lit_arity_1()) return ptr;
+    if (isa_arity(pointee->arity(), 1)) return ptr;
 
     return world.raw_app(callee, {ptr, index}, dbg);
 }

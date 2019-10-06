@@ -99,10 +99,9 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
     }
 
     // unknown node type
-    if (def->fields() != 0)
-        return s.fmt("{}#{} {, }", def->node_name(), def->fields(), def->ops());
-    else
+    if (def->fields() == 0)
         return s.fmt("{} {, }", def->node_name(), def->ops());
+    return s.fmt("{}#{} {, }", def->node_name(), def->fields(), def->ops());
 }
 
 Stream& stream_assignment(Stream& s, const Def* def) {

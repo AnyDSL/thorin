@@ -414,41 +414,38 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
             return unify<Extract>(2, sigma->op(*i), tup, index, debug(dbg));
     }
 
-    if (auto tuple = tup->isa<Tuple>()) {
-        if (auto variadic = tuple->type()->isa<Variadic>()) {
-            if (auto tuple = tup->isa<Tuple>()) {
-                // extract((0, 1, 2, ...), i) -> i
-                bool ascending = true;
-                for (size_t i = 0, e = tuple->num_ops(); i < e; ++i) {
-                    if (auto lit = isa_lit<u64>(tuple->op(i)))
-                        ascending &= *lit == i;
-                    else
-                        ascending = false;
-                }
+    if (auto variadic = tup->type()->isa<Variadic>()) {
+        if (auto tuple = tup->isa<Tuple>()) {
+            // TODO we could even deal with an offset
+            // extract((0, 1, 2, ...), i) -> i
+            bool ascending = true;
+            for (size_t i = 0, e = tuple->num_ops(); i != e && ascending; ++i) {
+                if (auto lit = isa_lit<u64>(tuple->op(i)))
+                    ascending &= *lit == i;
+                else
+                    ascending = false;
+            }
 
-                if (ascending)
-                    return op_bitcast(variadic->codomain(), index, dbg);
+            if (ascending)
+                return op_bitcast(variadic->codomain(), index, dbg);
 
-                // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
-                if (auto i_ex = index->isa<Extract>()) {
-                    if (auto i_tup = i_ex->tuple()->isa<Tuple>()) {
-                        bool descending = true;
-                        for (size_t i = 0, e = i_tup->num_ops(); i < e; ++i) {
-                            if (auto lit = isa_lit<u64>(i_tup->op(i)))
-                                descending &= *lit == e - i - 1;
-                            else
-                                descending = false;
-                        }
+            // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
+            if (auto i_ex = index->isa<Extract>()) {
+                if (auto i_tup = i_ex->tuple()->isa<Tuple>()) {
+                    bool descending = true;
+                    for (size_t i = 0, e = i_tup->num_ops(); i != e && descending; ++i) {
+                        if (auto lit = isa_lit<u64>(i_tup->op(i)))
+                            descending &= *lit == e - i - 1;
+                        else
+                            descending = false;
+                    }
 
-                        if (descending) {
-                            auto ops = tuple->split();
-                            std::reverse(ops.begin(), ops.end());
-                            return extract(this->tuple(tuple->type(), ops, tuple->debug()), i_ex->index(), dbg);
-                        }
+                    if (descending) {
+                        auto ops = tuple->split();
+                        std::reverse(ops.begin(), ops.end());
+                        return extract(this->tuple(tuple->type(), ops, tuple->debug()), i_ex->index(), dbg);
                     }
                 }
-
-            // TODO we could even deal with an offset
             }
         }
     }

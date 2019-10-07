@@ -354,6 +354,9 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
                 // iand, ior, ixor are commutative, the literal has been normalized to the left
             }
         }
+
+        if ((op == IOp::ashr || op == IOp::lshr) && lb->get() > *w)
+            return world.bot(type, dbg);
     }
 
     if (a == b) {
@@ -366,6 +369,8 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             default: THORIN_UNREACHABLE;
         }
     }
+
+    // TODO absorption
 
     if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b, dbg)) return res;
 
@@ -413,8 +418,11 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        // a - lb -> a + (~lb + 1)
-        if (op == WOp::sub) return world.op(WOp::add, *m, a, world.lit_int(*w, ~lb->get() + 1_u64));
+
+        if (op == WOp::sub)
+            return world.op(WOp::add, *m, a, world.lit_int(*w, ~lb->get() + 1_u64)); // a - lb -> a + (~lb + 1)
+        else if (op == WOp::shl && lb->get() > *w)
+            return world.bot(type, dbg);
     }
 
     if (a == b) {

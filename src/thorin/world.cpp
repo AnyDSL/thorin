@@ -501,6 +501,8 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x, dbg); }
     }
 
+    // TODO absorption
+
     auto type = tup->type()->as<Variadic>()->codomain();
     return unify<Extract>(2, type, tup, index, debug(dbg));
 }
@@ -707,106 +709,6 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
     }
     THORIN_UNREACHABLE;
 }
-
-/*
- * deprecated
- */
-
-#if 0
-/*
- * arithops
- */
-
-const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
-    assert(a->type() == b->type());
-    auto type = a->type();
-
-    auto llit = a->isa<Lit>();
-    auto rlit = b->isa<Lit>();
-
-    if (is_type_i(type) || type == PrimType_bool) {
-        if (rlit && as_lit<u64>(rlit) >= uint64_t(num_bits(type))) {
-            switch (tag) {
-                case ArithOp_shl:
-                case ArithOp_shr: return bot(type, dbg);
-
-                default: break;
-            }
-        }
-
-        if (tag == ArithOp_xor && is_allset(a)) {    // is this a NOT
-            if (is_not(b))                            // do we have ~~x?
-                return b->as<ArithOp>()->rhs();
-        }
-
-        auto land = a->tag() == Node_and ? a->as<ArithOp>() : nullptr;
-        auto rand = b->tag() == Node_and ? b->as<ArithOp>() : nullptr;
-
-        // distributivity (a and b) or (a and c)
-        if (tag == ArithOp_or && land && rand) {
-            if (land->lhs() == rand->lhs())
-                return arithop_and(land->lhs(), arithop_or(land->rhs(), rand->rhs(), dbg), dbg);
-            if (land->rhs() == rand->rhs())
-                return arithop_and(land->rhs(), arithop_or(land->lhs(), rand->lhs(), dbg), dbg);
-        }
-
-        auto lor = a->tag() == Node_or ? a->as<ArithOp>() : nullptr;
-        auto ror = b->tag() == Node_or ? b->as<ArithOp>() : nullptr;
-
-        // distributivity (a or b) and (a or c)
-        if (tag == ArithOp_and && lor && ror) {
-            if (lor->lhs() == ror->lhs())
-                return arithop_or(lor->lhs(), arithop_and(lor->rhs(), ror->rhs(), dbg), dbg);
-            if (lor->rhs() == ror->rhs())
-                return arithop_or(lor->rhs(), arithop_and(lor->lhs(), ror->lhs(), dbg), dbg);
-        }
-
-        // absorption: a and (a or b) = a
-        if (tag == ArithOp_and) {
-            if (ror) {
-                if (a == ror->lhs()) return ror->rhs();
-                if (a == ror->rhs()) return ror->lhs();
-            }
-            if (lor) {
-                if (a == lor->lhs()) return lor->rhs();
-                if (a == lor->rhs()) return lor->lhs();
-            }
-        }
-
-        // absorption: a or (a and b) = a
-        if (tag == ArithOp_or) {
-            if (rand) {
-                if (a == rand->lhs()) return rand->rhs();
-                if (a == rand->rhs()) return rand->lhs();
-            }
-            if (land) {
-                if (a == land->lhs()) return land->rhs();
-                if (a == land->rhs()) return land->lhs();
-            }
-        }
-
-        if (tag == ArithOp_or) {
-            if (lor && ror) {
-                if (lor->lhs() == ror->lhs())
-                    return arithop_or(lor->rhs(), ror->rhs(), dbg);
-                if (lor->rhs() == ror->rhs())
-                    return arithop_or(lor->lhs(), ror->lhs(), dbg);
-            }
-        }
-
-        if (tag == ArithOp_and) {
-            if (land && rand) {
-                if (land->lhs() == rand->lhs())
-                    return arithop_and(land->rhs(), rand->rhs(), dbg);
-                if (land->rhs() == rand->rhs())
-                    return arithop_and(land->lhs(), rand->lhs(), dbg);
-            }
-        }
-    }
-
-    return unify<ArithOp>(2, tag, a, b, debug(dbg));
-}
-#endif
 
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);

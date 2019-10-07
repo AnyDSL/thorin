@@ -388,6 +388,29 @@ static bool is_symmetric(const Def* def) {
     return false;
 }
 
+template<tag_t tag>
+static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug dbg) {
+    auto a_cmp = isa<tag>(a);
+    auto b_cmp = isa<tag>(b);
+
+    if (a_cmp && b_cmp && a_cmp->args() == b_cmp->args()) {
+        // push flags of a_cmp and b_cmp through truth table
+        flags_t res = 0;
+        flags_t a_flags = a_cmp.axiom()->flags();
+        flags_t b_flags = b_cmp.axiom()->flags();
+        for (size_t i = 0; i != log2(Num<Tag2Enum<tag>>); ++i, res <<= 1, a_flags >>= 1, b_flags >>= 1)
+            res |= as_lit<bool>(ex(ex(tuple, a_flags & 1), b_flags & 1));
+        res >>= 1;
+
+        auto& world = tuple->world();
+        if constexpr (tag == Tag::RCmp)
+            return world.op(RCmp(res), /*rmode*/ a_cmp->decurry()->arg(0), a_cmp->arg(0), a_cmp->arg(1), dbg);
+        else
+            return world.op(ICmp(res), a_cmp->arg(0), a_cmp->arg(1), dbg);
+    }
+    return nullptr;
+}
+
 const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
             "extracting from tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
@@ -430,6 +453,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
                 return op_bitcast(variadic->codomain(), index, dbg);
 
             // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
+            // this also deals with NOT
             if (auto i_ex = index->isa<Extract>()) {
                 if (auto i_tup = i_ex->tuple()->isa<Tuple>()) {
                     bool descending = true;
@@ -450,16 +474,31 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         }
     }
 
-    if (auto inner = tup->isa<Extract>(); inner && is_symmetric(inner->tuple())) {
-        if (index == inner->index()) {
-            // extract(extract(sym, i), i) -> extract(diag(sym), i)
-            auto a = inner->tuple()->type()->lit_arity();
-            auto ops = Array<const Def*>(a, [&](size_t i) { return ex(ex(inner->tuple(), i), i); });
-            return extract(tuple(ops), index, dbg);
-        } else if (inner->index()->gid() > index->gid()) {
-            // extract(extract(sym, j), i) -> extract(extract(sym, i), j)
-            return extract(extract(inner->tuple(), index, inner->debug()), inner->index(), dbg);
+    if (auto inner = tup->isa<Extract>()) {
+        auto a = inner->index();
+        auto b = index;
+        auto arity = inner->tuple()->type()->lit_arity();
+
+        if (is_const(inner->tuple())) {
+            if (auto res = merge_cmps<Tag::ICmp>(inner->tuple(), a, b, dbg)) return res;
+            if (auto res = merge_cmps<Tag::RCmp>(inner->tuple(), a, b, dbg)) return res;
         }
+
+        if (is_symmetric(inner->tuple())) {
+            if (a == b) {
+                // extract(extract(sym, a), a) -> extract(diag(sym), a)
+                auto ops = Array<const Def*>(arity, [&](size_t i) { return ex(ex(inner->tuple(), i), i); });
+                return extract(tuple(ops), a, dbg);
+            } else if (a->gid() > b->gid()) {
+                // extract(extract(sym, b), a) -> extract(extract(sym, a), b)
+                return extract(extract(inner->tuple(), b, inner->debug()), a, dbg);
+            }
+        }
+    }
+
+    if (tup == table_not()) {
+        if (auto icmp = isa<Tag::ICmp>(index)) { auto [x, y] = icmp->args<2>(); return op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x, dbg); }
+        if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x, dbg); }
     }
 
     auto type = tup->type()->as<Variadic>()->codomain();

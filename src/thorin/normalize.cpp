@@ -281,19 +281,24 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, [[maybe_unused]] c
  */
 
 template<tag_t tag, class F>
-static const Def* merge_cmps(World& world, const Def* a, const Def* b) {
+static const Def* merge_cmps(World& world, const Def* a, const Def* b, const Def* dbg) {
     auto a_cmp = isa<tag>(a), b_cmp = isa<tag>(b);
     if (a_cmp && b_cmp && a_cmp->arg() == b_cmp->arg()) {
         auto [x, y] = a_cmp->template args<2>();
-        return world.op(Tag2Enum<tag>(F()(flags_t(a_cmp.flags()), flags_t(b_cmp.flags()))), x, y);
+        auto op = Tag2Enum<tag>(F()(flags_t(a_cmp.flags()), flags_t(b_cmp.flags())));
+
+        if constexpr (tag == Tag::RCmp)
+            return world.op(op, /*rmode*/ a_cmp->decurry()->arg(0), x, y, dbg);
+        else
+            return world.op(op, x, y, dbg);
     }
     return nullptr;
 }
 
 template<class F>
-static const Def* merge_cmps(World& world, const Def* a, const Def* b) {
-    if (auto res = merge_cmps<Tag::ICmp, F>(world, a, b)) return res;
-    if (auto res = merge_cmps<Tag::RCmp, F>(world, a, b)) return res;
+static const Def* merge_cmps(World& world, const Def* a, const Def* b, const Def* dbg) {
+    if (auto res = merge_cmps<Tag::ICmp, F>(world, a, b, dbg)) return res;
+    if (auto res = merge_cmps<Tag::RCmp, F>(world, a, b, dbg)) return res;
     return nullptr;
 }
 
@@ -307,9 +312,9 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto result = fold<IOp, op>(world, type, callee, a, b, dbg)) return result;
 
     switch (op) {
-        case IOp::iand: if (auto res = merge_cmps<std::bit_and<flags_t>>(world, a, b)) return res; break;
-        case IOp::ior : if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res; break;
-        case IOp::ixor: if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res; break;
+        case IOp::iand: if (auto res = merge_cmps<std::bit_and<flags_t>>(world, a, b, dbg)) return res; break;
+        case IOp::ior : if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b, dbg)) return res; break;
+        case IOp::ixor: if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b, dbg)) return res; break;
         default: THORIN_UNREACHABLE;
     }
 
@@ -333,8 +338,8 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
                 case IOp::ior : return la;
                 case IOp::ixor: break;
                 default: // bitwise not
-                    if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
-                    if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
+                    if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x, dbg); }
+                    if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x, dbg); }
                     break;
             }
         }

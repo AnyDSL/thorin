@@ -360,15 +360,14 @@ void CCodeGen::emit() {
                    }
                    break;
                 case Lang::OPENCL:
-                   auto block = config->second->as<GPUKernelConfig>()->block_size();
-                   if (config != kernel_config_.end())
-                       if (std::get<0>(block) == std::get<1>(block) == std::get<2>(block) == 1)
-                           func_impl_ << "__attribute__((max_global_work_dim(0)))" << endl;
+                   if (config != kernel_config_.end()) {
+                       auto block = config->second->as<GPUKernelConfig>()->block_size();
+                   if (std::get<0>(block) == std::get<1>(block) == std::get<2>(block) == 1)
+                       func_impl_ << "__attribute__((max_global_work_dim(0)))" << endl;
                    func_decls_ << "__kernel ";
                    func_impl_  << "__kernel ";
-                   if (config != kernel_config_.end()) {
-                       if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                           func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                   if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
                    }
                    break;
             }

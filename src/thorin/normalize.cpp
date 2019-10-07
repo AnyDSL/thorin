@@ -671,20 +671,6 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     return world.raw_app(callee, {ptr, index}, dbg);
 }
 
-#if 0
-const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
-    auto& world = type->world();
-    auto [cond, a, b] = arg->split<3>();
-
-    if (cond->isa<Bot>())            return world.bot(type, dbg);
-    if (a == b)                      return a;
-    if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
-    if (auto neg = is_not(cond))     return world.op_select(neg, b, a, dbg);
-
-    return world.raw_app(callee, {cond, a, b}, dbg);
-}
-#endif
-
 const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = t->world();
 

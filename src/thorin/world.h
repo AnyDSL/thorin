@@ -684,7 +684,6 @@ private:
         const Axiom* type_ptr_;
         const Axiom* op_bitcast_;
         const Axiom* op_lea_;
-        const Axiom* op_select_;
         const Axiom* op_sizeof_;
         const Axiom* op_alloc_;
         const Axiom* op_slot_;

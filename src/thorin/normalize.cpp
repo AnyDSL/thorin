@@ -370,8 +370,25 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
-    // TODO absorption
+    auto absorption = [&](IOp outer, IOp inner) -> const Def* {
+        if (op == outer) {
+            if (auto xy = isa<Tag::IOp>(inner, a)) {
+                auto [x, y] = xy->args<2>();
+                if (x == b) return y; // (b inner y) outer b -> y
+                if (y == b) return x; // (x inner b) outer b -> x
+            }
 
+            if (auto zw = isa<Tag::IOp>(inner, b)) {
+                auto [z, w] = zw->args<2>();
+                if (z == a) return w; // a outer (a inner w) -> w
+                if (w == a) return z; // a outer (z inner a) -> z
+            }
+        }
+        return nullptr;
+    };
+
+    if (auto res = absorption(IOp::ior , IOp::iand)) return res;
+    if (auto res = absorption(IOp::iand, IOp::ior )) return res;
     if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);

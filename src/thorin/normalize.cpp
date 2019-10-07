@@ -306,21 +306,14 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (auto result = fold<IOp, op>(world, type, callee, a, b, dbg)) return result;
 
-    if (op == IOp::iand) {
-        if (auto res = merge_cmps<std::bit_and<flags_t>>(world, a, b)) return res;
-    } else if (op == IOp::ior) {
-        if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
+    switch (op) {
+        case IOp::iand: if (auto res = merge_cmps<std::bit_and<flags_t>>(world, a, b)) return res; break;
+        case IOp::ior : if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res; break;
+        case IOp::ixor: if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res; break;
+        default: THORIN_UNREACHABLE;
     }
 
     if (auto la = a->isa<Lit>()) {
-        if (op == IOp::ixor) {
-            if (la == world.lit_int(*w, u64(-1))) { // bitwise not
-                if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
-                if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
-            }
-            if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res;
-        }
-
         if (la == world.lit_int(*w, 0)) {
             switch (op) {
                 case IOp::ashr: return la;
@@ -339,7 +332,10 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
                 case IOp::iand: return b;
                 case IOp::ior : return la;
                 case IOp::ixor: break;
-                default: THORIN_UNREACHABLE;
+                default: // bitwise not
+                    if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
+                    if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
+                    break;
             }
         }
     }

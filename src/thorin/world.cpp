@@ -392,6 +392,8 @@ static bool is_symmetric(const Def* def) {
 
 template<tag_t tag>
 static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug dbg) {
+    static_assert(sizeof(flags_t) == 4, "if this ever changes, please adjust the logic below");
+    static constexpr size_t num_bits = log2(Num<Tag2Enum<tag>>);
     auto a_cmp = isa<tag>(a);
     auto b_cmp = isa<tag>(b);
 
@@ -400,9 +402,9 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
         flags_t res = 0;
         flags_t a_flags = a_cmp.axiom()->flags();
         flags_t b_flags = b_cmp.axiom()->flags();
-        for (size_t i = 0; i != log2(Num<Tag2Enum<tag>>); ++i, res <<= 1, a_flags >>= 1, b_flags >>= 1)
-            res |= as_lit<bool>(ex(ex(tuple, a_flags & 1), b_flags & 1));
-        res >>= 1;
+        for (size_t i = 0; i != num_bits; ++i, res >>= 1, a_flags >>= 1, b_flags >>= 1)
+            res |= as_lit<u32>(ex(ex(tuple, a_flags & 1), b_flags & 1)) << 31_u32;
+        res >>= (31_u32 - u32(num_bits));
 
         auto& world = tuple->world();
         if constexpr (tag == Tag::RCmp)

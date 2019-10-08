@@ -329,9 +329,9 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     }
 
     // commute NOT to b
-    if (is_commutative(a) && is_not(a)) std::swap(a, b);
+    if (is_commutative(op) && is_not(a)) std::swap(a, b);
 
-    if (auto not_b_arg = is_not(b); not_b_arg && a == not_b_arg) {
+    if (auto bb = is_not(b); bb && a == bb) {
         switch (op) {
             case IOp::ashr: break;
             case IOp::lshr: break;
@@ -342,25 +342,59 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
-    auto absorption = [&](IOp outer, IOp inner) -> const Def* {
-        if (op == outer) {
-            if (auto xy = isa<Tag::IOp>(inner, a)) {
+    auto absorption = [&](IOp op1, IOp op2) -> const Def* {
+        if (op == op1) {
+            if (auto xy = isa<Tag::IOp>(op2, a)) {
                 auto [x, y] = xy->args<2>();
-                if (x == b) return y; // (b inner y) outer b -> y
-                if (y == b) return x; // (x inner b) outer b -> x
+                if (x == b) return y; // (b op2 y) op1 b -> y
+                if (y == b) return x; // (x op2 b) op1 b -> x
             }
 
-            if (auto zw = isa<Tag::IOp>(inner, b)) {
+            if (auto zw = isa<Tag::IOp>(op2, b)) {
                 auto [z, w] = zw->args<2>();
-                if (z == a) return w; // a outer (a inner w) -> w
-                if (w == a) return z; // a outer (z inner a) -> z
+                if (z == a) return w; // a op1 (a op2 w) -> w
+                if (w == a) return z; // a op1 (z op2 a) -> z
             }
+        }
+        return nullptr;
+    };
+
+    auto simplify1 = [&](IOp op1, IOp op2) -> const Def* { // AFAIK this guy has no name
+        if (op == op1) {
+            if (auto xy = isa<Tag::IOp>(op2, a)) {
+                auto [x, y] = xy->args<2>();
+                if (auto yy = is_not(y); yy && yy == b) return world.op(op1, x, b, dbg); // (x op2 not b) op1 b -> x op1 y
+            }
+
+            if (auto zw = isa<Tag::IOp>(op2, b)) {
+                auto [z, w] = zw->args<2>();
+                if (auto ww = is_not(w); ww && ww == a) return world.op(op1, a, z, dbg); // a op1 (z op2 not a) -> a op1 z
+            }
+        }
+        return nullptr;
+    };
+
+    auto simplify2 = [&](IOp op1, IOp op2) -> const Def* { // AFAIK this guy has no name
+        if (op == op1) {
+            if (auto xy = isa<Tag::IOp>(op2, a)) {
+                if (auto zw = isa<Tag::IOp>(op2, b)) {
+                    auto [x, y] = xy->args<2>();
+                    auto [z, w] = zw->args<2>();
+                    if (auto yy = is_not(y); yy && x == z && yy == w) return x; // (z op2 not w) op1 (z op2 w) -> x
+                    if (auto ww = is_not(w); ww && x == z && ww == y) return x; // (x op2 y) op1 (x op2 not y) -> x
+                }
+            }
+
         }
         return nullptr;
     };
 
     if (auto res = absorption(IOp::ior , IOp::iand)) return res;
     if (auto res = absorption(IOp::iand, IOp::ior )) return res;
+    if (auto res = simplify1 (IOp::ior , IOp::iand)) return res;
+    if (auto res = simplify1 (IOp::iand, IOp::ior )) return res;
+    if (auto res = simplify2 (IOp::ior , IOp::iand)) return res;
+    if (auto res = simplify2 (IOp::iand, IOp::ior )) return res;
     if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);

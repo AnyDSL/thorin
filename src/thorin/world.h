@@ -407,8 +407,8 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Axiom* op_lea()     const { return cache_.op_lea_;     }
-    const Axiom* op_sizeof()  const { return cache_.op_sizeof_;  }
+    const Axiom* op_lea()    const { return cache_.op_lea_;     }
+    const Axiom* op_sizeof() const { return cache_.op_sizeof_;  }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }

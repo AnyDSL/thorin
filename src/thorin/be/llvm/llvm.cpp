@@ -812,10 +812,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (auto extract = def->isa<Extract>()) {
             if (extract->tuple() == world().table_not()) return irbuilder_.CreateNeg(llvm_idx);
             if (auto inner = extract->tuple()->isa<Extract>()) {
-                if (extract->tuple()->type() == world().variadic({2, 2}, world().type_bool())) {
+                if (extract->tuple()->type() == world().variadic(2, world().type_bool())) {
                     // this is a truth table
                     auto check = [&](bool aa, bool bb, bool cc, bool dd) {
-                        auto [ab, cd] = extract->tuple()->split<2>();
+                        auto [ab, cd] = inner->tuple()->split<2>();
                         auto [ a,  b] = ab->split<2>(isa_lit<bool>);
                         auto [ c,  d] = cd->split<2>(isa_lit<bool>);
                         return (a && b && c && d) && *a == aa && *b == bb && *c == cc && *d == dd;

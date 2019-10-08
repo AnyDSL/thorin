@@ -498,7 +498,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
 
     if (tup == table_not()) {
         if (auto icmp = isa<Tag::ICmp>(index)) { auto [x, y] = icmp->args<2>(); return op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x, dbg); }
-        if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x, dbg); }
+        if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), /*rmode*/ rcmp->decurry()->arg(0), y, x, dbg); }
     }
 
     // TODO absorption
@@ -689,13 +689,14 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto real = isa<Tag::Real>(a->type())) {
+        // TODO for now, use RMode::none
         switch (cmp) {
-            case Cmp::eq: return op(RCmp::  e, a, b, dbg);
-            case Cmp::ne: return op(RCmp::une, a, b, dbg);
-            case Cmp::lt: return op(RCmp:: l , a, b, dbg);
-            case Cmp::le: return op(RCmp:: le, a, b, dbg);
-            case Cmp::gt: return op(RCmp:: g , a, b, dbg);
-            case Cmp::ge: return op(RCmp:: ge, a, b, dbg);
+            case Cmp::eq: return op(RCmp::  e, RMode::none, a, b, dbg);
+            case Cmp::ne: return op(RCmp::une, RMode::none, a, b, dbg);
+            case Cmp::lt: return op(RCmp:: l , RMode::none, a, b, dbg);
+            case Cmp::le: return op(RCmp:: le, RMode::none, a, b, dbg);
+            case Cmp::gt: return op(RCmp:: g , RMode::none, a, b, dbg);
+            case Cmp::ge: return op(RCmp:: ge, RMode::none, a, b, dbg);
             default: THORIN_UNREACHABLE;
         }
     } else if (isa<Tag::Ptr>(a->type())) {

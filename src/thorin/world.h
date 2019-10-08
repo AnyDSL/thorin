@@ -349,19 +349,16 @@ public:
     /// @name ROp
     //@{
     const Axiom* op(ROp o) { return cache_.ROp_[size_t(o)]; }
-    const Def* op(ROp o, const Def* a, const Def* b, Debug dbg = {}) { return op(o, RMode::none, a, b, dbg); }
     const Def* op(ROp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(ROp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
     const Def* op_ROp_minus(const Def* rmode, const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(ROp::sub, rmode, lit_real(*w, -0.0), a, dbg); }
     const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op_ROp_minus(lit_nat(rmode), a, dbg); }
-    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op_ROp_minus(RMode::none, a, dbg); }
     //@}
     /// @name Cmp
     //@{
     const Axiom* op(ICmp o) { return cache_.ICmp_[size_t(o)]; }
     const Axiom* op(RCmp o) { return cache_.RCmp_[size_t(o)]; }
     const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
-    const Def* op(RCmp o, const Def* a, const Def* b, Debug dbg = {}) { return op(o, RMode::none, a, b, dbg); }
     const Def* op(RCmp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(RCmp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
     enum class Cmp { eq, ne, lt, le, gt, ge };

@@ -8,23 +8,13 @@ namespace thorin {
  * small helpers
  */
 
-#if 0
-static bool is_allset(const Def* def) {
-    if (auto lit = isa_lit<u64>(def)) {
-        if (auto w = get_width(def->type()))
-            return def == def->world().lit_int(*w, u64(-1));
-    }
-    return false;
-}
-
 static const Def* is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp>(IOp::ixor, def)) {
         auto [x, y] = ixor->args<2>();
-        if (is_allset(x)) return y;
+        if (auto lit = x->isa<Lit>(); lit && lit == def->world().lit_int(*get_width(lit->type()), u64(-1))) return y;
     }
     return nullptr;
 }
-#endif
 
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
@@ -366,6 +356,20 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             case IOp::iand: return a;
             case IOp::ior : return a;
             case IOp::ixor: return world.lit_int(*w, 0);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    // commute NOT to b
+    if (is_commutative(a) && is_not(a)) std::swap(a, b);
+
+    if (auto not_b_arg = is_not(b); not_b_arg && a == not_b_arg) {
+        switch (op) {
+            case IOp::ashr: break;
+            case IOp::lshr: break;
+            case IOp::iand: return world.lit_int(*w,       0);
+            case IOp::ior : return world.lit_int(*w, u64(-1));
+            case IOp::ixor: return world.lit_int(*w, u64(-1));
             default: THORIN_UNREACHABLE;
         }
     }

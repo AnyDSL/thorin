@@ -210,14 +210,18 @@ public:
     //@}
     /// @name Bool operations - extracts on truth tables (tuples)
     //@{
-    const Def* table_and() const { return cache_.table_and; }
-    const Def* table_or () const { return cache_.table_or ; }
-    const Def* table_xor() const { return cache_.table_xor; }
-    const Def* table_not() const { return cache_.table_not; }
-    const Def* extract_and(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_and(), a, dbg), b, dbg); }
-    const Def* extract_or (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_or (), a, dbg), b, dbg); }
-    const Def* extract_xor(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xor(), a, dbg), b, dbg); }
-    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract(table_not(), a, dbg); }
+    const Def* table_and()  const { return cache_.table_and ; }
+    const Def* table_or ()  const { return cache_.table_or  ; }
+    const Def* table_xor()  const { return cache_.table_xor ; }
+    const Def* table_xnor() const { return cache_.table_xnor; }
+    const Def* table_not()  const { return cache_.table_not ; }
+    const Def* extract_and (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_and (), a), b, dbg); }
+    const Def* extract_or  (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_or  (), a), b, dbg); }
+    const Def* extract_xor (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xor (), a), b, dbg); }
+    const Def* extract_xnor(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xnor(), a), b, dbg); }
+    const Def* extract_eq  (const Def* a, const Def* b, Debug dbg = {}) { return extract_xnor(a, b, dbg); }
+    const Def* extract_ne  (const Def* a, const Def* b, Debug dbg = {}) { return extract_xor (a, b, dbg); }
+    const Def* extract_not (const Def* a, Debug dbg = {}) { return extract(table_not(), a, dbg); }
     //@}
     /// @name Insert
     //@{
@@ -666,6 +670,7 @@ private:
         const Def* table_and;
         const Def* table_or;
         const Def* table_xor;
+        const Def* table_xnor;
         const Def* table_not;
         std::array<const Axiom*, Num<IOp>>  IOp_;
         std::array<const Axiom*, Num<WOp>>  WOp_;

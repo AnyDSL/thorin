@@ -49,13 +49,15 @@ World::World(const std::string& name)
     auto nat = type_nat();
     auto mem = type_mem();
 
-    cache_.table_and = tuple({tuple({lit_false(), lit_false()}),
-                              tuple({lit_false(), lit_true ()})}, {"and"});
-    cache_.table_or  = tuple({tuple({lit_false(), lit_true ()}),
-                              tuple({lit_true (), lit_true ()})}, { "or"});
-    cache_.table_xor = tuple({tuple({lit_false(), lit_true()}),
-                              tuple({lit_true (), lit_false()})}, {"xor"});
-    cache_.table_not =        tuple({lit_true (), lit_false()}  , {"not"}); // AKA extract(xor, 1)
+    cache_.table_and  = tuple({tuple({lit_false(), lit_false()}),
+                               tuple({lit_false(), lit_true ()})}, { "and"});
+    cache_.table_or   = tuple({tuple({lit_false(), lit_true ()}),
+                               tuple({lit_true (), lit_true ()})}, {  "or"});
+    cache_.table_xor  = tuple({tuple({lit_false(), lit_true()}),
+                               tuple({lit_true (), lit_false()})}, { "xor"});
+    cache_.table_xnor = tuple({tuple({lit_true() , lit_false()}),
+                               tuple({lit_false(), lit_true ()})}, {"xnor"});
+    cache_.table_not =         tuple({lit_true (), lit_false()}  , { "not"}); // AKA extract(xor, 1)
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
         cache_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
@@ -668,7 +670,13 @@ const Def* World::op_cast(const Def* dst_type, const Def* src, Debug dbg) {
 }
 
 const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
-    if (auto _int = isa<Tag::Int>(a->type())) {
+    if (isa_lit_arity(a->type(), 2)) {
+        switch (cmp) {
+            case Cmp::eq: return extract_eq(a, b, dbg);
+            case Cmp::ne: return extract_ne(a, b, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto _int = isa<Tag::Int>(a->type())) {
         switch (cmp) {
             case Cmp::eq: return op(ICmp::  e, a, b, dbg);
             case Cmp::ne: return op(ICmp:: ne, a, b, dbg);

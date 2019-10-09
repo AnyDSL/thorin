@@ -164,15 +164,15 @@ public:
     Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
     Union* union_(size_t size, Debug dbg = {}) { return union_(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
-    /// @name Variadic
+    /// @name Arr
     //@{
-    const Def* variadic(const Def* arity, const Def* body, Debug dbg = {});
-    const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
-    const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a), body, dbg); }
-    const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
-        return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
+    const Def* arr(const Def* arity, const Def* body, Debug dbg = {});
+    const Def* arr(Defs arities, const Def* body, Debug dbg = {});
+    const Def* arr(u64 a, const Def* body, Debug dbg = {}) { return arr(lit_arity(a), body, dbg); }
+    const Def* arr(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
+        return arr(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
-    const Def* variadic_unsafe(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
+    const Def* arr_unsafe(const Def* body, Debug dbg = {}) { return arr(top_arity(), body, dbg); }
     //@}
     /// @name Tuple
     //@{

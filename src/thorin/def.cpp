@@ -19,16 +19,16 @@ namespace detail {
  */
 
 const Def* Def::arity() const {
-    if (auto sigma    = isa<Sigma   >()) return world().lit_arity(sigma->num_ops());
-    if (auto union_   = isa<Union   >()) return world().lit_arity(union_->num_ops());
-    if (auto variadic = isa<Variadic>()) return variadic->domain();
+    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
+    if (auto union_ = isa<Union>()) return world().lit_arity(union_->num_ops());
+    if (auto arr    = isa<Arr  >()) return arr->domain();
     return world().lit_arity(1);
 }
 
 nat_t Def::lit_arity() const {
-    if (auto sigma    = isa<Sigma   >()) return sigma->num_ops();
-    if (auto union_   = isa<Union   >()) return union_->num_ops();
-    if (auto variadic = isa<Variadic>()) return as_lit<nat_t>(variadic->domain());
+    if (auto sigma  = isa<Sigma>()) return sigma->num_ops();
+    if (auto union_ = isa<Union>()) return union_->num_ops();
+    if (auto arr    = isa<Arr  >()) return as_lit<nat_t>(arr->domain());
     return 1;
 }
 
@@ -360,11 +360,9 @@ Mem::Mem(World& world)
 {}
 
 const Param* Def::param(Debug dbg) {
-    if (auto lam      = isa<Lam     >()) return world().param(lam->domain(),      lam,      dbg);
-    if (auto pi       = isa<Pi      >()) return world().param(pi ->domain(),      pi,       dbg);
-    if (auto pack     = isa<Pack    >()) return world().param(pack->domain(),     pack,     dbg);
-    if (auto sigma    = isa<Sigma   >()) return world().param(sigma,              sigma,    dbg);
-    if (auto variadic = isa<Variadic>()) return world().param(variadic->domain(), variadic, dbg);
+    if (auto lam   = isa<Lam  >()) return world().param(lam ->domain(), lam,   dbg);
+    if (auto pi    = isa<Pi   >()) return world().param(pi  ->domain(), pi,    dbg);
+    if (auto sigma = isa<Sigma>()) return world().param(sigma,          sigma, dbg);
     THORIN_UNREACHABLE;
 }
 
@@ -399,7 +397,7 @@ const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variant_   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant_(t, o[0], o[1], dbg); }
-const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
+const Def* Arr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.arr(o[0], o[1], dbg); }
 const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
 const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }

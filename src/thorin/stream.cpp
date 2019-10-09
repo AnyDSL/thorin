@@ -86,13 +86,9 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         if (tuple == def->world().table_not ()) return s.fmt( "NOT");
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
-    } else if (auto variadic = def->isa<Variadic>()) {
-        if (auto nom_variadic = variadic->isa_nominal<Variadic>())
-            return s.fmt("«{}: {}; {}»", nom_variadic->param(), nom_variadic->domain(), nom_variadic->codomain());
-        return s.fmt("«{}; {}»", variadic->domain(), variadic->codomain());
+    } else if (auto arr = def->isa<Arr>()) {
+        return s.fmt("«{}; {}»", arr->domain(), arr->codomain());
     } else if (auto pack = def->isa<Pack>()) {
-        if (auto nom_pack = pack->isa_nominal<Pack>())
-            return s.fmt("‹{}: {}; {}›", nom_pack->param(), nom_pack->domain(), nom_pack->body());
         return s.fmt("‹{}; {}›", pack->domain(), pack->body());
     } else if (auto succ = def->isa<Succ>()) {
         return s.fmt("succ{}{}{}", succ->tuplefy() ? '(' : '[', succ->type(), succ->tuplefy() ? ')' : ']');

@@ -756,9 +756,9 @@ public:
     friend class World;
 };
 
-class Variadic : public Def {
+class Arr : public Def {
 private:
-    Variadic(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
+    Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
         : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
     {}
 
@@ -767,7 +767,7 @@ public:
     const Def* codomain() const { return op(1); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Node = Node::Variadic;
+    static constexpr auto Node = Node::Arr;
     friend class World;
 };
 
@@ -780,7 +780,7 @@ private:
 public:
     /// @name type
     //@{
-    const Variadic* type() const { return Def::type()->as<Variadic>(); }
+    const Arr* type() const { return Def::type()->as<Arr>(); }
     const Def* domain() const { return type()->domain(); }
     const Def* codomain() const { return type()->codomain(); }
     //@}

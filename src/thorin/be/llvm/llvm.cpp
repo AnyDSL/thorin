@@ -145,8 +145,8 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Variadic>()->codomain();
-    auto smem_type = this->convert(lam->world().variadic(num_elems, elem_type));
+    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Arr>()->codomain();
+    auto smem_type = this->convert(lam->world().arr(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
@@ -590,12 +590,12 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
-    if (auto variadic = type->isa<Variadic>()) {
-        auto num = lookup(variadic->domain());
+    if (auto arr = type->isa<Arr>()) {
+        auto num = lookup(arr->domain());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(variadic->codomain())))));
+                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(arr->codomain())))));
         llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
         void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
     } else {
@@ -812,7 +812,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (auto extract = def->isa<Extract>()) {
             if (extract->tuple() == world().table_not()) return irbuilder_.CreateNeg(llvm_idx);
             if (auto inner = extract->tuple()->isa<Extract>()) {
-                if (extract->tuple()->type() == world().variadic(2, world().type_bool())) {
+                if (extract->tuple()->type() == world().arr(2, world().type_bool())) {
                     // this is a truth table
                     auto check = [&](bool aa, bool bb, bool cc, bool dd) {
                         auto [ab, cd] = inner->tuple()->split<2>();
@@ -836,7 +836,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
 
             if (is_memop(extract->tuple())) return lookup(extract->tuple());
-            if (extract->tuple()->type()->isa<Variadic>()) return irbuilder_.CreateLoad(copy_to_alloca_or_global());
+            if (extract->tuple()->type()->isa<Arr>()) return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             // tuple/struct
             return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index())});
@@ -845,7 +845,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto insert = def->as<Insert>();
         auto val = lookup(insert->val());
 
-        if (insert->tuple()->type()->isa<Variadic>()) {
+        if (insert->tuple()->type()->isa<Arr>()) {
             auto p = copy_to_alloca();
             irbuilder_.CreateStore(lookup(insert->val()), p.second);
             return irbuilder_.CreateLoad(p.first);
@@ -936,7 +936,7 @@ llvm::Value* CodeGen::emit_lea(const App* lea) {
     if (pointee->isa<Sigma>())
         return irbuilder_.CreateStructGEP(convert(pointee), lookup(ptr), as_lit<u64>(index));
 
-    assert(pointee->isa<Variadic>());
+    assert(pointee->isa<Arr>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), i1toi32(lookup(index)) };
     return irbuilder_.CreateInBoundsGEP(lookup(ptr), args);
 }
@@ -1001,9 +1001,9 @@ llvm::Type* CodeGen::convert(const Def* type) {
         auto [pointee, addr_space] = ptr->args<2>();
         auto llvm_type = llvm::PointerType::get(convert(pointee), convert_addr_space(as_lit<nat_t>(addr_space)));
         return types_[type] = llvm_type;
-    } else if (auto variadic = type->isa<Variadic>()) {
-        auto elem_type = convert(variadic->codomain());
-        if (auto arity = isa_lit<u64>(variadic->domain()))
+    } else if (auto arr = type->isa<Arr>()) {
+        auto elem_type = convert(arr->codomain());
+        if (auto arity = isa_lit<u64>(arr->domain()))
             return types_[type] = llvm::ArrayType::get(elem_type, *arity);
         else
             return types_[type] = llvm::ArrayType::get(elem_type, 0);
@@ -1260,13 +1260,13 @@ Backends::Backends(World& world)
                 auto elem_type = ptr_type->pointee();
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
-                    if (auto variadic = elem_type->isa<Variadic>())
-                        elem_type = variadic->codomain();
+                    if (auto arr = elem_type->isa<Arr>())
+                        elem_type = arr->codomain();
                 }
                 if (!elem_type->isa<PrimType>()) {
-                    if (auto variadic = elem_type->isa<Variadic>(); variadic && variadic->domain()->isa<Lit>()) {
-                        elem_type = variadic->codomain();
-                        multiplier = as_lit<u64>(variadic->domain());
+                    if (auto arr = elem_type->isa<Arr>(); arr && arr->domain()->isa<Lit>()) {
+                        elem_type = arr->codomain();
+                        multiplier = as_lit<u64>(arr->domain());
                     }
                 }
                 auto prim_type = elem_type->isa<PrimType>();

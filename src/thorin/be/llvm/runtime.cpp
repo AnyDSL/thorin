@@ -38,8 +38,8 @@ llvm::Function* Runtime::get(const char* name) {
 static bool contains_ptrtype(const Def* type) {
     if (isa<Tag::Ptr>(type)) return false;
     switch (type->node()) {
-        case Node::Variadic: return contains_ptrtype(type->as<Variadic>()->codomain());
-        case Node::Pi:       return false;
+        case Node::Arr: return contains_ptrtype(type->as<Arr>()->codomain());
+        case Node::Pi:  return false;
         case Node::Sigma: {
             // TODO deal with recursive sigmas
             bool good = true;
@@ -86,7 +86,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
         KernelArgType arg_type;
         llvm::Value*  void_ptr;
-        if (target_arg->type()->isa<Variadic>() || target_arg->type()->isa<Sigma>()) {
+        if (target_arg->type()->isa<Arr>() || target_arg->type()->isa<Sigma>()) {
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
             builder_.CreateStore(target_val, alloca);
 
@@ -99,7 +99,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
         } else if (auto ptr = isa<Tag::Ptr>(target_arg->type())) {
             auto [rtype, addr_space] = ptr->args<2>();
 
-            if (!rtype->isa<Variadic>())
+            if (!rtype->isa<Arr>())
                 world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
             auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name());

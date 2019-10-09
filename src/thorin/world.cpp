@@ -134,7 +134,7 @@ World::World(const std::string& name)
     } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(Ts#Heir(j)», as), i: s]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
-        domain->set(1, variadic(domain->param(0, {"s"}), star));
+        domain->set(1, arr(domain->param(0, {"s"}), star));
         domain->set(2, nat);
         auto pi1 = pi(star)->set_domain(domain);
         auto s  = pi1->param(0, {"s"});
@@ -248,7 +248,7 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
     if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return variadic(n, ops[0]);
+        return arr(n, ops[0]);
     return unify<Sigma>(ops.size(), type, ops, debug(dbg));
 }
 
@@ -414,9 +414,9 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
 }
 
 const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
-    if (index->isa<Variadic>() || index->isa<Pack>()) {
+    if (index->isa<Arr>() || index->isa<Pack>()) {
         Array<const Def*> ops(index->lit_arity(), [&](size_t) { return extract(tup, index->ops().back()); });
-        return index->isa<Variadic>() ? sigma(ops, dbg) : tuple(ops, dbg);
+        return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
         Array<const Def*> idx(index->num_ops(), [&](size_t i) { return index->op(i); });
         Array<const Def*> ops(index->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
@@ -448,7 +448,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
             return unify<Extract>(2, sigma->op(*i), tup, index, debug(dbg));
     }
 
-    if (auto variadic = tup->type()->isa<Variadic>()) {
+    if (auto arr = tup->type()->isa<Arr>()) {
         if (auto tuple = tup->isa<Tuple>()) {
             // TODO we could even deal with an offset
             // extract((0, 1, 2, ...), i) -> i
@@ -461,7 +461,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
             }
 
             if (ascending)
-                return op_bitcast(variadic->codomain(), index, dbg);
+                return op_bitcast(arr->codomain(), index, dbg);
 
             // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
             // this also deals with NOT
@@ -514,7 +514,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
 
     // TODO absorption
 
-    auto type = tup->type()->as<Variadic>()->codomain();
+    auto type = tup->type()->as<Arr>()->codomain();
     return unify<Extract>(2, type, tup, index, debug(dbg));
 }
 
@@ -549,7 +549,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     return unify<Insert>(3, tup, index, val, debug(dbg));
 }
 
-const Def* World::variadic(const Def* domain, const Def* codomain, Debug dbg) {
+const Def* World::arr(const Def* domain, const Def* codomain, Debug dbg) {
     assert(domain->type()->isa<KindArity>() || domain->type()->isa<KindMulti>());
 
     if (auto a = isa_lit<u64>(domain)) {
@@ -558,7 +558,7 @@ const Def* World::variadic(const Def* domain, const Def* codomain, Debug dbg) {
     }
 
     auto type = kind_star();
-    return unify<Variadic>(2, type, domain, codomain, debug(dbg));
+    return unify<Arr>(2, type, domain, codomain, debug(dbg));
 }
 
 const Def* World::pack(const Def* domain, const Def* body, Debug dbg) {
@@ -569,13 +569,13 @@ const Def* World::pack(const Def* domain, const Def* body, Debug dbg) {
         if (*a == 1) return body;
     }
 
-    auto type = variadic(domain, body->type());
+    auto type = arr(domain, body->type());
     return unify<Pack>(1, type, body, debug(dbg));
 }
 
-const Def* World::variadic(Defs domains, const Def* codomain, Debug dbg) {
+const Def* World::arr(Defs domains, const Def* codomain, Debug dbg) {
     if (domains.empty()) return codomain;
-    return variadic(domains.skip_back(), variadic(domains.back(), codomain, dbg), dbg);
+    return arr(domains.skip_back(), arr(domains.back(), codomain, dbg), dbg);
 }
 
 const Def* World::pack(Defs domains, const Def* body, Debug dbg) {
@@ -602,7 +602,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
 }
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
-    if (auto variadic = type->isa<Variadic>()) return pack(variadic->domain(), bot_top(is_top, variadic->codomain()), dbg);
+    if (auto arr = type->isa<Arr>()) return pack(arr->domain(), bot_top(is_top, arr->codomain()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
     auto d = debug(dbg);
@@ -651,9 +651,9 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 
 static const Def* tuple_of_types(const Def* t) {
     auto& world = t->world();
-    if (auto sigma    = t->isa<Sigma>()) return world.tuple(sigma->ops());
-    if (auto variadic = t->isa<Variadic>()) return world.pack(variadic->domain(), variadic->codomain());
-    return t; // Variadic might be nominal. Thus, we still might have this case.
+    if (auto sigma = t->isa<Sigma>()) return world.tuple(sigma->ops());
+    if (auto arr   = t->isa<Arr  >()) return world.pack(arr->domain(), arr->codomain());
+    return t;
 }
 
 const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {

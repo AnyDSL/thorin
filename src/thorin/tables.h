@@ -15,8 +15,10 @@ using nat_t    = u64;
     m(KindArity, *A) m(KindMulti, *M) m(KindStar,  *) m(Universe, universe)             \
     m(Pi, pi)             m(Lam, lam)           m(App, app)                             \
     m(Sigma, sigma)       m(Tuple, tuple)       m(Extract, extract) m(Insert, insert)   \
-    m(Arr, arr) m(Pack, pack)         m(Succ, succ)                           \
-    m(Union, union_)      m(Variant_, variant_) m(Match_, match_)                       \
+    m(Arr, arr)           m(Pack, pack)         m(Succ, succ)                           \
+    m(Union, union_)      m(Variant, variant)                                           \
+    m(Case, case_)        m(Ptrn, ptrn)                                                 \
+    m(Match, match)                                                                     \
     m(Bot, bot) m(Top, top)                                                             \
     m(CPS2DS, cps2ds) m(DS2CPS, ds2cps)                                                 \
     m(Analyze, analyze)                                                                 \
@@ -25,8 +27,7 @@ using nat_t    = u64;
     m(Mem, mem)                                                                         \
     m(Nat, nat)                                                                         \
     m(Param, param)                                                                     \
-    m(Global, global)                                                                   \
-    m(VariantType, variant_type) m(Variant, variant)
+    m(Global, global)
 
 #define THORIN_TAG(m)                                                                                   \
     m(Int, int) m(SInt, sint) m(Real, real) m(Ptr, ptr)                                                 \

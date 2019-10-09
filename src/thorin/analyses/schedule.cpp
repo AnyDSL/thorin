@@ -42,7 +42,7 @@ public:
 
     void for_all_defs(std::function<void(const Def*)> f) {
         for (auto&& p : def2uses_) {
-            if (!p.first->isa<Lam>())
+            if (!p.first->isa_nominal())
                 f(p.first);
         }
     }
@@ -104,14 +104,14 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
 
     const CFNode* result;
 
-    if (auto nom = def->isa_nominal<Lam>()) {
+    if (auto nom = def->isa_nominal()) {
         result = cfg_[nom];
     } else if (auto param = def->isa<Param>()) {
         result = schedule_early(param->nominal());
     } else {
         result = cfg_.entry();
         for (auto op : def->ops()) {
-            if (op->isa<Lam>()) continue;
+            if (op->isa_nominal()) continue;
             if (def2uses_.contains(op)) {
                 auto n = schedule_early(op);
                 if (domtree_.depth(n) > domtree_.depth(result))
@@ -129,7 +129,7 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
 
     const CFNode* result = nullptr;
 
-    if (auto nom = def->isa_nominal<Lam>()) {
+    if (auto nom = def->isa_nominal()) {
         result = cfg_[nom];
     } else if (auto param = def->isa<Param>()) {
         result = schedule_late(param->nominal());

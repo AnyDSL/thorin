@@ -541,7 +541,6 @@ public:
         Atomic,                     ///< Intrinsic atomic function
         CmpXchg,                    ///< Intrinsic cmpxchg function
         Undef,                      ///< Intrinsic undef function
-        Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
         PeInfo,                     ///< Partial evaluation debug info.
     };
 
@@ -593,7 +592,7 @@ public:
     void app(const Def* callee, const Def* arg, Debug dbg = {});
     void app(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {});
-    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
+    void match(const Def* val, Defs cases, const Def* mem, Debug dbg = {});
     //@}
     /// @name rebuild, stub
     //@{
@@ -741,9 +740,9 @@ public:
 };
 
 /// Data constructor for a @p Union.
-class Variant_ : public Def {
+class Variant : public Def {
 private:
-    Variant_(const Def* type, const Def* index, const Def* arg, const Def* dbg)
+    Variant(const Def* type, const Def* index, const Def* arg, const Def* dbg)
         : Def(Node, rebuild, type, {index, arg}, 0, dbg)
     {}
 
@@ -752,7 +751,7 @@ public:
     const Def* arg() const { return op(1); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Node = Node::Variant_;
+    static constexpr auto Node = Node::Variant;
     friend class World;
 };
 
@@ -847,10 +846,10 @@ public:
     friend class World;
 };
 
-/// Matches against <tt>variant</tT>, using the functions specified in <tt>cases</tt>.
-class Match_ : public Def {
+/// Matches against a value, using the patterns specified in <tt>cases</tt>.
+class Match : public Def {
 private:
-    Match_(const Def* type, Defs ops, const Def* dbg)
+    Match(const Def* type, Defs ops, const Def* dbg)
         : Def(Node, rebuild, type, ops, 0, dbg)
     {}
 
@@ -859,40 +858,50 @@ public:
     Defs cases() const { return ops().skip_front(); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Node = Node::Match_;
+    static constexpr auto Node = Node::Match;
     friend class World;
 };
 
-/// The type of a variant (structurally typed).
-class VariantType : public Def {
+/// Pattern type.
+class Case : public Def {
 private:
-    VariantType(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
-    {
-        assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
-    }
+    Case(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
+        : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
+    {}
 
 public:
+    const Def* domain() const { return op(0); }
+    const Def* codomain() const { return op(1); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Node = Node::VariantType;
+    static constexpr auto Node = Node::Case;
     friend class World;
 };
 
-/// Data constructor for a @p VariantType.
-class Variant : public Def {
+/// Pattern value.
+class Ptrn : public Def {
 private:
-    Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
-        : Def(Node, rebuild, variant_type, {value}, 0, dbg)
-    {
-        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
-    }
+    Ptrn(const Def* type, const Def* dbg)
+        : Def(Node, stub, type, 2, 0, dbg)
+    {}
 
 public:
-    const VariantType* type() const { return Def::type()->as<VariantType>(); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
+    /// @name type
+    //@{
+    const Case* type() const { return Def::type()->as<Case>(); }
+    const Def*  domain() const { return type()->domain(); }
+    const Def*  codomain() const { return type()->codomain(); }
+    //@}
+    /// @name ops
+    //@{
+    Ptrn* set(const Def* matcher, const Def* body) { return Def::set({matcher, body})->as<Ptrn>(); }
+    const Def* matcher() const { return op(0); }
+    const Def* body() const { return op(1); }
+    //@}
 
-    static constexpr auto Node = Node::Variant;
+    static Def* stub(const Def*, World&, const Def*, const Def*);
+
+    static constexpr auto Node = Node::Ptrn;
     friend class World;
 };
 

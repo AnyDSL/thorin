@@ -214,20 +214,6 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
         assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 #endif
 
-    if (auto lam = callee->isa<Lam>()) {
-        if (lam->intrinsic() == Lam::Intrinsic::Match) {
-            auto args = arg->as<Tuple>()->ops();
-            if (args.size() == 2) return app(args[1], Defs{}, dbg);
-            if (auto lit = args[0]->isa<Lit>()) {
-                for (size_t i = 2; i < args.size(); i++) {
-                    if (extract(args[i], 0_s)->as<Lit>() == lit)
-                        return app(extract(args[i], 1), Defs{}, dbg);
-                }
-                return app(args[1], Defs{}, dbg);
-            }
-        }
-    }
-
     if (axiom && currying_depth == 1) {
         if (auto normalize = axiom->normalizer())
             return normalize(type, callee, arg, debug(dbg));
@@ -319,45 +305,40 @@ const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
     return unify<Union>(ops_copy.size(), type, ops_copy, debug(dbg));
 }
 
-const Def* World::variant_(const Def* type, const Def* index, const Def* arg, Debug dbg) {
+const Def* World::variant(const Def* type, const Def* index, const Def* arg, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     // TODO:
     // - assert that 'type', when reduced, is a 'union' with 'type->arity() == index->type()'
     // - assert that 'type', when reduced, is a 'union' with 'type->op(index) == arg->type()'
 #endif
-    return unify<Variant_>(2, type, index, arg, debug(dbg));
+    return unify<Variant>(2, type, index, arg, debug(dbg));
 }
 
-const Def* World::variant_(const Def* type, const Def* arg, Debug dbg) {
+const Def* World::variant(const Def* type, const Def* arg, Debug dbg) {
     // TODO: reduce 'type'
     assertf(type->isa<Union>() && !type->isa_nominal(), "only nominal unions can be created with this constructor");
     size_t index = std::find(type->ops().begin(), type->ops().end(), arg->type()) - type->ops().begin();
     assertf(index != type->num_ops(), "cannot find type {} in union {}", arg->type(), type);
-    return variant_(type, lit_index(index, type->num_ops()), arg, dbg);
+    return variant(type, lit_index(index, type->num_ops()), arg, dbg);
 }
 
-const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
+const Def* World::match(const Def* arg, Defs cases, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     assertf(cases.size() > 0, "match must take at least one case");
-    assertf(cases[0]->type()->isa<Pi>(), "match cases must be functions");
 #endif
-    auto type = cases[0]->type()->as<Pi>()->codomain();
+    const Def* type = cases[0]->type()->as<thorin::Case>()->codomain();
 #if THORIN_ENABLE_CHECKS
     for (auto case_ : cases) {
-        assertf(case_->type()->isa<Pi>(), "match cases must be functions");
-        assertf(case_->type()->as<Pi>()->codomain() == type,
+        assertf(case_->type()->isa<thorin::Case>(), "match cases must have 'Case' type");
+        assertf(case_->type()->as<thorin::Case>()->codomain() == type,
             "match cases codomains are not consistent with each other, got {} and {}",
-            case_->type()->as<Pi>()->codomain(), type);
+            case_->type()->as<thorin::Case>()->codomain(), type);
     }
-    // TODO:
-    // - assert that `arg->type()`, when reduced, is a `union` with arity == cases.size()
 #endif
-    if (auto variant = arg->isa<Variant_>())
-        return app(cases[as_lit<nat_t>(variant->index())], variant->arg());
     Array<const Def*> ops(cases.size() + 1);
     ops[0] = arg;
     std::copy(cases.begin(), cases.end(), ops.begin() + 1);
-    return unify<Match_>(cases.size() + 1, type, ops, debug(dbg));
+    return unify<Match>(cases.size() + 1, type, ops, debug(dbg));
 }
 
 // TODO put this somewhere else
@@ -735,16 +716,6 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
         }
     }
     THORIN_UNREACHABLE;
-}
-
-Lam* World::match(const Def* type, size_t num_patterns) {
-    Array<const Def*> arg_types(num_patterns + 2);
-    arg_types[0] = type;
-    arg_types[1] = cn();
-    for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = sigma({type, cn()});
-    auto dbg = Debug("match");
-    return lam(cn(sigma(arg_types)), Lam::CC::C, Lam::Intrinsic::Match, dbg);
 }
 
 /*

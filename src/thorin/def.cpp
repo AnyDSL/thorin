@@ -217,16 +217,8 @@ void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, De
     return app(world().extract(world().tuple({f, t}), cond, dbg), mem, dbg);
 }
 
-void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {
-    Array<const Def*> args(patterns.size() + 2);
-
-    args[0] = val;
-    args[1] = otherwise;
-    assert(patterns.size() == lams.size());
-    for (size_t i = 0; i < patterns.size(); i++)
-        args[i + 2] = world().tuple({patterns[i], lams[i]}, dbg);
-
-    return app(world().match(val->type(), patterns.size()), args, dbg);
+void Lam::match(const Def* val, Defs cases, const Def* mem, Debug dbg) {
+    return app(world().match(val, cases, dbg), mem, dbg);
 }
 
 /*
@@ -361,6 +353,7 @@ Mem::Mem(World& world)
 
 const Param* Def::param(Debug dbg) {
     if (auto lam   = isa<Lam  >()) return world().param(lam ->domain(), lam,   dbg);
+    if (auto ptrn  = isa<Ptrn >()) return world().param(ptrn->domain(), ptrn,  dbg);
     if (auto pi    = isa<Pi   >()) return world().param(pi  ->domain(), pi,    dbg);
     if (auto sigma = isa<Sigma>()) return world().param(sigma,          sigma, dbg);
     THORIN_UNREACHABLE;
@@ -377,6 +370,7 @@ const Def* Lam        ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* CPS2DS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
 const Def* DS2CPS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
 const Def* Sigma      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.sigma(t, o, dbg); }
+const Def* Case       ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.case_(o[0], o[1], dbg); }
 const Def* Union      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
 const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
@@ -385,7 +379,7 @@ const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , co
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
 const Def* Global     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Match_     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match_(o[0], o.skip_front(), dbg); }
+const Def* Match      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match(o[0], o.skip_front(), dbg); }
 const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
@@ -396,10 +390,8 @@ const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
-const Def* Variant_   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant_(t, o[0], o[1], dbg); }
+const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t, o[0], o[1], dbg); }
 const Def* Arr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.arr(o[0], o[1], dbg); }
-const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
-const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
 const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }
 
 /*
@@ -408,6 +400,7 @@ const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , co
 
 Def* Universe::stub(const Def*  , World& w, const Def*  , const Def*    ) { return const_cast<Universe*>(w.universe()); }
 Def* Lam     ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Ptrn    ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
 Def* Pi      ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.sigma(t, d->num_ops(), dbg); }
 Def* Union   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.union_(t, d->num_ops(), dbg); }

@@ -183,11 +183,11 @@ public:
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
     const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
-    /// @name Variant_
+    /// @name Variant
     //@{
-    const Def* variant_(const Def* type, const Def* index, const Def* arg, Debug dbg = {});
+    const Def* variant(const Def* type, const Def* index, const Def* arg, Debug dbg = {});
     /// infers the index, for @em structural unions only
-    const Def* variant_(const Def* type, const Def* arg, Debug dbg = {});
+    const Def* variant(const Def* type, const Def* arg, Debug dbg = {});
     //@}
     /// @name Pack
     //@{
@@ -232,9 +232,11 @@ public:
     //@{
     const Def* succ(const Def* type, bool tuplefy, Debug dbg = {});
     //@}
-    /// @name Match_
+    /// @name Match/Ptrn/Case
     //@{
-    const Def* match_(const Def* variant, Defs cases, Debug dbg = {});
+    const Def* match(const Def* val, Defs cases, Debug dbg = {});
+    const Case* case_(const Def* domain, const Def* codomain, Debug dbg = {}) { return unify<Case>(2, kind_star(), domain, codomain, debug(dbg)); }
+    Ptrn* ptrn(const Case* type, Debug dbg = {}) { return insert<Ptrn>(2, type, debug(dbg)); }
     //@}
     /// @name Lit
     //@{
@@ -298,11 +300,6 @@ public:
     const Def* bot_star () { return cache_.bot_star_; }
     const Def* top_star () { return cache_.top_star_; }
     const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
-    //@}
-    /// @name Variant
-    //@{
-    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, debug(dbg)); }
-    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, debug(dbg)); }
     //@}
     /// @name CPS2DS/DS2CPS
     //@{
@@ -415,7 +412,6 @@ public:
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
-    Lam* match(const Def* type, size_t num_patterns);
     //@}
     /// @name helpers for optional/variant arguments
     //@{

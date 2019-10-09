@@ -235,31 +235,9 @@ void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> la
 
 Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
 
-Array<const Def*> Pi::domains() const {
-    size_t n = num_domains();
-    Array<const Def*> domains(n);
-    for (size_t i = 0; i != n; ++i)
-        domains[i] = domain(i);
-    return domains;
-}
-
-size_t Pi::num_domains() const {
-    if (auto sigma = domain()->isa<Sigma>())
-        return sigma->num_ops();
-    return 1;
-}
-
-const Def* Pi::domain(size_t i) const {
-    if (auto sigma = domain()->isa<Sigma>())
-        return sigma->op(i);
-    return domain();
-}
-
-const Def* Pi::codomain(size_t i) const {
-    if (auto sigma = codomain()->isa<Sigma>())
-        return sigma->op(i);
-    return codomain();
-}
+size_t Pi::num_domains() const { return domain()->lit_arity(); }
+const Def* Pi::  domain(size_t i) const { return proj(  domain(), i); }
+const Def* Pi::codomain(size_t i) const { return proj(codomain(), i); }
 
 bool Pi::is_returning() const {
     bool ret = false;

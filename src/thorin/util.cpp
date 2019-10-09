@@ -32,6 +32,34 @@ std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
     return {0, u16(-1)};
 }
 
+bool is_symmetric(const Def* def) {
+    if (auto a = isa_lit_arity(def->type()->arity())) {
+        if (auto z = proj(def, 0)) {
+            if (auto b = isa_lit_arity(z->type()->arity())) {
+                if (*a == *b) {
+                    for (size_t i = 0; i != *a; ++i) {
+                        for (size_t j = i+1; j != *a; ++j) {
+                            auto ij = proj(proj(def, i), j);
+                            auto ji = proj(proj(def, j), i);
+                            if (ij == nullptr || ji == nullptr || ij != ji) return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+const Def* proj(const Def* def, u64 i) {
+    if (def == nullptr) return nullptr; // pass through nullptr for nested proj calls
+    if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
+    if (auto pack = def->isa<Pack>()) { assert(i < pack->type()->lit_arity()); return pack->body();     }
+    if (auto arr  = def->isa<Arr >()) { assert(i < arr         ->lit_arity()); return arr ->codomain(); }
+    return i == 0 ? def : nullptr;
+}
+
 // TODO remove
 Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())

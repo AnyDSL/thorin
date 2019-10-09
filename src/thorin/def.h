@@ -465,7 +465,7 @@ public:
     //@{
     const Def* domain() const { return op(0); }
     const Def* domain(size_t i) const;
-    Array<const Def*> domains() const;
+    Array<const Def*> domains() const { return Array<const Def*>(num_domains(), [&](size_t i) { return domain(i); }); }
     size_t num_domains() const;
     const Def* codomain() const { return op(1); }
     const Def* codomain(size_t i) const;

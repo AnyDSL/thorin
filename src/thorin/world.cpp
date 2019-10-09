@@ -51,7 +51,7 @@ World::World(const std::string& name)
     auto mem = type_mem();
 
     // fill truth tables
-    for (size_t i = 0; i != 16; ++i) {
+    for (size_t i = 0; i != Num<Bit>; ++i) {
         cache_.Bit_[i] = tuple({tuple({lit_bool(i & 0x1), lit_bool(i & 0x2)}),
                                 tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
     }
@@ -365,34 +365,6 @@ const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
     return unify<Match_>(cases.size() + 1, type, ops, debug(dbg));
 }
 
-// TODO put this somewhere else
-static const Def* ex(const Def* def, u64 i) {
-    if (auto tuple = def->isa<Tuple>()) return tuple->op(i);
-    if (auto pack  = def->isa<Pack >()) return pack->body();
-    return nullptr;
-}
-
-static bool is_symmetric(const Def* def) {
-    // we can't use Def::out - this would cause an endless recursion
-    if (auto a = isa_lit_arity(def->type()->arity())) {
-        if (auto z = ex(def, 0)) {
-            if (auto b = isa_lit_arity(z->type()->arity())) {
-                if (*a == *b) {
-                    for (size_t i = 0; i != *a; ++i) {
-                        for (size_t j = i+1; j != *a; ++j) {
-                            auto ij = ex(ex(def, i), j);
-                            auto ji = ex(ex(def, j), i);
-                            if (ij == nullptr || ji == nullptr || ij != ji) return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
 template<tag_t tag>
 static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug dbg) {
     static_assert(sizeof(flags_t) == 4, "if this ever changes, please adjust the logic below");
@@ -406,7 +378,7 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
         flags_t a_flags = a_cmp.axiom()->flags();
         flags_t b_flags = b_cmp.axiom()->flags();
         for (size_t i = 0; i != num_bits; ++i, res >>= 1, a_flags >>= 1, b_flags >>= 1)
-            res |= as_lit<u32>(ex(ex(tuple, a_flags & 1), b_flags & 1)) << 31_u32;
+            res |= as_lit<u32>(proj(proj(tuple, a_flags & 1), b_flags & 1)) << 31_u32;
         res >>= (31_u32 - u32(num_bits));
 
         auto& world = tuple->world();
@@ -424,7 +396,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
         Array<const Def*> idx(index->num_ops(), [&](size_t i) { return index->op(i); });
-        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
+        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return proj(tup, as_lit<nat_t>(idx[i])); });
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
@@ -503,7 +475,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         if (is_symmetric(inner->tuple())) {
             if (a == b) {
                 // extract(extract(sym, a), a) -> extract(diag(sym), a)
-                auto ops = Array<const Def*>(arity, [&](size_t i) { return ex(ex(inner->tuple(), i), i); });
+                auto ops = Array<const Def*>(arity, [&](size_t i) { return proj(proj(inner->tuple(), i), i); });
                 return extract(tuple(ops), a, dbg);
             } else if (a->gid() > b->gid()) {
                 // extract(extract(sym, b), a) -> extract(extract(sym, a), b)

@@ -11,12 +11,16 @@ bool is_unit(const Def*);
 bool is_const(const Def*);
 bool is_tuple_arg_of_app(const Def*);
 bool is_memop(const Def* def);
+bool is_symmetric(const Def* def);
+
 
 template<class T, class U> bool has(T flags, U option) { return (flags & option) == option; }
 
 Array<const Def*> merge(const Def* def, Defs defs);
 const Def* merge_sigma(const Def* def, Defs defs);
 const Def* merge_tuple(const Def* def, Defs defs);
+
+const Def* proj(const Def* def, u64 i);
 
 std::string tuple2str(const Def*);
 std::tuple<const Axiom*, u16> get_axiom(const Def*);

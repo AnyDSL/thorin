@@ -15,7 +15,7 @@ using nat_t    = u64;
     m(KindArity, *A) m(KindMulti, *M) m(KindStar,  *) m(Universe, universe)             \
     m(Pi, pi)             m(Lam, lam)           m(App, app)                             \
     m(Sigma, sigma)       m(Tuple, tuple)       m(Extract, extract) m(Insert, insert)   \
-    m(Arr, arr) m(Pack, pack)         m(Succ, succ)                           \
+    m(Arr, arr)           m(Pack, pack)         m(Succ, succ)                           \
     m(Union, union_)      m(Variant_, variant_) m(Match_, match_)                       \
     m(Bot, bot) m(Top, top)                                                             \
     m(CPS2DS, cps2ds) m(DS2CPS, ds2cps)                                                 \
@@ -153,20 +153,20 @@ enum RMode : nat_t {
  * Table for all binary boolean operations.
  * See https://en.wikipedia.org/wiki/Truth_table#Binary_operations
  *                                   x o x o                                */
-#define THORIN_B_OP(m)            /* Q Q P P -                              */ \
+#define THORIN_B_OP(m)            /* B B A A -                              */ \
                     m(Bit,     f) /* o o o o - always false                 */ \
                     m(Bit,   nor) /* o o o x -                              */ \
                     m(Bit, nciff) /* o o x o - not converse implication     */ \
-                    m(Bit,    np) /* o o x x - not first argument           */ \
+                    m(Bit,    na) /* o o x x - not first argument           */ \
                     m(Bit,  niff) /* o x o o - not implication              */ \
-                    m(Bit,    nq) /* o x o x - not second argument          */ \
+                    m(Bit,    nb) /* o x o x - not second argument          */ \
                     m(Bit,  _xor) /* o x x o -                              */ \
                     m(Bit,  nand) /* o x x x -                              */ \
                     m(Bit,  _and) /* x o o o -                              */ \
                     m(Bit,  nxor) /* x o o x -                              */ \
-                    m(Bit,     q) /* x o x o - second argument              */ \
+                    m(Bit,     b) /* x o x o - second argument              */ \
                     m(Bit,   iff) /* x o x x - implication (if and only if) */ \
-                    m(Bit,     p) /* x x o o - first argment                */ \
+                    m(Bit,     a) /* x x o o - first argment                */ \
                     m(Bit,  ciff) /* x x o x - converse implication         */ \
                     m(Bit,   _or) /* x x x o -                              */ \
                     m(Bit,     t) /* x x x x - always true                  */

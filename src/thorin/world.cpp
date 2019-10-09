@@ -11,6 +11,7 @@
 
 #include "thorin/alpha_equiv.h"
 #include "thorin/def.h"
+#include "thorin/error.h"
 #include "thorin/normalize.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
@@ -20,7 +21,7 @@
 namespace thorin {
 
 /*
- * constructor
+ * constructor & destructor
  */
 
 #ifndef NDEBUG
@@ -127,7 +128,7 @@ World::World(const std::string& name)
     } { // bit: Πw: nat. Π[«bool; bool», int w, int w]. int w
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
-        type->set_codomain(pi({variadic(type_bool(), type_bool()), int_w, int_w}, int_w));
+        type->set_codomain(pi({arr(type_bool(), type_bool()), int_w, int_w}, int_w));
         cache_.op_bit_ = axiom(normalize_bit, type, Tag::Bit, 0, {"bit"});
     } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
@@ -135,18 +136,16 @@ World::World(const std::string& name)
         auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
         cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
-    } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
+    } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(Ts#Heir(j)», as), i: s]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
-        domain->set(1, variadic(domain->param(0, {"s"}), star));
+        domain->set(1, arr(domain->param(0, {"s"}), star));
         domain->set(2, nat);
         auto pi1 = pi(star)->set_domain(domain);
         auto s  = pi1->param(0, {"s"});
         auto Ts = pi1->param(1, {"Ts"});
         auto as = pi1->param(2, {"as"});
-        auto v = variadic(star)->set_domain(s);
-        v->set_codomain(extract(Ts, v->param({"j"})));
-        auto src_ptr = type_ptr(v, as);
+        auto src_ptr = type_ptr(extract(Ts, succ(s, false)), as);
         auto pi2 = pi(star)->set_domain({src_ptr, s});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
@@ -183,6 +182,9 @@ World::World(const std::string& name)
         cache_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     }
 }
+
+// must be here to avoid inclusion of some includes in world.h
+World::~World() {}
 
 /*
  * core calculus
@@ -253,8 +255,7 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
-    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return variadic(n, ops[0]);
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
     return unify<Sigma>(ops.size(), type, ops, debug(dbg));
 }
 
@@ -271,17 +272,16 @@ const Def* World::tuple(Defs ops, Debug dbg) {
 }
 
 const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
+    if (err()) {
     // TODO type-check type vs inferred type
-#endif
+    }
 
     auto n = ops.size();
     if (n == 0) return tuple();
     if (n == 1) return ops[0];
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 
-    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return pack(n, ops[0]);
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
 
     // eta rule for tuples:
     // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup
@@ -326,11 +326,11 @@ const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
 }
 
 const Def* World::variant_(const Def* type, const Def* index, const Def* arg, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
+    if (err()) {
     // TODO:
     // - assert that 'type', when reduced, is a 'union' with 'type->arity() == index->type()'
     // - assert that 'type', when reduced, is a 'union' with 'type->op(index) == arg->type()'
-#endif
+    }
     return unify<Variant_>(2, type, index, arg, debug(dbg));
 }
 
@@ -343,21 +343,20 @@ const Def* World::variant_(const Def* type, const Def* arg, Debug dbg) {
 }
 
 const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
-    assertf(cases.size() > 0, "match must take at least one case");
-    assertf(cases[0]->type()->isa<Pi>(), "match cases must be functions");
-#endif
-    auto type = cases[0]->type()->as<Pi>()->codomain();
-#if THORIN_ENABLE_CHECKS
-    for (auto case_ : cases) {
-        assertf(case_->type()->isa<Pi>(), "match cases must be functions");
-        assertf(case_->type()->as<Pi>()->codomain() == type,
-            "match cases codomains are not consistent with each other, got {} and {}",
-            case_->type()->as<Pi>()->codomain(), type);
+    if (err()) {
+        if (cases.empty()) err()->empty_cases();
     }
-    // TODO:
-    // - assert that `arg->type()`, when reduced, is a `union` with arity == cases.size()
-#endif
+
+    auto type = cases[0]->type();
+
+    if (err()) {
+        for (auto case_ : cases) {
+            if (type != case_->type()) err()->match_cases_inconsistent(type, case_->type());
+        }
+        // TODO:
+        // - assert that `arg->type()`, when reduced, is a `union` with arity == cases.size()
+    }
+
     if (auto variant = arg->isa<Variant_>())
         return app(cases[as_lit<nat_t>(variant->index())], variant->arg());
     Array<const Def*> ops(cases.size() + 1);
@@ -420,8 +419,17 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
 }
 
 const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
+    if (index->isa<Arr>() || index->isa<Pack>()) {
+        Array<const Def*> ops(index->lit_arity(), [&](size_t) { return extract(tup, index->ops().back()); });
+        return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
+    } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
+        Array<const Def*> idx(index->num_ops(), [&](size_t i) { return index->op(i); });
+        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
+        return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
+    }
+
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
-            "extracting from tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
+            "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, tup->type()->arity(), index, index->type());
 
     if (isa_lit_arity(index->type(), 1)) return tup;
     if (auto pack = tup->isa<Pack>()) return pack->body();
@@ -445,7 +453,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
             return unify<Extract>(2, sigma->op(*i), tup, index, debug(dbg));
     }
 
-    if (auto variadic = tup->type()->isa<Variadic>()) {
+    if (auto arr = tup->type()->isa<Arr>()) {
         if (auto tuple = tup->isa<Tuple>()) {
             // TODO we could even deal with an offset
             // extract((0, 1, 2, ...), i) -> i
@@ -458,7 +466,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
             }
 
             if (ascending)
-                return op_bitcast(variadic->codomain(), index, dbg);
+                return op_bitcast(arr->codomain(), index, dbg);
 
             // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
             // this also deals with NOT
@@ -513,7 +521,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
 
     // TODO absorption
 
-    auto type = tup->type()->as<Variadic>()->codomain();
+    auto type = tup->type()->as<Arr>()->codomain();
     return unify<Extract>(2, type, tup, index, debug(dbg));
 }
 
@@ -548,7 +556,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     return unify<Insert>(3, tup, index, val, debug(dbg));
 }
 
-const Def* World::variadic(const Def* domain, const Def* codomain, Debug dbg) {
+const Def* World::arr(const Def* domain, const Def* codomain, Debug dbg) {
     assert(domain->type()->isa<KindArity>() || domain->type()->isa<KindMulti>());
 
     if (auto a = isa_lit<u64>(domain)) {
@@ -557,7 +565,7 @@ const Def* World::variadic(const Def* domain, const Def* codomain, Debug dbg) {
     }
 
     auto type = kind_star();
-    return unify<Variadic>(2, type, domain, codomain, debug(dbg));
+    return unify<Arr>(2, type, domain, codomain, debug(dbg));
 }
 
 const Def* World::pack(const Def* domain, const Def* body, Debug dbg) {
@@ -568,13 +576,13 @@ const Def* World::pack(const Def* domain, const Def* body, Debug dbg) {
         if (*a == 1) return body;
     }
 
-    auto type = variadic(domain, body->type());
+    auto type = arr(domain, body->type());
     return unify<Pack>(1, type, body, debug(dbg));
 }
 
-const Def* World::variadic(Defs domains, const Def* codomain, Debug dbg) {
+const Def* World::arr(Defs domains, const Def* codomain, Debug dbg) {
     if (domains.empty()) return codomain;
-    return variadic(domains.skip_back(), variadic(domains.back(), codomain, dbg), dbg);
+    return arr(domains.skip_back(), arr(domains.back(), codomain, dbg), dbg);
 }
 
 const Def* World::pack(Defs domains, const Def* body, Debug dbg) {
@@ -582,17 +590,26 @@ const Def* World::pack(Defs domains, const Def* body, Debug dbg) {
     return pack(domains.skip_back(), pack(domains.back(), body, dbg), dbg);
 }
 
+const Def* World::succ(const Def* type, bool tuplefy, Debug dbg) {
+    if (auto a = isa_lit_arity(type)) {
+        Array<const Def*> ops(*a, [&](size_t i) { return lit_index(*a, i); });
+        return tuplefy ? tuple(ops, dbg) : sigma(ops, dbg);
+    }
+
+    return unify<Succ>(1, type, tuplefy, debug(dbg));
+}
+
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (a->isa<Top>()) return lit(a, i, dbg);
 
     auto arity = as_lit<u64>(a);
-    assertf(i < arity, "index literal '{}' does not fit within arity '{}'", i, a);
+    if (err() && i >= arity) err()->index_out_of_range(arity, i);
 
     return lit(a, i, dbg);
 }
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
-    if (auto variadic = type->isa<Variadic>()) return pack(variadic->domain(), bot_top(is_top, variadic->codomain()), dbg);
+    if (auto arr = type->isa<Arr>()) return pack(arr->domain(), bot_top(is_top, arr->codomain()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
     auto d = debug(dbg);
@@ -641,9 +658,9 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 
 static const Def* tuple_of_types(const Def* t) {
     auto& world = t->world();
-    if (auto sigma    = t->isa<Sigma>()) return world.tuple(sigma->ops());
-    if (auto variadic = t->isa<Variadic>()) return world.pack(variadic->domain(), variadic->codomain());
-    return t; // Variadic might be nominal. Thus, we still might have this case.
+    if (auto sigma = t->isa<Sigma>()) return world.tuple(sigma->ops());
+    if (auto arr   = t->isa<Arr  >()) return world.pack(arr->domain(), arr->codomain());
+    return t;
 }
 
 const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
@@ -810,11 +827,12 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
             }
         }
     });
+
     VLOG("end: {},", info);
 }
 
 /*
- * logging
+ * misc
  */
 
 const char* World::level2string(LogLevel level) {
@@ -851,9 +869,7 @@ std::string Log::colorize(const std::string& str, int) {
     return str;
 }
 
-/*
- * stream
- */
+void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
 
 Stream& World::stream(Stream& s) const {
     s << "module '" << name() << "'\n\n";

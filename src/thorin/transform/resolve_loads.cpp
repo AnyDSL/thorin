@@ -204,11 +204,11 @@ public:
                 auto ptr_from = isa<Tag::Ptr>(bitcast->arg()->type());
                 if (!ptr_to || !ptr_from)
                     return false;
-                auto variadic_to   = ptr_to->arg(0)->isa<Variadic>();
-                auto variadic_from = ptr_from->arg(0)->isa<Variadic>();
-                if (!variadic_to || !variadic_from)
+                auto arr_to   = ptr_to->arg(0)->isa<Arr>();
+                auto arr_from = ptr_from->arg(0)->isa<Arr>();
+                if (!arr_to || !arr_from)
                     return false;
-                if (variadic_to->codomain() != variadic_from->codomain())
+                if (arr_to->codomain() != arr_from->codomain())
                     return false;
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
             } else if (!allow_load || !isa<Tag::Load>(use)) {

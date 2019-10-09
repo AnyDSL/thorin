@@ -16,6 +16,7 @@ namespace thorin {
 
 enum class LogLevel { Debug, Verbose, Info, Warn, Error };
 
+class ErrorHandler;
 class Scope;
 using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
@@ -75,6 +76,7 @@ public:
     {
         state_ = other.state_;
     }
+    ~World();
 
     /// @ getters
     //@{
@@ -164,16 +166,15 @@ public:
     Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
     Union* union_(size_t size, Debug dbg = {}) { return union_(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
-    /// @name Variadic
+    /// @name Arr
     //@{
-    const Def* variadic(const Def* arity, const Def* body, Debug dbg = {});
-    const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
-    const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a), body, dbg); }
-    const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
-        return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
+    const Def* arr(const Def* arity, const Def* body, Debug dbg = {});
+    const Def* arr(Defs arities, const Def* body, Debug dbg = {});
+    const Def* arr(u64 a, const Def* body, Debug dbg = {}) { return arr(lit_arity(a), body, dbg); }
+    const Def* arr(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
+        return arr(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
-    const Def* variadic_unsafe(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
-    Variadic* variadic(const Def* type, Debug dbg = {}) { return insert<Variadic>(2, type, debug(dbg)); } ///< @em nominal Variadic.
+    const Def* arr_unsafe(const Def* body, Debug dbg = {}) { return arr(top_arity(), body, dbg); }
     //@}
     /// @name Tuple
     //@{
@@ -198,7 +199,6 @@ public:
     const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
-    Pack* pack(const Def* type, Debug dbg = {}) { return insert<Pack>(1, type, debug(dbg)); } ///< @em nominal Pack.
     //@}
     /// @name Extract
     //@{
@@ -223,6 +223,10 @@ public:
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(i), value, dbg); }
+    //@}
+    /// @name Succ
+    //@{
+    const Def* succ(const Def* type, bool tuplefy, Debug dbg = {});
     //@}
     /// @name Match_
     //@{
@@ -438,12 +442,10 @@ public:
         return std::get<const Def*>(*dbg);
     }
     //@}
-    /// @name modify state
+    /// @name partial evaluation done?
     //@{
     void mark_pe_done(bool flag = true) { state_.pe_done = flag; }
     bool is_pe_done() const { return state_.pe_done; }
-    void do_tuple2pack(bool flag = true) { state_.tuple2pack = flag; }
-    bool tuple2pack() const { return state_.tuple2pack; }
     //@}
     /// @name manage externals
     //@{
@@ -514,6 +516,11 @@ public:
     static int level2color(LogLevel level);
     static std::string colorize(const std::string& str, int color);
     //@}
+    /// @name error handling
+    //@{
+    void set(std::unique_ptr<ErrorHandler>&& err);
+    ErrorHandler* err() { return err_.get(); }
+    //@}
 
     Stream& stream(Stream&) const;
 
@@ -525,6 +532,7 @@ public:
         swap(w1.arena_, w2.arena_);
         swap(w1.state_, w2.state_);
         swap(w1.cache_, w2.cache_);
+        swap(w1.err_,   w2.err_);
         swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
@@ -645,7 +653,6 @@ private:
         LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
-        bool tuple2pack = true;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;
         Breakpoints breakpoints;
@@ -693,6 +700,7 @@ private:
     std::string name_;
     Externals externals_;
     Sea defs_;
+    std::unique_ptr<ErrorHandler> err_;
 
     friend class Cleaner;
     friend void Def::replace(Tracker) const;

@@ -756,52 +756,31 @@ public:
     friend class World;
 };
 
-class Variadic : public Def {
+class Arr : public Def {
 private:
-    /// Constructor for a @em structural Variadic.
-    Variadic(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
+    Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
         : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
-    {}
-    /// Constructor for a @em nominal Variaidc.
-    Variadic(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 2, 0, dbg)
     {}
 
 public:
     const Def* domain() const { return op(0); }
     const Def* codomain() const { return op(1); }
-
-    /// @name setters for @em nominal @p Variadic.
-    //@{
-    Variadic* set_domain(const Def* domain) { return Def::set(0, domain)->as<Variadic>(); }
-    Variadic* set_domain(Defs domains);
-    Variadic* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Variadic>(); }
-    //@}
-    /// @name rebuild, stub
-    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
-    //@}
 
-    static constexpr auto Node = Node::Variadic;
+    static constexpr auto Node = Node::Arr;
     friend class World;
 };
 
 class Pack : public Def {
 private:
-    /// Constructor for a @em structural Variadic.
     Pack(const Def* type, const Def* body, const Def* dbg)
         : Def(Node, rebuild, type, {body}, 0, dbg)
-    {}
-    /// Constructor for a @em nominal Variaidc.
-    Pack(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 1, 0, dbg)
     {}
 
 public:
     /// @name type
     //@{
-    const Variadic* type() const { return Def::type()->as<Variadic>(); }
+    const Arr* type() const { return Def::type()->as<Arr>(); }
     const Def* domain() const { return type()->domain(); }
     const Def* codomain() const { return type()->codomain(); }
     //@}
@@ -809,16 +788,7 @@ public:
     //@{
     const Def* body() const { return op(0); }
     //@}
-    /// @name setters for @em nominal @p Pack.
-    //@{
-    Pack* set_body(const Def* body) { return Def::set(0, body)->as<Pack>(); }
-    //@}
-    /// @name rebuild, stub
-    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
-    //@}
-
 
     static constexpr auto Node = Node::Pack;
     friend class World;
@@ -859,6 +829,21 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Insert;
+    friend class World;
+};
+
+class Succ : public Def {
+private:
+    Succ(const Def* type, bool tuplefy, const Def* dbg)
+        : Def(Node, rebuild, type, Defs{type}, tuplefy, dbg) // TODO remve type op as soon as Scope doesn't need Use anymore
+    {}
+
+public:
+    bool tuplefy() const { return fields(); }
+    bool sigmafy() const { return !tuplefy(); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Succ;
     friend class World;
 };
 

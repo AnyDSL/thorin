@@ -326,8 +326,9 @@ public:
     /// @name Bit
     //@{
     const Axiom* op_bit() const { return cache_.op_bit_; }
-    const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op_bit(), w), {table(o), a, b}, dbg); }
-    const Def* op_Bit_not(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(Bit::_xor, lit_int(*w, u64(-1)), a, dbg); }
+    const Def* op_bit(const Def* tbl, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op_bit(), w), {tbl, a, b}, dbg); }
+    const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return op_bit(table(o), a, b, dbg); }
+    const Def* op_bit_not(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(Bit::_xor, lit_int(*w, u64(-1)), a, dbg); }
     //@}
     /// @name Shr
     //@{

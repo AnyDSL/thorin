@@ -44,6 +44,7 @@ public:
     const Axiom* axiom() const { return axiom_; }
     tag_t tag() const { return axiom()->tag(); }
     F flags() const { return F(axiom()->flags()); }
+    void clear() { axiom_ = nullptr; def_ = nullptr; }
 
     const D* operator->() const { return def_; }
     operator const D*() const { return def_; }

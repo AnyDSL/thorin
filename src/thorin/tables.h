@@ -243,7 +243,6 @@ template<> constexpr auto Num<PE  > = 0_s THORIN_PE   (CODE);
 #undef CODE
 
 template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
-template<> struct Tag2Enum_<Tag::Bit > { using type = Bit;   };
 template<> struct Tag2Enum_<Tag::Shr > { using type = Shr;   };
 template<> struct Tag2Enum_<Tag::WOp > { using type = WOp;   };
 template<> struct Tag2Enum_<Tag::ZOp > { using type = ZOp;   };

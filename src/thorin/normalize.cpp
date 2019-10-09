@@ -559,10 +559,60 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
     return world.raw_app(callee, arg, dbg);
 }
 
-const Def* normalize_bit(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
+    auto callee = c->as<App>();
     auto [tbl, a, b] = arg->split<3>();
+    auto w = isa_lit<nat_t>(callee->arg());
 
+    if (!is_const(tbl) || !w) return world.raw_app(callee, arg, dbg);
+
+    if (tbl == world.table(Bit::    f)) return world.lit_int(*w,      0);
+    if (tbl == world.table(Bit::    t)) return world.lit_int(*w, u64(-1));
+    if (tbl == world.table(Bit::    a)) return a;
+    if (tbl == world.table(Bit::    b)) return b;
+    if (tbl == world.table(Bit::   na)) return world.op_bit_not(a, dbg);
+    if (tbl == world.table(Bit::   nb)) return world.op_bit_not(b, dbg);
+    if (tbl == world.table(Bit:: ciff)) return world.op(Bit:: iff, b, a, dbg);
+    if (tbl == world.table(Bit::nciff)) return world.op(Bit::niff, b, a, dbg);
+
+    if (a->isa<Lit>() && b->isa<Lit>()) {
+        u64 x = a->as<Lit>()->get();
+        u64 y = b->as<Lit>()->get();
+        u64 res;
+
+        if (false) {}
+        else if (tbl == world.table(Bit:: _and)) res =   x & y;
+        else if (tbl == world.table(Bit::  _or)) res =   x | y;
+        else if (tbl == world.table(Bit:: _xor)) res =   x ^ y;
+        else if (tbl == world.table(Bit:: nand)) res = ~(x & y);
+        else if (tbl == world.table(Bit::  nor)) res = ~(x | y);
+        else if (tbl == world.table(Bit:: nxor)) res = ~(x ^ y);
+        else if (tbl == world.table(Bit::  iff)) res = ~x |  y;
+        else if (tbl == world.table(Bit:: niff)) res =  x & ~y;
+        else THORIN_UNREACHABLE;
+
+        return world.lit_int(*w, res);
+    }
+
+    if (is_symmetric(tbl)) {
+        if (b->isa<Lit>()) std::swap(a, b); // commute literals to a
+
+        auto la = a->isa<Lit>();
+        auto xy = isa<Tag::Bit>(a);
+        auto zw = isa<Tag::Bit>(b);
+        if (xy && xy->arg(0) != tbl) xy.clear();
+        if (zw && zw->arg(0) != tbl) zw.clear();
+        auto lx = xy ? xy->arg(1)->template isa<Lit>() : nullptr;
+        auto lz = zw ? zw->arg(1)->template isa<Lit>() : nullptr;
+        auto  y = xy ? xy->arg(2) : nullptr;
+        auto  w = zw ? zw->arg(2) : nullptr;
+
+        if (la && lz) return world.op_bit(tbl, world.op_bit(tbl, la, lz), w);                       // (1)
+        if (lx && lz) return world.op_bit(tbl, world.op_bit(tbl, lx, lz), world.op_bit(tbl, y, w)); // (2)
+        if (lz)       return world.op_bit(tbl, lz, world.op_bit(tbl, a, w));                        // (3)
+        if (lx)       return world.op_bit(tbl, lx, world.op_bit(tbl, y, b));                        // (4)
+    }
 
     return world.raw_app(callee, {tbl, a, b}, dbg);
 }

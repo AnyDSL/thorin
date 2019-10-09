@@ -608,26 +608,17 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 
 llvm::Value* CodeGen::emit(const Def* def) {
     auto emit_bit = [&](const Def* tbl, const Def* a, const Def* b) -> llvm::Value* {
-        // this is a truth table
-        auto check = [&](bool aa, bool bb, bool cc, bool dd) {
-            auto [ab, cd] = tbl->split<2>();
-            auto [ a,  b] = ab->split<2>(isa_lit<bool>);
-            auto [ c,  d] = cd->split<2>(isa_lit<bool>);
-            return (a && b && c && d) && *a == aa && *b == bb && *c == cc && *d == dd;
-        };
-
         auto x = lookup(a);
         auto y = lookup(b);
-        if (check(false, false, false, true )) return irbuilder_.CreateAnd(x, y);
-        if (check(false, false, true , false)) return irbuilder_.CreateAnd(irbuilder_.CreateNeg(x), y);
-        if (check(false, true , false, false)) return irbuilder_.CreateAnd(x, irbuilder_.CreateNeg(y));
-        if (check(false, true , true , false)) return irbuilder_.CreateXor(x, y);
-        if (check(false, true , true , true )) return irbuilder_.CreateOr (x, y);
-        if (check(true , false, false, false)) return irbuilder_.CreateNeg(irbuilder_.CreateOr (x, y));
-        if (check(true , false, false, true )) return irbuilder_.CreateNeg(irbuilder_.CreateXor(x, y));
-        if (check(true , false, true , true )) return irbuilder_.CreateOr (x, irbuilder_.CreateNeg(y));
-        if (check(true , true , false, true )) return irbuilder_.CreateOr (irbuilder_.CreateNeg(x), y);
-        if (check(true , true , true , false)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(x, y));
+
+        if (tbl == world().table(Bit:: _and)) return irbuilder_.CreateAnd(x, y);
+        if (tbl == world().table(Bit::  _or)) return irbuilder_.CreateOr (x, y);
+        if (tbl == world().table(Bit:: _xor)) return irbuilder_.CreateXor(x, y);
+        if (tbl == world().table(Bit:: nand)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(x, y));
+        if (tbl == world().table(Bit::  nor)) return irbuilder_.CreateNeg(irbuilder_.CreateOr (x, y));
+        if (tbl == world().table(Bit:: nxor)) return irbuilder_.CreateNeg(irbuilder_.CreateXor(x, y));
+        if (tbl == world().table(Bit::  iff)) return irbuilder_.CreateAnd(irbuilder_.CreateNeg(x), y);
+        if (tbl == world().table(Bit:: niff)) return irbuilder_.CreateOr (x, irbuilder_.CreateNeg(y));
         return nullptr;
     };
 

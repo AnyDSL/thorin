@@ -580,8 +580,6 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) {
             switch (op) {
-                case IOp::ashr: return la;
-                case IOp::lshr: return la;
                 case IOp::iand: return la;
                 case IOp::ior : return b;
                 case IOp::ixor: return b;
@@ -591,8 +589,6 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
 
         if (la == world.lit_int(*w, u64(-1))) {
             switch (op) {
-                case IOp::ashr: break;
-                case IOp::lshr: break;
                 case IOp::iand: return b;
                 case IOp::ior : return la;
                 case IOp::ixor: break;
@@ -601,24 +597,8 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
-    if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int(*w, 0)) {
-            switch (op) {
-                case IOp::ashr: return a;
-                case IOp::lshr: return a;
-                default: THORIN_UNREACHABLE;
-                // iand, ior, ixor are commutative, the literal has been normalized to the left
-            }
-        }
-
-        if ((op == IOp::ashr || op == IOp::lshr) && lb->get() > *w)
-            return world.bot(type, dbg);
-    }
-
     if (a == b) {
         switch (op) {
-            case IOp::ashr: break;
-            case IOp::lshr: break;
             case IOp::iand: return a;
             case IOp::ior : return a;
             case IOp::ixor: return world.lit_int(*w, 0);
@@ -631,8 +611,6 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (auto bb = is_not(b); bb && a == bb) {
         switch (op) {
-            case IOp::ashr: break;
-            case IOp::lshr: break;
             case IOp::iand: return world.lit_int(*w,       0);
             case IOp::ior : return world.lit_int(*w, u64(-1));
             case IOp::ixor: return world.lit_int(*w, u64(-1));

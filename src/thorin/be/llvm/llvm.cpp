@@ -607,15 +607,15 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto iop = isa<Tag::IOp>(def)) {
-        auto [a, b] = iop->args<2>([&](auto def) { return lookup(def); });
+    if (auto shr = isa<Tag::Shr>(def)) {
+        auto [a, b] = shr->args<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
-        switch (iop.flags()) {
-            case IOp::lshr: return irbuilder_.CreateLShr(a, b, name);
-            case IOp::ashr: return irbuilder_.CreateAShr(a, b, name);
-            case IOp::iand: return irbuilder_.CreateAnd (a, b, name);
-            case IOp::ior : return irbuilder_.CreateOr  (a, b, name);
-            case IOp::ixor: return irbuilder_.CreateXor (a, b, name);
+        switch (shr.flags()) {
+            case Shr::a: return irbuilder_.CreateAShr(a, b, name);
+            case Shr::l: return irbuilder_.CreateLShr(a, b, name);
+            //case IOp::iand: return irbuilder_.CreateAnd (a, b, name);
+            //case IOp::ior : return irbuilder_.CreateOr  (a, b, name);
+            //case IOp::ixor: return irbuilder_.CreateXor (a, b, name);
             default: THORIN_UNREACHABLE;
         }
     } else if (auto wop = isa<Tag::WOp>(def)) {
@@ -810,6 +810,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = def->isa<Extract>()) {
+#if 0
             if (extract->tuple() == world().table_not()) return irbuilder_.CreateNeg(llvm_idx);
             if (auto inner = extract->tuple()->isa<Extract>()) {
                 if (extract->tuple()->type() == world().variadic(2, world().type_bool())) {
@@ -834,6 +835,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     if (check(true , true , true , false)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(llvm_inner_idx, llvm_idx));
                 }
             }
+#endif
 
             if (is_memop(extract->tuple())) return lookup(extract->tuple());
             if (extract->tuple()->type()->isa<Variadic>()) return irbuilder_.CreateLoad(copy_to_alloca_or_global());

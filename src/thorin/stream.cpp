@@ -79,11 +79,11 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         if (sigma->isa_nominal()) s.fmt("{}: {}", sigma->unique_name(), sigma->type());
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
-        if (tuple == def->world().table_and ()) return s.fmt( "AND");
-        if (tuple == def->world().table_or  ()) return s.fmt(  "OR");
-        if (tuple == def->world().table_xor ()) return s.fmt( "XOR");
-        if (tuple == def->world().table_xnor()) return s.fmt("XNOR");
-        if (tuple == def->world().table_not ()) return s.fmt( "NOT");
+        auto& world = def->world();
+        for (size_t i = 0; i != 16; ++i) {
+            if (tuple == world.table(Bit(i)))
+                return s.fmt("{}", op2str(Bit(i)));
+        }
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto variadic = def->isa<Variadic>()) {

@@ -49,15 +49,13 @@ World::World(const std::string& name)
     auto nat = type_nat();
     auto mem = type_mem();
 
-    cache_.table_and  = tuple({tuple({lit_false(), lit_false()}),
-                               tuple({lit_false(), lit_true ()})}, { "and"});
-    cache_.table_or   = tuple({tuple({lit_false(), lit_true ()}),
-                               tuple({lit_true (), lit_true ()})}, {  "or"});
-    cache_.table_xor  = tuple({tuple({lit_false(), lit_true()}),
-                               tuple({lit_true (), lit_false()})}, { "xor"});
-    cache_.table_xnor = tuple({tuple({lit_true() , lit_false()}),
-                               tuple({lit_false(), lit_true ()})}, {"xnor"});
-    cache_.table_not =         tuple({lit_true (), lit_false()}  , { "not"}); // AKA extract(xor, 1)
+    // fill truth tables
+    for (size_t i = 0; i != 16; ++i) {
+        cache_.Bit_[i] = tuple({tuple({lit_bool(i & 0x1), lit_bool(i & 0x2)}),
+                                tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
+    }
+
+    //cache_.table_not =         tuple({lit_true (), lit_false()}  , { "not"}); // AKA extract(xor, 1)
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
         cache_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
@@ -67,11 +65,11 @@ World::World(const std::string& name)
         cache_.type_ptr_ = axiom(nullptr, pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
     }
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
-    {   // IOp: Πw: nat. Π[int w, int w]. int w
+    {   // Shr: Πw: nat. Π[int w, int w]. int w
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
-        THORIN_I_OP(CODE)
+        THORIN_SHR(CODE)
     } { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         auto type = pi(star)->set_domain({nat, nat});
         type->param(0, {"m"});
@@ -125,6 +123,11 @@ World::World(const std::string& name)
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
         cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
+    } { // bit: Πw: nat. Π[«bool; bool», int w, int w]. int w
+        auto type = pi(star)->set_domain(nat);
+        auto int_w = type_int(type->param({"w"}));
+        type->set_codomain(pi({variadic(type_bool(), type_bool()), int_w, int_w}, int_w));
+        cache_.op_bit_ = axiom(normalize_bit, type, Tag::Bit, 0, {"bit"});
     } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
         auto D = type->param(0, {"D"});
@@ -500,10 +503,12 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         }
     }
 
+#if 0
     if (tup == table_not()) {
         if (auto icmp = isa<Tag::ICmp>(index)) { auto [x, y] = icmp->args<2>(); return op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x, dbg); }
         if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), /*rmode*/ rcmp->decurry()->arg(0), y, x, dbg); }
     }
+#endif
 
     // TODO absorption
 

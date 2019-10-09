@@ -210,18 +210,11 @@ public:
     //@}
     /// @name Bool operations - extracts on truth tables (tuples)
     //@{
-    const Def* table_and()  const { return cache_.table_and ; }
-    const Def* table_or ()  const { return cache_.table_or  ; }
-    const Def* table_xor()  const { return cache_.table_xor ; }
-    const Def* table_xnor() const { return cache_.table_xnor; }
-    const Def* table_not()  const { return cache_.table_not ; }
-    const Def* extract_and (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_and (), a), b, dbg); }
-    const Def* extract_or  (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_or  (), a), b, dbg); }
-    const Def* extract_xor (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xor (), a), b, dbg); }
-    const Def* extract_xnor(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xnor(), a), b, dbg); }
-    const Def* extract_eq  (const Def* a, const Def* b, Debug dbg = {}) { return extract_xnor(a, b, dbg); }
-    const Def* extract_ne  (const Def* a, const Def* b, Debug dbg = {}) { return extract_xor (a, b, dbg); }
-    const Def* extract_not (const Def* a, Debug dbg = {}) { return extract(table_not(), a, dbg); }
+    const Def* table(Bit o)  const { return cache_.Bit_[size_t(o)]; }
+    const Def* extract(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table(o), a), b, dbg); }
+    const Def* extract_eq (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::nxor, a, b, dbg); }
+    const Def* extract_ne (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::_xor, a, b, dbg); }
+    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract(Bit::_xor, lit_true(), a, dbg); }
     //@}
     /// @name Insert
     //@{
@@ -325,11 +318,16 @@ public:
     const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     const App* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
     //@}
-    /// @name IOp
+    /// @name Bit
     //@{
-    const Axiom* op(IOp o) { return cache_.IOp_[size_t(o)]; }
-    const Def* op(IOp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
-    const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(IOp::ixor, lit_int(*w, u64(-1)), a, dbg); }
+    const Axiom* op_bit() const { return cache_.op_bit_; }
+    const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op_bit(), w), {table(o), a, b}, dbg); }
+    const Def* op_Bit_not(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(Bit::_xor, lit_int(*w, u64(-1)), a, dbg); }
+    //@}
+    /// @name Shr
+    //@{
+    const Axiom* op(Shr o) { return cache_.Shr_[size_t(o)]; }
+    const Def* op(Shr o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
     //@}
     /// @name WOp
     //@{
@@ -666,13 +664,10 @@ private:
         const Nat* type_nat_;
         const Mem* type_mem_;
         const Lit* type_bool_;
+        //const Def* table_not;
         std::array<const Lit*, 2> lit_bool_;
-        const Def* table_and;
-        const Def* table_or;
-        const Def* table_xor;
-        const Def* table_xnor;
-        const Def* table_not;
-        std::array<const Axiom*, Num<IOp>>  IOp_;
+        std::array<const Def*,   Num<Bit>>  Bit_;
+        std::array<const Axiom*, Num<Shr>>  Shr_;
         std::array<const Axiom*, Num<WOp>>  WOp_;
         std::array<const Axiom*, Num<ZOp>>  ZOp_;
         std::array<const Axiom*, Num<ROp>>  ROp_;
@@ -685,6 +680,7 @@ private:
         const Axiom* type_real_;
         const Axiom* type_ptr_;
         const Axiom* op_bitcast_;
+        const Axiom* op_bit_;
         const Axiom* op_lea_;
         const Axiom* op_sizeof_;
         const Axiom* op_alloc_;

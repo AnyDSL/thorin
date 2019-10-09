@@ -758,30 +758,14 @@ public:
 
 class Variadic : public Def {
 private:
-    /// Constructor for a @em structural Variadic.
     Variadic(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
         : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
-    {}
-    /// Constructor for a @em nominal Variaidc.
-    Variadic(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 2, 0, dbg)
     {}
 
 public:
     const Def* domain() const { return op(0); }
     const Def* codomain() const { return op(1); }
-
-    /// @name setters for @em nominal @p Variadic.
-    //@{
-    Variadic* set_domain(const Def* domain) { return Def::set(0, domain)->as<Variadic>(); }
-    Variadic* set_domain(Defs domains);
-    Variadic* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Variadic>(); }
-    //@}
-    /// @name rebuild, stub
-    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
-    //@}
 
     static constexpr auto Node = Node::Variadic;
     friend class World;
@@ -789,13 +773,8 @@ public:
 
 class Pack : public Def {
 private:
-    /// Constructor for a @em structural Variadic.
     Pack(const Def* type, const Def* body, const Def* dbg)
         : Def(Node, rebuild, type, {body}, 0, dbg)
-    {}
-    /// Constructor for a @em nominal Variaidc.
-    Pack(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 1, 0, dbg)
     {}
 
 public:
@@ -809,16 +788,7 @@ public:
     //@{
     const Def* body() const { return op(0); }
     //@}
-    /// @name setters for @em nominal @p Pack.
-    //@{
-    Pack* set_body(const Def* body) { return Def::set(0, body)->as<Pack>(); }
-    //@}
-    /// @name rebuild, stub
-    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
-    //@}
-
 
     static constexpr auto Node = Node::Pack;
     friend class World;
@@ -859,6 +829,32 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Insert;
+    friend class World;
+};
+
+class Heir : public Def {
+private:
+    Heir(const Def* type, const Def* dbg)
+        : Def(Node, rebuild, type, Defs{type}, 0, dbg)
+    {}
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Heir;
+    friend class World;
+};
+
+class Succ : public Def {
+private:
+    Succ(const Def* type, const Def* dbg)
+        : Def(Node, rebuild, type, Defs{type}, 0, dbg) // TODO remve type op as soon as Scope doesn't need Use anymore
+    {}
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Succ;
     friend class World;
 };
 

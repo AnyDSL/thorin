@@ -22,8 +22,6 @@ public:
     {}
 
     const Def* rewrite(const Def* old_def);
-    const Def* normalize(Def* old_nom, const Def* new_type, const Def* new_dbg);
-    const Def* normalize(Def* old_nom, Def* new_nom);
     World& world() { assert(&old_world == &new_world); return old_world; }
 
     World& old_world;

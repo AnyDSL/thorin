@@ -27,6 +27,8 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
     else if (def->isa<Nat>())       return s.fmt("nat");
     else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
     else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());
+    else if (auto heir = def->isa<Heir>()) return s.fmt("heir({})", heir->type());
+    else if (auto succ = def->isa<Succ>()) return s.fmt("succ({})", succ->type());
     else if (auto axiom = def->isa<Axiom>()) return s.fmt("{}", axiom->name());
     else if (auto lit = def->isa<Lit>()) {
         if (auto real = thorin::isa<Tag::Real>(lit->type())) {

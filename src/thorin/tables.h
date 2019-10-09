@@ -16,6 +16,7 @@ using nat_t    = u64;
     m(Pi, pi)             m(Lam, lam)           m(App, app)                             \
     m(Sigma, sigma)       m(Tuple, tuple)       m(Extract, extract) m(Insert, insert)   \
     m(Variadic, variadic) m(Pack, pack)                                                 \
+    m(Heir, heir)         m(Succ, succ)                                                 \
     m(Union, union_)      m(Variant_, variant_) m(Match_, match_)                       \
     m(Bot, bot) m(Top, top)                                                             \
     m(CPS2DS, cps2ds) m(DS2CPS, ds2cps)                                                 \

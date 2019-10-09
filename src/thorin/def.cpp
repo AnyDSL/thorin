@@ -375,11 +375,11 @@ size_t Def::num_params() { return param()->type()->lit_arity(); }
  */
 
 const Def* Axiom      ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags(), dbg); }
-const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
+const Def* Lam        ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* CPS2DS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
 const Def* DS2CPS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
-const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
-const Def* Union      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.union_(t, o, dbg); }
+const Def* Sigma      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.sigma(t, o, dbg); }
+const Def* Union      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
 const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
 const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
@@ -402,6 +402,8 @@ const Def* Variant_   ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
+const Def* Heir       ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.heir(t, dbg); }
+const Def* Succ       ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, dbg); }
 
 /*
  * stub
@@ -409,11 +411,9 @@ const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 
 Def* Universe::stub(const Def*  , World& w, const Def*  , const Def*    ) { return const_cast<Universe*>(w.universe()); }
 Def* Lam     ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
-Def* Pack    ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pack(t, Debug{dbg}); }
 Def* Pi      ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.sigma(t, d->num_ops(), dbg); }
 Def* Union   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.union_(t, d->num_ops(), dbg); }
-Def* Variadic::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.variadic(t, Debug{dbg}); }
 
 template void Streamable<Def>::dump() const;
 

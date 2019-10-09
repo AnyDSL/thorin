@@ -173,7 +173,6 @@ public:
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
     const Def* variadic_unsafe(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
-    Variadic* variadic(const Def* type, Debug dbg = {}) { return insert<Variadic>(2, type, debug(dbg)); } ///< @em nominal Variadic.
     //@}
     /// @name Tuple
     //@{
@@ -198,7 +197,6 @@ public:
     const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
-    Pack* pack(const Def* type, Debug dbg = {}) { return insert<Pack>(1, type, debug(dbg)); } ///< @em nominal Pack.
     //@}
     /// @name Extract
     //@{
@@ -229,6 +227,11 @@ public:
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(i), value, dbg); }
+    //@}
+    /// @name Heir/Succ
+    //@{
+    const Def* heir(const Def* type, Debug dbg = {});
+    const Def* succ(const Def* type, Debug dbg = {});
     //@}
     /// @name Match_
     //@{

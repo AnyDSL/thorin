@@ -55,7 +55,8 @@ World::World(const std::string& name)
                                 tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
     }
 
-    //cache_.table_not =         tuple({lit_true (), lit_false()}  , { "not"}); // AKA extract(xor, 1)
+    cache_.table_not = tuple({lit_true (), lit_false()} , { "not"});
+
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
         cache_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});

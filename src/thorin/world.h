@@ -228,10 +228,9 @@ public:
     const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(i), value, dbg); }
     //@}
-    /// @name Heir/Succ
+    /// @name Succ
     //@{
-    const Def* heir(const Def* type, Debug dbg = {});
-    const Def* succ(const Def* type, Debug dbg = {});
+    const Def* succ(const Def* type, bool tuplefy, Debug dbg = {});
     //@}
     /// @name Match_
     //@{

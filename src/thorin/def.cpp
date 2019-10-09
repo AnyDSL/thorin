@@ -402,8 +402,7 @@ const Def* Variant_   ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
-const Def* Heir       ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.heir(t, dbg); }
-const Def* Succ       ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, dbg); }
+const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }
 
 /*
  * stub

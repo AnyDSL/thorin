@@ -832,26 +832,15 @@ public:
     friend class World;
 };
 
-class Heir : public Def {
-private:
-    Heir(const Def* type, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{type}, 0, dbg)
-    {}
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Heir;
-    friend class World;
-};
-
 class Succ : public Def {
 private:
-    Succ(const Def* type, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{type}, 0, dbg) // TODO remve type op as soon as Scope doesn't need Use anymore
+    Succ(const Def* type, bool tuplefy, const Def* dbg)
+        : Def(Node, rebuild, type, Defs{type}, tuplefy, dbg) // TODO remve type op as soon as Scope doesn't need Use anymore
     {}
 
 public:
+    bool tuplefy() const { return fields(); }
+    bool sigmafy() const { return !tuplefy(); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Succ;

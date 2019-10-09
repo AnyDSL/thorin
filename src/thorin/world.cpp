@@ -140,7 +140,7 @@ World::World(const std::string& name)
         auto s  = pi1->param(0, {"s"});
         auto Ts = pi1->param(1, {"Ts"});
         auto as = pi1->param(2, {"as"});
-        auto src_ptr = type_ptr(extract(Ts, heir(s)), as);
+        auto src_ptr = type_ptr(extract(Ts, succ(s, false)), as);
         auto pi2 = pi(star)->set_domain({src_ptr, s});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
@@ -414,20 +414,13 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
 }
 
 const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
-    if (auto variadic = index->isa<Variadic>()) {
-        Array<const Def*> ops(variadic->lit_arity(), [&](size_t) { return extract(tup, variadic->codomain()); });
-        return sigma(ops, dbg);
-    } else if (auto pack = index->isa<Pack>()) {
-        Array<const Def*> ops(pack->type()->lit_arity(), [&](size_t) { return extract(tup, pack->body()); });
-        return tuple(ops, dbg);
-    } else if (auto sigma = index->isa<Sigma>()) {
-        Array<const Def*> idx(sigma->num_ops(), [&](size_t i) { return sigma->op(i); });
-        Array<const Def*> ops(sigma->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
-        return this->sigma(ops, dbg);
-    } else if (auto tuple = index->isa<Tuple>()) {
-        Array<const Def*> idx(tuple->num_ops(), [&](size_t i) { return tuple->op(i); });
-        Array<const Def*> ops(tuple->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
-        return this->tuple(ops, dbg);
+    if (index->isa<Variadic>() || index->isa<Pack>()) {
+        Array<const Def*> ops(index->lit_arity(), [&](size_t) { return extract(tup, index->ops().back()); });
+        return index->isa<Variadic>() ? sigma(ops, dbg) : tuple(ops, dbg);
+    } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
+        Array<const Def*> idx(index->num_ops(), [&](size_t i) { return index->op(i); });
+        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
+        return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
     assertf(alpha_equiv(tup->type()->arity(), index->type()),
@@ -590,22 +583,13 @@ const Def* World::pack(Defs domains, const Def* body, Debug dbg) {
     return pack(domains.skip_back(), pack(domains.back(), body, dbg), dbg);
 }
 
-const Def* World::heir(const Def* type, Debug dbg) {
+const Def* World::succ(const Def* type, bool tuplefy, Debug dbg) {
     if (auto a = isa_lit_arity(type)) {
         Array<const Def*> ops(*a, [&](size_t i) { return lit_index(*a, i); });
-        return sigma(ops, dbg);
+        return tuplefy ? tuple(ops, dbg) : sigma(ops, dbg);
     }
 
-    return unify<Heir>(1, type, debug(dbg));
-}
-
-const Def* World::succ(const Def* type, Debug dbg) {
-    if (auto a = isa_lit_arity(type)) {
-        Array<const Def*> ops(*a, [&](size_t i) { return lit_index(*a, i); });
-        return tuple(ops, dbg);
-    }
-
-    return unify<Succ>(1, type, debug(dbg));
+    return unify<Succ>(1, type, tuplefy, debug(dbg));
 }
 
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {

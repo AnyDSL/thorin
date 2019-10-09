@@ -16,6 +16,7 @@ namespace thorin {
 
 enum class LogLevel { Debug, Verbose, Info, Warn, Error };
 
+class ErrorHandler;
 class Scope;
 using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
@@ -75,6 +76,7 @@ public:
     {
         state_ = other.state_;
     }
+    ~World();
 
     /// @ getters
     //@{
@@ -441,12 +443,10 @@ public:
         return std::get<const Def*>(*dbg);
     }
     //@}
-    /// @name modify state
+    /// @name partial evaluation done?
     //@{
     void mark_pe_done(bool flag = true) { state_.pe_done = flag; }
     bool is_pe_done() const { return state_.pe_done; }
-    void do_tuple2pack(bool flag = true) { state_.tuple2pack = flag; }
-    bool tuple2pack() const { return state_.tuple2pack; }
     //@}
     /// @name manage externals
     //@{
@@ -516,6 +516,11 @@ public:
     static const char* level2string(LogLevel level);
     static int level2color(LogLevel level);
     static std::string colorize(const std::string& str, int color);
+    //@}
+    /// @name error handling
+    //@{
+    void set(std::unique_ptr<ErrorHandler>&& err);
+    ErrorHandler* err() { return err_.get(); }
     //@}
 
     Stream& stream(Stream&) const;
@@ -648,7 +653,6 @@ private:
         LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
-        bool tuple2pack = true;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;
         Breakpoints breakpoints;
@@ -698,6 +702,7 @@ private:
     std::string name_;
     Externals externals_;
     Sea defs_;
+    std::unique_ptr<ErrorHandler> err_;
 
     friend class Cleaner;
     friend void Def::replace(Tracker) const;

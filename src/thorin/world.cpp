@@ -11,6 +11,7 @@
 
 #include "thorin/alpha_equiv.h"
 #include "thorin/def.h"
+#include "thorin/error.h"
 #include "thorin/normalize.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
@@ -20,7 +21,7 @@
 namespace thorin {
 
 /*
- * constructor
+ * constructor & destructor
  */
 
 #ifndef NDEBUG
@@ -178,6 +179,9 @@ World::World(const std::string& name)
     }
 }
 
+// must be here to avoid inclusion of some includes in world.h
+World::~World() {}
+
 /*
  * core calculus
  */
@@ -247,8 +251,7 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
-    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return arr(n, ops[0]);
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
     return unify<Sigma>(ops.size(), type, ops, debug(dbg));
 }
 
@@ -265,17 +268,16 @@ const Def* World::tuple(Defs ops, Debug dbg) {
 }
 
 const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
+    if (err()) {
     // TODO type-check type vs inferred type
-#endif
+    }
 
     auto n = ops.size();
     if (n == 0) return tuple();
     if (n == 1) return ops[0];
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 
-    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return pack(n, ops[0]);
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
 
     // eta rule for tuples:
     // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup
@@ -320,11 +322,11 @@ const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
 }
 
 const Def* World::variant_(const Def* type, const Def* index, const Def* arg, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
+    if (err()) {
     // TODO:
     // - assert that 'type', when reduced, is a 'union' with 'type->arity() == index->type()'
     // - assert that 'type', when reduced, is a 'union' with 'type->op(index) == arg->type()'
-#endif
+    }
     return unify<Variant_>(2, type, index, arg, debug(dbg));
 }
 
@@ -337,21 +339,20 @@ const Def* World::variant_(const Def* type, const Def* arg, Debug dbg) {
 }
 
 const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
-    assertf(cases.size() > 0, "match must take at least one case");
-    assertf(cases[0]->type()->isa<Pi>(), "match cases must be functions");
-#endif
-    auto type = cases[0]->type()->as<Pi>()->codomain();
-#if THORIN_ENABLE_CHECKS
-    for (auto case_ : cases) {
-        assertf(case_->type()->isa<Pi>(), "match cases must be functions");
-        assertf(case_->type()->as<Pi>()->codomain() == type,
-            "match cases codomains are not consistent with each other, got {} and {}",
-            case_->type()->as<Pi>()->codomain(), type);
+    if (err()) {
+        if (cases.empty()) err()->empty_cases();
     }
-    // TODO:
-    // - assert that `arg->type()`, when reduced, is a `union` with arity == cases.size()
-#endif
+
+    auto type = cases[0]->type();
+
+    if (err()) {
+        for (auto case_ : cases) {
+            if (type != case_->type()) err()->match_cases_inconsistent(type, case_->type());
+        }
+        // TODO:
+        // - assert that `arg->type()`, when reduced, is a `union` with arity == cases.size()
+    }
+
     if (auto variant = arg->isa<Variant_>())
         return app(cases[as_lit<nat_t>(variant->index())], variant->arg());
     Array<const Def*> ops(cases.size() + 1);
@@ -596,7 +597,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (a->isa<Top>()) return lit(a, i, dbg);
 
     auto arity = as_lit<u64>(a);
-    assertf(i < arity, "index literal '{}' does not fit within arity '{}'", i, a);
+    if (err() && i >= arity) err()->index_out_of_range(arity, i);
 
     return lit(a, i, dbg);
 }
@@ -820,11 +821,12 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
             }
         }
     });
+
     VLOG("end: {},", info);
 }
 
 /*
- * logging
+ * misc
  */
 
 const char* World::level2string(LogLevel level) {
@@ -861,9 +863,7 @@ std::string Log::colorize(const std::string& str, int) {
     return str;
 }
 
-/*
- * stream
- */
+void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
 
 Stream& World::stream(Stream& s) const {
     s << "module '" << name() << "'\n\n";

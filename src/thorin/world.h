@@ -533,6 +533,7 @@ public:
         swap(w1.arena_, w2.arena_);
         swap(w1.state_, w2.state_);
         swap(w1.cache_, w2.cache_);
+        swap(w1.err_,   w2.err_);
         swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);

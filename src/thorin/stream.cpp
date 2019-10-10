@@ -71,7 +71,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             THORIN_UNREACHABLE;
         } else if (auto ptr = thorin::isa<Tag::Ptr>(app)) {
             auto [pointee, addr_space] = ptr->args<2>();
-            if (auto as = isa_lit<nat_t>(addr_space); as && *as == 0) return s.fmt("{}*", pointee);
+            if (auto as = isa_lit<nat_t>(addr_space); as && *as == 0) return s.fmt("{}*", (const Def*) pointee); // TODO why the cast???
         }
 
         return s.fmt("{} {}", app->callee(), app->arg());

@@ -5,8 +5,10 @@
 namespace thorin {
 
 void PassMan::run() {
-    states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
+
+    states_.emplace_back(passes_);
+    cur_state().old2new[world().universe()] = world().universe();
 
     auto externals = world().externals(); // copy
     for (const auto& [name, nom] : externals) {

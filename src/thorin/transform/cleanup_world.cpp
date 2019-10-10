@@ -258,10 +258,9 @@ void Cleaner::verify_closedness() {
     for (auto def : world().defs()) {
         if (!def->is_set()) continue;
 
-        size_t i = 0;
-        for (auto op : def->ops()) {
-            within(op);
-            assert_unused(op->uses_.contains(Use(def, i++)) && "can't find def in op's uses");
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+            within(def->op(i));
+            assert((def->op(i)->is_const() || def->op(i)->uses_.contains(Use(def, i))) && "can't find def in op's uses");
         }
 
         for (const auto& use : def->uses_) {

@@ -342,11 +342,11 @@ using Param2Param = ParamMap<const Param*>;
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node, stub, reinterpret_cast<const Def*>(&world), 0_s, 0, nullptr)
+        : Def(Node, rebuild, reinterpret_cast<const Def*>(&world), Defs{}, 0, nullptr)
     {}
 
 public:
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Universe;
     friend class World;

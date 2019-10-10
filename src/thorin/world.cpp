@@ -853,8 +853,8 @@ Stream& World::stream(Stream& s) const {
             globals.emplace_back(global);
     }
 
-    //for (auto global : globals)
-        //global->stream_assignment(s);
+    for (auto global : globals)
+        stream_assignment(s, global).endl();
 
     visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;

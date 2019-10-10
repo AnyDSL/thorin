@@ -33,7 +33,7 @@ nat_t Def::lit_arity() const {
 }
 
 bool Def::equal(const Def* other) const {
-    if (this->isa_nominal() || other->isa_nominal())
+    if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
         return this == other;
 
     bool result = this->node() == other->node() && this->fields() == other->fields() && this->num_ops() == other->num_ops() && this->type() == other->type();
@@ -91,17 +91,20 @@ std::string Def::loc() const {
 }
 
 void Def::finalize() {
-    for (size_t i = 0, e = num_ops(); i != e; ++i) {
-        auto o = op(i);
-        assert(o != nullptr);
-        const_ |= o->is_const();
-        order_ = std::max(order_, o->order_);
-        const auto& p = o->uses_.emplace(this, i);
-        assert_unused(p.second);
+    for (auto op : ops()) {
+        const_ &= op->is_const();
+        order_ = std::max(order_, op->order_);
     }
 
-    const_ |= type()->is_const();
+    if (!isa<Universe>()) const_ &= type()->is_const();
     if (isa<Pi>()) ++order_;
+
+    for (size_t i = 0, e = num_ops(); i != e; ++i) {
+        if (!op(i)->is_const()) {
+            const auto& p = op(i)->uses_.emplace(this, i);
+            assert_unused(p.second);
+        }
+    }
 }
 
 Def* Def::set(size_t i, const Def* def) {
@@ -280,18 +283,24 @@ Def::Def(node_t node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fie
     , rebuild_(rebuild)
     , debug_(dbg)
     , fields_(fields)
-    , node_((unsigned)node)
+    , node_(unsigned(node))
     , nominal_(false)
-    , const_(node != Node::Param)
+    , const_(true)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(ops.size())
 {
-    type->uses_.emplace(this, -1);
     std::copy(ops.begin(), ops.end(), ops_ptr());
-    hash_ = hash_combine(hash_begin(node), type->gid(), fields_);
-    for (auto op : ops)
-        hash_ = hash_combine(hash_, op->gid());
+
+    if (node == Node::Universe) {
+        hash_ = murmur3(gid());
+    } else {
+        hash_ = hash_combine(hash_begin(node), type->gid(), fields_);
+        for (auto op : ops)
+            hash_ = hash_combine(hash_, op->gid());
+
+        if (!type->is_const()) type->uses_.emplace(this, -1);
+    }
 }
 
 Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
@@ -307,8 +316,8 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
     , num_ops_(num_ops)
     , hash_(murmur3(gid()))
 {
-    if (node != Node::Universe) type->uses_.emplace(this, -1);
     std::fill_n(ops_ptr(), num_ops, nullptr);
+    if (!type->is_const()) type->uses_.emplace(this, -1);
 }
 
 Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg)
@@ -373,6 +382,7 @@ const Def* Match_     ::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
+const Def* Universe   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<nat_t>(d), dbg); }
 const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
 const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
@@ -390,7 +400,6 @@ const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , co
  * stub
  */
 
-Def* Universe::stub(const Def*  , World& w, const Def*  , const Def*    ) { return const_cast<Universe*>(w.universe()); }
 Def* Lam     ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
 Def* Pi      ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.sigma(t, d->num_ops(), dbg); }

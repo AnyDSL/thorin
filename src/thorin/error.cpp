@@ -14,8 +14,8 @@ void ErrorHandler::incomplete_match(const Match* match) {
     err("match {} is incomplete", match);
 }
 
-void ErrorHandler::redundant_match_cases(const Match* match, size_t index) {
-    err("match {} has redundant cases starting from index {}", match, index + 1);
+void ErrorHandler::redundant_match_case(const Match* match, const Ptrn* first) {
+    err("match {} has a redundant case: {}", match, first);
 }
 
 }

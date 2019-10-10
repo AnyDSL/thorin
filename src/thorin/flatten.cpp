@@ -10,9 +10,9 @@ const Def* Flattener::flatten(const Def* def) {
         return *new_def;
     auto& world = def->world();
     if (auto pack = def->isa<Pack>()) {
-        if (!pack->arity()->isa<Lit>()) return old2new[def] = def;
+        if (!pack->domain()->isa<Lit>()) return old2new[def] = def;
         auto body = flatten(pack->body());
-        auto n = as_lit<nat_t>(pack->arity());
+        auto n = as_lit<nat_t>(pack->domain());
         if (body->type()->arity()->isa<Lit>()) {
             auto m = body->type()->lit_arity();
             Array<const Def*> ops(n * m);

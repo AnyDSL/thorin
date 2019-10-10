@@ -887,11 +887,12 @@ public:
 /// Pattern value.
 class Ptrn : public Def {
 private:
-    Ptrn(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 2, 0, dbg)
+    Ptrn(const Def* type, bool can_be_redundant, const Def* dbg)
+        : Def(Node, stub, type, 2, can_be_redundant ? 1 : 0, dbg)
     {}
 
 public:
+    bool can_be_redundant() const { return fields() != 0; }
     bool is_trivial() const;
     bool matches(const Def*) const;
     const Def* instantiate(const Def*) const;

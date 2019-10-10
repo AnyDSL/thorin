@@ -16,7 +16,7 @@ public:
 
     virtual void index_out_of_range(uint64_t arity, uint64_t index);
     virtual void incomplete_match(const Match*);
-    virtual void redundant_match_cases(const Match*, size_t index);
+    virtual void redundant_match_case(const Match*, const Ptrn*);
 };
 
 }

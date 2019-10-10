@@ -341,6 +341,26 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
             ptrn_->type()->as<thorin::Case>()->codomain(), type);
     }
 #endif
+    Array<const Def*> ops(ptrns.size() + 1);
+    ops[0] = arg;
+    std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
+    // We need to build a match to have something to give to the error handler
+    auto match = unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
+
+    bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
+    if (trivial) {
+        if (ptrns.size() > 1 && err()) {
+            for (auto ptrn : ptrns.skip_front()) {
+                if (!ptrn->as<Ptrn>()->can_be_redundant())
+                    err()->redundant_match_case(match, ptrn->as<Ptrn>());
+            }
+        }
+        return ptrns[0]->as<Ptrn>()->instantiate(arg);
+    }
+    if (ptrns.size() == 1 && !trivial) {
+        if (err()) err()->incomplete_match(match);
+        return bot(type);
+    }
     // Constant folding
     if (arg->is_const()) {
         for (auto ptrn : ptrns) {
@@ -348,18 +368,6 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
             if (ptrn->as<Ptrn>()->matches(arg))
                 return ptrn->as<Ptrn>()->instantiate(arg);
         }
-        return bot(type);
-    }
-    bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
-    if (trivial)
-        return ptrns[0]->as<Ptrn>()->instantiate(arg);
-
-    Array<const Def*> ops(ptrns.size() + 1);
-    ops[0] = arg;
-    std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
-    auto match = unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
-    if (ptrns.size() == 1 && !trivial) {
-        if (err()) err()->incomplete_match(match);
         return bot(type);
     }
     return match;

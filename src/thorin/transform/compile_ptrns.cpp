@@ -15,7 +15,7 @@ private:
     Ptrn* flatten(Ptrn* ptrn) {
         Scope scope(ptrn);
         Rewriter rewriter(world_, &scope);
-        auto f_ptrn = world_.ptrn(world_.case_(flattener_.flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->debug());
+        auto f_ptrn = world_.ptrn(world_.case_(flattener_.flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->can_be_redundant(), ptrn->debug());
         rewriter.old2new.emplace(ptrn->param(), unflatten(f_ptrn->param(), ptrn->type()->domain()));
         f_ptrn->set(flattener_.flatten(rewriter.rewrite(ptrn->matcher())), rewriter.rewrite(ptrn->body()));
         return f_ptrn;
@@ -43,18 +43,34 @@ private:
     }
 
     /// Specializes the pattern for one particular value
-    Ptrn* specialize(Ptrn* ptrn, size_t col, const Def* val, const Def* s_type) {
+    Ptrn* specialize(Ptrn* ptrn, size_t col, const Def* val, const Def* s_type, bool can_be_redundant = false) {
         Scope scope(ptrn);
         Rewriter rewriter(world_, &scope);
-        auto s_ptrn = world_.ptrn(world_.case_(s_type, ptrn->body()->type()), ptrn->debug());
+        auto s_ptrn = world_.ptrn(world_.case_(s_type, ptrn->body()->type()), can_be_redundant, ptrn->debug());
         rewriter.old2new.emplace(ptrn->param(), introduce(s_ptrn->param(), col, val));
         s_ptrn->set(eliminate(rewriter.rewrite(ptrn->matcher()), col), rewriter.rewrite(ptrn->body()));
         return s_ptrn;
     }
 
+    /// Defaults the pattern (does not perform matching on the given column)
+    Ptrn* default_(Ptrn* ptrn, size_t col, const Def* val, const Def* d_type) {
+        // TODO: Enums
+        return specialize(ptrn, col, val, d_type);
+    }
+
     /// Returns whether the constructor patterns form a signature for the matched type
     bool is_complete(const Def* arg_type, const DefMap<std::vector<Ptrn*>>& ctor2ptrns) {
         return arg_type == world_.type_bool() && ctor2ptrns.size() == 2;
+    }
+
+    /// Report an error message for each pattern that does not have the flag 'can_be_redundant' set
+    void report_redundant_ptrns(const Match* match, ArrayRef<Ptrn*> ptrns) {
+        if (world_.err()) {
+            for (auto ptrn : ptrns) {
+                if (!ptrn->can_be_redundant())
+                    world_.err()->redundant_match_case(match, ptrn);
+            }
+        }
     }
 
     World& world_;
@@ -67,14 +83,11 @@ public:
 
     const Def* compile(const Match* match, const Def* arg, std::vector<Ptrn*>& ptrns, const Def* dbg) {
         assert(!ptrns.empty());
-        if (arg->type()->lit_arity() == 1) {
-            // The reinterpret_cast is need to case the Ptrn** into Def**,
-            // which is not a valid C++ static_cast, but should be safe as a
-            // reinterpret_cast because we do not modify the contents of the array.
-            return world_.match(arg, Defs(ptrns.size(), reinterpret_cast<Def**>(ptrns.data())), dbg);
-        }
-        if (ptrns[0]->is_trivial())
+        // If the first pattern of the list matches everything, then no need for a match
+        if (arg->type()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
+            report_redundant_ptrns(match, ArrayRef<Ptrn*>(ptrns).skip_front());
             return ptrns[0]->instantiate(arg);
+        }
 
         // Flatten tuple patterns
         arg = flattener_.flatten(arg);
@@ -90,31 +103,40 @@ public:
         // and collect patterns that have no constructor.
         std::vector<Ptrn*> no_ctor;
         DefMap<std::vector<Ptrn*>> ctor2ptrns;
-        auto s_arg = eliminate(arg, col);
         for (auto ptrn : ptrns) {
             auto ptrn_col = ptrn->matcher()->out(col);
             if (auto lit = ptrn_col->isa<Lit>())
-                ctor2ptrns[lit].push_back(specialize(ptrn, col, lit, s_arg->type()));
+                ctor2ptrns[lit].push_back(ptrn);
             else
-                no_ctor.push_back(specialize(ptrn, col, col_arg, s_arg->type()));
+                no_ctor.push_back(ptrn);
         }
 
         // Generate a new match for each constructor
+        auto s_arg = eliminate(arg, col); // TODO: Enums
         std::vector<const Def*> compiled_ptrns;
         for (auto& [ctor, ctor_ptrns] : ctor2ptrns) {
-            ctor_ptrns.insert(ctor_ptrns.end(), no_ctor.begin(), no_ctor.end());
+            for (auto& ptrn : ctor_ptrns)
+                ptrn = specialize(ptrn, col, ctor, s_arg->type());
+            for (auto ptrn : no_ctor)
+                ctor_ptrns.push_back(specialize(ptrn, col, col_arg, s_arg->type(), true));
             auto value = compile(match, s_arg, ctor_ptrns, dbg);
-            auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), dbg);
+            auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), false, dbg);
             ptrn->set(ctor, value);
             compiled_ptrns.push_back(ptrn);
         }
-        if (no_ctor.empty() && !is_complete(col_type, ctor2ptrns)) {
-            world_.err()->incomplete_match(match);
+        auto complete = is_complete(col_type, ctor2ptrns);
+        if (no_ctor.empty() && !complete) {
+            if (world_.err()) world_.err()->incomplete_match(match);
             return world_.bot(match->type());
         }
         if (!no_ctor.empty()) {
-            auto value = compile(match, s_arg, no_ctor, dbg);
-            auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), dbg);
+            if (complete)
+                report_redundant_ptrns(match, no_ctor);
+            auto d_arg = s_arg; // TODO: Enums
+            for (auto& ptrn : no_ctor)
+                ptrn = default_(ptrn, col, col_arg, d_arg->type());
+            auto value = compile(match, d_arg, no_ctor, dbg);
+            auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), false, dbg);
             ptrn->set(ptrn->param(), value);
             compiled_ptrns.push_back(ptrn);
         }
@@ -133,10 +155,10 @@ public:
 void compile_ptrns(World& world) {
     PtrnCompiler compiler(world);
     world.rewrite("compile_ptrns",
-        [&](const Scope& scope) {
+        [&] (const Scope& scope) {
             return scope.entry()->isa<Lam>();
         },
-        [&](const Def* old) -> const Def* {
+        [&] (const Def* old) -> const Def* {
             if (auto match = old->isa<Match>()) 
                 return compiler.compile(match);
             return nullptr;

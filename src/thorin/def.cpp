@@ -409,7 +409,7 @@ const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , co
  */
 
 Def* Lam     ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
-Def* Ptrn    ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
+Def* Ptrn    ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), d->as<Ptrn>()->can_be_redundant(), dbg); }
 Def* Pi      ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.sigma(t, d->num_ops(), dbg); }
 Def* Union   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.union_(t, d->num_ops(), dbg); }

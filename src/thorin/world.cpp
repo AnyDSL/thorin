@@ -341,6 +341,17 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
             ptrn_->type()->as<thorin::Case>()->codomain(), type);
     }
 #endif
+    // Constant folding
+    if (arg->is_const()) {
+        for (auto ptrn : ptrns) {
+            // If the pattern matches the argument
+            if (thorin::rewrite(ptrn->as_nominal<Ptrn>(), arg, 0) == arg)
+                return thorin::rewrite(ptrn->as_nominal<Ptrn>(), arg, 1);
+        }
+        return bot(type);
+    }
+    if (ptrns.size() == 1 || ptrns[0]->as<Ptrn>()->matcher() == ptrns[0]->as_nominal<Ptrn>()->param())
+        return thorin::rewrite(ptrns[0]->as_nominal<Ptrn>(), arg, 1);
     Array<const Def*> ops(ptrns.size() + 1);
     ops[0] = arg;
     std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);

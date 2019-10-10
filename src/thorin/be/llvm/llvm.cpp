@@ -555,7 +555,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         return *res;
     else {
         // we emit all Thorin constants in the entry block, since they are not part of the schedule
-        if (is_const(def)) {
+        if (def->is_const()) {
             auto bb = irbuilder_.GetInsertBlock();
             auto fn = bb->getParent();
             auto& entry = fn->getEntryBlock();
@@ -607,15 +607,30 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto iop = isa<Tag::IOp>(def)) {
-        auto [a, b] = iop->args<2>([&](auto def) { return lookup(def); });
+    auto emit_bit = [&](const Def* tbl, const Def* a, const Def* b) -> llvm::Value* {
+        auto x = lookup(a);
+        auto y = lookup(b);
+
+        if (tbl == world().table(Bit:: _and)) return irbuilder_.CreateAnd(x, y);
+        if (tbl == world().table(Bit::  _or)) return irbuilder_.CreateOr (x, y);
+        if (tbl == world().table(Bit:: _xor)) return irbuilder_.CreateXor(x, y);
+        if (tbl == world().table(Bit:: nand)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(x, y));
+        if (tbl == world().table(Bit::  nor)) return irbuilder_.CreateNeg(irbuilder_.CreateOr (x, y));
+        if (tbl == world().table(Bit:: nxor)) return irbuilder_.CreateNeg(irbuilder_.CreateXor(x, y));
+        if (tbl == world().table(Bit::  iff)) return irbuilder_.CreateAnd(irbuilder_.CreateNeg(x), y);
+        if (tbl == world().table(Bit:: niff)) return irbuilder_.CreateOr (x, irbuilder_.CreateNeg(y));
+        return nullptr;
+    };
+
+    if (auto bit = isa<Tag::Bit>(def)) {
+        auto [tbl, a, b] = bit->args<3>();
+        return emit_bit(tbl, a, b);
+    } else if (auto shr = isa<Tag::Shr>(def)) {
+        auto [a, b] = shr->args<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
-        switch (iop.flags()) {
-            case IOp::lshr: return irbuilder_.CreateLShr(a, b, name);
-            case IOp::ashr: return irbuilder_.CreateAShr(a, b, name);
-            case IOp::iand: return irbuilder_.CreateAnd (a, b, name);
-            case IOp::ior : return irbuilder_.CreateOr  (a, b, name);
-            case IOp::ixor: return irbuilder_.CreateXor (a, b, name);
+        switch (shr.flags()) {
+            case Shr::a: return irbuilder_.CreateAShr(a, b, name);
+            case Shr::l: return irbuilder_.CreateLShr(a, b, name);
             default: THORIN_UNREACHABLE;
         }
     } else if (auto wop = isa<Tag::WOp>(def)) {
@@ -813,25 +828,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (extract->tuple() == world().table_not()) return irbuilder_.CreateNeg(llvm_idx);
             if (auto inner = extract->tuple()->isa<Extract>()) {
                 if (extract->tuple()->type() == world().arr(2, world().type_bool())) {
-                    // this is a truth table
-                    auto check = [&](bool aa, bool bb, bool cc, bool dd) {
-                        auto [ab, cd] = inner->tuple()->split<2>();
-                        auto [ a,  b] = ab->split<2>(isa_lit<bool>);
-                        auto [ c,  d] = cd->split<2>(isa_lit<bool>);
-                        return (a && b && c && d) && *a == aa && *b == bb && *c == cc && *d == dd;
-                    };
-
-                    auto llvm_inner_idx = lookup(inner->index());
-                    if (check(false, false, false, true )) return irbuilder_.CreateAnd(llvm_inner_idx, llvm_idx);
-                    if (check(false, false, true , false)) return irbuilder_.CreateAnd(irbuilder_.CreateNeg(llvm_inner_idx), llvm_idx);
-                    if (check(false, true , false, false)) return irbuilder_.CreateAnd(llvm_inner_idx, irbuilder_.CreateNeg(llvm_idx));
-                    if (check(false, true , true , false)) return irbuilder_.CreateXor(llvm_inner_idx, llvm_idx);
-                    if (check(false, true , true , true )) return irbuilder_.CreateOr (llvm_inner_idx, llvm_idx);
-                    if (check(true , false, false, false)) return irbuilder_.CreateNeg(irbuilder_.CreateOr (llvm_inner_idx, llvm_idx));
-                    if (check(true , false, false, true )) return irbuilder_.CreateNeg(irbuilder_.CreateXor(llvm_inner_idx, llvm_idx));
-                    if (check(true , false, true , true )) return irbuilder_.CreateOr (llvm_inner_idx, irbuilder_.CreateNeg(llvm_idx));
-                    if (check(true , true , false, true )) return irbuilder_.CreateOr (irbuilder_.CreateNeg(llvm_inner_idx), llvm_idx);
-                    if (check(true , true , true , false)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(llvm_inner_idx, llvm_idx));
+                    if (auto res = emit_bit(inner->tuple(), inner->index(), extract->index())) return res;
                 }
             }
 

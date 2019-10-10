@@ -11,6 +11,7 @@
 
 #include "thorin/alpha_equiv.h"
 #include "thorin/def.h"
+#include "thorin/error.h"
 #include "thorin/normalize.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
@@ -20,7 +21,7 @@
 namespace thorin {
 
 /*
- * constructor
+ * constructor & destructor
  */
 
 #ifndef NDEBUG
@@ -49,15 +50,14 @@ World::World(const std::string& name)
     auto nat = type_nat();
     auto mem = type_mem();
 
-    cache_.table_and  = tuple({tuple({lit_false(), lit_false()}),
-                               tuple({lit_false(), lit_true ()})}, { "and"});
-    cache_.table_or   = tuple({tuple({lit_false(), lit_true ()}),
-                               tuple({lit_true (), lit_true ()})}, {  "or"});
-    cache_.table_xor  = tuple({tuple({lit_false(), lit_true()}),
-                               tuple({lit_true (), lit_false()})}, { "xor"});
-    cache_.table_xnor = tuple({tuple({lit_true() , lit_false()}),
-                               tuple({lit_false(), lit_true ()})}, {"xnor"});
-    cache_.table_not =         tuple({lit_true (), lit_false()}  , { "not"}); // AKA extract(xor, 1)
+    // fill truth tables
+    for (size_t i = 0; i != Num<Bit>; ++i) {
+        cache_.Bit_[i] = tuple({tuple({lit_bool(i & 0x1), lit_bool(i & 0x2)}),
+                                tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
+    }
+
+    cache_.table_not = tuple({lit_true (), lit_false()} , { "not"});
+
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
         cache_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
@@ -67,11 +67,11 @@ World::World(const std::string& name)
         cache_.type_ptr_ = axiom(nullptr, pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
     }
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
-    {   // IOp: Πw: nat. Π[int w, int w]. int w
+    {   // Shr: Πw: nat. Π[int w, int w]. int w
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
-        THORIN_I_OP(CODE)
+        THORIN_SHR(CODE)
     } { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         auto type = pi(star)->set_domain({nat, nat});
         type->param(0, {"m"});
@@ -125,6 +125,11 @@ World::World(const std::string& name)
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
         cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
+    } { // bit: Πw: nat. Π[«bool; bool», int w, int w]. int w
+        auto type = pi(star)->set_domain(nat);
+        auto int_w = type_int(type->param({"w"}));
+        type->set_codomain(pi({arr(type_bool(), type_bool()), int_w, int_w}, int_w));
+        cache_.op_bit_ = axiom(normalize_bit, type, Tag::Bit, 0, {"bit"});
     } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
         auto D = type->param(0, {"D"});
@@ -177,6 +182,9 @@ World::World(const std::string& name)
         cache_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     }
 }
+
+// must be here to avoid inclusion of some includes in world.h
+World::~World() {}
 
 /*
  * core calculus
@@ -233,8 +241,7 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
-    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return arr(n, ops[0]);
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
     return unify<Sigma>(ops.size(), type, ops, debug(dbg));
 }
 
@@ -251,17 +258,16 @@ const Def* World::tuple(Defs ops, Debug dbg) {
 }
 
 const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
+    if (err()) {
     // TODO type-check type vs inferred type
-#endif
+    }
 
     auto n = ops.size();
     if (n == 0) return tuple();
     if (n == 1) return ops[0];
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 
-    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return pack(n, ops[0]);
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
 
     // eta rule for tuples:
     // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup
@@ -341,34 +347,6 @@ const Def* World::match(const Def* arg, Defs cases, Debug dbg) {
     return unify<Match>(cases.size() + 1, type, ops, debug(dbg));
 }
 
-// TODO put this somewhere else
-static const Def* ex(const Def* def, u64 i) {
-    if (auto tuple = def->isa<Tuple>()) return tuple->op(i);
-    if (auto pack  = def->isa<Pack >()) return pack->body();
-    return nullptr;
-}
-
-static bool is_symmetric(const Def* def) {
-    // we can't use Def::out - this would cause an endless recursion
-    if (auto a = isa_lit_arity(def->type()->arity())) {
-        if (auto z = ex(def, 0)) {
-            if (auto b = isa_lit_arity(z->type()->arity())) {
-                if (*a == *b) {
-                    for (size_t i = 0; i != *a; ++i) {
-                        for (size_t j = i+1; j != *a; ++j) {
-                            auto ij = ex(ex(def, i), j);
-                            auto ji = ex(ex(def, j), i);
-                            if (ij == nullptr || ji == nullptr || ij != ji) return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
 template<tag_t tag>
 static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug dbg) {
     static_assert(sizeof(flags_t) == 4, "if this ever changes, please adjust the logic below");
@@ -382,7 +360,7 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
         flags_t a_flags = a_cmp.axiom()->flags();
         flags_t b_flags = b_cmp.axiom()->flags();
         for (size_t i = 0; i != num_bits; ++i, res >>= 1, a_flags >>= 1, b_flags >>= 1)
-            res |= as_lit<u32>(ex(ex(tuple, a_flags & 1), b_flags & 1)) << 31_u32;
+            res |= as_lit<u32>(proj(proj(tuple, a_flags & 1), b_flags & 1)) << 31_u32;
         res >>= (31_u32 - u32(num_bits));
 
         auto& world = tuple->world();
@@ -400,7 +378,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
         Array<const Def*> idx(index->num_ops(), [&](size_t i) { return index->op(i); });
-        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return ex(tup, as_lit<nat_t>(idx[i])); });
+        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return proj(tup, as_lit<nat_t>(idx[i])); });
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
@@ -471,7 +449,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         auto b = index;
         auto arity = inner->tuple()->type()->lit_arity();
 
-        if (is_const(inner->tuple())) {
+        if (inner->tuple()->is_const()) {
             if (auto res = merge_cmps<Tag::ICmp>(inner->tuple(), a, b, dbg)) return res;
             if (auto res = merge_cmps<Tag::RCmp>(inner->tuple(), a, b, dbg)) return res;
         }
@@ -479,7 +457,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         if (is_symmetric(inner->tuple())) {
             if (a == b) {
                 // extract(extract(sym, a), a) -> extract(diag(sym), a)
-                auto ops = Array<const Def*>(arity, [&](size_t i) { return ex(ex(inner->tuple(), i), i); });
+                auto ops = Array<const Def*>(arity, [&](size_t i) { return proj(proj(inner->tuple(), i), i); });
                 return extract(tuple(ops), a, dbg);
             } else if (a->gid() > b->gid()) {
                 // extract(extract(sym, b), a) -> extract(extract(sym, a), b)
@@ -488,10 +466,12 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         }
     }
 
+#if 0
     if (tup == table_not()) {
         if (auto icmp = isa<Tag::ICmp>(index)) { auto [x, y] = icmp->args<2>(); return op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x, dbg); }
         if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), /*rmode*/ rcmp->decurry()->arg(0), y, x, dbg); }
     }
+#endif
 
     // TODO absorption
 
@@ -570,14 +550,14 @@ const Def* World::succ(const Def* type, bool tuplefy, Debug dbg) {
         return tuplefy ? tuple(ops, dbg) : sigma(ops, dbg);
     }
 
-    return unify<Succ>(1, type, tuplefy, debug(dbg));
+    return unify<Succ>(0, type, tuplefy, debug(dbg));
 }
 
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (a->isa<Top>()) return lit(a, i, dbg);
 
     auto arity = as_lit<u64>(a);
-    assertf(i < arity, "index literal '{}' does not fit within arity '{}'", i, a);
+    if (err() && i >= arity) err()->index_out_of_range(arity, i);
 
     return lit(a, i, dbg);
 }
@@ -785,17 +765,18 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
         if (enter_fn(scope)) {
             auto new_body = thorin::rewrite(scope.entry(), scope, rewrite_fn);
 
-            if (scope.entry()->ops().back() != new_body) {
-                scope.entry()->set(scope.entry()->num_ops()-1, new_body);
+            if (!std::equal(new_body.begin(), new_body.end(), scope.entry()->ops().begin())) {
+                scope.entry()->set(new_body);
                 const_cast<Scope&>(scope).update(); // yes, we know what we are doing
             }
         }
     });
+
     VLOG("end: {},", info);
 }
 
 /*
- * logging
+ * misc
  */
 
 const char* World::level2string(LogLevel level) {
@@ -832,9 +813,7 @@ std::string Log::colorize(const std::string& str, int) {
     return str;
 }
 
-/*
- * stream
- */
+void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
 
 Stream& World::stream(Stream& s) const {
     s << "module '" << name() << "'\n\n";
@@ -846,8 +825,8 @@ Stream& World::stream(Stream& s) const {
             globals.emplace_back(global);
     }
 
-    //for (auto global : globals)
-        //global->stream_assignment(s);
+    for (auto global : globals)
+        stream_assignment(s, global).endl();
 
     visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;

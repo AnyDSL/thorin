@@ -63,8 +63,8 @@ private:
     size_t level_;
 };
 
-template<class... Args> void outf(const char* fmt, Args&&... args) { Stream().fmt(fmt, std::forward<Args&&>(args)...).endl(); }
-template<class... Args> void errf(const char* fmt, Args&&... args) { Stream().fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+template<class... Args> void outf(const char* fmt, Args&&... args) { Stream(std::cout).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+template<class... Args> void errf(const char* fmt, Args&&... args) { Stream(std::cerr).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 
 template<class P>
 class Streamable {

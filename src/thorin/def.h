@@ -87,6 +87,7 @@ public:
         : tagged_ptr_(def, index)
     {}
 
+    bool is_used_as_type() const { return index() == size_t(-1); }
     size_t index() const { return tagged_ptr_.index(); }
     const Def* def() const { return tagged_ptr_.ptr(); }
     operator const Def*() const { return tagged_ptr_; }
@@ -163,6 +164,8 @@ public:
     void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
     /// @c true if all operands are set or num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
     bool is_set() const;
+    /// @p Param%s and @em nominals are not const; everything else using const stuff is const.
+    bool is_const() const { return const_; }
     //@}
     /// @name uses
     //@{
@@ -296,7 +299,8 @@ protected:
     fields_t fields_;
     node_t node_;
     unsigned nominal_ :  1;
-    unsigned order_   : 15;
+    unsigned const_   :  1;
+    unsigned order_   : 14;
     u32 gid_;
     u32 num_ops_;
     hash_t hash_;
@@ -338,11 +342,11 @@ using Param2Param = ParamMap<const Param*>;
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node, stub, reinterpret_cast<const Def*>(&world), 0_s, 0, nullptr)
+        : Def(Node, rebuild, reinterpret_cast<const Def*>(&world), Defs{}, 0, nullptr)
     {}
 
 public:
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Universe;
     friend class World;
@@ -465,7 +469,7 @@ public:
     //@{
     const Def* domain() const { return op(0); }
     const Def* domain(size_t i) const;
-    Array<const Def*> domains() const;
+    Array<const Def*> domains() const { return Array<const Def*>(num_domains(), [&](size_t i) { return domain(i); }); }
     size_t num_domains() const;
     const Def* codomain() const { return op(1); }
     const Def* codomain(size_t i) const;
@@ -834,7 +838,7 @@ public:
 class Succ : public Def {
 private:
     Succ(const Def* type, bool tuplefy, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{type}, tuplefy, dbg) // TODO remve type op as soon as Scope doesn't need Use anymore
+        : Def(Node, rebuild, type, Defs{}, tuplefy, dbg)
     {}
 
 public:

@@ -16,6 +16,7 @@ namespace thorin {
 
 enum class LogLevel { Debug, Verbose, Info, Warn, Error };
 
+class ErrorHandler;
 class Scope;
 using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
@@ -75,6 +76,7 @@ public:
     {
         state_ = other.state_;
     }
+    ~World();
 
     /// @ getters
     //@{
@@ -208,18 +210,12 @@ public:
     //@}
     /// @name Bool operations - extracts on truth tables (tuples)
     //@{
-    const Def* table_and()  const { return cache_.table_and ; }
-    const Def* table_or ()  const { return cache_.table_or  ; }
-    const Def* table_xor()  const { return cache_.table_xor ; }
-    const Def* table_xnor() const { return cache_.table_xnor; }
-    const Def* table_not()  const { return cache_.table_not ; }
-    const Def* extract_and (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_and (), a), b, dbg); }
-    const Def* extract_or  (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_or  (), a), b, dbg); }
-    const Def* extract_xor (const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xor (), a), b, dbg); }
-    const Def* extract_xnor(const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table_xnor(), a), b, dbg); }
-    const Def* extract_eq  (const Def* a, const Def* b, Debug dbg = {}) { return extract_xnor(a, b, dbg); }
-    const Def* extract_ne  (const Def* a, const Def* b, Debug dbg = {}) { return extract_xor (a, b, dbg); }
-    const Def* extract_not (const Def* a, Debug dbg = {}) { return extract(table_not(), a, dbg); }
+    const Def* table(Bit o)  const { return cache_.Bit_[size_t(o)]; }
+    const Def* table_not() const { return cache_.table_not; }
+    const Def* extract(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table(o), a), b, dbg); }
+    const Def* extract_eq (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::nxor, a, b, dbg); }
+    const Def* extract_ne (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::_xor, a, b, dbg); }
+    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract(Bit::_xor, lit_true(), a, dbg); }
     //@}
     /// @name Insert
     //@{
@@ -324,11 +320,17 @@ public:
     const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     const App* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
     //@}
-    /// @name IOp
+    /// @name Bit
     //@{
-    const Axiom* op(IOp o) { return cache_.IOp_[size_t(o)]; }
-    const Def* op(IOp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
-    const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(IOp::ixor, lit_int(*w, u64(-1)), a, dbg); }
+    const Axiom* op_bit() const { return cache_.op_bit_; }
+    const Def* op_bit(const Def* tbl, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op_bit(), w), {tbl, a, b}, dbg); }
+    const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return op_bit(table(o), a, b, dbg); }
+    const Def* op_bit_not(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(Bit::_xor, lit_int(*w, u64(-1)), a, dbg); }
+    //@}
+    /// @name Shr
+    //@{
+    const Axiom* op(Shr o) { return cache_.Shr_[size_t(o)]; }
+    const Def* op(Shr o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
     //@}
     /// @name WOp
     //@{
@@ -437,12 +439,10 @@ public:
         return std::get<const Def*>(*dbg);
     }
     //@}
-    /// @name modify state
+    /// @name partial evaluation done?
     //@{
     void mark_pe_done(bool flag = true) { state_.pe_done = flag; }
     bool is_pe_done() const { return state_.pe_done; }
-    void do_tuple2pack(bool flag = true) { state_.tuple2pack = flag; }
-    bool tuple2pack() const { return state_.tuple2pack; }
     //@}
     /// @name manage externals
     //@{
@@ -513,6 +513,11 @@ public:
     static int level2color(LogLevel level);
     static std::string colorize(const std::string& str, int color);
     //@}
+    /// @name error handling
+    //@{
+    void set(std::unique_ptr<ErrorHandler>&& err);
+    ErrorHandler* err() { return err_.get(); }
+    //@}
 
     Stream& stream(Stream&) const;
 
@@ -524,6 +529,7 @@ public:
         swap(w1.arena_, w2.arena_);
         swap(w1.state_, w2.state_);
         swap(w1.cache_, w2.cache_);
+        swap(w1.err_,   w2.err_);
         swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
@@ -644,7 +650,6 @@ private:
         LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
-        bool tuple2pack = true;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;
         Breakpoints breakpoints;
@@ -664,13 +669,10 @@ private:
         const Nat* type_nat_;
         const Mem* type_mem_;
         const Lit* type_bool_;
-        std::array<const Lit*, 2> lit_bool_;
-        const Def* table_and;
-        const Def* table_or;
-        const Def* table_xor;
-        const Def* table_xnor;
         const Def* table_not;
-        std::array<const Axiom*, Num<IOp>>  IOp_;
+        std::array<const Lit*, 2> lit_bool_;
+        std::array<const Def*,   Num<Bit>>  Bit_;
+        std::array<const Axiom*, Num<Shr>>  Shr_;
         std::array<const Axiom*, Num<WOp>>  WOp_;
         std::array<const Axiom*, Num<ZOp>>  ZOp_;
         std::array<const Axiom*, Num<ROp>>  ROp_;
@@ -683,6 +685,7 @@ private:
         const Axiom* type_real_;
         const Axiom* type_ptr_;
         const Axiom* op_bitcast_;
+        const Axiom* op_bit_;
         const Axiom* op_lea_;
         const Axiom* op_sizeof_;
         const Axiom* op_alloc_;
@@ -694,6 +697,7 @@ private:
     std::string name_;
     Externals externals_;
     Sea defs_;
+    std::unique_ptr<ErrorHandler> err_;
 
     friend class Cleaner;
     friend void Def::replace(Tracker) const;

@@ -10,7 +10,7 @@ const Def* PartialEval::rewrite(const Def* def) {
             Scope scope(lam);
             if (auto filter = isa_lit<bool>(thorin::rewrite(lam->filter(), lam->param(), app->arg(), scope)); filter && *filter) {
                 world().DLOG("PE: {}", lam);
-                return man().rewrite(thorin::rewrite(lam, app->arg(), scope));
+                return man().rewrite(thorin::rewrite(lam, app->arg(), scope).back());
             }
         }
     }

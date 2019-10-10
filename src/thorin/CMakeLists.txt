@@ -3,6 +3,8 @@ set(THORIN_SOURCES
     alpha_equiv.h
     def.cpp
     def.h
+    error.cpp
+    error.h
     normalize.cpp
     normalize.h
     rewrite.cpp

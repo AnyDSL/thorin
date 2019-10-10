@@ -11,7 +11,7 @@ Stream& Def::stream(Stream& s) const {
 Stream& operator<<(Stream& s, const Def* def) {
     if (def == nullptr)     return s << "<nullptr>";
     if (def->isa<Axiom>())  return s << def->name();
-    if (is_const(def))      return stream(s, def, Recurse::No);
+    if (def->is_const())    return stream(s, def, Recurse::No);
     return s << def->unique_name();
 }
 
@@ -71,7 +71,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             THORIN_UNREACHABLE;
         } else if (auto ptr = thorin::isa<Tag::Ptr>(app)) {
             auto [pointee, addr_space] = ptr->args<2>();
-            if (auto as = isa_lit<nat_t>(addr_space); as && *as == 0) return s.fmt("{}*", pointee);
+            if (auto as = isa_lit<nat_t>(addr_space); as && *as == 0) return s.fmt("{}*", (const Def*) pointee); // TODO why the cast???
         }
 
         return s.fmt("{} {}", app->callee(), app->arg());
@@ -79,11 +79,11 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         if (sigma->isa_nominal()) s.fmt("{}: {}", sigma->unique_name(), sigma->type());
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
-        if (tuple == def->world().table_and ()) return s.fmt( "AND");
-        if (tuple == def->world().table_or  ()) return s.fmt(  "OR");
-        if (tuple == def->world().table_xor ()) return s.fmt( "XOR");
-        if (tuple == def->world().table_xnor()) return s.fmt("XNOR");
-        if (tuple == def->world().table_not ()) return s.fmt( "NOT");
+        auto& world = def->world();
+        for (size_t i = 0; i != 16; ++i) {
+            if (tuple == world.table(Bit(i)))
+                return s.fmt("{}", op2str(Bit(i)));
+        }
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto arr = def->isa<Arr>()) {

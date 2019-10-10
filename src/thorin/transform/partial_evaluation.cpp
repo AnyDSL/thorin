@@ -168,7 +168,7 @@ private:
 void PartialEvaluator::eat_pe_info(Lam* cur) {
     auto next = cur->app()->arg(3);
 
-    if (is_const(cur->app()->arg(2))) {
+    if (cur->app()->arg(2)->is_const()) {
         //auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
         world().idef(cur->app()->callee(), "pe_info: {}: {}", "TODO", cur->app()->arg(2));
         cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());

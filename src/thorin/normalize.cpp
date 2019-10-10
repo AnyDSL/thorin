@@ -8,6 +8,7 @@ namespace thorin {
  * small helpers
  */
 
+#if 0
 static const Def* is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp>(IOp::ixor, def)) {
         auto [x, y] = ixor->args<2>();
@@ -15,11 +16,11 @@ static const Def* is_not(const Def* def) {
     }
     return nullptr;
 }
+#endif
 
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
 template<class T> static bool is_commutative(T) { return false; }
-static bool is_commutative(IOp  op) { return op == IOp ::iand || op == IOp ::ior || op == IOp::ixor; }
 static bool is_commutative(WOp  op) { return op == WOp :: add || op == WOp ::mul; }
 static bool is_commutative(ROp  op) { return op == ROp :: add || op == ROp ::mul; }
 static bool is_commutative(ICmp op) { return op == ICmp::   e || op == ICmp:: ne; }
@@ -108,11 +109,8 @@ template<nat_t w> struct Fold<ZOp, ZOp::udiv, w> { static Res run(u64 a, u64 b) 
 template<nat_t w> struct Fold<ZOp, ZOp::smod, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
 template<nat_t w> struct Fold<ZOp, ZOp::umod, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
 
-template<nat_t w> struct Fold<IOp, IOp::ashr, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
-template<nat_t w> struct Fold<IOp, IOp::lshr, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
-template<nat_t w> struct Fold<IOp, IOp::iand, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) & get<T>(b)); } };
-template<nat_t w> struct Fold<IOp, IOp::ior , w> { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) | get<T>(b)); } };
-template<nat_t w> struct Fold<IOp, IOp::ixor, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) ^ get<T>(b)); } };
+template<nat_t w> struct Fold<Shr, Shr::   a, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
+template<nat_t w> struct Fold<Shr, Shr::   l, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
 
 template<nat_t w> struct Fold<ROp, ROp:: add, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) + get<T>(b)); } };
 template<nat_t w> struct Fold<ROp, ROp:: sub, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) - get<T>(b)); } };
@@ -270,34 +268,20 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, [[maybe_unused]] c
  * normalize
  */
 
-template<IOp op>
-const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
+template<Shr op>
+const Def* normalize_Shr(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
     auto w = isa_lit<nat_t>(callee->arg());
 
-    if (auto result = fold<IOp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<Shr, op>(world, type, callee, a, b, dbg)) return result;
 
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) {
             switch (op) {
-                case IOp::ashr: return la;
-                case IOp::lshr: return la;
-                case IOp::iand: return la;
-                case IOp::ior : return b;
-                case IOp::ixor: return b;
-                default: THORIN_UNREACHABLE;
-            }
-        }
-
-        if (la == world.lit_int(*w, u64(-1))) {
-            switch (op) {
-                case IOp::ashr: break;
-                case IOp::lshr: break;
-                case IOp::iand: return b;
-                case IOp::ior : return la;
-                case IOp::ixor: break;
+                case Shr::a: return la;
+                case Shr::l: return la;
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -306,96 +290,14 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto lb = b->isa<Lit>()) {
         if (lb == world.lit_int(*w, 0)) {
             switch (op) {
-                case IOp::ashr: return a;
-                case IOp::lshr: return a;
+                case Shr::a: return a;
+                case Shr::l: return a;
                 default: THORIN_UNREACHABLE;
-                // iand, ior, ixor are commutative, the literal has been normalized to the left
             }
         }
 
-        if ((op == IOp::ashr || op == IOp::lshr) && lb->get() > *w)
-            return world.bot(type, dbg);
+        if (lb->get() > *w) return world.bot(type, dbg);
     }
-
-    if (a == b) {
-        switch (op) {
-            case IOp::ashr: break;
-            case IOp::lshr: break;
-            case IOp::iand: return a;
-            case IOp::ior : return a;
-            case IOp::ixor: return world.lit_int(*w, 0);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-
-    // commute NOT to b
-    if (is_commutative(op) && is_not(a)) std::swap(a, b);
-
-    if (auto bb = is_not(b); bb && a == bb) {
-        switch (op) {
-            case IOp::ashr: break;
-            case IOp::lshr: break;
-            case IOp::iand: return world.lit_int(*w,       0);
-            case IOp::ior : return world.lit_int(*w, u64(-1));
-            case IOp::ixor: return world.lit_int(*w, u64(-1));
-            default: THORIN_UNREACHABLE;
-        }
-    }
-
-    auto absorption = [&](IOp op1, IOp op2) -> const Def* {
-        if (op == op1) {
-            if (auto xy = isa<Tag::IOp>(op2, a)) {
-                auto [x, y] = xy->args<2>();
-                if (x == b) return y; // (b op2 y) op1 b -> y
-                if (y == b) return x; // (x op2 b) op1 b -> x
-            }
-
-            if (auto zw = isa<Tag::IOp>(op2, b)) {
-                auto [z, w] = zw->args<2>();
-                if (z == a) return w; // a op1 (a op2 w) -> w
-                if (w == a) return z; // a op1 (z op2 a) -> z
-            }
-        }
-        return nullptr;
-    };
-
-    auto simplify1 = [&](IOp op1, IOp op2) -> const Def* { // AFAIK this guy has no name
-        if (op == op1) {
-            if (auto xy = isa<Tag::IOp>(op2, a)) {
-                auto [x, y] = xy->args<2>();
-                if (auto yy = is_not(y); yy && yy == b) return world.op(op1, x, b, dbg); // (x op2 not b) op1 b -> x op1 y
-            }
-
-            if (auto zw = isa<Tag::IOp>(op2, b)) {
-                auto [z, w] = zw->args<2>();
-                if (auto ww = is_not(w); ww && ww == a) return world.op(op1, a, z, dbg); // a op1 (z op2 not a) -> a op1 z
-            }
-        }
-        return nullptr;
-    };
-
-    auto simplify2 = [&](IOp op1, IOp op2) -> const Def* { // AFAIK this guy has no name
-        if (op == op1) {
-            if (auto xy = isa<Tag::IOp>(op2, a)) {
-                if (auto zw = isa<Tag::IOp>(op2, b)) {
-                    auto [x, y] = xy->args<2>();
-                    auto [z, w] = zw->args<2>();
-                    if (auto yy = is_not(y); yy && x == z && yy == w) return x; // (z op2 not w) op1 (z op2 w) -> x
-                    if (auto ww = is_not(w); ww && x == z && ww == y) return x; // (x op2 y) op1 (x op2 not y) -> x
-                }
-            }
-
-        }
-        return nullptr;
-    };
-
-    if (auto res = absorption(IOp::ior , IOp::iand)) return res;
-    if (auto res = absorption(IOp::iand, IOp::ior )) return res;
-    if (auto res = simplify1 (IOp::ior , IOp::iand)) return res;
-    if (auto res = simplify1 (IOp::iand, IOp::ior )) return res;
-    if (auto res = simplify2 (IOp::ior , IOp::iand)) return res;
-    if (auto res = simplify2 (IOp::iand, IOp::ior )) return res;
-    if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -649,13 +551,181 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
 
     if constexpr (op == PE::known) {
         if (world.is_pe_done() || isa<Tag::PE>(PE::hlt, arg)) return world.lit_false();
-        if (is_const(arg)) return world.lit_true();
+        if (arg->is_const()) return world.lit_true();
     } else {
         if (world.is_pe_done()) return arg;
     }
 
     return world.raw_app(callee, arg, dbg);
 }
+
+const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
+    auto callee = c->as<App>();
+    auto [tbl, a, b] = arg->split<3>();
+    auto w = isa_lit<nat_t>(callee->arg());
+
+    if (!tbl->is_const() || !w) return world.raw_app(callee, arg, dbg);
+
+    if (tbl == world.table(Bit::    f)) return world.lit_int(*w,      0);
+    if (tbl == world.table(Bit::    t)) return world.lit_int(*w, u64(-1));
+    if (tbl == world.table(Bit::    a)) return a;
+    if (tbl == world.table(Bit::    b)) return b;
+    if (tbl == world.table(Bit::   na)) return world.op_bit_not(a, dbg);
+    if (tbl == world.table(Bit::   nb)) return world.op_bit_not(b, dbg);
+    if (tbl == world.table(Bit:: ciff)) return world.op(Bit:: iff, b, a, dbg);
+    if (tbl == world.table(Bit::nciff)) return world.op(Bit::niff, b, a, dbg);
+
+    if (a->isa<Lit>() && b->isa<Lit>()) {
+        u64 x = a->as<Lit>()->get();
+        u64 y = b->as<Lit>()->get();
+        u64 res;
+
+        if (false) {}
+        else if (tbl == world.table(Bit:: _and)) res =   x & y;
+        else if (tbl == world.table(Bit::  _or)) res =   x | y;
+        else if (tbl == world.table(Bit:: _xor)) res =   x ^ y;
+        else if (tbl == world.table(Bit:: nand)) res = ~(x & y);
+        else if (tbl == world.table(Bit::  nor)) res = ~(x | y);
+        else if (tbl == world.table(Bit:: nxor)) res = ~(x ^ y);
+        else if (tbl == world.table(Bit::  iff)) res = ~x |  y;
+        else if (tbl == world.table(Bit:: niff)) res =  x & ~y;
+        else THORIN_UNREACHABLE;
+
+        return world.lit_int(*w, res);
+    }
+
+    if (is_symmetric(tbl)) {
+        if (b->isa<Lit>()) std::swap(a, b); // commute literals to a
+
+        auto la = a->isa<Lit>();
+        auto xy = isa<Tag::Bit>(a);
+        auto zw = isa<Tag::Bit>(b);
+        if (xy && xy->arg(0) != tbl) xy.clear();
+        if (zw && zw->arg(0) != tbl) zw.clear();
+        auto lx = xy ? xy->arg(1)->template isa<Lit>() : nullptr;
+        auto lz = zw ? zw->arg(1)->template isa<Lit>() : nullptr;
+        auto  y = xy ? xy->arg(2) : nullptr;
+        auto  w = zw ? zw->arg(2) : nullptr;
+
+        if (la && lz) return world.op_bit(tbl, world.op_bit(tbl, la, lz), w);                       // (1)
+        if (lx && lz) return world.op_bit(tbl, world.op_bit(tbl, lx, lz), world.op_bit(tbl, y, w)); // (2)
+        if (lz)       return world.op_bit(tbl, lz, world.op_bit(tbl, a, w));                        // (3)
+        if (lx)       return world.op_bit(tbl, lx, world.op_bit(tbl, y, b));                        // (4)
+    }
+
+    return world.raw_app(callee, {tbl, a, b}, dbg);
+}
+
+#if 0
+template<IOp op>
+const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
+    auto callee = c->as<App>();
+    auto [a, b] = arg->split<2>();
+    auto w = isa_lit<nat_t>(callee->arg());
+
+    if (auto result = fold<IOp, op>(world, type, callee, a, b, dbg)) return result;
+
+    if (auto la = a->isa<Lit>()) {
+        if (la == world.lit_int(*w, 0)) {
+            switch (op) {
+                case IOp::iand: return la;
+                case IOp::ior : return b;
+                case IOp::ixor: return b;
+                default: THORIN_UNREACHABLE;
+            }
+        }
+
+        if (la == world.lit_int(*w, u64(-1))) {
+            switch (op) {
+                case IOp::iand: return b;
+                case IOp::ior : return la;
+                case IOp::ixor: break;
+                default: THORIN_UNREACHABLE;
+            }
+        }
+    }
+
+    if (a == b) {
+        switch (op) {
+            case IOp::iand: return a;
+            case IOp::ior : return a;
+            case IOp::ixor: return world.lit_int(*w, 0);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    // commute NOT to b
+    if (is_commutative(op) && is_not(a)) std::swap(a, b);
+
+    if (auto bb = is_not(b); bb && a == bb) {
+        switch (op) {
+            case IOp::iand: return world.lit_int(*w,       0);
+            case IOp::ior : return world.lit_int(*w, u64(-1));
+            case IOp::ixor: return world.lit_int(*w, u64(-1));
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    auto absorption = [&](IOp op1, IOp op2) -> const Def* {
+        if (op == op1) {
+            if (auto xy = isa<Tag::IOp>(op2, a)) {
+                auto [x, y] = xy->args<2>();
+                if (x == b) return y; // (b op2 y) op1 b -> y
+                if (y == b) return x; // (x op2 b) op1 b -> x
+            }
+
+            if (auto zw = isa<Tag::IOp>(op2, b)) {
+                auto [z, w] = zw->args<2>();
+                if (z == a) return w; // a op1 (a op2 w) -> w
+                if (w == a) return z; // a op1 (z op2 a) -> z
+            }
+        }
+        return nullptr;
+    };
+
+    auto simplify1 = [&](IOp op1, IOp op2) -> const Def* { // AFAIK this guy has no name
+        if (op == op1) {
+            if (auto xy = isa<Tag::IOp>(op2, a)) {
+                auto [x, y] = xy->args<2>();
+                if (auto yy = is_not(y); yy && yy == b) return world.op(op1, x, b, dbg); // (x op2 not b) op1 b -> x op1 y
+            }
+
+            if (auto zw = isa<Tag::IOp>(op2, b)) {
+                auto [z, w] = zw->args<2>();
+                if (auto ww = is_not(w); ww && ww == a) return world.op(op1, a, z, dbg); // a op1 (z op2 not a) -> a op1 z
+            }
+        }
+        return nullptr;
+    };
+
+    auto simplify2 = [&](IOp op1, IOp op2) -> const Def* { // AFAIK this guy has no name
+        if (op == op1) {
+            if (auto xy = isa<Tag::IOp>(op2, a)) {
+                if (auto zw = isa<Tag::IOp>(op2, b)) {
+                    auto [x, y] = xy->args<2>();
+                    auto [z, w] = zw->args<2>();
+                    if (auto yy = is_not(y); yy && x == z && yy == w) return x; // (z op2 not w) op1 (z op2 w) -> x
+                    if (auto ww = is_not(w); ww && x == z && ww == y) return x; // (x op2 y) op1 (x op2 not y) -> x
+                }
+            }
+
+        }
+        return nullptr;
+    };
+
+    if (auto res = absorption(IOp::ior , IOp::iand)) return res;
+    if (auto res = absorption(IOp::iand, IOp::ior )) return res;
+    if (auto res = simplify1 (IOp::ior , IOp::iand)) return res;
+    if (auto res = simplify1 (IOp::iand, IOp::ior )) return res;
+    if (auto res = simplify2 (IOp::ior , IOp::iand)) return res;
+    if (auto res = simplify2 (IOp::iand, IOp::ior )) return res;
+    if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b, dbg)) return res;
+
+    return world.raw_app(callee, {a, b}, dbg);
+}
+#endif
 
 const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
@@ -735,9 +805,9 @@ const Def* normalize_store(const Def* type, const Def* callee, const Def* arg, c
  */
 
 #define CODE(T, o) template const Def* normalize_ ## T<T::o>(const Def*, const Def*, const Def*, const Def*);
+THORIN_SHR  (CODE)
 THORIN_W_OP (CODE)
 THORIN_Z_OP (CODE)
-THORIN_I_OP (CODE)
 THORIN_R_OP (CODE)
 THORIN_I_CMP(CODE)
 THORIN_R_CMP(CODE)

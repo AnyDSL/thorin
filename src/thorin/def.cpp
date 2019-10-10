@@ -261,7 +261,7 @@ bool Pi::is_returning() const {
 }
 
 const Def* Pi::apply(const Def* arg) const {
-    if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg).back();
+    if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg, 1);
     return codomain();
 }
 

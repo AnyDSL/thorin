@@ -35,13 +35,10 @@ public:
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope& scope);
 
 /// Rewrites @p nom by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
-Array<const Def*> rewrite(Def* nom, const Def* arg);
+const Def* rewrite(Def* nom, const Def* arg, size_t i);
 
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
-Array<const Def*> rewrite(Def* nom, const Def* arg, const Scope& scope);
-
-/// Rewrites @p nom by applying @p fn to each @p Def within @p nom's @p Scope.
-Array<const Def*> rewrite(Def* nom, RewriteFn fn = {});
+const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope);
 
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
 Array<const Def*> rewrite(Def* nom, const Scope& scope, RewriteFn fn = {});

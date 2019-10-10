@@ -20,7 +20,7 @@ const Def* Inliner::rewrite(const Def* def) {
                 info.undo = man().cur_state_id();
                 man().new_state();
                 world().DLOG("inline: {}", lam);
-                return man().rewrite(thorin::rewrite(lam, app->arg()).back());
+                return man().rewrite(thorin::rewrite(lam, app->arg(), 1));
             }
         }
     }

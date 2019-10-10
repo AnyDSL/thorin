@@ -87,6 +87,7 @@ public:
         : tagged_ptr_(def, index)
     {}
 
+    bool is_used_as_type() const { return index() == size_t(-1); }
     size_t index() const { return tagged_ptr_.index(); }
     const Def* def() const { return tagged_ptr_.ptr(); }
     operator const Def*() const { return tagged_ptr_; }
@@ -835,7 +836,7 @@ public:
 class Succ : public Def {
 private:
     Succ(const Def* type, bool tuplefy, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{type}, tuplefy, dbg) // TODO remve type op as soon as Scope doesn't need Use anymore
+        : Def(Node, rebuild, type, Defs{}, tuplefy, dbg)
     {}
 
 public:

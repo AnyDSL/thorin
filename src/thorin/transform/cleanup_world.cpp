@@ -266,7 +266,7 @@ void Cleaner::verify_closedness() {
 
         for (const auto& use : def->uses_) {
             within(use);
-            assert(use->op(use.index()) == def && "use doesn't point to def");
+            assert((use.is_used_as_type() || use->op(use.index()) == def) && "use doesn't point to def");
         }
     }
 }

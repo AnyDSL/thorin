@@ -568,7 +568,7 @@ const Def* World::succ(const Def* type, bool tuplefy, Debug dbg) {
         return tuplefy ? tuple(ops, dbg) : sigma(ops, dbg);
     }
 
-    return unify<Succ>(1, type, tuplefy, debug(dbg));
+    return unify<Succ>(0, type, tuplefy, debug(dbg));
 }
 
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {

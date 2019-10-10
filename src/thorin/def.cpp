@@ -284,6 +284,7 @@ Def::Def(node_t node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fie
     , gid_(world().next_gid())
     , num_ops_(ops.size())
 {
+    type->uses_.emplace(this, -1);
     std::copy(ops.begin(), ops.end(), ops_ptr());
     hash_ = hash_combine(hash_begin(node), type->gid(), fields_);
     for (auto op : ops)
@@ -302,6 +303,7 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
     , num_ops_(num_ops)
     , hash_(murmur3(gid()))
 {
+    if (node != Node::Universe) type->uses_.emplace(this, -1);
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
@@ -322,7 +324,7 @@ KindArity::KindArity(World& world)
 {}
 
 KindMulti::KindMulti(World& world)
-    : Def(Node, rebuild, world.kind_star() , Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
 KindStar::KindStar(World& world)

@@ -793,8 +793,8 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
         if (enter_fn(scope)) {
             auto new_body = thorin::rewrite(scope.entry(), scope, rewrite_fn);
 
-            if (scope.entry()->ops().back() != new_body) {
-                scope.entry()->set(scope.entry()->num_ops()-1, new_body);
+            if (!std::equal(new_body.begin(), new_body.end(), scope.entry()->ops().begin())) {
+                scope.entry()->set(new_body);
                 const_cast<Scope&>(scope).update(); // yes, we know what we are doing
             }
         }

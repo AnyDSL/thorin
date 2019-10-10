@@ -41,20 +41,23 @@ const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const
     return rewriter.rewrite(def);
 }
 
-const Def* rewrite(Def* nom, const Def* arg, const Scope& scope) {
-    return rewrite(nom->ops().back(), nom->param(), arg, scope);
+Array<const Def*> rewrite(Def* nom, const Def* arg, const Scope& scope) {
+    Rewriter rewriter(nom->world(), &scope);
+    rewriter.old2new[nom->param()] = arg;
+    return Array<const Def*>(nom->num_ops(), [&](auto i) { return rewriter.rewrite(nom->op(i)); });
 }
 
-const Def* rewrite(Def* nom, const Def* arg) {
+Array<const Def*> rewrite(Def* nom, const Def* arg) {
     Scope scope(nom);
     return rewrite(nom, arg, scope);
 }
 
-const Def* rewrite(Def* nom, const Scope& scope, RewriteFn fn) {
-    return Rewriter(nom->world(), &scope, fn).rewrite(nom->ops().back());
+Array<const Def*> rewrite(Def* nom, const Scope& scope, RewriteFn fn) {
+    Rewriter rewriter(nom->world(), &scope, fn);
+    return Array<const Def*>(nom->num_ops(), [&](auto i) { return rewriter.rewrite(nom->op(i)); });
 }
 
-const Def* rewrite(Def* nom, RewriteFn fn) {
+Array<const Def*> rewrite(Def* nom, RewriteFn fn) {
     Scope scope(nom);
     return rewrite(nom, scope, fn);
 }

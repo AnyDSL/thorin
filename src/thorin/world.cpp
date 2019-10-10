@@ -328,23 +328,23 @@ const Def* World::variant(const Def* type, const Def* arg, Debug dbg) {
     return variant(type, lit_index(index, type->num_ops()), arg, dbg);
 }
 
-const Def* World::match(const Def* arg, Defs cases, Debug dbg) {
+const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
-    assertf(cases.size() > 0, "match must take at least one case");
+    assertf(ptrns.size() > 0, "match must take at least one pattern");
 #endif
-    const Def* type = cases[0]->type()->as<thorin::Case>()->codomain();
+    const Def* type = ptrns[0]->type()->as<thorin::Case>()->codomain();
 #if THORIN_ENABLE_CHECKS
-    for (auto case_ : cases) {
-        assertf(case_->type()->isa<thorin::Case>(), "match cases must have 'Case' type");
-        assertf(case_->type()->as<thorin::Case>()->codomain() == type,
+    for (auto ptrn_ : ptrns) {
+        assertf(ptrn_->type()->isa<thorin::Case>(), "match patterns must have 'Case' type");
+        assertf(ptrn_->type()->as<thorin::Case>()->codomain() == type,
             "match cases codomains are not consistent with each other, got {} and {}",
-            case_->type()->as<thorin::Case>()->codomain(), type);
+            ptrn_->type()->as<thorin::Case>()->codomain(), type);
     }
 #endif
-    Array<const Def*> ops(cases.size() + 1);
+    Array<const Def*> ops(ptrns.size() + 1);
     ops[0] = arg;
-    std::copy(cases.begin(), cases.end(), ops.begin() + 1);
-    return unify<Match>(cases.size() + 1, type, ops, debug(dbg));
+    std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
+    return unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
 }
 
 template<tag_t tag>

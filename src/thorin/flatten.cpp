@@ -20,7 +20,7 @@ const Def* Flattener::flatten(const Def* def) {
                 for (size_t j = 0; j < m; ++j)
                     ops[i * m + j] = body->out(j);
             }
-            return old2new[def] = world.tuple(ops);
+            return old2new[def] = world.tuple(ops, def->debug());
         } else {
             return old2new[def] = def;
         }
@@ -35,7 +35,7 @@ const Def* Flattener::flatten(const Def* def) {
                 ops.push_back(flat_op);
             }
         }
-        return old2new[def] = world.tuple(ops);
+        return old2new[def] = world.tuple(ops, def->debug());
     } else if (auto arr = def->isa<Arr>()) {
         if (!arr->domain()->isa<Lit>()) return old2new[def] = def;
         auto codomain = flatten(arr->codomain());
@@ -45,9 +45,9 @@ const Def* Flattener::flatten(const Def* def) {
             Array<const Def*> ops(n * m);
             for (size_t i = 0; i < n; ++i) {
                 for (size_t j = 0; j < m; ++j)
-                    ops[i * m + j] = codomain->isa<Arr>() ? codomain->as<Arr>()->codomain() : codomain->op(j);
+                    ops[i * m + j] = proj(codomain, j);
             }
-            return old2new[def] = world.sigma(ops);
+            return old2new[def] = world.sigma(ops, def->debug());
         } else {
             return old2new[def] = def;
         }
@@ -57,12 +57,12 @@ const Def* Flattener::flatten(const Def* def) {
             auto flat_op = flatten(op);
             if (auto lit_arity = flat_op->arity()->isa<Lit>()) {
                 for (size_t i = 0, n = lit_arity->get<nat_t>(); i < n; ++i)
-                    ops.push_back(flat_op->isa<Arr>() ? flat_op->as<Arr>()->codomain() : flat_op->op(i));
+                    ops.push_back(proj(flat_op, i));
             } else {
                 ops.push_back(flat_op);
             }
         }
-        return old2new[def] = world.sigma(ops);
+        return old2new[def] = world.sigma(ops, def->debug());
     } else {
         return old2new[def] = def;
     }

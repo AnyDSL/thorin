@@ -859,7 +859,9 @@ private:
 
 public:
     const Def* arg() const { return op(0); }
-    Defs cases() const { return ops().skip_front(); }
+    Defs ptrns() const { return ops().skip_front(); }
+    const Def* ptrn(size_t i) const { return op(i + 1); }
+    size_t num_ptrns() const { return num_ops() - 1; }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Match;

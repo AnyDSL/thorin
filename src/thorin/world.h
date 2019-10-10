@@ -230,7 +230,7 @@ public:
     //@}
     /// @name Match/Ptrn/Case
     //@{
-    const Def* match(const Def* val, Defs cases, Debug dbg = {});
+    const Def* match(const Def* val, Defs ptrns, Debug dbg = {});
     const Case* case_(const Def* domain, const Def* codomain, Debug dbg = {}) { return unify<Case>(2, kind_star(), domain, codomain, debug(dbg)); }
     Ptrn* ptrn(const Case* type, Debug dbg = {}) { return insert<Ptrn>(2, type, debug(dbg)); }
     //@}

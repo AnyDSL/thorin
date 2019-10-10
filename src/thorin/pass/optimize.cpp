@@ -14,7 +14,6 @@
 namespace thorin {
 
 void optimize(World& world) {
-    compile_ptrns(world);
     PassMan(world)
     //.create<CopyProp>()
     .create<PartialEval>()
@@ -24,7 +23,6 @@ void optimize(World& world) {
 }
 
 void optimize_old(World& world) {
-    compile_ptrns(world);
     optimize(world);
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff

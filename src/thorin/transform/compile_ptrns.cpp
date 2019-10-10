@@ -85,16 +85,16 @@ public:
         auto s_arg = eliminate(arg, col);
         for (auto ptrn : ptrns) {
             auto ptrn_col = ptrn->matcher()->out(col);
-            if (auto lit = ptrn_col->isa<Lit>()) {
+            if (auto lit = ptrn_col->isa<Lit>())
                 ctor2ptrns[lit].push_back(specialize(ptrn, col, lit, s_arg->type()));
-            } else {
+            else
                 no_ctor.push_back(specialize(ptrn, col, col_arg, s_arg->type()));
-            }
         }
 
         // Generate a new match for each constructor
         std::vector<const Def*> compiled_ptrns;
         for (auto& [ctor, ctor_ptrns] : ctor2ptrns) {
+            ctor_ptrns.insert(ctor_ptrns.end(), no_ctor.begin(), no_ctor.end());
             auto value = compile(s_arg, ctor_ptrns, dbg);
             auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), dbg);
             ptrn->set(ctor, value);

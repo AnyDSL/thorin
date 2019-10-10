@@ -345,20 +345,20 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
     if (arg->is_const()) {
         for (auto ptrn : ptrns) {
             // If the pattern matches the argument
-            if (thorin::rewrite(ptrn->as_nominal<Ptrn>(), arg, 0) == arg)
-                return thorin::rewrite(ptrn->as_nominal<Ptrn>(), arg, 1);
+            if (ptrn->as<Ptrn>()->matches(arg))
+                return ptrn->as<Ptrn>()->instantiate(arg);
         }
         return bot(type);
     }
-    bool catch_all = ptrns[0]->as<Ptrn>()->matcher() == ptrns[0]->as_nominal<Ptrn>()->param();
-    if (catch_all)
-        return thorin::rewrite(ptrns[0]->as_nominal<Ptrn>(), arg, 1);
+    bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
+    if (trivial)
+        return ptrns[0]->as<Ptrn>()->instantiate(arg);
 
     Array<const Def*> ops(ptrns.size() + 1);
     ops[0] = arg;
     std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
     auto match = unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
-    if (!catch_all && ptrns.size() == 1) {
+    if (ptrns.size() == 1 && !trivial) {
         if (err()) err()->incomplete_match(match);
         return bot(type);
     }

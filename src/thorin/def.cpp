@@ -258,6 +258,22 @@ const Def* Pi::apply(const Def* arg) const {
 }
 
 /*
+ * Ptrn
+ */
+
+bool Ptrn::is_trivial() const {
+    return matcher()->isa<Param>() && matcher()->as<Param>()->nominal() == this;
+}
+
+bool Ptrn::matches(const Def* arg) const {
+    return rewrite(as_nominal(), arg, 0) == arg;
+}
+
+const Def* Ptrn::instantiate(const Def* arg) const {
+    return rewrite(as_nominal(), arg, 1);
+}
+
+/*
  * Global
  */
 

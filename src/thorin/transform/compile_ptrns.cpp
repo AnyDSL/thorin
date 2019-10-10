@@ -73,6 +73,8 @@ public:
             // reinterpret_cast because we do not modify the contents of the array.
             return world_.match(arg, Defs(ptrns.size(), reinterpret_cast<Def**>(ptrns.data())), dbg);
         }
+        if (ptrns[0]->is_trivial())
+            return ptrns[0]->instantiate(arg);
 
         // Flatten tuple patterns
         arg = flattener_.flatten(arg);

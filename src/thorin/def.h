@@ -892,6 +892,10 @@ private:
     {}
 
 public:
+    bool is_trivial() const;
+    bool matches(const Def*) const;
+    const Def* instantiate(const Def*) const;
+
     /// @name type
     //@{
     const Case* type() const { return Def::type()->as<Case>(); }

@@ -2,6 +2,7 @@
 #include "thorin/world.h"
 #include "thorin/rewrite.h"
 #include "thorin/flatten.h"
+#include "thorin/error.h"
 
 namespace thorin {
 
@@ -51,6 +52,11 @@ private:
         return s_ptrn;
     }
 
+    /// Returns whether the constructor patterns form a signature for the matched type
+    bool is_complete(const Def* arg_type, const DefMap<std::vector<Ptrn*>>& ctor2ptrns) {
+        return arg_type == world_.type_bool() && ctor2ptrns.size() == 2;
+    }
+
     World& world_;
     Flattener flattener_;
 
@@ -59,7 +65,7 @@ public:
         : world_(world)
     {}
 
-    const Def* compile(const Def* arg, std::vector<Ptrn*>& ptrns, const Def* dbg) {
+    const Def* compile(const Match* match, const Def* arg, std::vector<Ptrn*>& ptrns, const Def* dbg) {
         assert(!ptrns.empty());
         if (arg->type()->lit_arity() == 1) {
             // The reinterpret_cast is need to case the Ptrn** into Def**,
@@ -95,14 +101,15 @@ public:
         std::vector<const Def*> compiled_ptrns;
         for (auto& [ctor, ctor_ptrns] : ctor2ptrns) {
             ctor_ptrns.insert(ctor_ptrns.end(), no_ctor.begin(), no_ctor.end());
-            auto value = compile(s_arg, ctor_ptrns, dbg);
+            auto value = compile(match, s_arg, ctor_ptrns, dbg);
             auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), dbg);
             ptrn->set(ctor, value);
             compiled_ptrns.push_back(ptrn);
         }
-        // TODO: Completeness/redundancy check
+        if (no_ctor.empty() && !is_complete(col_type, ctor2ptrns))
+            world_.err()->incomplete_match(match);
         if (!no_ctor.empty()) {
-            auto value = compile(s_arg, no_ctor, dbg);
+            auto value = compile(match, s_arg, no_ctor, dbg);
             auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), dbg);
             ptrn->set(ptrn->param(), value);
             compiled_ptrns.push_back(ptrn);
@@ -115,7 +122,7 @@ public:
         std::vector<Ptrn*> ptrns(match->ptrns().size());
         for (size_t i = 0, n = ptrns.size(); i < n; ++i)
             ptrns[i] = match->ptrn(i)->as_nominal<Ptrn>();
-        return compile(match->arg(), ptrns, match->debug());
+        return compile(match, match->arg(), ptrns, match->debug());
     }
 };
 

@@ -350,12 +350,19 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
         }
         return bot(type);
     }
-    if (ptrns.size() == 1 || ptrns[0]->as<Ptrn>()->matcher() == ptrns[0]->as_nominal<Ptrn>()->param())
+    bool catch_all = ptrns[0]->as<Ptrn>()->matcher() == ptrns[0]->as_nominal<Ptrn>()->param();
+    if (catch_all)
         return thorin::rewrite(ptrns[0]->as_nominal<Ptrn>(), arg, 1);
+
     Array<const Def*> ops(ptrns.size() + 1);
     ops[0] = arg;
     std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
-    return unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
+    auto match = unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
+    if (!catch_all && ptrns.size() == 1) {
+        if (err()) err()->incomplete_match(match);
+        return bot(type);
+    }
+    return match;
 }
 
 template<tag_t tag>

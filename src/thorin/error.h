@@ -2,25 +2,21 @@
 #define THORIN_ERROR_H
 
 #include <cstdint>
+#include <cstddef>
 
 namespace thorin {
 
 class Def;
+class Ptrn;
+class Match;
 
 class ErrorHandler {
 public:
     virtual ~ErrorHandler() {};
 
-    virtual void index_out_of_range(uint64_t arity, uint64_t index) = 0;
-    virtual void empty_cases() = 0;
-    virtual void match_cases_inconsistent(const Def* t1, const Def* t2) = 0;
-};
-
-class DefaultHandler : public ErrorHandler {
-public:
-    void index_out_of_range(uint64_t arity, uint64_t index) override;
-    void empty_cases() override;
-    void match_cases_inconsistent(const Def* t1, const Def* t2) override;
+    virtual void index_out_of_range(uint64_t arity, uint64_t index);
+    virtual void incomplete_match(const Match*);
+    virtual void redundant_match_cases(const Match*, size_t index);
 };
 
 }

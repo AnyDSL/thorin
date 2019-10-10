@@ -551,7 +551,7 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
 
     if constexpr (op == PE::known) {
         if (world.is_pe_done() || isa<Tag::PE>(PE::hlt, arg)) return world.lit_false();
-        if (is_const(arg)) return world.lit_true();
+        if (arg->is_const()) return world.lit_true();
     } else {
         if (world.is_pe_done()) return arg;
     }
@@ -565,7 +565,7 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     auto [tbl, a, b] = arg->split<3>();
     auto w = isa_lit<nat_t>(callee->arg());
 
-    if (!is_const(tbl) || !w) return world.raw_app(callee, arg, dbg);
+    if (!tbl->is_const() || !w) return world.raw_app(callee, arg, dbg);
 
     if (tbl == world.table(Bit::    f)) return world.lit_int(*w,      0);
     if (tbl == world.table(Bit::    t)) return world.lit_int(*w, u64(-1));

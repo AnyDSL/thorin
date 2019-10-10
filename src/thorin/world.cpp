@@ -467,7 +467,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         auto b = index;
         auto arity = inner->tuple()->type()->lit_arity();
 
-        if (is_const(inner->tuple())) {
+        if (inner->tuple()->is_const()) {
             if (auto res = merge_cmps<Tag::ICmp>(inner->tuple(), a, b, dbg)) return res;
             if (auto res = merge_cmps<Tag::RCmp>(inner->tuple(), a, b, dbg)) return res;
         }

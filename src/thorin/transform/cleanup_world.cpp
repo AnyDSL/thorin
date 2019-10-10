@@ -286,7 +286,7 @@ void Cleaner::clean_pe_infos() {
                 if (auto callee = app->callee()->isa_nominal<Lam>()) {
                     if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                         auto next = app->arg(3);
-                        assert(!is_const(app->arg(2)));
+                        assert(app->arg(2)->is_const());
                         world().idef(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
                         return world().app(next, {app->arg(0)}, app->debug());
                     }

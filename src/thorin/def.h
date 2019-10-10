@@ -164,6 +164,8 @@ public:
     void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
     /// @c true if all operands are set or num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
     bool is_set() const;
+    /// @p Param%s and @em nominals are not const; everything else using const stuff is const.
+    bool is_const() const { return const_; }
     //@}
     /// @name uses
     //@{
@@ -297,7 +299,8 @@ protected:
     fields_t fields_;
     node_t node_;
     unsigned nominal_ :  1;
-    unsigned order_   : 15;
+    unsigned const_   :  1;
+    unsigned order_   : 14;
     u32 gid_;
     u32 num_ops_;
     hash_t hash_;

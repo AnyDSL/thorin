@@ -11,7 +11,7 @@ Stream& Def::stream(Stream& s) const {
 Stream& operator<<(Stream& s, const Def* def) {
     if (def == nullptr)     return s << "<nullptr>";
     if (def->isa<Axiom>())  return s << def->name();
-    if (is_const(def))      return stream(s, def, Recurse::No);
+    if (def->is_const())    return stream(s, def, Recurse::No);
     return s << def->unique_name();
 }
 

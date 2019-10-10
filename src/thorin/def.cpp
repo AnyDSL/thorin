@@ -94,11 +94,13 @@ void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
         auto o = op(i);
         assert(o != nullptr);
+        const_ |= o->is_const();
         order_ = std::max(order_, o->order_);
         const auto& p = o->uses_.emplace(this, i);
         assert_unused(p.second);
     }
 
+    const_ |= type()->is_const();
     if (isa<Pi>()) ++order_;
 }
 
@@ -280,6 +282,7 @@ Def::Def(node_t node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fie
     , fields_(fields)
     , node_((unsigned)node)
     , nominal_(false)
+    , const_(node != Node::Param)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(ops.size())
@@ -298,6 +301,7 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
     , fields_(fields)
     , node_(node)
     , nominal_(true)
+    , const_(false)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(num_ops)

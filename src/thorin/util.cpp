@@ -10,22 +10,6 @@ bool is_unit(const Def* def) {
     return def->type() == def->world().sigma();
 }
 
-bool is_const(const Def* def) {
-    unique_stack<DefSet> stack;
-    stack.push(def);
-
-    while (!stack.empty()) {
-        auto def = stack.pop();
-        if (def->isa<Param>()) return false;
-        if (!def->isa_nominal()) { // nominals are always const
-            for (auto op : def->ops())
-                stack.push(op);
-        }
-    }
-
-    return true;
-}
-
 std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
     if (auto axiom = def->isa<Axiom>()) return {axiom, axiom->currying_depth()};
     if (auto app = def->isa<App>()) return {app->axiom(), app->currying_depth()};

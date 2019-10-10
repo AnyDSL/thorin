@@ -106,8 +106,10 @@ public:
             ptrn->set(ctor, value);
             compiled_ptrns.push_back(ptrn);
         }
-        if (no_ctor.empty() && !is_complete(col_type, ctor2ptrns))
+        if (no_ctor.empty() && !is_complete(col_type, ctor2ptrns)) {
             world_.err()->incomplete_match(match);
+            return world_.bot(match->type());
+        }
         if (!no_ctor.empty()) {
             auto value = compile(match, s_arg, no_ctor, dbg);
             auto ptrn = world_.ptrn(world_.case_(col_type, value->type()), dbg);

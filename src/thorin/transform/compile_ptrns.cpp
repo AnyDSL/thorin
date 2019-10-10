@@ -63,8 +63,8 @@ public:
         assert(!ptrns.empty());
         if (arg->type()->lit_arity() == 1) {
             // The reinterpret_cast is need to case the Ptrn** into Def**,
-            // which is not a valid C++ static_cast, but should be safe
-            // because we do not modify the contents of the array.
+            // which is not a valid C++ static_cast, but should be safe as a
+            // reinterpret_cast because we do not modify the contents of the array.
             return world_.match(arg, Defs(ptrns.size(), reinterpret_cast<Def**>(ptrns.data())), dbg);
         }
 

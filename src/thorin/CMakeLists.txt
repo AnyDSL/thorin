@@ -7,6 +7,8 @@ set(THORIN_SOURCES
     normalize.h
     rewrite.cpp
     rewrite.h
+    flatten.cpp
+    flatten.h
     stream.cpp
     tables.h
     util.cpp
@@ -47,6 +49,8 @@ set(THORIN_SOURCES
     transform/cleanup_world.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
+    transform/compile_ptrns.h
+    transform/compile_ptrns.cpp
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
     transform/mangle.cpp

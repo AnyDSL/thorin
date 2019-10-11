@@ -563,6 +563,7 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [tbl, a, b] = arg->split<3>();
+    outf("{} {} {}", tbl, (const Def*)a, (const Def*)b);
     auto w = isa_lit<nat_t>(callee->arg());
 
     if (!tbl->is_const() || !w) return world.raw_app(callee, arg, dbg);
@@ -595,7 +596,9 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
         return world.lit_int(*w, res);
     }
 
-    if (is_symmetric(tbl)) {
+    bool sym = is_symmetric(tbl);
+
+    if (sym) {
         if (b->isa<Lit>()) std::swap(a, b); // commute literals to a
 
         auto la = a->isa<Lit>();
@@ -612,6 +615,27 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
         if (lx && lz) return world.op_bit(tbl, world.op_bit(tbl, lx, lz), world.op_bit(tbl, y, w)); // (2)
         if (lz)       return world.op_bit(tbl, lz, world.op_bit(tbl, a, w));                        // (3)
         if (lx)       return world.op_bit(tbl, lx, world.op_bit(tbl, y, b));                        // (4)
+    }
+
+    auto make_lit = [&](const Def* def) {
+        return as_lit<bool>(def) ? world.lit_int(*w, u64(-1)) : world.lit_int(*w, 0);
+    };
+
+    if (a == world.lit_int(*w, 0) || a == world.lit_int(*w, u64(-1))) {
+        auto row = proj(tbl, as_lit<u64>(a) ? 1 : 0);
+        if (auto pack = row->isa<Pack>()) return make_lit(pack->body());
+        if (row == world.table_id())      return b;
+        if (row == world.table_not() && tbl != world.table(Bit::_xor)) return world.op_bit_not(b, dbg);
+    }
+
+    if (sym && a == b) {
+        auto x = as_lit<bool>(proj(proj(tbl, 0), 0));
+        auto y = as_lit<bool>(proj(proj(tbl, 1), 1));
+        if (!x && !y) return world.lit_int(*w, 0);
+        if ( x &&  y) return world.lit_int(*w, 1);
+        if (!x &&  y) return a;
+        if ( x && !y) return world.op_bit_not(a, dbg);
+        THORIN_UNREACHABLE;
     }
 
     return world.raw_app(callee, {tbl, a, b}, dbg);

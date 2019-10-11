@@ -56,6 +56,7 @@ World::World(const std::string& name)
                                 tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
     }
 
+    cache_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});
     cache_.table_not = tuple({lit_true (), lit_false()} , { "not"});
 
     {   // int/sint/real: Πw: Nat. *
@@ -755,37 +756,26 @@ const Def* World::lookup_by_gid(u32 gid) {
 
 template<bool elide_empty>
 void World::visit(VisitFn f) const {
-    unique_queue<NomSet> nom_queue;
+    unique_queue<NomSet> noms;
 
     for (const auto& [name, nom] : externals()) {
         assert(nom->is_set() && "external must not be empty");
-        nom_queue.push(nom);
+        noms.push(nom);
     }
 
-    while (!nom_queue.empty()) {
-        auto nom = nom_queue.pop();
+    while (!noms.empty()) {
+        auto nom = noms.pop();
         if (elide_empty && !nom->is_set()) continue;
         Scope scope(nom);
         f(scope);
-
-        unique_queue<DefSet> def_queue;
-        for (auto def : scope.free())
-            def_queue.push(def);
-
-        while (!def_queue.empty()) {
-            auto def = def_queue.pop();
-            if (auto nom = def->isa_nominal())
-                nom_queue.push(nom);
-            else {
-                for (auto op : def->ops())
-                    def_queue.push(op);
-            }
-        }
+        scope.visit({}, {}, {}, {}, [&](const Def* def) {
+            if (nom = def->isa_nominal(); nom && !scope.contains(nom)) noms.push(nom);
+        });
     }
 }
 
 void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
-    VLOG("start: {},", info);
+    ILOG("start: {},", info);
 
     visit([&](const Scope& scope) {
         if (enter_fn(scope)) {
@@ -798,7 +788,20 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
         }
     });
 
-    VLOG("end: {},", info);
+    ILOG("end: {},", info);
+}
+
+void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn pre_order_fn, RewriteFn post_order_fn) {
+    ILOG("start: {},", info);
+
+    visit([&](const Scope& scope) {
+        if (enter_fn(scope)) {
+            auto& s = const_cast<Scope&>(scope); // yes, we know what we are doing
+            if (s.rewrite(pre_order_fn, post_order_fn)) s.update();
+        }
+    });
+
+    ILOG("end: {},", info);
 }
 
 /*

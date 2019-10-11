@@ -758,32 +758,21 @@ const Def* World::lookup_by_gid(u32 gid) {
 
 template<bool elide_empty>
 void World::visit(VisitFn f) const {
-    unique_queue<NomSet> nom_queue;
+    unique_queue<NomSet> noms;
 
     for (const auto& [name, nom] : externals()) {
         assert(nom->is_set() && "external must not be empty");
-        nom_queue.push(nom);
+        noms.push(nom);
     }
 
-    while (!nom_queue.empty()) {
-        auto nom = nom_queue.pop();
+    while (!noms.empty()) {
+        auto nom = noms.pop();
         if (elide_empty && !nom->is_set()) continue;
         Scope scope(nom);
         f(scope);
-
-        unique_queue<DefSet> def_queue;
-        for (auto def : scope.free())
-            def_queue.push(def);
-
-        while (!def_queue.empty()) {
-            auto def = def_queue.pop();
-            if (auto nom = def->isa_nominal())
-                nom_queue.push(nom);
-            else {
-                for (auto op : def->ops())
-                    def_queue.push(op);
-            }
-        }
+        scope.visit({}, {}, {}, {}, [&](const Def* def) {
+            if (nom = def->isa_nominal(); nom && !scope.contains(nom)) noms.push(nom);
+        });
     }
 }
 

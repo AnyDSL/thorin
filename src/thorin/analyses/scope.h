@@ -13,6 +13,7 @@ class CFA;
 template<bool> class CFG;
 using F_CFG = CFG<true >;
 using B_CFG = CFG<false>;
+using RewriteFn = std::function<const Def*(const Def*)>;
 
 /**
  * A @p Scope represents a region of @em nominals which are live from the view of an @p entry @em nominal.
@@ -53,6 +54,7 @@ public:
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     //@}
+    bool rewrite(RewriteFn pre_order_fn, RewriteFn post_order_fn);
     Stream& stream(Stream&) const;
 
 private:

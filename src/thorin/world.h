@@ -474,6 +474,7 @@ public:
      * For each @p Def in the current @p Scope, @p rewrite_fn will be invoked.
      */
     void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn);
+    void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn pre_order_fn, RewriteFn post_order_fn);
     //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features

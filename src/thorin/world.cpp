@@ -788,7 +788,7 @@ void World::visit(VisitFn f) const {
 }
 
 void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
-    VLOG("start: {},", info);
+    ILOG("start: {},", info);
 
     visit([&](const Scope& scope) {
         if (enter_fn(scope)) {
@@ -801,7 +801,20 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
         }
     });
 
-    VLOG("end: {},", info);
+    ILOG("end: {},", info);
+}
+
+void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn pre_order_fn, RewriteFn post_order_fn) {
+    ILOG("start: {},", info);
+
+    visit([&](const Scope& scope) {
+        if (enter_fn(scope)) {
+            auto& s = const_cast<Scope&>(scope); // yes, we know what we are doing
+            if (s.rewrite(pre_order_fn, post_order_fn)) s.update();
+        }
+    });
+
+    ILOG("end: {},", info);
 }
 
 /*

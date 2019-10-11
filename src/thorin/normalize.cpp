@@ -563,6 +563,7 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [tbl, a, b] = arg->split<3>();
+    outf("{} {} {}", tbl, (const Def*)a, (const Def*)b);
     auto w = isa_lit<nat_t>(callee->arg());
 
     if (!tbl->is_const() || !w) return world.raw_app(callee, arg, dbg);

@@ -85,6 +85,72 @@ const ParamSet& Scope::free_params() const {
     return *free_params_;
 }
 
+bool Scope::rewrite(RewriteFn pre_order_fn, RewriteFn post_order_fn) {
+    unique_queue<NomSet> noms;
+    unique_stack<DefSet> defs;
+    Def2Def old2new;
+
+    noms.push(entry());
+
+    auto push = [&](const Def* def) {
+        if (contains(def)) {
+            if (auto nom = def->isa_nominal())
+                noms.push(nom);
+            else
+                return defs.push(def);
+        }
+        return false;
+    };
+
+    bool dirty = false;
+    while (!noms.empty()) {
+        auto nom = noms.pop();
+        for (auto op : nom->ops()) push(op);
+
+        while (!defs.empty()) {
+            auto def = defs.top();
+
+            if (auto new_def = old2new.lookup(def)) {
+                def = *new_def;
+            } else {
+                if (auto new_def = pre_order_fn(def))
+                    def = old2new[def] = new_def;
+            }
+
+            bool todo = false;
+            for (auto op : def->ops())
+                todo |= push(op);
+
+            if (!todo) {
+                if (auto new_def = post_order_fn(def))
+                    def = old2new[def] = new_def;
+
+                Array<const Def*> new_ops(def->num_ops(), [&](size_t i) {
+                    if (auto new_def = old2new.lookup(def->op(i))) return *new_def;
+                    return def->op(i);
+                });
+
+                auto new_def = def->rebuild(world(), def->type(), new_ops, def->debug());
+                old2new[def] = new_def;
+
+                defs.pop();
+            }
+        }
+
+        Array<const Def*> new_ops(nom->num_ops(), [&](size_t i) {
+            if (auto new_def = old2new.lookup(nom->op(i))) return *new_def;
+            return nom->op(i);
+        });
+
+        if (!std::equal(new_ops.begin(), new_ops.end(), nom->ops().begin())) {
+            nom->set(new_ops);
+            dirty = true;
+        }
+    }
+
+    return dirty;
+}
+
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }

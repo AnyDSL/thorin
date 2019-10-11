@@ -211,6 +211,7 @@ public:
     /// @name Bool operations - extracts on truth tables (tuples)
     //@{
     const Def* table(Bit o)  const { return cache_.Bit_[size_t(o)]; }
+    const Def* table_id () const { return cache_.table_id;  }
     const Def* table_not() const { return cache_.table_not; }
     const Def* extract(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table(o), a), b, dbg); }
     const Def* extract_eq (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::nxor, a, b, dbg); }
@@ -673,6 +674,7 @@ private:
         const Nat* type_nat_;
         const Mem* type_mem_;
         const Lit* type_bool_;
+        const Def* table_id;
         const Def* table_not;
         std::array<const Lit*, 2> lit_bool_;
         std::array<const Def*,   Num<Bit>>  Bit_;

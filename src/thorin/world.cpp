@@ -56,6 +56,7 @@ World::World(const std::string& name)
                                 tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
     }
 
+    cache_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});
     cache_.table_not = tuple({lit_true (), lit_false()} , { "not"});
 
     {   // int/sint/real: Πw: Nat. *

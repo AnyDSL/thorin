@@ -158,6 +158,7 @@ void compile_ptrns(World& world) {
         [&] (const Scope& scope) {
             return scope.entry()->isa<Lam>();
         },
+        [] (const Def*) -> const Def* { return nullptr; },
         [&] (const Def* old) -> const Def* {
             if (auto match = old->isa<Match>()) 
                 return compiler.compile(match);

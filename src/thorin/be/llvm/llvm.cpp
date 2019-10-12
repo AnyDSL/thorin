@@ -374,6 +374,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 auto tbb = bb2lam[t->as_nominal<Lam>()];
                 auto fbb = bb2lam[f->as_nominal<Lam>()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
+#if 0
             } else if (lam->app()->callee()->isa<Lam>() &&
                        lam->app()->callee()->as<Lam>()->intrinsic() == Lam::Intrinsic::Match) {
                 auto val = lookup(lam->app()->arg(0));
@@ -385,6 +386,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     auto case_bb    = bb2lam[arg->op(1)->as_nominal<Lam>()];
                     match->addCase(case_const, case_bb);
                 }
+#endif
             } else if (lam->app()->callee()->isa<Bot>()) {
                 irbuilder_.CreateUnreachable();
             } else {
@@ -849,6 +851,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
         // tuple/struct
         return irbuilder_.CreateInsertValue(llvm_agg, val, {as_lit<u32>(insert->index())});
+#if 0
     } else if (auto variant = def->isa<Variant>()) {
         auto bits = compute_variant_bits(variant->type());
         auto value = lookup(variant->op(0));
@@ -864,6 +867,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreateLoad(alloca);
             });
         }
+#endif
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
         if (lit->type()->type()->isa<KindArity>()) {
@@ -949,6 +953,7 @@ unsigned CodeGen::convert_addr_space(u64 addr_space) {
     }
 }
 
+#if 0
 unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
     unsigned total_bits = 0;
     for (auto op : variant->ops()) {
@@ -968,6 +973,7 @@ unsigned CodeGen::compute_variant_op_bits(const Def* type) {
         return layout.getTypeSizeInBits(llvm_type);
     return 0;
 }
+#endif
 
 llvm::Type* CodeGen::convert(const Def* type) {
     if (auto llvm_type = types_.lookup(type)) return *llvm_type;
@@ -1045,6 +1051,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
             llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
 
         return llvm_struct;
+#if 0
     } else if (auto variant_type = type->isa<VariantType>()) {
         auto bits = compute_variant_bits(variant_type);
         if (bits != 0) {
@@ -1056,6 +1063,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
                 max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
             return types_[type] = llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
         }
+#endif
     }
 
     THORIN_UNREACHABLE;

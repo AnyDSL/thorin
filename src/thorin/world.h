@@ -187,9 +187,7 @@ public:
     //@}
     /// @name Variant
     //@{
-    const Def* variant(const Def* type, const Def* index, const Def* arg, Debug dbg = {});
-    /// infers the index, for @em structural unions only
-    const Def* variant(const Def* type, const Def* arg, Debug dbg = {});
+    const Def* variant(const Def* value, Debug dbg = {});
     //@}
     /// @name Pack
     //@{

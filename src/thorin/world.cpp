@@ -291,7 +291,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         eta = false;
     }
 
-    if (eta) return tup;
+    if (eta && tup) return tup;
     return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 }
 

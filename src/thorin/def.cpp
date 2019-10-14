@@ -36,7 +36,7 @@ nat_t Def::lit_arity() const {
 
 const Def* Def::unfold_type() const {
     if (auto app = type()->isa<App>()) {
-        if (auto lam = app->callee()->isa<Lam>()) return lam->apply(app->arg());
+        if (auto lam = app->callee()->isa<Lam>(); lam && lam->is_set()) return lam->apply(app->arg());
     }
     return type();
 }

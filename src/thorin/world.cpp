@@ -312,21 +312,10 @@ const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
     return unify<Union>(ops_copy.size(), type, ops_copy, debug(dbg));
 }
 
-const Def* World::variant(const Def* type, const Def* index, const Def* arg, Debug dbg) {
-#if THORIN_ENABLE_CHECKS
-    // TODO:
-    // - assert that 'type', when reduced, is a 'union' with 'type->arity() == index->type()'
-    // - assert that 'type', when reduced, is a 'union' with 'type->op(index) == arg->type()'
-#endif
-    return insert(bot(type), index, arg, debug(dbg));
-}
-
-const Def* World::variant(const Def* type, const Def* arg, Debug dbg) {
-    // TODO: reduce 'type'
-    assertf(type->isa<Union>() && !type->isa_nominal(), "only structural unions can be created with this constructor");
-    size_t index = std::find(type->ops().begin(), type->ops().end(), arg->type()) - type->ops().begin();
-    assertf(index != type->num_ops(), "cannot find type {} in union {}", arg->type(), type);
-    return variant(type, lit_index(index, type->num_ops()), arg, dbg);
+const Def* World::variant(const Def* value, Debug dbg) {
+    if (auto insert = value->isa<Insert>())
+        return insert->index();
+    return unify<Variant>(1, value->type()->arity(), value, debug(dbg));
 }
 
 const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
@@ -430,8 +419,8 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
                 return extract(insert->tuple(), index, dbg);
         }
 
-        if (auto sigma = tup->type()->isa<Sigma>())
-            return unify<Extract>(2, sigma->op(*i), tup, index, debug(dbg));
+        if (tup->type()->isa<Sigma>() || tup->type()->isa<Union>())
+            return unify<Extract>(2, tup->type()->op(*i), tup, index, debug(dbg));
     }
 
     if (auto arr = tup->type()->isa<Arr>()) {

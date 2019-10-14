@@ -407,6 +407,7 @@ const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
+const Def* Variant    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant(o[0], dbg); }
 const Def* Arr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.arr(o[0], o[1], dbg); }
 const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }
 

@@ -180,19 +180,18 @@ public:
     template<size_t N = size_t(-1), class F>
     auto split(F f) const {
         using R = decltype(f(this));
-        std::conditional_t<N == size_t(-1), std::vector<R>, std::array<R, N>> array;
-
-        auto a = type()->lit_arity();
-        if constexpr (N == size_t(-1))
-            array.resize(a);
-        else
-            assert(a == N);
-
         auto& w =world();
-        for (size_t i = 0; i != a; ++i)
-            array[i] = f(detail::world_extract(w, this, i));
+        auto a = type()->lit_arity();
 
-        return array;
+        if constexpr (N == size_t(-1))
+            return Array<R>(a, [&](size_t i) { return f(detail::world_extract(w, this, i)); });
+        else {
+            assert(a == N);
+            std::array<R, N> array;
+            for (size_t i = 0; i != N; ++i)
+                array[i] = f(detail::world_extract(w, this, i));
+            return array;
+        }
     }
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
@@ -465,7 +464,7 @@ protected:
     {}
 
 public:
-    /// @name getters
+    /// @name ops
     //@{
     const Def* domain() const { return op(0); }
     const Def* domain(size_t i) const;

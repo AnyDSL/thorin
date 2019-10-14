@@ -291,7 +291,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         eta = false;
     }
 
-    if (eta) return tup;
+    if (eta && tup) return tup;
     return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 }
 
@@ -318,12 +318,12 @@ const Def* World::variant(const Def* type, const Def* index, const Def* arg, Deb
     // - assert that 'type', when reduced, is a 'union' with 'type->arity() == index->type()'
     // - assert that 'type', when reduced, is a 'union' with 'type->op(index) == arg->type()'
 #endif
-    return unify<Variant>(2, type, index, arg, debug(dbg));
+    return insert(bot(type), index, arg, debug(dbg));
 }
 
 const Def* World::variant(const Def* type, const Def* arg, Debug dbg) {
     // TODO: reduce 'type'
-    assertf(type->isa<Union>() && !type->isa_nominal(), "only nominal unions can be created with this constructor");
+    assertf(type->isa<Union>() && !type->isa_nominal(), "only structural unions can be created with this constructor");
     size_t index = std::find(type->ops().begin(), type->ops().end(), arg->type()) - type->ops().begin();
     assertf(index != type->num_ops(), "cannot find type {} in union {}", arg->type(), type);
     return variant(type, lit_index(index, type->num_ops()), arg, dbg);
@@ -537,6 +537,9 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
             tup = insert->tuple();
     }
 
+    // insert(x : U, index, y) -> insert(bot : U, index, y)
+    if (tup->type()->isa<Union>())
+        tup = bot(tup->type());
     return unify<Insert>(3, tup, index, val, debug(dbg));
 }
 

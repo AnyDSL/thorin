@@ -750,22 +750,6 @@ public:
     friend class World;
 };
 
-/// Data constructor for a @p Union.
-class Variant : public Def {
-private:
-    Variant(const Def* type, const Def* index, const Def* arg, const Def* dbg)
-        : Def(Node, rebuild, type, {index, arg}, 0, dbg)
-    {}
-
-public:
-    const Def* index() const { return op(0); }
-    const Def* arg() const { return op(1); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Variant;
-    friend class World;
-};
-
 class Arr : public Def {
 private:
     Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)

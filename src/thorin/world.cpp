@@ -264,7 +264,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     }
 
     auto n = ops.size();
-    if (!type->isa_nominal()) {
+    if (!type->isa_nominal<Tuple>()) {
         if (n == 0) return tuple();
         if (n == 1) return ops[0];
         if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);

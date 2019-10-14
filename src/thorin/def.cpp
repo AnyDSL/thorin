@@ -18,6 +18,13 @@ namespace detail {
  * Def
  */
 
+const Def* Def::type() const {
+    assert(node() != Node::Universe);
+    //if (auto app = type_->isa<App>())
+        //return rewrite
+    return type_;
+}
+
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
     if (auto union_ = isa<Union>()) return world().lit_arity(union_->num_ops());

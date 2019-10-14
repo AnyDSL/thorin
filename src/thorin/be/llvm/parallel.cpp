@@ -14,30 +14,30 @@ enum {
 
 Lam* CodeGen::emit_parallel(Lam* lam) {
     // arguments
-    assert(lam->app()->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
-    auto num_threads = lookup(lam->app()->arg(PAR_ARG_NUMTHREADS));
-    auto lower = lookup(lam->app()->arg(PAR_ARG_LOWER));
-    auto upper = lookup(lam->app()->arg(PAR_ARG_UPPER));
-    auto kernel = lam->app()->arg(PAR_ARG_BODY)->as<Global>()->init()->as_nominal<Lam>();
+    assert(lam->body()->as<App>()->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
+    auto num_threads = lookup(lam->body()->as<App>()->arg(PAR_ARG_NUMTHREADS));
+    auto lower = lookup(lam->body()->as<App>()->arg(PAR_ARG_LOWER));
+    auto upper = lookup(lam->body()->as<App>()->arg(PAR_ARG_UPPER));
+    auto kernel = lam->body()->as<App>()->arg(PAR_ARG_BODY)->as<Global>()->init()->as_nominal<Lam>();
 
-    const size_t num_kernel_args = lam->app()->num_args() - PAR_NUM_ARGS;
+    const size_t num_kernel_args = lam->body()->as<App>()->num_args() - PAR_NUM_ARGS;
 
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args + 1);
     par_args[0] = irbuilder_.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = lam->app()->arg(i + PAR_NUM_ARGS)->type();
+        auto type = lam->body()->as<App>()->arg(i + PAR_NUM_ARGS)->type();
         par_args[i + 1] = convert(type);
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.sigma(lam->app()->arg()->type()->as<Sigma>()->ops().skip_front(PAR_NUM_ARGS)));
+    auto closure_type = convert(world_.sigma(lam->body()->as<App>()->arg()->type()->as<Sigma>()->ops().skip_front(PAR_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder_.CreateInsertValue(closure, lookup(lam->app()->arg(i + PAR_NUM_ARGS)), unsigned(i));
+            closure = irbuilder_.CreateInsertValue(closure, lookup(lam->body()->as<App>()->arg(i + PAR_NUM_ARGS)), unsigned(i));
     } else {
-        closure = lookup(lam->app()->arg(PAR_NUM_ARGS));
+        closure = lookup(lam->body()->as<App>()->arg(PAR_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -86,7 +86,7 @@ Lam* CodeGen::emit_parallel(Lam* lam) {
     // restore old insert point
     irbuilder_.SetInsertPoint(old_bb);
 
-    return lam->app()->arg(PAR_ARG_RETURN)->as_nominal<Lam>();
+    return lam->body()->as<App>()->arg(PAR_ARG_RETURN)->as_nominal<Lam>();
 }
 
 enum {
@@ -97,22 +97,22 @@ enum {
 };
 
 Lam* CodeGen::emit_spawn(Lam* lam) {
-    assert(lam->app()->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
-    auto kernel = lam->app()->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_nominal<Lam>();
-    const size_t num_kernel_args = lam->app()->num_args() - SPAWN_NUM_ARGS;
+    assert(lam->body()->as<App>()->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
+    auto kernel = lam->body()->as<App>()->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_nominal<Lam>();
+    const size_t num_kernel_args = lam->body()->as<App>()->num_args() - SPAWN_NUM_ARGS;
 
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args);
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = lam->app()->arg(i + SPAWN_NUM_ARGS)->type();
+        auto type = lam->body()->as<App>()->arg(i + SPAWN_NUM_ARGS)->type();
         par_args[i] = convert(type);
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.sigma(lam->app()->arg()->type()->as<Sigma>()->ops().skip_front(SPAWN_NUM_ARGS)));
+    auto closure_type = convert(world_.sigma(lam->body()->as<App>()->arg()->type()->as<Sigma>()->ops().skip_front(SPAWN_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     for (size_t i = 0; i < num_kernel_args; ++i)
-        closure = irbuilder_.CreateInsertValue(closure, lookup(lam->app()->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
+        closure = irbuilder_.CreateInsertValue(closure, lookup(lam->body()->as<App>()->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
 
     // allocate closure object and write values into it
     auto ptr = irbuilder_.CreateAlloca(closure_type, nullptr);
@@ -149,7 +149,7 @@ Lam* CodeGen::emit_spawn(Lam* lam) {
     irbuilder_.SetInsertPoint(old_bb);
 
     // bind parameter of lam to received handle
-    auto l = lam->app()->arg(SPAWN_ARG_RETURN)->as_nominal<Lam>();
+    auto l = lam->body()->as<App>()->arg(SPAWN_ARG_RETURN)->as_nominal<Lam>();
     emit_result_phi(l->param(1), call);
     return l;
 }
@@ -162,10 +162,10 @@ enum {
 };
 
 Lam* CodeGen::emit_sync(Lam* lam) {
-    assert(lam->app()->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
-    auto id = lookup(lam->app()->arg(SYNC_ARG_ID));
+    assert(lam->body()->as<App>()->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
+    auto id = lookup(lam->body()->as<App>()->arg(SYNC_ARG_ID));
     runtime_->sync_thread(id);
-    return lam->app()->arg(SYNC_ARG_RETURN)->as_nominal<Lam>();
+    return lam->body()->as<App>()->arg(SYNC_ARG_RETURN)->as_nominal<Lam>();
 }
 
 }

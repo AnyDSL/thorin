@@ -39,7 +39,7 @@ static Lam* try_inline(Lam* lam, Array<const Def*>& args) {
     if (args[0]->isa_nominal<Lam>()) {
         auto app = lam->world().app(args.front(), lam->world().tuple(args.skip_front()))->as<App>();
         auto dropped = drop(app);
-        lam->app(dropped->app()->callee(), dropped->app()->args(), args[0]->debug());
+        lam->app(dropped->body()->as<App>()->callee(), dropped->body()->as<App>()->args(), args[0]->debug());
     } else {
         app(lam, args);
     }
@@ -51,9 +51,9 @@ static void inline_calls(Lam* lam) {
         auto ulam = use->isa_nominal<Lam>();
         if (!ulam || use.index() != 0) continue;
 
-        Array<const Def*> args(ulam->app()->num_args() + 1);
-        for (size_t i = 0, e = ulam->app()->num_args(); i != e; ++i) args[i + 1] = ulam->app()->arg(i);
-        args[0] = ulam->app()->callee();
+        Array<const Def*> args(ulam->body()->as<App>()->num_args() + 1);
+        for (size_t i = 0, e = ulam->body()->as<App>()->num_args(); i != e; ++i) args[i + 1] = ulam->body()->as<App>()->arg(i);
+        args[0] = ulam->body()->as<App>()->callee();
         try_inline(ulam, args);
     }
 }

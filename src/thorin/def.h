@@ -148,7 +148,7 @@ protected:
 public:
     /// @name type
     //@{
-    const Def* type() const { assert(node() != Node::Universe); return type_; }
+    const Def* type() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     u64 lit_arity() const;
@@ -494,32 +494,6 @@ public:
     friend class World;
 };
 
-class App : public Def {
-private:
-    App(const Axiom* axiom, u16 currying_depth, const Def* type, const Def* callee, const Def* arg, const Def* dbg)
-        : Def(Node, rebuild, type, {callee, arg}, 0, dbg)
-    {
-        axiom_depth_.set(axiom, currying_depth);
-    }
-
-public:
-    const Def* callee() const { return op(0); }
-    const App* decurry() const { return callee()->as<App>(); } ///< Returns the @p callee again as @p App.
-    const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
-    const Def* arg() const { return op(1); }
-    const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }
-    Array<const Def*> args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
-    template<size_t N = size_t(-1), class F> auto args(F f) const { return arg()->split<N, F>(f); }
-    template<size_t N = size_t(-1)> auto args() const { return arg()->split<N>(); }
-    size_t num_args() const { return callee_type()->domain()->lit_arity(); }
-    const Axiom* axiom() const { return axiom_depth_.ptr(); }
-    u16 currying_depth() const { return axiom_depth_.index(); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::App;
-    friend class World;
-};
-
 class Lam : public Def {
 public:
     // TODO make these thigns axioms
@@ -575,7 +549,6 @@ public:
     //@{
     const Def* filter() const { return op(0); }
     const Def* body() const { return op(1); }
-    const App* app() const { return body()->isa<App>(); }
     //@}
     /// @name params
     //@{
@@ -624,6 +597,38 @@ template<class To>
 using LamMap  = GIDMap<Lam*, To>;
 using LamSet  = GIDSet<Lam*>;
 using Lam2Lam = LamMap<Lam*>;
+
+class App : public Def {
+private:
+    App(const Axiom* axiom, u16 currying_depth, const Def* type, const Def* callee, const Def* arg, const Def* dbg)
+        : Def(Node, rebuild, type, {callee, arg}, 0, dbg)
+    {
+        axiom_depth_.set(axiom, currying_depth);
+    }
+
+public:
+    /// @name ops
+    ///@{
+    const Def* callee() const { return op(0); }
+    const App* decurry() const { return callee()->as<App>(); } ///< Returns the @p callee again as @p App.
+    const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
+    const Def* arg() const { return op(1); }
+    const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }
+    Array<const Def*> args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
+    //@}
+    /// @name split arg
+    //@{
+    template<size_t N = size_t(-1), class F> auto args(F f) const { return arg()->split<N, F>(f); }
+    template<size_t N = size_t(-1)> auto args() const { return arg()->split<N>(); }
+    //@}
+    size_t num_args() const { return callee_type()->domain()->lit_arity(); }
+    const Axiom* axiom() const { return axiom_depth_.ptr(); }
+    u16 currying_depth() const { return axiom_depth_.index(); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::App;
+    friend class World;
+};
 
 class CPS2DS : public Def {
 private:

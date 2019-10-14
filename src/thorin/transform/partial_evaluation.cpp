@@ -166,12 +166,12 @@ private:
 };
 
 void PartialEvaluator::eat_pe_info(Lam* cur) {
-    auto next = cur->app()->arg(3);
+    auto next = cur->body()->as<App>()->arg(3);
 
-    if (cur->app()->arg(2)->is_const()) {
-        //auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
-        world().idef(cur->app()->callee(), "pe_info: {}: {}", "TODO", cur->app()->arg(2));
-        cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());
+    if (cur->body()->as<App>()->arg(2)->is_const()) {
+        //auto msg = cur->body()->as<App>()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
+        world().idef(cur->body()->as<App>()->callee(), "pe_info: {}: {}", "TODO", cur->body()->as<App>()->arg(2));
+        cur->app(next, {cur->body()->as<App>()->arg(0)}, cur->body()->as<App>()->debug());
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
@@ -193,7 +193,7 @@ bool PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto lam = pop(queue_);
 
-        auto app = lam->app();
+        auto app = lam->body()->as<App>();
         if (app == nullptr) continue;
 
         bool force_fold = false;

@@ -112,7 +112,7 @@ void Cleaner::eta_conversion() {
 
             // eat calls to known lams that are only used once
             while (true) {
-                if (auto app = lam->app()) {
+                if (auto app = lam->body()->isa<App>()) {
                     if (auto callee = app->callee()->isa_nominal<Lam>()) {
                         if (!callee->is_set() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
@@ -132,7 +132,7 @@ void Cleaner::eta_conversion() {
                 break;
             }
 
-            auto app = lam->app();
+            auto app = lam->body()->as<App>();
             if (!app) continue;
 
             // try to subsume lams which call a parameter
@@ -193,7 +193,7 @@ void Cleaner::eliminate_params() {
         std::vector<size_t> proxy_idx; // indices of params we eliminate
         std::vector<size_t> param_idx; // indices of params we keep
 
-        auto old_app = old_lam->app();
+        auto old_app = old_lam->body()->as<App>();
         if (old_app == nullptr || world().is_external(old_lam)) continue;
 
         for (auto use : old_lam->uses()) {

@@ -409,8 +409,9 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
-    assertf(alpha_equiv(tup->type()->arity(), index->type()),
-            "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, tup->type()->arity(), index, index->type());
+    auto type = tup->unfold_type();
+    assertf(alpha_equiv(type->arity(), index->type()),
+            "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
 
     if (isa_lit_arity(index->type(), 1)) return tup;
     if (auto pack = tup->isa<Pack>()) return pack->body();
@@ -430,11 +431,11 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
                 return extract(insert->tuple(), index, dbg);
         }
 
-        if (auto sigma = tup->type()->isa<Sigma>())
+        if (auto sigma = type->isa<Sigma>())
             return unify<Extract>(2, sigma->op(*i), tup, index, debug(dbg));
     }
 
-    if (auto arr = tup->type()->isa<Arr>()) {
+    if (auto arr = type->isa<Arr>()) {
         if (auto tuple = tup->isa<Tuple>()) {
             // TODO we could even deal with an offset
             // extract((0, 1, 2, ...), i) -> i
@@ -464,7 +465,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
                     if (descending) {
                         auto ops = tuple->split();
                         std::reverse(ops.begin(), ops.end());
-                        return extract(this->tuple(tuple->type(), ops, tuple->debug()), i_ex->index(), dbg);
+                        return extract(this->tuple(type, ops, tuple->debug()), i_ex->index(), dbg);
                     }
                 }
             }
@@ -474,7 +475,8 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     if (auto inner = tup->isa<Extract>()) {
         auto a = inner->index();
         auto b = index;
-        auto arity = inner->tuple()->type()->lit_arity();
+        auto inner_type = inner->tuple()->unfold_type();
+        auto arity = inner_type->lit_arity();
 
         if (inner->tuple()->is_const()) {
             if (auto res = merge_cmps<Tag::ICmp>(inner->tuple(), a, b, dbg)) return res;
@@ -502,13 +504,14 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
 
     // TODO absorption
 
-    auto type = tup->type()->as<Arr>()->codomain();
+    type = type->as<Arr>()->codomain();
     return unify<Extract>(2, type, tup, index, debug(dbg));
 }
 
 const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug dbg) {
-    assertf(alpha_equiv(tup->type()->arity(), index->type()),
-            "inserting into tuple {} of arity {} with index {} of type {}", tup, tup->type()->arity(), index, index->type());
+    auto type = tup->unfold_type();
+    assertf(alpha_equiv(type->arity(), index->type()),
+            "inserting into tuple {} of arity {} with index {} of type {}", tup, type->arity(), index, index->type());
 
     if (isa_lit_arity(index->type(), 1)) return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
 
@@ -516,7 +519,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     if (auto t = tup->isa<Tuple>()) {
         Array<const Def*> new_ops = t->ops();
         new_ops[as_lit<u64>(index)] = val;
-        return tuple(t->type(), new_ops, dbg);
+        return tuple(type, new_ops, dbg);
     }
 
     // insert(‹4; x›, 2, y) -> (x, x, y, x)
@@ -524,7 +527,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
         if (auto a = isa_lit<u64>(pack->arity())) {
             Array<const Def*> new_ops(*a, pack->body());
             new_ops[as_lit<u64>(index)] = val;
-            return tuple(pack->type(), new_ops, dbg);
+            return tuple(type, new_ops, dbg);
         }
     }
 

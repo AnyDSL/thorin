@@ -18,12 +18,7 @@ namespace detail {
  * Def
  */
 
-const Def* Def::type() const {
-    assert(node() != Node::Universe);
-    //if (auto app = type_->isa<App>())
-        //return rewrite
-    return type_;
-}
+size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
@@ -39,6 +34,13 @@ nat_t Def::lit_arity() const {
     return 1;
 }
 
+const Def* Def::unfold_type() const {
+    if (auto app = type()->isa<App>()) {
+        if (auto lam = app->callee()->isa<Lam>()) return lam->apply(app->arg());
+    }
+    return type();
+}
+
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
         return this == other;
@@ -48,7 +50,6 @@ bool Def::equal(const Def* other) const {
         result &= this->op(i) == other->op(i);
     return result;
 }
-
 
 // TODO
 const Def* Def::debug_history() const {
@@ -259,11 +260,6 @@ bool Pi::is_returning() const {
     return ret;
 }
 
-const Def* Pi::apply(const Def* arg) const {
-    if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg, 1);
-    return codomain();
-}
-
 /*
  * Ptrn
  */
@@ -375,7 +371,19 @@ const Param* Def::param(Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-size_t Def::num_params() { return param()->type()->lit_arity(); }
+/*
+ * apply
+ */
+
+const Def* Lam::apply(const Def* arg) const {
+    if (auto lam = isa_nominal<Lam>()) return rewrite(lam, arg, 1);
+    return body();
+}
+
+const Def* Pi::apply(const Def* arg) const {
+    if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg, 1);
+    return codomain();
+}
 
 /*
  * rebuild

@@ -148,7 +148,8 @@ protected:
 public:
     /// @name type
     //@{
-    const Def* type() const;
+    const Def* type() const { assert(node() != Node::Universe); return type_; }
+    const Def* unfold_type() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     u64 lit_arity() const;
@@ -262,7 +263,7 @@ public:
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
     //@}
-    /// @name rebuild, stub, normalize, equal
+    /// @name rewrite
     //@{
     const Def* rebuild(World& world, const Def* type, Defs ops, const Def* dbg) const {
         assert(!isa_nominal());
@@ -272,8 +273,8 @@ public:
         assert(isa_nominal());
         return stub_(this, world, type, dbg);
     }
-    bool equal(const Def* other) const;
     //@}
+    bool equal(const Def* other) const;
     Stream& stream(Stream& s) const;
 
 protected:
@@ -482,10 +483,10 @@ public:
     Pi* set_domain(Defs domains);
     Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
     //@}
+    /// @name rewrite
+    //@{
     /// Reduces the @p codomain by rewriting this @p Pi's @p Param with @p arg in order to retrieve the codomain of a dependent function @p App.
     const Def* apply(const Def* arg) const;
-    /// @name rebuild, stub
-    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
@@ -570,8 +571,10 @@ public:
     void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {});
     void match(const Def* val, Defs cases, const Def* mem, Debug dbg = {});
     //@}
-    /// @name rebuild, stub
+    /// @name rewrite
     //@{
+    /// Reduces the @p body by rewriting this @p Lam's @p Param with @p arg.
+    const Def* apply(const Def* arg) const;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
@@ -701,7 +704,7 @@ public:
     Sigma* set(size_t i, const Def* def) { return Def::set(i, def)->as<Sigma>(); }
     Sigma* set(Defs ops) { return Def::set(ops)->as<Sigma>(); }
     //@}
-    /// @name rebuild, stub
+    /// @name rewrite
     //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
@@ -737,7 +740,7 @@ private:
     {}
 
 public:
-    /// @name rebuild, stub
+    /// @name rewrite
     //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);

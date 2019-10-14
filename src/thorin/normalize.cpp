@@ -770,11 +770,6 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
         }
     }
 
-    if (auto variant = src->isa<Variant>()) {
-        if (variant->op(0)->type() != dst_type) world.ELOG("variant downcast not possible");
-        return variant->op(0);
-    }
-
     return world.raw_app(callee, src, dbg);
 }
 

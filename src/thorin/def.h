@@ -220,20 +220,22 @@ public:
     /// @name casts
     //@{
     /// If @c this is @em nominal, it will cast constness away and perform a dynamic cast to @p T.
-    template<class T = Def> T* isa_nominal() const {
+    template<class T = Def, bool invert = false> T* isa_nominal() const {
         if constexpr(std::is_same<T, Def>::value)
-            return nominal_ ? const_cast<Def*>(this) : nullptr;
+            return nominal_ ^ invert ? const_cast<Def*>(this) : nullptr;
         else
-            return nominal_ ? const_cast<Def*>(this)->template isa<T>() : nullptr;
+            return nominal_ ^ invert ? const_cast<Def*>(this)->template isa<T>() : nullptr;
     }
+    template<class T = Def> const T* isa_structural() const { return isa_nominal<T, true>(); }
     /// Asserts that @c this is a @em nominal, casts constness away and performs a static cast to @p T (checked in Debug build).
-    template<class T = Def> T* as_nominal() const {
-        assert(nominal_);
+    template<class T = Def, bool invert = false> T* as_nominal() const {
+        assert(nominal_ ^ invert);
         if constexpr(std::is_same<T, Def>::value)
             return const_cast<Def*>(this);
         else
             return const_cast<Def*>(this)->template as<T>();
     }
+    template<class T = Def> const T* as_structural() const { return as_nominal<T, true>(); }
     //@}
     /// @name retrieve @p Param for @em nominals.
     //@{

@@ -13,7 +13,7 @@ const Def* Flattener::flatten(const Def* def) {
         if (!pack->domain()->isa<Lit>()) return old2new[def] = def;
         auto body = flatten(pack->body());
         auto n = as_lit<nat_t>(pack->domain());
-        if (body->type()->arity()->isa<Lit>()) {
+        if (body->type()->arity()->isa<Lit>() && body->type()->isa_structural<Sigma>()) {
             auto m = body->type()->lit_arity();
             Array<const Def*> ops(n * m);
             for (size_t i = 0; i < n; ++i) {
@@ -28,7 +28,8 @@ const Def* Flattener::flatten(const Def* def) {
         std::vector<const Def*> ops;
         for (auto op : tuple->ops()) {
             auto flat_op = flatten(op);
-            if (auto lit_arity = flat_op->type()->arity()->isa<Lit>()) {
+            if (auto lit_arity = flat_op->type()->arity()->isa<Lit>();
+                lit_arity && flat_op->type()->isa_structural<Sigma>()) {
                 for (size_t i = 0, n = lit_arity->get<nat_t>(); i < n; ++i)
                     ops.push_back(flat_op->out(i));
             } else {
@@ -40,7 +41,7 @@ const Def* Flattener::flatten(const Def* def) {
         if (!arr->domain()->isa<Lit>()) return old2new[def] = def;
         auto codomain = flatten(arr->codomain());
         auto n = as_lit<nat_t>(arr->domain());
-        if (codomain->arity()->isa<Lit>()) {
+        if (codomain->arity()->isa<Lit>() && codomain->isa_structural<Sigma>()) {
             auto m = codomain->lit_arity();
             Array<const Def*> ops(n * m);
             for (size_t i = 0; i < n; ++i) {
@@ -55,7 +56,8 @@ const Def* Flattener::flatten(const Def* def) {
         std::vector<const Def*> ops;
         for (auto op : sigma->ops()) {
             auto flat_op = flatten(op);
-            if (auto lit_arity = flat_op->arity()->isa<Lit>()) {
+            if (auto lit_arity = flat_op->arity()->isa<Lit>();
+                lit_arity && flat_op->isa_structural<Sigma>()) {
                 for (size_t i = 0, n = lit_arity->get<nat_t>(); i < n; ++i)
                     ops.push_back(proj(flat_op, i));
             } else {

@@ -9,10 +9,6 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (auto new_def = old2new.lookup(old_def)) return *new_def;
     if (scope != nullptr && !scope->contains(old_def)) return old_def;
 
-    if (fn) {
-        if (auto new_def = fn(old_def)) return old2new[old_def] = new_def;
-    }
-
     auto new_type = rewrite(old_def->type());
     auto new_dbg = old_def->debug();
 
@@ -48,11 +44,6 @@ const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope) {
 const Def* rewrite(Def* nom, const Def* arg, size_t i) {
     Scope scope(nom);
     return rewrite(nom, arg, i, scope);
-}
-
-Array<const Def*> rewrite(Def* nom, const Scope& scope, RewriteFn fn) {
-    Rewriter rewriter(nom->world(), &scope, fn);
-    return Array<const Def*>(nom->num_ops(), [&](auto i) { return rewriter.rewrite(nom->op(i)); });
 }
 
 void cleanup(World& old_world) {

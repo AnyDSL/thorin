@@ -465,12 +465,11 @@ public:
     /**
      * Rewrites the whole world by @p visit%ing each @p Def with all @em top-level @p Scope%s.
      * Every time, we enter a new scope @p enter_fn will be invoked.
-     * Return @c true, if you are interested in this @p Scope.
      * Return @c false, if you want to skip this @p Scope.
+     * If you return @c true, the @p Scope will be rewritten via @p rewrite_fn and @p Scope::rewrite.
      * For each @p Def in the current @p Scope, @p rewrite_fn will be invoked.
      */
     void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn);
-    void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn pre_order_fn, RewriteFn post_order_fn);
     //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features

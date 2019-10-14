@@ -9,16 +9,15 @@ namespace thorin {
 /// Rewrites part of a program.
 class Rewriter {
 public:
-    Rewriter(World& old_world, World& new_world, const Scope* scope = nullptr, RewriteFn fn = {})
+    Rewriter(World& old_world, World& new_world, const Scope* scope = nullptr)
         : old_world(old_world)
         , new_world(new_world)
         , scope(scope)
-        , fn(fn)
     {
         old2new[old_world.universe()]  = new_world.universe();
     }
-    Rewriter(World& world, const Scope* scope = nullptr, RewriteFn fn = {})
-        : Rewriter(world, world, scope, fn)
+    Rewriter(World& world, const Scope* scope = nullptr)
+        : Rewriter(world, world, scope)
     {}
 
     const Def* rewrite(const Def* old_def);
@@ -28,7 +27,6 @@ public:
     World& new_world;
     const Scope* scope;
     Def2Def old2new;
-    RewriteFn fn;
 };
 
 /// Rewrites @p def by mapping @p old_def to @p new_def while obeying @p scope.
@@ -39,9 +37,6 @@ const Def* rewrite(Def* nom, const Def* arg, size_t i);
 
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
 const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope);
-
-/// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
-Array<const Def*> rewrite(Def* nom, const Scope& scope, RewriteFn fn = {});
 
 /// Removes unreachable and dead code by rebuilding the whole @p world into a new @p World.
 void cleanup(World& world);

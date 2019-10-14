@@ -775,33 +775,18 @@ void World::visit(VisitFn f) const {
 }
 
 void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
-    ILOG("start: {},", info);
-
-    visit([&](const Scope& scope) {
-        if (enter_fn(scope)) {
-            auto new_body = thorin::rewrite(scope.entry(), scope, rewrite_fn);
-
-            if (!std::equal(new_body.begin(), new_body.end(), scope.entry()->ops().begin())) {
-                scope.entry()->set(new_body);
-                const_cast<Scope&>(scope).update(); // yes, we know what we are doing
-            }
-        }
-    });
-
-    ILOG("end: {},", info);
-}
-
-void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn pre_order_fn, RewriteFn post_order_fn) {
-    ILOG("start: {},", info);
+    ILOG("{}: start,", info);
 
     visit([&](const Scope& scope) {
         if (enter_fn(scope)) {
             auto& s = const_cast<Scope&>(scope); // yes, we know what we are doing
-            if (s.rewrite(pre_order_fn, post_order_fn)) s.update();
+            if (s.rewrite(info, rewrite_fn)) s.update();
+        } else {
+            VLOG("{}: skipping scope {}", info, scope.entry());
         }
     });
 
-    ILOG("end: {},", info);
+    ILOG("{}: done,", info);
 }
 
 /*

@@ -126,49 +126,37 @@ void Scope::visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, V
     }
 }
 
-bool Scope::rewrite(RewriteFn pre_order, RewriteFn post_order) {
+bool Scope::rewrite(const std::string& info, RewriteFn fn) {
+    world().VLOG("{}: rewriting scope {} - start", info, entry());
+
     Def2Def old2new;
     bool dirty = false;
-    visit(
-        {},                     // pre-order nominmals
-        [&](const Def* def) {   // pre-order structurals
-            if (pre_order) {
-                if (!old2new.contains(def)) {
-                    if (auto new_def = pre_order(def)) old2new[def] = new_def;
-                }
+
+    auto make_new_ops = [&](const Def* old_def) {
+        return Array<const Def*>(old_def->num_ops(), [&](size_t i) {
+            if (auto new_def = old2new.lookup(old_def->op(i))) return *new_def;
+            return old_def->op(i);
+        });
+    };
+
+    visit({}, {},
+        [&](const Def* old_def) {
+            if (auto new_def = fn(old_def)) {
+                old2new[old_def] = new_def;
+            } else {
+                old2new[old_def] = old_def->rebuild(world(), old_def->type(), make_new_ops(old_def), old_def->debug());
             }
         },
-        [&](const Def* def) {   // post-order structurals
-            if (post_order) {
-                if (pre_order) {
-                    if (auto new_def = old2new.lookup(def))
-                        def = *new_def; // could have been replaced by pre-order hook
-                }
+        [&](Def* old_nom) {         // post-order nominmals
+            auto new_ops = make_new_ops(old_nom);
 
-                if (auto new_def = post_order(def))
-                    def = old2new[def] = new_def;
-
-                Array<const Def*> new_ops(def->num_ops(), [&](size_t i) {
-                    if (auto new_def = old2new.lookup(def->op(i))) return *new_def;
-                    return def->op(i);
-                });
-
-                auto new_def = def->rebuild(world(), def->type(), new_ops, def->debug());
-                old2new[def] = new_def;
-            }
-        },
-        [&](Def* nom) {         // post-order nominmals
-            Array<const Def*> new_ops(nom->num_ops(), [&](size_t i) {
-                if (auto new_def = old2new.lookup(nom->op(i))) return *new_def;
-                return nom->op(i);
-            });
-
-            if (!std::equal(new_ops.begin(), new_ops.end(), nom->ops().begin())) {
-                nom->set(new_ops);
+            if (!std::equal(new_ops.begin(), new_ops.end(), old_nom->ops().begin())) {
+                old_nom->set(new_ops);
                 dirty = true;
             }
         });
 
+    world().VLOG("{}: rewriting scope {} - done,", info, entry());
     return dirty;
 }
 

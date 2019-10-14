@@ -264,11 +264,11 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     }
 
     auto n = ops.size();
-    if (n == 0) return tuple();
-    if (n == 1) return ops[0];
-    if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, debug(dbg));
-
-    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
+    if (!type->isa_nominal()) {
+        if (n == 0) return tuple();
+        if (n == 1) return ops[0];
+        if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
+    }
 
     // eta rule for tuples:
     // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup

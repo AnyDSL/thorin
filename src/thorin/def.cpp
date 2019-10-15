@@ -272,10 +272,6 @@ bool Ptrn::matches(const Def* arg) const {
     return rewrite(as_nominal(), arg, 0) == arg;
 }
 
-const Def* Ptrn::instantiate(const Def* arg) const {
-    return rewrite(as_nominal(), arg, 1);
-}
-
 /*
  * Global
  */
@@ -383,6 +379,10 @@ const Def* Lam::apply(const Def* arg) const {
 const Def* Pi::apply(const Def* arg) const {
     if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg, 1);
     return codomain();
+}
+
+const Def* Ptrn::apply(const Def* arg) const {
+    return rewrite(as_nominal(), arg, 1);
 }
 
 /*

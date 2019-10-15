@@ -343,7 +343,7 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
                     err()->redundant_match_case(match, ptrn->as<Ptrn>());
             }
         }
-        return ptrns[0]->as<Ptrn>()->instantiate(arg);
+        return ptrns[0]->as<Ptrn>()->apply(arg);
     }
     if (ptrns.size() == 1 && !trivial) {
         if (err()) err()->incomplete_match(match);
@@ -354,7 +354,7 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
         for (auto ptrn : ptrns) {
             // If the pattern matches the argument
             if (ptrn->as<Ptrn>()->matches(arg))
-                return ptrn->as<Ptrn>()->instantiate(arg);
+                return ptrn->as<Ptrn>()->apply(arg);
         }
         return bot(type);
     }

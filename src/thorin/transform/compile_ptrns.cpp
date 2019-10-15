@@ -112,7 +112,7 @@ public:
         // If the first pattern of the list matches everything, then no need for a match
         if (arg->type()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
             report_redundant_ptrns(match, ArrayRef<Ptrn*>(ptrns).skip_front());
-            return ptrns[0]->instantiate(arg);
+            return ptrns[0]->apply(arg);
         }
 
         // Flatten tuple patterns

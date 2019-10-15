@@ -900,7 +900,7 @@ public:
     bool can_be_redundant() const { return fields() != 0; }
     bool is_trivial() const;
     bool matches(const Def*) const;
-    const Def* instantiate(const Def*) const;
+    const Def* apply(const Def* arg) const;
 
     /// @name type
     //@{

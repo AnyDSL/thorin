@@ -137,7 +137,6 @@ public:
     /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Universe); return type_; }
-    const Def* unfold_type() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     u64 lit_arity() const;

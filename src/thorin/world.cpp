@@ -419,7 +419,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         }
 
         if (type->isa<Sigma>() || type->isa<Union>())
-            return unify<Extract>(2, tup->type()->op(*i), tup, index, debug(dbg));
+            return unify<Extract>(2, type->op(*i), tup, index, debug(dbg));
     }
 
     if (auto arr = type->isa<Arr>()) {

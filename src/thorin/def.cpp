@@ -371,18 +371,17 @@ const Param* Def::param(Debug dbg) {
  * apply
  */
 
-const Def* Lam::apply(const Def* arg) const {
-    if (auto lam = isa_nominal<Lam>()) return rewrite(lam, arg, 1);
-    return body();
+const Def* Def::apply(const Def* arg) const {
+    if (auto nom = isa_nominal()) return nom->apply(arg);
+    return ops().back();
 }
 
-const Def* Pi::apply(const Def* arg) const {
-    if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg, 1);
-    return codomain();
-}
+const Def* Def::apply(const Def* arg) {
+    auto& rewrites = world().rewrites_;
+    if (auto def = rewrites.lookup({this, arg})) return *def;
 
-const Def* Ptrn::apply(const Def* arg) const {
-    return rewrite(as_nominal(), arg, 1);
+    auto res = rewrite(this, arg, num_ops() - 1);
+    return rewrites[{this, arg}] = res;
 }
 
 /*

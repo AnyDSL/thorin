@@ -233,6 +233,11 @@ public:
     Array<const Def*> params() { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
     size_t num_params();
     //@}
+    /// @name rewrites last op by substituting @p param with @p arg.
+    //@{
+    const Def* apply(const Def* arg) const;
+    const Def* apply(const Def* arg);
+    //@}
     /// @name misc getters
     //@{
     fields_t fields() const { return fields_; }
@@ -502,8 +507,6 @@ public:
     //@}
     /// @name rewrite
     //@{
-    /// Reduces the @p codomain by rewriting this @p Pi's @p Param with @p arg in order to retrieve the codomain of a dependent function @p App.
-    const Def* apply(const Def* arg) const;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
@@ -590,8 +593,6 @@ public:
     //@}
     /// @name rewrite
     //@{
-    /// Reduces the @p body by rewriting this @p Lam's @p Param with @p arg.
-    const Def* apply(const Def* arg) const;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
@@ -915,7 +916,6 @@ public:
     bool can_be_redundant() const { return fields() != 0; }
     bool is_trivial() const;
     bool matches(const Def*) const;
-    const Def* apply(const Def* arg) const;
 
     /// @name type
     //@{

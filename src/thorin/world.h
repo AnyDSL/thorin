@@ -525,10 +525,12 @@ public:
         swap(w1.name_,      w2.name_);
         swap(w1.externals_, w2.externals_);
         swap(w1.defs_,      w2.defs_);
-        swap(w1.arena_, w2.arena_);
-        swap(w1.state_, w2.state_);
-        swap(w1.cache_, w2.cache_);
-        swap(w1.err_,   w2.err_);
+        swap(w1.arena_,     w2.arena_);
+        swap(w1.state_,     w2.state_);
+        swap(w1.cache_,     w2.cache_);
+        swap(w1.err_,       w2.err_);
+        swap(w1.rewrites_,  w2.rewrites_);
+
         swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
@@ -698,8 +700,10 @@ private:
     Externals externals_;
     Sea defs_;
     std::unique_ptr<ErrorHandler> err_;
+    DefDef2Def rewrites_;
 
     friend class Cleaner;
+    friend const Def* Def::apply(const Def*);
     friend void Def::replace(Tracker) const;
 };
 

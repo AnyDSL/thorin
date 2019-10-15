@@ -24,9 +24,10 @@ private:
     /// Eliminates an element from a tuple
     std::pair<const Def*, const Def*> eliminate(const Def* def, size_t col) {
         // Unions and other types may also have an arity.
-        if (!def->type()->isa<Sigma>() || def->type()->num_ops() == 0)
+        auto type = def->type()->reduce();
+        if (!type->isa<Sigma>() || type->num_ops() == 0)
             return { def, world_.tuple() };
-        Array<const Def*> ops(def->type()->num_ops() - 1);
+        Array<const Def*> ops(type->num_ops() - 1);
         for (size_t i = 0; i < col; ++i)
             ops[i] = def->out(i);
         for (size_t i = col, n = ops.size(); i < n; ++i)
@@ -37,11 +38,12 @@ private:
     /// Introduces an element in a tuple
     const Def* introduce(const Def* def, size_t col, const Def* val) {
         // See above.
-        if (!def->type()->isa<Sigma>())
+        auto type = def->type()->reduce();
+        if (!type->isa<Sigma>())
             return world_.tuple({col == 0 ? val : def, col == 0 ? def : val});
-        if (def->type()->num_ops() == 0)
+        if (type->num_ops() == 0)
             return val;
-        Array<const Def*> ops(def->type()->num_ops() + 1);
+        Array<const Def*> ops(type->num_ops() + 1);
         for (size_t i = 0; i < col; ++i)
             ops[i] = def->out(i);
         ops[col] = val;
@@ -67,7 +69,7 @@ private:
         // Rewrite the body and matcher
         Scope scope(ptrn);
         Rewriter rewriter(world_, &scope);
-        assert(param->type() == s_param->type());
+        assert(param->type()->reduce() == s_param->type()->reduce());
         rewriter.old2new.emplace(param, s_param);
         auto s_matcher = rewriter.rewrite(ptrn->matcher());
         if (arg_col) {
@@ -110,7 +112,7 @@ public:
     const Def* compile(const Match* match, const Def* arg, std::vector<Ptrn*>& ptrns, const Def* dbg) {
         assert(!ptrns.empty());
         // If the first pattern of the list matches everything, then no need for a match
-        if (arg->type()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
+        if (arg->type()->reduce()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
             report_redundant_ptrns(match, ArrayRef<Ptrn*>(ptrns).skip_front());
             return ptrns[0]->apply(arg);
         }
@@ -123,7 +125,7 @@ public:
         // Select a column to specialize on
         size_t col = 0; // TODO: Heuristics
         auto [arg_col, d_arg] = eliminate(arg, col);
-        bool has_union = arg_col->type()->isa<Union>();
+        bool has_union = arg_col->type()->reduce()->isa<Union>();
         auto ctor = has_union ? world_.variant(arg_col) : arg_col;
         auto ctor_type = ctor->type();
 
@@ -136,7 +138,7 @@ public:
             if (auto lit = ptrn_col->isa<Lit>())
                 ctor2ptrns[lit].push_back(ptrn);
             else if (auto insert = ptrn_col->isa<Insert>()) {
-                assert(insert->type()->isa<Union>());
+                assert(insert->type()->reduce()->isa<Union>());
                 assert(insert->index()->isa<Lit>());
                 ctor2ptrns[insert->index()].push_back(ptrn);
             } else

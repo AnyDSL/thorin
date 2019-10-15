@@ -34,13 +34,6 @@ nat_t Def::lit_arity() const {
     return 1;
 }
 
-const Def* Def::unfold_type() const {
-    if (auto app = type()->isa<App>()) {
-        if (auto lam = app->callee()->isa<Lam>(); lam && lam->is_set()) return lam->apply(app->arg());
-    }
-    return type();
-}
-
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
         return this == other;
@@ -385,13 +378,17 @@ const Def* Def::apply(const Def* arg) {
 }
 
 const Def* Def::reduce() const {
-    if (auto app = isa<App>()) {
+    auto def = this;
+    while (auto app = def->isa<App>()) {
         auto callee = app->callee()->reduce();
-        if (callee->isa_nominal())
-            return callee->apply(app->arg());
-        return callee != app->callee() ? world().app(callee, app->arg(), app->debug()) : app;
+        if (callee->isa_nominal()) {
+            def = callee->apply(app->arg());
+        } else {
+            def = callee != app->callee() ? world().app(callee, app->arg(), app->debug()) : app;
+            break;
+        }
     }
-    return this;
+    return def;
 }
 
 /*

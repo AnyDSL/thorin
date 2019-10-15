@@ -396,7 +396,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
-    auto type = tup->unfold_type();
+    auto type = tup->type()->reduce();
     assertf(alpha_equiv(type->arity(), index->type()),
             "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
 
@@ -462,7 +462,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     if (auto inner = tup->isa<Extract>()) {
         auto a = inner->index();
         auto b = index;
-        auto inner_type = inner->tuple()->unfold_type();
+        auto inner_type = inner->tuple()->type()->reduce();
         auto arity = inner_type->lit_arity();
 
         if (inner->tuple()->is_const()) {
@@ -496,7 +496,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
 }
 
 const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug dbg) {
-    auto type = tup->unfold_type();
+    auto type = tup->type()->reduce();
     assertf(alpha_equiv(type->arity(), index->type()),
             "inserting into tuple {} of arity {} with index {} of type {}", tup, type->arity(), index, index->type());
 

@@ -3,8 +3,6 @@
 namespace thorin {
 
 struct Checker {
-    using Pair = std::tuple<const Def*, const Def*>;
-
     bool run(const Def* d1, const Def* d2) {
         if (d1 == d2 || (!d1->is_set() && !d2->is_set())) return true;
         if (d1->node() != d2->node() || d1->fields() != d2->fields() || d1->num_ops() != d2->num_ops()
@@ -30,14 +28,8 @@ struct Checker {
                           d2->ops().begin(), d2->ops().end(), [&](auto op1, auto op2) { return run(op1, op2); });
     }
 
-    struct Hash {
-        static hash_t hash(Pair pair) { return hash_combine(hash_begin(std::get<0>(pair)->gid()), std::get<1>(pair)->gid()); }
-        static bool eq(Pair p1, Pair p2) { return p1 == p2; }
-        static Pair sentinel() { return {nullptr, nullptr}; }
-    };
-
-    HashSet<Pair, Hash> equiv;
-    std::deque<Pair> params;
+    HashSet<DefDef, DefDefHash> equiv;
+    std::deque<DefDef> params;
 };
 
 bool alpha_equiv(const Def* d1, const Def* d2) { return Checker().run(d1, d2); }

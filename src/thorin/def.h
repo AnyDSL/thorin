@@ -108,18 +108,6 @@ typedef HashSet<Use, UseHash> Uses;
 
 //------------------------------------------------------------------------------
 
-template<class To>
-using DefMap  = GIDMap<const Def*, To>;
-using DefSet  = GIDSet<const Def*>;
-using Def2Def = DefMap<const Def*>;
-
-template<class To>
-using NomMap  = GIDMap<Def*, To>;
-using NomSet  = GIDSet<Def*>;
-using Nom2Nom = NomMap<Def*>;
-
-//------------------------------------------------------------------------------
-
 /**
  * Base class for all Def%s.
  * The data layout (see World::alloc) looks like this:
@@ -314,6 +302,33 @@ protected:
     friend class World;
     friend void swap(World&, World&);
 };
+
+//------------------------------------------------------------------------------
+
+template<class To>
+using DefMap  = GIDMap<const Def*, To>;
+using DefSet  = GIDSet<const Def*>;
+using Def2Def = DefMap<const Def*>;
+
+using DefDef = std::tuple<const Def*, const Def*>;
+
+struct DefDefHash {
+    static hash_t hash(DefDef pair) { return hash_combine(hash_begin(std::get<0>(pair)->gid()), std::get<1>(pair)->gid()); }
+    static bool eq(DefDef p1, DefDef p2) { return p1 == p2; }
+    static DefDef sentinel() { return {nullptr, nullptr}; }
+};
+
+template<class To>
+using DefDefMap  = HashMap<DefDef, To, DefDefHash>;
+using DefDefSet  = HashSet<DefDef, DefDefHash>;
+using DefDef2Def = DefDefMap<const Def*>;
+
+template<class To>
+using NomMap  = GIDMap<Def*, To>;
+using NomSet  = GIDSet<Def*>;
+using Nom2Nom = NomMap<Def*>;
+
+//------------------------------------------------------------------------------
 
 enum class Recurse { No, OneLevel };
 

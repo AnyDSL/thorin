@@ -238,6 +238,10 @@ public:
     const Def* apply(const Def* arg) const;
     const Def* apply(const Def* arg);
     //@}
+    /// @name reduce
+    //@{
+    const Def* reduce() const;
+    //@}
     /// @name misc getters
     //@{
     fields_t fields() const { return fields_; }

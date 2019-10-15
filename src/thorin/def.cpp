@@ -368,7 +368,7 @@ const Param* Def::param(Debug dbg) {
 }
 
 /*
- * apply
+ * apply/reduce
  */
 
 const Def* Def::apply(const Def* arg) const {
@@ -382,6 +382,16 @@ const Def* Def::apply(const Def* arg) {
 
     auto res = rewrite(this, arg, num_ops() - 1);
     return rewrites[{this, arg}] = res;
+}
+
+const Def* Def::reduce() const {
+    if (auto app = isa<App>()) {
+        auto callee = app->callee()->reduce();
+        if (callee->isa_nominal())
+            return callee->apply(app->arg());
+        return callee != app->callee() ? world().app(callee, app->arg(), app->debug()) : app;
+    }
+    return this;
 }
 
 /*

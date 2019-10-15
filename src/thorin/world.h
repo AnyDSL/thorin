@@ -80,8 +80,8 @@ public:
 
     /// @ getters
     //@{
-    const std::string& name() const { return name_; }
-    const Sea& defs() const { return defs_; }
+    const std::string& name() const { return data_.name_; }
+    const Sea& defs() const { return data_.defs_; }
     std::vector<Lam*> copy_lams() const; // TODO remove this
     //@}
     /// @name manage global identifier - a unique number for each Def
@@ -91,10 +91,10 @@ public:
     //@}
     /// @name Universe and Kind
     //@{
-    const Universe*  universe()   { return cache_.universe_;   }
-    const KindMulti* kind_multi() { return cache_.kind_multi_; }
-    const KindArity* kind_arity() { return cache_.kind_arity_; }
-    const KindStar*  kind_star()  { return cache_.kind_star_;  }
+    const Universe*  universe()   { return data_.universe_;   }
+    const KindMulti* kind_multi() { return data_.kind_multi_; }
+    const KindArity* kind_arity() { return data_.kind_arity_; }
+    const KindStar*  kind_star()  { return data_.kind_star_;  }
     //@}
     /// @name Param
     //@{
@@ -148,7 +148,7 @@ public:
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
-    const Sigma* sigma() { return cache_.sigma_; } ///< the unit type within @p kind_star()
+    const Sigma* sigma() { return data_.sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal
     //@{
@@ -183,7 +183,7 @@ public:
     const Def* tuple(Defs ops, Debug dbg = {});
     const Def* tuple_str(const char* s, Debug = {});
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
-    const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
+    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Variant
     //@{
@@ -208,9 +208,9 @@ public:
     //@}
     /// @name Bool operations - extracts on truth tables (tuples)
     //@{
-    const Def* table(Bit o)  const { return cache_.Bit_[size_t(o)]; }
-    const Def* table_id () const { return cache_.table_id;  }
-    const Def* table_not() const { return cache_.table_not; }
+    const Def* table(Bit o)  const { return data_.Bit_[size_t(o)]; }
+    const Def* table_id () const { return data_.table_id;  }
+    const Def* table_not() const { return data_.table_not; }
     const Def* extract(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table(o), a), b, dbg); }
     const Def* extract_eq (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::nxor, a, b, dbg); }
     const Def* extract_ne (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::_xor, a, b, dbg); }
@@ -247,9 +247,9 @@ public:
     //@{
     const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
-    const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
-    const Lit* lit_false() { return cache_.lit_bool_[0]; }
-    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
+    const Lit* lit_bool(bool val) { return data_.lit_bool_[size_t(val)]; }
+    const Lit* lit_false() { return data_.lit_bool_[0]; }
+    const Lit* lit_true()  { return data_.lit_bool_[1]; }
     //@}
     /// @name Lit: Nat
     //@{
@@ -292,9 +292,9 @@ public:
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
     const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
     const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
-    const Def* bot_star () { return cache_.bot_star_; }
-    const Def* top_star () { return cache_.top_star_; }
-    const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
+    const Def* bot_star () { return data_.bot_star_; }
+    const Def* top_star () { return data_.top_star_; }
+    const Def* top_arity() { return data_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
     /// @name CPS2DS/DS2CPS
     //@{
@@ -303,13 +303,13 @@ public:
     //@}
     /// @name misc types
     //@{
-    const Nat* type_nat() { return cache_.type_nat_; }
-    const Mem* type_mem() { return cache_.type_mem_; }
-    const Lit* type_bool() { return cache_.type_bool_; }
-    const Axiom* type_int()  { return cache_.type_int_; }
-    const Axiom* type_sint() { return cache_.type_sint_; }
-    const Axiom* type_real() { return cache_.type_real_; }
-    const Axiom* type_ptr()  { return cache_.type_ptr_; }
+    const Nat* type_nat() { return data_.type_nat_; }
+    const Mem* type_mem() { return data_.type_mem_; }
+    const Lit* type_bool() { return data_.type_bool_; }
+    const Axiom* type_int()  { return data_.type_int_; }
+    const Axiom* type_sint() { return data_.type_sint_; }
+    const Axiom* type_real() { return data_.type_real_; }
+    const Axiom* type_ptr()  { return data_.type_ptr_; }
     const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
     const App* type_sint(nat_t w) { return type_sint(lit_nat(w)); }
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
@@ -321,19 +321,19 @@ public:
     //@}
     /// @name Bit
     //@{
-    const Axiom* op_bit() const { return cache_.op_bit_; }
+    const Axiom* op_bit() const { return data_.op_bit_; }
     const Def* op_bit(const Def* tbl, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op_bit(), w), {tbl, a, b}, dbg); }
     const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return op_bit(table(o), a, b, dbg); }
     const Def* op_bit_not(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(Bit::_xor, lit_int(*w, u64(-1)), a, dbg); }
     //@}
     /// @name Shr
     //@{
-    const Axiom* op(Shr o) { return cache_.Shr_[size_t(o)]; }
+    const Axiom* op(Shr o) { return data_.Shr_[size_t(o)]; }
     const Def* op(Shr o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
     //@}
     /// @name WOp
     //@{
-    const Axiom* op(WOp o) { return cache_.WOp_[size_t(o)]; }
+    const Axiom* op(WOp o) { return data_.WOp_[size_t(o)]; }
     const Def* op(WOp o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) {
         auto w = infer_width(a);
         return tos(a, app(app(op(o), {wmode, w}), {toi(a), toi(b)}, dbg));
@@ -343,7 +343,7 @@ public:
     //@}
     /// @name ZOp
     //@{
-    const Axiom* op(ZOp o) { return cache_.ZOp_[size_t(o)]; }
+    const Axiom* op(ZOp o) { return data_.ZOp_[size_t(o)]; }
     const Def* op(ZOp o, const Def* mem, const Def* a, const Def* b, Debug dbg = {}) {
         auto w = infer_width(a);
         auto [m, x] = app(app(op(o), w), {mem, toi(a), toi(b)}, dbg)->split<2>();
@@ -352,7 +352,7 @@ public:
     //@}
     /// @name ROp
     //@{
-    const Axiom* op(ROp o) { return cache_.ROp_[size_t(o)]; }
+    const Axiom* op(ROp o) { return data_.ROp_[size_t(o)]; }
     const Def* op(ROp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(ROp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
     const Def* op_ROp_minus(const Def* rmode, const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(ROp::sub, rmode, lit_real(*w, -0.0), a, dbg); }
@@ -360,8 +360,8 @@ public:
     //@}
     /// @name Cmp
     //@{
-    const Axiom* op(ICmp o) { return cache_.ICmp_[size_t(o)]; }
-    const Axiom* op(RCmp o) { return cache_.RCmp_[size_t(o)]; }
+    const Axiom* op(ICmp o) { return data_.ICmp_[size_t(o)]; }
+    const Axiom* op(RCmp o) { return data_.RCmp_[size_t(o)]; }
     const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
     const Def* op(RCmp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(RCmp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
@@ -371,23 +371,23 @@ public:
     //@}
     /// @name Casts
     //@{
-    const Axiom* op(Conv o) { return cache_.Conv_[size_t(o)]; }
+    const Axiom* op(Conv o) { return data_.Conv_[size_t(o)]; }
     const Def* op(Conv o, const Def* dst_type, const Def* src, Debug dbg = {}) {
         auto d = dst_type   ->as<App>()->arg();
         auto s = src->type()->as<App>()->arg();
         return app(app(op(o), {d, s}), src, dbg);
     }
-    const Axiom* op_bitcast() const { return cache_.op_bitcast_; }
+    const Axiom* op_bitcast() const { return data_.op_bitcast_; }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
     /// Automatically builds the proper @p Conv or @p Bitcast.
     const Def* op_cast(const Def* dst_type, const Def* src, Debug dbg = {});
     //@}
     /// @name memory-related operations
     //@{
-    const Def* op_load()  { return cache_.op_load_;  }
-    const Def* op_store() { return cache_.op_store_; }
-    const Def* op_slot()  { return cache_.op_slot_;  }
-    const Def* op_alloc() { return cache_.op_alloc_; }
+    const Def* op_load()  { return data_.op_load_;  }
+    const Def* op_store() { return data_.op_store_; }
+    const Def* op_slot()  { return data_.op_slot_;  }
+    const Def* op_alloc() { return data_.op_alloc_; }
     const Def* op_load (const Def* mem, const Def* ptr, Debug dbg = {})                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
     const Def* op_alloc(const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
@@ -398,7 +398,7 @@ public:
     //@}
     /// @name PE - partial evaluation related operations
     //@{
-    const Def* op(PE o) { return cache_.PE_[size_t(o)]; }
+    const Def* op(PE o) { return data_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
     /// @name Analyze - used internally for Pass%es
@@ -407,8 +407,8 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Axiom* op_lea()    const { return cache_.op_lea_;     }
-    const Axiom* op_sizeof() const { return cache_.op_sizeof_;  }
+    const Axiom* op_lea()    const { return data_.op_lea_;     }
+    const Axiom* op_sizeof() const { return data_.op_sizeof_;  }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
@@ -445,12 +445,12 @@ public:
     //@}
     /// @name manage externals
     //@{
-    bool empty() { return externals_.empty(); }
-    const Externals& externals() const { return externals_; }
-    void make_external(Def* def) { externals_.emplace(def->name(), def); }
-    void make_internal(Def* def) { externals_.erase(def->name()); }
-    bool is_external(const Def* def) { return externals_.contains(def->name()); }
-    Def* lookup(const std::string& name) { return externals_.lookup(name).value_or(nullptr); }
+    bool empty() { return data_.externals_.empty(); }
+    const Externals& externals() const { return data_.externals_; }
+    void make_external(Def* def) { data_.externals_.emplace(def->name(), def); }
+    void make_internal(Def* def) { data_.externals_.erase(def->name()); }
+    bool is_external(const Def* def) { return data_.externals_.contains(def->name()); }
+    Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
     /// @name visit and rewrite
     //@{
@@ -522,16 +522,12 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(w1.name_,      w2.name_);
-        swap(w1.externals_, w2.externals_);
-        swap(w1.defs_,      w2.defs_);
-        swap(w1.arena_,     w2.arena_);
-        swap(w1.state_,     w2.state_);
-        swap(w1.cache_,     w2.cache_);
-        swap(w1.err_,       w2.err_);
-        swap(w1.rewrites_,  w2.rewrites_);
+        swap(w1.arena_,  w2.arena_);
+        swap(w1.state_,  w2.state_);
+        swap(w1.data_,   w2.data_);
+        swap(w1.err_,    w2.err_);
 
-        swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
+        swap(w1.data_.universe_->world_, w2.data_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
     }
@@ -556,7 +552,7 @@ private:
         if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
         assert(!def->isa_nominal());
-        auto [i, success] = defs_.emplace(def);
+        auto [i, success] = data_.defs_.emplace(def);
         if (success) {
             def->finalize();
             return def;
@@ -572,7 +568,7 @@ private:
 #ifndef NDEBUG
         if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
-        auto p = defs_.emplace(def);
+        auto p = data_.defs_.emplace(def);
         assert_unused(p.second);
         return def;
     }
@@ -657,7 +653,7 @@ private:
 #endif
     } state_;
 
-    struct Cache {
+    struct Data {
         Universe* universe_;
         const KindMulti* kind_multi_;
         const KindArity* kind_arity_;
@@ -694,13 +690,13 @@ private:
         const Axiom* op_slot_;
         const Axiom* op_load_;
         const Axiom* op_store_;
-    } cache_;
+        std::string name_;
+        Externals externals_;
+        Sea defs_;
+        DefDef2Def rewrites_;
+    } data_;
 
-    std::string name_;
-    Externals externals_;
-    Sea defs_;
     std::unique_ptr<ErrorHandler> err_;
-    DefDef2Def rewrites_;
 
     friend class Cleaner;
     friend const Def* Def::apply(const Def*);

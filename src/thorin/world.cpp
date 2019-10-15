@@ -29,22 +29,22 @@ bool World::Arena::Lock::guard_ = false;
 #endif
 
 World::World(const std::string& name)
-    : name_(name.empty() ? "module" : name)
 {
-    cache_.universe_      = insert<Universe >(0, *this);
-    cache_.kind_star_     = insert<KindStar >(0, *this);
-    cache_.kind_multi_    = insert<KindMulti>(0, *this);
-    cache_.kind_arity_    = insert<KindArity>(0, *this);
-    cache_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
-    cache_.top_star_      = insert<Top>(0, kind_star(), nullptr);
-    cache_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
-    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
-    cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
-    cache_.type_mem_      = insert<Mem>(0, *this);
-    cache_.type_nat_      = insert<Nat>(0, *this);
-    cache_.type_bool_     = lit_arity(2);
-    cache_.lit_bool_[0]   = lit_index(2, 0);
-    cache_.lit_bool_[1]   = lit_index(2, 1);
+    data_.name_          = name.empty() ? "module" : name;
+    data_.universe_      = insert<Universe >(0, *this);
+    data_.kind_star_     = insert<KindStar >(0, *this);
+    data_.kind_multi_    = insert<KindMulti>(0, *this);
+    data_.kind_arity_    = insert<KindArity>(0, *this);
+    data_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
+    data_.top_star_      = insert<Top>(0, kind_star(), nullptr);
+    data_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
+    data_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    data_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
+    data_.type_mem_      = insert<Mem>(0, *this);
+    data_.type_nat_      = insert<Nat>(0, *this);
+    data_.type_bool_     = lit_arity(2);
+    data_.lit_bool_[0]   = lit_index(2, 0);
+    data_.lit_bool_[1]   = lit_index(2, 1);
 
     auto star = kind_star();
     auto nat = type_nat();
@@ -52,22 +52,22 @@ World::World(const std::string& name)
 
     // fill truth tables
     for (size_t i = 0; i != Num<Bit>; ++i) {
-        cache_.Bit_[i] = tuple({tuple({lit_bool(i & 0x1), lit_bool(i & 0x2)}),
+        data_.Bit_[i] = tuple({tuple({lit_bool(i & 0x1), lit_bool(i & 0x2)}),
                                 tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
     }
 
-    cache_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});
-    cache_.table_not = tuple({lit_true (), lit_false()} , { "not"});
+    data_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});
+    data_.table_not = tuple({lit_true (), lit_false()} , { "not"});
 
     {   // int/sint/real: Πw: Nat. *
         auto p = pi(nat, star);
-        cache_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
-        cache_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
-        cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
+        data_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
+        data_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
+        data_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
     } { // ptr: Π[T: *, as: nat]. *
-        cache_.type_ptr_ = axiom(nullptr, pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
+        data_.type_ptr_ = axiom(nullptr, pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
     }
-#define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
+#define CODE(T, o) data_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // Shr: Πw: nat. Π[int w, int w]. int w
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
@@ -112,31 +112,31 @@ World::World(const std::string& name)
             auto type_sw = o == Conv::r2s || o == Conv::r2u || o == Conv::r2r ? type_real(sw) : type_int(sw);
             return type->set_codomain(pi(type_sw, type_dw));
         };
-#define CODE(T, o) cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), Tag::Conv, flags_t(T::o), {op2str(T::o)});
+#define CODE(T, o) data_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), Tag::Conv, flags_t(T::o), {op2str(T::o)});
         THORIN_CONV(CODE)
 #undef Code
     } { // hlt/run: ΠT: *. ΠT. T
         auto type = pi(star)->set_domain(star);
         auto T = type->param({"T"});
         type->set_codomain(pi(T, T));
-        cache_.PE_[size_t(PE::hlt)] = axiom(normalize_PE<PE::hlt>, type, Tag::PE, flags_t(PE::hlt), {op2str(PE::hlt)});
-        cache_.PE_[size_t(PE::run)] = axiom(normalize_PE<PE::run>, type, Tag::PE, flags_t(PE::run), {op2str(PE::run)});
+        data_.PE_[size_t(PE::hlt)] = axiom(normalize_PE<PE::hlt>, type, Tag::PE, flags_t(PE::hlt), {op2str(PE::hlt)});
+        data_.PE_[size_t(PE::run)] = axiom(normalize_PE<PE::run>, type, Tag::PE, flags_t(PE::run), {op2str(PE::run)});
     } { // known: ΠT: *. ΠT. bool
         auto type = pi(star)->set_domain(star);
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
-        cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
+        data_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
     } { // bit: Πw: nat. Π[«bool; bool», int w, int w]. int w
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({arr(type_bool(), type_bool()), int_w, int_w}, int_w));
-        cache_.op_bit_ = axiom(normalize_bit, type, Tag::Bit, 0, {"bit"});
+        data_.op_bit_ = axiom(normalize_bit, type, Tag::Bit, 0, {"bit"});
     } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
         auto D = type->param(0, {"D"});
         auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
-        cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
+        data_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
     } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(Ts#Heir(j)», as), i: s]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
@@ -150,37 +150,37 @@ World::World(const std::string& name)
         auto pi2 = pi(star)->set_domain({src_ptr, s});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
-        cache_.op_lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, {"lea"});
+        data_.op_lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, {"lea"});
     } { // sizeof: ΠT: *. nat
-        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(star, nat), Tag::Sizeof, 0, {"sizeof"});
+        data_.op_sizeof_ = axiom(normalize_sizeof, pi(star, nat), Tag::Sizeof, 0, {"sizeof"});
     } { // load:  Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr}, sigma({mem, T})));
-        cache_.op_load_ = axiom(normalize_load, type, Tag::Load, 0, {"load"});
+        data_.op_load_ = axiom(normalize_load, type, Tag::Load, 0, {"load"});
     } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr, T}, mem));
-        cache_.op_store_ = axiom(normalize_store, type, Tag::Store, 0, {"store"});
+        data_.op_store_ = axiom(normalize_store, type, Tag::Store, 0, {"store"});
     } { // alloc: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
-        cache_.op_alloc_ = axiom(nullptr, type, Tag::Alloc, 0, {"alloc"});
+        data_.op_alloc_ = axiom(nullptr, type, Tag::Alloc, 0, {"alloc"});
     } { // slot: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
-        cache_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
+        data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     }
 }
 
@@ -725,7 +725,7 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
 std::vector<Lam*> World::copy_lams() const {
     std::vector<Lam*> result;
 
-    for (auto def : defs_) {
+    for (auto def : data_.defs_) {
         if (auto lam = def->isa_nominal<Lam>())
             result.emplace_back(lam);
     }
@@ -736,8 +736,8 @@ std::vector<Lam*> World::copy_lams() const {
 #if THORIN_ENABLE_CHECKS
 
 const Def* World::lookup_by_gid(u32 gid) {
-    auto i = std::find_if(defs_.begin(), defs_.end(), [&](const Def* def) { return def->gid() == gid; });
-    if (i == defs_.end()) return nullptr;
+    auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
+    if (i == data_.defs_.end()) return nullptr;
     return *i;
 }
 

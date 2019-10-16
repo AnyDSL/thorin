@@ -74,6 +74,23 @@ namespace detail {
     const Def* world_extract(World&, const Def*, u64, Debug dbg = {});
 }
 
+/**
+ * Similar to @p World::extract but also works on @p Sigma%s and @p Arr%s and considers @p Union%s as scalars.
+ * If @p def is a value (see @p Def::is_value), proj resorts to @p World::extract.
+ * You can disable this behavior via @p no_extract.
+ * Useful within @p World::extract itself to prevent endless recursion.
+ */
+template<bool no_extract = false> const Def* proj(const Def* def, u64 arity, u64 i);
+
+/**
+ * Same as above but infers the arity from @p def.
+ * @attention { Think twice whether this is sound due to 1-tuples being folded.
+ * It's always a good idea to pass an appropriate arity along. }
+ */
+template<bool = false> const Def* proj(const Def* def, u64 i);
+
+template<class T> std::optional<T> isa_lit(const Def*);
+
 //------------------------------------------------------------------------------
 
 /**
@@ -144,7 +161,9 @@ public:
     const Def* type() const { assert(node() != Node::Universe); return type_; }
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
+    const Def* tuple_arity() const;
     u64 lit_arity() const;
+    u64 lit_tuple_arity() const;
     bool is_value() const; ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
     bool is_type() const;  ///< Anything that can be the @p type of a value (see @p is_value).
     bool is_kind() const;  ///< Anything that can be the @p type of a type (see @p is_type).
@@ -176,16 +195,17 @@ public:
     template<size_t N = size_t(-1), class F>
     auto split(F f) const {
         using R = decltype(f(this));
-        auto& w =world();
-        auto a = type()->lit_arity();
 
-        if constexpr (N == size_t(-1))
-            return Array<R>(a, [&](size_t i) { return f(detail::world_extract(w, this, i)); });
-        else {
+        if constexpr (N == size_t(-1)) {
+            auto a = isa_lit<nat_t>(tuple_arity());
+            auto lit = a ? *a : 1;
+            return Array<R>(lit, [&](size_t i) { return f(proj(this, lit, i)); });
+        } else {
+            auto a = lit_tuple_arity();
             assert(a == N);
             std::array<R, N> array;
             for (size_t i = 0; i != N; ++i)
-                array[i] = f(detail::world_extract(w, this, i));
+                array[i] = f(proj(this, a, i));
             return array;
         }
     }
@@ -263,8 +283,6 @@ public:
         if (type()->type()->type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->type()->type()->world_;
         THORIN_UNREACHABLE;
     }
-    bool is_tuple_or_pack() const;
-    bool is_sigma_or_arr() const;
     //@}
     /// @name replace
     //@{

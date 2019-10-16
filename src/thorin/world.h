@@ -202,6 +202,11 @@ public:
     //@{
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->reduce()->arity(), i), dbg); }
+    /**
+     * This infers the arity from @p Def.
+     * @attention { Think twice whether this is sound due to 1-tuples being folded.
+     * It's always a good idea to pass an appropriate arity along. }
+     */
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i), dbg); }
     const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->type()->reduce()->arity(), i, dbg), dbg); }
     const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_int(i), dbg); }

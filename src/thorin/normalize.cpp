@@ -622,15 +622,15 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     };
 
     if (a == world.lit_int(*w, 0) || a == world.lit_int(*w, u64(-1))) {
-        auto row = proj(tbl, as_lit<u64>(a) ? 1 : 0);
+        auto row = proj(tbl, 2, as_lit<u64>(a) ? 1 : 0);
         if (auto pack = row->isa<Pack>()) return make_lit(pack->body());
         if (row == world.table_id())      return b;
         if (row == world.table_not() && tbl != world.table(Bit::_xor)) return world.op_bit_not(b, dbg);
     }
 
     if (sym && a == b) {
-        auto x = as_lit<bool>(proj(proj(tbl, 0), 0));
-        auto y = as_lit<bool>(proj(proj(tbl, 1), 1));
+        auto x = as_lit<bool>(proj(proj(tbl, 2, 0), 2, 0));
+        auto y = as_lit<bool>(proj(proj(tbl, 2, 1), 2, 1));
         if (!x && !y) return world.lit_int(*w, 0);
         if ( x &&  y) return world.lit_int(*w, 1);
         if (!x &&  y) return a;

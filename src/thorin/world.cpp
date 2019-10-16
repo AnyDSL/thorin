@@ -367,7 +367,7 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
         flags_t a_flags = a_cmp.axiom()->flags();
         flags_t b_flags = b_cmp.axiom()->flags();
         for (size_t i = 0; i != num_bits; ++i, res >>= 1, a_flags >>= 1, b_flags >>= 1)
-            res |= as_lit<u32>(proj(proj(tuple, a_flags & 1), b_flags & 1)) << 31_u32;
+            res |= as_lit<u32>(proj(proj(tuple, 2, a_flags & 1), 2, b_flags & 1)) << 31_u32;
         res >>= (31_u32 - u32(num_bits));
 
         auto& world = tuple->world();
@@ -384,8 +384,9 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
         Array<const Def*> ops(index->lit_arity(), [&](size_t) { return extract(tup, index->ops().back()); });
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
-        Array<const Def*> idx(index->num_ops(), [&](size_t i) { return index->op(i); });
-        Array<const Def*> ops(index->num_ops(), [&](size_t i) { return proj(tup, as_lit<nat_t>(idx[i])); });
+        auto n = index->num_ops();
+        Array<const Def*> idx(n, [&](size_t i) { return index->op(i); });
+        Array<const Def*> ops(n, [&](size_t i) { return proj(tup, n, as_lit<nat_t>(idx[i])); });
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 

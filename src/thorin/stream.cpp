@@ -61,8 +61,8 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             else
                 return s.fmt("Π{} -> {}", pi->domain(), pi->codomain());
         }
-    } else if (def->isa<Lam>()) {
-        // TODO
+    } else if (auto lam = def->isa<Lam>()) {
+        return s.fmt("{}", lam->unique_name());
     } else if (auto app = def->isa<App>()) {
         if (auto w = get_width(app)) {
             if (auto _int = thorin::isa<Tag:: Int>(app)) return s.fmt("i{}", *w);

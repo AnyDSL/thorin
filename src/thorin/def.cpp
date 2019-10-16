@@ -85,10 +85,15 @@ bool Def::is_kind() const {
     }
 }
 
-bool Def::is_tuple_or_pack() const { return isa<Tuple>() || isa<Pack>(); }
-bool Def::is_sigma_or_arr () const { return isa<Sigma>() || isa<Arr >(); }
-
 size_t Def::num_params() { return param()->type()->lit_arity(); }
+
+const Def* Def::tuple_arity() const {
+    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
+    if (auto arr    = isa<Arr  >()) return arr->domain();
+    if (is_value())                 return type()->tuple_arity();
+    assert(is_type());
+    return world().lit_arity(1);
+}
 
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
@@ -100,6 +105,7 @@ const Def* Def::arity() const {
 }
 
 nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
+nat_t Def::lit_tuple_arity() const { return as_lit<nat_t>(tuple_arity()); }
 
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())

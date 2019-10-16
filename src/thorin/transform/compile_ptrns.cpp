@@ -22,35 +22,30 @@ private:
 
     /// Eliminates an element from a tuple
     std::pair<const Def*, const Def*> eliminate(const Def* def, size_t col) {
-        // Unions and other types may also have an arity.
-        auto type = def->type()->reduce();
-        if (!type->isa<Sigma>() || type->num_ops() == 0)
-            return { def, world_.tuple() };
-        // Careful: eliminate(introduce((), 0, (x, y)), 0) gives y, not ().
-        // So eliminate is not really reverting introduce, and care has to be taken
-        // for empty tuples.
-        Array<const Def*> ops(type->num_ops() - 1);
+        auto a = isa_lit<nat_t>(def->tuple_arity());
+        nat_t arity = a ? *a : 1;
+        Array<const Def*> ops(arity - 1);
+
         for (size_t i = 0; i < col; ++i)
-            ops[i] = def->out(i);
+            ops[i] = proj(def, arity, i);
         for (size_t i = col, n = ops.size(); i < n; ++i)
-            ops[i] = def->out(i + 1);
-        return { def->out(col), world_.tuple(ops) };
+            ops[i] = proj(def, arity, i + 1);
+
+        return { proj(def, arity, col), world_.tuple(ops) };
     }
 
     /// Introduces an element in a tuple
     const Def* introduce(const Def* def, size_t col, const Def* val) {
-        // See above.
-        auto type = def->type()->reduce();
-        if (!type->isa<Sigma>())
-            return world_.tuple({col == 0 ? val : def, col == 0 ? def : val});
-        if (type->num_ops() == 0)
-            return val;
-        Array<const Def*> ops(type->num_ops() + 1);
+        auto a = isa_lit<nat_t>(def->tuple_arity());
+        nat_t arity = a ? *a : 1;
+        Array<const Def*> ops(arity + 1);
+
         for (size_t i = 0; i < col; ++i)
-            ops[i] = def->out(i);
+            ops[i] = proj(def, arity, i);
         ops[col] = val;
         for (size_t i = col + 1, n = ops.size(); i < n; ++i)
-            ops[i] = def->out(i - 1);
+            ops[i] = proj(def, arity, i - 1);
+
         return world_.tuple(ops);
     }
 
@@ -116,7 +111,7 @@ public:
     const Def* compile(const Match* match, const Def* arg, std::vector<Ptrn*>& ptrns, const Def* dbg) {
         assert(!ptrns.empty());
         // If the first pattern of the list matches everything, then no need for a match
-        if (arg->type()->reduce()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
+        if (arg->type()->reduce()->lit_arity() == 0 || ptrns[0]->is_trivial()) { // TODO lit_arity or lit_tuple_arity?
             redundant_[parent_[ptrns[0]]] = false;
             return ptrns[0]->apply(arg);
         }

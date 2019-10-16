@@ -99,8 +99,8 @@ private:
 
     /// Returns whether the constructor patterns form a signature for the matched type
     bool is_complete(const Def* arg_type, const DefMap<std::vector<Ptrn*>>& ctor2ptrns) {
-        if (auto lit = arg_type->isa<Lit>())
-            return ctor2ptrns.size() == lit->get<nat_t>();
+        if (auto lit = isa_lit<nat_t>(arg_type))
+            return ctor2ptrns.size() == *lit;
         return false;
     }
 

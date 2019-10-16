@@ -15,9 +15,10 @@ private:
     Ptrn* flatten(Ptrn* ptrn) {
         Scope scope(ptrn);
         Rewriter rewriter(world_, &scope);
-        auto f_ptrn = world_.ptrn(world_.case_(flattener_.flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->can_be_redundant(), ptrn->debug());
+        auto f_ptrn = world_.ptrn(world_.case_(flattener_.flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->debug());
         rewriter.old2new.emplace(ptrn->param(), unflatten(f_ptrn->param(), ptrn->type()->domain()));
         f_ptrn->set(flattener_.flatten(rewriter.rewrite(ptrn->matcher())), rewriter.rewrite(ptrn->body()));
+        parent_[f_ptrn] = parent_[ptrn];
         return f_ptrn;
     }
 
@@ -27,6 +28,7 @@ private:
         auto type = def->type()->reduce();
         if (!type->isa<Sigma>() || type->num_ops() == 0)
             return { def, world_.tuple() };
+        // Broken: the original value might have been an empty tuple, meaning that we should remove all the elements
         Array<const Def*> ops(type->num_ops() - 1);
         for (size_t i = 0; i < col; ++i)
             ops[i] = def->out(i);
@@ -53,15 +55,20 @@ private:
     }
 
     /// Specializes the pattern for one particular value
-    Ptrn* specialize(Ptrn* ptrn, size_t col, const Def* ctor, const Def* arg_col, const Def* s_arg, bool can_be_redundant = false) {
+    Ptrn* specialize(Ptrn* ptrn, size_t col, const Def* ctor, const Def* arg_col, const Def* s_arg, bool d_arg_was_empty) {
         // Create a pattern with the specialized signature
-        auto s_ptrn = world_.ptrn(world_.case_(s_arg->type(), ptrn->body()->type()), can_be_redundant, ptrn->debug());
+        auto s_ptrn = world_.ptrn(world_.case_(s_arg->type(), ptrn->body()->type()), ptrn->debug());
         const Def* param = ptrn->param(), *s_param = s_ptrn->param();
         if (arg_col) {
-            // We have (T, ...) and we want (E::A(T), ...)
-            const Def* s_param_col = nullptr;
-            std::tie(s_param_col, s_param) = eliminate(s_param, col);
-            s_param = introduce(s_param, col, world_.insert(world_.bot(arg_col->type()), ctor, s_param_col));
+            // HACK: Handle the case where we have T and we want E::A(T)
+            if (d_arg_was_empty) {
+                s_param = world_.insert(world_.bot(arg_col->type()), ctor, s_param);
+            } else {
+                // We have (T, ...) and we want (E::A(T), ...)
+                const Def* s_param_col = nullptr;
+                std::tie(s_param_col, s_param) = eliminate(s_param, col);
+                s_param = introduce(s_param, col, world_.insert(world_.bot(arg_col->type()), ctor, s_param_col));
+            }
         } else {
             s_param = introduce(s_param, col, ctor);
         }
@@ -73,14 +80,20 @@ private:
         rewriter.old2new.emplace(param, s_param);
         auto s_matcher = rewriter.rewrite(ptrn->matcher());
         if (arg_col) {
-            // We have (E::A(T), ...), and we want (T, ...)
-            const Def* s_matcher_col = nullptr;
-            std::tie(s_matcher_col, s_matcher) = eliminate(s_matcher, col);
-            s_matcher = introduce(s_matcher, col, world_.extract(s_matcher_col, ctor));
+            // HACK: Same as above, but in the other direction
+            if (d_arg_was_empty) {
+                s_matcher = world_.extract(s_matcher, ctor);
+            } else {
+                // We have (E::A(T), ...), and we want (T, ...)
+                const Def* s_matcher_col = nullptr;
+                std::tie(s_matcher_col, s_matcher) = eliminate(s_matcher, col);
+                s_matcher = introduce(s_matcher, col, world_.extract(s_matcher_col, ctor));
+            }
         } else {
             s_matcher = std::get<1>(eliminate(s_matcher, col));
         }
         s_ptrn->set(s_matcher, rewriter.rewrite(ptrn->body()));
+        parent_[s_ptrn] = parent_[ptrn];
         return s_ptrn;
     }
 
@@ -91,18 +104,10 @@ private:
         return false;
     }
 
-    /// Report an error message for each pattern that does not have the flag 'can_be_redundant' set
-    void report_redundant_ptrns(const Match* match, ArrayRef<Ptrn*> ptrns) {
-        if (world_.err()) {
-            for (auto ptrn : ptrns) {
-                if (!ptrn->can_be_redundant())
-                    world_.err()->redundant_match_case(match, ptrn);
-            }
-        }
-    }
-
     World& world_;
     Flattener flattener_;
+    DefMap<bool> redundant_;
+    Def2Def parent_;
 
 public:
     PtrnCompiler(World& world)
@@ -113,7 +118,7 @@ public:
         assert(!ptrns.empty());
         // If the first pattern of the list matches everything, then no need for a match
         if (arg->type()->reduce()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
-            report_redundant_ptrns(match, ArrayRef<Ptrn*>(ptrns).skip_front());
+            redundant_[parent_[ptrns[0]]] = false;
             return ptrns[0]->apply(arg);
         }
 
@@ -128,6 +133,7 @@ public:
         bool has_union = arg_col->type()->reduce()->isa<Union>();
         auto ctor = has_union ? world_.variant(arg_col) : arg_col;
         auto ctor_type = ctor->type();
+        bool d_arg_was_empty = d_arg->type()->reduce() == world_.sigma();
 
         // Generate specialized patterns for each constructor pattern
         // and collect patterns that have no constructor.
@@ -153,26 +159,23 @@ public:
             if (has_union)
                 s_arg = introduce(s_arg, col, world_.extract(arg_col, ctor));
             for (auto& ptrn : ctor_ptrns)
-                ptrn = specialize(ptrn, col, ctor, has_union ? arg_col : nullptr, s_arg);
+                ptrn = specialize(ptrn, col, ctor, has_union ? arg_col : nullptr, s_arg, d_arg_was_empty);
             for (auto ptrn : no_ctor)
-                ctor_ptrns.push_back(specialize(ptrn, col, ctor, arg_col, s_arg, true));
+                ctor_ptrns.push_back(specialize(ptrn, col, ctor, has_union ? arg_col : nullptr, s_arg, d_arg_was_empty));
             auto value = compile(match, s_arg, ctor_ptrns, dbg);
-            auto ptrn = world_.ptrn(world_.case_(ctor_type, value->type()), false, dbg);
+            auto ptrn = world_.ptrn(world_.case_(ctor_type, value->type()), dbg);
             ptrn->set(ctor, value);
             compiled_ptrns.push_back(ptrn);
         }
-        auto complete = is_complete(ctor_type, ctor2ptrns);
-        if (no_ctor.empty() && !complete) {
-            if (world_.err()) world_.err()->incomplete_match(match);
-            return world_.bot(match->type());
-        }
-        if (!no_ctor.empty()) {
-            if (complete)
-                report_redundant_ptrns(match, no_ctor);
+        if (!is_complete(ctor_type, ctor2ptrns)) {
+            if (no_ctor.empty()) {
+                if (world_.err()) world_.err()->incomplete_match(match);
+                return world_.bot(match->type());
+            }
             for (auto& ptrn : no_ctor)
-                ptrn = specialize(ptrn, col, arg_col, nullptr, d_arg);
+                ptrn = specialize(ptrn, col, arg_col, nullptr, d_arg, d_arg_was_empty);
             auto value = compile(match, d_arg, no_ctor, dbg);
-            auto ptrn = world_.ptrn(world_.case_(ctor_type, value->type()), false, dbg);
+            auto ptrn = world_.ptrn(world_.case_(ctor_type, value->type()), dbg);
             ptrn->set(ptrn->param(), value);
             compiled_ptrns.push_back(ptrn);
         }
@@ -182,9 +185,21 @@ public:
 
     const Def* compile(const Match* match) {
         std::vector<Ptrn*> ptrns(match->ptrns().size());
-        for (size_t i = 0, n = ptrns.size(); i < n; ++i)
-            ptrns[i] = match->ptrn(i)->as_nominal<Ptrn>();
-        return compile(match, match->arg(), ptrns, match->debug());
+        for (size_t i = 0, n = ptrns.size(); i < n; ++i) {
+            auto ptrn = match->ptrn(i)->as_nominal<Ptrn>(); 
+            ptrns[i] = ptrn;
+            parent_[ptrn] = ptrn;
+            redundant_[ptrn] = true;
+        }
+        auto result = compile(match, match->arg(), ptrns, match->debug());
+        // Report redundant patterns
+        if (world_.err()) {
+            for (auto ptrn : match->ptrns()) {
+                if (redundant_[ptrn])
+                    world_.err()->redundant_match_case(match, ptrn->as<Ptrn>());
+            }
+        }
+        return result;
     }
 };
 

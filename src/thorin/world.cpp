@@ -336,15 +336,8 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
     auto match = unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
 
     bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
-    if (trivial) {
-        if (ptrns.size() > 1 && err()) {
-            for (auto ptrn : ptrns.skip_front()) {
-                if (!ptrn->as<Ptrn>()->can_be_redundant())
-                    err()->redundant_match_case(match, ptrn->as<Ptrn>());
-            }
-        }
+    if (trivial)
         return ptrns[0]->as<Ptrn>()->apply(arg);
-    }
     if (ptrns.size() == 1 && !trivial) {
         if (err()) err()->incomplete_match(match);
         return bot(type);

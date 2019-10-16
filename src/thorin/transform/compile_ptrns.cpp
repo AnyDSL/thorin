@@ -15,9 +15,9 @@ private:
     Ptrn* flatten(Ptrn* ptrn) {
         Scope scope(ptrn);
         Rewriter rewriter(world_, &scope);
-        auto f_ptrn = world_.ptrn(world_.case_(flattener_.flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->debug());
+        auto f_ptrn = world_.ptrn(world_.case_(thorin::flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->debug());
         rewriter.old2new.emplace(ptrn->param(), unflatten(f_ptrn->param(), ptrn->type()->domain()));
-        f_ptrn->set(flattener_.flatten(rewriter.rewrite(ptrn->matcher())), rewriter.rewrite(ptrn->body()));
+        f_ptrn->set(thorin::flatten(rewriter.rewrite(ptrn->matcher())), rewriter.rewrite(ptrn->body()));
         parent_[f_ptrn] = parent_[ptrn];
         return f_ptrn;
     }
@@ -107,7 +107,6 @@ private:
     }
 
     World& world_;
-    Flattener flattener_;
     DefMap<bool> redundant_;
     Def2Def parent_;
 
@@ -125,7 +124,7 @@ public:
         }
 
         // Flatten tuple patterns
-        arg = flattener_.flatten(arg);
+        arg = thorin::flatten(arg);
         for (auto& ptrn : ptrns)
             ptrn = flatten(ptrn);
 
@@ -188,7 +187,7 @@ public:
     const Def* compile(const Match* match) {
         std::vector<Ptrn*> ptrns(match->ptrns().size());
         for (size_t i = 0, n = ptrns.size(); i < n; ++i) {
-            auto ptrn = match->ptrn(i)->as_nominal<Ptrn>(); 
+            auto ptrn = match->ptrn(i)->as_nominal<Ptrn>();
             ptrns[i] = ptrn;
             parent_[ptrn] = ptrn;
             redundant_[ptrn] = true;

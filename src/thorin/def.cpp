@@ -18,21 +18,88 @@ namespace detail {
  * Def
  */
 
+const char* Def::node_name() const {
+    switch (node()) {
+#define CODE(op, abbr) case Node::op: return #abbr;
+THORIN_NODE(CODE)
+#undef CODE
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+// TODO case, ptrn, match
+
+bool Def::is_value() const {
+    switch (node()) {
+        case Node::KindArity:
+        case Node::KindMulti:
+        case Node::KindStar:
+        case Node::Universe:
+        case Node::Pi:
+        case Node::Sigma:
+        case Node::Arr:
+        case Node::Union:
+        case Node::Mem:
+        case Node::Nat:     return false;
+        case Node::Lam:
+        case Node::Tuple:
+        case Node::Pack:
+        case Node::Insert:
+        case Node::Variant:
+        case Node::Global:  return true;
+        case Node::Succ:    return as<Succ>()->tuplefy();
+        default:            return type()->is_type();
+    }
+}
+
+bool Def::is_type() const {
+    switch (node()) {
+        case Node::KindArity:
+        case Node::KindMulti:
+        case Node::KindStar:
+        case Node::Universe:
+        case Node::Lam:
+        case Node::Tuple:
+        case Node::Pack:
+        case Node::Insert:
+        case Node::Variant:
+        case Node::Global:  return false;
+        case Node::Pi:
+        case Node::Sigma:
+        case Node::Arr:
+        case Node::Union:
+        case Node::Mem:
+        case Node::Nat:     return true;
+        case Node::Succ:    return as<Succ>()->sigmafy();
+        default:            return type()->is_kind();
+    }
+}
+
+bool Def::is_kind() const {
+    switch (node()) {
+        case Node::KindArity:
+        case Node::KindMulti:
+        case Node::KindStar: return true;
+        case Node::Universe: return false;
+        default:             return type()->isa<Universe>();
+    }
+}
+
+bool Def::is_tuple_or_pack() const { return isa<Tuple>() || isa<Pack>(); }
+bool Def::is_sigma_or_arr () const { return isa<Sigma>() || isa<Arr >(); }
+
 size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
     if (auto union_ = isa<Union>()) return world().lit_arity(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->domain();
+    if (is_value())                 return type()->arity();
+    assert(is_type());
     return world().lit_arity(1);
 }
 
-nat_t Def::lit_arity() const {
-    if (auto sigma  = isa<Sigma>()) return sigma->num_ops();
-    if (auto union_ = isa<Union>()) return union_->num_ops();
-    if (auto arr    = isa<Arr  >()) return as_lit<nat_t>(arr->domain());
-    return 1;
-}
+nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
 
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
@@ -60,15 +127,6 @@ nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->
 nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
 nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
 const Def* Def::meta() const { return debug() ? debug()->out(3) : nullptr; }
-
-const char* Def::node_name() const {
-    switch (node()) {
-#define CODE(op, abbr) case Node::op: return #abbr;
-THORIN_NODE(CODE)
-#undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
 
 std::string Def::loc() const {
     std::ostringstream oss;

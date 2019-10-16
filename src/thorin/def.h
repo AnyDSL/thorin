@@ -134,12 +134,20 @@ protected:
     Def(node_t, StubFn stub, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
 
 public:
+    /// @name node-specific stuff
+    //@{
+    node_t node() const { return node_; }
+    const char* node_name() const;
+    //@}
     /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Universe); return type_; }
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     u64 lit_arity() const;
+    bool is_value() const; ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
+    bool is_type() const;  ///< Anything that can be the @p type of a value (see @p is_value).
+    bool is_kind() const;  ///< Anything that can be the @p type of a type (see @p is_type).
     //@}
     /// @name ops
     //@{
@@ -244,17 +252,19 @@ public:
     /// @name misc getters
     //@{
     fields_t fields() const { return fields_; }
-    node_t node() const { return node_; }
-    const char* node_name() const;
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
-        if (node() == Node::KindArity) return *type()->type()->type()->world_;
-        if (node() == Node::KindMulti) return *type()->type()->world_;
-        if (node() == Node::KindStar ) return *type()->world_;
-        if (node() == Node::Universe ) return *world_;
-        return type()->world();
+        if (node()                                         == Node::Universe) return *world_;
+        if (type()->node()                                 == Node::Universe) return *type()->world_;
+        if (type()->type()->node()                         == Node::Universe) return *type()->type()->world_;
+        if (type()->type()->type()->node()                 == Node::Universe) return *type()->type()->type()->world_;
+        if (type()->type()->type()->type()->node()         == Node::Universe) return *type()->type()->type()->type()->world_;
+        if (type()->type()->type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->type()->type()->world_;
+        THORIN_UNREACHABLE;
     }
+    bool is_tuple_or_pack() const;
+    bool is_sigma_or_arr() const;
     //@}
     /// @name replace
     //@{

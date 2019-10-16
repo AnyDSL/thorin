@@ -5,69 +5,26 @@
 
 namespace thorin {
 
-const Def* Flattener::flatten(const Def* def) {
-    if (auto new_def = old2new.lookup(def))
-        return *new_def;
-    auto& world = def->world();
-    if (auto pack = def->isa<Pack>()) {
-        if (!pack->domain()->isa<Lit>()) return old2new[def] = def;
-        auto body = flatten(pack->body());
-        auto n = as_lit<nat_t>(pack->domain());
-        if (body->type()->arity()->isa<Lit>() && body->type()->isa_structural<Sigma>()) {
-            auto m = body->type()->lit_arity();
-            Array<const Def*> ops(n * m);
-            for (size_t i = 0; i < n; ++i) {
-                for (size_t j = 0; j < m; ++j)
-                    ops[i * m + j] = body->out(j);
-            }
-            return old2new[def] = world.tuple(ops, def->debug());
-        } else {
-            return old2new[def] = def;
+static bool is_nominal(const Def* def) {
+    return def->is_value() ? def->type()->isa_nominal() : def->isa_nominal();
+}
+
+static void flatten(std::vector<const Def*>& ops, const Def* def) {
+    if (!is_nominal(def) && (def->isa<Tuple>() || def->isa<Pack>() || def->isa<Sigma>() || def->isa<Arr>())) {
+        if (auto a = isa_lit_arity(def->arity())) {
+            for (size_t i = 0; i != a; ++i) flatten(ops, proj(def, i));
         }
-    } else if (auto tuple = def->isa<Tuple>()) {
-        std::vector<const Def*> ops;
-        for (auto op : tuple->ops()) {
-            auto flat_op = flatten(op);
-            if (auto lit_arity = flat_op->type()->arity()->isa<Lit>();
-                lit_arity && flat_op->type()->isa_structural<Sigma>()) {
-                for (size_t i = 0, n = lit_arity->get<nat_t>(); i < n; ++i)
-                    ops.push_back(flat_op->out(i));
-            } else {
-                ops.push_back(flat_op);
-            }
-        }
-        return old2new[def] = world.tuple(ops, def->debug());
-    } else if (auto arr = def->isa<Arr>()) {
-        if (!arr->domain()->isa<Lit>()) return old2new[def] = def;
-        auto codomain = flatten(arr->codomain());
-        auto n = as_lit<nat_t>(arr->domain());
-        if (codomain->arity()->isa<Lit>() && codomain->isa_structural<Sigma>()) {
-            auto m = codomain->lit_arity();
-            Array<const Def*> ops(n * m);
-            for (size_t i = 0; i < n; ++i) {
-                for (size_t j = 0; j < m; ++j)
-                    ops[i * m + j] = proj(codomain, j);
-            }
-            return old2new[def] = world.sigma(ops, def->debug());
-        } else {
-            return old2new[def] = def;
-        }
-    } else if (auto sigma = def->isa<Sigma>()) {
-        std::vector<const Def*> ops;
-        for (auto op : sigma->ops()) {
-            auto flat_op = flatten(op);
-            if (auto lit_arity = flat_op->arity()->isa<Lit>();
-                lit_arity && flat_op->isa_structural<Sigma>()) {
-                for (size_t i = 0, n = lit_arity->get<nat_t>(); i < n; ++i)
-                    ops.push_back(proj(flat_op, i));
-            } else {
-                ops.push_back(flat_op);
-            }
-        }
-        return old2new[def] = world.sigma(ops, def->debug());
-    } else {
-        return old2new[def] = def;
     }
+
+    ops.emplace_back(def);
+}
+
+const Def* flatten(const Def* def) {
+    std::vector<const Def*> ops;
+    flatten(ops, def);
+    auto res = def->is_value() ? def->world().tuple(ops, def->debug()) : def->world().sigma(ops, def->debug());
+    res->dump();
+    return res;
 }
 
 const Def* unflatten(const Def* def, const Def* type) {
@@ -77,7 +34,7 @@ const Def* unflatten(const Def* def, const Def* type) {
         Array<const Def*> ops(def->type()->lit_arity(), [&] (size_t i) {
             return def->out(i);
         });
-        return unflatten(ops, type); 
+        return unflatten(ops, type);
     }
     return def;
 }
@@ -88,13 +45,13 @@ static const Def* unflatten(Defs defs, const Def* type, size_t& j) {
         Array<const Def*> ops(sigma->num_ops(), [&] (size_t i) {
             return unflatten(defs, sigma->op(i), j);
         });
-        return world.tuple(ops); 
+        return world.tuple(ops);
     } else if (auto arr = type->isa<Arr>()) {
         if (auto lit = arr->arity()->isa<Lit>()) {
             Array<const Def*> ops(lit->get<nat_t>(), [&] (size_t) {
                 return unflatten(defs, arr->codomain(), j);
             });
-            return world.tuple(ops); 
+            return world.tuple(ops);
         }
     }
     return defs[j++];

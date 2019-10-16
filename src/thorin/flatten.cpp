@@ -19,9 +19,9 @@ static void flatten(std::vector<const Def*>& ops, const Def* def) {
 }
 
 const Def* flatten(const Def* def) {
+    if (is_nominal(def)) return def;
     std::vector<const Def*> ops;
     flatten(ops, def);
-    if (is_nominal(def)) return def;
     return def->is_value() ? def->world().tuple(def->type(), ops, def->debug()) : def->world().sigma(ops, def->debug());
 }
 

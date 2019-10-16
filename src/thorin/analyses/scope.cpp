@@ -92,31 +92,38 @@ void Scope::visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, V
     noms.push(entry());
 
     auto push = [&](const Def* def) {
-        if (contains(def)) {
-            if (auto nom = def->isa_nominal())
-                noms.push(nom);
-            else
-                return defs.push(def);
-        }
-        if (free) free(def);
-        return false;
+        auto push = [&](const Def* def) {
+            if (!def->is_const()) {
+                if (contains(def)) {
+                    if (auto nom = def->isa_nominal())
+                        noms.push(nom);
+                    else
+                        return defs.push(def);
+                }
+                if (free) free(def);
+            }
+            return false;
+        };
+
+        bool todo = false;
+        for (auto op : def->ops()) todo |= push(op);
+        todo |= push(def->type());
+        todo |= def->debug() ? push(def->debug()) : false;
+
+        return todo;
     };
 
     while (!noms.empty()) {
         auto nom = noms.pop();
         if (pre_nom) pre_nom(nom);
-        for (auto op : nom->ops()) push(op);
+        push(nom);
 
         while (!defs.empty()) {
             auto def = defs.top();
 
             if (pre_def) pre_def(def);
 
-            bool todo = false;
-            for (auto op : def->ops())
-                todo |= push(op);
-
-            if (!todo) {
+            if (!push(def)) {
                 if (post_def) post_def(def);
                 defs.pop();
             }

@@ -28,7 +28,9 @@ private:
         auto type = def->type()->reduce();
         if (!type->isa<Sigma>() || type->num_ops() == 0)
             return { def, world_.tuple() };
-        // Broken: the original value might have been an empty tuple, meaning that we should remove all the elements
+        // Careful: eliminate(introduce((), 0, (x, y)), 0) gives y, not ().
+        // So eliminate is not really reverting introduce, and care has to be taken
+        // for empty tuples.
         Array<const Def*> ops(type->num_ops() - 1);
         for (size_t i = 0; i < col; ++i)
             ops[i] = def->out(i);

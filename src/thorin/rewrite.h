@@ -32,11 +32,17 @@ public:
 /// Rewrites @p def by mapping @p old_def to @p new_def while obeying @p scope.
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope& scope);
 
-/// Rewrites @p nom by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
+/// Rewrites @p nom's @p i^th op by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
 const Def* rewrite(Def* nom, const Def* arg, size_t i);
 
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
 const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope);
+
+/// Rewrites @p nom's ops by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
+Array<const Def*> rewrite(Def* nom, const Def* arg);
+
+/// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
+Array<const Def*> rewrite(Def* nom, const Def* arg, const Scope& scope);
 
 /// Removes unreachable and dead code by rebuilding the whole @p world into a new @p World.
 void cleanup(World& world);

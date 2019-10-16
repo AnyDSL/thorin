@@ -13,11 +13,9 @@ class PtrnCompiler {
 private:
     /// Flattens the tuples/packs in a pattern
     Ptrn* flatten(Ptrn* ptrn) {
-        Scope scope(ptrn);
-        Rewriter rewriter(world_, &scope);
         auto f_ptrn = world_.ptrn(world_.case_(thorin::flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->debug());
-        rewriter.old2new.emplace(ptrn->param(), unflatten(f_ptrn->param(), ptrn->type()->domain()));
-        f_ptrn->set(thorin::flatten(rewriter.rewrite(ptrn->matcher())), rewriter.rewrite(ptrn->body()));
+        auto new_ops = rewrite(ptrn, unflatten(f_ptrn->param(), ptrn->type()->domain()));
+        f_ptrn->set(thorin::flatten(new_ops[0]), new_ops[1]);
         parent_[f_ptrn] = parent_[ptrn];
         return f_ptrn;
     }

@@ -106,10 +106,7 @@ void Scope::visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, V
         };
 
         bool todo = false;
-        for (auto op : def->ops()) todo |= push(op);
-        todo |= push(def->type());
-        todo |= def->debug() ? push(def->debug()) : false;
-
+        for (auto op : def->extended_ops()) todo |= push(op);
         return todo;
     };
 

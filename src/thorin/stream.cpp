@@ -94,7 +94,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         return s.fmt("succ{}{}{}", succ->tuplefy() ? '(' : '[', succ->type(), succ->tuplefy() ? ')' : ']');
     } else if (auto union_ = def->isa<Union>()) {
         if (union_->isa_nominal()) s.fmt("{}: {}", union_->unique_name(), union_->type());
-        return s.fmt("⋃({, }]", union_->ops());
+        return s.fmt("⋃({, })", union_->ops());
     }
 
     // unknown node type

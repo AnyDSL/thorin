@@ -263,31 +263,31 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     // TODO type-check type vs inferred type
     }
 
-    if (auto n = ops.size()) {
-        if (type->isa_structural()) {
-            if (n == 1) return ops[0];
-            if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
-        }
+    auto n = ops.size();
+    if (!type->isa_nominal<Sigma>()) {
+        if (n == 0) return tuple();
+        if (n == 1) return ops[0];
+        if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
+    }
 
-        // eta rule for tuples:
-        // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup
-        if (auto extract = ops[0]->isa<Extract>()) {
-            auto tup = extract->tuple();
-            bool eta = tup->type() == type;
-            for (size_t i = 0; i != n && eta; ++i) {
-                if (auto extract = ops[i]->isa<Extract>()) {
-                    if (auto index = isa_lit<u64>(extract->index())) {
-                        if (eta &= u64(i) == *index) {
-                            eta &= extract->tuple() == tup;
-                            continue;
-                        }
+    // eta rule for tuples:
+    // (extract(tup, 0), extract(tup, 1), extract(tup, 2)) -> tup
+    if (n != 0) if (auto extract = ops[0]->isa<Extract>()) {
+        auto tup = extract->tuple();
+        bool eta = tup->type() == type;
+        for (size_t i = 0; i != n && eta; ++i) {
+            if (auto extract = ops[i]->isa<Extract>()) {
+                if (auto index = isa_lit<u64>(extract->index())) {
+                    if (eta &= u64(i) == *index) {
+                        eta &= extract->tuple() == tup;
+                        continue;
                     }
                 }
-                eta = false;
             }
-
-            if (eta) return tup;
+            eta = false;
         }
+
+        if (eta) return tup;
     }
 
     return unify<Tuple>(ops.size(), type, ops, debug(dbg));

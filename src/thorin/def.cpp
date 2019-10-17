@@ -417,10 +417,11 @@ Mem::Mem(World& world)
 {}
 
 const Param* Def::param(Debug dbg) {
-    if (auto lam   = isa<Lam  >()) return world().param(lam ->domain(), lam,   dbg);
-    if (auto ptrn  = isa<Ptrn >()) return world().param(ptrn->domain(), ptrn,  dbg);
-    if (auto pi    = isa<Pi   >()) return world().param(pi  ->domain(), pi,    dbg);
-    if (auto sigma = isa<Sigma>()) return world().param(sigma,          sigma, dbg);
+    if (auto lam    = isa<Lam  >()) return world().param(lam ->domain(), lam,    dbg);
+    if (auto ptrn   = isa<Ptrn >()) return world().param(ptrn->domain(), ptrn,   dbg);
+    if (auto pi     = isa<Pi   >()) return world().param(pi  ->domain(), pi,     dbg);
+    if (auto sigma  = isa<Sigma>()) return world().param(sigma,          sigma,  dbg);
+    if (auto union_ = isa<Union>()) return world().param(union_,         union_, dbg);
     THORIN_UNREACHABLE;
 }
 

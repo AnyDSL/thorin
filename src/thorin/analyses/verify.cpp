@@ -7,7 +7,7 @@ static void verify_top_level(World& world) {
     world.visit([&](const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
-                world.ELOG("top-level lam '{}' got free param '{}' belonging to lam {}", scope.entry(), param, param->lam());
+                world.ELOG("top-level nomianl '{}' got free param '{}' belonging to nominal {}", scope.entry(), param, param->nominal());
             world.ELOG("here: {}", scope.entry());
         }
     });

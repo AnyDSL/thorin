@@ -394,7 +394,10 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     assertf(alpha_equiv(type->arity(), index->type()),
             "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
 
-    if (isa_lit_arity(index->type(), 1)) return tup;
+    // Nominal sigmas can be 1-tuples
+    if (!tup->type()->isa_nominal<Sigma>() &&
+        isa_lit_arity(index->type(), 1))
+        return tup;
     if (auto pack = tup->isa<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val

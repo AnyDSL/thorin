@@ -375,11 +375,11 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
     , const_(false)
     , order_(0)
     , num_ops_(num_ops)
-    , hash_(murmur3(gid()))
     , debug_(dbg)
     , type_(type)
 {
     gid_ = world().next_gid();
+    hash_ = murmur3(gid());
     std::fill_n(ops_ptr(), num_ops, nullptr);
     if (!type->is_const()) type->uses_.emplace(this, -1);
 }

@@ -5,8 +5,8 @@
 namespace thorin {
 
 static const Def* proxy_type(const Analyze* proxy) { return as<Tag::Ptr>(proxy->type())->arg(0); }
-static std::tuple<Lam*, int64_t> disassemble_proxy(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), as_lit<u64>(proxy->op(1))}; }
-static std::tuple<Lam*, const Analyze*> disassemble_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
+static std::tuple<Lam*, int64_t>        split_proxy      (const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), as_lit<u64>(proxy->op(1))};  }
+static std::tuple<Lam*, const Analyze*> split_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
 
 const Analyze* Mem2Reg::isa_proxy(const Def* def) {
     if (auto analyze = isa<Analyze>(index(), def); analyze && !analyze->op(1)->isa<Analyze>()) return analyze;
@@ -147,8 +147,8 @@ void Mem2Reg::analyze(const Def* def) {
 
     // we need to install a phi in lam next time around
     if (auto phi = isa_virtual_phi(def)) {
-        auto [phi_lam, proxy] = disassemble_virtual_phi(phi);
-        auto [proxy_lam, slot_id] = disassemble_proxy(proxy);
+        auto [phi_lam, proxy] = split_virtual_phi(phi);
+        auto [proxy_lam, slot_id] = split_proxy(proxy);
 
         auto& phi_info   = lam2info(phi_lam);
         auto& proxy_info = lam2info(proxy_lam);
@@ -177,7 +177,7 @@ void Mem2Reg::analyze(const Def* def) {
         auto op = def->op(i);
 
         if (auto proxy = isa_proxy(op)) {
-            auto [proxy_lam, slot_id] = disassemble_proxy(proxy);
+            auto [proxy_lam, slot_id] = split_proxy(proxy);
             auto& info = lam2info(proxy_lam);
             if (keep_.emplace(proxy).second) {
                 world().DLOG("keep: {}", proxy);
@@ -214,7 +214,7 @@ void Mem2Reg::analyze(const Def* def) {
                 world().DLOG("keep: {}", lam);
                 keep_.emplace(lam);
                 for (auto phi : phis) {
-                    auto [proxy_lam, slot_id] = disassemble_proxy(phi);
+                    auto [proxy_lam, slot_id] = split_proxy(phi);
                     auto& proxy_info = lam2info(proxy_lam);
                     keep_.emplace(phi);
                     man().undo(info.undo);

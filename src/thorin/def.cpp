@@ -31,9 +31,7 @@ THORIN_NODE(CODE)
 
 bool Def::is_value() const {
     switch (node()) {
-        case Node::KindArity:
-        case Node::KindMulti:
-        case Node::KindStar:
+        case Node::Kind:
         case Node::Universe:
         case Node::Pi:
         case Node::Sigma:
@@ -54,9 +52,7 @@ bool Def::is_value() const {
 
 bool Def::is_type() const {
     switch (node()) {
-        case Node::KindArity:
-        case Node::KindMulti:
-        case Node::KindStar:
+        case Node::Kind:
         case Node::Universe:
         case Node::Lam:
         case Node::Tuple:
@@ -77,9 +73,7 @@ bool Def::is_type() const {
 
 bool Def::is_kind() const {
     switch (node()) {
-        case Node::KindArity:
-        case Node::KindMulti:
-        case Node::KindStar: return true;
+        case Node::Kind:     return true;
         case Node::Universe: return false;
         default:             return type()->isa<Universe>();
     }
@@ -396,24 +390,18 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const 
     normalizer_depth_.set(normalizer, currying_depth);
 }
 
-KindArity::KindArity(World& world)
-    : Def(Node, rebuild, world.kind_multi(), Defs{}, 0, nullptr)
-{}
-
-KindMulti::KindMulti(World& world)
-    : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
-{}
-
-KindStar::KindStar(World& world)
-    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
+Kind::Kind(World& world, Tag tag)
+    : Def(Node, rebuild, tag == Star  ? (const Def*) world.universe() :
+                         tag == Multi ? (const Def*) world.kind(Star) :
+                                        (const Def*) world.kind(Multi), Defs{}, fields_t(tag), nullptr)
 {}
 
 Nat::Nat(World& world)
-    : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
 Mem::Mem(World& world)
-    : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
 const Param* Def::param(Debug dbg) {
@@ -475,9 +463,7 @@ const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 const Def* Global     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* Match      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match(o[0], o.skip_front(), dbg); }
-const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
-const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
-const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
+const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
 const Def* Universe   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<nat_t>(d), dbg); }
 const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }

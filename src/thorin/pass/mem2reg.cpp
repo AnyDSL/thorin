@@ -9,12 +9,12 @@ static std::tuple<Lam*, int64_t> disassemble_proxy(const Analyze* proxy) { retur
 static std::tuple<Lam*, const Analyze*> disassemble_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
 
 const Analyze* Mem2Reg::isa_proxy(const Def* def) {
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && !analyze->op(1)->isa<Analyze>()) return analyze;
+    if (auto analyze = isa<Analyze>(index(), def); analyze && !analyze->op(1)->isa<Analyze>()) return analyze;
     return nullptr;
 }
 
 const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && analyze->op(1)->isa<Analyze>()) return analyze;
+    if (auto analyze = isa<Analyze>(index(), def); analyze && analyze->op(1)->isa<Analyze>()) return analyze;
     return nullptr;
 }
 

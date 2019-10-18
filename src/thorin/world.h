@@ -92,9 +92,10 @@ public:
     /// @name Universe and Kind
     //@{
     const Universe*  universe()   { return data_.universe_;   }
-    const KindMulti* kind_multi() { return data_.kind_multi_; }
-    const KindArity* kind_arity() { return data_.kind_arity_; }
-    const KindStar*  kind_star()  { return data_.kind_star_;  }
+    const Kind* kind(Kind::Tag tag) { return data_.kind_[size_t(tag)]; }
+    const Kind* kind_star () { return kind(Kind::Tag::Star); }
+    const Kind* kind_arity() { return kind(Kind::Tag::Arity); }
+    const Kind* kind_multi() { return kind(Kind::Tag::Multi); }
     //@}
     /// @name Param
     //@{
@@ -147,24 +148,24 @@ public:
     //@{
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
-    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
+    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind(Kind::Star), ops, dbg); }
     const Sigma* sigma() { return data_.sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal
     //@{
     Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
-    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
+    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind(Kind::Star), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
     /// @name Union: structural
     //@{
     const Def* union_(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Union of type @p star
-    const Def* union_(Defs ops, Debug dbg = {}) { return union_(kind_star(), ops, dbg); }
+    const Def* union_(Defs ops, Debug dbg = {}) { return union_(kind(Kind::Star), ops, dbg); }
     //@}
     /// @name Union: nominal
     //@{
     Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
-    Union* union_(size_t size, Debug dbg = {}) { return union_(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
+    Union* union_(size_t size, Debug dbg = {}) { return union_(kind(Kind::Star), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
     /// @name Arr
     //@{
@@ -235,7 +236,7 @@ public:
     /// @name Match/Ptrn/Case
     //@{
     const Def* match(const Def* val, Defs ptrns, Debug dbg = {});
-    const Case* case_(const Def* domain, const Def* codomain, Debug dbg = {}) { return unify<Case>(2, kind_star(), domain, codomain, debug(dbg)); }
+    const Case* case_(const Def* domain, const Def* codomain, Debug dbg = {}) { return unify<Case>(2, kind(Kind::Star), domain, codomain, debug(dbg)); }
     Ptrn* ptrn(const Case* type, Debug dbg = {}) { return insert<Ptrn>(2, type, debug(dbg)); }
     //@}
     /// @name Lit
@@ -246,7 +247,7 @@ public:
     //@}
     /// @name Lit: Arity - note that this is a type
     //@{
-    const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), a, dbg); }
+    const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind(Kind::Arity), a, dbg); }
     //@}
     /// @name Lit: Index - the inhabitants of an Arity
     //@{
@@ -660,9 +661,7 @@ private:
 
     struct Data {
         Universe* universe_;
-        const KindMulti* kind_multi_;
-        const KindArity* kind_arity_;
-        const KindStar*  kind_star_;
+        std::array<const Kind*, 3> kind_;
         const Bot* bot_star_;
         const Top* top_star_;
         const Top* top_arity_;

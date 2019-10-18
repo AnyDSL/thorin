@@ -735,9 +735,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
-        if (bitcast->type()->isa<KindArity>())          return lookup(bitcast->arg());
-        if (bitcast->type()->type()->isa<KindArity>())  return lookup(bitcast->arg());
-        if (bitcast->arg()->type()->isa<KindArity>())   return lookup(bitcast->arg());
+        if (isa<Kind>(Kind::Arity, bitcast->type()))          return lookup(bitcast->arg());
+        if (isa<Kind>(Kind::Arity, bitcast->type()->type()))  return lookup(bitcast->arg());
+        if (isa<Kind>(Kind::Arity, bitcast->arg()->type()))   return lookup(bitcast->arg());
         auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
         auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
         if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
@@ -870,7 +870,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 #endif
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        if (lit->type()->type()->isa<KindArity>()) {
+        if (isa<Kind>(Kind::Arity, lit->type()->type())) {
             if (auto a = isa_lit<u64>(lit->type()); a && *a == 2)
                 return irbuilder_.getInt1(lit->get());
             return irbuilder_.getInt64(lit->get());
@@ -980,7 +980,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!type->isa<Mem>());
 
-    if (type->type()->isa<KindArity>()) {
+    if (isa<Kind>(Kind::Arity, type->type())) {
         if (auto a = isa_lit<u64>(type); a && *a == 2)
             return types_[type] = irbuilder_.getInt1Ty();
         return types_[type] = irbuilder_.getInt64Ty();

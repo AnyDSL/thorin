@@ -28,17 +28,16 @@ namespace thorin {
 bool World::Arena::Lock::guard_ = false;
 #endif
 
-World::World(const std::string& name)
-{
+World::World(const std::string& name) {
     data_.name_          = name.empty() ? "module" : name;
     data_.universe_      = insert<Universe >(0, *this);
-    data_.kind_star_     = insert<KindStar >(0, *this);
-    data_.kind_multi_    = insert<KindMulti>(0, *this);
-    data_.kind_arity_    = insert<KindArity>(0, *this);
-    data_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
-    data_.top_star_      = insert<Top>(0, kind_star(), nullptr);
-    data_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
-    data_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    data_.kind_[Kind::Tag::Star ] = insert<Kind>(0, *this, Kind::Tag::Star );
+    data_.kind_[Kind::Tag::Multi] = insert<Kind>(0, *this, Kind::Tag::Multi);
+    data_.kind_[Kind::Tag::Arity] = insert<Kind>(0, *this, Kind::Tag::Arity);
+    data_.bot_star_      = insert<Bot>(0, kind(Kind::Star), nullptr);
+    data_.top_star_      = insert<Top>(0, kind(Kind::Star), nullptr);
+    data_.top_arity_     = insert<Top>(0, kind(Kind::Arity), nullptr);
+    data_.sigma_         = insert<Sigma>(0, kind(Kind::Star), Defs{}, nullptr)->as<Sigma>();
     data_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     data_.type_mem_      = insert<Mem>(0, *this);
     data_.type_nat_      = insert<Nat>(0, *this);
@@ -46,7 +45,7 @@ World::World(const std::string& name)
     data_.lit_bool_[0]   = lit_index(2, 0);
     data_.lit_bool_[1]   = lit_index(2, 1);
 
-    auto star = kind_star();
+    auto star = kind(Kind::Star);
     auto nat = type_nat();
     auto mem = type_mem();
 
@@ -139,7 +138,7 @@ World::World(const std::string& name)
         data_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
     } { // lea:, Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(Ts#Heir(j)», as), i: s]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
-        domain->set(0, kind_multi());
+        domain->set(0, kind(Kind::Multi));
         domain->set(1, arr(domain->param(0, {"s"}), star));
         domain->set(2, nat);
         auto pi1 = pi(star)->set_domain(domain);
@@ -194,13 +193,8 @@ World::~World() {}
 static const Def* lub(const Def* t1, const Def* t2) { // TODO broken
     if (t1->isa<Universe>()) return t1;
     if (t2->isa<Universe>()) return t2;
-    //assert(t1->isa<Kind>() && t2->isa<Kind>());
-    switch (std::max(t1->node(), t2->node())) {
-        case Node::KindArity: return t1->world().kind_arity();
-        case Node::KindMulti: return t1->world().kind_multi();
-        case Node::KindStar:  return t1->world().kind_star();
-        default: THORIN_UNREACHABLE;
-    }
+    assert(t1->isa<Kind>() && t2->isa<Kind>());
+    return t1->world().kind(Kind::Tag(std::max(t1->as<Kind>()->tag(), t2->as<Kind>()->tag())));
 }
 
 const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
@@ -528,19 +522,19 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
 }
 
 const Def* World::arr(const Def* domain, const Def* codomain, Debug dbg) {
-    assert(domain->type()->isa<KindArity>() || domain->type()->isa<KindMulti>());
+    assert(isa<Kind>(Kind::Arity, domain->type()) || isa<Kind>(Kind::Multi, domain->type()));
 
     if (auto a = isa_lit<u64>(domain)) {
         if (*a == 0) return sigma();
         if (*a == 1) return codomain;
     }
 
-    auto type = kind_star();
+    auto type = kind(Kind::Star);
     return unify<Arr>(2, type, domain, codomain, debug(dbg));
 }
 
 const Def* World::pack(const Def* domain, const Def* body, Debug dbg) {
-    assert(domain->type()->isa<KindArity>() || domain->type()->isa<KindMulti>());
+    assert(isa<Kind>(Kind::Arity, domain->type()) || isa<Kind>(Kind::Multi, domain->type()));
 
     if (auto a = isa_lit<u64>(domain)) {
         if (*a == 0) return tuple();

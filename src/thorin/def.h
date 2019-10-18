@@ -342,6 +342,15 @@ protected:
     friend void swap(World&, World&);
 };
 
+template<class T>
+const T* isa(fields_t f, const Def* def) {
+    if (auto d = def->template isa<T>(); d && d->fields() == f) return d;
+    return nullptr;
+}
+
+template<class T>
+const T* as([[maybe_unused]] fields_t f, const Def* def) { assert(isa<T>(f, def)); return def; }
+
 //------------------------------------------------------------------------------
 
 template<class To>
@@ -408,36 +417,18 @@ public:
     friend class World;
 };
 
-class KindArity : public Def {
+class Kind : public Def {
+public:
+    enum Tag { Arity, Multi, Star };
+
 private:
-    KindArity(World&);
+    Kind(World&, Tag);
 
 public:
+    Tag tag() const { return Tag(fields()); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Node = Node::KindArity;
-    friend class World;
-};
-
-class KindMulti : public Def {
-private:
-    KindMulti(World&);
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::KindMulti;
-    friend class World;
-};
-
-class KindStar : public Def {
-private:
-    KindStar(World&);
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::KindStar;
+    static constexpr auto Node = Node::Kind;
     friend class World;
 };
 
@@ -504,8 +495,8 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
-inline nat_t as_arity(const Def* def) { assert(def->type()->isa<KindArity>()); return  as_lit<nat_t>(def); }
-inline std::optional<nat_t> isa_lit_arity(const Def* def) { return def->type()->isa<KindArity>() ? isa_lit<nat_t>(def) : std::nullopt; }
+inline nat_t as_arity(const Def* def) { assert(def->type()->as<Kind>()->tag() == Kind::Tag::Arity); return  as_lit<nat_t>(def); }
+inline std::optional<nat_t> isa_lit_arity(const Def* def) { return def->type()->as<Kind>()->tag() == Kind::Tag::Arity ? isa_lit<nat_t>(def) : std::nullopt; }
 inline bool isa_lit_arity(const Def* def, nat_t arity) { if (auto a = isa_lit_arity(def)) return *a == arity; return false; }
 
 /// A function type AKA Pi type.

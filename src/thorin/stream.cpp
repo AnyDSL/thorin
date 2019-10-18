@@ -20,15 +20,19 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
 
     if (false) {}
     else if (def->isa<Universe>())  return s.fmt("□");
-    else if (def->isa<KindStar>())  return s.fmt("★");
-    else if (def->isa<KindMulti>()) return s.fmt("•");
-    else if (def->isa<KindArity>()) return s.fmt("◦");
     else if (def->isa<Mem>())       return s.fmt("mem");
     else if (def->isa<Nat>())       return s.fmt("nat");
     else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
     else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());
     else if (auto axiom = def->isa<Axiom>()) return s.fmt("{}", axiom->name());
-    else if (auto lit = def->isa<Lit>()) {
+    else if (auto kind = def->isa<Kind>()) {
+        switch (kind->tag()) {
+            case Kind::Star:  return s.fmt("★");
+            case Kind::Multi: return s.fmt("•");
+            case Kind::Arity: return s.fmt("◦");
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto lit = def->isa<Lit>()) {
         if (auto real = thorin::isa<Tag::Real>(lit->type())) {
             switch (as_lit<nat_t>(real->arg())) {
                 case 16: return s.fmt("{}∷r16", lit->get<r16>());
@@ -36,7 +40,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
                 case 64: return s.fmt("{}∷r64", lit->get<r64>());
                 default: THORIN_UNREACHABLE;
             }
-        } else if (lit->type()->type()->isa<KindArity>()) {
+        } else if (isa<Kind>(Kind::Arity, lit->type()->type())) {
             if (!lit->type()->isa<Top>()) {
                 // append utf-8 subscripts in reverse order
                 std::string str;

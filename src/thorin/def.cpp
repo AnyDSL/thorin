@@ -448,43 +448,43 @@ const Def* Def::reduce() const {
  * rebuild
  */
 
-const Def* Axiom      ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags(), dbg); }
-const Def* Lam        ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
-const Def* CPS2DS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
-const Def* DS2CPS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
-const Def* Sigma      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.sigma(t, o, dbg); }
-const Def* Case       ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.case_(o[0], o[1], dbg); }
-const Def* Union      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
-const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
-const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
-const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
-const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
-const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
-const Def* Global     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
-const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Match      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match(o[0], o.skip_front(), dbg); }
-const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
-const Def* Universe   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
-const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<nat_t>(d), dbg); }
-const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
-const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
-const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
-const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
-const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
-const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
-const Def* Which      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.which(o[0], dbg); }
-const Def* Arr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.arr(o[0], o[1], dbg); }
-const Def* Succ       ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }
+const Def* Analyze ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
+const Def* App     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
+const Def* Arr     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.arr(o[0], o[1], dbg); }
+const Def* Axiom   ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags(), dbg); }
+const Def* Bot     ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
+const Def* CPS2DS  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
+const Def* Case    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.case_(o[0], o[1], dbg); }
+const Def* DS2CPS  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
+const Def* Extract ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
+const Def* Global  ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
+const Def* Insert  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
+const Def* Kind    ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
+const Def* Lam     ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
+const Def* Lit     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<nat_t>(d), dbg); }
+const Def* Match   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match(o[0], o.skip_front(), dbg); }
+const Def* Mem     ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
+const Def* Nat     ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
+const Def* Pack    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
+const Def* Param   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
+const Def* Pi      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
+const Def* Sigma   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.sigma(t, o, dbg); }
+const Def* Succ    ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }
+const Def* Top     ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
+const Def* Tuple   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
+const Def* Union   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
+const Def* Universe::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
+const Def* Which   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.which(o[0], dbg); }
 
 /*
  * stub
  */
 
-Def* Lam     ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
-Def* Ptrn    ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
-Def* Pi      ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.pi(t, Debug{dbg}); }
-Def* Sigma   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.sigma(t, d->num_ops(), dbg); }
-Def* Union   ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return w.union_(t, d->num_ops(), dbg); }
+Def* Lam  ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Pi   ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.pi(t, Debug{dbg}); }
+Def* Ptrn ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
+Def* Sigma::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.sigma(t, d->num_ops(), dbg); }
+Def* Union::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.union_(t, d->num_ops(), dbg); }
 
 template void Streamable<Def>::dump() const;
 

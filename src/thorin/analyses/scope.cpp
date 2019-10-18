@@ -99,8 +99,9 @@ void Scope::visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, V
                         noms.push(nom);
                     else
                         return defs.push(def);
+                } else {
+                    if (free) free(def);
                 }
-                if (free) free(def);
             }
             return false;
         };

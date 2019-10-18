@@ -186,9 +186,9 @@ public:
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
     const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
-    /// @name Variant
+    /// @name Which
     //@{
-    const Def* variant(const Def* value, Debug dbg = {});
+    const Def* which(const Def* value, Debug dbg = {});
     //@}
     /// @name Pack
     //@{

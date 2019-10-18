@@ -793,15 +793,15 @@ public:
     friend class World;
 };
 
-class Variant : public Def {
+class Which : public Def {
 private:
-    Variant(const Def* type, const Def* op, const Def* dbg)
+    Which(const Def* type, const Def* op, const Def* dbg)
         : Def(Node, rebuild, type, {op}, 0, dbg)
     {}
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static constexpr auto Node = Node::Variant;
+    static constexpr auto Node = Node::Which;
     friend class World;
 };
 

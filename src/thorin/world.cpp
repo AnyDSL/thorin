@@ -304,10 +304,10 @@ const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
     return unify<Union>(ops_copy.size(), type, ops_copy, debug(dbg));
 }
 
-const Def* World::variant(const Def* value, Debug dbg) {
+const Def* World::which(const Def* value, Debug dbg) {
     if (auto insert = value->isa<Insert>())
         return insert->index();
-    return unify<Variant>(1, value->type()->arity(), value, debug(dbg));
+    return unify<Which>(1, value->type()->arity(), value, debug(dbg));
 }
 
 const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {

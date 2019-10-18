@@ -747,6 +747,16 @@ const Def* World::lookup_by_gid(u32 gid) {
 template<bool elide_empty>
 void World::visit(VisitFn f) const {
     unique_queue<NomSet> noms;
+    unique_stack<DefSet> defs;
+
+    auto push = [&](const Def* def) {
+        if (!def->is_const()) {
+            if (auto nom = def->isa_nominal())
+                noms.push(nom);
+            else
+                defs.push(def);
+        }
+    };
 
     for (const auto& [name, nom] : externals()) {
         assert(nom->is_set() && "external must not be empty");
@@ -758,9 +768,11 @@ void World::visit(VisitFn f) const {
         if (elide_empty && !nom->is_set()) continue;
         Scope scope(nom);
         f(scope);
-        scope.visit({}, {}, {}, {}, [&](const Def* def) {
-            if (nom = def->isa_nominal(); nom && !scope.contains(nom)) noms.push(nom);
-        });
+        scope.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
+
+        while (!defs.empty()) {
+            for (auto op : defs.pop()->extended_ops()) push(op);
+        }
     }
 }
 

@@ -4,108 +4,155 @@
 
 namespace thorin {
 
+bool Pass::enter(Scope& scope) { return scope.entry()->isa<Lam>(); }
+
+Def* PassMan::stub(Def* old_nom) {
+    if (auto new_nom = stubs_.lookup(old_nom)) return *new_nom;
+    return stubs_[old_nom] = old_nom->stub(world(), old_nom->type(), old_nom->debug());
+}
+
 void PassMan::run() {
-    std::vector<const Def*> new_ops;
+    unique_queue<NomSet> noms;
+    unique_stack<DefSet> defs;
 
-    states_.emplace_back(passes_);
-    cur_state().old2new[world().universe()] = world().universe();
+    auto push = [&](const Def* def) {
+        if (!def->is_const()) {
+            if (auto nom = def->isa_nominal())
+                noms.push(nom);
+            else
+                defs.push(def);
+        }
+    };
 
-    auto externals = world().externals(); // copy
-    for (const auto& [name, nom] : externals) {
-        cur_nominal_ = nom;
-        rewrite(nom); // provokes inspect
-        analyze(nom); // puts into the queue
-        cur_nominal_ = nullptr; // ensure to provoke pass->enter
+    for (const auto& [name, nom] : world().externals()) {
+        assert(nom->is_set() && "external must not be empty");
+        noms.push(nom);
+    }
 
-        while (!queue().empty()) {
-            auto old_nom = cur_nominal_;
-            cur_nominal_ = std::get<Def*>(queue().top());
+    while (!noms.empty()) {
+        auto nom = noms.front();
+        if (!nom->is_set()) continue;
+        Scope scope(nom);
 
-            if (old_nom != cur_nominal_) {
-                new_state();
-                for (auto& pass : passes_)
-                    pass->enter(cur_nominal_);
-            }
+        scope_passes_.clear();
+        for (auto& pass : passes_) {
+            if (pass->enter(scope)) scope_passes_.push_back(pass.get());
+        }
 
-            world().DLOG("cur: {} {}", cur_state_id(), cur_nominal());
+        if (auto new_nom = run(scope)) {
+            nom->set(new_nom->ops());
+            new_nom->unset();
+            noms.pop();
+        } else {
+            for (auto& pass : passes_) pass->retry();
+            continue;
+        }
 
-            bool mismatch = false;
-            if (cur_nominal_->is_set()) {
-                new_ops.resize(cur_nominal()->num_ops());
-                for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
-                    auto new_op = rewrite(cur_nominal()->op(i));
-                    mismatch |= new_op != cur_nominal()->op(i);
-                    new_ops[i] = new_op;
-                }
-            }
+        scope.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
 
-            if (mismatch) {
-                assert(undo_ == No_Undo && "only provoke undos during analyze");
-                cur_nominal()->set(new_ops);
-                continue;
-            }
-
-            queue().pop();
-
-            if (cur_nominal_->is_set()) {
-                for (auto op : cur_nominal()->ops())
-                    analyze(op);
-            }
-
-            if (undo_ != No_Undo) {
-                world().DLOG("undo: {} -> {}", cur_state_id(), undo_);
-
-                for (size_t i = cur_state_id(); i-- != undo_;) {
-                    if (states_[i].nominal->is_set())
-                        states_[i].nominal->set(states_[i].old_ops);
-                }
-
-                states_.resize(undo_);
-                undo_ = No_Undo;
-                cur_nominal_ = std::get<Def*>(queue().top()); // don't provoke pass->enter
-            }
+        while (!defs.empty()) {
+            for (auto op : defs.pop()->extended_ops()) push(op);
         }
     }
 
     cleanup(world_);
 }
 
-const Def* PassMan::rewrite(const Def* old_def) {
-    if (auto new_def = lookup(old_def)) return *new_def;
+Def* PassMan::run(Scope& scope) {
+    scope_ = &scope;
 
-    if (auto nominal = old_def->isa_nominal()) {
-        for (auto& pass : passes_)
-            pass->inspect(nominal);
-        return map(nominal, nominal);
+    Def2Def old2new;
+
+    auto lookup = [&](const Def* old_def) {
+        if (auto new_def = old2new.lookup(old_def)) return *new_def;
+        return old_def;
+    };
+
+    auto make_new_ops = [&](const Def* def, bool& changed) {
+        return Array<const Def*>(def->num_ops(), [&](size_t i) {
+            auto new_op = lookup(def->op(i));
+            changed |= def->op(i) != new_op;
+            return new_op;
+        });
+    };
+
+    std::queue<Def*> noms;
+    NomSet done;
+    unique_stack<DefSet> defs;
+
+    auto push = [&](const Def* def) {
+        auto push = [&](const Def* def) {
+            if (!def->is_const()) {
+                if (scope.contains(def)) {
+                    if (auto nom = def->isa_nominal()) {
+                        if (done.emplace(nom).second) {
+                            noms.push(nom);
+                            for (auto& pass : scope_passes_) pass->inspect(nom);
+                        }
+                        return false;
+                    } else {
+                        return defs.push(def);
+                    }
+                }
+            }
+            return false;
+        };
+
+        bool todo = false;
+        for (auto op : def->extended_ops()) todo |= push(op);
+        return todo;
+    };
+
+    noms.push(scope.entry());
+
+    while (!noms.empty()) {
+        auto old_nom = pop(noms);
+        auto new_nom = stub(old_nom);
+        old2new[old_nom] = new_nom;
+
+        for (auto pass : scope_passes_) pass->enter(new_nom);
+
+        push(old_nom);
+
+        while (!defs.empty()) {
+            auto def = defs.top();
+
+            if (!push(def)) {
+                auto new_type = lookup(def->type());
+                auto new_dbg  = lookup(def->debug());
+
+                bool changed = false;
+                changed |= new_type != def->type();
+                changed |= new_dbg  != def->debug();
+                auto new_ops = make_new_ops(def, changed);
+                auto new_def = changed ? def->rebuild(world(), new_type, new_ops, def->debug()) : def;
+
+                for (auto pass : scope_passes_) new_def = pass->rewrite(new_def);
+                old2new[def] = new_def;
+                defs.pop();
+            }
+        }
+
+        bool changed = false;
+        auto new_ops = make_new_ops(old_nom, changed);
+        new_nom->set(new_ops);
+        for (auto op : new_nom->extended_ops()) {
+            if (!analyze(op)) return nullptr;
+        }
     }
 
-    auto new_type  = rewrite(old_def->type());
-
-    bool changed = false;
-    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
-        auto new_op = rewrite(old_def->op(i));
-        changed |= old_def->op(i) != new_op;
-        return new_op;
-    });
-
-    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops, old_def->debug()) : old_def;
-
-    for (auto& pass : passes_)
-        new_def = pass->rewrite(new_def);
-
-    assert(!cur_state().old2new.contains(new_def) || cur_state().old2new[new_def] == new_def);
-    return map(old_def, map(new_def, new_def));
+    return stub(scope.entry());
 }
 
-void PassMan::analyze(const Def* def) {
-    if (!cur_state().analyzed.emplace(def).second) return;
-    if (auto nominal = def->isa_nominal()) return queue().emplace(nominal, time_++);
+bool PassMan::analyze(const Def* def) {
+    if (def->is_const() || !scope().contains(def) || analyzed_.emplace(def).second) return true;
 
-    for (auto op : def->ops())
-        analyze(op);
+    for (auto op : def->ops()) analyze(op);
+    for (auto pass : scope_passes_) {
+        if (!pass->analyze(def)) return false;
+    }
 
-    for (auto& pass : passes_)
-        pass->analyze(def);
+    return true;
 }
 
 }

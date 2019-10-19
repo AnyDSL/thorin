@@ -5,6 +5,7 @@
 
 namespace thorin {
 
+#if 0
 class Inliner : public Pass<Inliner> {
 public:
     Inliner(PassMan& man, size_t index)
@@ -34,6 +35,8 @@ private:
 
     LamSet keep_;
 };
+
+#endif
 
 }
 

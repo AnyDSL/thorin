@@ -1,5 +1,6 @@
 #include "thorin/pass/copy_prop.h"
 
+#if 0
 #include "thorin/util.h"
 
 namespace thorin {
@@ -130,3 +131,4 @@ void CopyProp::analyze(const Def* def) {
 }
 
 }
+#endif

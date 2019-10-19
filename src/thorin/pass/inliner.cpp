@@ -1,5 +1,6 @@
 #include "thorin/pass/inliner.h"
 
+#if 0
 #include "thorin/rewrite.h"
 
 namespace thorin {
@@ -50,3 +51,4 @@ void Inliner::analyze(const Def* def) {
 }
 
 }
+#endif

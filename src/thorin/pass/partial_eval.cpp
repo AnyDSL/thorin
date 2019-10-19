@@ -1,4 +1,5 @@
 #include "thorin/pass/partial_eval.h"
+#if 0
 
 #include "thorin/rewrite.h"
 
@@ -19,3 +20,4 @@ const Def* PartialEval::rewrite(const Def* def) {
 }
 
 }
+#endif

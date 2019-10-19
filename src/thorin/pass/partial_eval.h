@@ -1,6 +1,7 @@
 #ifndef THORIN_PASS_PARTIAL_EVAL_H
 #define THORIN_PASS_PARTIAL_EVAL_H
 
+#if 0
 #include "thorin/pass/pass.h"
 
 namespace thorin {
@@ -16,4 +17,5 @@ public:
 
 }
 
+#endif
 #endif

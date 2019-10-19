@@ -88,6 +88,8 @@ public:
 
     bool empty() const { return queue_.empty(); }
     T pop() { return thorin::pop(queue_); }
+    T& front() { return queue_.front(); }
+    T& back() { return queue_.back(); }
 
 private:
     Set done_;

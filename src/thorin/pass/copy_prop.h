@@ -1,6 +1,7 @@
 #ifndef THORIN_PASS_COPY_PROP_H
 #define THORIN_PASS_COPY_PROP_H
 
+#if 0
 #include "thorin/pass/pass.h"
 
 namespace thorin {
@@ -45,4 +46,5 @@ private:
 
 }
 
+#endif
 #endif

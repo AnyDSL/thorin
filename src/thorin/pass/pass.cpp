@@ -30,43 +30,50 @@ void PassMan::run() {
     }
 
     while (!noms.empty()) {
-        auto nom = noms.front();
-        if (!nom->is_set()) continue;
-        Scope scope(nom);
+        auto old_entry = noms.front();
+
+        new_entry_ = stub(old_entry);
+        global_map(old_entry, new_entry_);
+
+        if (!new_entry_->is_set()) {
+            noms.pop();
+            continue;
+        }
+
+        Scope scope(cur_nom_);
+        old_scope_ = &scope;
 
         scope_passes_.clear();
         for (auto& pass : passes_) {
             if (pass->enter(scope)) scope_passes_.push_back(pass.get());
         }
 
-        if (auto new_nom = run(scope)) {
-            nom->set(new_nom->ops());
-            new_nom->unset();
+        if (run(scope)) {
             noms.pop();
+            world().DLOG("done: {}", cur_nom_);
         } else {
+            world().DLOG("retry: {}", cur_nom_);
             for (auto& pass : passes_) pass->retry();
             continue;
         }
 
+        scope.update();
         scope.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
 
         while (!defs.empty()) {
             for (auto op : defs.pop()->extended_ops()) push(op);
         }
+        world().DLOG("xxxx: {}", cur_nom_);
     }
 
     cleanup(world_);
 }
 
-Def* PassMan::run(Scope& scope) {
-    scope_ = &scope;
+bool PassMan::run(Def* new_entry) {
+    scope_old2new_.clear();
 
-    Def2Def old2new;
-
-    auto lookup = [&](const Def* old_def) {
-        if (auto new_def = old2new.lookup(old_def)) return *new_def;
-        return old_def;
-    };
+    Scope new_scope(new_entry);
+    new_scope_ = &new_scope;
 
     auto make_new_ops = [&](const Def* def, bool& changed) {
         return Array<const Def*>(def->num_ops(), [&](size_t i) {
@@ -108,9 +115,11 @@ Def* PassMan::run(Scope& scope) {
     while (!noms.empty()) {
         auto old_nom = pop(noms);
         auto new_nom = stub(old_nom);
-        old2new[old_nom] = new_nom;
+        map(old_nom, new_nom);
 
         for (auto pass : scope_passes_) pass->enter(new_nom);
+
+        world().DLOG("{}", old_nom);
 
         push(old_nom);
 
@@ -119,7 +128,7 @@ Def* PassMan::run(Scope& scope) {
 
             if (!push(def)) {
                 auto new_type = lookup(def->type());
-                auto new_dbg  = lookup(def->debug());
+                auto new_dbg  = def->debug() ? lookup(def->debug()) : def->debug();
 
                 bool changed = false;
                 changed |= new_type != def->type();
@@ -128,7 +137,7 @@ Def* PassMan::run(Scope& scope) {
                 auto new_def = changed ? def->rebuild(world(), new_type, new_ops, def->debug()) : def;
 
                 for (auto pass : scope_passes_) new_def = pass->rewrite(new_def);
-                old2new[def] = new_def;
+                map(def, new_def);
                 defs.pop();
             }
         }
@@ -136,18 +145,19 @@ Def* PassMan::run(Scope& scope) {
         bool changed = false;
         auto new_ops = make_new_ops(old_nom, changed);
         new_nom->set(new_ops);
+        new_scope.update();
         for (auto op : new_nom->extended_ops()) {
             if (!analyze(op)) return nullptr;
         }
     }
 
-    return stub(scope.entry());
+    return new_entry;
 }
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || !scope().contains(def) || analyzed_.emplace(def).second) return true;
+    if (def->is_const() || def->isa_nominal() || !new_scope().contains(def) || analyzed_.emplace(def).second) return true;
 
-    for (auto op : def->ops()) analyze(op);
+    for (auto op : def->extended_ops()) analyze(op);
     for (auto pass : scope_passes_) {
         if (!pass->analyze(def)) return false;
     }

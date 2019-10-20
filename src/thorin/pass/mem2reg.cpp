@@ -5,7 +5,7 @@
 namespace thorin {
 
 static const Def* proxy_type(const Analyze* proxy) { return as<Tag::Ptr>(proxy->type())->arg(0); }
-static std::tuple<Lam*, const Analyze*> disassemble_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
+static std::tuple<Lam*, const Analyze*> split_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
 
 const Analyze* Mem2Reg::isa_proxy(const Def* def) {
     if (auto analyze = isa<Analyze>(index(), def); analyze && !analyze->op(1)->isa<Analyze>()) return analyze;
@@ -18,6 +18,7 @@ const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
+    world().DLOG("rewrite: {}", def);
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
         auto orig = original(man().cur_nom<Lam>());
@@ -65,7 +66,7 @@ void Mem2Reg::inspect(Def* def) {
             info.lattice = Info::Keep;
         } else if (info.lattice != Info::Keep) {
             auto& info = lam2info_[old_lam];
-            auto& phis = lam2phis_ [old_lam];
+            auto& phis = lam2phis_[old_lam];
 
             if (info.lattice == Info::PredsN && !phis.empty()) {
                 std::vector<const Def*> types;
@@ -103,8 +104,8 @@ void Mem2Reg::enter(Def* def) {
             world().DLOG("enter: {}/{}", old_lam, new_lam);
             size_t n = new_lam->num_params() - phis.size();
 
-            //auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
-            //man().map(old_lam->param(), new_param);
+            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
+            man().map(old_lam->param(), new_param);
             new_lam->set(old_lam->ops());
 
             size_t i = 0;
@@ -140,11 +141,12 @@ const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
 }
 
 bool Mem2Reg::analyze(const Def* def) {
+    world().DLOG("analyze: {}", def);
     if (def->isa<Param>()) return true;
 
     // we need to install a phi in lam next time around
     if (auto phi = isa_virtual_phi(def)) {
-        auto [phi_lam, proxy] = disassemble_virtual_phi(phi);
+        auto [phi_lam, proxy] = split_virtual_phi(phi);
 
         auto& phi_info   = lam2info_[phi_lam];
         auto& phis = lam2phis_[phi_lam];

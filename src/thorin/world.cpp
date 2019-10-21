@@ -315,6 +315,8 @@ const Def* World::choose(const Def* type, const Def* value, Debug dbg) {
 }
 
 const Def* World::which(const Def* value, Debug dbg) {
+    if (auto variant = value->isa<Variant>())
+        return variant->value()->type();
     return unify<Which>(1, value->type()->type(), value, debug(dbg));
 }
 

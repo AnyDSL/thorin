@@ -112,6 +112,8 @@ void Def::finalize() {
             assert_unused(p.second);
         }
     }
+
+    if (!type()->is_const()) type()->uses_.emplace(this, -1);
 }
 
 Def* Def::set(size_t i, const Def* def) {
@@ -303,8 +305,6 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
         hash_ = hash_combine(hash_begin(node), type->gid(), fields_);
         for (auto op : ops)
             hash_ = hash_combine(hash_, op->gid());
-
-        if (!type->is_const()) type->uses_.emplace(this, -1);
     }
 }
 

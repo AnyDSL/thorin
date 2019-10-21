@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-bool is_memop(const Def* def) { return def->isa<App>() && def->out(0)->type()->isa<Mem>(); }
+bool is_memop(const Def* def) { return def->isa<App>() && isa<Tag::Mem>(def->out(0)->type()); }
 
 bool is_unit(const Def* def) {
     return def->type() == def->world().sigma();

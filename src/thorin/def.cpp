@@ -177,7 +177,7 @@ void Def::replace(Tracker with) const {
  */
 
 const Def* Lam::mem_param(thorin::Debug dbg) {
-    return param(0)->type()->isa<Mem>() ? param(0, dbg) : nullptr;
+    return thorin::isa<Tag::Mem>(param(0)->type()) ? param(0, dbg) : nullptr;
 }
 
 const Def* Lam::ret_param(thorin::Debug dbg) {
@@ -346,10 +346,6 @@ Nat::Nat(World& world)
     : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
-Mem::Mem(World& world)
-    : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
-{}
-
 const Param* Def::param(Debug dbg) {
     if (auto lam    = isa<Lam  >()) return world().param(lam ->domain(), lam,    dbg);
     if (auto ptrn   = isa<Ptrn >()) return world().param(ptrn->domain(), ptrn,   dbg);
@@ -409,7 +405,6 @@ const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) con
 const Def* Lam     ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Lit     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
 const Def* Match   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.match(o[0], o.skip_front(), dbg); }
-const Def* Mem     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_mem(); }
 const Def* Nat     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_nat(); }
 const Def* Pack    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
@@ -440,7 +435,6 @@ bool Universe::is_value() const { return false; }
 bool Kind    ::is_value() const { return false; }
 bool Arr     ::is_value() const { return false; }
 bool Case    ::is_value() const { return false; }
-bool Mem     ::is_value() const { return false; }
 bool Nat     ::is_value() const { return false; }
 bool Pi      ::is_value() const { return false; }
 bool Sigma   ::is_value() const { return false; }
@@ -462,7 +456,6 @@ bool Universe::is_type() const { return false; }
 bool Kind    ::is_type() const { return false; }
 bool Arr     ::is_type() const { return true; }
 bool Case    ::is_type() const { return true; }
-bool Mem     ::is_type() const { return true; }
 bool Nat     ::is_type() const { return true; }
 bool Pi      ::is_type() const { return true; }
 bool Sigma   ::is_type() const { return true; }

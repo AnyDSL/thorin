@@ -34,7 +34,7 @@ public:
         for (auto node : scope.f_cfg().reverse_post_order()) {
             auto nom = node->nominal();
             for (auto param : nom->params()) {
-                if (param->type()->isa<Mem>()) {
+                if (isa<Tag::Mem>(param->type())) {
                     Def2Def mapping;
                     resolve_loads(param, mapping);
                 }

@@ -21,10 +21,6 @@ const Def* merge_tuple(const Def* def, Defs defs);
 std::string tuple2str(const Def*);
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
-// TODO put this somewhere else
-template<tag_t tag> struct Tag2Def_   { using type = App; };
-template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
-
 template<class F, class D>
 class Query {
 public:

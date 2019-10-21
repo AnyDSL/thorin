@@ -39,20 +39,18 @@ World::World(const std::string& name) {
     data_.top_arity_     = insert<Top>(0, kind(Kind::Arity), nullptr);
     data_.sigma_         = insert<Sigma>(0, kind(Kind::Star), Defs{}, nullptr)->as<Sigma>();
     data_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
-    data_.type_mem_      = insert<Mem>(0, *this);
-    data_.type_nat_      = insert<Nat>(0, *this);
     data_.type_bool_     = lit_arity(2);
     data_.lit_bool_[0]   = lit_index(2, 0);
     data_.lit_bool_[1]   = lit_index(2, 1);
 
     auto star = kind(Kind::Star);
-    auto nat = type_nat();
-    auto mem = type_mem();
+    auto nat = data_.type_nat_ = insert<Nat>(0, *this);
+    auto mem = data_.type_mem_ = axiom(star, Tag::Mem, 0, {"mem"});
 
     // fill truth tables
     for (size_t i = 0; i != Num<Bit>; ++i) {
         data_.Bit_[i] = tuple({tuple({lit_bool(i & 0x1), lit_bool(i & 0x2)}),
-                                tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
+                               tuple({lit_bool(i & 0x4), lit_bool(i & 0x8)})});
     }
 
     data_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});

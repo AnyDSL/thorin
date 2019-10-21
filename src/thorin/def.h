@@ -1074,23 +1074,6 @@ public:
     friend class World;
 };
 
-/// The type of values that models side effects.
-class Mem : public Def {
-private:
-    Mem(World& world);
-
-public:
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
-    //@}
-
-    static constexpr auto Node = Node::Mem;
-    friend class World;
-};
-
 class Nat : public Def {
 private:
     Nat(World& world);
@@ -1166,6 +1149,10 @@ public:
 };
 
 hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
+
+template<tag_t tag> struct Tag2Def_ { using type = App; };
+template<> struct Tag2Def_<Tag::Mem> { using type = Axiom; };
+template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
 
 //------------------------------------------------------------------------------
 

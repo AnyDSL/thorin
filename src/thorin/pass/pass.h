@@ -73,7 +73,7 @@ public:
     }
 
 private:
-    bool run(Def*);
+    bool enter(Def*);
     bool analyze(const Def*);
 
     World& world_;

@@ -58,7 +58,7 @@ void PassMan::run() {
                 //if (pass->enter(scope)) scope_passes_.push_back(pass.get());
             //}
 
-            if (run(old_entry)) {
+            if (enter(old_entry)) {
                 noms.pop();
                 world().DLOG("done: {}", old_entry);
             } else {
@@ -80,7 +80,7 @@ void PassMan::run() {
     cleanup(world_);
 }
 
-bool PassMan::run(Def* old_entry) {
+bool PassMan::enter(Def* old_entry) {
     scope_old2new_.clear();
 
     //Scope new_scope(new_entry);

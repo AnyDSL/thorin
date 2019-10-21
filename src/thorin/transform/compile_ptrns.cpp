@@ -130,8 +130,7 @@ public:
         size_t col = 0; // TODO: Heuristics
         auto [arg_col, d_arg] = eliminate(arg, col);
         bool has_union = arg_col->type()->reduce()->isa<Union>();
-        //auto ctor = has_union ? world_.which(arg_col) : arg_col; // TODO
-        auto ctor = arg_col;
+        auto ctor = has_union ? world_.which(arg_col) : arg_col;
         auto ctor_type = ctor->type();
         bool d_arg_was_empty = d_arg->type()->reduce() == world_.sigma();
 

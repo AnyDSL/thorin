@@ -314,6 +314,10 @@ const Def* World::choose(const Def* type, const Def* value, Debug dbg) {
     return unify<Choose>(1, type, value, debug(dbg));
 }
 
+const Def* World::which(const Def* value, Debug dbg) {
+    return unify<Which>(1, value->type()->type(), value, debug(dbg));
+}
+
 const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     assertf(ptrns.size() > 0, "match must take at least one pattern");

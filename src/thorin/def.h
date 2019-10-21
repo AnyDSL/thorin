@@ -910,6 +910,20 @@ public:
     friend class World;
 };
 
+class Which : public Def {
+private:
+    Which(const Def* type, const Def* value, const Def* dbg)
+        : Def(Node, rebuild, type, {value}, 0, dbg)
+    {}
+
+public:
+    const Def* value() const { return op(0); }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static constexpr auto Node = Node::Which;
+    friend class World;
+};
+
 /// Matches against a value, using the patterns specified in <tt>cases</tt>.
 class Match : public Def {
 private:

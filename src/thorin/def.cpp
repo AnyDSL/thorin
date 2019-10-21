@@ -37,6 +37,7 @@ bool Def::is_value() const {
         case Node::Sigma:
         case Node::Arr:
         case Node::Union:
+        case Node::Which:
         case Node::Mem:
         case Node::Nat:     return false;
         case Node::Lam:
@@ -64,6 +65,7 @@ bool Def::is_type() const {
         case Node::Sigma:
         case Node::Arr:
         case Node::Union:
+        case Node::Which:
         case Node::Mem:
         case Node::Nat:     return true;
         case Node::Succ:    return as<Succ>()->sigmafy();
@@ -466,6 +468,7 @@ const Def* Tuple   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const
 const Def* Union   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
 const Def* Universe::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
 const Def* Variant ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t, o[0], dbg); }
+const Def* Which   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.which(o[0], dbg); }
 
 /*
  * stub

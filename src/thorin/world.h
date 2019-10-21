@@ -229,10 +229,11 @@ public:
     Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
     Union* union_(size_t size, Debug dbg = {}) { return union_(kind(Kind::Star), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
-    /// @name Variant/Choose
+    /// @name Variant/Choose/Which
     //@{
     const Def* variant(const Def* type, const Def* value, Debug dbg = {});
     const Def* choose(const Def* type, const Def* value, Debug dbg = {});
+    const Def* which(const Def* value, Debug dbg = {});
     //@}
     /// @name Match/Ptrn/Case
     //@{

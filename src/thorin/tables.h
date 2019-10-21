@@ -24,13 +24,12 @@ using nat_t    = u64;
     m(Analyze, analyze)                                                                 \
     m(Axiom, axiom)                                                                     \
     m(Lit, lit)                                                                         \
-    m(Mem, mem)                                                                         \
     m(Nat, nat)                                                                         \
     m(Param, param)                                                                     \
     m(Global, global)
 
 #define THORIN_TAG(m)                                                                                   \
-    m(Int, int) m(SInt, sint) m(Real, real) m(Ptr, ptr)                                                 \
+    m(Mem, mem) m(Int, int) m(SInt, sint) m(Real, real) m(Ptr, ptr)                                     \
     m(Shr, shr) m(WOp, wop) m(ZOp, zop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
     m(Bit, bit)                                                                                         \
     m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                   \

@@ -137,8 +137,6 @@ typedef HashSet<Use, UseHash> Uses;
  */
 class Def : public RuntimeCast<Def>, public Streamable<Def> {
 public:
-    using RebuildFn   = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
-    using StubFn      = Def* (*)(const Def*, World&, const Def*, const Def*);
     using NormalizeFn = const Def* (*)(const Def*, const Def*, const Def*, const Def*);
 
 private:
@@ -147,9 +145,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(node_t, RebuildFn rebuild, const Def* type, Defs ops, fields_t fields, const Def* dbg);
+    Def(node_t, const Def* type, Defs ops, fields_t fields, const Def* dbg);
     /// Constructor for a @em nominal Def.
-    Def(node_t, StubFn stub, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
+    Def(node_t, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
 
 public:
     /// @name node-specific stuff
@@ -165,9 +163,6 @@ public:
     const Def* tuple_arity() const;
     u64 lit_arity() const;
     u64 lit_tuple_arity() const;
-    bool is_value() const; ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
-    bool is_type() const;  ///< Anything that can be the @p type of a value (see @p is_value).
-    bool is_kind() const;  ///< Anything that can be the @p type of a type (see @p is_type).
     //@}
     /// @name ops
     //@{
@@ -293,16 +288,13 @@ public:
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
     //@}
-    /// @name rewrite
+    /// @name virtual methods
     //@{
-    const Def* rebuild(World& world, const Def* type, Defs ops, const Def* dbg) const {
-        assert(!isa_nominal());
-        return rebuild_(this, world, type, ops, dbg);
-    }
-    Def* stub(World& world, const Def* type, const Def* dbg) {
-        assert(isa_nominal());
-        return stub_(this, world, type, dbg);
-    }
+    virtual const Def* rebuild(World&, const Def*, Defs, const Def*) const { THORIN_UNREACHABLE; }
+    virtual Def* stub(World&, const Def*, const Def*) { THORIN_UNREACHABLE; }
+    virtual bool is_value() const { return type()->is_type();                } ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
+    virtual bool is_type()  const { return type()->is_kind();                } ///< Anything that can be the @p type of a value (see @p is_value).
+    virtual bool is_kind()  const { return type()->node() == Node::Universe; } ///< Anything that can be the @p type of a type (see @p is_type).
     //@}
     bool equal(const Def* other) const;
     Stream& stream(Stream& s) const;
@@ -311,10 +303,6 @@ protected:
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 
-    union {
-        RebuildFn rebuild_;
-        StubFn    stub_;
-    };
     union {
         /// @p Axiom%s use this member to store their normalize function and the currying depth.
         TaggedPtr<std::remove_pointer_t<NormalizeFn>, u16> normalizer_depth_;
@@ -387,14 +375,18 @@ Stream& stream_assignment(Stream&, const Def*);
 class Param : public Def {
 private:
     Param(const Def* type, Def* nominal, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{nominal}, 0, dbg)
+        : Def(Node, type, Defs{nominal}, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     Def* nominal() const { return op(0)->as_nominal(); }
-    Lam* lam() const { return nominal()->as<Lam>(); }
-    Pi* pi() const { return nominal()->as<Pi>(); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Param;
     friend class World;
@@ -408,11 +400,17 @@ using Param2Param = ParamMap<const Param*>;
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node, rebuild, reinterpret_cast<const Def*>(&world), Defs{}, 0, nullptr)
+        : Def(Node, reinterpret_cast<const Def*>(&world), Defs{}, 0, nullptr)
     {}
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    bool is_kind()  const override;
+    //@}
 
     static constexpr auto Node = Node::Universe;
     friend class World;
@@ -427,7 +425,13 @@ private:
 
 public:
     Tag tag() const { return Tag(fields()); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    bool is_kind()  const override;
+    //@}
 
     static constexpr auto Node = Node::Kind;
     friend class World;
@@ -438,11 +442,17 @@ private:
     Axiom(NormalizeFn normalizer, const Def* type, tag_t tag, flags_t flags, const Def* dbg);
 
 public:
+    /// @name misc getters
+    //@{
     tag_t tag() const { return fields() >> 32_u64; }
     flags_t flags() const { return fields(); }
     NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
     u16 currying_depth() const { return normalizer_depth_.index(); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Axiom;
     friend class World;
@@ -451,11 +461,14 @@ public:
 class Bot : public Def {
 private:
     Bot(const Def* type, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{}, 0, dbg)
+        : Def(Node, type, Defs{}, 0, dbg)
     {}
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Bot;
     friend class World;
@@ -464,11 +477,14 @@ public:
 class Top : public Def {
 private:
     Top(const Def* type, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{}, 0, dbg)
+        : Def(Node, type, Defs{}, 0, dbg)
     {}
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Top;
     friend class World;
@@ -477,13 +493,16 @@ public:
 class Lit : public Def {
 private:
     Lit(const Def* type, fields_t val, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{}, val, dbg)
+        : Def(Node, type, Defs{}, val, dbg)
     {}
 
 public:
     template<class T = fields_t>
     T get() const { static_assert(sizeof(T) <= 8); return bitcast<T>(fields_); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Lit;
     friend class World;
@@ -505,11 +524,11 @@ class Pi : public Def {
 protected:
     /// Constructor for a @em structural Pi.
     Pi(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
+        : Def(Node, type, {domain, codomain}, 0, dbg)
     {}
     /// Constructor for a @em nominal Pi.
     Pi(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 2, 0, dbg)
+        : Def(Node, type, 2, 0, dbg)
     {}
 
 public:
@@ -531,10 +550,12 @@ public:
     Pi* set_domain(Defs domains);
     Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
     //@}
-    /// @name rewrite
+    /// @name virtual methods
     //@{
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    Pi* stub(World&, const Def*, const Def*) override;
+    bool is_value() const override;
+    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Pi;
@@ -576,10 +597,10 @@ public:
 
 private:
     Lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg)
-        : Def(Node, rebuild, pi, {filter, body}, 0, dbg)
+        : Def(Node, pi, {filter, body}, 0, dbg)
     {}
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
-        : Def(Node, stub, pi, 2, u64(cc) << 8_u64 | u64(intrinsic), dbg)
+        : Def(Node, pi, 2, u64(cc) << 8_u64 | u64(intrinsic), dbg)
     {}
 
 public:
@@ -617,10 +638,12 @@ public:
     void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {});
     void match(const Def* val, Defs cases, const Def* mem, Debug dbg = {});
     //@}
-    /// @name rewrite
+    /// @name virtual methods
     //@{
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    Lam* stub(World&, const Def*, const Def*) override;
+    bool is_value() const override;
+    bool is_type()  const override;
     //@}
     /// @name get/set fields - Intrinsic and CC
     //@{
@@ -648,7 +671,7 @@ using Lam2Lam = LamMap<Lam*>;
 class App : public Def {
 private:
     App(const Axiom* axiom, u16 currying_depth, const Def* type, const Def* callee, const Def* arg, const Def* dbg)
-        : Def(Node, rebuild, type, {callee, arg}, 0, dbg)
+        : Def(Node, type, {callee, arg}, 0, dbg)
     {
         axiom_depth_.set(axiom, currying_depth);
     }
@@ -662,16 +685,22 @@ public:
     const Def* arg() const { return op(1); }
     const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }
     Array<const Def*> args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
+    size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     //@}
     /// @name split arg
     //@{
     template<size_t N = size_t(-1), class F> auto args(F f) const { return arg()->split<N, F>(f); }
     template<size_t N = size_t(-1)> auto args() const { return arg()->split<N>(); }
     //@}
-    size_t num_args() const { return callee_type()->domain()->lit_arity(); }
+    /// @name get axiom and current currying depth
+    //@{
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::App;
     friend class World;
@@ -680,12 +709,18 @@ public:
 class CPS2DS : public Def {
 private:
     CPS2DS(const Def* type, const Def* cps, const Def* dbg)
-        : Def(Node, rebuild, type, { cps }, 0, dbg)
+        : Def(Node, type, { cps }, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* cps() const { return op(0); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::CPS2DS;
     friend class World;
@@ -694,12 +729,18 @@ public:
 class DS2CPS : public Def {
 private:
     DS2CPS(const Def* type, const Def* ds, const Def* dbg)
-        : Def(Node, rebuild, type, { ds }, 0, dbg)
+        : Def(Node, type, { ds }, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* ds() const { return op(0); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::DS2CPS;
     friend class World;
@@ -735,11 +776,11 @@ class Sigma : public Def {
 private:
     /// Constructor for a @em structural Sigma.
     Sigma(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
+        : Def(Node, type, ops, 0, dbg)
     {}
     /// Constructor for a @em nominal Sigma.
     Sigma(const Def* type, size_t size, const Def* dbg)
-        : Def(Node, stub, type, size, 0, dbg)
+        : Def(Node, type, size, 0, dbg)
     {}
 
 public:
@@ -748,10 +789,12 @@ public:
     Sigma* set(size_t i, const Def* def) { return Def::set(i, def)->as<Sigma>(); }
     Sigma* set(Defs ops) { return Def::set(ops)->as<Sigma>(); }
     //@}
-    /// @name rewrite
+    /// @name virtual methods
     //@{
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    Sigma* stub(World&, const Def*, const Def*) override;
+    bool is_value() const override;
+    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Sigma;
@@ -762,11 +805,16 @@ public:
 class Tuple : public Def {
 private:
     Tuple(const Def* type, Defs args, const Def* dbg)
-        : Def(Node, rebuild, type, args, 0, dbg)
+        : Def(Node, type, args, 0, dbg)
     {}
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Tuple;
     friend class World;
@@ -776,18 +824,20 @@ class Union : public Def {
 private:
     /// Constructor for a @em structural Union.
     Union(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
+        : Def(Node, type, ops, 0, dbg)
     {}
     /// Constructor for a @em nominal Union.
     Union(const Def* type, size_t size, const Def* dbg)
-        : Def(Node, stub, type, size, 0, dbg)
+        : Def(Node, type, size, 0, dbg)
     {}
 
 public:
-    /// @name rewrite
+    /// @name virtual methods
     //@{
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    Union* stub(World&, const Def*, const Def*) override;
+    bool is_value() const override;
+    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Union;
@@ -796,12 +846,22 @@ public:
 
 class Which : public Def {
 private:
-    Which(const Def* type, const Def* op, const Def* dbg)
-        : Def(Node, rebuild, type, {op}, 0, dbg)
+    Which(const Def* type, const Def* value, const Def* dbg)
+        : Def(Node, type, {value}, 0, dbg)
     {}
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name ops
+    //@{
+    const Def* value() const { return op(0); }
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
+
     static constexpr auto Node = Node::Which;
     friend class World;
 };
@@ -809,13 +869,21 @@ public:
 class Arr : public Def {
 private:
     Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
+        : Def(Node, type, {domain, codomain}, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* domain() const { return op(0); }
     const Def* codomain() const { return op(1); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Arr;
     friend class World;
@@ -824,21 +892,26 @@ public:
 class Pack : public Def {
 private:
     Pack(const Def* type, const Def* body, const Def* dbg)
-        : Def(Node, rebuild, type, {body}, 0, dbg)
+        : Def(Node, type, {body}, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
+    const Def* body() const { return op(0); }
+    //@}
     /// @name type
     //@{
     const Arr* type() const { return Def::type()->as<Arr>(); }
     const Def* domain() const { return type()->domain(); }
     const Def* codomain() const { return type()->codomain(); }
     //@}
-    /// @name ops
+    /// @name virtual methods
     //@{
-    const Def* body() const { return op(0); }
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
     //@}
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Pack;
     friend class World;
@@ -848,35 +921,49 @@ public:
 class Extract : public Def {
 private:
     Extract(const Def* type, const Def* tuple, const Def* index, const Def* dbg)
-        : Def(Node, rebuild, type, {tuple, index}, 0, dbg)
+        : Def(Node, type, {tuple, index}, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* tuple() const { return op(0); }
     const Def* index() const { return op(1); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Extract;
     friend class World;
 };
 
 /**
- * Creates a new Tuple by inserting <tt>val</tt> at position <tt>index</tt> into <tt>tuple</tt>.
+ * Creates a new Tuple by inserting <tt>value</tt> at position <tt>index</tt> into <tt>tuple</tt>.
  * @attention { This is a @em functional insert.
- *              The val <tt>tuple</tt> remains untouched.
- *              The \p Insert itself is a \em new Tuple which contains the newly created <tt>val</tt>. }
+ *              The value <tt>tuple</tt> remains untouched.
+ *              The \p Insert itself is a \em new Tuple which contains the newly created <tt>value</tt>. }
  */
 class Insert : public Def {
 private:
-    Insert(const Def* tuple, const Def* index, const Def* val, const Def* dbg)
-        : Def(Node, rebuild, tuple->type(), {tuple, index, val}, 0, dbg)
+    Insert(const Def* tuple, const Def* index, const Def* value, const Def* dbg)
+        : Def(Node, tuple->type(), {tuple, index, value}, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* tuple() const { return op(0); }
     const Def* index() const { return op(1); }
-    const Def* val() const { return op(2); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    const Def* value() const { return op(2); }
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Insert;
     friend class World;
@@ -885,13 +972,21 @@ public:
 class Succ : public Def {
 private:
     Succ(const Def* type, bool tuplefy, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{}, tuplefy, dbg)
+        : Def(Node, type, Defs{}, tuplefy, dbg)
     {}
 
 public:
+    /// @name Does this thing collapse into a tuple or a sigma?
+    //@{
     bool tuplefy() const { return fields(); }
     bool sigmafy() const { return !tuplefy(); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Succ;
     friend class World;
@@ -901,15 +996,21 @@ public:
 class Match : public Def {
 private:
     Match(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
+        : Def(Node, type, ops, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* arg() const { return op(0); }
     Defs ptrns() const { return ops().skip_front(); }
     const Def* ptrn(size_t i) const { return op(i + 1); }
     size_t num_ptrns() const { return num_ops() - 1; }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Match;
     friend class World;
@@ -919,13 +1020,21 @@ public:
 class Case : public Def {
 private:
     Case(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
+        : Def(Node, type, {domain, codomain}, 0, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     const Def* domain() const { return op(0); }
     const Def* codomain() const { return op(1); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Case;
     friend class World;
@@ -935,41 +1044,34 @@ public:
 class Ptrn : public Def {
 private:
     Ptrn(const Def* type, const Def* dbg)
-        : Def(Node, stub, type, 2, 0, dbg)
+        : Def(Node, type, 2, 0, dbg)
     {}
 
 public:
-    bool is_trivial() const;
-    bool matches(const Def*) const;
-
+    /// @name ops
+    //@{
+    Ptrn* set(const Def* matcher, const Def* body) { return Def::set({matcher, body})->as<Ptrn>(); }
+    const Def* matcher() const { return op(0); }
+    const Def* body() const { return op(1); }
     /// @name type
     //@{
     const Case* type() const { return Def::type()->as<Case>(); }
     const Def*  domain() const { return type()->domain(); }
     const Def*  codomain() const { return type()->codomain(); }
     //@}
-    /// @name ops
+    /// @name misc getters
     //@{
-    Ptrn* set(const Def* matcher, const Def* body) { return Def::set({matcher, body})->as<Ptrn>(); }
-    const Def* matcher() const { return op(0); }
-    const Def* body() const { return op(1); }
+    bool is_trivial() const;
+    bool matches(const Def*) const;
+    //@}
+    /// @name virtual methods
+    //@{
+    Ptrn* stub(World&, const Def*, const Def*) override;
+    bool is_value() const override;
+    bool is_type()  const override;
     //@}
 
-    static Def* stub(const Def*, World&, const Def*, const Def*);
-
     static constexpr auto Node = Node::Ptrn;
-    friend class World;
-};
-
-/// The type of values that models side effects.
-class Mem : public Def {
-private:
-    Mem(World& world);
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Mem;
     friend class World;
 };
 
@@ -978,7 +1080,12 @@ private:
     Nat(World& world);
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Nat;
     friend class World;
@@ -987,12 +1094,18 @@ public:
 class Analyze : public Def {
 private:
     Analyze(const Def* type, Defs ops, fields_t index, const Def* dbg)
-        : Def(Node, rebuild, type, ops, index, dbg)
+        : Def(Node, type, ops, index, dbg)
     {}
 
 public:
+    /// @name misc getters
+    //@{
     fields_t index() const { return fields(); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
 
     static constexpr auto Node = Node::Analyze;
     friend class World;
@@ -1006,23 +1119,41 @@ public:
 class Global : public Def {
 private:
     Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
-        : Def(Node, rebuild, type, {id, init}, is_mutable, dbg)
+        : Def(Node, type, {id, init}, is_mutable, dbg)
     {}
 
 public:
+    /// @name ops
+    //@{
     /// This thing's sole purpose is to differentiate on global from another.
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
-    bool is_mutable() const { return fields(); }
+    //@}
+    /// @name type
+    //@{
     const App* type() const;
     const Def* alloced_type() const;
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
+    //@}
+    /// @name misc getters
+    //@{
+    bool is_mutable() const { return fields(); }
+    //@}
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World& to, const Def* type, Defs ops, const Def*) const override;
+    bool is_value() const override;
+    bool is_type()  const override;
+    //@}
 
     static constexpr auto Node = Node::Global;
     friend class World;
 };
 
 hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
+
+template<tag_t tag> struct Tag2Def_ { using type = App; };
+template<> struct Tag2Def_<Tag::Mem> { using type = Axiom; };
+template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
 
 //------------------------------------------------------------------------------
 

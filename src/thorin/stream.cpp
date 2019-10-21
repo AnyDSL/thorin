@@ -20,7 +20,6 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
 
     if (false) {}
     else if (def->isa<Universe>())  return s.fmt("□");
-    else if (def->isa<Mem>())       return s.fmt("mem");
     else if (def->isa<Nat>())       return s.fmt("nat");
     else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
     else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());

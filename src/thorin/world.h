@@ -309,9 +309,9 @@ public:
     //@}
     /// @name misc types
     //@{
-    const Nat* type_nat() { return data_.type_nat_; }
-    const Mem* type_mem() { return data_.type_mem_; }
-    const Lit* type_bool() { return data_.type_bool_; }
+    const Nat* type_nat()    { return data_.type_nat_; }
+    const Lit* type_bool()   { return data_.type_bool_; }
+    const Axiom* type_mem()  { return data_.type_mem_; }
     const Axiom* type_int()  { return data_.type_int_; }
     const Axiom* type_sint() { return data_.type_sint_; }
     const Axiom* type_real() { return data_.type_real_; }
@@ -668,7 +668,6 @@ private:
         const Sigma* sigma_;
         const Tuple* tuple_;
         const Nat* type_nat_;
-        const Mem* type_mem_;
         const Lit* type_bool_;
         const Def* table_id;
         const Def* table_not;
@@ -682,6 +681,7 @@ private:
         std::array<const Axiom*, Num<RCmp>> RCmp_;
         std::array<const Axiom*, Num<Conv>> Conv_;
         std::array<const Axiom*, Num<PE>>   PE_;
+        const Axiom* type_mem_;
         const Axiom* type_int_;
         const Axiom* type_sint_;
         const Axiom* type_real_;

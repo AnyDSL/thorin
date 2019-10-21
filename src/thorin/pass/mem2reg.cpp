@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/mem2reg.h"
 
 #include "thorin/util.h"
@@ -216,3 +217,4 @@ bool Mem2Reg::analyze(const Def* def) {
 }
 
 }
+#endif

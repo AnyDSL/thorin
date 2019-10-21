@@ -725,7 +725,7 @@ std::vector<Lam*> World::copy_lams() const {
 
 #if THORIN_ENABLE_CHECKS
 
-const Def* World::lookup_by_gid(u32 gid) {
+const Def* World::lookup_by_gid(gid_t gid) {
     auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
     if (i == data_.defs_.end()) return nullptr;
     return *i;

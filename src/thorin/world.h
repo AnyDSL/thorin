@@ -502,7 +502,7 @@ public:
             std::ostringstream oss;
             oss << loc;
             stream().fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
-            stream().fmt(fmt, std::forward<Args&&>(args)...).endl();
+            stream().fmt(fmt, std::forward<Args&&>(args)...).endl().flush();
         }
     }
 

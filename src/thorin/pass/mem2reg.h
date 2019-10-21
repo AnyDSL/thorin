@@ -20,9 +20,10 @@ public:
         : Pass(man, index)
     {}
 
-    const Def* rewrite(const Def*) override;
+    bool enter_scope(Def*) override;
+    bool enter_nominal(Def*) override;
     void inspect(Def*) override;
-    void enter(Def*) override;
+    const Def* rewrite(const Def*) override;
     bool analyze(const Def*) override;
 
     struct Info {

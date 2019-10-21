@@ -126,13 +126,14 @@ typedef HashSet<Use, UseHash> Uses;
 //------------------------------------------------------------------------------
 
 /**
- * Base class for all Def%s.
- * The data layout (see World::alloc) looks like this:
-\verbatim
-|| Def | op(0) ... op(num_ops-1) ||
-\endverbatim
+ * Base class for all @p Def%s.
+ * The data layout (see @p World::alloc) looks like this:
+@verbatim
+|| Def debug type | op(0) ... op(num_ops-1) ||
+      |-------------extended_ops-------------|
+@endverbatim
  * This means that any subclass of @p Def must not introduce additional members.
- * See App or Lit how this is done.
+ * See also @p Def::extended_ops.
  */
 class Def : public RuntimeCast<Def>, public Streamable<Def> {
 public:

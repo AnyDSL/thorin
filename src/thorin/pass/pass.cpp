@@ -4,8 +4,6 @@
 
 namespace thorin {
 
-bool Pass::enter(Scope& scope) { return scope.entry()->isa<Lam>(); }
-
 Def* PassMan::stub(Def* old_nom) {
     if (auto new_nom = stubs_.lookup(old_nom)) return *new_nom;
     auto new_dbg = old_nom->debug() ? lookup(old_nom->debug()) : nullptr;
@@ -13,6 +11,8 @@ Def* PassMan::stub(Def* old_nom) {
 }
 
 void PassMan::run() {
+    world().ILOG("PassMan start");
+
     unique_queue<NomSet> noms;
     unique_stack<DefSet> defs;
 
@@ -29,12 +29,13 @@ void PassMan::run() {
     };
 
     auto externals = world().externals(); // copy
-
     for (const auto& [name, old_nom] : externals) {
         assert(old_nom->is_set() && "external must not be empty");
         push(old_nom);
         push(old_nom->type());
         push(old_nom->debug());
+        old_nom->make_internal();
+        lookup(old_nom)->make_external();
     }
 
     while (!defs.empty() || !noms.empty()) {
@@ -43,26 +44,33 @@ void PassMan::run() {
         }
 
         while (!noms.empty()) {
-            auto old_entry = noms.front();
+            old_entry_ = noms.front();
+            new_entry_ = lookup(old_entry_);
 
-            if (!old_entry->is_set()) {
+            if (!old_entry_->is_set()) {
                 noms.pop();
                 continue;
             }
 
-            Scope scope(old_entry);
+            Scope scope(old_entry_);
             old_scope_ = &scope;
 
-            //scope_passes_.clear();
-            //for (auto& pass : passes_) {
-                //if (pass->enter(scope)) scope_passes_.push_back(pass.get());
-            //}
+            scope_old2new_.clear();
+            scope_passes_.clear();
+            new_scope_ = nullptr;
 
-            if (enter(old_entry)) {
+            for (auto& pass : passes_) {
+                if (pass->enter_scope(new_entry_)) {
+                    pass->clear();
+                    scope_passes_.push_back(pass.get());
+                }
+            }
+
+            if (enter()) {
                 noms.pop();
-                world().DLOG("done: {}", old_entry);
+                world().DLOG("done: {}", old_entry_);
             } else {
-                world().DLOG("retry: {}", old_entry);
+                world().DLOG("retry: {}", old_entry_);
                 for (auto& pass : passes_) pass->retry();
                 continue;
             }
@@ -71,21 +79,14 @@ void PassMan::run() {
         }
     }
 
-    for (const auto& [name, old_nom] : externals) {
-        old_nom->make_internal();
+    for (const auto& [name, old_nom] : externals)
         old_nom->unset();
-        lookup(old_nom)->as_nominal()->make_external();
-    }
 
+    world().ILOG("PassMan done");
     cleanup(world_);
 }
 
-bool PassMan::enter(Def* old_entry) {
-    scope_old2new_.clear();
-
-    //Scope new_scope(new_entry);
-    //new_scope_ = &new_scope;
-
+bool PassMan::enter() {
     unique_stack<DefSet> defs;
     std::queue<Def*> noms;
     NomSet done;
@@ -93,12 +94,13 @@ bool PassMan::enter(Def* old_entry) {
     auto push = [&](const Def* def) {
         auto push = [&](const Def* def) {
             if (!def->is_const()) {
-                if (old_scope().contains(def)) {
+                if (old_scope_->contains(def)) {
                     if (auto old_nom = def->isa_nominal()) {
                         if (done.emplace(old_nom).second) {
                             noms.push(old_nom);
-                            //for (auto& pass : scope_passes_) pass->inspect(nom);
-                            scope_map(old_nom, stub(old_nom));
+                            auto new_nom = stub(old_nom);
+                            scope_map(old_nom, new_nom);
+                            for (auto& pass : scope_passes_) pass->inspect(new_nom);
                             return true;
                         }
                     } else {
@@ -114,23 +116,22 @@ bool PassMan::enter(Def* old_entry) {
         return todo;
     };
 
-    noms.push(old_entry);
+    noms.push(old_entry_);
 
     while (!noms.empty()) {
-        auto old_nom = pop(noms);
+        old_nom_ = pop(noms);
+        new_nom_ = lookup(old_nom_);
 
-        //for (auto pass : scope_passes_) pass->enter(new_nom);
+        for (auto pass : scope_passes_) pass->enter_nominal(new_nom_);
 
-        world().DLOG("{}", old_nom);
-
-        push(old_nom);
+        push(old_nom_);
 
         while (!defs.empty()) {
             auto old_def = defs.top();
 
             if (!push(old_def)) {
                 auto new_type = lookup(old_def->type());
-                auto new_dbg  = old_def->debug() ? lookup(old_def->debug()) : old_def->debug();
+                auto new_dbg  = old_def->debug() ? lookup(old_def->debug()) : nullptr;
                 Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return lookup(old_def->op(i)); });
                 auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
@@ -140,8 +141,20 @@ bool PassMan::enter(Def* old_entry) {
             }
         }
 
-        Array<const Def*> new_ops(old_nom->num_ops(), [&](size_t i) { return lookup(old_nom->op(i)); });
-        lookup(old_nom)->as_nominal()->set(new_ops);
+        Array<const Def*> new_ops(old_nom_->num_ops(), [&](size_t i) { return lookup(old_nom_->op(i)); });
+        new_nom_->set(new_ops);
+
+        if (new_scope_)
+            new_scope_->update();
+        else
+            new_scope_ = std::make_unique<Scope>(new_entry_);
+
+        for (auto op : new_nom_->extended_ops()) {
+            if (!analyze(op)) {
+                for (auto& pass : scope_passes_) pass->retry();
+                return false;
+            }
+        }
     }
 
     return true;

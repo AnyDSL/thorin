@@ -52,10 +52,10 @@ struct Debug {
     Debug(Name name,
           Name filename = "",
           nat_t front_line = nat_t(-1),
-          nat_t front_col = nat_t(-1),
-          nat_t back_line = nat_t(-1),
-          nat_t back_col = nat_t(-1),
-          const Def* meta = nullptr)
+          nat_t front_col  = nat_t(-1),
+          nat_t back_line  = nat_t(-1),
+          nat_t back_col   = nat_t(-1),
+          const Def* meta  = nullptr)
         : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col, meta))
     {}
     Debug(Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
@@ -148,6 +148,7 @@ protected:
     Def(node_t, const Def* type, Defs ops, fields_t fields, const Def* dbg);
     /// Constructor for a @em nominal Def.
     Def(node_t, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
+    virtual ~Def() {}
 
 public:
     /// @name node-specific stuff

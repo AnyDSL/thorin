@@ -181,8 +181,9 @@ World::World(const std::string& name) {
     }
 }
 
-// must be here to avoid inclusion of some includes in world.h
-World::~World() {}
+World::~World() {
+    for (auto def : data_.defs_) def->~Def();
+}
 
 /*
  * core calculus

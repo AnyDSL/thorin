@@ -17,30 +17,32 @@ void PassMan::run() {
     unique_stack<DefSet> defs;
 
     auto push = [&](const Def* def) {
-        if (!def->is_const()) {
-            if (auto old_nom = def->isa_nominal()) {
-                auto new_nom = stub(old_nom);
-                global_map(old_nom, new_nom);
-                noms.push(old_nom);
-            } else {
-                defs.push(def);
-            }
-        }
+        if (!def->is_const()) defs.push(def);
     };
 
     auto externals = world().externals(); // copy
     for (const auto& [name, old_nom] : externals) {
         assert(old_nom->is_set() && "external must not be empty");
-        push(old_nom);
-        push(old_nom->type());
-        push(old_nom->debug());
+        defs.push(old_nom);
+        auto new_nom = stub(old_nom);
         old_nom->make_internal();
-        lookup(old_nom)->make_external();
+        new_nom->make_external();
     }
 
     while (!defs.empty() || !noms.empty()) {
         while (!defs.empty()) {
-            for (auto op : defs.pop()->extended_ops()) push(op);
+            auto old_def = defs.pop();
+
+            push(old_def->type());
+            if (old_def->debug()) push(old_def->debug());
+
+            if (auto old_nom = old_def->isa_nominal()) {
+                auto new_nom = stub(old_nom);
+                global_map(old_nom, new_nom);
+                noms.push(old_nom);
+            } else {
+                for (auto op : old_def->ops()) push(op);
+            }
         }
 
         while (!noms.empty()) {
@@ -58,6 +60,7 @@ void PassMan::run() {
             scope_old2new_.clear();
             scope_passes_.clear();
             new_scope_ = nullptr;
+            analyzed_.clear();
 
             for (auto& pass : passes_) {
                 if (pass->enter_scope(new_entry_)) {
@@ -122,7 +125,10 @@ bool PassMan::enter() {
         old_nom_ = pop(noms);
         new_nom_ = lookup(old_nom_);
 
-        for (auto pass : scope_passes_) pass->enter_nominal(new_nom_);
+        nom_passes_.clear();
+        for (auto pass : scope_passes_) {
+            if (pass->enter_nominal(new_nom_)) nom_passes_.push_back(pass);
+        }
 
         push(old_nom_);
 
@@ -135,7 +141,7 @@ bool PassMan::enter() {
                 Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return lookup(old_def->op(i)); });
                 auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
-                //for (auto pass : scope_passes_) new_def = pass->rewrite(new_def);
+                for (auto pass : nom_passes_) new_def = pass->rewrite(new_def);
                 scope_map(old_def, new_def);
                 defs.pop();
             }
@@ -151,7 +157,7 @@ bool PassMan::enter() {
 
         for (auto op : new_nom_->extended_ops()) {
             if (!analyze(op)) {
-                for (auto& pass : scope_passes_) pass->retry();
+                for (auto& pass : nom_passes_) pass->retry();
                 return false;
             }
         }
@@ -161,10 +167,11 @@ bool PassMan::enter() {
 }
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || def->isa_nominal() || !new_scope().contains(def) || analyzed_.emplace(def).second) return true;
+    if (def->is_const() || def->isa_nominal() || !new_scope().contains(def) || !analyzed_.emplace(def).second) return true;
+    world().DLOG("analyze: {}", def);
 
     for (auto op : def->extended_ops()) analyze(op);
-    for (auto pass : scope_passes_) {
+    for (auto pass : nom_passes_) {
         if (!pass->analyze(def)) return false;
     }
 

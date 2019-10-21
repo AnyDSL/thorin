@@ -11,9 +11,10 @@ class PassMan;
 /// All @p Pass%es that want to be registered in the @p PassMan must implement this interface.
 class Pass {
 public:
-    Pass(PassMan& man, size_t index)
+    Pass(PassMan& man, size_t index, const std::string& name)
         : man_(man)
         , index_(index)
+        , name_(name)
     {}
     virtual ~Pass() {}
 
@@ -37,6 +38,7 @@ public:
 private:
     PassMan& man_;
     size_t index_;
+    std::string name_;
 };
 
 /**
@@ -82,6 +84,7 @@ private:
     Def* new_nom_ = nullptr;
     std::vector<std::unique_ptr<Pass>> passes_;
     std::vector<Pass*> scope_passes_;
+    std::vector<Pass*> nom_passes_;
     DefSet analyzed_;
     Nom2Nom stubs_;
     Def2Def  scope_old2new_;

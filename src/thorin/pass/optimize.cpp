@@ -18,17 +18,19 @@ void optimize(World& world) {
     //.create<CopyProp>()
     //.create<PartialEval>()
     //.create<Inliner>()
-    //.create<Mem2Reg>()
+    .create<Mem2Reg>()
     .run();
 }
 
 void optimize_old(World& world) {
     optimize(world);
+    /*
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
     codegen_prepare(world);
+    */
 }
 
 }

@@ -17,7 +17,7 @@ namespace thorin {
 class Mem2Reg : public Pass {
 public:
     Mem2Reg(PassMan& man, size_t index)
-        : Pass(man, index)
+        : Pass(man, index, "mem2reg")
     {}
 
     bool enter_scope(Def*) override;
@@ -25,6 +25,8 @@ public:
     void inspect(Def*) override;
     const Def* rewrite(const Def*) override;
     bool analyze(const Def*) override;
+    void retry() override;
+    void clear() override;
 
     struct Info {
         enum Lattice { Preds0, Preds1, PredsN, Keep };

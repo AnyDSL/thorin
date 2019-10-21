@@ -1,4 +1,3 @@
-#if 0
 #include "thorin/pass/mem2reg.h"
 
 #include "thorin/util.h"
@@ -18,16 +17,44 @@ const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
     return nullptr;
 }
 
+bool Mem2Reg::enter_scope(Def* def) { return def->isa<Lam>();}
+
+bool Mem2Reg::enter_nominal(Def* def) {
+    if (auto new_lam = def->isa<Lam>()) {
+        world().DLOG("enter: {}", new_lam);
+
+        if (auto old_lam_opt = new2old_.lookup(new_lam)) {
+            auto old_lam = *old_lam_opt;
+
+            auto& phis = lam2phis_[old_lam];
+
+            world().DLOG("enter: {}/{}", old_lam, new_lam);
+            size_t n = new_lam->num_params() - phis.size();
+
+            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
+            man().scope_map(old_lam->param(), new_param);
+            new_lam->set(old_lam->ops());
+
+            size_t i = 0;
+            for (auto phi : phis)
+                set_val(new_lam, phi, new_lam->param(n + i++));
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 const Def* Mem2Reg::rewrite(const Def* def) {
-    world().DLOG("rewrite: {}", def);
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
-        auto orig = original(man().cur_nom<Lam>());
+        auto orig = original(man().new_nom<Lam>());
         auto slot_id = lam2info_[orig].num_slots++;
         auto proxy = world().analyze(out_ptr->type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
         if (!keep_.contains(proxy)) {
             set_val(proxy, world().bot(proxy_type(proxy)));
-            lam2info_[man().cur_nom<Lam>()].writable.emplace(proxy);
+            lam2info_[man().new_nom<Lam>()].writable.emplace(proxy);
             return world().tuple({slot->arg(), proxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
@@ -37,7 +64,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
         if (auto proxy = isa_proxy(ptr)) {
-            if (lam2info_[man().cur_nom<Lam>()].writable.contains(proxy)) {
+            if (lam2info_[man().new_nom<Lam>()].writable.contains(proxy)) {
                 set_val(proxy, val);
                 return mem;
             }
@@ -88,30 +115,6 @@ void Mem2Reg::inspect(Def* def) {
                 info.new_lam = new_lam;
                 lam2info_[new_lam].lattice = Info::PredsN;
             }
-        }
-    }
-}
-
-void Mem2Reg::enter(Def* def) {
-    if (auto new_lam = def->isa<Lam>()) {
-        world().DLOG("enter: {}", new_lam);
-
-        if (auto old_lam_opt = new2old_.lookup(new_lam)) {
-            auto old_lam = *old_lam_opt;
-            if (!old_lam->is_set()) return;
-
-            auto& phis = lam2phis_[old_lam];
-
-            world().DLOG("enter: {}/{}", old_lam, new_lam);
-            size_t n = new_lam->num_params() - phis.size();
-
-            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
-            man().map(old_lam->param(), new_param);
-            new_lam->set(old_lam->ops());
-
-            size_t i = 0;
-            for (auto phi : phis)
-                set_val(new_lam, phi, new_lam->param(n + i++));
         }
     }
 }
@@ -179,12 +182,12 @@ bool Mem2Reg::analyze(const Def* def) {
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
             // TODO optimize
-            if (lam->is_basicblock() && lam != man().cur_nom<Lam>())
-                lam2info_[lam].writable.insert_range(range(lam2info_[man().cur_nom<Lam>()].writable));
+            if (lam->is_basicblock() && lam != man().new_nom<Lam>())
+                lam2info_[lam].writable.insert_range(range(lam2info_[man().new_nom<Lam>()].writable));
             auto orig = original(lam);
             auto& info = lam2info_[orig];
             auto& phis = lam2phis_[orig];
-            auto pred = man().cur_nom<Lam>();
+            auto pred = man().new_nom<Lam>();
 
             switch (info.lattice) {
                 case Info::Preds0:
@@ -216,5 +219,16 @@ bool Mem2Reg::analyze(const Def* def) {
     return true;
 }
 
+void Mem2Reg::retry() {
+    lam2info_.clear();
+    new2old_.clear();
+    lam2phis_.clear();
 }
-#endif
+
+void Mem2Reg::clear() {
+    retry();
+    keep_.clear();
+    preds_n_.clear();
+}
+
+}

@@ -842,11 +842,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
 
         auto insert = def->as<Insert>();
-        auto val = lookup(insert->val());
+        auto val = lookup(insert->value());
 
         if (insert->tuple()->type()->isa<Arr>()) {
             auto p = copy_to_alloca();
-            irbuilder_.CreateStore(lookup(insert->val()), p.second);
+            irbuilder_.CreateStore(lookup(insert->value()), p.second);
             return irbuilder_.CreateLoad(p.first);
         }
         // tuple/struct

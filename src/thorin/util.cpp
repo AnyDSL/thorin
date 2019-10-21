@@ -58,8 +58,8 @@ template const Def* proj<false>(const Def*, u64, u64);
 // TODO remove
 Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return extract->tuple()->as<Param>()->lam();
-    return def->as<Param>()->lam();
+        return extract->tuple()->as<Param>()->nominal()->as<Lam>();
+    return def->as<Param>()->nominal()->as<Lam>();
 }
 
 // TODO remove

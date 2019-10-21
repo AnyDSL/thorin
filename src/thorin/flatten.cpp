@@ -14,7 +14,7 @@ static bool should_flatten(const Def* def) {
 }
 
 static void flatten(std::vector<const Def*>& ops, const Def* def) {
-    if (auto a = isa_lit<nat_t>(def->tuple_arity()); a && a != 1 && should_flatten(def)) {
+    if (auto a = isa_lit<nat_t>(def->arity()); a && a != 1 && should_flatten(def)) {
         for (size_t i = 0; i != a; ++i)
             flatten(ops, proj(def, *a, i));
     } else {
@@ -30,7 +30,7 @@ const Def* flatten(const Def* def) {
 }
 
 static const Def* unflatten(Defs defs, const Def* type, size_t& j) {
-    if (auto a = isa_lit<nat_t>(type->tuple_arity()); a && a != 1) {
+    if (auto a = isa_lit<nat_t>(type->arity()); a && a != 1) {
         auto& world = type->world();
         Array<const Def*> ops(*a, [&] (size_t i) { return unflatten(defs, proj(type, *a, i), j); });
         return world.tuple(type, ops);

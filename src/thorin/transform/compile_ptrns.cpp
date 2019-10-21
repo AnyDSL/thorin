@@ -62,12 +62,12 @@ private:
         if (arg_col) {
             // HACK: Handle the case where we have T and we want E::A(T)
             if (d_arg_was_empty) {
-                s_param = world_.insert(world_.bot(arg_col->type()), ctor, s_param);
+                s_param = world_.variant(arg_col->type(), ctor, s_param);
             } else {
                 // We have (T, ...) and we want (E::A(T), ...)
                 const Def* s_param_col = nullptr;
                 std::tie(s_param_col, s_param) = eliminate(s_param, col);
-                s_param = introduce(s_param, col, world_.insert(world_.bot(arg_col->type()), ctor, s_param_col));
+                s_param = introduce(s_param, col, world_.variant(arg_col->type(), ctor, s_param_col));
             }
         } else {
             s_param = introduce(s_param, col, ctor);
@@ -130,7 +130,8 @@ public:
         size_t col = 0; // TODO: Heuristics
         auto [arg_col, d_arg] = eliminate(arg, col);
         bool has_union = arg_col->type()->reduce()->isa<Union>();
-        auto ctor = has_union ? world_.which(arg_col) : arg_col;
+        //auto ctor = has_union ? world_.which(arg_col) : arg_col; // TODO
+        auto ctor = arg_col;
         auto ctor_type = ctor->type();
         bool d_arg_was_empty = d_arg->type()->reduce() == world_.sigma();
 

@@ -156,17 +156,6 @@ public:
     Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
     Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind(Kind::Star), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
-    /// @name Union: structural
-    //@{
-    const Def* union_(const Def* type, Defs ops, Debug dbg = {});
-    /// a @em structural @p Union of type @p star
-    const Def* union_(Defs ops, Debug dbg = {}) { return union_(kind(Kind::Star), ops, dbg); }
-    //@}
-    /// @name Union: nominal
-    //@{
-    Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
-    Union* union_(size_t size, Debug dbg = {}) { return union_(kind(Kind::Star), size, dbg); } ///< a @em nominal @p Sigma of type @p star
-    //@}
     /// @name Arr
     //@{
     const Def* arr(const Def* arity, const Def* body, Debug dbg = {});
@@ -185,10 +174,6 @@ public:
     const Def* tuple_str(const char* s, Debug = {});
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
     const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <tt>[]</tt>
-    //@}
-    /// @name Which
-    //@{
-    const Def* which(const Def* value, Debug dbg = {});
     //@}
     /// @name Pack
     //@{
@@ -232,6 +217,22 @@ public:
     /// @name Succ
     //@{
     const Def* succ(const Def* type, bool tuplefy, Debug dbg = {});
+    //@}
+    /// @name Union: structural
+    //@{
+    const Def* union_(const Def* type, Defs ops, Debug dbg = {});
+    /// a @em structural @p Union of type @p star
+    const Def* union_(Defs ops, Debug dbg = {}) { return union_(kind(Kind::Star), ops, dbg); }
+    //@}
+    /// @name Union: nominal
+    //@{
+    Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
+    Union* union_(size_t size, Debug dbg = {}) { return union_(kind(Kind::Star), size, dbg); } ///< a @em nominal @p Sigma of type @p star
+    //@}
+    /// @name Variant/Choose
+    //@{
+    const Def* variant(const Def* type, const Def* value, Debug dbg = {});
+    const Def* choose(const Def* type, const Def* value, Debug dbg = {});
     //@}
     /// @name Match/Ptrn/Case
     //@{

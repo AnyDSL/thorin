@@ -48,7 +48,7 @@ const Def* proj(const Def* def, u64 a, u64 i) {
 }
 
 template<bool no_extract>
-const Def* proj(const Def* def, u64 i) { return proj(def, def->lit_tuple_arity(), i); }
+const Def* proj(const Def* def, u64 i) { return proj(def, def->lit_arity(), i); }
 
 template const Def* proj<true >(const Def*, u64);
 template const Def* proj<false>(const Def*, u64);

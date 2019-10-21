@@ -304,10 +304,14 @@ const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
     return unify<Union>(ops_copy.size(), type, ops_copy, debug(dbg));
 }
 
-const Def* World::which(const Def* value, Debug dbg) {
-    if (auto insert = value->isa<Insert>())
-        return insert->index();
-    return unify<Which>(1, value->type()->arity(), value, debug(dbg));
+const Def* World::variant(const Def* type, const Def* value, Debug dbg) {
+    return unify<Variant>(1, type, value, debug(dbg));
+}
+
+const Def* World::choose(const Def* type, const Def* value, Debug dbg) {
+    if (auto variant = value->isa<Variant>())
+        return variant->type() == type ? variant->value() : bot(type, dbg);
+    return unify<Choose>(1, type, value, debug(dbg));
 }
 
 const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
@@ -385,13 +389,15 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     }
 
     auto type = tup->type()->reduce();
-    assertf(alpha_equiv(type->arity(), index->type()),
-            "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
 
     // Nominal sigmas can be 1-tuples
     if (!tup->type()->isa_nominal<Sigma>() &&
         isa_lit_arity(index->type(), 1))
         return tup;
+
+    assertf(alpha_equiv(type->arity(), index->type()),
+            "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
+
     if (auto pack = tup->isa<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val

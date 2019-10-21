@@ -161,9 +161,7 @@ public:
     const Def* type() const { assert(node() != Node::Universe); return type_; }
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
-    const Def* tuple_arity() const;
     u64 lit_arity() const;
-    u64 lit_tuple_arity() const;
     bool is_value() const; ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
     bool is_type() const;  ///< Anything that can be the @p type of a value (see @p is_value).
     bool is_kind() const;  ///< Anything that can be the @p type of a type (see @p is_type).
@@ -200,11 +198,11 @@ public:
         using R = decltype(f(this));
 
         if constexpr (N == size_t(-1)) {
-            auto a = isa_lit<nat_t>(tuple_arity());
+            auto a = isa_lit<nat_t>(arity());
             auto lit = a ? *a : 1;
             return Array<R>(lit, [&](size_t i) { return f(proj(this, lit, i)); });
         } else {
-            auto a = lit_tuple_arity();
+            auto a = lit_arity();
             assert(a == N);
             std::array<R, N> array;
             for (size_t i = 0; i != N; ++i)
@@ -771,40 +769,6 @@ public:
     friend class World;
 };
 
-class Union : public Def {
-private:
-    /// Constructor for a @em structural Union.
-    Union(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
-    {}
-    /// Constructor for a @em nominal Union.
-    Union(const Def* type, size_t size, const Def* dbg)
-        : Def(Node, stub, type, size, 0, dbg)
-    {}
-
-public:
-    /// @name rewrite
-    //@{
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static Def* stub(const Def*, World&, const Def*, const Def*);
-    //@}
-
-    static constexpr auto Node = Node::Union;
-    friend class World;
-};
-
-class Which : public Def {
-private:
-    Which(const Def* type, const Def* op, const Def* dbg)
-        : Def(Node, rebuild, type, {op}, 0, dbg)
-    {}
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    static constexpr auto Node = Node::Which;
-    friend class World;
-};
-
 class Arr : public Def {
 private:
     Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
@@ -893,6 +857,56 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Succ;
+    friend class World;
+};
+
+class Union : public Def {
+private:
+    /// Constructor for a @em structural Union.
+    Union(const Def* type, Defs ops, const Def* dbg)
+        : Def(Node, rebuild, type, ops, 0, dbg)
+    {}
+    /// Constructor for a @em nominal Union.
+    Union(const Def* type, size_t size, const Def* dbg)
+        : Def(Node, stub, type, size, 0, dbg)
+    {}
+
+public:
+    /// @name rewrite
+    //@{
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
+    //@}
+
+    static constexpr auto Node = Node::Union;
+    friend class World;
+};
+
+class Variant : public Def {
+private:
+    Variant(const Def* type, const Def* value, const Def* dbg)
+        : Def(Node, rebuild, type, {value}, 0, dbg)
+    {}
+
+public:
+    const Def* value() const { return op(0); }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static constexpr auto Node = Node::Variant;
+    friend class World;
+};
+
+class Choose : public Def {
+private:
+    Choose(const Def* type, const Def* value, const Def* dbg)
+        : Def(Node, rebuild, type, {value}, 0, dbg)
+    {}
+
+public:
+    const Def* value() const { return op(0); }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static constexpr auto Node = Node::Choose;
     friend class World;
 };
 

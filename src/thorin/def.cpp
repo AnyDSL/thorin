@@ -43,7 +43,7 @@ bool Def::is_value() const {
         case Node::Tuple:
         case Node::Pack:
         case Node::Insert:
-        case Node::Which:
+        case Node::Variant:
         case Node::Global:  return true;
         case Node::Succ:    return as<Succ>()->tuplefy();
         default:            return type()->is_type();
@@ -58,7 +58,7 @@ bool Def::is_type() const {
         case Node::Tuple:
         case Node::Pack:
         case Node::Insert:
-        case Node::Which:
+        case Node::Variant:
         case Node::Global:  return false;
         case Node::Pi:
         case Node::Sigma:
@@ -81,17 +81,8 @@ bool Def::is_kind() const {
 
 size_t Def::num_params() { return param()->type()->lit_arity(); }
 
-const Def* Def::tuple_arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
-    if (auto arr    = isa<Arr  >()) return arr->domain();
-    if (is_value())                 return type()->tuple_arity();
-    assert(is_type());
-    return world().lit_arity(1);
-}
-
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
-    if (auto union_ = isa<Union>()) return world().lit_arity(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->domain();
     if (is_value())                 return type()->arity();
     assert(is_type());
@@ -99,7 +90,6 @@ const Def* Def::arity() const {
 }
 
 nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
-nat_t Def::lit_tuple_arity() const { return as_lit<nat_t>(tuple_arity()); }
 
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
@@ -455,6 +445,7 @@ const Def* Axiom   ::rebuild(const Def* d, World& w, const Def* t, Defs  , const
 const Def* Bot     ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
 const Def* CPS2DS  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
 const Def* Case    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.case_(o[0], o[1], dbg); }
+const Def* Choose  ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.choose(t, o[0], dbg); }
 const Def* DS2CPS  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
 const Def* Extract ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
 const Def* Global  ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
@@ -474,7 +465,7 @@ const Def* Top     ::rebuild(const Def*  , World& w, const Def* t, Defs  , const
 const Def* Tuple   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Union   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
 const Def* Universe::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
-const Def* Which   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.which(o[0], dbg); }
+const Def* Variant ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t, o[0], dbg); }
 
 /*
  * stub

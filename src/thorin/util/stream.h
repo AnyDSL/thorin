@@ -32,6 +32,7 @@ public:
     Stream& indent() { ++level_; return *this; }
     Stream& dedent() { assert(level_ > 0); --level_; return *this; }
     Stream& endl();
+    Stream& flush() { ostream().flush(); return *this; }
     //@}
     /// @name stream
     //@{

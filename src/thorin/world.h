@@ -201,7 +201,9 @@ public:
     //@}
     /// @name Extract
     //@{
-    const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
+    /// During a rebuild we cannot infer the type if it is not set yet; in this case we rely on @p ex_type.
+    const Def* extract(const Def* ex_type, const Def* agg, const Def* i, Debug dbg = {});
+    const Def* extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(nullptr, agg, i, dbg); }
     const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->reduce()->arity(), i), dbg); }
     /**
      * This infers the arity from @p Def.

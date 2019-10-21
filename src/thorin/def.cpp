@@ -398,7 +398,7 @@ const Def* Bot     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) con
 const Def* CPS2DS  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.cps2ds(o[0], dbg); }
 const Def* Case    ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.case_(o[0], o[1], dbg); }
 const Def* DS2CPS  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.ds2cps(o[0], dbg); }
-const Def* Extract ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.extract(o[0], o[1], dbg); }
+const Def* Extract ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.extract(t, o[0], o[1], dbg); }
 const Def* Global  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.global(o[0], o[1], is_mutable(), dbg); }
 const Def* Insert  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(as<Kind>()->tag()); }

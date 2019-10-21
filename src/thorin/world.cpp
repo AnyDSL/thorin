@@ -409,7 +409,7 @@ const Def* World::extract(const Def* tup, const Def* index, Debug dbg) {
     // extract(insert(x, index, val), index) -> val
     if (auto insert = tup->isa<Insert>()) {
         if (index == insert->index())
-            return insert->val();
+            return insert->value();
     }
 
     if (auto i = isa_lit<u64>(index)) {

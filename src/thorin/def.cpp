@@ -27,60 +27,6 @@ THORIN_NODE(CODE)
     }
 }
 
-// TODO case, ptrn, match
-
-bool Def::is_value() const {
-    switch (node()) {
-        case Node::Kind:
-        case Node::Universe:
-        case Node::Pi:
-        case Node::Sigma:
-        case Node::Arr:
-        case Node::Union:
-        case Node::Which:
-        case Node::Mem:
-        case Node::Nat:     return false;
-        case Node::Lam:
-        case Node::Tuple:
-        case Node::Pack:
-        case Node::Insert:
-        case Node::Variant:
-        case Node::Global:  return true;
-        case Node::Succ:    return as<Succ>()->tuplefy();
-        default:            return type()->is_type();
-    }
-}
-
-bool Def::is_type() const {
-    switch (node()) {
-        case Node::Kind:
-        case Node::Universe:
-        case Node::Lam:
-        case Node::Tuple:
-        case Node::Pack:
-        case Node::Insert:
-        case Node::Variant:
-        case Node::Global:  return false;
-        case Node::Pi:
-        case Node::Sigma:
-        case Node::Arr:
-        case Node::Union:
-        case Node::Which:
-        case Node::Mem:
-        case Node::Nat:     return true;
-        case Node::Succ:    return as<Succ>()->sigmafy();
-        default:            return type()->is_kind();
-    }
-}
-
-bool Def::is_kind() const {
-    switch (node()) {
-        case Node::Kind:     return true;
-        case Node::Universe: return false;
-        default:             return type()->isa<Universe>();
-    }
-}
-
 size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Def::arity() const {
@@ -328,9 +274,8 @@ const Def* Global::alloced_type() const { return type()->arg(0); }
  * constructors
  */
 
-Def::Def(node_t node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields, const Def* dbg)
-    : rebuild_(rebuild)
-    , fields_(fields)
+Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg)
+    : fields_(fields)
     , node_(unsigned(node))
     , nominal_(false)
     , const_(true)
@@ -353,9 +298,8 @@ Def::Def(node_t node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fie
     }
 }
 
-Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
-    : stub_(stub)
-    , fields_(fields)
+Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
+    : fields_(fields)
     , node_(node)
     , nominal_(true)
     , const_(false)
@@ -371,7 +315,7 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
 }
 
 Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg)
-    : Def(Node, rebuild, type, Defs{}, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
+    : Def(Node, type, Defs{}, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
 {
     u16 currying_depth = 0;
     while (auto pi = type->isa<Pi>()) {
@@ -383,17 +327,17 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const 
 }
 
 Kind::Kind(World& world, Tag tag)
-    : Def(Node, rebuild, tag == Star  ? (const Def*) world.universe() :
-                         tag == Multi ? (const Def*) world.kind(Star) :
-                                        (const Def*) world.kind(Multi), Defs{}, fields_t(tag), nullptr)
+    : Def(Node, tag == Star  ? (const Def*) world.universe() :
+                tag == Multi ? (const Def*) world.kind(Star) :
+                               (const Def*) world.kind(Multi), Defs{}, fields_t(tag), nullptr)
 {}
 
 Nat::Nat(World& world)
-    : Def(Node, rebuild, world.kind(Kind::Star), Defs{}, 0, nullptr)
+    : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
 Mem::Mem(World& world)
-    : Def(Node, rebuild, world.kind(Kind::Star), Defs{}, 0, nullptr)
+    : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
 const Param* Def::param(Debug dbg) {
@@ -440,45 +384,98 @@ const Def* Def::reduce() const {
  * rebuild
  */
 
-const Def* Analyze ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
-const Def* App     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
-const Def* Arr     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.arr(o[0], o[1], dbg); }
-const Def* Axiom   ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.axiom(d->as<Axiom>()->normalizer(), t, d->as<Axiom>()->tag(), d->as<Axiom>()->flags(), dbg); }
-const Def* Bot     ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
-const Def* CPS2DS  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
-const Def* Case    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.case_(o[0], o[1], dbg); }
-const Def* Choose  ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.choose(t, o[0], dbg); }
-const Def* DS2CPS  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
-const Def* Extract ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
-const Def* Global  ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
-const Def* Insert  ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Kind    ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
-const Def* Lam     ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
-const Def* Lit     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<nat_t>(d), dbg); }
-const Def* Match   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match(o[0], o.skip_front(), dbg); }
-const Def* Mem     ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
-const Def* Nat     ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
-const Def* Pack    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
-const Def* Param   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
-const Def* Pi      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
-const Def* Sigma   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.sigma(t, o, dbg); }
-const Def* Succ    ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.succ(t, d->as<Succ>()->tuplefy(), dbg); }
-const Def* Top     ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
-const Def* Tuple   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
-const Def* Union   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.union_(t, o, dbg); }
-const Def* Universe::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.universe(); }
-const Def* Variant ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t, o[0], dbg); }
-const Def* Which   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.which(o[0], dbg); }
+const Def* Analyze ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.analyze(t, o, fields(), dbg); }
+const Def* App     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.app(o[0], o[1], dbg); }
+const Def* Arr     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.arr(o[0], o[1], dbg); }
+const Def* Axiom   ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.axiom(normalizer(), t, tag(), flags(), dbg); }
+const Def* Bot     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.bot(t, dbg); }
+const Def* CPS2DS  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.cps2ds(o[0], dbg); }
+const Def* Case    ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.case_(o[0], o[1], dbg); }
+const Def* Choose  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.choose(t, o[0], dbg); }
+const Def* DS2CPS  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.ds2cps(o[0], dbg); }
+const Def* Extract ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.extract(o[0], o[1], dbg); }
+const Def* Global  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.global(o[0], o[1], is_mutable(), dbg); }
+const Def* Insert  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
+const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(as<Kind>()->tag()); }
+const Def* Lam     ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
+const Def* Lit     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
+const Def* Match   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.match(o[0], o.skip_front(), dbg); }
+const Def* Mem     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_mem(); }
+const Def* Nat     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_nat(); }
+const Def* Pack    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
+const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
+const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
+const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
+const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
+const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }
+const Def* Tuple   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }
+const Def* Union   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.union_(t, o, dbg); }
+const Def* Universe::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.universe(); }
+const Def* Variant ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.variant(t, o[0], dbg); }
+const Def* Which   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.which(o[0], dbg); }
 
 /*
  * stub
  */
 
-Def* Lam  ::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
-Def* Pi   ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.pi(t, Debug{dbg}); }
-Def* Ptrn ::stub(const Def*  , World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
-Def* Sigma::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.sigma(t, d->num_ops(), dbg); }
-Def* Union::stub(const Def* d, World& w, const Def* t, const Def* dbg) { return w.union_(t, d->num_ops(), dbg); }
+Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.lam(t->as<Pi>(), cc(), intrinsic(), dbg); }
+Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.pi(t, Debug{dbg}); }
+Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
+Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.sigma(t, num_ops(), dbg); }
+Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.union_(t, num_ops(), dbg); }
+
+/*
+ * is_value
+ */
+
+bool Universe::is_value() const { return false; }
+bool Kind    ::is_value() const { return false; }
+bool Arr     ::is_value() const { return false; }
+bool Case    ::is_value() const { return false; }
+bool Mem     ::is_value() const { return false; }
+bool Nat     ::is_value() const { return false; }
+bool Pi      ::is_value() const { return false; }
+bool Sigma   ::is_value() const { return false; }
+bool Union   ::is_value() const { return false; }
+bool Which   ::is_value() const { return false; }
+bool Global  ::is_value() const { return true; }
+bool Insert  ::is_value() const { return true; }
+bool Lam     ::is_value() const { return true; }
+bool Pack    ::is_value() const { return true; }
+bool Ptrn    ::is_value() const { return true; }
+bool Tuple   ::is_value() const { return true; }
+bool Variant ::is_value() const { return true; }
+bool Succ    ::is_value() const { return as<Succ>()->tuplefy(); }
+
+/*
+ * is_type
+ */
+
+bool Universe::is_type() const { return false; }
+bool Kind    ::is_type() const { return false; }
+bool Arr     ::is_type() const { return true; }
+bool Case    ::is_type() const { return true; }
+bool Mem     ::is_type() const { return true; }
+bool Nat     ::is_type() const { return true; }
+bool Pi      ::is_type() const { return true; }
+bool Sigma   ::is_type() const { return true; }
+bool Union   ::is_type() const { return true; }
+bool Which   ::is_type() const { return true; }
+bool Global  ::is_type() const { return false; }
+bool Insert  ::is_type() const { return false; }
+bool Lam     ::is_type() const { return false; }
+bool Pack    ::is_type() const { return false; }
+bool Ptrn    ::is_type() const { return false; }
+bool Tuple   ::is_type() const { return false; }
+bool Variant ::is_type() const { return false; }
+bool Succ    ::is_type() const { return as<Succ>()->sigmafy(); }
+
+/*
+ * is_kind
+ */
+
+bool Kind    ::is_kind() const { return true; }
+bool Universe::is_kind() const { return false; }
 
 template void Streamable<Def>::dump() const;
 

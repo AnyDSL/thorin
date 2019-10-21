@@ -167,9 +167,9 @@ public:
     /// @name ops
     //@{
     Defs ops() const { return Defs(num_ops_, ops_ptr()); }
-    /// Includes @p debug - if not null and @p dbg is set, @p type(), and then the other @p ops() in this order.
+    /// Includes @p debug (if not null and @p dbg is set), @p type(), and then the other @p ops() (if @p is_set) in this order.
     template<bool dbg = true>
-    Defs extended_ops() const { size_t offset = (dbg && debug()) ? 2 : 1; return Defs(num_ops_ + offset, ops_ptr() - offset); }
+    Defs extended_ops() const { size_t offset = (dbg && debug()) ? 2 : 1; return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset); }
     const Def* op(size_t i) const { return ops()[i]; }
     size_t num_ops() const { return num_ops_; }
     Def* set(size_t i, const Def* def);

@@ -98,22 +98,26 @@ std::string Def::loc() const {
 }
 
 void Def::finalize() {
-    for (auto op : ops()) {
-        const_ &= op->is_const();
-        order_ = std::max(order_, op->order_);
-    }
-
-    if (!isa<Universe>()) const_ &= type()->is_const();
-    if (isa<Pi>()) ++order_;
-
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
         if (!op(i)->is_const()) {
+            const_ = false;
             const auto& p = op(i)->uses_.emplace(this, i);
+            assert_unused(p.second);
+        }
+        order_ = std::max(order_, op(i)->order_);
+    }
+
+    if (!isa<Universe>()) {
+        if (!type()->is_const()) {
+            const_ = false;
+            const auto& p = type()->uses_.emplace(this, -1);
             assert_unused(p.second);
         }
     }
 
-    if (!type()->is_const()) type()->uses_.emplace(this, -1);
+    if (debug()) const_ &= debug()->is_const();
+    if (isa<Pi>()) ++order_;
+    if (isa<Axiom>()) const_ = true;
 }
 
 Def* Def::set(size_t i, const Def* def) {

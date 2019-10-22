@@ -65,6 +65,7 @@ public:
     const Def*  scope_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  scope_old2new_[old_def] = new_def; }
     const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_old2new_[old_def] = new_def; }
     const Def* lookup(const Def* old_def) {
+        // TODO path compression
         if (auto new_def =  scope_old2new_.lookup(old_def)) return lookup(*new_def);
         if (auto new_def = global_old2new_.lookup(old_def)) return lookup(*new_def);
         return old_def;

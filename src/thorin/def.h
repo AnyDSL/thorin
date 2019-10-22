@@ -168,7 +168,7 @@ public:
     /// @name ops
     //@{
     Defs ops() const { return Defs(num_ops_, ops_ptr()); }
-    /// Includes @p debug (if not null and @p dbg is set), @p type(), and then the other @p ops() (if @p is_set) in this order.
+    /// Includes @p debug (if not @c nullptr and @p dbg is set), @p type(), and then the other @p ops() (if @p is_set) in this order.
     template<bool dbg = true>
     Defs extended_ops() const { size_t offset = (dbg && debug()) ? 2 : 1; return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset); }
     const Def* op(size_t i) const { return ops()[i]; }
@@ -177,9 +177,9 @@ public:
     Def* set(Defs ops) { for (size_t i = 0, e = num_ops(); i != e; ++i) set(i, ops[i]); return this; }
     void unset(size_t i);
     void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
-    /// @c true if all operands are set or num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
+    /// @c true if all operands are set or @p num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
     bool is_set() const;
-    /// @p Param%s and @em nominals are not const; everything else using const stuff is const.
+    /// @p Param%s and @em nominals are @em not const; @p Axiom%s are always const; everything else const iff their @p extended_ops are const.
     bool is_const() const { return const_; }
     //@}
     /// @name uses

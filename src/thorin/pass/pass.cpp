@@ -58,20 +58,18 @@ void PassMan::run() {
             old_scope_ = &scope;
 
             scope_old2new_.clear();
-            scope_passes_.clear();
-            new_scope_ = nullptr;
             analyzed_.clear();
+            passes_mask_.clear();
 
-            for (auto& pass : passes_) {
-                if (pass->enter_scope(new_entry_)) {
-                    pass->clear();
-                    scope_passes_.push_back(pass.get());
-                }
+            for (size_t i = 0, e = num_passes(); i != e; ++i) {
+                if (passes_[i]->enter_scope(new_entry_))
+                    passes_mask_.set(i);
             }
 
             if (enter()) {
                 noms.pop();
                 world().DLOG("done: {}", old_entry_);
+                foreach_pass([&](auto pass) { pass->clear(); });
             } else {
                 world().DLOG("retry: {}", old_entry_);
                 for (auto& pass : passes_) pass->retry();
@@ -96,20 +94,18 @@ bool PassMan::enter() {
 
     auto push = [&](const Def* def) {
         auto push = [&](const Def* def) {
-            if (!def->is_const()) {
-                if (old_scope_->contains(def)) {
-                    if (auto old_nom = def->isa_nominal()) {
-                        if (done.emplace(old_nom).second) {
-                            noms.push(old_nom);
-                            auto new_nom = stub(old_nom);
-                            scope_map(old_nom, new_nom);
-                            for (auto& pass : scope_passes_) pass->inspect(new_nom);
-                            return true;
-                        }
-                    } else {
-                        return defs.push(def);
-                    }
+            if (def->is_const() || !old_scope_->contains(def)) return false;
+
+            if (auto old_nom = def->isa_nominal()) {
+                if (done.emplace(old_nom).second) {
+                    noms.push(old_nom);
+                    auto new_nom = stub(old_nom);
+                    scope_map(old_nom, new_nom);
+                    foreach_pass([&](auto pass) { pass->inspect(new_nom); });
+                    return true;
                 }
+            } else {
+                return defs.push(def);
             }
             return false;
         };
@@ -125,9 +121,10 @@ bool PassMan::enter() {
         old_nom_ = pop(noms);
         new_nom_ = lookup(old_nom_);
 
-        nom_passes_.clear();
-        for (auto pass : scope_passes_) {
-            if (pass->enter_nominal(new_nom_)) nom_passes_.push_back(pass);
+        auto old_mask = passes_mask_;
+        for (size_t i = 0, e = num_passes(); i != e; ++i) {
+            if (!passes_[i]->enter_nominal(new_nom_))
+                passes_mask_.clear(i);
         }
 
         push(old_nom_);
@@ -139,9 +136,9 @@ bool PassMan::enter() {
                 auto new_type = lookup(old_def->type());
                 auto new_dbg  = old_def->debug() ? lookup(old_def->debug()) : nullptr;
                 Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return lookup(old_def->op(i)); });
-                auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
-                for (auto pass : nom_passes_) new_def = pass->rewrite(new_def);
+                auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+                foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
                 scope_map(old_def, new_def);
                 defs.pop();
             }
@@ -150,32 +147,33 @@ bool PassMan::enter() {
         Array<const Def*> new_ops(old_nom_->num_ops(), [&](size_t i) { return lookup(old_nom_->op(i)); });
         new_nom_->set(new_ops);
 
-        if (new_scope_)
-            new_scope_->update();
-        else
-            new_scope_ = std::make_unique<Scope>(new_entry_);
-
         for (auto op : new_nom_->extended_ops()) {
             if (!analyze(op)) {
-                for (auto& pass : nom_passes_) pass->retry();
+                passes_mask_ = old_mask;
+                foreach_pass([&](auto pass) { pass->retry(); });
                 return false;
             }
         }
+
+        passes_mask_ = old_mask;
     }
 
     return true;
 }
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || def->isa_nominal() || !new_scope().contains(def) || !analyzed_.emplace(def).second) return true;
-    world().DLOG("analyze: {}", def);
+    if (def->is_const() || def->isa_nominal() || !analyzed_.emplace(def).second) return true;
 
-    for (auto op : def->extended_ops()) analyze(op);
-    for (auto pass : nom_passes_) {
-        if (!pass->analyze(def)) return false;
+    bool result = true;
+    for (auto op : def->extended_ops())
+        result &= analyze(op);
+
+    for (size_t i = 0, e = num_passes(); i != e; ++i) {
+        if (passes_mask_[i])
+            result &= passes_[i]->analyze(def);
     }
 
-    return true;
+    return result;
 }
 
 }

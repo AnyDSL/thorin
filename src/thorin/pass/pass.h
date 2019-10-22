@@ -3,6 +3,7 @@
 
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/bitset.h"
 
 namespace thorin {
 
@@ -53,7 +54,6 @@ public:
     {}
 
     World& world() const { return world_; }
-    Scope& new_scope() const { return *new_scope_; }
     size_t num_passes() const { return passes_.size(); }
     template<class T = Def> T* new_entry() const { return new_entry_->template as<T>(); }
     template<class T = Def> T* new_nom  () const { return new_nom_  ->template as<T>(); }
@@ -74,17 +74,20 @@ public:
 private:
     bool enter();
     bool analyze(const Def*);
+    void foreach_pass(std::function<void(Pass* pass)> f) {
+        for (size_t i = 0, e = num_passes(); i != e; ++i) {
+            if (passes_mask_[i]) f(passes_[i].get());
+        }
+    }
 
     World& world_;
     Scope* old_scope_ = nullptr;
-    std::unique_ptr<Scope> new_scope_;
     Def* old_entry_ = nullptr;
     Def* new_entry_ = nullptr;
     Def* old_nom_ = nullptr;
     Def* new_nom_ = nullptr;
+    BitSet passes_mask_;
     std::vector<std::unique_ptr<Pass>> passes_;
-    std::vector<Pass*> scope_passes_;
-    std::vector<Pass*> nom_passes_;
     DefSet analyzed_;
     Nom2Nom stubs_;
     Def2Def  scope_old2new_;

@@ -47,6 +47,7 @@ bool Mem2Reg::enter_nominal(Def* def) {
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
+    world().DLOG("rewrite: {}", def);
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
         auto orig = original(man().new_nom<Lam>());
@@ -168,9 +169,9 @@ bool Mem2Reg::analyze(const Def* def) {
             world().DLOG("phi needed: {}", phi);
         }
         return false;
-    } else if (isa_proxy(def)) {
-        return true;
     }
+
+    if (isa_proxy(def)) return true;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         auto op = def->op(i);
@@ -221,12 +222,12 @@ bool Mem2Reg::analyze(const Def* def) {
 
 void Mem2Reg::retry() {
     lam2info_.clear();
-    new2old_.clear();
-    lam2phis_.clear();
 }
 
 void Mem2Reg::clear() {
     retry();
+    new2old_.clear();
+    lam2phis_.clear();
     keep_.clear();
     preds_n_.clear();
 }

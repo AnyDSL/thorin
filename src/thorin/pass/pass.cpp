@@ -139,6 +139,7 @@ bool PassMan::enter() {
 
                 auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
                 foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
+                world().DLOG("rewrite: {} -> {}", old_def, new_def);
                 scope_map(old_def, new_def);
                 defs.pop();
             }

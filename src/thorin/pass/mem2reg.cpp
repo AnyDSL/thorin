@@ -17,8 +17,6 @@ const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
     return nullptr;
 }
 
-bool Mem2Reg::enter_scope(Def* def) { return def->isa<Lam>();}
-
 bool Mem2Reg::enter_nominal(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
         world().DLOG("enter: {}", new_lam);
@@ -47,7 +45,7 @@ bool Mem2Reg::enter_nominal(Def* def) {
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
-    world().DLOG("rewrite: {}", def);
+    //world().DLOG("rewrite: {}", def);
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
         auto orig = original(man().new_nom<Lam>());

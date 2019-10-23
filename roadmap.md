@@ -11,7 +11,7 @@
 - [x] PTS calculus of constructions style IR (mostly done)
 - [x] remove arg/param lists
 - [x] `Sigma`/`Arr` + `Tuple/Pack` and friends
-- [-] `Union` and friends
+- [ ] `Union` and friends (wip)
 - [ ] `Intersection` and friends (maybe?)
 - [x] new recursive `rewrite`
 - [ ] remove old `mangle` in favor or `rewrite` (wip)
@@ -27,6 +27,7 @@
 ## Axioms
 
 - [x] use axioms instead of C++ classes
+- [x] redesign standard operations to work similar to LLVM
 - [ ] remove `Lamm::Intrinsics` in favor of axioms (wip)
 - [ ] rewrite normalizations (wip)
 - [ ] add frontend types `sint m w`, `uint m w`, `float m w` that automatically convert to `int w`/`real w`; the mode `m` is glued to the op. (wip)

@@ -11,6 +11,8 @@
 - [x] PTS calculus of constructions style IR (mostly done)
 - [x] remove arg/param lists
 - [x] `Sigma`/`Arr` + `Tuple/Pack` and friends
+- [x] use `index` and `arity` instead of unsafe `int` for indexing
+- [ ] support for multidemnsional indexing (wip)
 - [ ] `Union` and friends (wip)
 - [ ] `Intersection` and friends (maybe?)
 - [x] new recursive `rewrite`

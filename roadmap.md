@@ -17,6 +17,7 @@
 * remove old `mangle` in favor or `rewrite` (wip)
 * remove old `import` in favor of `rewrite` (done)
 * remove old `cleanup` in favor of `rewrite` (done)
+* make IR extensible (done)
 
 ## Memory
 
@@ -77,6 +78,8 @@
 ## Future
 
 * Thorin-based vectorizer
+* C interface of thorin
+* add possibility to add new thorin nodes/axioms from frontends
 
 ## Far Future
 

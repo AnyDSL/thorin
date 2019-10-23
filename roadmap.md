@@ -61,7 +61,7 @@
 
 - [x] remove static state from logging
 - [x] remove `Loc`/`Debug` and make it a `Def`
-- [x] add `meta`` field
+- [x] add `meta` field
 - [ ] unit testing with gtest
 - [ ] gcov integration
 

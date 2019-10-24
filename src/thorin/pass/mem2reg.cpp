@@ -17,33 +17,6 @@ const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
     return nullptr;
 }
 
-bool Mem2Reg::enter_nominal(Def* def) {
-    if (auto new_lam = def->isa<Lam>()) {
-        world().DLOG("enter: {}", new_lam);
-
-        if (auto old_lam_opt = new2old_.lookup(new_lam)) {
-            auto old_lam = *old_lam_opt;
-
-            auto& phis = lam2phis_[old_lam];
-
-            world().DLOG("enter: {}/{}", old_lam, new_lam);
-            size_t n = new_lam->num_params() - phis.size();
-
-            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
-            man().scope_map(old_lam->param(), new_param);
-            new_lam->set(old_lam->ops());
-
-            size_t i = 0;
-            for (auto phi : phis)
-                set_val(new_lam, phi, new_lam->param(n + i++));
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
 const Def* Mem2Reg::rewrite(const Def* def) {
     //world().DLOG("rewrite: {}", def);
     if (auto slot = isa<Tag::Slot>(def)) {
@@ -83,7 +56,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
     return def;
 }
 
-void Mem2Reg::inspect(Def* def) {
+Def* Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info_[old_lam];
         if (preds_n_.contains(old_lam)) info.lattice = Info::PredsN;
@@ -111,11 +84,26 @@ void Mem2Reg::inspect(Def* def) {
                 auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
                 world().DLOG("new_lam: {} -> {}", old_lam, new_lam);
                 new2old_[new_lam] = old_lam;
+
+                auto& phis = lam2phis_[old_lam];
+                size_t n = new_lam->num_params() - phis.size();
+
+                auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
+                man().scope_map(old_lam->param(), new_param);
+
+                size_t i = 0;
+                for (auto phi : phis)
+                    set_val(new_lam, phi, new_lam->param(n + i++));
+
                 info.new_lam = new_lam;
                 lam2info_[new_lam].lattice = Info::PredsN;
+
+                return new_lam;
             }
         }
     }
+
+    return def;
 }
 
 const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
@@ -165,6 +153,11 @@ bool Mem2Reg::analyze(const Def* def) {
             assertf(phis.find(proxy) == phis.end(), "already added proxy {} to {}", proxy, phi_lam);
             phis.emplace(proxy);
             world().DLOG("phi needed: {}", phi);
+
+            auto lam = proxy->op(0)->as_nominal<Lam>();
+            lam2info_[lam].lattice = Info::PredsN;
+            preds_n_.emplace(lam);
+            world().DLOG("Preds1 -> PredsN: {}", lam);
         }
         return false;
     }
@@ -197,6 +190,7 @@ bool Mem2Reg::analyze(const Def* def) {
                 case Info::Preds1:
                     info.lattice = Info::PredsN;
                     preds_n_.emplace(orig);
+                    // TODO maybe now always do a retry if no phis present or sth like this
                     world().DLOG("Preds1 -> PredsN: {}", orig);
                     return false;
                 default:

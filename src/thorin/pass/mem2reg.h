@@ -20,9 +20,9 @@ public:
         : Pass(man, index, "mem2reg")
     {}
 
-    bool enter_scope(Def* def) override { return def->isa<Lam>(); }
-    bool enter_nominal(Def*) override;
-    void inspect(Def*) override;
+    bool scope(Def* def) override { return def->isa<Lam>(); }
+    bool enter(Def* def) override { return def->isa<Lam>(); }
+    Def* inspect(Def*) override;
     const Def* rewrite(const Def*) override;
     bool analyze(const Def*) override;
     void retry() override;

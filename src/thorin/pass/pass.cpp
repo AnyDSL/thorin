@@ -54,19 +54,19 @@ void PassMan::run() {
                 continue;
             }
 
-            Scope scope(old_entry_);
-            old_scope_ = &scope;
+            Scope s(old_entry_);
+            old_scope_ = &s;
 
             scope_old2new_.clear();
             analyzed_.clear();
             passes_mask_.clear();
 
             for (size_t i = 0, e = num_passes(); i != e; ++i) {
-                if (passes_[i]->enter_scope(new_entry_))
+                if (passes_[i]->scope(new_entry_))
                     passes_mask_.set(i);
             }
 
-            if (enter()) {
+            if (scope()) {
                 noms.pop();
                 world().DLOG("done: {}", old_entry_);
                 foreach_pass([&](auto pass) { pass->clear(); });
@@ -76,7 +76,7 @@ void PassMan::run() {
                 continue;
             }
 
-            scope.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
+            s.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
         }
     }
 
@@ -87,7 +87,8 @@ void PassMan::run() {
     cleanup(world_);
 }
 
-bool PassMan::enter() {
+bool PassMan::scope() {
+    world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
     unique_stack<DefSet> defs;
     std::queue<Def*> noms;
     NomSet done;
@@ -98,10 +99,12 @@ bool PassMan::enter() {
 
             if (auto old_nom = def->isa_nominal()) {
                 if (done.emplace(old_nom).second) {
-                    noms.push(old_nom);
                     auto new_nom = stub(old_nom);
                     scope_map(old_nom, new_nom);
-                    foreach_pass([&](auto pass) { pass->inspect(new_nom); });
+                    scope_map(old_nom->param(), new_nom->param());
+                    foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                    new_nom->set(old_nom->ops());
+                    noms.push(new_nom);
                     return true;
                 }
             } else {
@@ -120,10 +123,11 @@ bool PassMan::enter() {
     while (!noms.empty()) {
         old_nom_ = pop(noms);
         new_nom_ = lookup(old_nom_);
+        world_.DLOG("enter: {}/{} (old_nom_/new_nom_)", old_nom_, new_nom_);
 
         auto old_mask = passes_mask_;
         for (size_t i = 0, e = num_passes(); i != e; ++i) {
-            if (!passes_[i]->enter_nominal(new_nom_))
+            if (!passes_[i]->enter(new_nom_))
                 passes_mask_.clear(i);
         }
 
@@ -133,14 +137,16 @@ bool PassMan::enter() {
             auto old_def = defs.top();
 
             if (!push(old_def)) {
-                auto new_type = lookup(old_def->type());
-                auto new_dbg  = old_def->debug() ? lookup(old_def->debug()) : nullptr;
-                Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return lookup(old_def->op(i)); });
+                if (old_def == lookup(old_def)) {
+                    auto new_type = lookup(old_def->type());
+                    auto new_dbg  = old_def->debug() ? lookup(old_def->debug()) : nullptr;
+                    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return lookup(old_def->op(i)); });
 
-                auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
-                foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
-                world().DLOG("rewrite: {} -> {}", old_def, new_def);
-                scope_map(old_def, new_def);
+                    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+                    foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
+                    world().DLOG("rewrite: {} -> {}", old_def, new_def);
+                    scope_map(old_def, new_def);
+                }
                 defs.pop();
             }
         }

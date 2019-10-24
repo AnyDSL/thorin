@@ -27,10 +27,10 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    virtual bool enter_scope(Def*) = 0;                        ///< TODO
-    virtual bool enter_nominal(Def*) = 0;                      ///< TODO
+    virtual bool scope(Def* nom) = 0;                          ///< Should enter scope with entry @p nom?
+    virtual bool enter(Def* nom) = 0;                          ///< Should enter @p nom within current scope?
+    virtual Def* inspect(Def* def) { return def; }             ///< Inspects a @em nominal @p Def when first encountering it.
     virtual const Def* rewrite(const Def* def) { return def; } ///< Rewrites @em structural @p Def%s.
-    virtual void inspect(Def*) {}                              ///< Inspects a @em nominal @p Def when first encountering it.
     virtual bool analyze(const Def*) { return true; }          ///< Return @c true if everthing's fine, @c false if you need a @p retry.
     virtual void retry() {}                                    ///< Setup all data for a retry.
     virtual void clear() {}                                    ///< Must clear all info in order to operate on the next @p Scope.
@@ -73,7 +73,7 @@ public:
     Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
 
 private:
-    bool enter();
+    bool scope();
     bool analyze(const Def*);
     void foreach_pass(std::function<void(Pass* pass)> f) {
         for (size_t i = 0, e = num_passes(); i != e; ++i) {

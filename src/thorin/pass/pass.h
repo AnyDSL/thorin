@@ -62,12 +62,13 @@ public:
     void run();
     Def* stub(Def* nom);
 
-    const Def*  scope_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  scope_old2new_[old_def] = new_def; }
-    const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_old2new_[old_def] = new_def; }
+    bool within(Def* nom) { return done_.contains(nom); } ///< Tests whether @p nom%inal is in current scope.
+    const Def*  scope_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  scope_map_[old_def] = new_def; }
+    const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_map_[old_def] = new_def; }
     const Def* lookup(const Def* old_def) {
         // TODO path compression
-        if (auto new_def =  scope_old2new_.lookup(old_def)) return lookup(*new_def);
-        if (auto new_def = global_old2new_.lookup(old_def)) return lookup(*new_def);
+        if (auto new_def =  scope_map_.lookup(old_def)) return lookup(*new_def);
+        if (auto new_def = global_map_.lookup(old_def)) return lookup(*new_def);
         return old_def;
     }
     Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
@@ -91,8 +92,9 @@ private:
     std::vector<std::unique_ptr<Pass>> passes_;
     DefSet analyzed_;
     Nom2Nom stubs_;
-    Def2Def  scope_old2new_;
-    Def2Def global_old2new_;
+    Def2Def  scope_map_;
+    Def2Def global_map_;
+    NomSet done_;
 };
 
 inline World& Pass::world() { return man().world(); }

@@ -57,7 +57,7 @@ void PassMan::run() {
             Scope s(old_entry_);
             old_scope_ = &s;
 
-            scope_old2new_.clear();
+            scope_map_.clear();
             analyzed_.clear();
             passes_mask_.clear();
 
@@ -91,14 +91,13 @@ bool PassMan::scope() {
     world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
     unique_stack<DefSet> defs;
     std::queue<Def*> noms;
-    NomSet done;
 
     auto push = [&](const Def* def) {
         auto push = [&](const Def* def) {
             if (def->is_const() || !old_scope_->contains(def)) return false;
 
             if (auto old_nom = def->isa_nominal()) {
-                if (done.emplace(old_nom).second) {
+                if (done_.emplace(old_nom).second) {
                     auto new_nom = stub(old_nom);
                     scope_map(old_nom, new_nom);
                     scope_map(old_nom->param(), new_nom->param());
@@ -144,8 +143,10 @@ bool PassMan::scope() {
 
                     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
                     foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
-                    world().DLOG("rewrite: {} -> {}", old_def, new_def);
-                    scope_map(old_def, new_def);
+                    if (old_def != new_def) {
+                        world().DLOG("rewrite: {} -> {}", old_def, new_def);
+                        scope_map(old_def, new_def);
+                    }
                 }
                 defs.pop();
             }

@@ -4,6 +4,10 @@
 
 namespace thorin {
 
+/*
+ * helpers
+ */
+
 static const Def* proxy_type(const Analyze* proxy) { return as<Tag::Ptr>(proxy->type())->arg(0); }
 static std::tuple<Lam*, const Analyze*> split_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
 
@@ -16,6 +20,34 @@ const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
     if (auto analyze = isa<Analyze>(index(), def); analyze && analyze->op(1)->isa<Analyze>()) return analyze;
     return nullptr;
 }
+
+/*
+ * get_val/set_val
+ */
+
+const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
+    const auto& info = lam2info_[lam];
+    if (auto val = info.proxy2val.lookup(proxy)) {
+        world().DLOG("get_val {} for {}: {}", lam, proxy, *val);
+        return *val;
+    }
+
+    switch (info.lattice) {
+        case Info::Preds0: return world().bot(proxy_type(proxy));
+        case Info::Preds1:
+                           world().DLOG("get_val pred: {}: {} -> {}", proxy, lam, info.pred);
+                           return get_val(info.pred, proxy);
+        default: {
+            auto old_lam = original(lam);
+            world().DLOG("virtual phi: {}/{} for {}", old_lam, lam, proxy);
+            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, index(), {"phi"}));
+        }
+    }
+}
+
+/*
+ * PassMan hooks
+ */
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     //world().DLOG("rewrite: {}", def);
@@ -42,7 +74,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             }
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>()) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && man().within(lam)) {
             const auto& info = lam2info_[lam];
             if (auto new_lam = info.new_lam) {
                 auto& phis = lam2phis_[lam];
@@ -104,26 +136,6 @@ Def* Mem2Reg::inspect(Def* def) {
     }
 
     return def;
-}
-
-const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
-    const auto& info = lam2info_[lam];
-    if (auto val = info.proxy2val.lookup(proxy)) {
-        world().DLOG("get_val {} for {}: {}", lam, proxy, *val);
-        return *val;
-    }
-
-    switch (info.lattice) {
-        case Info::Preds0: return world().bot(proxy_type(proxy));
-        case Info::Preds1:
-                           world().DLOG("get_val pred: {}: {} -> {}", proxy, lam, info.pred);
-                           return get_val(info.pred, proxy);
-        default: {
-            auto old_lam = original(lam);
-            world().DLOG("virtual phi: {}/{} for {}", old_lam, lam, proxy);
-            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, index(), {"phi"}));
-        }
-    }
 }
 
 const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {

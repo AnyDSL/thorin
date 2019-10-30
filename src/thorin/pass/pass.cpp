@@ -90,26 +90,11 @@ void PassMan::run() {
 bool PassMan::scope() {
     world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
     unique_stack<DefSet> defs;
-    std::queue<Def*> noms;
 
     auto push = [&](const Def* def) {
         auto push = [&](const Def* def) {
-            if (def->is_const() || !old_scope_->contains(def)) return false;
-
-            if (auto old_nom = def->isa_nominal()) {
-                if (done_.emplace(old_nom).second) {
-                    auto new_nom = stub(old_nom);
-                    scope_map(old_nom, new_nom);
-                    scope_map(old_nom->param(), new_nom->param());
-                    foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
-                    new_nom->set(old_nom->ops());
-                    noms.push(new_nom);
-                    return true;
-                }
-            } else {
-                return defs.push(def);
-            }
-            return false;
+            if (def->is_const() || def->isa_nominal() || !old_scope_->contains(def)) return false;
+            return defs.push(def);
         };
 
         bool todo = false;
@@ -117,10 +102,10 @@ bool PassMan::scope() {
         return todo;
     };
 
-    noms.push(old_entry_);
+    noms_.push(old_entry_);
 
-    while (!noms.empty()) {
-        old_nom_ = pop(noms);
+    while (!noms_.empty()) {
+        old_nom_ = pop(noms_);
         new_nom_ = lookup(old_nom_);
         world_.DLOG("enter: {}/{} (old_nom_/new_nom_)", old_nom_, new_nom_);
 
@@ -170,7 +155,17 @@ bool PassMan::scope() {
 }
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || def->isa_nominal() || !analyzed_.emplace(def).second) return true;
+    if (def->is_const() || !analyzed_.emplace(def).second) return true;
+
+    if (auto old_nom = def->isa_nominal()) {
+        auto new_nom = stub(old_nom);
+        scope_map(old_nom, new_nom);
+        scope_map(old_nom->param(), new_nom->param());
+        foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+        new_nom->set(old_nom->ops());
+        noms_.push(new_nom);
+        return true;
+    }
 
     bool result = true;
     for (auto op : def->extended_ops())

@@ -202,7 +202,7 @@ bool Mem2Reg::analyze(const Def* def) {
                 case Info::Preds1:
                     info.lattice = Info::PredsN;
                     preds_n_.emplace(orig);
-                    // TODO maybe now always do a retry if no phis present or sth like this
+                    // TODO maybe only do a retry if no phis present or sth like this
                     world().DLOG("Preds1 -> PredsN: {}", orig);
                     return false;
                 default:

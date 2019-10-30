@@ -61,8 +61,8 @@ public:
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
     Def* stub(Def* nom);
-
-    bool within(Def* nom) { return done_.contains(nom); } ///< Tests whether @p nom%inal is in current scope.
+    // TODO
+    bool within(Def*) { return true; } ///< Tests whether @p nom%inal is in current scope.
     const Def*  scope_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  scope_map_[old_def] = new_def; }
     const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_map_[old_def] = new_def; }
     const Def* lookup(const Def* old_def) {
@@ -94,7 +94,7 @@ private:
     Nom2Nom stubs_;
     Def2Def  scope_map_;
     Def2Def global_map_;
-    NomSet done_;
+    std::queue<Def*> noms_;
 };
 
 inline World& Pass::world() { return man().world(); }

@@ -158,11 +158,16 @@ bool PassMan::analyze(const Def* def) {
     if (def->is_const() || !analyzed_.emplace(def).second) return true;
 
     if (auto old_nom = def->isa_nominal()) {
-        auto new_nom = stub(old_nom);
-        scope_map(old_nom, new_nom);
-        scope_map(old_nom->param(), new_nom->param());
+        auto new_nom = old_nom;
+
+        if (old_scope_->contains(old_nom)) {
+            new_nom = stub(old_nom);
+            new_nom->set(old_nom->ops());
+            scope_map(old_nom, new_nom);
+            scope_map(old_nom->param(), new_nom->param());
+        }
+
         foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
-        new_nom->set(old_nom->ops());
         noms_.push(new_nom);
         return true;
     }

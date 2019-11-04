@@ -55,7 +55,6 @@ public:
 
     World& world() const { return world_; }
     size_t num_passes() const { return passes_.size(); }
-    template<class T = Def> T* new_entry() const { return new_entry_->template as<T>(); }
     template<class T = Def> T* new_nom  () const { return new_nom_  ->template as<T>(); }
     template<class P, class... Args>
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
@@ -83,18 +82,19 @@ private:
     }
 
     World& world_;
+    std::vector<std::unique_ptr<Pass>> passes_;
+    // global-wide
+    Def2Def global_map_;
+    Nom2Nom stubs_;
+    // scope-wide
     Scope* old_scope_ = nullptr;
     Def* old_entry_ = nullptr;
-    Def* new_entry_ = nullptr;
     Def* old_nom_ = nullptr;
     Def* new_nom_ = nullptr;
     BitSet passes_mask_;
-    std::vector<std::unique_ptr<Pass>> passes_;
+    Def2Def scope_map_;
+    std::deque<Def*> scope_noms_;
     DefSet analyzed_;
-    Nom2Nom stubs_;
-    Def2Def  scope_map_;
-    Def2Def global_map_;
-    std::queue<Def*> noms_;
 };
 
 inline World& Pass::world() { return man().world(); }

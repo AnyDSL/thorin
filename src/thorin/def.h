@@ -772,7 +772,6 @@ private:
     mutable const Def* def_;
 };
 
-
 class Sigma : public Def {
 private:
     /// Constructor for a @em structural Sigma.

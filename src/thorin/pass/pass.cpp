@@ -24,21 +24,26 @@ void PassMan::run() {
     for (const auto& [name, old_nom] : externals) {
         assert(old_nom->is_set() && "external must not be empty");
         defs.push(old_nom);
-        auto new_nom = stub(old_nom);
-        old_nom->make_internal();
-        new_nom->make_external();
     }
 
     while (!defs.empty() || !noms.empty()) {
         while (!defs.empty()) {
             auto old_def = defs.pop();
 
+
+#if 0
+        auto new_nom = stub(old_nom);
+        global_map(old_nom, new_nom);
+        auto new_nom = stub(old_nom);
+        old_nom->make_internal();
+        new_nom->make_external();
+#endif
+
+
             push(old_def->type());
             if (old_def->debug()) push(old_def->debug());
 
             if (auto old_nom = old_def->isa_nominal()) {
-                auto new_nom = stub(old_nom);
-                global_map(old_nom, new_nom);
                 noms.push(old_nom);
             } else {
                 for (auto op : old_def->ops()) push(op);
@@ -47,7 +52,6 @@ void PassMan::run() {
 
         while (!noms.empty()) {
             old_entry_ = noms.front();
-            new_entry_ = lookup(old_entry_);
 
             if (!old_entry_->is_set()) {
                 noms.pop();
@@ -57,12 +61,13 @@ void PassMan::run() {
             Scope s(old_entry_);
             old_scope_ = &s;
 
-            scope_map_.clear();
-            analyzed_.clear();
             passes_mask_.clear();
+            scope_map_  .clear();
+            scope_noms_ .clear();
+            analyzed_   .clear();
 
             for (size_t i = 0, e = num_passes(); i != e; ++i) {
-                if (passes_[i]->scope(new_entry_))
+                if (passes_[i]->scope(old_entry_))
                     passes_mask_.set(i);
             }
 
@@ -88,7 +93,7 @@ void PassMan::run() {
 }
 
 bool PassMan::scope() {
-    world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
+    //world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
     unique_stack<DefSet> defs;
 
     auto push = [&](const Def* def) {
@@ -102,10 +107,11 @@ bool PassMan::scope() {
         return todo;
     };
 
-    noms_.push(old_entry_);
+    scope_noms_.emplace_front(old_entry_);
 
-    while (!noms_.empty()) {
-        old_nom_ = pop(noms_);
+    while (!scope_noms_.empty()) {
+        old_nom_ = scope_noms_.back();
+        scope_noms_.pop_back();
         new_nom_ = lookup(old_nom_);
         world_.DLOG("enter: {}/{} (old_nom_/new_nom_)", old_nom_, new_nom_);
 
@@ -168,7 +174,7 @@ bool PassMan::analyze(const Def* def) {
         }
 
         foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
-        noms_.push(new_nom);
+        scope_noms_.emplace_front(new_nom);
         return true;
     }
 

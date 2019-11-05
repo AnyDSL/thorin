@@ -53,12 +53,12 @@ const Def* Mem2Reg::rewrite(const Def* def) {
     //world().DLOG("rewrite: {}", def);
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
-        auto orig = original(man().new_nom<Lam>());
+        auto orig = original(man().cur_nom<Lam>());
         auto slot_id = lam2info_[orig].num_slots++;
         auto proxy = world().analyze(out_ptr->type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
         if (!keep_.contains(proxy)) {
             set_val(proxy, world().bot(proxy_type(proxy)));
-            lam2info_[man().new_nom<Lam>()].writable.emplace(proxy);
+            lam2info_[man().cur_nom<Lam>()].writable.emplace(proxy);
             return world().tuple({slot->arg(), proxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
@@ -68,7 +68,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
         if (auto proxy = isa_proxy(ptr)) {
-            if (lam2info_[man().new_nom<Lam>()].writable.contains(proxy)) {
+            if (lam2info_[man().cur_nom<Lam>()].writable.contains(proxy)) {
                 set_val(proxy, val);
                 return mem;
             }
@@ -186,12 +186,12 @@ bool Mem2Reg::analyze(const Def* def) {
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
             // TODO optimize
-            if (lam->is_basicblock() && lam != man().new_nom<Lam>())
-                lam2info_[lam].writable.insert_range(range(lam2info_[man().new_nom<Lam>()].writable));
+            if (lam->is_basicblock() && lam != man().cur_nom<Lam>())
+                lam2info_[lam].writable.insert_range(range(lam2info_[man().cur_nom<Lam>()].writable));
             auto orig = original(lam);
             auto& info = lam2info_[orig];
             auto& phis = lam2phis_[orig];
-            auto pred = man().new_nom<Lam>();
+            auto pred = man().cur_nom<Lam>();
 
             switch (info.lattice) {
                 case Info::Preds0:

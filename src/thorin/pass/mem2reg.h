@@ -47,9 +47,9 @@ private:
     const Analyze* isa_proxy(const Def*);
     const Analyze* isa_virtual_phi(const Def*);
     const Def* get_val(Lam*, const Analyze*);
-    const Def* get_val(const Analyze* proxy) { return get_val(man().new_nom<Lam>(), proxy); }
+    const Def* get_val(const Analyze* proxy) { return get_val(man().cur_nom<Lam>(), proxy); }
     const Def* set_val(Lam*, const Analyze*, const Def*);
-    const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().new_nom<Lam>(), proxy, val); }
+    const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().cur_nom<Lam>(), proxy, val); }
 
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old_.lookup(new_lam)) return *old_lam;

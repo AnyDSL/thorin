@@ -55,11 +55,10 @@ public:
 
     World& world() const { return world_; }
     size_t num_passes() const { return passes_.size(); }
-    template<class T = Def> T* new_nom  () const { return new_nom_  ->template as<T>(); }
+    template<class T = Def> T* cur_nom() const { return cur_nom_->template as<T>(); }
     template<class P, class... Args>
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
-    Def* stub(Def* nom);
     // TODO
     bool within(Def*) { return true; } ///< Tests whether @p nom%inal is in current scope.
     const Def*  scope_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  scope_map_[old_def] = new_def; }
@@ -73,6 +72,9 @@ public:
     Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
 
 private:
+    Def* stub(Def* nom);
+    Def* global_stub(Def*);
+    Def*  scope_stub(Def*);
     bool scope();
     bool analyze(const Def*);
     void foreach_pass(std::function<void(Pass* pass)> f) {
@@ -81,19 +83,32 @@ private:
         }
     }
 
+    struct DefsHash {
+        static hash_t hash(Defs defs) {
+            auto seed = hash_begin(defs.front()->gid());
+            for (auto def : defs.skip_front())
+                seed = hash_combine(seed, def->gid());
+            return seed;
+        }
+        static bool eq(Defs d1, Defs d2) { return d1 == d2; }
+        static Defs sentinel() { return Defs(); }
+    };
+
     World& world_;
     std::vector<std::unique_ptr<Pass>> passes_;
     // global-wide
     Def2Def global_map_;
     Nom2Nom stubs_;
+    HashMap<Defs, Def*, DefsHash> ops2old_entry_;
     // scope-wide
     Scope* old_scope_ = nullptr;
+    const DefSet* old_scope_free_ = nullptr;
     Def* old_entry_ = nullptr;
-    Def* old_nom_ = nullptr;
-    Def* new_nom_ = nullptr;
+    Def* new_entry_ = nullptr;
+    Def* cur_nom_ = nullptr;
     BitSet passes_mask_;
     Def2Def scope_map_;
-    std::deque<Def*> scope_noms_;
+    unique_queue<NomSet> scope_noms_;
     DefSet analyzed_;
 };
 

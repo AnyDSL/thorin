@@ -68,6 +68,11 @@ public:
        : size_(vector.size())
        , ptr_(vector.data())
     {}
+    ArrayRef(ArrayRef&& array)
+        : ArrayRef()
+    {
+        swap(*this, array);
+    }
 
     const_iterator begin() const { return ptr_; }
     const_iterator end() const { return ptr_ + size_; }
@@ -85,7 +90,13 @@ public:
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
+    ArrayRef& operator=(ArrayRef other) { swap(*this, other); return *this; }
 
+    friend void swap(ArrayRef<T>& a1, ArrayRef<T>& a2) {
+        using std::swap;
+        swap(a1.size_, a2.size_);
+        swap(a1.ptr_,  a2.ptr_ );
+    }
 private:
     size_t size_;
     const T* ptr_;

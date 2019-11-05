@@ -49,8 +49,8 @@ const DefSet& Scope::free() const {
         for (auto def : defs_) {
             if (!def->is_set()) continue;
 
-            for (auto op : def->ops()) {
-                if (!contains(op))
+            for (auto op : def->extended_ops()) {
+                if (!op->is_const() && !contains(op))
                     free_->emplace(op);
             }
         }

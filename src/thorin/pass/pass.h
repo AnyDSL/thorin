@@ -109,6 +109,7 @@ private:
     BitSet passes_mask_;
     Def2Def scope_map_;
     unique_queue<NomSet> scope_noms_;
+    NomSet free_noms_;
     DefSet analyzed_;
 };
 

@@ -76,6 +76,7 @@ void PassMan::run() {
             scope_map_  .clear();
             analyzed_   .clear();
             scope_noms_ .clear();
+            free_noms_  .clear();
 
             for (size_t i = 0, e = num_passes(); i != e; ++i) {
                 if (passes_[i]->scope(new_entry_))
@@ -92,7 +93,7 @@ void PassMan::run() {
                 continue;
             }
 
-            s.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
+            for (auto nom : free_noms_) noms.push(nom);
         }
     }
 
@@ -186,7 +187,10 @@ bool PassMan::analyze(const Def* def) {
     if (def->is_const() || old_scope_free_->contains(def) || !analyzed_.emplace(def).second) return true;
 
     if (auto nom = def->isa_nominal()) {
-        if (!ops2old_entry_.contains(nom->ops())) scope_noms_.push(nom);
+        if (ops2old_entry_.contains(nom->ops()))
+            free_noms_.emplace(nom);
+        else
+            scope_noms_.push(nom);
         return true;
     }
 

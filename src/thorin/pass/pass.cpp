@@ -75,7 +75,7 @@ void PassMan::run() {
             passes_mask_.clear();
             scope_map_  .clear();
             analyzed_   .clear();
-            while (!scope_noms_.empty()) { scope_noms_.pop(); }
+            scope_noms_ .clear();
 
             for (size_t i = 0, e = num_passes(); i != e; ++i) {
                 if (passes_[i]->scope(new_entry_))
@@ -111,13 +111,13 @@ bool PassMan::scope() {
 
     auto push = [&](const Def* def) {
         auto push = [&](const Def* def) {
-            if (def->is_const()) return false;
+            if (def->is_const() || old_scope_free_->contains(def)) return false;
 
             if (auto nom = def->isa_nominal()) {
-                if (ops2old_entry_.contains(nom->ops())) return false;
-
-                auto new_nom = scope_stub(nom);
-                foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                if (!ops2old_entry_.contains(nom->ops())) {
+                    auto new_nom = scope_stub(nom);
+                    foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                }
                 return false;
             }
 
@@ -183,12 +183,10 @@ bool PassMan::scope() {
 }
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || !analyzed_.emplace(def).second) return true;
+    if (def->is_const() || old_scope_free_->contains(def) || !analyzed_.emplace(def).second) return true;
 
     if (auto nom = def->isa_nominal()) {
-        if (ops2old_entry_.contains(nom->ops())) return true;
-
-        scope_noms_.push(nom);
+        if (!ops2old_entry_.contains(nom->ops())) scope_noms_.push(nom);
         return true;
     }
 

@@ -144,7 +144,6 @@ const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
 }
 
 bool Mem2Reg::analyze(const Def* def) {
-    world().DLOG("analyze: {}", def);
     if (def->isa<Param>()) return true;
 
     // we need to install a phi in lam next time around
@@ -164,12 +163,10 @@ bool Mem2Reg::analyze(const Def* def) {
             assert(phi_info.lattice == Info::PredsN);
             assertf(phis.find(proxy) == phis.end(), "already added proxy {} to {}", proxy, phi_lam);
             phis.emplace(proxy);
-            world().DLOG("phi needed: {}", phi);
-
             auto lam = proxy->op(0)->as_nominal<Lam>();
+            world().DLOG("Preds1 -> PredsN {}; phi needed: {} ", lam, phi);
             lam2info_[lam].lattice = Info::PredsN;
             preds_n_.emplace(lam);
-            world().DLOG("Preds1 -> PredsN: {}", lam);
         }
         return false;
     }
@@ -184,7 +181,7 @@ bool Mem2Reg::analyze(const Def* def) {
                 world().DLOG("keep: {}", proxy);
                 return false;
             }
-        } else if (auto lam = op->isa_nominal<Lam>()) {
+        } else if (auto lam = op->isa_nominal<Lam>(); lam && man().within(lam)) {
             // TODO optimize
             if (lam->is_basicblock() && lam != man().cur_nom<Lam>())
                 lam2info_[lam].writable.insert_range(range(lam2info_[man().cur_nom<Lam>()].writable));

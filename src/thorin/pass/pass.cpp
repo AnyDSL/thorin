@@ -4,6 +4,14 @@
 
 namespace thorin {
 
+/*
+ * helpers
+ */
+
+bool PassMan::within(Def* nom) {
+    return !nom->is_const() && !old_scope_free_->contains(nom) && !ops2old_entry_.contains(nom->ops());
+}
+
 Def* PassMan::stub(Def* old_nom) {
     if (auto cached = stubs_.lookup(old_nom)) return *cached;
 
@@ -28,6 +36,10 @@ Def* PassMan::scope_stub(Def* old_nom) {
     scope_map(old_nom->param(), new_nom->param());
     return new_nom;
 }
+
+/*
+ * main driver that enters all found top-level scopes
+ */
 
 void PassMan::run() {
     world().ILOG("PassMan start");
@@ -90,6 +102,7 @@ void PassMan::run() {
             } else {
                 world().DLOG("retry: {}", old_entry_);
                 for (auto& pass : passes_) pass->retry();
+                new_entry_->set(old_entry_->ops());
                 continue;
             }
 
@@ -106,6 +119,10 @@ void PassMan::run() {
     world().ILOG("PassMan done");
     cleanup(world_);
 }
+
+/*
+ * processes one top-level scope
+ */
 
 bool PassMan::scope() {
     unique_stack<DefSet> defs;
@@ -183,6 +200,10 @@ bool PassMan::scope() {
     return true;
 }
 
+/*
+ * analyze cur_nom_ in current scope
+ */
+
 bool PassMan::analyze(const Def* def) {
     if (def->is_const() || old_scope_free_->contains(def) || !analyzed_.emplace(def).second) return true;
 
@@ -199,6 +220,7 @@ bool PassMan::analyze(const Def* def) {
         result &= analyze(op);
 
     for (size_t i = 0, e = num_passes(); i != e; ++i) {
+        world().DLOG("analyze: {}", def);
         if (passes_mask_[i])
             result &= passes_[i]->analyze(def);
     }

@@ -65,7 +65,7 @@ public:
     bool empty() const { return stack_.empty(); }
     const T& top() { return stack_.top(); }
     T pop() { return thorin::pop(stack_); }
-    void clear() { stack_ = {}; }
+    void clear() { done_.clear(); stack_ = {}; }
 
 private:
     Set done_;
@@ -91,7 +91,7 @@ public:
     T pop() { return thorin::pop(queue_); }
     T& front() { return queue_.front(); }
     T& back() { return queue_.back(); }
-    void clear() { queue_ = {}; }
+    void clear() { done_.clear(); queue_ = {}; }
 
 private:
     Set done_;

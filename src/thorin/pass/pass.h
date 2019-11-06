@@ -53,14 +53,23 @@ public:
         : world_(world)
     {}
 
+    /// @name create and run
+    //@{
+    /// Add @p Pass to this @p PassMan.
+    template<class P, class... Args>
+    PassMan& create(Args... args) {
+        passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...);
+        return *this;
+    }
+    void run(); ///< Run all registered @p Pass%es on the whole @p world.
+    //@}
+    /// @name getters
+    //@{
     World& world() const { return world_; }
     size_t num_passes() const { return passes_.size(); }
     template<class T = Def> T* cur_nom() const { return cur_nom_->template as<T>(); }
-    template<class P, class... Args>
-    PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
-    void run();
-    // TODO
-    bool within(Def*) { return true; } ///< Tests whether @p nom%inal is in current scope.
+    //@}
+    /// @name map either scope-wide or globally
     const Def*  scope_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  scope_map_[old_def] = new_def; }
     const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_map_[old_def] = new_def; }
     const Def* lookup(const Def* old_def) {
@@ -70,6 +79,11 @@ public:
         return old_def;
     }
     Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
+    //@}
+    /// @name misc
+    //@{
+    bool within(Def* nom);  /// Tests whether @p nom%inal is in current scope.
+    //@}
 
 private:
     Def* stub(Def* nom);

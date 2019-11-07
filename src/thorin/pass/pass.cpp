@@ -92,6 +92,7 @@ void PassMan::run() {
             scope_map_  .clear();
             analyzed_   .clear();
             scope_noms_ .clear();
+            inspected_  .clear();
             free_noms_  .clear();
 
             for (size_t i = 0, e = num_passes(); i != e; ++i) {
@@ -136,7 +137,7 @@ bool PassMan::scope() {
             if (def->is_const() || old_scope_free_->contains(def)) return false;
 
             if (auto old_nom = def->isa_nominal()) {
-                if (!ops2old_entry_.contains(old_nom->ops())) {
+                if (!ops2old_entry_.contains(old_nom->ops()) && inspected_.emplace(old_nom).second) {
                     auto new_nom = scope_stub(old_nom);
                     world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
                     foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });

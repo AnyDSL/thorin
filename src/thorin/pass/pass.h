@@ -124,6 +124,7 @@ private:
     Def2Def scope_map_;
     unique_queue<NomSet> scope_noms_;
     NomSet free_noms_;
+    NomSet inspected_;
     DefSet analyzed_;
 };
 

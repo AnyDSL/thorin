@@ -45,47 +45,26 @@ const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
     }
 }
 
+const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
+    world().DLOG("set_val {} for {}: {}", lam, proxy, val);
+    return lam2info_[lam].proxy2val[proxy] = val;
+}
+
 /*
  * PassMan hooks
  */
 
-const Def* Mem2Reg::rewrite(const Def* def) {
-    //world().DLOG("rewrite: {}", def);
-    if (auto slot = isa<Tag::Slot>(def)) {
-        auto [out_mem, out_ptr] = slot->split<2>();
-        auto orig = original(man().cur_nom<Lam>());
-        auto slot_id = lam2info_[orig].num_slots++;
-        auto proxy = world().analyze(out_ptr->type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
-        if (!keep_.contains(proxy)) {
-            set_val(proxy, world().bot(proxy_type(proxy)));
-            lam2info_[man().cur_nom<Lam>()].writable.emplace(proxy);
-            return world().tuple({slot->arg(), proxy});
+bool Mem2Reg::enter(Def* nom) {
+    if (auto lam = nom->isa<Lam>()) {
+        auto orig = original(lam);
+        if (orig != lam) {
+            lam->set(orig->ops());
+            // TODO move phi stuff here
         }
-    } else if (auto load = isa<Tag::Load>(def)) {
-        auto [mem, ptr] = load->args<2>();
-        if (auto proxy = isa_proxy(ptr))
-            return world().tuple({mem, get_val(proxy)});
-    } else if (auto store = isa<Tag::Store>(def)) {
-        auto [mem, ptr, val] = store->args<3>();
-        if (auto proxy = isa_proxy(ptr)) {
-            if (lam2info_[man().cur_nom<Lam>()].writable.contains(proxy)) {
-                set_val(proxy, val);
-                return mem;
-            }
-        }
-    } else if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && man().within(lam)) {
-            const auto& info = lam2info_[lam];
-            if (auto new_lam = info.new_lam) {
-                auto& phis = lam2phis_[lam];
-                auto phi = phis.begin();
-                Array<const Def*> args(phis.size(), [&](auto) { return get_val(*phi++); });
-                return world().app(new_lam, merge_tuple(app->arg(), args));
-            }
-        }
+        return true;
     }
 
-    return def;
+    return false;
 }
 
 Def* Mem2Reg::inspect(Def* def) {
@@ -138,9 +117,42 @@ Def* Mem2Reg::inspect(Def* def) {
     return def;
 }
 
-const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
-    world().DLOG("set_val {} for {}: {}", lam, proxy, val);
-    return lam2info_[lam].proxy2val[proxy] = val;
+const Def* Mem2Reg::rewrite(const Def* def) {
+    if (auto slot = isa<Tag::Slot>(def)) {
+        auto [out_mem, out_ptr] = slot->split<2>();
+        auto orig = original(man().cur_nom<Lam>());
+        auto slot_id = lam2info_[orig].num_slots++;
+        auto proxy = world().analyze(out_ptr->type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
+        if (!keep_.contains(proxy)) {
+            set_val(proxy, world().bot(proxy_type(proxy)));
+            lam2info_[man().cur_nom<Lam>()].writable.emplace(proxy);
+            return world().tuple({slot->arg(), proxy});
+        }
+    } else if (auto load = isa<Tag::Load>(def)) {
+        auto [mem, ptr] = load->args<2>();
+        if (auto proxy = isa_proxy(ptr))
+            return world().tuple({mem, get_val(proxy)});
+    } else if (auto store = isa<Tag::Store>(def)) {
+        auto [mem, ptr, val] = store->args<3>();
+        if (auto proxy = isa_proxy(ptr)) {
+            if (lam2info_[man().cur_nom<Lam>()].writable.contains(proxy)) {
+                set_val(proxy, val);
+                return mem;
+            }
+        }
+    } else if (auto app = def->isa<App>()) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && man().within(lam)) {
+            const auto& info = lam2info_[lam];
+            if (auto new_lam = info.new_lam) {
+                auto& phis = lam2phis_[lam];
+                auto phi = phis.begin();
+                Array<const Def*> args(phis.size(), [&](auto) { return get_val(*phi++); });
+                return world().app(new_lam, merge_tuple(app->arg(), args));
+            }
+        }
+    }
+
+    return def;
 }
 
 bool Mem2Reg::analyze(const Def* def) {

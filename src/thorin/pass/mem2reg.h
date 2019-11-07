@@ -21,7 +21,7 @@ public:
     {}
 
     bool scope(Def* def) override { return def->isa<Lam>(); }
-    bool enter(Def* def) override { return def->isa<Lam>(); }
+    bool enter(Def* def) override;
     Def* inspect(Def*) override;
     const Def* rewrite(const Def*) override;
     bool analyze(const Def*) override;

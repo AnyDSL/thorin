@@ -13,13 +13,17 @@ bool PassMan::within(Def* nom) {
 }
 
 Def* PassMan::stub(Def* old_nom) {
-    if (auto cached = stubs_.lookup(old_nom)) return *cached;
+    Def* new_nom;
 
-    auto new_dbg = old_nom->debug() ? lookup(old_nom->debug()) : nullptr;
-    auto new_nom = old_nom->stub(world(), lookup(old_nom->type()), new_dbg);
-    stubs_[old_nom] = new_nom;
+    if (auto cached = stubs_.lookup(old_nom)) {
+        new_nom = *cached;
+    } else {
+        auto new_dbg = old_nom->debug() ? lookup(old_nom->debug()) : nullptr;
+        new_nom = old_nom->stub(world(), lookup(old_nom->type()), new_dbg);
+        stubs_[old_nom] = new_nom;
+    }
+
     new_nom->set(old_nom->ops());
-
     return new_nom;
 }
 
@@ -131,9 +135,10 @@ bool PassMan::scope() {
         auto push = [&](const Def* def) {
             if (def->is_const() || old_scope_free_->contains(def)) return false;
 
-            if (auto nom = def->isa_nominal()) {
-                if (!ops2old_entry_.contains(nom->ops())) {
-                    auto new_nom = scope_stub(nom);
+            if (auto old_nom = def->isa_nominal()) {
+                if (!ops2old_entry_.contains(old_nom->ops())) {
+                    auto new_nom = scope_stub(old_nom);
+                    world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
                     foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
                 }
                 return false;

@@ -824,6 +824,55 @@ std::string Log::colorize(const std::string& str, int) {
 
 void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
 
+#if 0
+Stream& World::stream(Stream& s) const {
+    unique_stack<DefSet> defs;
+    unique_stack<DefSet> noms;
+
+    auto push = [&](const Def* def) {
+        auto push = [&](const Def* def) {
+            if (def->is_const()) return false;
+            if (auto nom = def->isa_nominal()) {
+                noms.push(nom);
+                return false;
+            }
+            return defs.push(def);
+        };
+
+        bool todo = false;
+        for (auto op : def->extended_ops()) todo |= push(op);
+        return todo;
+    };
+
+    for (const auto& [name, nom] : externals()) noms.push(nom);
+
+    while (!defs.empty() || !noms.empty()) {
+        while (!defs.empty()) {
+            auto def = defs.top();
+
+            if (!push(def)) {
+                stream_assignment(s, def).endl();
+                defs.pop();
+            }
+        }
+
+        while (!noms.empty()) {
+            auto nom = noms.pop();
+
+            s.fmt("{}∷{} {{\t\n", nom->unique_name(), nom->type());
+            for (auto op : nom->ops()) {
+                stream_assignment(s, op).endl();
+                push(op);
+            }
+            s.fmt("\b\n}}\n");
+        }
+    }
+
+    return s;
+}
+
+#else
+
 Stream& World::stream(Stream& s) const {
     s << "module '" << name() << "'\n\n";
 
@@ -843,6 +892,7 @@ Stream& World::stream(Stream& s) const {
     });
     return s;
 }
+#endif
 
 template void Streamable<World>::write(const std::string& filename) const;
 template void Streamable<World>::write() const;

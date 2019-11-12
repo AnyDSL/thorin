@@ -178,6 +178,20 @@ World::World(const std::string& name) {
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
+    } { // grad: Π[I:*, T:*, O:*]. Π(ΠI.O). ΠI. T               where T = tangent I
+        auto type = pi(star)->set_domain({star, star, star});
+        auto args_type = type->param(0, {"I"});
+        auto tangent_type = type->param(1, {"T"});
+        auto ret_type = type->param(2, {"O"});
+
+        auto fn_type = pi(args_type, ret_type);
+        auto grad_type = pi(star)->set_domain(args_type)->set_codomain(tangent_type);
+
+        type->set_codomain(pi(star)->set_domain(fn_type)->set_codomain(grad_type));
+
+        data_.grad_ = axiom(normalize_grad, type, Tag::Grad, 0, {"∇"});
+    } { // tangent_type: Π*.*
+        data_.tangent_type_ = axiom(normalize_tangent_type, pi(star, star), Tag::TangentType, 0, {"tangent"});
     }
 }
 
@@ -583,6 +597,7 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
 const Def* World::cps2ds(const Def* cps, Debug dbg) {
     if (auto ds = cps->isa<DS2CPS>())
         return ds->ds();
+
     auto cn  = cps->type()->as<Pi>();
     auto ret = cn->domain()->as<Sigma>()->op(cn->num_domains() - 1)->as<Pi>();
     auto type = pi(sigma(cn->domains().skip_back()), ret->domain());
@@ -593,6 +608,7 @@ const Def* World::ds2cps(const Def* ds, Debug dbg) {
     if (auto cps = ds->isa<CPS2DS>())
         return cps->cps();
     auto fn  = ds->type()->as<Pi>();
+
     Array<const Def*> domains(fn->num_domains() + 1);
     for (size_t i = 0, n = fn->num_domains(); i < n; ++i)
         domains[i] = fn->domain(i);
@@ -849,5 +865,49 @@ template void Streamable<World>::write() const;
 template void Streamable<World>::dump() const;
 template void World::visit<true> (VisitFn) const;
 template void World::visit<false>(VisitFn) const;
+
+const Def* World::grad(const Def* func, Debug dbg) {
+  if (func->type()->isa<Pi>()) {
+
+    errf("GRAD itself : {}", data_.grad_->type());
+
+    auto fn = cps2ds(func);
+    errf("FN 1  : {}", fn );
+    auto fn_type = fn->type()->as<Pi>();
+    errf("FN 2  : {}", fn_type );
+    auto fn_args_type = fn_type->domain();
+    errf("FN 3  : {}", fn_args_type );
+    auto fn_args_tangent_type = app(data_.tangent_type_, fn_args_type, dbg);
+    errf("FN 4  : {}", fn_args_tangent_type );
+    auto fn_result_type = fn_type->codomain();
+    errf("FN 5  : {}", fn_result_type );
+
+    auto grad1 = app(data_.grad_, tuple({fn_args_type ,fn_args_tangent_type, fn_result_type}), dbg);
+    errf("GRAD1:\n-{}\n-{}", grad1, grad1->type());
+
+    auto grad2 = ds2cps(app(grad1, fn, dbg));
+    errf("GRAD2:\n-{}\n-{}", grad2, grad2->type());
+
+    return grad2;
+
+
+    /*    auto ds_fn = cps2ds(func);
+    auto args_type = ds_fn->type()->as<Pi>()->domain();
+    auto args_tangent_type = args_type; // enough for now
+    auto grad_params = tuple({args_type, args_tangent_type, func});
+
+    errf("GRAD: params {}", grad_params);
+
+    auto result = app(data_.grad_, grad_params, dbg);
+
+    errf("GRAD: result {}     '{}'", result, result->name());
+
+    return ds2cps(result);
+    */
+  }
+
+  ELOG("Expected a function as argument to `grad`");
+  return nullptr;
+}
 
 }

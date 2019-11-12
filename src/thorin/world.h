@@ -420,6 +420,10 @@ public:
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     //@}
+    /// @name AD
+    //@{
+    const Def* grad(const Def* func, Debug dbg = {});
+    //@}
     /// @name helpers for optional/variant arguments
     //@{
     const Def* name2def(Name n) {
@@ -698,6 +702,8 @@ private:
         Externals externals_;
         Sea defs_;
         DefDef2Def rewrites_;
+        const Axiom* tangent_type_;
+        const Axiom* grad_;
     } data_;
 
     std::unique_ptr<ErrorHandler> err_;

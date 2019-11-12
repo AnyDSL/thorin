@@ -818,20 +818,6 @@ const Def* normalize_store(const Def* type, const Def* callee, const Def* arg, c
     return world.raw_app(callee, {mem, ptr, val}, dbg);
 }
 
-const Def* normalize_grad(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
-  if (auto lam = arg->isa<Lam>()) {
-    errf("ARG is lam {}", lam->body());
-  }
-
-  errf("NORMALIZE:\n Type  {}\n Callee  {}\n Arg  {}", type, callee, arg);
-  return arg;
-}
-
-const Def* normalize_tangent_type(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
-  //errf("TANGENT:\n-{}\n-{}\n{}\n-{}", type, callee, arg, dbg);
-    return arg;
-}
-
 /*
  * instantiate templates
  */

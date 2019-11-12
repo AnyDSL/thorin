@@ -1149,22 +1149,6 @@ public:
     friend class World;
 };
 
-  /*class Grad : public Def {
-private:
-    Grad(const Pi* type, const Def* fn, const Def* dbg)
-        : Def(Node, type, {fn}, 0, dbg)
-    {
-      std::cerr << node() << std::endl;
-      std::cerr << node_name() << std::endl;
-    }
-
-public:
-    const Def* fn() const { return op(0); }
-
-    static constexpr auto Node = Node::Grad;
-    friend class World;
-    };*/
-
 hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
 
 template<tag_t tag> struct Tag2Def_ { using type = App; };

@@ -99,6 +99,7 @@ void PassMan::run() {
             passes_mask_.clear();
             scope_map_  .clear();
             analyzed_   .clear();
+            rewritten_  .clear();
             scope_noms_ .clear();
             inspected_  .clear();
             free_noms_  .clear();
@@ -139,41 +140,6 @@ void PassMan::run() {
  */
 
 bool PassMan::scope() {
-    unique_stack<DefSet> defs;
-
-    auto push = [&](const Def* def) {
-        auto push = [&](const Def* def) {
-            if (def->is_const()) return false;
-
-            if (auto old_nom = def->isa_nominal()) {
-                if (outside(old_nom)) {
-                    if (global_inspected_.emplace(old_nom).second) {
-                        auto new_nom = global_stub(old_nom);
-                        auto success = global_inspected_.emplace(new_nom).second;
-                        assert(success);
-                        world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                        //foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
-                    }
-                } else {
-                    if (inspected_.emplace(old_nom).second) {
-                        auto new_nom = scope_stub(old_nom);
-                        auto success = inspected_.emplace(new_nom).second;
-                        assert(success);
-                        world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                        foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
-                    }
-                }
-                return false;
-            }
-
-            return defs.push(def);
-        };
-
-        bool todo = false;
-        for (auto op : def->extended_ops()) todo |= push(op);
-        return todo;
-    };
-
     world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
     scope_map(old_entry_->param(), new_entry_->param());
     scope_noms_.push(new_entry_);
@@ -188,29 +154,7 @@ bool PassMan::scope() {
                 passes_mask_.clear(i);
         }
 
-        push(cur_nom_);
-
-        while (!defs.empty()) {
-            auto old_def = defs.top();
-
-            if (!push(old_def)) {
-                if (old_def == lookup(old_def)) {
-                    auto new_type = lookup(old_def->type());
-                    auto new_dbg  = old_def->debug() ? lookup(old_def->debug()) : nullptr;
-                    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return lookup(old_def->op(i)); });
-
-                    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
-                    foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
-                    if (old_def != new_def) {
-                        world().DLOG("rewrite: {} -> {}", old_def, new_def);
-                        scope_map(old_def, new_def);
-                    }
-                }
-                defs.pop();
-            }
-        }
-
-        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return lookup(cur_nom_->op(i)); });
+        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)); });
         cur_nom_->set(new_ops);
 
         for (auto op : cur_nom_->extended_ops()) {
@@ -225,6 +169,50 @@ bool PassMan::scope() {
     }
 
     return true;
+}
+
+const Def* PassMan::rewrite(const Def* old_def) {
+    if (old_def->is_const()) return old_def;
+    auto cached = lookup(old_def);
+    if (cached != old_def) return cached;
+    if (!rewritten_.emplace(old_def).second) return lookup(old_def);
+
+    if (auto old_nom = old_def->isa_nominal()) {
+        if (outside(old_nom)) {
+            if (global_inspected_.emplace(old_nom).second) {
+                auto new_nom = global_stub(old_nom);
+                auto success = global_inspected_.emplace(new_nom).second;
+                assert(success);
+                world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+                //foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                return new_nom;
+            }
+        } else {
+            if (inspected_.emplace(old_nom).second) {
+                auto new_nom = scope_stub(old_nom);
+                auto success = inspected_.emplace(new_nom).second;
+                assert(success);
+                world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+                foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                return new_nom;
+            }
+        }
+
+        return lookup(old_nom);
+    }
+
+    auto new_type = rewrite(old_def->type());
+    auto new_dbg  = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
+
+    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+    foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
+    if (old_def != new_def) {
+        world().DLOG("rewrite: {} -> {}", old_def, new_def);
+        scope_map(old_def, new_def);
+    }
+
+    return new_def;
 }
 
 /*

@@ -124,7 +124,6 @@ void Def::finalize() {
 
     if (debug()) const_ &= debug()->is_const();
     if (isa<Pi>()) ++order_;
-    //TODO this is causing problems in the PassMan as nominals in types of axioms are not properly rebuild
     if (isa<Axiom>()) const_ = true;
 }
 
@@ -378,7 +377,7 @@ const Def* Def::apply(const Def* arg) const {
 
 const Def* Def::apply(const Def* arg) {
     auto& rewrites = world().data_.rewrites_;
-    if (auto def = rewrites.lookup({this, arg})) return *def;
+    //if (auto def = rewrites.lookup({this, arg})) return *def;
 
     auto res = rewrite(this, arg, num_ops() - 1);
     return rewrites[{this, arg}] = res;

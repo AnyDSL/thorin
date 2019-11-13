@@ -90,6 +90,7 @@ private:
     Def* global_stub(Def*);
     Def*  scope_stub(Def*);
     bool scope();
+    const Def* rewrite(const Def*);
     bool analyze(const Def*);
     void foreach_pass(std::function<void(Pass* pass)> f) {
         for (size_t i = 0, e = num_passes(); i != e; ++i) {
@@ -113,6 +114,7 @@ private:
     // global-wide
     Def2Def global_map_;
     NomSet global_inspected_;
+    DefSet global_rewritten_;
     Nom2Nom stubs_;
     HashMap<Defs, Def*, DefsHash> ops2old_entry_;
     // scope-wide
@@ -126,6 +128,7 @@ private:
     unique_queue<NomSet> scope_noms_;
     NomSet free_noms_;
     NomSet inspected_;
+    DefSet rewritten_;
     DefSet analyzed_;
 };
 

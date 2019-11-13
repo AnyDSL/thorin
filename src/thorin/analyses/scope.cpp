@@ -47,8 +47,6 @@ const DefSet& Scope::free() const {
         free_ = std::make_unique<DefSet>();
 
         for (auto def : defs_) {
-            if (!def->is_set()) continue;
-
             for (auto op : def->extended_ops()) {
                 if (!op->is_const() && !contains(op))
                     free_->emplace(op);
@@ -60,7 +58,7 @@ const DefSet& Scope::free() const {
 }
 
 const ParamSet& Scope::free_params() const {
-    if (!free_) {
+    if (!free_params_) {
         free_params_ = std::make_unique<ParamSet>();
         unique_queue<DefSet> queue;
 
@@ -77,12 +75,36 @@ const ParamSet& Scope::free_params() const {
             enqueue(def);
 
         while (!queue.empty()) {
-            for (auto op : queue.pop()->ops())
+            for (auto op : queue.pop()->extended_ops())
                 enqueue(op);
         }
     }
 
     return *free_params_;
+}
+
+const NomSet& Scope::free_noms() const {
+    if (!free_noms_) {
+        free_noms_ = std::make_unique<NomSet>();
+        unique_queue<DefSet> queue;
+
+        auto enqueue = [&](const Def* def) {
+            if (auto nom = def->isa_nominal())
+                free_noms_->emplace(nom);
+            else
+                queue.push(def);
+        };
+
+        for (auto def : free())
+            enqueue(def);
+
+        while (!queue.empty()) {
+            for (auto op : queue.pop()->extended_ops())
+                enqueue(op);
+        }
+    }
+
+    return *free_noms_;
 }
 
 void Scope::visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, VisitNomFn post_nom, VisitDefFn free) {

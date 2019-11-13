@@ -47,6 +47,8 @@ public:
     const DefSet& free() const;
     /// All @p Param%s that appear free in this @p Scope.
     const ParamSet& free_params() const;
+    /// All @em nominals that appear free in this @p Scope.
+    const NomSet& free_noms() const;
     /// Are there any free @p Param%s within this @p Scope.
     bool has_free_params() const { return !free_params().empty(); }
     //@}
@@ -70,6 +72,7 @@ private:
     Def* exit_ = nullptr;
     mutable std::unique_ptr<DefSet> free_;
     mutable std::unique_ptr<ParamSet> free_params_;
+    mutable std::unique_ptr<NomSet> free_noms_;
     mutable std::unique_ptr<const CFA> cfa_;
 };
 

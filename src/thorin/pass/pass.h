@@ -82,7 +82,7 @@ public:
     //@}
     /// @name misc
     //@{
-    bool within(Def* nom);  /// Tests whether @p nom%inal is in current scope.
+    bool outside(Def* nom); /// Tests whether @p nom%inal is outside current scope.
     //@}
 
 private:
@@ -112,11 +112,12 @@ private:
     std::vector<std::unique_ptr<Pass>> passes_;
     // global-wide
     Def2Def global_map_;
+    NomSet global_inspected_;
     Nom2Nom stubs_;
     HashMap<Defs, Def*, DefsHash> ops2old_entry_;
     // scope-wide
     Scope* old_scope_ = nullptr;
-    const DefSet* old_scope_free_ = nullptr;
+    const NomSet* old_scope_free_ = nullptr;
     Def* old_entry_ = nullptr;
     Def* new_entry_ = nullptr;
     Def* cur_nom_ = nullptr;

@@ -8,8 +8,10 @@ namespace thorin {
  * helpers
  */
 
-bool PassMan::within(Def* nom) {
-    return !nom->is_const() && !old_scope_free_->contains(nom) && !ops2old_entry_.contains(nom->ops());
+bool PassMan::outside(Def* nom) {
+    if (!nom->is_set()) return true;
+    if (auto old_nom = ops2old_entry_.lookup(nom->ops())) nom = *old_nom;
+    return old_scope_free_->contains(nom);
 }
 
 Def* PassMan::stub(Def* old_nom) {
@@ -29,8 +31,11 @@ Def* PassMan::stub(Def* old_nom) {
 
 Def* PassMan::global_stub(Def* old_nom) {
     auto new_nom = stub(old_nom);
-    ops2old_entry_[old_nom->ops()] = old_nom;
     global_map(old_nom, new_nom);
+
+    if (old_nom->is_set())
+        ops2old_entry_[old_nom->ops()] = old_nom;
+
     return new_nom;
 }
 
@@ -46,7 +51,7 @@ Def* PassMan::scope_stub(Def* old_nom) {
  */
 
 void PassMan::run() {
-    world().ILOG("PassMan start");
+    world().ILOG("start");
 
     unique_queue<NomSet> noms;
     unique_stack<DefSet> defs;
@@ -86,7 +91,10 @@ void PassMan::run() {
             old_entry_ = ops2old_entry_[new_entry_->ops()];
             Scope s(old_entry_);
             old_scope_ = &s;
-            old_scope_free_ = &old_scope_->free();
+            old_scope_free_ = &old_scope_->free_noms();
+
+            for (auto def : *old_scope_free_)
+                outf("{}: {}", def->gid(), def);
 
             passes_mask_.clear();
             scope_map_  .clear();
@@ -111,7 +119,8 @@ void PassMan::run() {
                 continue;
             }
 
-            for (auto nom : free_noms_) noms.push(nom);
+            for (auto nom : free_noms_)
+                noms.push(nom);
         }
     }
 
@@ -121,7 +130,7 @@ void PassMan::run() {
         lookup(old_nom)->make_external();
     }
 
-    world().ILOG("PassMan done");
+    world().ILOG("end");
     cleanup(world_);
 }
 
@@ -134,13 +143,25 @@ bool PassMan::scope() {
 
     auto push = [&](const Def* def) {
         auto push = [&](const Def* def) {
-            if (def->is_const() || old_scope_free_->contains(def)) return false;
+            if (def->is_const()) return false;
 
             if (auto old_nom = def->isa_nominal()) {
-                if (!ops2old_entry_.contains(old_nom->ops()) && inspected_.emplace(old_nom).second) {
-                    auto new_nom = scope_stub(old_nom);
-                    world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                    foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                if (outside(old_nom)) {
+                    if (global_inspected_.emplace(old_nom).second) {
+                        auto new_nom = global_stub(old_nom);
+                        auto success = global_inspected_.emplace(new_nom).second;
+                        assert(success);
+                        world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+                        //foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                    }
+                } else {
+                    if (inspected_.emplace(old_nom).second) {
+                        auto new_nom = scope_stub(old_nom);
+                        auto success = inspected_.emplace(new_nom).second;
+                        assert(success);
+                        world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+                        foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                    }
                 }
                 return false;
             }
@@ -211,10 +232,10 @@ bool PassMan::scope() {
  */
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || old_scope_free_->contains(def) || !analyzed_.emplace(def).second) return true;
+    if (def->is_const() || !analyzed_.emplace(def).second) return true;
 
     if (auto nom = def->isa_nominal()) {
-        if (ops2old_entry_.contains(nom->ops()))
+        if (outside(nom))
             free_noms_.emplace(nom);
         else
             scope_noms_.push(nom);

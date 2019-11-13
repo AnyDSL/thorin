@@ -27,6 +27,13 @@ THORIN_NODE(CODE)
     }
 }
 
+Defs Def::extended_ops() const {
+    if (isa<Universe>()) return Defs();
+
+    size_t offset = debug() ? 2 : 1;
+    return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset);
+}
+
 size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Def::tuple_arity() const {
@@ -117,6 +124,7 @@ void Def::finalize() {
 
     if (debug()) const_ &= debug()->is_const();
     if (isa<Pi>()) ++order_;
+    //TODO this is causing problems in the PassMan as nominals in types of axioms are not properly rebuild
     if (isa<Axiom>()) const_ = true;
 }
 

@@ -55,6 +55,8 @@ const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
  */
 
 bool Mem2Reg::enter(Def* nom) {
+    return nom->isa<Lam>();
+#if 0
     if (auto lam = nom->isa<Lam>()) {
         auto orig = original(lam);
         if (orig != lam) {
@@ -65,6 +67,7 @@ bool Mem2Reg::enter(Def* nom) {
     }
 
     return false;
+#endif
 }
 
 Def* Mem2Reg::inspect(Def* def) {
@@ -108,6 +111,7 @@ Def* Mem2Reg::inspect(Def* def) {
 
                 info.new_lam = new_lam;
                 lam2info_[new_lam].lattice = Info::PredsN;
+                new_lam->set(old_lam->ops());
 
                 return new_lam;
             }
@@ -141,7 +145,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             }
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && man().within(lam)) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !man().outside(lam)) {
             const auto& info = lam2info_[lam];
             if (auto new_lam = info.new_lam) {
                 auto& phis = lam2phis_[lam];
@@ -193,7 +197,7 @@ bool Mem2Reg::analyze(const Def* def) {
                 world().DLOG("keep: {}", proxy);
                 return false;
             }
-        } else if (auto lam = op->isa_nominal<Lam>(); lam && man().within(lam)) {
+        } else if (auto lam = op->isa_nominal<Lam>(); lam && !man().outside(lam)) {
             // TODO optimize
             if (lam->is_basicblock() && lam != man().cur_nom<Lam>())
                 lam2info_[lam].writable.insert_range(range(lam2info_[man().cur_nom<Lam>()].writable));

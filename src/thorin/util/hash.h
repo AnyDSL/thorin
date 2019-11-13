@@ -612,7 +612,6 @@ public:
     std::optional<mapped_type> lookup(const key_type& k) const {
         auto i = Super::find(k);
         return i == Super::cend() ? std::nullopt : std::optional(i->second);
-
     }
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
     mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }

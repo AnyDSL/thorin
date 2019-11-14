@@ -92,11 +92,6 @@ private:
     bool scope();
     const Def* rewrite(const Def*);
     bool analyze(const Def*);
-    void foreach_pass(std::function<void(Pass* pass)> f) {
-        for (size_t i = 0, e = num_passes(); i != e; ++i) {
-            if (passes_mask_[i]) f(passes_[i].get());
-        }
-    }
 
     struct DefsHash {
         static hash_t hash(Defs defs) {
@@ -111,6 +106,8 @@ private:
 
     World& world_;
     std::vector<std::unique_ptr<Pass>> passes_;
+    std::vector<Pass*> scope_passes_;
+    std::vector<Pass*> cur_passes_;
     // global-wide
     Def2Def global_map_;
     NomSet global_inspected_;
@@ -123,7 +120,6 @@ private:
     Def* old_entry_ = nullptr;
     Def* new_entry_ = nullptr;
     Def* cur_nom_ = nullptr;
-    BitSet passes_mask_;
     Def2Def scope_map_;
     unique_queue<NomSet> scope_noms_;
     NomSet free_noms_;

@@ -4,10 +4,6 @@
 
 namespace thorin {
 
-/*
- * helpers
- */
-
 bool PassMan::outside(Def* nom) {
     if (!nom->is_set()) return true;
     if (auto old_nom = ops2old_entry_.lookup(nom->ops())) nom = *old_nom;
@@ -45,10 +41,6 @@ Def* PassMan::scope_stub(Def* old_nom) {
     scope_map(old_nom->param(), new_nom->param());
     return new_nom;
 }
-
-/*
- * main driver that enters all found top-level scopes
- */
 
 void PassMan::run() {
     world().ILOG("start");
@@ -96,7 +88,6 @@ void PassMan::run() {
             for (auto def : *old_scope_free_)
                 outf("{}: {}", def->gid(), def);
 
-            passes_mask_.clear();
             scope_map_  .clear();
             analyzed_   .clear();
             rewritten_  .clear();
@@ -104,15 +95,16 @@ void PassMan::run() {
             inspected_  .clear();
             free_noms_  .clear();
 
-            for (size_t i = 0, e = num_passes(); i != e; ++i) {
-                if (passes_[i]->scope(new_entry_))
-                    passes_mask_.set(i);
+            scope_passes_.clear();
+            for (auto&& pass : passes_) {
+                if (pass->scope(new_entry_))
+                    scope_passes_.emplace_back(pass.get());
             }
 
             if (scope()) {
                 noms.pop();
                 world().DLOG("done: {}", old_entry_);
-                foreach_pass([&](auto pass) { pass->clear(); });
+                for (auto pass : scope_passes_) pass->clear();
             } else {
                 world().DLOG("retry: {}", old_entry_);
                 for (auto& pass : passes_) pass->retry();
@@ -148,10 +140,10 @@ bool PassMan::scope() {
         cur_nom_ = scope_noms_.pop();
         world_.DLOG("enter: {} (cur_nom)", cur_nom_);
 
-        auto old_mask = passes_mask_;
-        for (size_t i = 0, e = num_passes(); i != e; ++i) {
-            if (!passes_[i]->enter(cur_nom_))
-                passes_mask_.clear(i);
+        cur_passes_.clear();
+        for (auto pass : scope_passes_) {
+            if (pass->enter(cur_nom_))
+                cur_passes_.emplace_back(pass);
         }
 
         Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)); });
@@ -159,13 +151,10 @@ bool PassMan::scope() {
 
         for (auto op : cur_nom_->extended_ops()) {
             if (!analyze(op)) {
-                passes_mask_ = old_mask;
-                foreach_pass([&](auto pass) { pass->retry(); });
+                for (auto pass : scope_passes_) pass->retry();
                 return false;
             }
         }
-
-        passes_mask_ = old_mask;
     }
 
     return true;
@@ -193,7 +182,8 @@ const Def* PassMan::rewrite(const Def* old_def) {
                 auto success = inspected_.emplace(new_nom).second;
                 assert(success);
                 world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                for (auto pass : scope_passes_)
+                    new_nom = pass->inspect(new_nom);
                 return new_nom;
             }
         }
@@ -206,7 +196,9 @@ const Def* PassMan::rewrite(const Def* old_def) {
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
 
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
-    foreach_pass([&](auto pass) { new_def = pass->rewrite(new_def); });
+    for (auto pass : cur_passes_)
+        new_def = pass->rewrite(new_def);
+
     if (old_def != new_def) {
         world().DLOG("rewrite: {} -> {}", old_def, new_def);
         scope_map(old_def, new_def);
@@ -214,10 +206,6 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
     return new_def;
 }
-
-/*
- * analyze cur_nom_ in current scope
- */
 
 bool PassMan::analyze(const Def* def) {
     if (def->is_const() || !analyzed_.emplace(def).second) return true;
@@ -234,10 +222,9 @@ bool PassMan::analyze(const Def* def) {
     for (auto op : def->extended_ops())
         result &= analyze(op);
 
-    for (size_t i = 0, e = num_passes(); i != e; ++i) {
+    for (auto pass : scope_passes_) {
         world().DLOG("analyze: {}", def);
-        if (passes_mask_[i])
-            result &= passes_[i]->analyze(def);
+        result &= pass->analyze(def);
     }
 
     return result;

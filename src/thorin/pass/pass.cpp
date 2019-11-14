@@ -28,8 +28,9 @@ void PassMan::run() {
         }
 
         old_entry_ = ops2old_entry_[new_entry_->ops()];
+        assert(old_entry_ && old_entry_ != new_entry_);
         Scope s(old_entry_);
-        local_.old_scope = &s;
+        local_.clear(s);
 
         for (auto&& pass : passes_) {
             if (pass->scope(new_entry_))
@@ -40,15 +41,14 @@ void PassMan::run() {
             global_.noms.pop();
             world().DLOG("done: {}", old_entry_);
             for (auto pass : local_.passes) pass->clear();
-            local_.clear();
         } else {
             world().DLOG("retry: {}", old_entry_);
             for (auto& pass : local_.passes) pass->retry();
             new_entry_->set(old_entry_->ops());
-            local_.clear();
             continue;
         }
 
+        local_.old_scope = nullptr;
         for (auto nom : local_.free) global_.noms.push(nom);
     }
 
@@ -107,7 +107,10 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
         if (outside(old_nom)) {
             global_map(old_nom, new_nom);
-            if (old_nom->is_set()) ops2old_entry_[old_nom->ops()] = old_nom;
+            if (old_nom->is_set()) {
+                world().DLOG("ops2old_entry_: ({, })/{} (old_nom/new_nom)", old_nom->ops(), new_nom);
+                ops2old_entry_[old_nom->ops()] = old_nom;
+            }
 
             world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
             //for (auto&& pass : passes_) new_nom = pass->global_inspect(new_nom);

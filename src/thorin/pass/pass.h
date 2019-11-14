@@ -113,8 +113,8 @@ private:
         DefSet rewritten;
         DefSet analyzed;
 
-        void clear() {
-            old_scope = nullptr;
+        void clear(Scope& s) {
+            old_scope = &s;
             passes.clear();
             cur_passes.clear();
             map.clear();

@@ -70,12 +70,12 @@ public:
     template<class T = Def> T* cur_nom() const { return cur_nom_->template as<T>(); }
     //@}
     /// @name map either scope-wide or globally
-    const Def*  local_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  local_.map_[old_def] = new_def; }
-    const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_.map_[old_def] = new_def; }
+    const Def*  local_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  local_.map[old_def] = new_def; }
+    const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_.map[old_def] = new_def; }
     const Def* lookup(const Def* old_def) {
         // TODO path compression
-        if (auto new_def =  local_.map_.lookup(old_def)) return lookup(*new_def);
-        if (auto new_def = global_.map_.lookup(old_def)) return lookup(*new_def);
+        if (auto new_def =  local_.map.lookup(old_def)) return lookup(*new_def);
+        if (auto new_def = global_.map.lookup(old_def)) return lookup(*new_def);
         return old_def;
     }
     Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
@@ -86,9 +86,6 @@ public:
     //@}
 
 private:
-    Def* stub(Def* nom);
-    Def* global_stub(Def*);
-    Def*  local_stub(Def*);
     bool scope();
     const Def* rewrite(const Def*);
     bool analyze(const Def*);
@@ -97,27 +94,35 @@ private:
     std::vector<std::unique_ptr<Pass>> passes_;
     Nom2Nom stubs_;
     HashMap<Defs, Def*, DefsHash> ops2old_entry_;
-    Scope* old_scope_ = nullptr;
     Def* old_entry_ = nullptr;
     Def* new_entry_ = nullptr;
     Def* cur_nom_ = nullptr;
 
     struct Global {
-        Def2Def map_;
-        NomSet inspected_;
+        Def2Def map;
+        unique_queue<NomSet> noms;
     } global_;
 
     struct Local {
-        std::vector<Pass*> passes_;
-        std::vector<Pass*> cur_passes_;
-        Def2Def map_;
-        unique_queue<NomSet> noms_;
-        NomSet free_;
-        NomSet inspected_;
-        DefSet rewritten_;
-        DefSet analyzed_;
+        Scope* old_scope = nullptr;
+        std::vector<Pass*> passes;
+        std::vector<Pass*> cur_passes;
+        Def2Def map;
+        unique_queue<NomSet> noms;
+        NomSet free;
+        DefSet rewritten;
+        DefSet analyzed;
 
-        void clear() { Local l; std::swap(*this, l); }
+        void clear() {
+            old_scope = nullptr;
+            passes.clear();
+            cur_passes.clear();
+            map.clear();
+            noms.clear();
+            free.clear();
+            rewritten.clear();
+            analyzed.clear();
+        }
     } local_;
 };
 

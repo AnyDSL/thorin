@@ -35,10 +35,9 @@ public:
     public:
         enum class Node { Head, Leaf };
 
-    protected:
         Base(Node node, Head* parent, int depth, const std::vector<const CFNode*>&);
+        virtual ~Base() {}
 
-    public:
         Node node() const { return node_; }
         int depth() const { return depth_; }
         const Head* parent() const { return parent_; }

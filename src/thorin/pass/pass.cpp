@@ -7,7 +7,7 @@ namespace thorin {
 bool PassMan::outside(Def* nom) {
     if (!nom->is_set()) return true;
     if (auto old_nom = ops2old_entry_.lookup(nom->ops())) nom = *old_nom;
-    return old_scope_free_->contains(nom);
+    return old_scope_->free_noms().contains(nom);
 }
 
 Def* PassMan::stub(Def* old_nom) {
@@ -35,15 +35,15 @@ Def* PassMan::global_stub(Def* old_nom) {
     return new_nom;
 }
 
-Def* PassMan::scope_stub(Def* old_nom) {
+Def* PassMan::local_stub(Def* old_nom) {
     auto new_nom = stub(old_nom);
-    scope_map(old_nom, new_nom);
-    scope_map(old_nom->param(), new_nom->param());
+    local_map(old_nom, new_nom);
+    local_map(old_nom->param(), new_nom->param());
     return new_nom;
 }
 
 void PassMan::run() {
-    world().ILOG("start");
+    world().ILOG("run");
 
     unique_queue<NomSet> noms;
     unique_stack<DefSet> defs;
@@ -83,37 +83,25 @@ void PassMan::run() {
             old_entry_ = ops2old_entry_[new_entry_->ops()];
             Scope s(old_entry_);
             old_scope_ = &s;
-            old_scope_free_ = &old_scope_->free_noms();
+            local_.clear();
 
-            for (auto def : *old_scope_free_)
-                outf("{}: {}", def->gid(), def);
-
-            scope_map_  .clear();
-            analyzed_   .clear();
-            rewritten_  .clear();
-            scope_noms_ .clear();
-            inspected_  .clear();
-            free_noms_  .clear();
-
-            scope_passes_.clear();
             for (auto&& pass : passes_) {
                 if (pass->scope(new_entry_))
-                    scope_passes_.emplace_back(pass.get());
+                    local_.passes_.emplace_back(pass.get());
             }
 
             if (scope()) {
                 noms.pop();
                 world().DLOG("done: {}", old_entry_);
-                for (auto pass : scope_passes_) pass->clear();
+                for (auto pass : local_.passes_) pass->clear();
             } else {
                 world().DLOG("retry: {}", old_entry_);
-                for (auto& pass : passes_) pass->retry();
+                for (auto& pass : local_.passes_) pass->retry();
                 new_entry_->set(old_entry_->ops());
                 continue;
             }
 
-            for (auto nom : free_noms_)
-                noms.push(nom);
+            for (auto nom : local_.free_) noms.push(nom);
         }
     }
 
@@ -123,37 +111,29 @@ void PassMan::run() {
         lookup(old_nom)->make_external();
     }
 
-    world().ILOG("end");
+    world().ILOG("finished");
     cleanup(world_);
 }
 
-/*
- * processes one top-level scope
- */
-
 bool PassMan::scope() {
     world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
-    scope_map(old_entry_->param(), new_entry_->param());
-    scope_noms_.push(new_entry_);
+    local_map(old_entry_->param(), new_entry_->param());
+    local_.noms_.push(new_entry_);
 
-    while (!scope_noms_.empty()) {
-        cur_nom_ = scope_noms_.pop();
+    while (!local_.noms_.empty()) {
+        cur_nom_ = local_.noms_.pop();
         world_.DLOG("enter: {} (cur_nom)", cur_nom_);
 
-        cur_passes_.clear();
-        for (auto pass : scope_passes_) {
-            if (pass->enter(cur_nom_))
-                cur_passes_.emplace_back(pass);
+        local_.cur_passes_.clear();
+        for (auto pass : local_.passes_) {
+            if (pass->enter(cur_nom_)) local_.cur_passes_.emplace_back(pass);
         }
 
         Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)); });
         cur_nom_->set(new_ops);
 
         for (auto op : cur_nom_->extended_ops()) {
-            if (!analyze(op)) {
-                for (auto pass : scope_passes_) pass->retry();
-                return false;
-            }
+            if (!analyze(op)) return false;
         }
     }
 
@@ -162,27 +142,26 @@ bool PassMan::scope() {
 
 const Def* PassMan::rewrite(const Def* old_def) {
     if (old_def->is_const()) return old_def;
-    auto cached = lookup(old_def);
-    if (cached != old_def) return cached;
-    if (!rewritten_.emplace(old_def).second) return lookup(old_def);
+    if (!local_.rewritten_.emplace(old_def).second) return lookup(old_def);
+    if (auto cached = lookup(old_def); cached != old_def) return cached;
 
     if (auto old_nom = old_def->isa_nominal()) {
         if (outside(old_nom)) {
-            if (global_inspected_.emplace(old_nom).second) {
+            if (global_.inspected_.emplace(old_nom).second) {
                 auto new_nom = global_stub(old_nom);
-                auto success = global_inspected_.emplace(new_nom).second;
+                auto success = global_.inspected_.emplace(new_nom).second;
                 assert(success);
                 world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                //foreach_pass([&](auto pass) { new_nom = pass->inspect(new_nom); });
+                //for (auto&& pass : passes_) new_nom = pass->global_inspect(new_nom);
                 return new_nom;
             }
         } else {
-            if (inspected_.emplace(old_nom).second) {
-                auto new_nom = scope_stub(old_nom);
-                auto success = inspected_.emplace(new_nom).second;
+            if (local_.inspected_.emplace(old_nom).second) {
+                auto new_nom = local_stub(old_nom);
+                auto success = local_.inspected_.emplace(new_nom).second;
                 assert(success);
-                world().DLOG("inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                for (auto pass : scope_passes_)
+                world().DLOG("local inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+                for (auto pass : local_.passes_)
                     new_nom = pass->inspect(new_nom);
                 return new_nom;
             }
@@ -196,25 +175,25 @@ const Def* PassMan::rewrite(const Def* old_def) {
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
 
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
-    for (auto pass : cur_passes_)
+    for (auto pass : local_.cur_passes_)
         new_def = pass->rewrite(new_def);
 
     if (old_def != new_def) {
         world().DLOG("rewrite: {} -> {}", old_def, new_def);
-        scope_map(old_def, new_def);
+        local_map(old_def, new_def);
     }
 
     return new_def;
 }
 
 bool PassMan::analyze(const Def* def) {
-    if (def->is_const() || !analyzed_.emplace(def).second) return true;
+    if (def->is_const() || !local_.analyzed_.emplace(def).second) return true;
 
     if (auto nom = def->isa_nominal()) {
         if (outside(nom))
-            free_noms_.emplace(nom);
+            local_.free_.emplace(nom);
         else
-            scope_noms_.push(nom);
+            local_.noms_.push(nom);
         return true;
     }
 
@@ -222,7 +201,7 @@ bool PassMan::analyze(const Def* def) {
     for (auto op : def->extended_ops())
         result &= analyze(op);
 
-    for (auto pass : scope_passes_) {
+    for (auto pass : local_.passes_) {
         world().DLOG("analyze: {}", def);
         result &= pass->analyze(def);
     }

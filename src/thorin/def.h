@@ -355,6 +355,17 @@ struct DefDefHash {
     static DefDef sentinel() { return {nullptr, nullptr}; }
 };
 
+struct DefsHash {
+    static hash_t hash(Defs defs) {
+        auto seed = hash_begin(defs.front()->gid());
+        for (auto def : defs.skip_front())
+            seed = hash_combine(seed, def->gid());
+        return seed;
+    }
+    static bool eq(Defs d1, Defs d2) { return d1 == d2; }
+    static Defs sentinel() { return Defs(); }
+};
+
 template<class To>
 using DefDefMap  = HashMap<DefDef, To, DefDefHash>;
 using DefDefSet  = HashSet<DefDef, DefDefHash>;

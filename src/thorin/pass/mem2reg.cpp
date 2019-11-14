@@ -103,7 +103,7 @@ Def* Mem2Reg::inspect(Def* def) {
                 size_t n = new_lam->num_params() - phis.size();
 
                 auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
-                man().scope_map(old_lam->param(), new_param);
+                man().local_map(old_lam->param(), new_param);
 
                 size_t i = 0;
                 for (auto phi : phis)

@@ -111,6 +111,16 @@ inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel_") != std::string::npos;
 }
 
+inline bool has_params(Continuation* kernel) {
+    for(auto param : kernel->params()) {
+        if (is_mem(param) || param->order() != 0  || is_unit(param))
+            continue;
+        else
+            return true;
+    }
+    return false;
+}
+
 std::ostream& CCodeGen::fpga(const Cl vendor = STD, const size_t status = 2_s) {
     //status = 1 "start"
     //       = 2 "continue"

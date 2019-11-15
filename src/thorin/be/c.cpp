@@ -40,6 +40,7 @@ private:
     std::ostream& emit_addr_space(std::ostream&, const Type*);
     std::ostream& emit_type(std::ostream&, const Type*);
     std::ostream& emit(const Def*);
+    std::ostream& fpga(const Cl vendor, const size_t status);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::ostream& emit_float(T, IsInfFn, IsNanFn);
@@ -65,7 +66,7 @@ private:
     DefMap<std::string> primop2str_;
     bool use_64_ = false;
     bool use_16_ = false;
-    bool use_channels_ = false;
+    bool use_channels_ = false; // for OpenCL on FPGAs
     bool debug_;
     int primop_counter = 0;
     std::ostream& os_;
@@ -108,6 +109,23 @@ inline bool is_string_type(const Type* type) {
 
 inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel_") != std::string::npos;
+}
+
+std::ostream& CCodeGen::fpga(const Cl vendor = STD, const size_t status = 2_s) {
+    //status = 1 "start"
+    //       = 2 "continue"
+    //       = 0 "end"
+    if (vendor == STD && status == 1_s)
+        func_impl_ << "#ifdef STD_OPENCL";
+    else if (vendor == INTEL && status == 1_s)
+        func_impl_<< "#ifdef INTEL_FPGA";
+    else if (vendor == XILINX && status == 1_s)
+        func_impl_ << "#ifdef XILINX_FPGA";
+    else if (status == 2_s)
+        return func_impl_ << endl;
+    else if ( status == 0_s)
+        return func_impl_ << "#endif" << endl;
+    return (func_impl_ << endl);
 }
 
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {

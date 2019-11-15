@@ -22,7 +22,6 @@ enum Cl : uint8_t {
     STD    = 0,  ///< Standard OpenCL
     INTEL  = 1,  ///< Intel FPGA extension
     XILINX = 2   ///< Xilinx FPGA extension
-
 };
 
 void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);

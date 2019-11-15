@@ -10,18 +10,14 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (scope != nullptr && !scope->contains(old_def)) return old_def;
 
     auto new_type = rewrite(old_def->type());
-    auto new_dbg = old_def->debug();
-
-    if (auto old_dbg = old_def->debug(); old_dbg && &new_world != &old_world)
-        new_dbg = rewrite(old_dbg);
+    auto new_dbg = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_dbg);
         old2new[old_nom] = new_nom;
 
         for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i) {
-            if (auto old_op = old_nom->op(i))
-                new_nom->set(i, rewrite(old_op));
+            if (auto old_op = old_nom->op(i)) new_nom->set(i, rewrite(old_op));
         }
 
         return new_nom;

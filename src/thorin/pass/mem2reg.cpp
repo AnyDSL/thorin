@@ -166,12 +166,12 @@ bool Mem2Reg::analyze(const Def* def) {
     if (auto phi = isa_virtual_phi(def)) {
         auto [phi_lam, proxy] = split_virtual_phi(phi);
 
-        auto& phi_info   = lam2info_[phi_lam];
+        auto& phi_info = lam2info_[phi_lam];
         auto& phis = lam2phis_[phi_lam];
 
         if (phi_info.lattice == Info::Keep) {
             if (keep_.emplace(proxy).second) {
-                world().DLOG("keep: {}", proxy);
+                world().DLOG("keep 1: {}", proxy);
                 if (auto i = phis.find(proxy); i != phis.end())
                     phis.erase(i);
             }
@@ -194,7 +194,7 @@ bool Mem2Reg::analyze(const Def* def) {
 
         if (auto proxy = isa_proxy(op)) {
             if (keep_.emplace(proxy).second) {
-                world().DLOG("keep: {}", proxy);
+                world().DLOG("keep 2: {}", proxy);
                 return false;
             }
         } else if (auto lam = op->isa_nominal<Lam>(); lam && !man().outside(lam)) {
@@ -225,7 +225,7 @@ bool Mem2Reg::analyze(const Def* def) {
             // if lam does not occur as callee and has more than one pred
             if ((!def->isa<App>() || i != 0) && (info.lattice == Info::PredsN )) {
                 info.lattice = Info::Keep;
-                world().DLOG("keep: {}", lam);
+                world().DLOG("keep 3: {}", lam);
                 keep_.emplace(lam);
                 for (auto phi : phis) keep_.emplace(phi);
                 phis.clear();

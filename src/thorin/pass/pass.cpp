@@ -6,7 +6,7 @@ namespace thorin {
 
 bool PassMan::outside(Def* nom) {
     if (local_.old_scope == nullptr || !nom->is_set()) return true;
-    if (auto old_nom = ops2old_entry_.lookup(nom->ops())) nom = *old_nom;
+    if (auto old_nom = new2old_.lookup(nom)) nom = *old_nom;
     return local_.old_scope->free_noms().contains(nom);
 }
 
@@ -27,7 +27,7 @@ void PassMan::run() {
             continue;
         }
 
-        old_entry_ = ops2old_entry_[new_entry_->ops()];
+        old_entry_ = new2old_[new_entry_];
         assert(old_entry_ && old_entry_ != new_entry_);
         Scope s(old_entry_);
         local_.clear(s);
@@ -108,8 +108,8 @@ const Def* PassMan::rewrite(const Def* old_def) {
         if (outside(old_nom)) {
             global_map(old_nom, new_nom);
             if (old_nom->is_set()) {
-                world().DLOG("ops2old_entry_: ({, })/{} (old_nom/new_nom)", old_nom->ops(), new_nom);
-                ops2old_entry_[old_nom->ops()] = old_nom;
+                world().DLOG("new2old_: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+                new2old_[new_nom] = old_nom;
             }
 
             world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);

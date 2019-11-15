@@ -79,6 +79,8 @@ public:
         return old_def;
     }
     Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
+    template<class T> T* new2old(T* new_nom) { if (auto old_nom = new2old_.lookup(new_nom)) return (*old_nom)->template as<T>(); return new_nom->template as<T>(); }
+    template<class T> T* new2old(T* new_nom, T* old_nom) { return (new2old_[new_nom] = old_nom)->template as<T>(); }
     //@}
     /// @name misc
     //@{
@@ -93,7 +95,7 @@ private:
     World& world_;
     std::vector<std::unique_ptr<Pass>> passes_;
     Nom2Nom stubs_;
-    HashMap<Defs, Def*, DefsHash> ops2old_entry_;
+    Nom2Nom new2old_;
     Def* old_entry_ = nullptr;
     Def* new_entry_ = nullptr;
     Def* cur_nom_ = nullptr;

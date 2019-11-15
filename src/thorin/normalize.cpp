@@ -343,7 +343,6 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-
         if (op == WOp::sub)
             return world.op(WOp::add, *m, a, world.lit_int(*w, ~lb->get() + 1_u64)); // a - lb -> a + (~lb + 1)
         else if (op == WOp::shl && lb->get() > *w)
@@ -582,14 +581,14 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
         u64 res;
 
         if (false) {}
-        else if (tbl == world.table(Bit:: _and)) res =   x & y;
-        else if (tbl == world.table(Bit::  _or)) res =   x | y;
-        else if (tbl == world.table(Bit:: _xor)) res =   x ^ y;
-        else if (tbl == world.table(Bit:: nand)) res = ~(x & y);
-        else if (tbl == world.table(Bit::  nor)) res = ~(x | y);
-        else if (tbl == world.table(Bit:: nxor)) res = ~(x ^ y);
-        else if (tbl == world.table(Bit::  iff)) res = ~x |  y;
-        else if (tbl == world.table(Bit:: niff)) res =  x & ~y;
+        else if (tbl == world.table(Bit::_and)) res =   x & y;
+        else if (tbl == world.table(Bit:: _or)) res =   x | y;
+        else if (tbl == world.table(Bit::_xor)) res =   x ^ y;
+        else if (tbl == world.table(Bit::nand)) res = ~(x & y);
+        else if (tbl == world.table(Bit:: nor)) res = ~(x | y);
+        else if (tbl == world.table(Bit::nxor)) res = ~(x ^ y);
+        else if (tbl == world.table(Bit:: iff)) res = ~x |  y;
+        else if (tbl == world.table(Bit::niff)) res =  x & ~y;
         else THORIN_UNREACHABLE;
 
         return world.lit_int(*w, res);

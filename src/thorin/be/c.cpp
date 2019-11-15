@@ -717,10 +717,18 @@ void CCodeGen::emit() {
                             auto body = continuation->arg(4)->as_continuation();
                             if (lang_ == Lang::OPENCL) {
                                 if (continuation->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
-                                    func_impl_ << "#pragma ii ";
+                                    fpga(INTEL, 1_s) << "#pragma ii ";
                                     emit(continuation->arg(1)) << endl;
+                                    fpga(INTEL, 0_s);
+                                    fpga(XILINX, 1_s) << "__attribute__((xcl_pipeline_loop(";
+                                    emit(continuation->arg(1)) << ")))" << endl;
+                                    fpga(XILINX, 0_s);
                                 } else {
-                                    func_impl_ << "#pragma ii 1"<< endl;
+                                    fpga(INTEL, 1_s) << "#pragma ii 1"<< endl;
+                                    fpga(INTEL, 0_s);
+                                    fpga(XILINX, 1_s) << "__attribute__((xcl_pipeline_loop))" << endl;
+                                    fpga(XILINX, 0_s);
+
                                 }
                             }
                             func_impl_ << "for (i" << callee->gid() << " = ";

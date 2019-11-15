@@ -390,12 +390,21 @@ void CCodeGen::emit() {
                 case Lang::OPENCL:
                    if (config != kernel_config_.end()) {
                        auto block = config->second->as<GPUKernelConfig>()->block_size();
-                   if (std::get<0>(block) == std::get<1>(block) == std::get<2>(block) == 1)
-                       func_impl_ << "__attribute__((max_global_work_dim(0)))" << endl;
-                   func_decls_ << "__kernel ";
-                   func_impl_  << "__kernel ";
-                   if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                       auto single_workitem = false;
+                       if ((std::get<0>(block) == std::get<1>(block)) == (std::get<2>(block) == 1)) {
+                           single_workitem = true;
+                           fpga(INTEL,1_s) << "__attribute__((max_global_work_dim(0)))";
+                           if (!has_params(continuation)) {
+                               fpga(INTEL) << "__attribute__((autorun))";
+                           }
+                           fpga(INTEL) << "__kernel" << endl << "#else" << endl;
+                       }
+                       func_decls_ << "__kernel ";
+                       func_impl_  << "__kernel ";
+                       if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                           func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << ")))"<< endl;
+                       if (single_workitem)
+                           fpga(INTEL,0_s);
                    }
                    break;
             }

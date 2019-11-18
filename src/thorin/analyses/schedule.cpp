@@ -150,7 +150,7 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
 
     auto early = schedule_early(def);
     auto late  = schedule_late (def);
-    world().DLOG("schedule {}: {} -- {}", def, early, late);
+    //world().DLOG("schedule {}: {} -- {}", def, early, late);
 
     const CFNode* result;
     //if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {

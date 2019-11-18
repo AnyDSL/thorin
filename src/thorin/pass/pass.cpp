@@ -12,6 +12,8 @@ bool PassMan::outside(Def* nom) {
 
 void PassMan::run() {
     world().ILOG("run");
+    if (world().min_level() == LogLevel::Debug)
+        world().stream(world().stream());
 
     auto externals = world().externals(); // copy
     for (const auto& [name, old_nom] : externals) {

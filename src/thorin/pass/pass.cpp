@@ -96,6 +96,8 @@ const Def* PassMan::rewrite(const Def* old_def) {
     auto new_dbg  = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
+        if (new2old_.contains(old_nom)) return old_nom;
+
         Def* new_nom;
         if (auto cached = stubs_.lookup(old_nom)) {
             new_nom = *cached;

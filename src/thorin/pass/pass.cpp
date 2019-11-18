@@ -121,8 +121,11 @@ const Def* PassMan::rewrite(const Def* old_def) {
             local_map(old_nom->param(), new_nom->param());
 
             world().DLOG("local inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+            // Pass through the inspected nominal but return the original new_nom.
+            // The passes must take care of the inspected nominal by themselves.
+            auto new_inspected = new_nom;
             for (auto pass : local_.passes)
-                new_nom = pass->inspect(new_nom);
+                new_inspected = pass->inspect(new_inspected);
         }
 
         return new_nom;

@@ -1,4 +1,4 @@
-#### Modified for HLS backend
+#### Modified for HLS backend (Xilinx HLS) and optimized OpenCL on FPGAs
 Some test cases are available at [impala_hls_snippets](https://github.com/pooyaww/impala_hls_snippets)
 
 # Thorin

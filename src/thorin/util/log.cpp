@@ -29,11 +29,21 @@ void Log::set(Level min_level, std::ostream* stream) {
 
 std::string Log::level2string(Level level) {
     switch (level) {
+#ifdef _MSC_VER
+#define CASE_TO_STRING(VALUE) case VALUE: return #VALUE
+        CASE_TO_STRING(Error);
+        CASE_TO_STRING(Warn);
+        CASE_TO_STRING(Info);
+        CASE_TO_STRING(Verbose);
+        CASE_TO_STRING(Debug);
+#undef CASE_TO_STRING
+#else
         case Error:   return "E";
         case Warn:    return "W";
         case Info:    return "I";
         case Verbose: return "V";
         case Debug:   return "D";
+#endif
     }
     THORIN_UNREACHABLE;
 }

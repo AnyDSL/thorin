@@ -36,7 +36,11 @@ public:
         if (Log::get_stream() && Log::get_min_level() <= level) {
             std::ostringstream oss;
             oss << location;
+            #ifdef _MSC_VER
+            streamf(Log::stream(), "{}: [{}] ", colorize(oss.str(), 7), colorize(level2string(level), level2color(level)));
+            #else
             streamf(Log::stream(), "{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
+            #endif
             streamf(Log::stream(), fmt, std::forward<Args>(args)...) << std::endl;
         }
     }

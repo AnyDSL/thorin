@@ -1,53 +1,72 @@
-#include "thorin/pass/grad_gen.h"
-
+#include <thorin/pass/grad_gen.h>
+#include <thorin/rewrite.h>
 
 namespace thorin {
 
-    void recur_ops(const Def* def, Stream& stream) {
-        stream.indent();
-        stream.fmt("-{}: {}", def->node_name(), def).endl();
-        for (auto op : def->ops()) {
-            if (!op->isa<Lit>()) {
-                recur_ops(op, stream);
+    const Def* mk_add_pullback(World& world, const Def* real_type) {
+        auto pullback_type = world.pi(real_type, world.sigma({real_type, real_type}));
+        auto B = world.lam(pullback_type, {});
+        auto param = B->param(B->num_params() - 1, {"∂z"});
+        auto res = world.tuple({param, param});
+        B->set_body(res);
+        B->set_filter(world.lit_false());
+        return B;
+    }
+
+    // TODO: does ADD
+    const Def* mk_mul_pullback(World& world, const Def* real_type) {
+        auto pullback_type = world.pi(real_type, world.sigma({real_type, real_type}));
+        auto B = world.lam(pullback_type, {});
+        auto param = B->param(B->num_params() - 1, {"∂z"});
+        auto res = world.tuple({param, param});
+        B->set_body(res);
+        B->set_filter(world.lit_false());
+        return B;
+    }
+
+    const Def* j_call(World& world, const Def* def) {
+        if (auto outer = def->isa<App>()) {
+            if (auto app = outer->op(0)->isa<App>()) {
+                if (auto axiom = app->op(0)->isa<Axiom>()) {
+                    switch (axiom->flags()) {
+                    case (int)ROp::add: {
+                        auto pullback = mk_add_pullback(world, outer->type());
+                        auto wrapped = world.tuple({def, pullback});
+                        return wrapped;
+                    }
+                    case (int)ROp::mul: {
+                        auto pullback = mk_add_pullback(world, outer->type());
+                        auto wrapped = world.tuple({def, pullback});
+                        return wrapped;
+                    }
+                    }
+                }
             }
         }
-        stream.dedent();
+
+        return def;
     }
 
     const Def* GradGen::rewrite(const Def* def) {
         if (auto grad = isa_grad(def)) {
-
-            errf("DEF\n{}\n", def);
+            auto ret_params = make_gradients(grad->lam);
 
             ////////// Head
 
             auto grad_lam = world().lam(grad->grad_type, {});
             auto grad_ret = grad_lam->ret_param();
             auto grad_mem = grad_lam->mem_param();
-            auto grad_domain = grad_lam->domain();
-
+            //auto grad_domain = grad_lam->domain();
 
             ////////// Initialize gradients with one
 
-            auto grad_tangent_types = grad_domain->ops().skip_front().skip_back();
+            /*            auto grad_tangent_types = grad_domain->ops().skip_front().skip_back();
             Array<const Def*> param_tangents(grad_tangent_types.size());
             for (size_t i = 0; i < grad_tangent_types.size(); ++i) {
                 param_tangents[i] = world().lit_tangent_one(grad_tangent_types[i]);
-            }
+                }*/
 
-            ////////// Create return value
-
-            auto ret_pi_type = grad_ret->type()->as<Pi>();
-            auto ret_params_type = ret_pi_type->domain()->ops();
-            Array<const Def*> ret_params(ret_params_type.size());
-            ret_params[0] = grad_mem;
-            for (size_t i = 1; i < ret_params_type.size(); ++i) {
-                ret_params[i] = param_tangents[i - 1];
-            }
-
-            //THORIN_BREAK;
-
-            auto ret_val = world().tuple(ret_params);
+            auto ret_val = world().tuple({grad_mem, ret_params});
 
             ////////// Call return continuation
 
@@ -55,7 +74,8 @@ namespace thorin {
             grad_lam->set_body(grad_body);
             grad_lam->set_filter(world().lit_false());
 
-            //return grad_lam;
+            errf("{}", grad_lam->body());
+            //            return grad_lam;
 
         }
 
@@ -79,6 +99,47 @@ namespace thorin {
         }
 
         return {};
+    }
+
+    const Def* GradGen::make_gradients(const Lam* def) {
+        auto pi = def->type();
+        auto lam = const_cast<Lam*>(def); // :^)
+
+        Array<const Def*> grads(pi->domain()->num_ops() - 2);
+        // We start at the parameters and find where they are used. We search for functions.
+        for (size_t i = 1; i < pi->domain()->ops().size() - 1; ++i) {
+            for (auto& use : lam->param(i, {})->uses()) {
+                // Stuff is wrapped in tuples before calling a function.
+                if (use->type()->isa<Arr>()) {
+                    for (auto inner_use : use->uses()) {
+                        // Is this really a function?
+                        if (auto app = inner_use->isa<App>()) {
+                            auto j_called = j_call(world(), app);
+                            auto new_app_val = world().extract(j_called, u64(0));
+                            // Now replace the old direct uses of the return value with the J-wrapped return value
+                            for (auto op_use : app->uses()) {
+                                thorin::rewrite(op_use, app, new_app_val, Scope(lam));
+                                // Find the return of the original function
+                                for (auto res_use : op_use->uses()) {
+                                    if (res_use == lam->body()) {
+                                        auto B = world().extract(j_called, u64(1));
+                                        auto delta_f = lam->body();
+                                        auto deltas = world().app(B, delta_f);
+                                        // Which of the deltas belongs to the current parameter?
+                                        for (size_t idx = 0; idx < inner_use->op(1)->num_ops(); ++idx) {
+                                            auto delta_param_i = world().extract(deltas, idx);
+                                            grads[i - 1] = delta_param_i;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return world().tuple(grads);
     }
 
 }

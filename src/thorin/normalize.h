@@ -13,6 +13,7 @@ const Def* normalize_load       (const Def*, const Def*, const Def*, const Def*)
 const Def* normalize_store      (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_tangent    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_tangent_one(const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_j          (const Def*, const Def*, const Def*, const Def*);
 
 template<Shr > const Def* normalize_Shr (const Def*, const Def*, const Def*, const Def*);
 template<WOp > const Def* normalize_WOp (const Def*, const Def*, const Def*, const Def*);

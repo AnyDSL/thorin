@@ -3,6 +3,7 @@
 #include "thorin/world.h"
 #include "thorin/ad/types.h"
 #include "thorin/ad/vector_space.h"
+#include "thorin/ad/j_call.h"
 
 namespace thorin {
 
@@ -832,6 +833,15 @@ const Def* normalize_tangent(const Def*, const Def* callee, const Def* arg, cons
 const Def* normalize_tangent_one(const Def* type, const Def* callee, const Def* arg, const Def*) {
     if (auto one = tangent_vector_lit_one(type)) {
         return one;
+    }
+
+    // Needs more inlining
+    return type->world().raw_app(callee, arg);
+}
+
+const Def* normalize_j(const Def* type, const Def* callee, const Def* arg, const Def*) {
+    if (auto j = j_call(arg)) {
+        return j;
     }
 
     // Needs more inlining

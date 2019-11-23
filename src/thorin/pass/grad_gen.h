@@ -17,6 +17,8 @@ namespace thorin {
         const Def* rewrite(const Def*) override;
 
     private:
+        const Def* make_gradients(const Lam*);
+
         struct GradInfo {
             GradInfo(const Pi* grad_type, const Lam* lam, const Uses& uses)
                 : grad_type(grad_type), lam(lam), uses(uses)

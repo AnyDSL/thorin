@@ -1,6 +1,8 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
+#include "thorin/ad/types.h"
+#include "thorin/ad/vector_space.h"
 
 namespace thorin {
 
@@ -816,6 +818,24 @@ const Def* normalize_store(const Def* type, const Def* callee, const Def* arg, c
     }
 
     return world.raw_app(callee, {mem, ptr, val}, dbg);
+}
+
+const Def* normalize_tangent(const Def*, const Def* callee, const Def* arg, const Def*) {
+    if (auto tangent_vector = tangent_vector_type(arg)) {
+        return tangent_vector;
+    }
+
+    // Needs more inlining.
+    return arg->world().raw_app(callee, arg);
+}
+
+const Def* normalize_tangent_one(const Def* type, const Def* callee, const Def* arg, const Def*) {
+    if (auto one = tangent_vector_lit_one(type)) {
+        return one;
+    }
+
+    // Needs more inlining
+    return type->world().raw_app(callee, arg);
 }
 
 /*

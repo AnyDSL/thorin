@@ -420,6 +420,12 @@ public:
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     //@}
+    /// @name AD
+    //@{
+    const Def* op_grad(const Def* fn, Debug dbg = {});
+    const Def* type_tangent_vector(const Def* primal_type, Debug dbg = {});
+    const Def* lit_tangent_one(const Def* tangent_type, Debug dbg = {});
+    //@}
     /// @name helpers for optional/variant arguments
     //@{
     const Def* name2def(Name n) {
@@ -694,6 +700,9 @@ private:
         const Axiom* op_slot_;
         const Axiom* op_load_;
         const Axiom* op_store_;
+        const Axiom* type_tangent_vector_;
+        const Axiom* op_grad_;
+        const Axiom* lit_tangent_one_;
         std::string name_;
         Externals externals_;
         Sea defs_;

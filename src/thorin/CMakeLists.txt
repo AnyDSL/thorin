@@ -17,6 +17,10 @@ set(THORIN_SOURCES
     util.h
     world.cpp
     world.h
+    ad/types.cpp
+    ad/types.h
+    ad/vector_space.cpp
+    ad/vector_space.h
     analyses/cfg.cpp
     analyses/cfg.h
     analyses/domfrontier.cpp
@@ -37,6 +41,8 @@ set(THORIN_SOURCES
     be/c.h
     pass/copy_prop.cpp
     pass/copy_prop.h
+    pass/grad_gen.cpp
+    pass/grad_gen.h
     pass/inliner.cpp
     pass/inliner.h
     pass/mem2reg.cpp

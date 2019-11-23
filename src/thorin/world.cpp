@@ -178,6 +178,20 @@ World::World(const std::string& name) {
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
+    } { // type_tangent_vector: Π*. *
+        data_.type_tangent_vector_ = axiom(normalize_tangent, pi(star, star), Tag::TangentVector, 0, {"tangent"});
+    } { // lit_tangent_one: ΠT: *. T
+        auto type = pi(star)->set_domain(star);
+        auto T = type->param({"T"});
+        type->set_codomain(T);
+        data_.lit_tangent_one_ = axiom(normalize_tangent_one, type, Tag::TangentOne, 0, {"one"});
+    } { // op_grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent(T)
+        auto type = pi(star)->set_domain({star, star});
+        auto T = type->param(0, {"T"});
+        auto R = type->param(1, {"R"});
+        auto tangent = type_tangent_vector(T);
+        type->set_codomain(pi(pi(T, R), pi(T, tangent)));
+        data_.op_grad_ = axiom(nullptr, type, Tag::Grad, 0, {"∇"});
     }
 }
 
@@ -784,6 +798,27 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
     ILOG("{}: done,", info);
 }
 
+const Def* World::op_grad(const Def* fn, Debug dbg) {
+    if (fn->type()->isa<Pi>()) {
+        auto ds_fn = cps2ds(fn);
+        auto ds_pi = ds_fn->type()->as<Pi>();
+        auto to_grad = app(data_.op_grad_, {ds_pi->domain(), ds_pi->codomain()}, dbg);
+        auto grad = app(to_grad, ds_fn, dbg);
+        return ds2cps(grad);
+    }
+
+    THORIN_UNREACHABLE;
+}
+
+const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
+    return app(data_.type_tangent_vector_, primal_type, dbg);
+}
+
+const Def* World::lit_tangent_one(const Def* tangent_type, Debug dbg) {
+    return app(data_.lit_tangent_one_, tangent_type, dbg);
+}
+
+
 /*
  * misc
  */
@@ -817,7 +852,7 @@ std::string World::colorize(const std::string& str, int color) {
         return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
     }
 #else
-std::string Log::colorize(const std::string& str, int) {
+std::string World::colorize(const std::string& str, int) {
 #endif
     return str;
 }

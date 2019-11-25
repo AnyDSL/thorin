@@ -44,8 +44,26 @@ const Def* GradGenEnv::sum_partial_grads(const Def* var) {
     THORIN_UNREACHABLE;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// grad-gen pass
+////////////////////////////////////////////////////////////////////////////////
+
+const Def* GradGen::rewrite(const Def*) {
+    return nullptr;
+}
+
+
+const Def* GradGen::emit_grad(Lam* , const Def*) {
+    return nullptr;
+}
+
+std::optional<GradGen::GradApp> GradGen::isa_grad_app(const Def* ) const {
+    return {};
+}
+
+
     ////////////////////////////////////////////////////////////////////////////////
-    // grad-gen pass
+    // grad-gen pass - old stuff
     ////////////////////////////////////////////////////////////////////////////////
 
     const Def* mk_add_pullback(World& world, const Def* real_type) {
@@ -92,7 +110,7 @@ const Def* GradGenEnv::sum_partial_grads(const Def* var) {
         return def;
     }
 
-    const Def* GradGen::rewrite(const Def* def) {
+    const Def* GradGen::rewrite_old(const Def* def) {
         if (auto grad = isa_grad(def)) {
             auto ret_params = make_gradients(grad->lam);
 

@@ -73,14 +73,87 @@ const Def* GradGen::rewrite(const Def* def) {
 }
 
 
-const Def* GradGen::emit_grad(Lam*, const Def* var) {
+const Def* GradGen::emit_grad(Lam* lam, const Def* var) {
+    if (auto grad = env_.get_grad(var)) {
+        return grad;
+    }
+
     for (auto use : var->uses()) {
         for (auto op : uses_are_ops(use)) {
-            (void)op;
+            auto j_wrapped = emit_J(op->as<App>());
+            auto val = world().extract(j_wrapped, u64(0));
+            auto B = world().extract(j_wrapped, u64(1));
+
+            auto val_grad = emit_grad(lam, val);
+
+            auto op_grads = world().app(B, val_grad);
+            auto fst_op_param = world().extract(op->op(0), u64(0));
+            auto snd_op_param = world().extract(op->op(0), u64(1));
+
+            env_.add_partial_grad(fst_op_param, world().extract(op_grads, u64(0)));
+            env_.add_partial_grad(snd_op_param, world().extract(op_grads, u64(1)));
+        }
+
+        if (use == lam->body()) {
+            return world().lit_real(*get_width(var->type()), 1.0);
         }
     }
 
-    return nullptr;
+    return env_.sum_partial_grads(var);
+}
+
+const Def* GradGen::emit_J(const App* op) {
+    return world().tuple({op, emit_pullback(op)});
+}
+
+const Def* GradGen::emit_pullback(const App* op) {
+    auto op_mul = world().op(ROp::mul);
+    auto op_div = world().op(ROp::div);
+
+    auto axiom = op->callee()->as<Axiom>();
+    auto real_t = op->type();
+    auto real_w = *get_width(real_t);
+    auto fst_op_param = world().extract(op->op(0), u64(0));
+    auto snd_op_param = world().extract(op->op(0), u64(1));
+
+    auto pullback_type = world().pi(real_t, world().sigma({real_t, real_t}));
+    auto B = world().lam(pullback_type, {});
+    auto param = B->param(B->num_params() - 1, {"∂f"});
+    auto minus_param = world().app(op_mul, { world().lit_real(real_w, -1.0), param });
+    B->set_filter(world().lit_false());
+
+    switch (axiom->flags()) {
+        /// ∇(a + b) = λ∂f.[∂f, ∂f]
+        case (int)ROp::add: {
+            B->set_body(world().tuple({ param, param}));
+            return B;
+        }
+        /// ∇(a - b) = λ∂f.[∂f, -∂f]
+        /// TODO: is that correct?
+        case (int)ROp::sub: {
+            B->set_body(world().tuple({ param, minus_param }));
+            return B;
+        }
+        /// ∇(a * b) = λ∂f.[∂f*b, ∂f*a]
+        case (int)ROp::mul: {
+            auto fst_grad = world().app(op_mul, { param, snd_op_param });
+            auto snd_grad = world().app(op_mul, { param, fst_op_param });
+
+            B->set_body(world().tuple({ fst_grad, snd_grad }));
+            return B;
+        }
+        /// ∇(a / b) = λ∂f.[∂f/b, (-∂f*a)/(b²)]
+        case (int)ROp::div: {
+            auto fst_grad = world().app(op_div, { param, fst_op_param });
+            auto snd_grad = world().app(op_div, { world().app(op_mul, { minus_param, fst_op_param }),
+                                                  world().app(op_mul, { snd_op_param, snd_op_param }) });
+
+            B->set_body(world().tuple({ fst_grad, snd_grad }));
+            return B;
+        }
+    }
+
+    THORIN_UNREACHABLE;
 }
 
 Lam* GradGen::has_lam_to_rewrite(const Def* def) const {

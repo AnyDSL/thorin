@@ -51,7 +51,7 @@ private:
 class GradGen : public PassBase {
 public:
     GradGen(PassMan& man, size_t index)
-        : PassBase(man, index)
+        : PassBase(man, index), env_(world())
     {}
 
     /// Finds all uses of the gradient operator and replaces them by a lambda
@@ -134,6 +134,13 @@ private:
     ///    }
     const Def* emit_grad(Lam* lam, const Def* def);
 
+    /// \returns the J-Call for the given operator.
+    /// This is a tuple where the first element is the original value.
+    const Def* emit_J(const App* op);
+    /// \returns the pullback function for the given operator.
+    /// This is a function returning the partial derivatives of the operands.
+    const Def* emit_pullback(const App* op);
+
     /// Finds all the applications of the ∇-axiom that will be replaced by a lambda that
     /// calculates the gradients.
     ///
@@ -143,6 +150,9 @@ private:
 
     /// \returns All uses of the variable that are binary operators.
     std::vector<const Def*> uses_are_ops(const Def* use) const;
+
+
+    GradGenEnv env_;
 
     ////////////////////////////////////////////////////////////////////////////////
     // Old stuff

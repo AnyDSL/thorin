@@ -93,7 +93,7 @@ private:
     ///       Recurse for y₃
     ///       - Step 1.1.1.1.1: emit_grad(f, y₃) for Use ret(y₃)
     ///         Return reached, end recursion.
-    ///         rewrite `ret(y₃)` -> `let [_, ∂y₃] = [[], y₃]`
+    ///         rewrite `ret(y₃)` -> `let ∂y₃ = 1.0`
     ///       emit `let [∂a₂,∂y₂] = B₃(∂y₃)`
     ///     emit `let [∂a₁∂y₁], = B₂(∂y₂)`
     ///   - Step 1.1.2: emit_grad(f, a) for Use y₃ = a / y₂
@@ -123,7 +123,7 @@ private:
     ///        let [y₁, B₁] = [b*b,  λ∂y₁.[b*∂y₁,b*∂y₁]]
     ///        let [y₂, B₂] = [a+y₁, λ∂y₂.[∂y₂,∂y₂]]
     ///        let [y₃, B₃] = [a/y₂, λ∂y₃.[∂y₃/y₂,(-∂y₃*a)/(y₂²)]]
-    ///        let [_, ∂y₃] = [[], y₃]
+    ///        let ∂y₃ = 1.0
     ///        let [∂a₂,∂y₂] = B₃(∂y₃)
     ///        let [∂a₁,∂y₁] = B₂(∂y₂)
     ///        let ∂a = ∂a₁+∂a₂

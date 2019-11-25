@@ -73,7 +73,13 @@ const Def* GradGen::rewrite(const Def* def) {
 }
 
 
-const Def* GradGen::emit_grad(Lam* , const Def*) {
+const Def* GradGen::emit_grad(Lam*, const Def* var) {
+    for (auto use : var->uses()) {
+        for (auto op : uses_are_ops(use)) {
+            (void)op;
+        }
+    }
+
     return nullptr;
 }
 
@@ -94,6 +100,23 @@ Lam* GradGen::has_lam_to_rewrite(const Def* def) const {
     }
 
     return nullptr;
+}
+
+std::vector<const Def*> GradGen::uses_are_ops(const Def* use) const {
+    std::vector<const Def*> ops;
+
+    if (use->type()->isa<Arr>()) {
+        for (auto use_of_tuple : use->uses()) {
+            if (auto app = use_of_tuple->isa<App>()) {
+                if (auto axiom = app->callee()->isa<Axiom>();
+                         axiom && axiom->tag() == Tag::ROp) {
+                    ops.push_back(app);
+                }
+            }
+        }
+    }
+
+    return ops;
 }
 
 

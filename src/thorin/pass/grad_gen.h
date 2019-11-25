@@ -141,6 +141,9 @@ private:
     ///     let grad_f = ds2cps(app(app(∇, Σ), cps2ds(λ)))
     Lam* has_lam_to_rewrite(const Def* def) const;
 
+    /// \returns All uses of the variable that are binary operators.
+    std::vector<const Def*> uses_are_ops(const Def* use) const;
+
     ////////////////////////////////////////////////////////////////////////////////
     // Old stuff
     ////////////////////////////////////////////////////////////////////////////////

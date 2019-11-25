@@ -3,10 +3,50 @@
 
 #include <optional>
 #include <utility>
+#include <unordered_map>
+#include <functional>
+#include <bits/stdc++.h>
 
 #include "thorin/pass/pass.h"
 
 namespace thorin {
+
+////////////////////////////////////////////////////////////////////////////////
+// environment
+////////////////////////////////////////////////////////////////////////////////
+
+struct DefHash {
+    inline std::size_t operator()(const Def* def) const { return def->hash(); }
+};
+
+/// \brief State of gradient generation
+/// It maps:
+/// - Variables to their gradients
+/// - Variables to all their partial gradients
+class GradGenEnv {
+public:
+    GradGenEnv(World& world) : world_(world) {}
+
+    /// \returns the full gradient for the given var, or nullptr if none exists yet.
+    const Def* get_grad(const Def* var);
+
+    /// Saves the partial gradient for the given variable.
+    void add_partial_grad(const Def* var, const  Def* partial_grad);
+
+    /// \returns The sum of all partial gradients.
+    /// This Removes all duplicated entries from the partial gradients map and
+    /// adds it to the full gradients map.
+    const Def* sum_partial_grads(const Def* var);
+
+private:
+    World& world_;
+    std::unordered_map<const Def*, const Def*, DefHash> def_to_grads_;
+    std::unordered_multimap<const Def*, const Def*, DefHash> def_to_partial_grads_;
+};
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // grad-gen pass
+    ////////////////////////////////////////////////////////////////////////////////
 
     class GradGen : public PassBase {
     public:
@@ -40,31 +80,31 @@ namespace thorin {
         ///
         /// Goal: Emit pullbacks for all parameters.
         ///
-        /// Step 1: emit_pullback(f, a)
-        /// - Step 1.1: emit_pullback for all Uses of a
-        ///   - Step 1.1.1: emit_pullback(f, a) for Use y₂ = a + y₁
+        /// Step 1: emit_grad(f, a)
+        /// - Step 1.1: emit_grad for all Uses of a
+        ///   - Step 1.1.1: emit_grad(f, a) for Use y₂ = a + y₁
         ///     rewrite `let y₂` -> `let [y₂, B₂] = [a+y₁, λ∂y₂.[∂y₂,∂y₂]]`
         ///     Recurse for y₂
-        ///     - Step 1.1.1.1: emit_pullback(f, y₂) for Use y₃ = a / y₂
+        ///     - Step 1.1.1.1: emit_grad(f, y₂) for Use y₃ = a / y₂
         ///       rewrite `let y₃` -> `let [y₃, B₃] = [a/y₂, λ∂y₃.[∂y₃/y₂,(-∂y₃*a)/(y₂²)]]`
         ///       Recurse for y₃
-        ///       - Step 1.1.1.1.1: emit_pullback(f, y₃) for Use ret(y₃)
+        ///       - Step 1.1.1.1.1: emit_grad(f, y₃) for Use ret(y₃)
         ///         Return reached, end recursion.
         ///         rewrite `ret(y₃)` -> `let [_, ∂y₃] = [[], y₃]`
         ///       emit `let [∂a₂,∂y₂] = B₃(∂y₃)`
         ///     emit `let [∂a₁∂y₁], = B₂(∂y₂)`
-        ///   - Step 1.1.2: emit_pullback(f, a) for Use y₃ = a / y₂
+        ///   - Step 1.1.2: emit_grad(f, a) for Use y₃ = a / y₂
         ///     rewrite `let y₃` -> already done
         ///     Recurse for y₃ -> already done
         ///     emit `let [∂a₂,∂y₂] = B₃(∂y₃)` -> equal to prev definition
         /// - Step 1.2: sum pullbacks of all uses
         ///   emit `let ∂a = ∂a₁+∂a₂`
-        /// Step 2: emit_pullback(f, b)
-        /// - Step 2.1: emit_pullback for all Uses of b
-        ///   - Step 2.1.1: emit_pullback(f, b) for Use y₁ = b * b
+        /// Step 2: emit_grad(f, b)
+        /// - Step 2.1: emit_grad for all Uses of b
+        ///   - Step 2.1.1: emit_grad(f, b) for Use y₁ = b * b
         ///     rewrite `let y₁`  -> `let [y₁, B₁] = [b*b, λ∂y₁.[b*∂y₁,b*∂y₁]]`
         ///     Recurse for y₁
-        ///     - Step 2.1.1.1 emit_pullback(f, a) for Use y₂ = a + y₁
+        ///     - Step 2.1.1.1 emit_grad(f, a) for Use y₂ = a + y₁
         ///       rewrite `let y₂` -> already done
         ///       Recurse for y₂ -> already done
         ///     emit `let [∂b₁, ∂b₂] = B₁(∂y₁)`
@@ -89,7 +129,7 @@ namespace thorin {
         ///        let grads = [∂a,∂b]
         ///        ret(grads)
         ///    }
-        const Def* emit_pullback(Lam* lam, const Def* def);
+        const Def* emit_grad(Lam* lam, const Def* def);
 
         struct GradInfo {
             GradInfo(const Pi* grad_type, const Lam* lam, const Uses& uses)

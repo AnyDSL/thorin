@@ -1,7 +1,52 @@
 #include <thorin/pass/grad_gen.h>
 #include <thorin/rewrite.h>
+#include <thorin/util.h>
+
+#include <numeric>
 
 namespace thorin {
+
+////////////////////////////////////////////////////////////////////////////////
+// environment
+////////////////////////////////////////////////////////////////////////////////
+
+const Def* GradGenEnv::get_grad(const Def* var) {
+    return def_to_grads_[var];
+}
+
+void GradGenEnv::add_partial_grad(const Def* var, const  Def* partial_grad) {
+    assert(!get_grad(var) && "We already have a gradient for this variable");
+    def_to_partial_grads_.emplace(var, partial_grad);
+}
+
+const Def* GradGenEnv::sum_partial_grads(const Def* var) {
+    (void)var;
+    using DefPair = std::pair<const Def*, const Def*>;
+
+    auto [begin, end] = def_to_partial_grads_.equal_range(var);
+        if (begin == end) {
+            return nullptr;
+        }
+
+        if (auto real_w = get_width(var->type())) {
+        const Def* zero = world_.lit_real(*real_w, 0.0);
+        auto add = world_.op(ROp::add);
+        auto sum_up = [this, add](const Def* acc, DefPair cur) {
+                            return world_.app(add, {acc, cur.second}); };
+        auto sum = std::accumulate(begin, end, zero, sum_up);
+
+        def_to_partial_grads_.erase(var);
+
+        return sum;
+    }
+
+    // TODO: Show error
+    THORIN_UNREACHABLE;
+}
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // grad-gen pass
+    ////////////////////////////////////////////////////////////////////////////////
 
     const Def* mk_add_pullback(World& world, const Def* real_type) {
         auto pullback_type = world.pi(real_type, world.sigma({real_type, real_type}));

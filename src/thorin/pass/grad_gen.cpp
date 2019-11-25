@@ -48,7 +48,27 @@ const Def* GradGenEnv::sum_partial_grads(const Def* var) {
 // grad-gen pass
 ////////////////////////////////////////////////////////////////////////////////
 
-const Def* GradGen::rewrite(const Def*) {
+const Def* GradGen::rewrite(const Def* def) {
+    if (auto lam = has_lam_to_rewrite(def)) {
+        auto grad_type = def->type()->as<Pi>();
+
+        Array<const Def*> grads(grad_type->domain()->num_ops() - 2); // Minus mem and ret
+        for (size_t i = 1; i < grad_type->domain()->num_ops() - 1; ++i) {
+            grads[i - 1] = emit_grad(lam, lam->param(i, {}));
+        }
+
+        auto grad_lam = world().lam(grad_type, {});
+        auto grad_ret = grad_lam->ret_param();
+        auto grad_mem = grad_lam->mem_param();
+        auto grad_tuple = world().tuple({grad_mem, world().tuple(grads)});
+        auto grad_body = world().app(grad_ret, grad_tuple);
+
+        grad_lam->set_body(grad_body);
+        grad_lam->set_filter(world().lit_false());
+
+        return grad_lam;
+    }
+
     return nullptr;
 }
 

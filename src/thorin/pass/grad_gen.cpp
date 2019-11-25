@@ -57,8 +57,23 @@ const Def* GradGen::emit_grad(Lam* , const Def*) {
     return nullptr;
 }
 
-std::optional<GradGen::GradApp> GradGen::isa_grad_app(const Def* ) const {
-    return {};
+Lam* GradGen::has_lam_to_rewrite(const Def* def) const {
+    if (auto ds2cps = def->isa<DS2CPS>()) {
+        if (auto app_to_grad = ds2cps->ds()->isa<App>();
+                 app_to_grad && app_to_grad->num_args() > 0) {
+            if (auto app_grad = app_to_grad->callee()->isa<App>()) {
+                if (auto axiom = app_grad->callee()->isa<Axiom>();
+                    axiom && axiom->tag() == Tag::Grad) {
+                    if (auto cps2ds = app_to_grad->arg(0)->isa<CPS2DS>()) {
+                        /// TODO: const cast seems wrong
+                        return const_cast<Lam*>(cps2ds->cps()->as<Lam>());
+                    }
+                }
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 

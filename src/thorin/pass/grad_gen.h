@@ -62,12 +62,6 @@ public:
     const Def* rewrite_old(const Def*) ;
 
 private:
-    /// \brief Application of the gradient axiom.
-    struct GradApp {
-        const Def* app; ///< The entire app (includes the ds2cps)
-        Lam* lam;       ///< The λ to differentiate
-    };
-
     /// \param[in] lam The enclosing λ.
     /// \param[in] def The definition to create the pullback for.
     /// \returns a tuple containing the value equal to the old definition and the pullback.
@@ -145,7 +139,7 @@ private:
     ///
     /// Due to the structure of the axiom, we search for constructs matching:
     ///     let grad_f = ds2cps(app(app(∇, Σ), cps2ds(λ)))
-    std::optional<GradApp> isa_grad_app(const Def* def) const;
+    Lam* has_lam_to_rewrite(const Def* def) const;
 
     ////////////////////////////////////////////////////////////////////////////////
     // Old stuff

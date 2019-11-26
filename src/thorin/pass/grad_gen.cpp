@@ -87,19 +87,24 @@ const Def* GradGen::emit_grad(Lam* lam, const Def* var) {
             auto val_grad = emit_grad(lam, val);
 
             auto op_grads = world().app(B, val_grad);
-            auto fst_op_param = world().extract(op->op(0), u64(0));
-            auto snd_op_param = world().extract(op->op(0), u64(1));
+            auto fst_op_param = world().extract(op->op(1), u64(0));
+            auto snd_op_param = world().extract(op->op(1), u64(1));
 
             env_.add_partial_grad(fst_op_param, world().extract(op_grads, u64(0)));
             env_.add_partial_grad(snd_op_param, world().extract(op_grads, u64(1)));
         }
 
-        if (use == lam->body()) {
+        if (use_is_ret(lam, use)) {
             return world().lit_real(*get_width(var->type()), 1.0);
         }
     }
 
-    return env_.sum_partial_grads(var);
+    if (auto grad = env_.sum_partial_grads(var)) {
+        return grad;
+    } else {
+        THORIN_BREAK;
+        return nullptr;
+    }
 }
 
 const Def* GradGen::emit_J(const App* op) {
@@ -110,11 +115,11 @@ const Def* GradGen::emit_pullback(const App* op) {
     auto op_mul = world().op(ROp::mul);
     auto op_div = world().op(ROp::div);
 
-    auto axiom = op->callee()->as<Axiom>();
+    auto axiom = op->callee()->as<App>()->callee()->as<Axiom>();
     auto real_t = op->type();
     auto real_w = *get_width(real_t);
-    auto fst_op_param = world().extract(op->op(0), u64(0));
-    auto snd_op_param = world().extract(op->op(0), u64(1));
+    auto fst_op_param = world().extract(op->op(1), u64(0));
+    auto snd_op_param = world().extract(op->op(1), u64(1));
 
     auto pullback_type = world().pi(real_t, world().sigma({real_t, real_t}));
     auto B = world().lam(pullback_type, {});
@@ -181,15 +186,34 @@ std::vector<const Def*> GradGen::uses_are_ops(const Def* use) const {
     if (use->type()->isa<Arr>()) {
         for (auto use_of_tuple : use->uses()) {
             if (auto app = use_of_tuple->isa<App>()) {
-                if (auto axiom = app->callee()->isa<Axiom>();
-                         axiom && axiom->tag() == Tag::ROp) {
-                    ops.push_back(app);
+                if (auto maybe_axiom_app = app->callee()->isa<App>()) {
+                    if (auto axiom = maybe_axiom_app->callee()->isa<Axiom>();
+                        axiom && axiom->tag() == Tag::ROp) {
+                        ops.push_back(app);
+                    }
                 }
             }
         }
     }
 
     return ops;
+}
+
+bool GradGen::use_is_ret(Lam* lam, const Def* use) const {
+    if (auto tuple = use->isa<Tuple>();
+             tuple && tuple->num_ops() > 0 && tuple->op(0) == lam->mem_param()) {
+        for (auto tuple_use : tuple->uses()) {
+            if (use_is_ret(lam, tuple_use)) {
+                return true;
+            }
+        }
+    }
+
+    if (use == lam->body()) {
+        return true;
+    }
+
+    return false;
 }
 
 

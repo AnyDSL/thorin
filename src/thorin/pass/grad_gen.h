@@ -150,7 +150,8 @@ private:
 
     /// \returns All uses of the variable that are binary operators.
     std::vector<const Def*> uses_are_ops(const Def* use) const;
-
+    /// \returns True of the use is the return call (or the packing of the return parameters).
+    bool use_is_ret(Lam* lam, const Def* use) const;
 
     GradGenEnv env_;
 

@@ -69,7 +69,7 @@ const Def* GradGen::rewrite(const Def* def) {
         return grad_lam;
     }
 
-    return nullptr;
+    return def;
 }
 
 

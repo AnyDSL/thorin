@@ -17,6 +17,12 @@
 
 namespace thorin {
 
+enum Cl : uint8_t {
+    STD    = 0,  ///< Standard OpenCL
+    INTEL  = 1,  ///< Intel FPGA extension
+    XILINX = 2   ///< Xilinx FPGA extension
+};
+
 class CCodeGen {
 public:
     CCodeGen(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug)
@@ -492,7 +498,7 @@ void CCodeGen::emit() {
 
         if (lang_ == Lang::HLS && continuation->is_external() ) {
             if (name == "hls_top") {
-                if (continuation->num_params() > 2) { //
+                if (continuation->num_params() > 2) {
                     for (auto param : continuation->params()) {
                         if (is_mem(param) || param->order() != 0  || is_unit(param) )
                             continue;
@@ -1360,7 +1366,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL:
-               if(!use_channels_) func_impl_ << "__constant "; break;
+               if(!use_channels_)
+                   func_impl_ << "__constant ";
+               break;
         }
         if (lang_ != Lang::OPENCL || !use_channels_)
             emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";

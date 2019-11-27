@@ -115,7 +115,6 @@ add_library(thorin ${THORIN_SOURCES})
 
 if(LLVM_FOUND)
     set(Thorin_LLVM_COMPONENTS core support ipo target ${LLVM_TARGETS_TO_BUILD})
-    option(AnyDSL_LLVM_LINK_SHARED "whether to link against shared libLLVM" ${LLVM_LINK_LLVM_DYLIB})
     if(AnyDSL_LLVM_LINK_SHARED)
         set(_specify_use_shared "USE_SHARED")
     else()

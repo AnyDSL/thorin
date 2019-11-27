@@ -27,6 +27,7 @@ find_package(LLVM QUIET CONFIG)
 if(LLVM_FOUND)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+    option(AnyDSL_LLVM_LINK_SHARED "whether to link against shared libLLVM" ${LLVM_LINK_LLVM_DYLIB})
     # check for RV
     find_package(RV)
     if(RV_FOUND)

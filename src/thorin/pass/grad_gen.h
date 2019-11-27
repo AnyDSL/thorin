@@ -153,31 +153,10 @@ private:
     /// \returns True of the use is the return call (or the packing of the return parameters).
     bool use_is_ret(Lam* lam, const Def* use) const;
 
+private:
     GradGenEnv env_;
+};
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // Old stuff
-    ////////////////////////////////////////////////////////////////////////////////
-    const Def* make_gradients(const Lam*);
-
-
-        struct GradInfo {
-            GradInfo(const Pi* grad_type, const Lam* lam, const Uses& uses)
-                : grad_type(grad_type), lam(lam), uses(uses)
-            {}
-
-            /// Type of the function that results from generating the gradient
-            const Pi* grad_type;
-            /// The lamda of which the gradient will be generated
-            const Lam* lam;
-            /// All the uses of the application of the grad-operator that will be replaced by the generated gradient
-            const Uses& uses;
-        };
-
-        std::optional<GradInfo> isa_grad(const Def*) const;
-
-    };
-
-}
+} // namespace thorin
 
 #endif

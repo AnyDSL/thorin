@@ -31,7 +31,7 @@ set(Thorin_HAS_LLVM_SUPPORT @LLVM_FOUND@)
 set(Thorin_HAS_RV_SUPPORT @RV_FOUND@)
 
 if(Thorin_HAS_LLVM_SUPPORT)
-    find_package(LLVM QUIET CONFIG PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@")
+    find_package(LLVM QUIET CONFIG PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@" NO_DEFAULT_PATH)
     option(AnyDSL_LLVM_LINK_SHARED "whether to link against shared libLLVM" "@AnyDSL_LLVM_LINK_SHARED@")
 
     if(Thorin_HAS_RV_SUPPORT)

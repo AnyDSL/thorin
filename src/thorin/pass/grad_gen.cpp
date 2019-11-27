@@ -20,7 +20,6 @@ void GradGenEnv::add_partial_grad(const Def* var, const  Def* partial_grad) {
 }
 
 const Def* GradGenEnv::sum_partial_grads(const Def* var) {
-    (void)var;
     using DefPair = std::pair<const Def*, const Def*>;
 
     auto [begin, end] = def_to_partial_grads_.equal_range(var);
@@ -78,19 +77,21 @@ const Def* GradGen::emit_grad(Lam* lam, const Def* var) {
         return grad;
     }
 
-    for (auto use : var->uses()) {
+    for (auto use : var->copy_uses()) {
         for (auto op : uses_are_ops(use)) {
             auto j_wrapped = emit_J(op->as<App>());
             auto val = world().extract(j_wrapped, u64(0));
-            auto B = world().extract(j_wrapped, u64(1));
+            thorin::rewrite(lam, use, val, Scope(lam));
 
             auto val_grad = emit_grad(lam, val);
 
+            auto B = world().extract(j_wrapped, u64(1));
             auto op_grads = world().app(B, val_grad);
-            auto fst_op_param = world().extract(op->op(1), u64(0));
-            auto snd_op_param = world().extract(op->op(1), u64(1));
 
+            auto fst_op_param = world().extract(op->op(1), u64(0));
             env_.add_partial_grad(fst_op_param, world().extract(op_grads, u64(0)));
+
+            auto snd_op_param = world().extract(op->op(1), u64(1));
             env_.add_partial_grad(snd_op_param, world().extract(op_grads, u64(1)));
         }
 
@@ -169,8 +170,7 @@ Lam* GradGen::has_lam_to_rewrite(const Def* def) const {
                 if (auto axiom = app_grad->callee()->isa<Axiom>();
                     axiom && axiom->tag() == Tag::Grad) {
                     if (auto cps2ds = app_to_grad->arg(0)->isa<CPS2DS>()) {
-                        /// TODO: const cast seems wrong
-                        return const_cast<Lam*>(cps2ds->cps()->as<Lam>());
+                        return cps2ds->cps()->isa_nominal<Lam>();
                     }
                 }
             }
@@ -200,8 +200,7 @@ std::vector<const Def*> GradGen::uses_are_ops(const Def* use) const {
 }
 
 bool GradGen::use_is_ret(Lam* lam, const Def* use) const {
-    if (auto tuple = use->isa<Tuple>();
-             tuple && tuple->num_ops() > 0 && tuple->op(0) == lam->mem_param()) {
+    if (auto tuple = use->isa<Tuple>()) {
         for (auto tuple_use : tuple->uses()) {
             if (use_is_ret(lam, tuple_use)) {
                 return true;

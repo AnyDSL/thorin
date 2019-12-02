@@ -62,6 +62,10 @@ const Def* GradGen::rewrite(const Def* def) {
         auto grad_tuple = world().tuple({grad_mem, world().tuple(grads)});
         auto grad_body = world().app(grad_ret, grad_tuple);
 
+        for (size_t i = 1; i < grad_type->domain()->num_ops() - 1; ++i) {
+            grad_body = thorin::rewrite(grad_body, lam->param(i, {}), grad_lam->param(i, {}), Scope(lam));
+        }
+
         grad_lam->set_body(grad_body);
         grad_lam->set_filter(world().lit_false());
 

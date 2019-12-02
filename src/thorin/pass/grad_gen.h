@@ -132,7 +132,7 @@ private:
     ///        let grads = [∂a,∂b]
     ///        ret(grads)
     ///    }
-    const Def* emit_grad(Lam* lam, const Def* def);
+    const Def* emit_grad(Lam* lam, Lam* grad_lam, const Def* def);
 
     /// \returns the J-Call for the given operator.
     /// This is a tuple where the first element is the original value.

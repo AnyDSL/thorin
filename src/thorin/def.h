@@ -254,8 +254,10 @@ public:
     //@}
     /// @name retrieve @p Param for @em nominals.
     //@{
-    const Param* param(Debug dbg = {});
-    const Def* param(size_t i, Debug dbg = {}) { return detail::world_extract(world(), (const Def*) param(), i, dbg); }
+    const Param* param(Debug dbg);
+    const Def* param(size_t i, Debug dbg) { return detail::world_extract(world(), (const Def*) param(), i, dbg); }
+    const Param* param();       ///< Wrapper instead of default argument for easy access in @c gdb.
+    const Def* param(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
     Array<const Def*> params() { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
     size_t num_params();
     //@}

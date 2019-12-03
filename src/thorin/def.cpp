@@ -366,6 +366,9 @@ const Param* Def::param(Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
+const Param* Def::param() { return param(Debug()); }
+const Def*   Def::param(size_t i) { return param(i, Debug()); }
+
 /*
  * apply/reduce
  */

@@ -33,15 +33,9 @@ public:
     /// Saves the partial gradient for the given variable.
     void add_partial_grad(const Def* var, const  Def* partial_grad);
 
-    /// \returns The sum of all partial gradients.
-    /// This Removes all duplicated entries from the partial gradients map and
-    /// adds it to the full gradients map.
-    const Def* sum_partial_grads(const Def* var);
-
 private:
     World& world_;
     std::unordered_map<const Def*, const Def*, DefHash> def_to_grads_;
-    std::unordered_multimap<const Def*, const Def*, DefHash> def_to_partial_grads_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

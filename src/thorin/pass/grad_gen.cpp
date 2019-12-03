@@ -15,34 +15,24 @@ const Def* GradGenEnv::get_grad(const Def* var) {
 }
 
 void GradGenEnv::add_partial_grad(const Def* var, const  Def* partial_grad) {
-    assert(!get_grad(var) && "We already have a gradient for this variable");
-    def_to_partial_grads_.emplace(var, partial_grad);
-}
+    if (auto w = get_width(var->type())) {
+        auto iter = def_to_grads_.find(var);
 
-const Def* GradGenEnv::sum_partial_grads(const Def* var) {
-    using DefPair = std::pair<const Def*, const Def*>;
+        if (iter == def_to_grads_.end() || !iter->second) {
+            def_to_grads_[var] = partial_grad;
+            return;
+        }
 
-    auto [begin, end] = def_to_partial_grads_.equal_range(var);
-    if (begin == end) {
-        return nullptr;
+        auto w_lit = world_.lit_nat(*w);
+        auto type_args = world_.tuple({ w_lit, w_lit });
+        auto add = world_.app(world_.op(ROp::add), type_args);
+        auto new_part_grad = world_.app(add, { iter->second, partial_grad }, { "∂" + var->name() });
+
+        def_to_grads_[var] = new_part_grad;
+        return;
     }
 
-    if (auto real_w = get_width(var->type())) {
-        const Def* zero = world_.lit_real(64, r64(0.0), {"zero"});
-        auto sum_up = [this,var] (const Def* acc, DefPair cur) {
-                          //auto type_params = world_.tuple({ acc->type(), cur.second->type() });
-                          auto type_params = world_.tuple({ world_.lit_nat(64),world_.lit_nat(64) });
-                          auto add = world_.app(world_.op(ROp::add), type_params);
-                          return world_.app(add, {acc, cur.second}, {"∇" + var->name()}); };
-        auto sum = std::accumulate(begin, end, zero, sum_up);
-
-        def_to_partial_grads_.erase(var);
-
-        return sum;
-    }
-
-    // TODO: Show error
-    THORIN_UNREACHABLE;
+    assert(false && "Only gradients of reals are supported");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +113,7 @@ const Def* GradGen::emit_grad(Lam* lam, Lam* grad_lam, const Def* var) {
         }
     }
 
-    if (auto grad =  env_.sum_partial_grads(var)) {
+    if (auto grad =  env_.get_grad(var)) {
         return grad;
     } else {
         return nullptr;

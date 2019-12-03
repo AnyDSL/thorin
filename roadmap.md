@@ -37,12 +37,17 @@
 
 ## Optimizations
 
-- [ ] finish new optimizer (wip)
+- [ ] finish new optimizer
+    - [ ] passes with no fixed point needed
+    - [x] passes with scope-wide fixed point
+    - [ ] passes with global fixed point needed
+    - [ ] passes on-the-fly inlining
 - [ ] rewrite all optimizations to work with new optimizer
     - [ ] inliner      (wip)
     - [ ] partial eval (wip)
-    - [ ] mem2reg      (wip)
-    - [ ] scalarize
+    - [x] mem2reg
+    - [ ] scalarize (destroys slots)
+    - [ ] flatten   (nukes tuple params)
     - [ ] eta conv
     - [ ] copy prop
     - [ ] tail rec elim (maybe can be merged with copy prop)

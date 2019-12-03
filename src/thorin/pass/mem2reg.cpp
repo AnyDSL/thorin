@@ -79,7 +79,6 @@ Def* Mem2Reg::inspect(Def* def) {
         if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
             info.lattice = Info::Keep;
         } else if (info.lattice != Info::Keep) {
-            auto& info = lam2info_[old_lam];
             auto& phis = lam2phis_[old_lam];
 
             if (info.lattice == Info::PredsN && !phis.empty()) {
@@ -99,19 +98,17 @@ Def* Mem2Reg::inspect(Def* def) {
                 world().DLOG("new_lam: {} -> {}", old_lam, new_lam);
                 new2old_[new_lam] = old_lam;
 
-                auto& phis = lam2phis_[old_lam];
                 size_t n = new_lam->num_params() - phis.size();
-
                 auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
                 man().local_map(old_lam->param(), new_param);
-
-                size_t i = 0;
-                for (auto phi : phis)
-                    set_val(new_lam, phi, new_lam->param(n + i++));
 
                 info.new_lam = new_lam;
                 lam2info_[new_lam].lattice = Info::PredsN;
                 new_lam->set(old_lam->ops());
+
+                size_t i = 0;
+                for (auto phi : phis)
+                    set_val(new_lam, phi, new_lam->param(n + i++));
 
                 return new_lam;
             }

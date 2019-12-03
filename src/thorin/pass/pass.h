@@ -105,12 +105,10 @@ private:
         unique_queue<NomSet> noms;
     } global_;
 
-    struct Local {
+    struct Local : public Global {
         Scope* old_scope = nullptr;
         std::vector<Pass*> passes;
         std::vector<Pass*> cur_passes;
-        Def2Def map;
-        unique_queue<NomSet> noms;
         NomSet free;
         DefSet rewritten;
         DefSet analyzed;

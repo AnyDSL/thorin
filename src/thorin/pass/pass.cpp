@@ -111,11 +111,6 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
         if (outside(old_nom)) {
             global_map(old_nom, new_nom);
-            if (old_nom->is_set()) {
-                world().DLOG("new2old_: {}/{} (old_nom/new_nom)", old_nom, new_nom);
-                new2old_[new_nom] = old_nom;
-            }
-
             world().DLOG("global inspect: {}/{} (old_nom/new_nom)", old_nom, new_nom);
             //for (auto&& pass : passes_) new_nom = pass->global_inspect(new_nom);
         } else {
@@ -130,6 +125,8 @@ const Def* PassMan::rewrite(const Def* old_def) {
                 new_inspected = pass->inspect(new_inspected);
         }
 
+        world().DLOG("new2old_: {}/{} (old_nom/new_nom)", old_nom, new_nom);
+        new2old_[new_nom] = old_nom;
         return new_nom;
     }
 

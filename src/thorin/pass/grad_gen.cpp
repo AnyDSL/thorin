@@ -41,11 +41,17 @@ void GradGenEnv::add_partial_grad(const Def* var, const  Def* partial_grad) {
 
 const Def* GradGen::rewrite(const Def* def) {
     if (auto lam = has_lam_to_rewrite(def)) {
+
         auto grad_type = def->type()->as<Pi>();
         auto grad_lam = world().lam(grad_type, {"∇" + lam->name()});
 
         Array<const Def*> grads(grad_type->domain()->num_ops() - 2); // Minus mem and ret
         for (size_t i = 1; i < grad_type->domain()->num_ops() - 1; ++i) {
+            if (lam->param(i)->num_uses() == 0) {
+                errf("warning: {}. parameter of {} is not used", i, lam->name());
+                grads[i - 1] = world().bot(lam->param(i)->type());
+                continue;
+            }
             grads[i - 1] = emit_grad(lam, grad_lam, lam->param(i));
         }
 
@@ -79,6 +85,10 @@ const Def* GradGen::emit_grad(Lam* lam, Lam* grad_lam, const Def* var) {
     }
 
     for (auto use : var->copy_uses()) {
+        if (!Scope(lam).contains(use)) {
+            continue;
+        }
+
         for (auto op : uses_are_ops(use)) {
             auto j_wrapped = emit_J(op->as<App>());
             for (size_t i = 1; i < grad_lam->domain()->num_ops() - 1; ++i) {

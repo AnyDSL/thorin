@@ -54,22 +54,6 @@ const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
  * PassMan hooks
  */
 
-bool Mem2Reg::enter(Def* nom) {
-    return nom->isa<Lam>();
-#if 0
-    if (auto lam = nom->isa<Lam>()) {
-        auto orig = original(lam);
-        if (orig != lam) {
-            lam->set(orig->ops());
-            // TODO move phi stuff here
-        }
-        return true;
-    }
-
-    return false;
-#endif
-}
-
 Def* Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info_[old_lam];

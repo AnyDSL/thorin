@@ -3,7 +3,6 @@
 
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/bitset.h"
 
 namespace thorin {
 

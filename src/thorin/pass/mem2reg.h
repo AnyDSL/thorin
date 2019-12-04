@@ -4,7 +4,6 @@
 #include <set>
 
 #include "thorin/pass/pass.h"
-#include "thorin/util/bitset.h"
 
 namespace thorin {
 
@@ -21,7 +20,7 @@ public:
     {}
 
     bool scope(Def* def) override { return def->isa<Lam>(); }
-    bool enter(Def* def) override;
+    bool enter(Def* def) override { return def->isa<Lam>(); }
     Def* inspect(Def*) override;
     const Def* rewrite(const Def*) override;
     bool analyze(const Def*) override;
@@ -50,7 +49,6 @@ private:
     const Def* get_val(const Analyze* proxy) { return get_val(man().cur_nom<Lam>(), proxy); }
     const Def* set_val(Lam*, const Analyze*, const Def*);
     const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().cur_nom<Lam>(), proxy, val); }
-    Info& lam2info(Lam* lam) { return lam2info_[lam]; }
 
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old_.lookup(new_lam)) return *old_lam;

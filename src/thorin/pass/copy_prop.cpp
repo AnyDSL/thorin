@@ -1,134 +1,127 @@
 #include "thorin/pass/copy_prop.h"
 
-#if 0
 #include "thorin/util.h"
 
 namespace thorin {
 
-bool CopyProp::LamInfo::join(const App* app) {
-    bool todo = false;
-    for (size_t i = 0, e = params.size(); i != e; ++i) {
-        auto& lattice = std::get<Lattice   >(params[i]);
-        auto& param   = std::get<const Def*>(params[i]);
+/*
+ * helpers
+ */
 
-        if (lattice == Top || app->arg(i)->isa<Bot>()) continue;
+//    ⊥ y
+//   +---
+// ⊥ |⊥ y
+// x |x x - if x == y, else ⊤
+// ⊤ |⊤ ⊤
+bool CopyProp::join(const Def*& a, const Def* b) {
+    if (a->isa<Top>() || b->isa<Bot>() || a == b) return false;
 
-        if (param->isa<Bot>()) {
-            todo |= param != app->arg(i);
-            param = app->arg(i);
-        } else if (param == app->arg(i)) {
-            /* do nothing */
-        } else {
-            lattice = Top;
-            todo = true;
-        }
-    }
-    return todo;
+    if (a->isa<Bot>())
+        a = b;
+    else
+        a = world().top(b->type());
+
+    return true;
 }
 
-bool CopyProp::set_top(Lam* lam) {
-    bool todo = false;
-    auto& info = lam2info(lam);
-    info.new_lam = nullptr;
-    for (auto& param : info.params) {
-        todo |= std::get<Lattice>(param) != Top;
-        std::get<Lattice>(param) = Top;
+/*
+ * PassMan hooks
+ */
+
+Def* CopyProp::inspect(Def* def) {
+    /*
+    if (auto old_lam = def->isa<Lam>()) {
+        auto& info = lam2info_[old_lam];
+        if (preds_n_.contains(old_lam)) info.lattice = Info::PredsN;
+        if (keep_   .contains(old_lam)) info.lattice = Info::Keep;
+
+        if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
+            info.lattice = Info::Keep;
+        } else if (info.lattice != Info::Keep) {
+            auto& phis = lam2phis_[old_lam];
+
+            if (info.lattice == Info::PredsN && !phis.empty()) {
+                std::vector<const Def*> types;
+                for (auto i = phis.begin(); i != phis.end();) {
+                    auto proxy = *i;
+                    if (keep_.contains(proxy)) {
+                        i = phis.erase(i);
+                    } else {
+                        types.emplace_back(proxy_type(proxy));
+                        ++i;
+                    }
+                }
+                //Array<const Def*> types(phis.size(), [&](auto) { return proxy_type(*phi++); });
+                auto new_domain = merge_sigma(old_lam->domain(), types);
+                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+                world().DLOG("new_lam: {} -> {}", old_lam, new_lam);
+                new2old_[new_lam] = old_lam;
+
+                size_t n = new_lam->num_params() - phis.size();
+                auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
+                man().local_map(old_lam->param(), new_param);
+
+                info.new_lam = new_lam;
+                lam2info_[new_lam].lattice = Info::PredsN;
+                new_lam->set(old_lam->ops());
+
+                size_t i = 0;
+                for (auto phi : phis)
+                    set_val(new_lam, phi, new_lam->param(n + i++));
+
+                return new_lam;
+            }
+        }
     }
-    return todo;
+
+    */
+    return def;
 }
 
 const Def* CopyProp::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>()) {
-            const auto& info = lam2info(lam);
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !man().outside(lam)) {
+            //const auto& info = lam2info_[lam];
+            /*
             if (auto new_lam = info.new_lam) {
-                std::vector<const Def*> new_args;
-                for (size_t i = 0, e = info.params.size(); i != e; ++i) {
-                    auto& lattice = std::get<Lattice   >(info.params[i]);
-                    auto& param   = std::get<const Def*>(info.params[i]);
-                    if (lattice == Top)
-                        new_args.emplace_back(app->arg(i));
-                    else if (app->arg(i)->isa<Bot>() || app->arg(i) == param)
-                        continue;
-                    else
-                        return app;
-                }
-
-                return world().app(new_lam, new_args, app->debug());
+                auto& phis = lam2phis_[lam];
+                auto phi = phis.begin();
+                Array<const Def*> args(phis.size(), [&](auto) { return get_val(*phi++); });
+                return world().app(new_lam, merge_tuple(app->arg(), args));
             }
+            */
         }
     }
 
     return def;
 }
 
-void CopyProp::inspect(Def* def) {
-    if (auto old_lam = def->isa<Lam>()) {
-        if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
-            set_top(old_lam);
-        } else {
-            auto& info = lam2info(old_lam);
-            std::vector<const Def*> new_domain;
-            for (size_t i = 0, e = old_lam->num_params(); i != e; ++i) {
-                if (std::get<Lattice>(info.params[i]) == Top)
-                    new_domain.emplace_back(old_lam->param(i)->type());
-            }
-
-            if (new_domain.size() != old_lam->num_params()) {
-                man().new_state();
-
-                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
-                world().DLOG("new_lam: {}:{} -> {}:{}", old_lam, old_lam->type(), new_lam, new_lam->type());
-                new2old(new_lam) = old_lam;
-                info.new_lam = new_lam;
-            }
-        }
-    }
-}
-
-void CopyProp::enter(Def* def) {
-    if (auto new_lam = def->isa<Lam>()) {
-        if (auto old_lam = new2old(new_lam)) {
-            auto& info = lam2info(old_lam);
-            size_t n = info.params.size();
-            size_t j = 0;
-            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) {
-                if (std::get<Lattice>(info.params[i]) == Top)
-                    return new_lam->param(j++);
-                return std::get<const Def*>(info.params[i]);
-            }));
-            man().map(old_lam->param(), new_param);
-            new_lam->set(old_lam->ops());
-        }
-    }
-}
-
-void CopyProp::analyze(const Def* def) {
-    if (def->isa<Param>()) return;
+bool CopyProp::analyze(const Def* def) {
+    if (def->isa<Param>()) return true;
 
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>()) {
-            if (new2old(lam) == nullptr) {
-                auto& info = lam2info(lam);
-                if (info.join(app)) {
-                    man().undo(info.undo);
-                    info.new_lam = nullptr;
-                }
+        if (auto new_lam = app->callee()->isa_nominal<Lam>()) {
+            if (auto old_lam = new2old_.lookup(new_lam)) {
+                auto& info = lam2info_[*old_lam];
+                bool todo = false;
+                for (size_t i = 0, e = app->num_args(); i != e; ++i)
+                    todo |= join(info.args[i], app->arg(i));
+                return !todo;
             }
         }
-
-        if (auto lam = app->arg()->isa_nominal<Lam>()) {
-            if (set_top(lam))
-                man().undo(lam2info(lam).undo);
-        }
-    } else {
-        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            if (auto lam = def->op(i)->isa_nominal<Lam>())
-                if (set_top(lam))
-                    man().undo(lam2info(lam).undo);
-        }
     }
+
+    return true;
+}
+
+void CopyProp::retry() {
+    lam2info_.clear();
+}
+
+void CopyProp::clear() {
+    retry();
+    new2old_.clear();
+    keep_.clear();
 }
 
 }
-#endif

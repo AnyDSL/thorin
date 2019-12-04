@@ -1,50 +1,47 @@
 #ifndef THORIN_PASS_COPY_PROP_H
 #define THORIN_PASS_COPY_PROP_H
 
-#if 0
 #include "thorin/pass/pass.h"
 
 namespace thorin {
 
-class CopyProp : public Pass<CopyProp> {
+/**
+ * This one is similar to constant propagation but also propagates arbitrary values through phis.
+ * The only crucial property is that the value to be propagated must be dominated by its parameter.
+ * This is not necessarily the case in loops.
+ * More precisely, "dominated" in this context means the value must not depend on its phi.
+ */
+class CopyProp : public Pass {
 public:
     CopyProp(PassMan& man, size_t index)
-        : Pass(man, index)
+        : Pass(man, index, "copy_prop")
     {}
 
+    bool scope(Def* def) override { return def->isa<Lam>(); }
+    bool enter(Def* def) override { return def->isa<Lam>(); }
+    Def* inspect(Def*) override;
     const Def* rewrite(const Def*) override;
-    void inspect(Def*) override;
-    void enter(Def*) override;
-    void analyze(const Def*) override;
+    bool analyze(const Def*) override;
+    void retry() override;
+    void clear() override;
 
-    enum Lattice { Val, Top };
-
-    struct LamInfo {
-        LamInfo() = default;
-        LamInfo(Lam* lam, size_t undo)
-            : params(lam->num_params(), [&](auto i) { return std::tuple(Val, lam->world().bot(lam->domain(i))); })
-            , undo(undo)
-        {}
-
-        bool join(const App*);
-
-        Array<std::tuple<Lattice, const Def*>> params;
+    struct Info {
         Lam* new_lam = nullptr;
-        size_t undo;
+        Array<const Def*> args;
     };
 
-    using Lam2Info = DefMap<LamInfo>;
-    using Lam2Lam  = LamMap<Lam*>;
-    using State    = std::tuple<Lam2Info, Lam2Lam>;
-
 private:
-    bool set_top(Lam*);
+    bool join(const Def*& src, const Def* with);
+    Lam* original(Lam* new_lam) {
+        if (auto old_lam = new2old_.lookup(new_lam)) return *old_lam;
+        return new_lam;
+    }
 
-    auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, LamInfo(lam, man().cur_state_id())); }
-    auto& new2old(Lam* lam) { return get<Lam2Lam>  (lam); }
+    LamMap<Info> lam2info_;
+    LamMap<Lam*> new2old_;
+    DefSet keep_;
 };
 
 }
 
-#endif
 #endif

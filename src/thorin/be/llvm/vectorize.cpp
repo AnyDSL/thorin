@@ -134,17 +134,14 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     rv::Region funcRegionWrapper(funcRegion);
     rv::VectorizationInfo vec_info(funcRegionWrapper, target_mapping);
 
-    llvm::FunctionAnalysisManager FAM;
-    llvm::ModuleAnalysisManager MAM;
-
     llvm::PassBuilder PB;
+    llvm::FunctionAnalysisManager FAM;
     PB.registerFunctionAnalyses(FAM);
-    PB.registerModuleAnalyses(MAM);
 
     llvm::TargetIRAnalysis ir_analysis;
     llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func, FAM);
     llvm::TargetLibraryAnalysis lib_analysis;
-    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent(), MAM);
+    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func, FAM);
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     if (vector_length == 1) {

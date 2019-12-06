@@ -4,7 +4,7 @@ if(MSVC)
     add_compile_options("/wd4800" "/wd4520")
     add_compile_options("/experimental:external" "/external:anglebrackets" "/external:W0")
 else()
-    add_definitions("-Wall -Wextra")
+    add_compile_options("-Wall" "-Wextra")
 endif()
 
 # check for Half library

@@ -5,6 +5,7 @@
 # Thorin_LIBRARIES (including dependencies to LLVM/RV)
 # Thorin_FOUND
 # Thorin_HAS_LLVM_SUPPORT | Thorin_HAS_RV_SUPPORT
+# AnyDSL_LLVM_LINK_SHARED
 
 cmake_minimum_required(VERSION 3.1)
 
@@ -29,10 +30,10 @@ find_package(Half REQUIRED)
 
 set(Thorin_HAS_LLVM_SUPPORT @LLVM_FOUND@)
 set(Thorin_HAS_RV_SUPPORT @RV_FOUND@)
+set(AnyDSL_LLVM_LINK_SHARED @AnyDSL_LLVM_LINK_SHARED@)
 
 if(Thorin_HAS_LLVM_SUPPORT)
     find_package(LLVM QUIET CONFIG PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@" NO_DEFAULT_PATH)
-    option(AnyDSL_LLVM_LINK_SHARED "whether to link against shared libLLVM" "@AnyDSL_LLVM_LINK_SHARED@")
 
     if(Thorin_HAS_RV_SUPPORT)
         find_package(RV QUIET)

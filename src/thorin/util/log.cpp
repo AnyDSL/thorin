@@ -30,13 +30,11 @@ void Log::set(Level min_level, std::ostream* stream) {
 std::string Log::level2string(Level level) {
     switch (level) {
 #ifdef _MSC_VER
-#define CASE_TO_STRING(VALUE) case VALUE: return #VALUE
-        CASE_TO_STRING(Error);
-        CASE_TO_STRING(Warn);
-        CASE_TO_STRING(Info);
-        CASE_TO_STRING(Verbose);
-        CASE_TO_STRING(Debug);
-#undef CASE_TO_STRING
+        case Error:   return "error";
+        case Warn:    return "warning";
+        case Info:    return "info";
+        case Verbose: return "verbose";
+        case Debug:   return "debug";
 #else
         case Error:   return "E";
         case Warn:    return "W";

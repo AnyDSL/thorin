@@ -1,10 +1,10 @@
 if(MSVC)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4800 /wd4520")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4800 /wd4520")
+    add_compile_options("/wd4800" "/wd4520")
+    add_compile_options("/experimental:external" "/external:anglebrackets" "/external:W0")
 else()
-    add_definitions("-Wall -Wextra")
+    add_compile_options("-Wall" "-Wextra")
 endif()
 
 # check for Half library

@@ -11,6 +11,7 @@ GradEmitter::GradEmitter(Lam* orig_lam, Lam* grad_lam)
     , grad_lam_(grad_lam)
     , orig_scope_(Scope(orig_lam))
     , world_(orig_lam->world())
+    , rewriter_(world_, &orig_scope_)
     , pullback_gens_ {{
         [size_t(ROp::add)] = [this](auto op){ return pullback_for_add(op); },
         [size_t(ROp::sub)] = [this](auto op){ return pullback_for_sub(op); },
@@ -20,6 +21,10 @@ GradEmitter::GradEmitter(Lam* orig_lam, Lam* grad_lam)
     }}
 {
     check_initial_sanity();
+
+    for (size_t i = 0; i < num_params(); ++i) {
+        rewriter_.old2new[orig_param(i)] = grad_param(i);
+    }
 }
 
 Lam* GradEmitter::emit_grad_lam() {
@@ -28,7 +33,7 @@ Lam* GradEmitter::emit_grad_lam() {
 
     fill_grads_for_orig_params();
     set_grad_lam_body();
-    rewire_lam_body(grad_lam_);
+    //rewire_lam_body(grad_lam_);
 
     Scope(grad_lam_).dump();
 
@@ -154,7 +159,14 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
                 if (auto maybe_axiom_app = app->callee()->isa<App>()) {
                     if (auto axiom = maybe_axiom_app->callee()->isa<Axiom>();
                         axiom && axiom->tag() == Tag::ROp) {
-                        auto B = emit_pullback_for_rop(app);
+
+                        auto J_call = wrap_rop_in_J(app);
+                        //                        auto val = world_.extract(J_call, u64(0), { app->name() });
+                        auto B = world_.extract(J_call, u64(1), { "B" + app->name() });
+
+                        Scope(B->as_nominal<Lam>()).dump();
+
+                        //auto B = emit_pullback_for_rop(app);
                         auto op_grad = emit_grad_for_var(app);
 
                         if (!op_grad) {
@@ -170,6 +182,23 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
     }
 
     return var_to_grads_[var];
+}
+
+const Def* GradEmitter::into_grad_scope(const Def* old_def) {
+    if (auto new_def = rewriter_.old2new.lookup(old_def)) return *new_def;
+    if (old_def->isa<Param>()) return old_def;
+
+    for (auto op : old_def->ops()) {
+        rewriter_.old2new[op] = into_grad_scope(op);
+    }
+
+    return rewriter_.rewrite(old_def);
+}
+
+const Def* GradEmitter::wrap_rop_in_J(const Def* app) {
+    auto def_in_grad = into_grad_scope(app);
+    auto pullback = emit_pullback_for_rop(def_in_grad);
+    return world_.tuple({ def_in_grad, pullback }, { "J" });
 }
 
 const Def* GradEmitter::emit_partial_grad_for_ret_use(const Def* var, const Def* use) {
@@ -211,7 +240,7 @@ const Def* GradEmitter::pullback_for_add(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ param, param }));
-    return rewire_lam_body(B);
+    return B;//return rewire_lam_body(B);
 }
 
 // ∇(a - b) = λ∂f.[∂f, -∂f]
@@ -228,7 +257,7 @@ const Def* GradEmitter::pullback_for_sub(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ param, neg_param }));
-    return rewire_lam_body(B);
+    return B;//return rewire_lam_body(B);
 }
 
 // ∇(a * b) = λ∂f.[∂f*b, ∂f*a]
@@ -250,7 +279,7 @@ const Def* GradEmitter::pullback_for_mul(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ fst_grad, snd_grad }));
-    return rewire_lam_body(B);
+    return B;//return rewire_lam_body(B);
 }
 
 // ∇(a / b) = λ∂f.[∂f/b, (-∂f*a)/(b²)]
@@ -269,7 +298,7 @@ const Def* GradEmitter::pullback_for_div(const Def* op) {
 
     auto fst_div = world_.app(world_.op(ROp::div), { world_.lit_nat(param_w), snd_w });
     auto fst_grad = world_.app(fst_div, { param, snd_op }, {"∂" + fst_op->name()});
-    auto snd_up_mul = world_.app(world_.op(ROp::div), { world_.lit_nat(param_w), fst_w });
+    auto snd_up_mul = world_.app(world_.op(ROp::mul), { world_.lit_nat(param_w), fst_w });
     auto snd_up_grad = world_.app(snd_up_mul, { neg_param, fst_op }, {"∂" + snd_op->name() + "₀"});
     auto snd_low_mul = world_.app(world_.op(ROp::mul), { snd_w, snd_w });
     auto snd_low_grad = world_.app(snd_low_mul, { snd_op, snd_op }, {"∂" + snd_op->name() + "₁"});
@@ -280,7 +309,7 @@ const Def* GradEmitter::pullback_for_div(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ fst_grad, snd_grad }));
-    return rewire_lam_body(B);
+    return B;//return rewire_lam_body(B);
 }
 
 void GradEmitter::add_partial_grads_for_rop(const Def* var, const Def* op, const Def* pullback, const Def* op_grad) {

@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include "thorin/rewrite.h"
 #include "thorin/pass/pass.h"
 #include "thorin/analyses/scope.h"
 
@@ -52,12 +53,17 @@ private:
     /// @}
 
 
+    const Def* into_grad_scope(const Def* def);
+    /// let y = f(x₁, x₂, ...) ⟶ let (y, B) = J(f, x₁, x₂, ...)
+    const Def* wrap_rop_in_J(const Def* app);
+
     using PullbackGenerator = const std::function<const Def* (const Def*)>;
 
     Lam *orig_lam_;
     Lam *grad_lam_;
     Scope orig_scope_;
     World& world_;
+    Rewriter rewriter_;
     Def2Def var_to_grads_;
     Def2Def use_to_pullbacks_;
     std::array<PullbackGenerator, Num<ROp>> pullback_gens_;

@@ -66,6 +66,7 @@ private:
     Rewriter rewriter_;
     Def2Def var_to_grads_;
     Def2Def use_to_pullbacks_;
+    World::Sea visited_;
     std::array<PullbackGenerator, Num<ROp>> pullback_gens_;
 };
 

@@ -167,13 +167,15 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
                         Scope(B->as_nominal<Lam>()).dump();
 
                         //auto B = emit_pullback_for_rop(app);
-                        auto op_grad = emit_grad_for_var(app);
+                        auto op_grad = visited_.contains(app) ? var_to_grads_[app]
+                                                              : emit_grad_for_var(app);
 
                         if (!op_grad) {
                             errf("Could not get gradient for {}", app);
                             continue;
                         }
 
+                        visited_.emplace(app);
                         add_partial_grads_for_rop(var, app, B, op_grad);
                     }
                 }
@@ -219,6 +221,7 @@ const Def* GradEmitter::emit_pullback_for_rop(const Def* op) {
         auto axiom = op->as<App>()->callee()->as<App>()->callee()->as<Axiom>();
         if (auto gen = pullback_gens_.at(axiom->flags())) {
             if (!use_to_pullbacks_.contains(op)) {
+                errf("making pullback for: {}", op);
                 use_to_pullbacks_[op] = gen(op);
             }
             return use_to_pullbacks_[op] ;
@@ -313,7 +316,7 @@ const Def* GradEmitter::pullback_for_div(const Def* op) {
 }
 
 void GradEmitter::add_partial_grads_for_rop(const Def* var, const Def* op, const Def* pullback, const Def* op_grad) {
-    auto grads = world_.app(pullback, op_grad, {"∇op_" + op->name()});
+    auto grads = world_.app(pullback, op_grad, {"∇op" + op->name()});
 
     auto add_part_grad_for_param =
         [this, var, op, grads](size_t i) {

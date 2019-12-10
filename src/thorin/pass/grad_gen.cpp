@@ -65,23 +65,60 @@ void GradEmitter::set_grad_lam_body() {
 
     auto ret  = grad_lam_->ret_param({"return"});
     auto mem  = grad_lam_->mem_param({"mem"});
-    auto body = world_.app(ret, world_.tuple({ mem, world_.tuple(grads) }));
+    auto body = world_.app(ret, world_.tuple({ mem, world_.tuple(grads) }, {"result"}));
 
     grad_lam_->set_body(body);
     grad_lam_->set_filter(world_.lit_false());
 }
 
+void rewire_rec(const Def* def, Rewriter& rewriter, World::Sea& visited, Scope& scope) {
+    if (visited.contains(def)) {
+        errf("Already saw {}", def);
+        return;
+    }
+
+    visited.emplace(def);
+
+    for (auto use : def->copy_uses()) {
+        errf("{} ({}) is used in {} ({})", def, def->name(), use, use->name());
+
+        if (scope.contains(use)) {
+            errf("-> in scope");
+
+            auto new_use = rewriter.rewrite(use);
+            scope.update();
+            if (use != new_use) {
+                rewriter.old2new[use] = new_use;
+                errf(" -> changed to {} ({})", new_use, new_use->name());
+            }
+        }
+
+        rewire_rec(use, rewriter, visited, scope);
+    }
+}
 
 Lam* GradEmitter::rewire_lam_body(Lam* lam) {
     auto body = lam->body();
 
+    Scope scope(lam);
+    Rewriter rewriter(lam->world(), &orig_scope_);
+    World::Sea seen;
+
+    scope.dump();
+
     for (size_t i = 0; i < num_params(); ++i) {
         auto orig = orig_param(i);
         auto grad = grad_param(i);
-        body = thorin::rewrite(body, orig, grad, Scope(lam));
+
+        rewriter.old2new[orig] = grad;
+        rewire_rec(orig, rewriter, seen, scope);
     }
 
     lam->set_body(body);
+
+    scope.dump();
+
+    //body = thorin::rewrite(body, orig, grad, Scope(lam));
     return lam;
 }
 
@@ -118,9 +155,6 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
                     if (auto axiom = maybe_axiom_app->callee()->isa<Axiom>();
                         axiom && axiom->tag() == Tag::ROp) {
                         auto B = emit_pullback_for_rop(app);
-
-                        Scope(B->isa_nominal()).dump();
-
                         auto op_grad = emit_grad_for_var(app);
 
                         if (!op_grad) {
@@ -155,7 +189,10 @@ const Def* GradEmitter::emit_pullback_for_rop(const Def* op) {
     try {
         auto axiom = op->as<App>()->callee()->as<App>()->callee()->as<Axiom>();
         if (auto gen = pullback_gens_.at(axiom->flags())) {
-            return gen(op);
+            if (!use_to_pullbacks_.contains(op)) {
+                use_to_pullbacks_[op] = gen(op);
+            }
+            return use_to_pullbacks_[op] ;
         }
     } catch(std::out_of_range&) {}
 
@@ -234,7 +271,7 @@ const Def* GradEmitter::pullback_for_div(const Def* op) {
     auto fst_grad = world_.app(fst_div, { param, snd_op }, {"∂" + fst_op->name()});
     auto snd_up_mul = world_.app(world_.op(ROp::div), { world_.lit_nat(param_w), fst_w });
     auto snd_up_grad = world_.app(snd_up_mul, { neg_param, fst_op }, {"∂" + snd_op->name() + "₀"});
-    auto snd_low_mul = world_.app(world_.op(ROp::div), { snd_w, snd_w });
+    auto snd_low_mul = world_.app(world_.op(ROp::mul), { snd_w, snd_w });
     auto snd_low_grad = world_.app(snd_low_mul, { snd_op, snd_op }, {"∂" + snd_op->name() + "₁"});
     auto snd_up_w = world_.lit_nat(*get_width(snd_up_grad->type()));
     auto snd_low_w = world_.lit_nat(*get_width(snd_low_grad->type()));

@@ -59,6 +59,7 @@ private:
     Scope orig_scope_;
     World& world_;
     Def2Def var_to_grads_;
+    Def2Def use_to_pullbacks_;
     std::array<PullbackGenerator, Num<ROp>> pullback_gens_;
 };
 

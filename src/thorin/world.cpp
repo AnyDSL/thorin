@@ -180,27 +180,13 @@ World::World(const std::string& name) {
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     } { // type_tangent_vector: Π*. *
         data_.type_tangent_vector_ = axiom(normalize_tangent, pi(star, star), Tag::TangentVector, 0, {"tangent"});
-    } { // lit_tangent_one: ΠT: *. T
-        auto type = pi(star)->set_domain(star);
-        auto T = type->param({"T"});
-        type->set_codomain(T);
-        data_.lit_tangent_one_ = axiom(normalize_tangent_one, type, Tag::TangentOne, 0, {"one"});
-    } { // op_grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
+    }  { // op_grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
         auto type = pi(star)->set_domain({star, star});
         auto T = type->param(0, {"T"});
         auto R = type->param(1, {"R"});
         auto tangent_T = type_tangent_vector(T);
         type->set_codomain(pi(pi(T, R), pi(T, tangent_T)));
         data_.op_grad_ = axiom(nullptr, type, Tag::Grad, 0, {"∇"});
-    } { // op_j_call_: Π[T: *, R: *]. Π(ΠT. R). ΠT. [R, Πtangent R. tangent T]
-        auto type = pi(star)->set_domain({star, star});
-        auto T = type->param(0, {"T"});
-        auto R = type->param(1, {"R"});
-        auto tangent_T = type_tangent_vector(T);
-        auto tangent_R = type_tangent_vector(R);
-        auto pullback_pi = pi(tangent_R, tangent_T);
-        type->set_codomain(pi(pi(T, R), pi(T, sigma({R, pullback_pi}))));
-        data_.op_j_call_ = axiom(normalize_j, type, Tag::JCall, 0, {"J"});
     }
 }
 
@@ -819,27 +805,9 @@ const Def* World::op_grad(const Def* fn, Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Def* World::op_j_call(const Def* fn, Debug dbg) {
-    if (fn->type()->isa<Pi>()) {
-        auto ds_fn = cps2ds(fn);
-        auto ds_pi = ds_fn->type()->as<Pi>();
-        auto to_j = app(data_.op_j_call_, {ds_pi->domain(), ds_pi->codomain()}, dbg);
-        auto j = app(to_j, ds_fn, dbg);
-        return ds2cps(j);
-    }
-
-    THORIN_UNREACHABLE;
-}
-
-
 const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
     return app(data_.type_tangent_vector_, primal_type, dbg);
 }
-
-const Def* World::lit_tangent_one(const Def* tangent_type, Debug dbg) {
-    return app(data_.lit_tangent_one_, tangent_type, dbg);
-}
-
 
 /*
  * misc

@@ -424,8 +424,6 @@ public:
     //@{
     const Def* op_grad(const Def* fn, Debug dbg = {});
     const Def* type_tangent_vector(const Def* primal_type, Debug dbg = {});
-    const Def* lit_tangent_one(const Def* tangent_type, Debug dbg = {});
-    const Def* op_j_call(const Def* fn, Debug dbg = {});
     //@}
     /// @name helpers for optional/variant arguments
     //@{
@@ -703,8 +701,6 @@ private:
         const Axiom* op_store_;
         const Axiom* type_tangent_vector_;
         const Axiom* op_grad_;
-        const Axiom* lit_tangent_one_;
-        const Axiom* op_j_call_;
         std::string name_;
         Externals externals_;
         Sea defs_;

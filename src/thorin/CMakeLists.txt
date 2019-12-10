@@ -17,12 +17,8 @@ set(THORIN_SOURCES
     util.h
     world.cpp
     world.h
-    ad/j_call.cpp
-    ad/j_call.h
     ad/types.cpp
     ad/types.h
-    ad/vector_space.cpp
-    ad/vector_space.h
     analyses/cfg.cpp
     analyses/cfg.h
     analyses/domfrontier.cpp

@@ -34,7 +34,7 @@ using nat_t    = u64;
     m(Bit, bit)                                                                                         \
     m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                   \
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)                                         \
-    m(Grad, grad) m(TangentVector, tangent_vector) m(TangentOne, tangent_one) m(JCall, j_call)
+    m(Grad, grad) m(TangentVector, tangent_vector)
 
 namespace WMode {
 enum : nat_t {

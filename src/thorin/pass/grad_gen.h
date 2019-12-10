@@ -24,7 +24,6 @@ private:
     /// @{
     void fill_grads_for_orig_params();
     void set_grad_lam_body();
-    Lam* rewire_lam_body(Lam* lam);
     /// @}
     /// @name lower-level generators
     /// @{
@@ -51,11 +50,10 @@ private:
     const Def* pullback_for_mul(const Def* op);
     const Def* pullback_for_div(const Def* op);
     /// @}
-
-
+    /// @name Scoping
+    /// @{
     const Def* into_grad_scope(const Def* def);
-    /// let y = f(x₁, x₂, ...) ⟶ let (y, B) = J(f, x₁, x₂, ...)
-    const Def* wrap_rop_in_J(const Def* app);
+    /// @}
 
     using PullbackGenerator = const std::function<const Def* (const Def*)>;
 

@@ -28,14 +28,8 @@ GradEmitter::GradEmitter(Lam* orig_lam, Lam* grad_lam)
 }
 
 Lam* GradEmitter::emit_grad_lam() {
-
-    orig_scope_.dump();
-
     fill_grads_for_orig_params();
     set_grad_lam_body();
-    //rewire_lam_body(grad_lam_);
-
-    Scope(grad_lam_).dump();
 
     return grad_lam_;
 }
@@ -76,58 +70,6 @@ void GradEmitter::set_grad_lam_body() {
     grad_lam_->set_filter(world_.lit_false());
 }
 
-void rewire_rec(const Def* def, Rewriter& rewriter, World::Sea& visited, Scope& scope) {
-    if (visited.contains(def)) {
-        errf("Already saw {}", def);
-        return;
-    }
-
-    visited.emplace(def);
-
-    for (auto use : def->copy_uses()) {
-        errf("{} ({}) is used in {} ({})", def, def->name(), use, use->name());
-
-        if (scope.contains(use)) {
-            errf("-> in scope");
-
-            auto new_use = rewriter.rewrite(use);
-            scope.update();
-            if (use != new_use) {
-                rewriter.old2new[use] = new_use;
-                errf(" -> changed to {} ({})", new_use, new_use->name());
-            }
-        }
-
-        rewire_rec(use, rewriter, visited, scope);
-    }
-}
-
-Lam* GradEmitter::rewire_lam_body(Lam* lam) {
-    auto body = lam->body();
-
-    Scope scope(lam);
-    Rewriter rewriter(lam->world(), &orig_scope_);
-    World::Sea seen;
-
-    scope.dump();
-
-    for (size_t i = 0; i < num_params(); ++i) {
-        auto orig = orig_param(i);
-        auto grad = grad_param(i);
-
-        rewriter.old2new[orig] = grad;
-        rewire_rec(orig, rewriter, seen, scope);
-    }
-
-    lam->set_body(body);
-
-    scope.dump();
-
-    //body = thorin::rewrite(body, orig, grad, Scope(lam));
-    return lam;
-}
-
-
 const Def* GradEmitter::orig_param(size_t i) const {
     return orig_lam_->param(i + 1);
 }
@@ -141,7 +83,9 @@ const Def* GradEmitter::emit_grad_for_var(const Def* var) {
     for (auto use : var->copy_uses()) {
         if (orig_scope_.contains(use)) {
             if (emit_partial_grad_for_rop_use(var, use)) {
+                // TODO: I am pretty sure we want to use the result for something...
             } else if (emit_partial_grad_for_ret_use(var, use)) {
+                // TODO: I am pretty sure we want to use the result for something...
             } else {
                 errf("!error: grad-gen: operation {} is not supported for {}", use, var);
                 return world_.bot(var->type());
@@ -160,13 +104,7 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
                     if (auto axiom = maybe_axiom_app->callee()->isa<Axiom>();
                         axiom && axiom->tag() == Tag::ROp) {
 
-                        auto J_call = wrap_rop_in_J(app);
-                        //                        auto val = world_.extract(J_call, u64(0), { app->name() });
-                        auto B = world_.extract(J_call, u64(1), { "B" + app->name() });
-
-                        Scope(B->as_nominal<Lam>()).dump();
-
-                        //auto B = emit_pullback_for_rop(app);
+                        auto B = emit_pullback_for_rop(app);
                         auto op_grad = visited_.contains(app) ? var_to_grads_[app]
                                                               : emit_grad_for_var(app);
 
@@ -186,23 +124,6 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
     return var_to_grads_[var];
 }
 
-const Def* GradEmitter::into_grad_scope(const Def* old_def) {
-    if (auto new_def = rewriter_.old2new.lookup(old_def)) return *new_def;
-    if (old_def->isa<Param>()) return old_def;
-
-    for (auto op : old_def->ops()) {
-        rewriter_.old2new[op] = into_grad_scope(op);
-    }
-
-    return rewriter_.rewrite(old_def);
-}
-
-const Def* GradEmitter::wrap_rop_in_J(const Def* app) {
-    auto def_in_grad = into_grad_scope(app);
-    auto pullback = emit_pullback_for_rop(def_in_grad);
-    return world_.tuple({ def_in_grad, pullback }, { "J" });
-}
-
 const Def* GradEmitter::emit_partial_grad_for_ret_use(const Def* var, const Def* use) {
     if (use->isa<Tuple>()) {
         for (auto useuse : use->uses()) {
@@ -216,12 +137,24 @@ const Def* GradEmitter::emit_partial_grad_for_ret_use(const Def* var, const Def*
     return nullptr;
 }
 
+const Def* GradEmitter::into_grad_scope(const Def* old_def) {
+    if (auto new_def = rewriter_.old2new.lookup(old_def)) return *new_def;
+    if (old_def->isa<Param>()) return old_def;
+
+    for (auto op : old_def->ops()) {
+        rewriter_.old2new[op] = into_grad_scope(op);
+    }
+
+    return rewriter_.rewrite(old_def);
+}
+
 const Def* GradEmitter::emit_pullback_for_rop(const Def* op) {
+    op = into_grad_scope(op);
+
     try {
         auto axiom = op->as<App>()->callee()->as<App>()->callee()->as<Axiom>();
         if (auto gen = pullback_gens_.at(axiom->flags())) {
             if (!use_to_pullbacks_.contains(op)) {
-                errf("making pullback for: {}", op);
                 use_to_pullbacks_[op] = gen(op);
             }
             return use_to_pullbacks_[op] ;
@@ -243,7 +176,7 @@ const Def* GradEmitter::pullback_for_add(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ param, param }));
-    return B;//return rewire_lam_body(B);
+    return B;
 }
 
 // ∇(a - b) = λ∂f.[∂f, -∂f]
@@ -260,7 +193,7 @@ const Def* GradEmitter::pullback_for_sub(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ param, neg_param }));
-    return B;//return rewire_lam_body(B);
+    return B;
 }
 
 // ∇(a * b) = λ∂f.[∂f*b, ∂f*a]
@@ -282,7 +215,7 @@ const Def* GradEmitter::pullback_for_mul(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ fst_grad, snd_grad }));
-    return B;//return rewire_lam_body(B);
+    return B;
 }
 
 // ∇(a / b) = λ∂f.[∂f/b, (-∂f*a)/(b²)]
@@ -312,7 +245,7 @@ const Def* GradEmitter::pullback_for_div(const Def* op) {
 
     B->set_filter(world_.lit_false());
     B->set_body(world_.tuple({ fst_grad, snd_grad }));
-    return B;//return rewire_lam_body(B);
+    return B;
 }
 
 void GradEmitter::add_partial_grads_for_rop(const Def* var, const Def* op, const Def* pullback, const Def* op_grad) {

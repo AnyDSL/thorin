@@ -23,6 +23,12 @@ enum Cl : uint8_t {
     XILINX = 2   ///< Xilinx FPGA extension
 };
 
+enum class HlsInterface : uint8_t {
+    SOC,  ///< SoC HW module (Embedded)
+    HPC,  ///< HPC accelerator (HLS for HPC via OpenCL)
+    None
+};
+
 class CCodeGen {
 public:
     CCodeGen(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug)
@@ -123,6 +129,25 @@ inline bool has_params(Continuation* kernel) {
             continue;
         else
             return true;
+    }
+    return false;
+}
+
+inline bool get_interface(HlsInterface &interface) {
+    const char* fpga_env = std::getenv("ANYDSL_FPGA");
+    if (fpga_env != NULL) {
+        std::string fpga_env_str = fpga_env;
+        for(auto& ch : fpga_env_str)
+            ch = std::toupper(ch, std::locale());
+
+        if (fpga_env_str.compare("SOC") == 0 ) {
+            interface = HlsInterface::SOC;
+            return true;
+        }
+        else if (fpga_env_str.compare("HPC") == 0 ) {
+            interface = HlsInterface::HPC;
+            return true;
+        }
     }
     return false;
 }

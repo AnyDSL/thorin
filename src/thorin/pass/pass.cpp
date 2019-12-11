@@ -12,6 +12,9 @@ bool PassMan::outside(Def* nom) {
 
 void PassMan::run() {
     world().ILOG("run");
+    for (auto&& pass : passes_)
+        world().ILOG(" + {}", pass->name());
+
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
 

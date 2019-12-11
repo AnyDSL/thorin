@@ -22,6 +22,7 @@ public:
     //@{
     PassMan& man() { return man_; }
     size_t index() const { return index_; }
+    const std::string& name() const { return name_; }
     World& world();
     ///@}
     /// @name hooks for the PassMan

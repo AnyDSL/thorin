@@ -37,6 +37,8 @@ set(THORIN_SOURCES
     be/c.h
     pass/copy_prop.cpp
     pass/copy_prop.h
+    pass/grad_gen.cpp
+    pass/grad_gen.h
     pass/inliner.cpp
     pass/inliner.h
     pass/mem2reg.cpp

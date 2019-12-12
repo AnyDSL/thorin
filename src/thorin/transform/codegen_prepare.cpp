@@ -9,7 +9,8 @@ void codegen_prepare(World& world) {
 
     world.rewrite("codegen_prepare",
         [&](const Scope& scope) {
-            if (auto entry = scope.entry()->isa<Lam>()) {
+            if (auto entry = scope.entry()->isa<Lam>();
+                     entry && entry->type()->is_cn()) {
                 // new wrapper that calls the return continuation
                 old_param = entry->param();
                 auto ret_param = entry->ret_param();

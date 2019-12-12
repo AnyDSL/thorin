@@ -1,6 +1,6 @@
-#include <thorin/pass/grad_gen.h>
-#include <thorin/rewrite.h>
-#include <thorin/util.h>
+#include "thorin/pass/grad_gen.h"
+#include "thorin/rewrite.h"
+#include "thorin/util.h"
 
 #include <numeric>
 
@@ -47,7 +47,6 @@ void GradEmitter::fill_grads_for_orig_params() {
     }
 }
 
-
 void GradEmitter::set_grad_lam_body() {
     Array<const Def*> grads(num_params());
 
@@ -77,7 +76,6 @@ const Def* GradEmitter::orig_param(size_t i) const {
 const Def* GradEmitter::grad_param(size_t i) const {
     return grad_lam_->param(i + 1, { orig_param(i)->name() });
 }
-
 
 const Def* GradEmitter::emit_grad_for_var(const Def* var) {
     for (auto use : var->copy_uses()) {
@@ -167,8 +165,8 @@ const Def* GradEmitter::emit_pullback_for_rop(const Def* op) {
 
 // ∇(a + b) = λ∂f.[∂f, ∂f]
 const Def* GradEmitter::pullback_for_add(const Def* op) {
-    auto fst_op = world_.extract(op->op(1), u64(0), {"op₀"});
-    auto snd_op = world_.extract(op->op(1), u64(1), {"op₁"});
+    auto [fst_op, snd_op] = op->as<App>()->args<2>();
+    // TODO same below
 
     auto pi = world_.pi(op->type(), world_.sigma({ fst_op->type(), snd_op->type() }));
     auto B = world_.lam(pi, {"B⁺"});
@@ -309,5 +307,4 @@ Lam* GradGen::has_lam_to_rewrite(const Def* def) const {
     return nullptr;
 }
 
-} //namespace thorin
-
+}

@@ -1,9 +1,9 @@
 #ifndef THORIN_NORMALIZE_H
 #define THORIN_NORMALIZE_H
 
-#include <thorin/def.h>
-
 namespace thorin {
+
+class Def;
 
 const Def* normalize_bit    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_bitcast(const Def*, const Def*, const Def*, const Def*);

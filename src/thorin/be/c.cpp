@@ -520,7 +520,7 @@ void CCodeGen::emit() {
         }
         func_decls_ << ");" << endl;
         func_impl_  << ") {" << up;
-        //TODO: env var on Cmake /linking with HPC BSP/ TCL flow for SOC and HPC / implement None interface for Benchmarking
+
         if (lang_ == Lang::HLS && continuation->is_external()) {
             HlsInterface interface;
             auto interface_status = get_interface(interface);
@@ -566,6 +566,7 @@ void CCodeGen::emit() {
         if (!hls_pragmas.empty())
             func_impl_ << hls_pragmas;
         hls_pragmas.clear();
+
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
             if (is_mem(param) || is_unit(param))

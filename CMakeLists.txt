@@ -11,7 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(THORIN_PROFILE "profile complexity in thorin::HashTable - only works in Debug build" ON)
 
-
 if(CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug or Release" FORCE)
 endif()

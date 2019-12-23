@@ -124,7 +124,7 @@ inline bool is_channel_type(const StructType* struct_type) {
 }
 
 inline bool has_params(Continuation* kernel) {
-    for(auto param : kernel->params()) {
+    for (auto param : kernel->params()) {
         if (is_mem(param) || param->order() != 0  || is_unit(param))
             continue;
         else
@@ -137,7 +137,7 @@ inline bool get_interface(HlsInterface &interface) {
     const char* fpga_env = std::getenv("ANYDSL_FPGA");
     if (fpga_env != NULL) {
         std::string fpga_env_str = fpga_env;
-        for(auto& ch : fpga_env_str)
+        for (auto& ch : fpga_env_str)
             ch = std::toupper(ch, std::locale());
 
         if (fpga_env_str.compare("SOC") == 0 ) {

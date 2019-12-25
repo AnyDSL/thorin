@@ -526,31 +526,31 @@ void CCodeGen::emit() {
             auto interface_status = get_interface(interface);
             if (name == "hls_top") {
                 if (interface_status) {
-                if (continuation->num_params() > 2) {
-                    size_t hls_gmem_index = 0;
-                    for (auto param : continuation->params()) {
-                        if (is_mem(param) || param->order() != 0  || is_unit(param))
-                            continue;
-                        if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
-                            if (interface == HlsInterface::SOC)
-                                func_impl_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
-                            else if (interface == HlsInterface::HPC) {
-                                func_impl_ << "\n#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
-                                    << " bundle = gmem" << hls_gmem_index++ << std::string(2, ' ') << "offset = slave" << "\n"
-                                    << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name() <<  " bundle = control";
+                    if (continuation->num_params() > 2) {
+                        size_t hls_gmem_index = 0;
+                        for (auto param : continuation->params()) {
+                            if (is_mem(param) || param->order() != 0  || is_unit(param))
+                                continue;
+                            if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
+                                if (interface == HlsInterface::SOC)
+                                    func_impl_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
+                                else if (interface == HlsInterface::HPC) {
+                                    func_impl_ << "\n#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
+                                        << " bundle = gmem" << hls_gmem_index++ << std::string(2, ' ') << "offset = slave" << "\n"
+                                        << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name() <<  " bundle = control";
+                                }
+                            } else {
+                                if (interface == HlsInterface::SOC)
+                                    func_impl_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name();
+                                else if (interface == HlsInterface::HPC)
+                                    func_impl_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control";
                             }
-                        } else {
-                            if (interface == HlsInterface::SOC)
-                                func_impl_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name();
-                            else if (interface == HlsInterface::HPC)
-                                func_impl_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control";
                         }
+                        if (interface == HlsInterface::SOC)
+                            hls_pragmas += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
+                        else if (interface == HlsInterface::HPC)
+                            hls_pragmas += "\n#pragma HLS INTERFACE s_axilite port = return        bundle = control";
                     }
-                    if (interface == HlsInterface::SOC)
-                        hls_pragmas += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
-                    else if (interface == HlsInterface::HPC)
-                        hls_pragmas += "\n#pragma HLS INTERFACE s_axilite port = return        bundle = control";
-                }
                 } else {
                     interface = HlsInterface::None;
                     WLOG("HLS accelerator generated with no interface");

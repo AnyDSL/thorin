@@ -967,11 +967,21 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
-    return irbuilder_.CreateLoad(lookup(load->ptr()));
+    auto irPtr = lookup(load->ptr());
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    auto irLoad = irbuilder_.CreateLoad(irPtr);
+    irLoad->setAlignment(ptrAlignment);
+    return irLoad;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+    auto irPtr = lookup(store->ptr());
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
+    irStore->setAlignment(ptrAlignment);
+    return irStore;
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
@@ -1203,18 +1213,12 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
     // emit the alloca in the entry block
     auto alloca = emit_alloca(type, "tmp_alloca");
 
-    // mark the lifetime of the alloca
-    auto lifetime_start = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_start);
-    auto lifetime_end   = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_end);
-    auto addr_space = alloca->getType()->getPointerAddressSpace();
-    auto void_cast = irbuilder_.CreateBitCast(alloca, llvm::PointerType::get(irbuilder_.getInt8Ty(), addr_space));
-
     auto layout = llvm::DataLayout(module_->getDataLayout());
     auto size = irbuilder_.getInt64(layout.getTypeAllocSize(type));
 
-    irbuilder_.CreateCall(lifetime_start, { size, void_cast });
+    irbuilder_.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);
-    irbuilder_.CreateCall(lifetime_end, { size, void_cast });
+    irbuilder_.CreateLifetimeEnd(alloca, size);
     return result;
 }
 

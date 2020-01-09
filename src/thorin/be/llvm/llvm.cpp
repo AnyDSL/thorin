@@ -969,7 +969,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 llvm::Value* CodeGen::emit_load(const Load* load) {
     auto irPtr = lookup(load->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    llvm::MaybeAlign ptrAlignment(layout.getABITypeAlignment(irPtr->getType()->getPointerElementType()));
     auto irLoad = irbuilder_.CreateLoad(irPtr);
     irLoad->setAlignment(ptrAlignment);
     return irLoad;
@@ -978,7 +978,7 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
 llvm::Value* CodeGen::emit_store(const Store* store) {
     auto irPtr = lookup(store->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    llvm::MaybeAlign ptrAlignment(layout.getABITypeAlignment(irPtr->getType()->getPointerElementType()));
     auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
     irStore->setAlignment(ptrAlignment);
     return irStore;
@@ -1165,7 +1165,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 auto layout = module_->getDataLayout();
                 uint64_t max_size = 0;
                 for (auto op : type->ops())
-                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
+                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)).getFixedSize());
                 return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
             }
         }

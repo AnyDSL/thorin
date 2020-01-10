@@ -2,15 +2,14 @@
 
 namespace thorin {
 
-class DependencyChecker {
+class DepChecker {
 public:
-    DependencyChecker(const Param* param)
-        : param_(param)
+    DepChecker(const Def* on)
+        : on_(on)
     {}
 
     bool depends(const Def* def) {
-        if (def->is_const()) return false;
-        if (!done_.emplace(def).second) return false;
+        if (def->is_const() || !done_.emplace(def).second) return false;
 
         for (auto op : def->extended_ops()) {
             if (depends(op)) return true;
@@ -20,12 +19,12 @@ public:
     }
 
 private:
-    const Param* param_;
+    const Def* on_;
     DefSet done_;
 };
 
-bool depends(const Def* def, const Param* param) {
-    DependencyChecker checker(param);
+bool depends(const Def* def, const Def* on) {
+    DepChecker checker(on);
     return checker.depends(def);
 }
 

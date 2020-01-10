@@ -4,9 +4,8 @@
 namespace thorin {
 
 class Def;
-class Param;
 
-bool depends(const Def*, const Param*);
+bool depends(const Def* def, const Def* on);
 
 }
 

@@ -70,17 +70,17 @@ public:
     template<class T = Def> T* cur_nom() const { return cur_nom_->template as<T>(); }
     //@}
     /// @name map either scope-wide or globally
-    const Def*  local_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  local_.map[old_def] = new_def; }
-    const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_.map[old_def] = new_def; }
-    const Def* lookup(const Def* old_def) {
+    //const Def*  local_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return  local_.map[old_def] = new_def; }
+    //const Def* global_map(const Def* old_def, const Def* new_def) { assert(old_def != new_def); return global_.map[old_def] = new_def; }
+    //const Def* lookup(const Def* old_def) {
         // TODO path compression
-        if (auto new_def =  local_.map.lookup(old_def)) return lookup(*new_def);
-        if (auto new_def = global_.map.lookup(old_def)) return lookup(*new_def);
-        return old_def;
-    }
-    Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
-    template<class T> T* new2old(T* new_nom) { if (auto old_nom = new2old_.lookup(new_nom)) return (*old_nom)->template as<T>(); return new_nom->template as<T>(); }
-    template<class T> T* new2old(T* new_nom, T* old_nom) { return (new2old_[new_nom] = old_nom)->template as<T>(); }
+        //if (auto new_def =  local_.map.lookup(old_def)) return lookup(*new_def);
+        //if (auto new_def = global_.map.lookup(old_def)) return lookup(*new_def);
+        //return old_def;
+    //}
+    //Def* lookup(Def* old_nom) { return lookup(const_cast<const Def*>(old_nom))->as_nominal(); }
+    //template<class T> T* new2old(T* new_nom) { if (auto old_nom = new2old_.lookup(new_nom)) return (*old_nom)->template as<T>(); return new_nom->template as<T>(); }
+    //template<class T> T* new2old(T* new_nom, T* old_nom) { return (new2old_[new_nom] = old_nom)->template as<T>(); }
     //@}
     /// @name misc
     //@{
@@ -88,33 +88,35 @@ public:
     //@}
 
 private:
+    Def* stub(Def* old_nom, const Def*, const Def*);
     bool scope();
-    const Def* rewrite(const Def*);
+    const Def* wrap_rewrite(const Def*, const Def*, const Def*);
+    const Def* rewrite(const Rewrite*);
     bool analyze(const Def*);
 
     World& world_;
     std::vector<std::unique_ptr<Pass>> passes_;
     Nom2Nom stubs_;
     Nom2Nom new2old_;
-    Def* old_entry_ = nullptr;
-    Def* new_entry_ = nullptr;
     Def* cur_nom_ = nullptr;
 
     struct Global {
-        Def2Def map;
         unique_queue<NomSet> noms;
     } global_;
 
     struct Local : public Global {
-        Scope* old_scope = nullptr;
+        Def* old_entry = nullptr;
+        Def* new_entry = nullptr;
         std::vector<Pass*> passes;
         std::vector<Pass*> cur_passes;
+        GIDMap<const Rewrite*, const Def*> map;
         NomSet free;
         DefSet rewritten;
         DefSet analyzed;
 
-        void clear(Scope& s) {
-            old_scope = &s;
+        void clear() {
+            old_entry = nullptr;
+            new_entry = nullptr;
             passes.clear();
             cur_passes.clear();
             map.clear();

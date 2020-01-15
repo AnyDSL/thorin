@@ -1,13 +1,30 @@
 #include "thorin/pass/pass.h"
 
 #include "thorin/rewrite.h"
+#include "thorin/analyses/depends.h"
 
 namespace thorin {
 
-bool PassMan::outside(Def* nom) {
-    if (local_.old_scope == nullptr || !nom->is_set()) return true;
-    if (auto old_nom = new2old_.lookup(nom)) nom = *old_nom;
-    return local_.old_scope->free_noms().contains(nom);
+Def* PassMan::stub(Def* nom, const Def* type, const Def* dbg) {
+    Def* new_nom;
+    if (auto cached = stubs_.lookup(nom)) {
+        new_nom = *cached;
+    } else {
+        new_nom = nom->stub(world(), type, dbg);
+        stubs_[nom] = new_nom;
+    }
+
+    if (nom->is_set()) {
+        for (size_t i = 0, e = nom->num_ops(); i != e; ++i)
+            nom->set(i, world().rewrite(nom->op(i), nom->param(), new_nom->param()));
+    }
+
+    return new_nom;
+}
+
+bool PassMan::outside(Def*) {
+    // TODO
+    return true;
 }
 
 void PassMan::run() {
@@ -18,59 +35,67 @@ void PassMan::run() {
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
 
+    Def* hack_old;
+    Def* hack_new;
     auto externals = world().externals(); // copy
-    for (const auto& [name, old_nom] : externals) {
+    for (const auto& [_, old_nom] : externals) {
         assert(old_nom->is_set() && "external must not be empty");
-        analyze(rewrite(old_nom));
+        hack_old = old_nom;
+        hack_new = stub(old_nom, old_nom->type(), old_nom->debug()); // TODO type, debug
+        global_.noms.push(hack_new);
     }
 
     while (!global_.noms.empty()) {
-        new_entry_ = global_.noms.front();
+        local_.new_entry = global_.noms.front();
+        local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->old_def()->as_nominal();
 
-        if (!new_entry_->is_set()) {
+        if (!local_.new_entry->is_set()) {
             global_.noms.pop();
             continue;
         }
 
-        old_entry_ = new2old_[new_entry_];
-        assert(old_entry_ && old_entry_ != new_entry_);
-        Scope s(old_entry_);
-        local_.clear(s);
+        for (size_t i = 0, e = local_.old_entry->num_ops(); i != e; ++i)
+            assert(local_.old_entry->op(i) == local_.new_entry->op(i)->as<Rewrite>()->def());
+
+        local_.clear();
 
         for (auto&& pass : passes_) {
-            if (pass->scope(new_entry_))
+            if (pass->scope(local_.new_entry))
                 local_.passes.emplace_back(pass.get());
         }
 
         if (scope()) {
             global_.noms.pop();
-            world().DLOG("done: {}", old_entry_);
+            world().DLOG("done: {}", local_.old_entry);
             for (auto pass : local_.passes) pass->clear();
         } else {
-            world().DLOG("retry: {}", old_entry_);
+            world().DLOG("retry: {}", local_.old_entry);
             for (auto& pass : local_.passes) pass->retry();
-            new_entry_->set(old_entry_->ops());
+            local_.new_entry->set(local_.old_entry->ops());
             continue;
         }
 
-        local_.old_scope = nullptr;
         for (auto nom : local_.free) global_.noms.push(nom);
     }
 
+#if 0
     for (const auto& [name, old_nom] : externals) {
         old_nom->unset();
         old_nom->make_internal();
         lookup(old_nom)->make_external();
     }
+#endif
+    hack_old->unset();
+    hack_old->make_internal();
+    hack_new->make_external();
 
     world().ILOG("finished");
     cleanup(world());
 }
 
 bool PassMan::scope() {
-    world_.DLOG("scope: {}/{} (old_entry_/new_entry_)", old_entry_, new_entry_);
-    local_map(old_entry_->param(), new_entry_->param());
-    local_.noms.push(new_entry_);
+    world_.DLOG("scope: {}/{} (old_entry/new_entry)", local_.old_entry, local_.new_entry);
+    local_.noms.push(local_.new_entry);
 
     while (!local_.noms.empty()) {
         cur_nom_ = local_.noms.pop();
@@ -81,7 +106,7 @@ bool PassMan::scope() {
             if (pass->enter(cur_nom_)) local_.cur_passes.emplace_back(pass);
         }
 
-        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)); });
+        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)->as<Rewrite>()); });
         cur_nom_->set(new_ops);
 
         for (auto op : cur_nom_->extended_ops()) {
@@ -92,13 +117,38 @@ bool PassMan::scope() {
     return true;
 }
 
-const Def* PassMan::rewrite(const Def* old_def) {
-    if (old_def->is_const()) return old_def;
-    if (!local_.rewritten.emplace(old_def).second) return lookup(old_def);
-    if (auto new_def = lookup(old_def); new_def != old_def) return new_def;
+const Def* PassMan::wrap_rewrite(const Def* def, const Def* old_def, const Def* new_def) {
+    return rewrite(world().rewrite(def, old_def, new_def));
+}
 
-    auto new_type = rewrite(old_def->type());
-    auto new_dbg  = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
+const Def* PassMan::rewrite(const Rewrite* rw) {
+    if (auto new_def = local_.map.lookup(rw)) return *new_def;
+
+    auto new_type = wrap_rewrite(rw->def()->type(), rw->old_def(), rw->new_def());
+    auto new_dbg  = rw->def()->debug() ? wrap_rewrite(rw->def()->debug(), rw->old_def(), rw->new_def()) : nullptr;
+
+    if (auto old_nom = rw->def()->isa_nominal()) {
+        if (depends(old_nom, rw->old_def()))
+            return local_.map[rw] = stub(old_nom, new_type, new_dbg);
+        return local_.map[rw] = old_nom;
+    }
+
+#if 0
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(rw->op(i)); });
+
+    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+    for (auto pass : local_.cur_passes)
+        new_def = pass->rewrite(new_def);
+
+    if (old_def != new_def) {
+        world().DLOG("rewrite: {} -> {}", old_def, new_def);
+        local_map(old_def, new_def);
+    }
+
+    return old_def;
+
+    if (old_def->is_const()) return old_def;
+    if (auto new_def = lookup(old_def); new_def != old_def) return new_def;
 
     if (auto old_nom = old_def->isa_nominal()) {
         if (new2old_.contains(old_nom)) return old_nom;
@@ -145,13 +195,15 @@ const Def* PassMan::rewrite(const Def* old_def) {
     }
 
     return new_def;
+#endif
+    return rw;
 }
 
 bool PassMan::analyze(const Def* def) {
     if (def->is_const() || !local_.analyzed.emplace(def).second) return true;
 
     if (auto nom = def->isa_nominal()) {
-        if (local_.old_scope == nullptr)
+        if (local_.old_entry == nullptr)
             global_.noms.push(nom);
         else if (outside(nom))
             local_.free.emplace(nom);

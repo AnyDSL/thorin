@@ -708,7 +708,7 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Def* World::rewrite(const Def* def, const Def* old_def, const Def* new_def, Debug dbg) {
+const Rewrite* World::rewrite(const Def* def, const Def* old_def, const Def* new_def, Debug dbg) {
     return unify<Rewrite>(3, def, old_def, new_def, debug(dbg));
 }
 

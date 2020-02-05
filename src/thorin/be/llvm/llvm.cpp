@@ -1389,9 +1389,6 @@ Backends::Backends(World& world)
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
     }
 
-    world.cleanup();
-    codegen_prepare(world);
-
     cpu_cg = std::make_unique<CPUCodeGen>(world);
 
     if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);

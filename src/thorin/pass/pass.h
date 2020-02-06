@@ -115,8 +115,8 @@ private:
         DefSet analyzed;
 
         void clear() {
-            old_entry = nullptr;
-            new_entry = nullptr;
+            //old_entry = nullptr;
+            //new_entry = nullptr;
             passes.clear();
             cur_passes.clear();
             map.clear();

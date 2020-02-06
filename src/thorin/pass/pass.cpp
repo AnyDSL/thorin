@@ -5,18 +5,19 @@
 
 namespace thorin {
 
-Def* PassMan::stub(Def* nom, const Def* type, const Def* dbg) {
+Def* PassMan::stub(Def* old_nom, const Def* type, const Def* dbg) {
     Def* new_nom;
-    if (auto cached = stubs_.lookup(nom)) {
-        new_nom = *cached;
+
+    auto [i, success] = stubs_.emplace(old_nom, nullptr);
+    if (success) {
+        new_nom = i->second = old_nom->stub(world(), type, dbg);
     } else {
-        new_nom = nom->stub(world(), type, dbg);
-        stubs_[nom] = new_nom;
+        new_nom = i->second;
     }
 
-    if (nom->is_set()) {
-        for (size_t i = 0, e = nom->num_ops(); i != e; ++i)
-            nom->set(i, world().rewrite(nom->op(i), nom->param(), new_nom->param()));
+    if (old_nom->is_set()) {
+        for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
+            new_nom->set(i, world().rewrite(old_nom->op(i), old_nom->param(), new_nom->param()));
     }
 
     return new_nom;
@@ -47,16 +48,14 @@ void PassMan::run() {
 
     while (!global_.noms.empty()) {
         local_.new_entry = global_.noms.front();
-        local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->old_def()->as_nominal();
+        local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->old_def()->as<Param>()->nominal(); // TODO this is a bit hacky
 
         if (!local_.new_entry->is_set()) {
             global_.noms.pop();
             continue;
         }
 
-        for (size_t i = 0, e = local_.old_entry->num_ops(); i != e; ++i)
-            assert(local_.old_entry->op(i) == local_.new_entry->op(i)->as<Rewrite>()->def());
-
+        Array<const Def*> prev_ops = local_.new_entry->ops();
         local_.clear();
 
         for (auto&& pass : passes_) {
@@ -71,7 +70,7 @@ void PassMan::run() {
         } else {
             world().DLOG("retry: {}", local_.old_entry);
             for (auto& pass : local_.passes) pass->retry();
-            local_.new_entry->set(local_.old_entry->ops());
+            local_.new_entry->set(prev_ops);
             continue;
         }
 
@@ -98,19 +97,24 @@ bool PassMan::scope() {
     local_.noms.push(local_.new_entry);
 
     while (!local_.noms.empty()) {
+        for (size_t i = 0, e = local_.old_entry->num_ops(); i != e; ++i)
+            assert(local_.old_entry->op(i) == local_.new_entry->op(i)->as<Rewrite>()->def());
+
         cur_nom_ = local_.noms.pop();
         world_.DLOG("enter: {} (cur_nom)", cur_nom_);
 
         local_.cur_passes.clear();
         for (auto pass : local_.passes) {
-            if (pass->enter(cur_nom_)) local_.cur_passes.emplace_back(pass);
+            if (pass->enter(cur_nom_))
+                local_.cur_passes.emplace_back(pass);
         }
 
         Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)->as<Rewrite>()); });
         cur_nom_->set(new_ops);
 
         for (auto op : cur_nom_->extended_ops()) {
-            if (!analyze(op)) return false;
+            if (!analyze(op))
+                return false;
         }
     }
 
@@ -118,6 +122,7 @@ bool PassMan::scope() {
 }
 
 const Def* PassMan::wrap_rewrite(const Def* def, const Def* old_def, const Def* new_def) {
+    if (def->is_const()) return def;
     return rewrite(world().rewrite(def, old_def, new_def));
 }
 
@@ -200,6 +205,7 @@ const Def* PassMan::rewrite(const Rewrite* rw) {
 }
 
 bool PassMan::analyze(const Def* def) {
+    return true;
     if (def->is_const() || !local_.analyzed.emplace(def).second) return true;
 
     if (auto nom = def->isa_nominal()) {

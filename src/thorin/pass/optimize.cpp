@@ -17,7 +17,7 @@ void optimize(World& world) {
     PassMan(world)
     //.create<PartialEval>()
     //.create<Inliner>()
-    .create<Mem2Reg>()
+    //.create<Mem2Reg>()
     //.create<CopyProp>()
     .run();
 }

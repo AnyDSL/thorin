@@ -971,8 +971,8 @@ void World::opt() {
     hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
-    codegen_prepare(*this);
     rewrite_flow_graphs(*this);
+    codegen_prepare(*this);
 }
 
 /*

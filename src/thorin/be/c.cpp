@@ -1205,8 +1205,19 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
                     if (primtype->primtype_tag() == PrimType_pu8) {
                         std::string str = "\"";
-                        for (auto op : str_array->ops().skip_back())
-                            str += op->as<PrimLit>()->pu8_value();
+                        for (auto op : str_array->ops().skip_back()) {
+                            char c = op->as<PrimLit>()->pu8_value();
+                            switch (c) {
+                                case '\a': str += "\\a"; break;
+                                case '\b': str += "\\b"; break;
+                                case '\f': str += "\\f"; break;
+                                case '\n': str += "\\n"; break;
+                                case '\r': str += "\\r"; break;
+                                case '\t': str += "\\t"; break;
+                                case '\v': str += "\\v"; break;
+                                default:   str += c;     break;
+                            }
+                        }
                         str += '"';
                         insert(def, str);
                         return func_impl_;

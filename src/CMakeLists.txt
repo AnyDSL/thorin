@@ -14,7 +14,6 @@ include_directories(${Half_INCLUDE_DIRS})
 
 if(LLVM_FOUND)
     add_definitions(${LLVM_DEFINITIONS})
-    add_definitions("-DLLVM_SUPPORT")
     include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 endif()
 

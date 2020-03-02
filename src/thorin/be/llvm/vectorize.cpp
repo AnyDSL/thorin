@@ -3,24 +3,19 @@
 #if THORIN_ENABLE_RV
 #include "thorin/be/llvm/llvm.h"
 
-#include <llvm/IR/Dominators.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/Transforms/Scalar.h>
-#include <llvm/Transforms/IPO.h>
-
-#include <llvm/Config/llvm-config.h>
-
-#if LLVM_VERSION_MAJOR >=  7
-#include <llvm/Transforms/Utils.h>
-#endif
-
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/ScalarEvolution.h>
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>
-#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Config/llvm-config.h>
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
@@ -170,27 +165,24 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         rv::addSleefResolver(config, platform_info);
 
         rv::VectorizerInterface vectorizer(platform_info, config);
+        {
+            llvm::DominatorTree dom_tree(*kernel_func);
+            llvm::LoopInfo loop_info(dom_tree);
+            LoopExitCanonicalizer canonicalizer(loop_info);
+            canonicalizer.canonicalize(*kernel_func);
+        }
 
-        llvm::DominatorTree dom_tree(*kernel_func);
-        llvm::PostDominatorTree pdom_tree;
-        pdom_tree.recalculate(*kernel_func);
-        llvm::LoopInfo loop_info(dom_tree);
-        llvm::ScalarEvolutionAnalysis SEA;
-        auto SE = SEA.run(*kernel_func, FAM);
+        llvm::PassBuilder PB;
+        llvm::FunctionAnalysisManager FAM;
+        PB.registerFunctionAnalyses(FAM);
+        FAM.getResult<llvm::LoopAnalysis>(vec_info.getScalarFunction());
 
-        llvm::MemoryDependenceAnalysis MDA;
-        auto MD = MDA.run(*kernel_func, FAM);
+        vectorizer.analyze(vec_info, FAM);
 
-        LoopExitCanonicalizer canonicalizer(loop_info);
-        canonicalizer.canonicalize(*kernel_func);
-
-        vectorizer.analyze(vec_info, dom_tree, pdom_tree, loop_info);
-
-        bool lin_ok = vectorizer.linearize(vec_info, dom_tree, pdom_tree, loop_info);
+        bool lin_ok = vectorizer.linearize(vec_info, FAM);
         assert_unused(lin_ok);
 
-        llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-        bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
+        bool vectorize_ok = vectorizer.vectorize(vec_info, FAM, nullptr);
         assert_unused(vectorize_ok);
 
         vectorizer.finalize();

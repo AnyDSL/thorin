@@ -3,26 +3,19 @@
 #if THORIN_ENABLE_RV
 #include "thorin/be/llvm/llvm.h"
 
-#include <llvm/IR/Dominators.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/Transforms/Scalar.h>
-#include <llvm/Transforms/IPO.h>
-
-#include <llvm/Config/llvm-config.h>
-
-#if LLVM_VERSION_MAJOR >=  7
-#include <llvm/Transforms/Utils.h>
-#endif
-
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/ScalarEvolution.h>
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>
-#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Config/llvm-config.h>
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Verifier.h>
 #include <llvm/IR/PassManager.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
@@ -173,10 +166,10 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
         rv::VectorizerInterface vectorizer(platform_info, config);
         {
-          llvm::DominatorTree dom_tree(*kernel_func);
-          llvm::LoopInfo loop_info(dom_tree);
-          LoopExitCanonicalizer canonicalizer(loop_info);
-          canonicalizer.canonicalize(*kernel_func);
+            llvm::DominatorTree dom_tree(*kernel_func);
+            llvm::LoopInfo loop_info(dom_tree);
+            LoopExitCanonicalizer canonicalizer(loop_info);
+            canonicalizer.canonicalize(*kernel_func);
         }
 
         llvm::PassBuilder PB;

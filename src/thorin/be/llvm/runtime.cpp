@@ -28,6 +28,12 @@ Runtime::Runtime(llvm::LLVMContext& context,
     runtime_ = llvm::parseIR(*mem_buf.get(), diag, context);
     if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
+
+    // Dummy value for all backends (necessary if the OpenCL runtime is linked in)
+    auto file_name_type = llvm::PointerType::get(builder.getInt8Ty(), 0);
+    auto xilinx_binary_name = llvm::cast<llvm::GlobalVariable>(target_.getOrInsertGlobal("anydsl_xilinx_binary_name", file_name_type));
+    xilinx_binary_name->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    xilinx_binary_name->setInitializer(llvm::ConstantPointerNull::get(file_name_type));
 }
 
 llvm::Function* Runtime::get(const char* name) {
@@ -77,6 +83,9 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
     auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
+
+    target_.getGlobalVariable("anydsl_xilinx_binary_name")->setInitializer(file_name);
+
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types

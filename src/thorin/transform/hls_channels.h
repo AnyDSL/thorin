@@ -5,6 +5,11 @@
 
 namespace thorin {
 
+enum class ChannelMode : uint8_t {
+    Read,       ///< Read-channel
+    Write       ///< Write-channe
+};
+
 using Top2Kernel = std::vector<std::tuple<size_t, std::string, size_t>>;
 class World;
 

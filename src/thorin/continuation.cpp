@@ -177,6 +177,7 @@ void Continuation::make_internal() { return world().remove_external(this); }
 bool Continuation::is_external() const { return world().is_external(this); }
 bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Continuation::is_channel() const { return name().str().find("channel") != std::string::npos; }
+bool Continuation::is_pipe() const { return name().str().find("pipe") != std::string::npos; }
 bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
@@ -201,11 +202,6 @@ void Continuation::set_intrinsic() {
     else ELOG("unsupported thorin intrinsic");
 }
 
-void Continuation::set_channel() {
-    if      (name().str().find("write_channel")  != std::string::npos) channel_ = Channel::Read;
-    else if (name().str().find("read_channel") != std::string::npos) channel_ = Channel::Write;
-    else ELOG(" Not a channel / unsupported channel placeholder");
-}
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }

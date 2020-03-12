@@ -7,6 +7,7 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/codegen_prepare.h"
+#include "thorin/transform/hls_channels.h"
 #include "thorin/util/log.h"
 #include "thorin/util/stream.h"
 #include "thorin/be/c.h"
@@ -14,8 +15,11 @@
 #include <cmath>
 #include <sstream>
 #include <type_traits>
+#include <unordered_map>
 
 namespace thorin {
+
+using FuncMode = ChannelMode;
 
 enum Cl : uint8_t {
     STD    = 0,  ///< Standard OpenCL
@@ -60,8 +64,11 @@ private:
     // TODO use Symbol instead of std::string
     bool lookup(const Type*);
     bool lookup(const Def*);
+    bool lookup(const Continuation*);
     void insert(const Type*, std::string);
     void insert(const Def*, std::string);
+    void insert(const Continuation*, FuncMode);
+
     std::string& get_name(const Type*);
     std::string& get_name(const Def*);
     const std::string var_name(const Def*);
@@ -78,14 +85,17 @@ private:
     DefMap<std::string> primop2str_;
     bool use_64_ = false;
     bool use_16_ = false;
-    bool use_channels_ = false; // for OpenCL on FPGAs
+    bool use_channels_ = false;
     bool debug_;
     int primop_counter = 0;
     std::ostream& os_;
     std::ostringstream func_impl_;
     std::ostringstream func_decls_;
     std::ostringstream type_decls_;
-    std::string hls_pragmas;
+    std::ostringstream macro_xilinx_;
+    std::ostringstream macro_intel_;
+    std::string hls_pragmas_;
+    std::unordered_map<const Continuation*, FuncMode> builtin_funcs_; // OpenCL builtin functions
 
 };
 
@@ -122,6 +132,7 @@ inline bool is_string_type(const Type* type) {
 inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel_") != std::string::npos;
 }
+
 
 inline bool has_params(Continuation* kernel) {
     for (auto param : kernel->params()) {
@@ -161,7 +172,7 @@ std::ostream& CCodeGen::fpga(const Cl vendor = STD, const size_t status = 2_s) {
     else if (vendor == INTEL && status == 1_s)
         func_impl_<< "#ifdef INTELFPGA_CL";
     else if (vendor == XILINX && status == 1_s)
-        func_impl_ << "#ifdef __XILINX__";
+        func_impl_ << "#ifdef _xilinx__";
     else if (status == 2_s)
         return func_impl_ << endl;
     else if ( status == 0_s)
@@ -380,6 +391,9 @@ void CCodeGen::emit() {
             }
         }
 
+    if (lang_==Lang::OPENCL)
+        func_decls_ << "#ifndef __xilinx__" << endl;
+
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;
@@ -501,7 +515,7 @@ void CCodeGen::emit() {
                     emit_type(func_decls_, elem_type) << "[" << array_size << "]";
                     emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
                     if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
-                        hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+                        hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
                 } else {
                     std::string qualifier;
                     // add restrict qualifier when possible
@@ -547,25 +561,25 @@ void CCodeGen::emit() {
                             }
                         }
                         if (interface == HlsInterface::SOC)
-                            hls_pragmas += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
+                            hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
                         else if (interface == HlsInterface::HPC)
-                            hls_pragmas += "\n#pragma HLS INTERFACE s_axilite port = return        bundle = control";
+                            hls_pragmas_ += "\n#pragma HLS INTERFACE s_axilite port = return        bundle = control";
                     }
                 } else {
                     interface = HlsInterface::None;
                     WLOG("HLS accelerator generated with no interface");
                 }
-                hls_pragmas += "\n#pragma HLS top name = hls_top";
+                hls_pragmas_ += "\n#pragma HLS top name = hls_top";
                 if (use_channels_)
-                    hls_pragmas += "\n#pragma HLS DATAFLOW";
+                    hls_pragmas_ += "\n#pragma HLS DATAFLOW";
             } else if (use_channels_) {
-                hls_pragmas += "\n#pragma HLS INLINE off";
+                hls_pragmas_ += "\n#pragma HLS INLINE off";
             }
         }
 
-        if (!hls_pragmas.empty())
-            func_impl_ << hls_pragmas;
-        hls_pragmas.clear();
+        if (!hls_pragmas_.empty())
+            func_impl_ << hls_pragmas_;
+        hls_pragmas_.clear();
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
@@ -835,12 +849,22 @@ void CCodeGen::emit() {
                                 func_impl_ << ";";
                             } else {
                                 auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
-                                if (param)
-                                    emit(param) << " = ";
-                                if (lang_ == Lang::OPENCL && use_channels_)
-                                    func_impl_ << name << "_intel" << "(";
-                                else
+                                if (lang_ == Lang::OPENCL && use_channels_ && callee->is_channel()) {
+                                    if ((name.str().find("write") != std::string::npos)) {
+                                        func_impl_ << name << "(";
+                                        if (!lookup(callee))
+                                            insert(callee, FuncMode::Write);
+                                    }
+                                    else if ((name.str().find("read") != std::string::npos)) {
+                                        func_impl_ << name << "(" << param <<", ";
+                                        if (!lookup(callee))
+                                            insert(callee, FuncMode::Read);
+                                    }
+                                } else {
+                                    if (param)
+                                        emit(param) << " = ";
                                     func_impl_ << name << "(";
+                                }
                                 // emit all first-order args
                                 size_t i = 0;
                                 for (auto arg : continuation->args()) {
@@ -905,18 +929,41 @@ void CCodeGen::emit() {
         func_impl_ << down << endl << "}" << endl << endl;
         def2str_.clear();
     });
+    if (lang_ == Lang::OPENCL)
+        func_decls_ << "#endif"<< endl; // for __xilinx__
     type2str_.clear();
     global2str_.clear();
 
     if (lang_==Lang::OPENCL) {
-        if (use_channels_)
-            os_ << "#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl;
-        if (use_16_)
-            os_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
-        if (use_64_)
-            os_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
-        if (use_channels_ || use_16_ || use_64_)
-            os_ << endl;
+        if (use_channels_) {
+            std::string write_channel_params = "(channel, val) ";
+            std::string read_channel_params = "(val, channel) ";
+
+            macro_xilinx_ << "#if defined(__xilinx__)" << up << endl << "#define PIPE pipe" << endl;
+            macro_intel_  << down << endl << "#elif defined(INTELFPGA_CL)" << up << endl
+                          <<"#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl << "#define PIPE channel" << endl;
+            for (auto map : builtin_funcs_) {
+                if (map.first->is_channel()) {
+                    if (map.second == FuncMode::Write) {
+                        macro_xilinx_ << "#define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)" << endl;
+                        macro_intel_ << "#define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)" << endl;
+                    } else if (map.second == FuncMode::Read) {
+                        macro_xilinx_ << "#define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)" << endl;
+                        macro_intel_  << "#define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)" << endl;
+                    }
+                }
+            }
+            os_ << macro_xilinx_.str() << macro_intel_.str();
+            os_ << down << endl << "#else"<< up << endl << "#define PIPE pipe"<< endl;
+            os_<< down << endl << "#endif" << endl;
+
+            if (use_16_)
+                os_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
+            if (use_64_)
+                os_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
+            if (use_channels_ || use_16_ || use_64_)
+                os_ << endl;
+        }
     }
 
     if (lang_==Lang::CUDA && use_16_)
@@ -1389,7 +1436,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL:
                if(use_channels_)
-                   func_impl_ << "channel ";
+                   func_impl_ << "PIPE ";
                else
                    func_impl_ << "__constant ";
                break;
@@ -1453,6 +1500,14 @@ bool CCodeGen::lookup(const Def* def) {
         return def2str_.contains(def);
 }
 
+bool CCodeGen::lookup(const Continuation* continuation) {
+    for (auto map : builtin_funcs_) {
+        if (map.first->name() == continuation->name())
+            return true;
+    }
+    return false;
+}
+
 std::string& CCodeGen::get_name(const Type* type) {
         return type2str_[type];
 }
@@ -1485,6 +1540,11 @@ const std::string CCodeGen::get_lang() const {
 
 void CCodeGen::insert(const Type* type, std::string str) {
     type2str_[type] = str;
+}
+
+
+void CCodeGen::insert(const Continuation* callee , FuncMode mode) {
+    builtin_funcs_[callee] = mode;
 }
 
 void CCodeGen::insert(const Def* def, std::string str) {

@@ -9,11 +9,6 @@
 
 namespace thorin {
 
-enum class ChannelMode : uint8_t {
-    Read,       ///< Read-channel
-    Write       ///< Write-channe
-};
-
 using Def2Mode = DefMap<ChannelMode>;
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // <From, To>
 

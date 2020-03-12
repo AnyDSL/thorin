@@ -95,11 +95,6 @@ enum class CC : uint8_t {
     Device,     ///< Device calling convention. These are special functions only available on a particular device.
 };
 
-enum class Channel : uint8_t {
-    None,       ///< Not a channel HLS-Backend
-    Read,       ///< Read-channel  HLS-Backend
-    Write       ///< Write-channel HLS-Backend
-};
 
 /**
  * A function abstraction.
@@ -143,10 +138,7 @@ public:
     Intrinsic intrinsic() const { return intrinsic_; }
     CC& cc() { return cc_; }
     CC cc() const { return cc_; }
-    Channel& channel() { return channel_; }
-    Channel channel() const { return channel_; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
-    void set_channel(); ///< Sets channel R/W
     bool is_external() const;
     void make_external();
     void make_internal();
@@ -154,6 +146,7 @@ public:
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_channel() const;
+    bool is_pipe() const;
     bool is_accelerator() const;
     void destroy_body();
 
@@ -193,7 +186,6 @@ private:
     Array<const Def*> filter_; ///< used during @p partial_evaluation
     CC cc_;
     Intrinsic intrinsic_;
-    Channel  channel_;
 
     friend class Cleaner;
     friend class Scope;

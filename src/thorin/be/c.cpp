@@ -1444,9 +1444,10 @@ std::ostream& CCodeGen::emit(const Def* def) {
         bool bottom = global->init()->isa<Bottom>();
         if (!bottom)
             emit(global->init()) << endl;
-        if (lang_ == Lang::OPENCL && use_channels_)
-            emit_type(func_impl_, global->alloced_type()) << " " << def_name;
-        else
+        if (lang_ == Lang::OPENCL && use_channels_) {
+            std::replace(def_name.begin(), def_name.end(), '_', 'X'); //xilinx pipe name restriction
+            emit_type(func_impl_, global->alloced_type()) << " " << def_name << " __attribute__((xcl_reqd_pipe_depth(32)))";
+        } else
             emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
         if (bottom) {
             func_impl_ << "; // bottom";

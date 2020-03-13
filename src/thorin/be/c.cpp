@@ -172,7 +172,7 @@ std::ostream& CCodeGen::fpga(const Cl vendor = STD, const size_t status = 2_s) {
     else if (vendor == INTEL && status == 1_s)
         func_impl_<< "#ifdef INTELFPGA_CL";
     else if (vendor == XILINX && status == 1_s)
-        func_impl_ << "#ifdef _xilinx__";
+        func_impl_ << "#ifdef __xilinx__";
     else if (status == 2_s)
         return func_impl_ << endl;
     else if ( status == 0_s)

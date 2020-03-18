@@ -129,7 +129,10 @@ const Def* PassMan::wrap_rewrite(const Def* def, const Def* old_def, const Def* 
 }
 
 const Def* PassMan::rewrite(const Rewrite* rw) {
+    if (rw->old_def()->is_const()) return rw->old_def(); // TODO remove
     if (auto new_def = local_.map.lookup(rw)) return *new_def;
+
+    world_.DLOG("rewrite {} | {} @ {} -> {}", rw, rw->def(), rw->old_def(), rw->new_def());
 
     auto new_type = wrap_rewrite(rw->def()->type(), rw->old_def(), rw->new_def());
     auto new_dbg  = rw->def()->debug() ? wrap_rewrite(rw->def()->debug(), rw->old_def(), rw->new_def()) : nullptr;
@@ -153,6 +156,7 @@ const Def* PassMan::rewrite(const Rewrite* rw) {
         //local_map(old_def, new_def);
     //}
 
+    world_.DLOG("return: {} -> {}", rw, new_def);
     return local_.map[rw] = new_def;
 
 #if 0
@@ -217,8 +221,8 @@ const Def* PassMan::rewrite(const Rewrite* rw) {
     }
 
     return new_def;
-#endif
     return rw;
+#endif
 }
 
 bool PassMan::analyze(const Def* def) {

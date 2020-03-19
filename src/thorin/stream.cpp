@@ -96,9 +96,8 @@ public:
         , max(max)
     {}
 
-    void run_nom();
-    void run_def(const Def*);
-    //Stream& run();
+    void run();
+    void run(const Def*);
 
     Stream& s;
     size_t max;
@@ -106,28 +105,33 @@ public:
     DefSet defs;
 };
 
-void RecStreamer::run_def(const Def* def) {
+void RecStreamer::run(const Def* def) {
     if (def->is_const() || !defs.emplace(def).second) return;
 
     for (auto op : def->extended_ops<false>()) { // for now, don't include debug info
-        if (auto nom = op->isa_nominal())
-            nominals.push(nom);
-        else
-            run_def(op);
+        if (auto nom = op->isa_nominal()) {
+            if (max != 0) {
+                if (nominals.push(nom)) --max;
+            }
+        } else {
+            run(op);
+        }
     }
 
-    def->stream_assignment(s.endl());
+    if (auto nom = def->isa_nominal())
+        thorin::stream(s.endl().fmt("-> "), nom).fmt(";");
+    else
+        def->stream_assignment(s.endl());
 }
 
-void RecStreamer::run_nom() {
+void RecStreamer::run() {
     while (!nominals.empty()) {
         auto nom = nominals.pop();
         s.endl().endl();
 
         if (nom->is_set()) {
-            nom->stream_assignment(s);
-            s.fmt(" {{\t");
-            run_def(nom);
+            s.fmt("{}: {} = {{\t", nom->unique_name(), nom->type());
+            run(nom);
             s.fmt("\b\n}}");
         } else {
             s.fmt("{}: {} = {{ <unset> }}", nom->unique_name(), nom->type());
@@ -149,15 +153,21 @@ Stream& Def::stream(Stream& s) const {
 
 Stream& Def::stream(Stream& s, size_t max) const {
     if (max == 0) return stream_assignment(s);
-    if (!isa_nominal()) --max;
+    RecStreamer rec(s, --max);
 
-    RecStreamer rec(s, max);
-    rec.run_def(this);
+    if (auto nom = isa_nominal()) {
+        rec.nominals.push(nom);
+        rec.run();
+    } else {
+        rec.run(this);
+        if (max != 0) rec.run();
+    }
+
     return s;
 }
 
 Stream& Def::stream_assignment(Stream& s) const {
-    return thorin::stream(s.fmt("{}: {} = ", unique_name(), type()), this);
+    return thorin::stream(s.fmt("{}: {} = ", unique_name(), type()), this).fmt(";");
 }
 
 void Def::dump() const { Streamable<Def>::dump(); }
@@ -173,7 +183,7 @@ Stream& World::stream(Stream& s) const {
 
     for (const auto& [name, nom] : externals()) {
         rec.nominals.push(nom);
-        rec.run_nom();
+        rec.run();
     }
 
     return s;

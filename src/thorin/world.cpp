@@ -178,6 +178,15 @@ World::World(const std::string& name) {
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
+    } { // type_tangent_vector: Π*. *
+        data_.type_tangent_vector_ = axiom(normalize_tangent, pi(star, star), Tag::TangentVector, 0, {"tangent"});
+    }  { // op_grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
+        auto type = pi(star)->set_domain({star, star});
+        auto T = type->param(0, {"T"});
+        auto R = type->param(1, {"R"});
+        auto tangent_T = type_tangent_vector(T);
+        type->set_codomain(pi(pi(T, R), pi(T, tangent_T)));
+        data_.op_grad_ = axiom(nullptr, type, Tag::Grad, 0, {"∇"});
     }
 }
 
@@ -730,7 +739,7 @@ std::vector<Lam*> World::copy_lams() const {
 
 #if THORIN_ENABLE_CHECKS
 
-const Def* World::lookup_by_gid(gid_t gid) {
+const Def* World::gid2def(u32 gid) {
     auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
     if (i == data_.defs_.end()) return nullptr;
     return *i;
@@ -789,6 +798,22 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
     ILOG("{}: done,", info);
 }
 
+const Def* World::op_grad(const Def* fn, Debug dbg) {
+    if (fn->type()->isa<Pi>()) {
+        auto ds_fn = cps2ds(fn);
+        auto ds_pi = ds_fn->type()->as<Pi>();
+        auto to_grad = app(data_.op_grad_, {ds_pi->domain(), ds_pi->codomain()}, dbg);
+        auto grad = app(to_grad, ds_fn, dbg);
+        return ds2cps(grad);
+    }
+
+    THORIN_UNREACHABLE;
+}
+
+const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
+    return app(data_.type_tangent_vector_, primal_type, dbg);
+}
+
 /*
  * misc
  */
@@ -822,82 +847,12 @@ std::string World::colorize(const std::string& str, int color) {
         return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
     }
 #else
-std::string Log::colorize(const std::string& str, int) {
+std::string World::colorize(const std::string& str, int) {
 #endif
     return str;
 }
 
 void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
-
-#if 0
-Stream& World::stream(Stream& s) const {
-    unique_stack<DefSet> defs;
-    unique_stack<DefSet> noms;
-
-    auto push = [&](const Def* def) {
-        auto push = [&](const Def* def) {
-            if (def->is_const()) return false;
-            if (auto nom = def->isa_nominal()) {
-                noms.push(nom);
-                return false;
-            }
-            return defs.push(def);
-        };
-
-        bool todo = false;
-        for (auto op : def->extended_ops()) todo |= push(op);
-        return todo;
-    };
-
-    for (const auto& [name, nom] : externals()) noms.push(nom);
-
-    while (!defs.empty() || !noms.empty()) {
-        while (!defs.empty()) {
-            auto def = defs.top();
-
-            if (!push(def)) {
-                stream_assignment(s, def).endl();
-                defs.pop();
-            }
-        }
-
-        while (!noms.empty()) {
-            auto nom = noms.pop();
-
-            s.fmt("{}∷{} {{\t\n", nom->unique_name(), nom->type());
-            for (auto op : nom->ops()) {
-                stream_assignment(s, op).endl();
-                push(op);
-            }
-            s.fmt("\b\n}}\n");
-        }
-    }
-
-    return s;
-}
-
-#else
-
-Stream& World::stream(Stream& s) const {
-    s << "module '" << name() << "'\n\n";
-
-    std::vector<const Global*> globals;
-
-    for (auto def : defs()) {
-        if (auto global = def->isa<Global>())
-            globals.emplace_back(global);
-    }
-
-    for (auto global : globals)
-        stream_assignment(s, global).endl();
-
-    visit<false>([&] (const Scope& scope) {
-        if (scope.entry()->isa<Axiom>()) return;
-        scope.stream(s);
-    });
-    return s;
-}
-#endif
 
 template void Streamable<World>::write(const std::string& filename) const;
 template void Streamable<World>::write() const;

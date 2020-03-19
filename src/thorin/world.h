@@ -423,6 +423,11 @@ public:
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     //@}
+    /// @name AD
+    //@{
+    const Def* op_grad(const Def* fn, Debug dbg = {});
+    const Def* type_tangent_vector(const Def* primal_type, Debug dbg = {});
+    //@}
     /// @name helpers for optional/variant arguments
     //@{
     const Def* name2def(Name n) {
@@ -485,7 +490,7 @@ public:
     const Breakpoints& breakpoints() const { return state_.breakpoints; }
     bool track_history() const { return state_.track_history; }
     void enable_history(bool flag = true) { state_.track_history = flag; }
-    const Def* lookup_by_gid(gid_t gid);
+    const Def* gid2def(u32 gid);
     //@}
 #endif
     /// @name logging
@@ -697,6 +702,8 @@ private:
         const Axiom* op_slot_;
         const Axiom* op_load_;
         const Axiom* op_store_;
+        const Axiom* type_tangent_vector_;
+        const Axiom* op_grad_;
         std::string name_;
         Externals externals_;
         Sea defs_;

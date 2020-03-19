@@ -166,7 +166,7 @@ void Def::make_external() { return world().make_external(this); }
 void Def::make_internal() { return world().make_internal(this); }
 bool Def::is_external() const { return world().is_external(this); }
 
-std::string Def::unique_name() const { return name() + "_" + std::to_string(gid()); }
+std::string Def::unique_name() const { return (isa_nominal() ? std::string{} : std::string{"%"}) + name() + "_" + std::to_string(gid()); }
 
 void Def::replace(Tracker with) const {
     world().DLOG("replace: {} -> {}", this, with);

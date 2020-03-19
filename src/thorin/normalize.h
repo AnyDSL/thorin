@@ -3,12 +3,15 @@
 
 namespace thorin {
 
-const Def* normalize_bit (const Def*, const Def*, const Def*, const Def*);
+class Def;
+
+const Def* normalize_bit    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_bitcast(const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_lea    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_sizeof (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_load   (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_store  (const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_tangent(const Def*, const Def*, const Def*, const Def*);
 
 template<Shr > const Def* normalize_Shr (const Def*, const Def*, const Def*, const Def*);
 template<WOp > const Def* normalize_WOp (const Def*, const Def*, const Def*, const Def*);

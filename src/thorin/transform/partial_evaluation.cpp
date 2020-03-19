@@ -193,7 +193,7 @@ bool PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto lam = pop(queue_);
 
-        auto app = lam->body()->as<App>();
+        auto app = lam->body()->isa<App>();
         if (app == nullptr) continue;
 
         bool force_fold = false;

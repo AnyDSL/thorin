@@ -2,6 +2,7 @@
 #include "thorin/pass/inliner.h"
 #include "thorin/pass/mem2reg.h"
 #include "thorin/pass/partial_eval.h"
+#include "thorin/pass/grad_gen.h"
 
 #include "thorin/transform/compile_ptrns.h"
 

@@ -487,7 +487,7 @@ public:
     const Breakpoints& breakpoints() const { return state_.breakpoints; }
     bool track_history() const { return state_.track_history; }
     void enable_history(bool flag = true) { state_.track_history = flag; }
-    const Def* lookup_by_gid(u32 gid);
+    const Def* gid2def(u32 gid);
     //@}
 #endif
     /// @name logging

@@ -734,7 +734,7 @@ std::vector<Lam*> World::copy_lams() const {
 
 #if THORIN_ENABLE_CHECKS
 
-const Def* World::lookup_by_gid(u32 gid) {
+const Def* World::gid2def(u32 gid) {
     auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
     if (i == data_.defs_.end()) return nullptr;
     return *i;
@@ -848,26 +848,6 @@ std::string World::colorize(const std::string& str, int) {
 }
 
 void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
-
-Stream& World::stream(Stream& s) const {
-    s << "module '" << name() << "'\n\n";
-
-    std::vector<const Global*> globals;
-
-    for (auto def : defs()) {
-        if (auto global = def->isa<Global>())
-            globals.emplace_back(global);
-    }
-
-    for (auto global : globals)
-        stream_assignment(s, global).endl();
-
-    visit<false>([&] (const Scope& scope) {
-        if (scope.entry()->isa<Axiom>()) return;
-        scope.stream(s);
-    });
-    return s;
-}
 
 template void Streamable<World>::write(const std::string& filename) const;
 template void Streamable<World>::write() const;

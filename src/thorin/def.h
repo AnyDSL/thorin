@@ -296,8 +296,14 @@ public:
     virtual bool is_type()  const { return type()->is_kind();                } ///< Anything that can be the @p type of a value (see @p is_value).
     virtual bool is_kind()  const { return type()->node() == Node::Universe; } ///< Anything that can be the @p type of a type (see @p is_type).
     //@}
-    bool equal(const Def* other) const;
+    ///@{ @name stream
     Stream& stream(Stream& s) const;
+    Stream& stream(Stream& s, size_t max) const;
+    Stream& stream_assignment(Stream&) const;
+    void dump() const;
+    void dump(size_t) const;
+    //@}
+    bool equal(const Def* other) const;
 
 protected:
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
@@ -366,11 +372,6 @@ using NomSet  = GIDSet<Def*>;
 using Nom2Nom = NomMap<Def*>;
 
 //------------------------------------------------------------------------------
-
-enum class Recurse { No, OneLevel };
-
-Stream& stream(Stream&, const Def*, Recurse recurse);
-Stream& stream_assignment(Stream&, const Def*);
 
 class Param : public Def {
 private:

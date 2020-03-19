@@ -72,6 +72,7 @@ void PassMan::run() {
 
 const Def* PassMan::rewrite(const Def* old_def) {
     if (auto new_def = lookup(old_def)) return *new_def;
+    old_def->dump(2);
 
     if (auto nominal = old_def->isa_nominal()) {
         for (auto& pass : passes_)

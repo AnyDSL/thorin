@@ -293,7 +293,7 @@ Stream& Schedule::stream(Stream& s) const {
         if (indent) s.indent();
         s.endl().fmt("{}: {}", nom->unique_name(), nom->type()).indent();
 
-        for (auto def : block) stream_assignment(s.endl(), def);
+        for (auto def : block) def->stream_assignment(s.endl());
 
         s.dedent();
         if (indent) s.dedent();

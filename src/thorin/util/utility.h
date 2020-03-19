@@ -81,9 +81,12 @@ public:
         : done_(set)
     {}
 
-    void push(T val) {
-        if (done_.emplace(val).second)
+    bool push(T val) {
+        if (done_.emplace(val).second) {
             queue_.emplace(val);
+            return true;
+        }
+        return false;
     }
 
     bool empty() const { return queue_.empty(); }

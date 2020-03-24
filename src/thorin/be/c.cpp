@@ -35,6 +35,8 @@ private:
     std::ostream& emit_aggop_decl(const Type*);
     std::ostream& emit_debug_info(const Def*);
     std::ostream& emit_addr_space(std::ostream&, const Type*);
+    std::ostream& emit_string(const Global*);
+    std::ostream& emit_temporaries(const Def*);
     std::ostream& emit_type(std::ostream&, const Type*);
     std::ostream& emit(const Def*);
 
@@ -112,6 +114,25 @@ std::string handle_string_character(char c) {
         case '\v': return "\\v";
         default:   return std::string(1, c);
     }
+}
+
+std::ostream& CCodeGen::emit_string(const Global* global) {
+    if (auto str_array = global->init()->isa<DefiniteArray>()) {
+        if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
+            if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
+                if (primtype->primtype_tag() == PrimType_pu8) {
+                    std::string str = "\"";
+                    for (auto op : str_array->ops().skip_back())
+                        str += handle_string_character(op->as<PrimLit>()->pu8_value());
+                    str += '"';
+                    WDEF(global, "string constant {} -> {}", global, str);
+                    insert(global, str);
+                }
+            }
+        }
+    }
+
+    return type_decls_;
 }
 
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
@@ -285,6 +306,18 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     return type_decls_;
 }
 
+std::ostream& CCodeGen::emit_temporaries(const Def* def) {
+    // emit definitions of inlined elements, skip match
+    if (!def->isa<PrimOp>() || !is_from_match(def->as<PrimOp>()))
+        emit_aggop_defs(def);
+
+    // emit temporaries for arguments
+    if (def->order() >= 1 || is_mem(def) || is_unit(def) || lookup(def) || def->isa<PrimLit>())
+        return func_impl_;
+
+    return emit(def) << endl;
+}
+
 void CCodeGen::emit() {
     if (lang_==Lang::CUDA) {
         func_decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
@@ -304,11 +337,12 @@ void CCodeGen::emit() {
     // emit all globals
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
-            // skip strings as they are emitted inline
             if (is_string_type(global->init()->type()))
-                continue;
-            emit_aggop_decl(global->type());
-            emit(global) << endl;
+                emit_string(global);
+            else {
+                emit_aggop_decl(global->type());
+                emit(global) << endl;
+            }
         }
     }
 
@@ -530,17 +564,9 @@ void CCodeGen::emit() {
                 emit(primop) << endl;
             }
 
-            for (auto arg : continuation->args()) {
-                // emit definitions of inlined elements, skip match
-                if (!arg->isa<PrimOp>() || !is_from_match(arg->as<PrimOp>()))
-                    emit_aggop_defs(arg);
-
-                // emit temporaries for arguments
-                if (arg->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<PrimLit>())
-                    continue;
-
-                emit(arg) << endl;
-            }
+            // emit definitions for temporaries
+            for (auto arg : continuation->args())
+                emit_temporaries(arg);
 
             // terminate bb
             if (continuation->callee() == ret_param) { // return
@@ -1172,6 +1198,10 @@ std::ostream& CCodeGen::emit(const Def* def) {
             }
         }
 
+        // emit temporaries
+        for (auto op : assembly->ops())
+            emit_temporaries(op);
+
         func_impl_ << "asm ";
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
@@ -1211,22 +1241,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
-
-        // string handling
-        if (auto str_array = global->init()->isa<DefiniteArray>()) {
-            if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
-                if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
-                    if (primtype->primtype_tag() == PrimType_pu8) {
-                        std::string str = "\"";
-                        for (auto op : str_array->ops().skip_back())
-                            str += handle_string_character(op->as<PrimLit>()->pu8_value());
-                        str += '"';
-                        insert(def, str);
-                        return func_impl_;
-                    }
-                }
-            }
-        }
 
         if (global->is_mutable())
             WDEF(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);

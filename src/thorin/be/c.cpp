@@ -951,8 +951,28 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
-    // aggregate operations
-    {
+    if (auto agg = def->isa<Aggregate>()) {
+        emit_aggop_decl(def->type());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        // emit definitions of inlined elements
+        for (auto op : agg->ops())
+            emit_aggop_defs(op);
+
+        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
+        for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            func_impl_ << endl;
+            emit(agg->op(i)) << ",";
+        }
+        func_impl_ << down << endl << "};" << endl;
+        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
+        insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto aggop = def->isa<AggOp>()) {
+        emit_aggop_defs(aggop->agg());
+
         auto emit_access = [&] (const Def* def, const Def* index) -> std::ostream& {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
@@ -979,55 +999,32 @@ std::ostream& CCodeGen::emit(const Def* def) {
             return func_impl_;
         };
 
-        if (auto agg = def->isa<Aggregate>()) {
-            emit_aggop_decl(def->type());
-            assert(def->isa<Tuple>() || def->isa<StructAgg>());
-            // emit definitions of inlined elements
-            for (auto op : agg->ops())
-                emit_aggop_defs(op);
-
-            emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
-            emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-                func_impl_ << endl;
-                emit(agg->op(i)) << ",";
-            }
-            func_impl_ << down << endl << "};" << endl;
-            func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
-            insert(def, def_name);
-            return func_impl_;
-        }
-
-        if (auto aggop = def->isa<AggOp>()) {
-            emit_aggop_defs(aggop->agg());
-
-            if (auto extract = aggop->isa<Extract>()) {
-                if (is_mem(extract) || extract->type()->isa<FrameType>())
-                    return func_impl_;
-                if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
-                    emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
-                    func_impl_ << def_name << " = ";
-                    if (auto memop = extract->agg()->isa<MemOp>())
-                        emit(memop) << ";";
-                    else {
-                        emit(aggop->agg());
-                        emit_access(aggop->agg(), aggop->index()) << ";";
-                    }
-                }
-                insert(def, def_name);
+        if (auto extract = aggop->isa<Extract>()) {
+            if (is_mem(extract) || extract->type()->isa<FrameType>())
                 return func_impl_;
+            if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
+                emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
+                func_impl_ << def_name << " = ";
+                if (auto memop = extract->agg()->isa<MemOp>())
+                    emit(memop) << ";";
+                else {
+                    emit(aggop->agg());
+                    emit_access(aggop->agg(), aggop->index()) << ";";
+                }
             }
-
-            auto ins = def->as<Insert>();
-            emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = ";
-            emit(ins->agg()) << ";" << endl;
-            func_impl_ << def_name;
-            emit_access(def, ins->index()) << " = ";
-            emit(ins->value()) << ";";
             insert(def, def_name);
             return func_impl_;
         }
+
+        auto ins = def->as<Insert>();
+        emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
+        emit(ins->agg()) << ";" << endl;
+        func_impl_ << def_name;
+        emit_access(def, ins->index()) << " = ";
+        emit(ins->value()) << ";";
+        insert(def, def_name);
+        return func_impl_;
     }
 
     if (auto primlit = def->isa<PrimLit>()) {

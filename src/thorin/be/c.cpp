@@ -481,7 +481,7 @@ void CCodeGen::emit() {
                     }
                 }
             }
-            // Emit counter for pipeline intrinsic
+            // emit counter for pipeline intrinsic
             if (continuation->callee()->isa_continuation() &&
                 continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
                 func_impl_ << endl << "int i" << continuation->callee()->gid() << ";";
@@ -643,7 +643,7 @@ void CCodeGen::emit() {
                                            << "#pragma HLS data_pack  variable=" << name;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
                             assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
-                            // casting to contunation to get unique name of "for index"
+                            // cast to continuation to get unique name of "for index"
                             auto body = continuation->arg(4)->as_continuation();
                             if (lang_ == Lang::OPENCL) {
                                 if (continuation->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
@@ -665,10 +665,10 @@ void CCodeGen::emit() {
                                     func_impl_ << "#pragma HLS PIPELINE"<< endl;
                                 }
                             }
-                            // Emiting body and "for index" as the "body parameter"
+                            // emit body and "for index" as the "body parameter"
                             func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
                             emit(body);
-                            // Emitting "continue" with accroding label used for goto
+                            // emit "continue" with according label used for goto
                             func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}" << endl;
                             if (continuation->arg(5) == ret_param)
                                 func_impl_ << "return;" << endl;

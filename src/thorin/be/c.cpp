@@ -125,7 +125,6 @@ std::ostream& CCodeGen::emit_string(const Global* global) {
                     for (auto op : str_array->ops().skip_back())
                         str += handle_string_character(op->as<PrimLit>()->pu8_value());
                     str += '"';
-                    WDEF(global, "string constant {} -> {}", global, str);
                     insert(global, str);
                 }
             }

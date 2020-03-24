@@ -101,6 +101,19 @@ inline bool is_string_type(const Type* type) {
     return false;
 }
 
+std::string handle_string_character(char c) {
+    switch (c) {
+        case '\a': return "\\a";
+        case '\b': return "\\b";
+        case '\f': return "\\f";
+        case '\n': return "\\n";
+        case '\r': return "\\r";
+        case '\t': return "\\t";
+        case '\v': return "\\v";
+        default:   return std::string(1, c);
+    }
+}
+
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     if (lookup(type))
         return os << get_name(type);
@@ -1164,7 +1177,10 @@ std::ostream& CCodeGen::emit(const Def* def) {
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
             WDEF(assembly, "stack alignment and inteldialect flags unsupported for C output");
-        func_impl_ << "(\"" << assembly->asm_template() << "\"";
+        func_impl_ << "(\"";
+        for (auto c : assembly->asm_template())
+            func_impl_ << handle_string_character(c);
+        func_impl_ << "\"";
 
         // emit the outputs
         const char* separator = " : ";
@@ -1202,19 +1218,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
                     if (primtype->primtype_tag() == PrimType_pu8) {
                         std::string str = "\"";
-                        for (auto op : str_array->ops().skip_back()) {
-                            char c = op->as<PrimLit>()->pu8_value();
-                            switch (c) {
-                                case '\a': str += "\\a"; break;
-                                case '\b': str += "\\b"; break;
-                                case '\f': str += "\\f"; break;
-                                case '\n': str += "\\n"; break;
-                                case '\r': str += "\\r"; break;
-                                case '\t': str += "\\t"; break;
-                                case '\v': str += "\\v"; break;
-                                default:   str += c;     break;
-                            }
-                        }
+                        for (auto op : str_array->ops().skip_back())
+                            str += handle_string_character(op->as<PrimLit>()->pu8_value());
                         str += '"';
                         insert(def, str);
                         return func_impl_;

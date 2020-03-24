@@ -1223,7 +1223,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
             }
         }
 
-        WDEF(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);
+        if (global->is_mutable())
+            WDEF(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);
+
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;

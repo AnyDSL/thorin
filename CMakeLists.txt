@@ -22,10 +22,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 # check for possible llvm extension
-find_package(LLVM CONFIG QUIET)
+find_package(LLVM QUIET CONFIG)
 if(LLVM_FOUND)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+    if(LLVM_LINK_LLVM_DYLIB)
+        set(AnyDSL_LLVM_LINK_SHARED "USE_SHARED")
+    endif()
     # check for RV
     find_package(RV)
     if(RV_FOUND)

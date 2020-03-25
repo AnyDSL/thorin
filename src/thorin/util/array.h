@@ -64,7 +64,7 @@ public:
     {}
     ArrayRef(std::initializer_list<T> list)
         : size_(std::distance(list.begin(), list.end()))
-        , ptr_(list.begin())
+        , ptr_(std::begin(list))
     {}
     ArrayRef(const std::vector<T>& vector)
        : size_(vector.size())

@@ -92,6 +92,7 @@ private:
     bool scope();
     const Def* wrap_rewrite(const Def*, const Def*, const Def*);
     const Def* rewrite(const Rewrite*);
+    const Def* rewrite(const Def*, Repls);
     bool analyze(const Def*);
 
     World& world_;

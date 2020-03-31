@@ -48,8 +48,9 @@ void PassMan::run() {
 
     while (!global_.noms.empty()) {
         local_.new_entry = global_.noms.front();
-        local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->replacee()->as<Param>()->nominal(); // TODO this is a bit hacky
-        local_.map[world().rewrite(local_.old_entry, local_.old_entry->param(), local_.new_entry->param())] = local_.new_entry;
+        //TODO
+        //local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->replacee()->as<Param>()->nominal(); // TODO this is a bit hacky
+        //local_.map[world().rewrite(local_.old_entry, local_.old_entry->param(), local_.new_entry->param())] = local_.new_entry;
 
         if (!local_.new_entry->is_set()) {
             global_.noms.pop();
@@ -110,7 +111,9 @@ bool PassMan::scope() {
                 local_.cur_passes.emplace_back(pass);
         }
 
-        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) { return rewrite(cur_nom_->op(i)->as<Rewrite>()); });
+        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) {
+                return rewrite(cur_nom_->op(i)->as<Rewrite>());
+        });
         cur_nom_->set(new_ops);
 
         for (auto op : cur_nom_->extended_ops()) {
@@ -122,6 +125,14 @@ bool PassMan::scope() {
     return true;
 }
 
+const Def* PassMan::rewrite(const Def* def, Repls repls) {
+    if (def->is_const()) return def;
+    if (auto repl = Rewrite::find(def, repls)) return repl->replacer;
+
+    return nullptr;
+}
+
+#if 0
 const Def* PassMan::wrap_rewrite(const Def* def, const Def* old_def, const Def* new_def) {
     if (def->is_const()) return def;
     if (def == old_def) return new_def;
@@ -224,6 +235,7 @@ const Def* PassMan::rewrite(const Rewrite* rw) {
     return rw;
 #endif
 }
+#endif
 
 bool PassMan::analyze(const Def* def) {
     if (def->is_const() || !local_.analyzed.emplace(def).second) return true;

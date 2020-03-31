@@ -412,7 +412,9 @@ public:
     /// @name Analyze & Rewrite - used internally for Pass%es
     //@{
     const Analyze* analyze(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, debug(dbg)); }
-    const Rewrite* rewrite(const Def* term, const Def* replacee, const Def* replacer, Debug dbg = {});
+    const Rewrite* rewrite(Defs ops, Debug dbg);
+    const Rewrite* rewrite(const Def* def, const Def* replacee, const Def* replacer, Debug dbg = {});
+    const Rewrite* rewrite(const Def* def, const Def* replacee, const Def* replacer, Repls repls, Debug dbg = {});
     //@}
     /// @name misc operations
     //@{

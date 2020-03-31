@@ -1124,22 +1124,60 @@ public:
     friend class World;
 };
 
+struct Repl {
+    Repl()
+        : replacee(nullptr)
+        , replacer(nullptr)
+    {}
+    Repl(const Def* replacee, const Def* replacer)
+        : replacee(replacee)
+        , replacer(replacer)
+    {}
+
+    bool operator<(const Repl& other) const { return this->replacee->gid() < other.replacee->gid(); }
+
+    const Def* replacee;
+    const Def* replacer;
+};
+
+typedef ArrayRef<Repl> Repls;
+
+/**
+ * Rewrite a @p def by substituting some replacees with according replacers.
+ * First @p op is always the @p def to be rewritten.
+ * Then, we have @p num_repls many pairs of @c (replacee, replacer) in the remaining @p ops (see @p repls).
+ * The @p repls are sorted by the replacees' @p gid .
+ */
 class Rewrite : public Def {
 private:
-    Rewrite(const Def* term, const Def* replacee, const Def* replacer, const Def* dbg)
-        : Def(Node, term->type(), {term, replacee, replacer}, 0, dbg)
+    Rewrite(const Def* def, const Def* replacee, const Def* replacer, const Def* dbg)
+        : Def(Node, def->type(), {def, replacee, replacer}, 0, dbg)
+    {}
+    Rewrite(Defs ops, const Def* dbg)
+        : Def(Node, ops.front()->type(), ops, 0, dbg)
     {}
 
 public:
     /// @name ops
     //@{
-    const Def* term() const { return op(0); }
-    const Def* replacee() const { return op(1); }
-    const Def* replacer() const { return op(2); }
+    const Def* def() const { return op(0); }
+    size_t num_repls() const { return num_ops() >> 1; }
+    Repls repls() const { return Repls(num_repls(), reinterpret_cast<const Repl*>(ops().begin() + 1)); }
     //@}
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
+    /// @name find replacer
+    //@{
+    std::optional<Repl> find(const Def* replacee) { return find(replacee, repls()); }
+    /// binary search to find the corresponding @c (replacee, replacer) pair.
+    static std::optional<Repl> find(const Def* replacee, Repls repls) {
+        Repl value = {replacee, nullptr};
+        auto i = std::lower_bound(repls.begin(), repls.end(), value);
+        if (i != repls.end() && replacee == i->replacee) return *i;
+        return std::nullopt;
+    }
     //@}
 
     static constexpr auto Node = Node::Rewrite;

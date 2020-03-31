@@ -717,10 +717,30 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Rewrite* World::rewrite(const Def* term, const Def* replacee, const Def* replacer, Debug dbg) {
-    return unify<Rewrite>(3, term, replacee, replacer, debug(dbg));
+const Rewrite* World::rewrite(const Def* def, const Def* replacee, const Def* replacer, Debug dbg) {
+    return unify<Rewrite>(3, def, replacee, replacer, debug(dbg));
 }
 
+const Rewrite* World::rewrite(const Def* def, const Def* replacee, const Def* replacer, Repls repls, Debug dbg) {
+    Array<const Def*> ops(repls.size() + 3);
+    ops[0] = def;
+    size_t n = repls.size() + 1;
+
+    // needed because we cannot assign an array of const elems to an array of non-const elems
+    auto old_repls = (std::array<const Def*, 2>*) (repls.begin());
+    // reinterpret the array of const Def* to an array of non-const Repl-instances
+    auto new_repls = reinterpret_cast<std::array<const Def*, 2>*>(ops.data() + 1);
+
+    // this mambo jambo finally allows us to use std::copy and std::sort
+    *std::copy(old_repls, old_repls + n, new_repls) = {replacee, replacer};
+    std::sort(new_repls, new_repls + n);
+
+    return rewrite(ops, dbg);
+}
+
+const Rewrite* World::rewrite(Defs ops, Debug dbg) {
+    return unify<Rewrite>(ops.size(), ops, debug(dbg));
+}
 
 /*
  * misc

@@ -1126,16 +1126,16 @@ public:
 
 class Rewrite : public Def {
 private:
-    Rewrite(const Def* def, const Def* old_def, const Def* new_def, const Def* dbg)
-        : Def(Node, def->type(), {def, old_def, new_def}, 0, dbg)
+    Rewrite(const Def* term, const Def* replacee, const Def* replacer, const Def* dbg)
+        : Def(Node, term->type(), {term, replacee, replacer}, 0, dbg)
     {}
 
 public:
     /// @name ops
     //@{
-    const Def* def() const { return op(0); }
-    const Def* old_def() const { return op(1); }
-    const Def* new_def() const { return op(2); }
+    const Def* term() const { return op(0); }
+    const Def* replacee() const { return op(1); }
+    const Def* replacer() const { return op(2); }
     //@}
     /// @name virtual methods
     //@{

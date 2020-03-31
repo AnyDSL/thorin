@@ -48,7 +48,7 @@ void PassMan::run() {
 
     while (!global_.noms.empty()) {
         local_.new_entry = global_.noms.front();
-        local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->old_def()->as<Param>()->nominal(); // TODO this is a bit hacky
+        local_.old_entry = local_.new_entry->ops().back()->as<Rewrite>()->replacee()->as<Param>()->nominal(); // TODO this is a bit hacky
         local_.map[world().rewrite(local_.old_entry, local_.old_entry->param(), local_.new_entry->param())] = local_.new_entry;
 
         if (!local_.new_entry->is_set()) {
@@ -129,24 +129,24 @@ const Def* PassMan::wrap_rewrite(const Def* def, const Def* old_def, const Def* 
 }
 
 const Def* PassMan::rewrite(const Rewrite* rw) {
-    if (rw->old_def()->is_const()) return rw->old_def(); // TODO remove
+    if (rw->replacee()->is_const()) return rw->replacee(); // TODO remove
     if (auto new_def = local_.map.lookup(rw)) return *new_def;
 
-    world_.DLOG("rewrite {} | {} @ {} -> {}", rw, rw->def(), rw->old_def(), rw->new_def());
+    world_.DLOG("rewrite {} | {} @ {} -> {}", rw, rw->term(), rw->replacee(), rw->replacer());
 
-    auto new_type = wrap_rewrite(rw->def()->type(), rw->old_def(), rw->new_def());
-    auto new_dbg  = rw->def()->debug() ? wrap_rewrite(rw->def()->debug(), rw->old_def(), rw->new_def()) : nullptr;
+    auto new_type = wrap_rewrite(rw->term()->type(), rw->replacee(), rw->replacer());
+    auto new_dbg  = rw->term()->debug() ? wrap_rewrite(rw->term()->debug(), rw->replacee(), rw->replacer()) : nullptr;
 
-    if (auto old_nom = rw->def()->isa_nominal()) {
-        //if (depends(old_nom, rw->old_def()))
+    if (auto old_nom = rw->term()->isa_nominal()) {
+        //if (depends(old_nom, rw->replacee()))
         if (true)
             return local_.map[rw] = stub(old_nom, new_type, new_dbg);
         return local_.map[rw] = old_nom;
     }
 
-    Array<const Def*> new_ops(rw->def()->num_ops(), [&](size_t i) { return wrap_rewrite(rw->def()->op(i), rw->old_def(), rw->new_def()); });
+    Array<const Def*> new_ops(rw->term()->num_ops(), [&](size_t i) { return wrap_rewrite(rw->term()->op(i), rw->replacee(), rw->replacer()); });
 
-    auto new_def = rw->def()->rebuild(world(), new_type, new_ops, new_dbg);
+    auto new_def = rw->term()->rebuild(world(), new_type, new_ops, new_dbg);
     assert(!new_def->isa<Rewrite>());
     for (auto pass : local_.cur_passes)
         new_def = pass->rewrite(new_def);

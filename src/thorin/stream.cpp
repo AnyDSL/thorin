@@ -4,13 +4,21 @@
 
 namespace thorin {
 
+/*
+ * prefixes for identifiers:
+ * foobar: nominal - no prefix
+ * .foobar: node
+ * :foobar: axiom
+ * %foobar: structural
+ */
+
 Stream& stream(Stream& s, const Def* def) {
     if (false) {}
     else if (def->isa<Universe>()) return s.fmt("□");
     else if (def->isa<Nat>())      return s.fmt("nat");
     else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
     else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());
-    else if (auto axiom = def->isa<Axiom>()) return s.fmt("{}", axiom->name());
+    else if (auto axiom = def->isa<Axiom>()) return s.fmt(":{}", axiom->name());
     else if (auto kind = def->isa<Kind>()) {
         switch (kind->tag()) {
             case Kind::Star:  return s.fmt("★");
@@ -83,8 +91,8 @@ Stream& stream(Stream& s, const Def* def) {
 
     // other
     if (def->fields() == 0)
-        return s.fmt("{}@{} {, }", def->node_name(), def->gid(), def->ops());
-    return s.fmt("{}@{}#{} {, }", def->node_name(), def->gid(), def->fields(), def->ops());
+        return s.fmt(".{} {, }", def->node_name(), def->ops());
+    return s.fmt(".{}#{} {, }", def->node_name(), def->fields(), def->ops());
 }
 
 //------------------------------------------------------------------------------

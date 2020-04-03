@@ -285,6 +285,19 @@ bool Ptrn::matches(const Def* arg) const {
 }
 
 /*
+ * Rewrite
+ */
+
+std::optional<Repl> Rewrite::find(const Def* replacee) { return ReplArray::find(replacee, repls()); }
+
+std::optional<Repl> ReplArray::find(const Def* replacee, Repls repls) {
+    Repl value = {replacee, nullptr};
+    auto i = std::lower_bound(repls.begin(), repls.end(), value);
+    if (i != repls.end() && replacee == i->replacee) return *i;
+    return std::nullopt;
+}
+
+/*
  * Global
  */
 
@@ -356,6 +369,17 @@ Kind::Kind(World& world, Tag tag)
 Nat::Nat(World& world)
     : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
+
+ReplArray::ReplArray(Repls repls1, Repls repls2)
+    : repls_(repls1.size() + repls2.size())
+{
+    std::copy(repls2.begin(), repls2.end(), std::copy(repls1.begin(), repls1.end(), repls_.begin()));
+    std::sort(repls_.begin(), repls_.end()); // maybe a manual merge sort is faster as both repls1 and repls2 are sorted
+}
+
+/*
+ * param
+ */
 
 const Param* Def::param(Debug dbg) {
     if (auto lam    = isa<Lam  >()) return world().param(lam ->domain(), lam,    dbg);

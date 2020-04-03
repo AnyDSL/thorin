@@ -1164,24 +1164,42 @@ public:
     size_t num_repls() const { return num_ops() >> 1; }
     Repls repls() const { return Repls(num_repls(), reinterpret_cast<const Repl*>(ops().begin() + 1)); }
     //@}
+    /// @name find a @c (replacee, replacer) pair by a given replacee
+    //@{
+    std::optional<Repl> find() { return find(def()); }
+    std::optional<Repl> find(const Def* replacee);
+    //@}
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     //@}
-    /// @name find replacer
-    //@{
-    std::optional<Repl> find(const Def* replacee) { return find(replacee, repls()); }
-    /// binary search to find the corresponding @c (replacee, replacer) pair.
-    static std::optional<Repl> find(const Def* replacee, Repls repls) {
-        Repl value = {replacee, nullptr};
-        auto i = std::lower_bound(repls.begin(), repls.end(), value);
-        if (i != repls.end() && replacee == i->replacee) return *i;
-        return std::nullopt;
-    }
-    //@}
 
     static constexpr auto Node = Node::Rewrite;
     friend class World;
+};
+
+struct ReplArray {
+    /// merges @p repls1 with @p repls2 in this @p ReplArray
+    ReplArray(Repls repls1, Repls repls2);
+    ReplArray(size_t size)
+        : repls_(size)
+    {}
+
+    /// @name getters
+    //@{
+    size_t size() const { return repls_.size(); }
+    Repls repls() const { return repls_; }
+    operator Repls() const { return repls_; }
+    //@}
+
+    /// @name find a @c (replacee, replacer) pair by a given replacee
+    //@{
+    std::optional<Repl> find(const Def* replacee) { return find(replacee, repls()); }
+    static std::optional<Repl> find(const Def* replacee, Repls repls);
+    //@}
+
+private:
+    Array<Repl> repls_;
 };
 
 /**

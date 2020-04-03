@@ -90,9 +90,7 @@ public:
 private:
     Def* stub(Def* old_nom, const Def*, const Def*);
     bool scope();
-    const Def* wrap_rewrite(const Def*, const Def*, const Def*);
-    const Def* rewrite(const Rewrite*);
-    const Def* rewrite(const Def*, Repls);
+    const Def* rewrite(const Def*, Repls repls);
     bool analyze(const Def*);
 
     World& world_;
@@ -110,7 +108,7 @@ private:
         Def* new_entry = nullptr;
         std::vector<Pass*> passes;
         std::vector<Pass*> cur_passes;
-        GIDMap<const Rewrite*, const Def*> map;
+        Def2Def map;
         NomSet free;
         DefSet rewritten;
         DefSet analyzed;

@@ -1178,9 +1178,13 @@ public:
     friend class World;
 };
 
-struct ReplArray {
+class ReplArray {
+public:
     /// merges @p repls1 with @p repls2 in this @p ReplArray
     ReplArray(Repls repls1, Repls repls2);
+    ReplArray(Repls repls)
+        : repls_(repls.begin(), repls.end())
+    {}
     ReplArray(size_t size)
         : repls_(size)
     {}
@@ -1194,9 +1198,22 @@ struct ReplArray {
 
     /// @name find a @c (replacee, replacer) pair by a given replacee
     //@{
-    std::optional<Repl> find(const Def* replacee) { return find(replacee, repls()); }
+    std::optional<Repl> find(const Def* replacee) const { return find(replacee, repls()); }
     static std::optional<Repl> find(const Def* replacee, Repls repls);
     //@}
+
+    bool operator<(const ReplArray& other) const {
+        if (repls_.size() != other.repls_.size())
+            return this->repls_.size() < other.repls_.size();
+
+        for (size_t i = 0, e = repls_.size(); i != e; ++i) {
+            auto a = this->repls_[i].replacee->gid();
+            auto b = other.repls_[i].replacee->gid();
+            if (a != b) return a < b;
+        }
+
+        return false;
+    }
 
 private:
     Array<Repl> repls_;

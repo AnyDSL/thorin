@@ -113,7 +113,8 @@ bool PassMan::scope() {
 
         Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) {
             auto rw = cur_nom_->op(i)->as<Rewrite>();
-            return rewrite(rw->def(), rw->repls());
+            auto [it, succ] = local_.map.emplace(rw->repls(), Def2Def());
+            return rewrite(rw->def(), *it);
         });
         cur_nom_->set(new_ops);
 
@@ -126,14 +127,14 @@ bool PassMan::scope() {
     return true;
 }
 
-const Def* PassMan::rewrite(const Def* old_def, Repls repls) {
-    if (old_def->is_const()) return old_def;
-    if (auto new_def = local_.map.lookup(old_def)) return *new_def;
-    if (auto repl = ReplArray::find(old_def, repls)) return repl->replacer;
+const Def* PassMan::rewrite(const Def* old_def, std::pair<const ReplArray, Def2Def>& repls) {
+    if (old_def->is_const())                         return old_def;
+    if (auto repl    = repls.first .find  (old_def)) return repl->replacer;
+    if (auto new_def = repls.second.lookup(old_def)) return *new_def;
 
     if (auto rw = old_def->isa<Rewrite>()) {
-        ReplArray new_repls(repls, rw->repls());
-        return rewrite(rw->def(), new_repls);
+        auto [it, succ] = local_.map.emplace(ReplArray(rw->repls(), rw->repls()), Def2Def());
+        return rewrite(rw->def(), *it);
     }
 
     auto new_type = rewrite(old_def->type(), repls);
@@ -158,7 +159,8 @@ const Def* PassMan::rewrite(const Def* old_def, Repls repls) {
     //}
 
     world_.DLOG("return: {} -> {}", old_def, new_def);
-    return local_.map[old_def] = new_def;
+    //return local_.map[old_def] = new_def;
+    return nullptr;
 }
 
 #if 0

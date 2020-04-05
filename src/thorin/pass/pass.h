@@ -1,6 +1,8 @@
 #ifndef THORIN_PASS_PASS_H
 #define THORIN_PASS_PASS_H
 
+#include <map>
+
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
@@ -90,7 +92,7 @@ public:
 private:
     Def* stub(Def* old_nom, const Def*, const Def*);
     bool scope();
-    const Def* rewrite(const Def*, Repls repls);
+    const Def* rewrite(const Def*, std::pair<const ReplArray, Def2Def>&);
     bool analyze(const Def*);
 
     World& world_;
@@ -108,7 +110,8 @@ private:
         Def* new_entry = nullptr;
         std::vector<Pass*> passes;
         std::vector<Pass*> cur_passes;
-        Def2Def map;
+        //Def2Def map;
+        std::map<ReplArray, Def2Def> map;
         NomSet free;
         DefSet rewritten;
         DefSet analyzed;

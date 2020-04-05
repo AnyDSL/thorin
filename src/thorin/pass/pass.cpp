@@ -133,7 +133,7 @@ const Def* PassMan::rewrite(const Def* old_def, std::pair<const ReplArray, Def2D
     if (auto new_def = repls.second.lookup(old_def)) return *new_def;
 
     if (auto rw = old_def->isa<Rewrite>()) {
-        auto [it, succ] = local_.map.emplace(ReplArray(rw->repls(), rw->repls()), Def2Def());
+        auto [it, succ] = local_.map.emplace(ReplArray(repls.first, rw->repls()), Def2Def());
         return rewrite(rw->def(), *it);
     }
 

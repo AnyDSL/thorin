@@ -956,6 +956,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
+        var->setConstant(!global->is_mutable());
         var->setLinkage(llvm::GlobalValue::InternalLinkage);
         if (global->init()->isa<Bottom>())
             var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK

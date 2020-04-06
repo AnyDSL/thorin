@@ -3,11 +3,10 @@
 *.cu
 *.ll
 *.nvvm
+*.amdgpu
 *.s
 *.out
 CMakeCache.txt
 CMakeFiles/
 build*
-html
 test/impala
-src/thorin/config.h

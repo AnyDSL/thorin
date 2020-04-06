@@ -35,6 +35,8 @@ private:
     std::ostream& emit_aggop_decl(const Type*);
     std::ostream& emit_debug_info(const Def*);
     std::ostream& emit_addr_space(std::ostream&, const Type*);
+    std::ostream& emit_string(const Global*);
+    std::ostream& emit_temporaries(const Def*);
     std::ostream& emit_type(std::ostream&, const Type*);
     std::ostream& emit(const Def*);
 
@@ -99,6 +101,37 @@ inline bool is_string_type(const Type* type) {
             if (primtype->primtype_tag() == PrimType_pu8)
                 return true;
     return false;
+}
+
+std::string handle_string_character(char c) {
+    switch (c) {
+        case '\a': return "\\a";
+        case '\b': return "\\b";
+        case '\f': return "\\f";
+        case '\n': return "\\n";
+        case '\r': return "\\r";
+        case '\t': return "\\t";
+        case '\v': return "\\v";
+        default:   return std::string(1, c);
+    }
+}
+
+std::ostream& CCodeGen::emit_string(const Global* global) {
+    if (auto str_array = global->init()->isa<DefiniteArray>()) {
+        if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
+            if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
+                if (primtype->primtype_tag() == PrimType_pu8) {
+                    std::string str = "\"";
+                    for (auto op : str_array->ops().skip_back())
+                        str += handle_string_character(op->as<PrimLit>()->pu8_value());
+                    str += '"';
+                    insert(global, str);
+                }
+            }
+        }
+    }
+
+    return type_decls_;
 }
 
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
@@ -272,6 +305,18 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     return type_decls_;
 }
 
+std::ostream& CCodeGen::emit_temporaries(const Def* def) {
+    // emit definitions of inlined elements, skip match
+    if (!def->isa<PrimOp>() || !is_from_match(def->as<PrimOp>()))
+        emit_aggop_defs(def);
+
+    // emit temporaries for arguments
+    if (def->order() >= 1 || is_mem(def) || is_unit(def) || lookup(def) || def->isa<PrimLit>())
+        return func_impl_;
+
+    return emit(def) << endl;
+}
+
 void CCodeGen::emit() {
     if (lang_==Lang::CUDA) {
         func_decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
@@ -291,11 +336,12 @@ void CCodeGen::emit() {
     // emit all globals
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
-            // skip strings as they are emitted inline
             if (is_string_type(global->init()->type()))
-                continue;
-            emit_aggop_decl(global->type());
-            emit(global) << endl;
+                emit_string(global);
+            else {
+                emit_aggop_decl(global->type());
+                emit(global) << endl;
+            }
         }
     }
 
@@ -468,7 +514,7 @@ void CCodeGen::emit() {
                     }
                 }
             }
-            // Emit counter for pipeline intrinsic
+            // emit counter for pipeline intrinsic
             if (continuation->callee()->isa_continuation() &&
                 continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
                 func_impl_ << endl << "int i" << continuation->callee()->gid() << ";";
@@ -517,17 +563,9 @@ void CCodeGen::emit() {
                 emit(primop) << endl;
             }
 
-            for (auto arg : continuation->args()) {
-                // emit definitions of inlined elements, skip match
-                if (!arg->isa<PrimOp>() || !is_from_match(arg->as<PrimOp>()))
-                    emit_aggop_defs(arg);
-
-                // emit temporaries for arguments
-                if (arg->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<PrimLit>())
-                    continue;
-
-                emit(arg) << endl;
-            }
+            // emit definitions for temporaries
+            for (auto arg : continuation->args())
+                emit_temporaries(arg);
 
             // terminate bb
             if (continuation->callee() == ret_param) { // return
@@ -630,7 +668,7 @@ void CCodeGen::emit() {
                                            << "#pragma HLS data_pack  variable=" << name;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
                             assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
-                            // casting to contunation to get unique name of "for index"
+                            // cast to continuation to get unique name of "for index"
                             auto body = continuation->arg(4)->as_continuation();
                             if (lang_ == Lang::OPENCL) {
                                 if (continuation->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
@@ -652,10 +690,10 @@ void CCodeGen::emit() {
                                     func_impl_ << "#pragma HLS PIPELINE"<< endl;
                                 }
                             }
-                            // Emiting body and "for index" as the "body parameter"
+                            // emit body and "for index" as the "body parameter"
                             func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
                             emit(body);
-                            // Emitting "continue" with accroding label used for goto
+                            // emit "continue" with according label used for goto
                             func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}" << endl;
                             if (continuation->arg(5) == ret_param)
                                 func_impl_ << "return;" << endl;
@@ -951,8 +989,28 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
-    // aggregate operations
-    {
+    if (auto agg = def->isa<Aggregate>()) {
+        emit_aggop_decl(def->type());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        // emit definitions of inlined elements
+        for (auto op : agg->ops())
+            emit_aggop_defs(op);
+
+        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
+        for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            func_impl_ << endl;
+            emit(agg->op(i)) << ",";
+        }
+        func_impl_ << down << endl << "};" << endl;
+        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
+        insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto aggop = def->isa<AggOp>()) {
+        emit_aggop_defs(aggop->agg());
+
         auto emit_access = [&] (const Def* def, const Def* index) -> std::ostream& {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
@@ -979,55 +1037,32 @@ std::ostream& CCodeGen::emit(const Def* def) {
             return func_impl_;
         };
 
-        if (auto agg = def->isa<Aggregate>()) {
-            emit_aggop_decl(def->type());
-            assert(def->isa<Tuple>() || def->isa<StructAgg>());
-            // emit definitions of inlined elements
-            for (auto op : agg->ops())
-                emit_aggop_defs(op);
-
-            emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
-            emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-                func_impl_ << endl;
-                emit(agg->op(i)) << ",";
-            }
-            func_impl_ << down << endl << "};" << endl;
-            func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
-            insert(def, def_name);
-            return func_impl_;
-        }
-
-        if (auto aggop = def->isa<AggOp>()) {
-            emit_aggop_defs(aggop->agg());
-
-            if (auto extract = aggop->isa<Extract>()) {
-                if (is_mem(extract) || extract->type()->isa<FrameType>())
-                    return func_impl_;
-                if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
-                    emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
-                    func_impl_ << def_name << " = ";
-                    if (auto memop = extract->agg()->isa<MemOp>())
-                        emit(memop) << ";";
-                    else {
-                        emit(aggop->agg());
-                        emit_access(aggop->agg(), aggop->index()) << ";";
-                    }
-                }
-                insert(def, def_name);
+        if (auto extract = aggop->isa<Extract>()) {
+            if (is_mem(extract) || extract->type()->isa<FrameType>())
                 return func_impl_;
+            if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
+                emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
+                func_impl_ << def_name << " = ";
+                if (auto memop = extract->agg()->isa<MemOp>())
+                    emit(memop) << ";";
+                else {
+                    emit(aggop->agg());
+                    emit_access(aggop->agg(), aggop->index()) << ";";
+                }
             }
-
-            auto ins = def->as<Insert>();
-            emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = ";
-            emit(ins->agg()) << ";" << endl;
-            func_impl_ << def_name;
-            emit_access(def, ins->index()) << " = ";
-            emit(ins->value()) << ";";
             insert(def, def_name);
             return func_impl_;
         }
+
+        auto ins = def->as<Insert>();
+        emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
+        emit(ins->agg()) << ";" << endl;
+        func_impl_ << def_name;
+        emit_access(def, ins->index()) << " = ";
+        emit(ins->value()) << ";";
+        insert(def, def_name);
+        return func_impl_;
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -1162,12 +1197,19 @@ std::ostream& CCodeGen::emit(const Def* def) {
             }
         }
 
+        // emit temporaries
+        for (auto op : assembly->ops())
+            emit_temporaries(op);
+
         func_impl_ << "asm ";
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
             WDEF(assembly, "stack alignment and inteldialect flags unsupported for C output");
-        func_impl_ << "(\"" << assembly->asm_template() << "\"";
+        func_impl_ << "(\"";
+        for (auto c : assembly->asm_template())
+            func_impl_ << handle_string_character(c);
+        func_impl_ << "\"";
 
         // emit the outputs
         const char* separator = " : ";
@@ -1199,34 +1241,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
     if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
 
-        // string handling
-        if (auto str_array = global->init()->isa<DefiniteArray>()) {
-            if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
-                if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
-                    if (primtype->primtype_tag() == PrimType_pu8) {
-                        std::string str = "\"";
-                        for (auto op : str_array->ops().skip_back()) {
-                            char c = op->as<PrimLit>()->pu8_value();
-                            switch (c) {
-                                case '\a': str += "\\a"; break;
-                                case '\b': str += "\\b"; break;
-                                case '\f': str += "\\f"; break;
-                                case '\n': str += "\\n"; break;
-                                case '\r': str += "\\r"; break;
-                                case '\t': str += "\\t"; break;
-                                case '\v': str += "\\v"; break;
-                                default:   str += c;     break;
-                            }
-                        }
-                        str += '"';
-                        insert(def, str);
-                        return func_impl_;
-                    }
-                }
-            }
-        }
+        if (global->is_mutable())
+            WDEF(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);
 
-        WDEF(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;

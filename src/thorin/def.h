@@ -1202,18 +1202,11 @@ public:
     static std::optional<Repl> find(const Def* replacee, Repls repls);
     //@}
 
-    bool operator<(const ReplArray& other) const {
-        if (repls_.size() != other.repls_.size())
-            return this->repls_.size() < other.repls_.size();
-
-        for (size_t i = 0, e = repls_.size(); i != e; ++i) {
-            auto a = this->repls_[i].replacee->gid();
-            auto b = other.repls_[i].replacee->gid();
-            if (a != b) return a < b;
-        }
-
-        return false;
-    }
+    /// @name operator == and <
+    //@{
+    bool operator==(const ReplArray& other) const;
+    bool operator<(const ReplArray& other) const;
+    //@}
 
 private:
     Array<Repl> repls_;

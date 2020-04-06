@@ -297,6 +297,28 @@ std::optional<Repl> ReplArray::find(const Def* replacee, Repls repls) {
     return std::nullopt;
 }
 
+bool ReplArray::operator==(const ReplArray& other) const {
+    bool result = this->repls_.size() == other.repls_.size();
+
+    for (size_t i = 0, e = repls_.size(); result && i != e; ++i)
+        result &= this->repls_[i].replacee->gid() == other.repls_[i].replacee->gid();
+
+    return result;
+}
+
+bool ReplArray::operator<(const ReplArray& other) const {
+    if (repls_.size() != other.repls_.size())
+        return this->repls_.size() < other.repls_.size();
+
+    for (size_t i = 0, e = repls_.size(); i != e; ++i) {
+        auto a = this->repls_[i].replacee->gid();
+        auto b = other.repls_[i].replacee->gid();
+        if (a != b) return a < b;
+    }
+
+    return false;
+}
+
 /*
  * Global
  */

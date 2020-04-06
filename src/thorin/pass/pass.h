@@ -110,7 +110,6 @@ private:
         Def* new_entry = nullptr;
         std::vector<Pass*> passes;
         std::vector<Pass*> cur_passes;
-        //Def2Def map;
         std::map<ReplArray, Def2Def> map;
         NomSet free;
         DefSet rewritten;

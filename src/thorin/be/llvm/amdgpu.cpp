@@ -32,17 +32,6 @@ void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Fu
     }
 }
 
-unsigned AMDGPUCodeGen::convert_addr_space(const AddrSpace addr_space) {
-    switch (addr_space) {
-        case AddrSpace::Generic:
-        case AddrSpace::Global:   return 1;
-        case AddrSpace::Texture:  return 2;
-        case AddrSpace::Shared:   return 3;
-        case AddrSpace::Constant: return 4;
-        default:                  THORIN_UNREACHABLE;
-    }
-}
-
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
     if (global->is_mutable())
         WDEF(global, "AMDGPU: Global variable '{}' will not be synced with host", global);

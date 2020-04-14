@@ -62,7 +62,7 @@ const Def* AutoDiffImpl::pack_param_grads(const Def* mem) {
 
 void AutoDiffImpl::fill_dst_lam() {
     auto res = emit_J_wrapper(_src_lam->body()->as<App>()->arg()->op(1)); // op(1) to skip the mem…
-    emit_partial_grad(res, _pb_lam->param(1));
+    emit_partial_grad(res, _pb_lam->param(1, {"∇" + _src_lam->name()}));
 
     auto dst_ret = _dst_lam->ret_param({"return"});
     auto dst_mem = _dst_lam->mem_param({"mem"});
@@ -73,6 +73,9 @@ void AutoDiffImpl::fill_dst_lam() {
     auto pb_mem = _pb_lam->mem_param({"mem"});
     _pb_lam->set_filter(_world.lit_true());
     _pb_lam->set_body(_world.app(pb_ret, pack_param_grads(pb_mem)));
+
+    scope(_dst_lam);
+    scope(_pb_lam);
 }
 
 const Def* AutoDiffImpl::emit_J_wrapper(const Def* def) {
@@ -85,6 +88,10 @@ const Def* AutoDiffImpl::emit_J_wrapper(const Def* def) {
             defs[i] = emit_J_wrapper(tuple->op(i));
         }
         return _src_to_dst[def] = _world.tuple(defs);
+    }
+
+    if (auto pack = def->isa<Pack>()) {
+        return _src_to_dst[def] = _world.pack(pack->arity(), emit_J_wrapper(pack->body()));
     }
 
     if (auto app = def->isa<App>()) {
@@ -141,7 +148,7 @@ const Def* AutoDiffImpl::emit_axiom_pullback(const Axiom* axiom, const Def* op1,
         }
         // ∇(a / b) = λ∂f.[∂f/b, (-∂f*a)/(b²)]
         case ROp::div: {
-            auto B = _world.lam(pi, {"φ*"});
+            auto B = _world.lam(pi, {"φ/"});
             auto param = B->param();
             auto neg_param = _world.op_ROp_minus(nat_t(0), B->param());
             auto d1 = _world.op(ROp::div, nat_t(0), param, op2);
@@ -167,6 +174,10 @@ void AutoDiffImpl::emit_partial_grad(const Def* def, const Def* res_grad) {
         for (size_t i = 0, e = defs.size(); i < e; ++i) {
             emit_partial_grad(tuple->op(i), res_grad);
         }
+    }
+
+    if (auto pack = def->isa<Pack>()) {
+        emit_partial_grad(pack->body(), res_grad);
     }
 
     if (auto app = def->isa<App>()) {

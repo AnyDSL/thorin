@@ -35,10 +35,10 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
+    pass/auto_diff.cpp
+    pass/auto_diff.h
     pass/copy_prop.cpp
     pass/copy_prop.h
-    pass/grad_gen.cpp
-    pass/grad_gen.h
     pass/inliner.cpp
     pass/inliner.h
     pass/mem2reg.cpp

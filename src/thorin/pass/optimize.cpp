@@ -1,8 +1,8 @@
+#include "thorin/pass/auto_diff.h"
 #include "thorin/pass/copy_prop.h"
 #include "thorin/pass/inliner.h"
 #include "thorin/pass/mem2reg.h"
 #include "thorin/pass/partial_eval.h"
-#include "thorin/pass/grad_gen.h"
 
 #include "thorin/transform/compile_ptrns.h"
 
@@ -20,7 +20,7 @@ void optimize(World& world) {
     .create<PartialEval>()
     .create<Inliner>()
     .create<Mem2Reg>()
-    .create<GradGen>()
+    .create<AutoDiff>()
     .run();
 }
 

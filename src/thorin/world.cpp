@@ -17,6 +17,7 @@
 #include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
+#include "tables.h"
 
 namespace thorin {
 
@@ -180,13 +181,18 @@ World::World(const std::string& name) {
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     } { // type_tangent_vector: Π*. *
         data_.type_tangent_vector_ = axiom(normalize_tangent, pi(star, star), Tag::TangentVector, 0, {"tangent"});
-    }  { // op_grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
-        auto type = pi(star)->set_domain({star, star});
-        auto T = type->param(0, {"T"});
-        auto R = type->param(1, {"R"});
-        auto tangent_T = type_tangent_vector(T);
-        type->set_codomain(pi(pi(T, R), pi(T, tangent_T)));
-        data_.op_grad_ = axiom(nullptr, type, Tag::Grad, 0, {"∇"});
+    } { // op_rev_diff: Π[I:*.O:*]. ΠI. O
+        // I can't figure out how to give it the correct type…
+        // pullback assumes that:
+        //     I = Π[mem, T₁, …, Tₙ, Π[mem, R₁, …, Rₙ].⊥].⊥
+        //     O = Π[mem, T₁, …, Tₙ, Π[mem, R₁, …, Rₙ, Π[mem, R'₁, …, R'ₙ, ΠT'.⊥].⊥].⊥].⊥
+        // where
+        //     α' = type_tangent_vector(α)
+        auto type = pi(star)->set_domain({ star, star });
+        auto I = type->param(0, {"I"});
+        auto O = type->param(1, {"O"});
+        type->set_codomain(pi(I, O));
+        data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, {"rev_diff"});
     }
 }
 
@@ -258,6 +264,95 @@ static const Def* infer_sigma(World& world, Defs ops) {
 
 const Def* World::tuple(Defs ops, Debug dbg) {
     return tuple(infer_sigma(*this, ops), ops, dbg);
+}
+
+const Pi* World::cn_mem_half_flat(const Def* domain, const Def* codomain, Debug dbg) {
+    auto ret = cn(sigma({ type_mem(), codomain }));
+
+    if (domain->isa<Sigma>()) {
+        auto size = domain->num_ops() + 2;
+        Array<const Def*> defs(size);
+        for (size_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = cn(ret);
+            } else {
+                defs[i] = domain->op(i);
+            }
+        }
+
+        return cn(defs);
+    }
+
+    if (auto a = domain->isa<Arr>()) {
+        auto size = a->domain()->as<Lit>()->get<uint8_t>() + 2;
+        Array<const Def*> defs(size);
+        for (uint8_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = ret;
+            } else {
+                defs[i] = a->codomain();
+            }
+        }
+
+        return cn(defs);
+    }
+
+    return cn(merge(type_mem(), {domain, ret}), dbg);
+}
+
+const Pi* World::cn_mem_flat(const Def* domain, const Def* codomain, Debug dbg) {
+    auto ret = cn(sigma({ type_mem(), codomain }));
+    if (codomain->isa<Sigma>()) {
+        ret = cn(merge_sigma(type_mem(), codomain->ops())) ;
+    }
+    if (auto a = codomain->isa<Arr>()) {
+        auto size = a->domain()->as<Lit>()->get<uint8_t>() + 1;
+        Array<const Def*> defs(size);
+        for (uint8_t i = 0; i < size - 1; ++i) {
+            defs[i + 1] = a->codomain();
+        }
+        defs.front() = type_mem();
+        ret = cn(defs);
+    }
+
+    
+    if (domain->isa<Sigma>()) {
+        auto size = domain->num_ops() + 2;
+        Array<const Def*> defs(size);
+        for (size_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = ret;
+            } else {
+                defs[i] = domain->op(i);
+            }
+        }
+
+        return cn(defs);
+    }
+
+    if (auto a = domain->isa<Arr>()) {
+        auto size = a->domain()->as<Lit>()->get<uint8_t>() + 2;
+        Array<const Def*> defs(size);
+        for (uint8_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = ret;
+            } else {
+                defs[i] = a->codomain();
+            }
+        }
+
+        return cn(defs);
+    }
+
+    return cn(merge(type_mem(), {domain, ret}), dbg);
 }
 
 const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
@@ -793,21 +888,31 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
     ILOG("{}: done,", info);
 }
 
-const Def* World::op_grad(const Def* fn, Debug dbg) {
-    if (fn->type()->isa<Pi>()) {
-        auto ds_fn = cps2ds(fn);
-        auto ds_pi = ds_fn->type()->as<Pi>();
-        auto to_grad = app(data_.op_grad_, {ds_pi->domain(), ds_pi->codomain()}, dbg);
-        auto grad = app(to_grad, ds_fn, dbg);
-        return ds2cps(grad);
+const Def* World::op_rev_diff(const Def* fn, Debug dbg){
+    if (auto pi = fn->type()->isa<Pi>()) {
+        assert(pi->is_cn());
+
+        auto domain = sigma(pi->domain()->ops().skip_front().skip_back());
+        auto codomain = sigma(pi->domain()->ops().back()->as<Pi>()->domain()->ops().skip_front());
+        auto tan_domain = type_tangent_vector(domain);
+        auto tan_codomain = type_tangent_vector(codomain);
+
+        auto src_cn = cn_mem_flat(domain, codomain);
+        auto dst_cn = cn_mem_flat(domain, sigma({ codomain, cn_mem_half_flat(tan_codomain, tan_domain) }));
+
+        auto mk_pullback = app(data_.op_rev_diff_, {src_cn, dst_cn}, {"mk_φ"});
+        auto pullback = app(mk_pullback, fn, dbg);
+
+        return pullback;
     }
 
-    THORIN_UNREACHABLE;
+    return nullptr;
 }
 
 const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
     return app(data_.type_tangent_vector_, primal_type, dbg);
 }
+
 
 /*
  * misc

@@ -123,6 +123,8 @@ public:
     const Pi* cn_mem(const Def* domain, Debug dbg = {}) { return cn(sigma({ type_mem(), domain }), dbg); }
     const Pi* pi_mem(const Def* domain, const Def* codomain, Debug dbg = {}) { auto d = sigma({type_mem(), domain}); return pi(d, sigma({type_mem(), codomain}), dbg); }
     const Pi* fn_mem(const Def* domain, const Def* codomain, Debug dbg = {}) { return cn({type_mem(), domain, cn_mem(codomain)}, dbg); }
+    const Pi* cn_mem_flat(const Def* domain, const Def* codomain, Debug dbg = {});
+    const Pi* cn_mem_half_flat(const Def* domain, const Def* codomain, Debug dbg = {});
     //@}
     /// @name Lambda: nominal
     //@{
@@ -422,8 +424,8 @@ public:
     //@}
     /// @name AD
     //@{
-    const Def* op_grad(const Def* fn, Debug dbg = {});
     const Def* type_tangent_vector(const Def* primal_type, Debug dbg = {});
+    const Def* op_rev_diff(const Def* fn, Debug dbg = {});
     //@}
     /// @name helpers for optional/variant arguments
     //@{
@@ -700,7 +702,7 @@ private:
         const Axiom* op_load_;
         const Axiom* op_store_;
         const Axiom* type_tangent_vector_;
-        const Axiom* op_grad_;
+        const Axiom* op_rev_diff_;
         std::string name_;
         Externals externals_;
         Sea defs_;

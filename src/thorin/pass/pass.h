@@ -6,6 +6,10 @@
 #include "thorin/world.h"
 #include "thorin/util/iterator.h"
 
+#include "thorin/analyses/scope.h"
+
+static void scope(const thorin::Def* def) { thorin::Scope(def->as_nominal<thorin::Lam>()).dump(); }
+
 namespace thorin {
 
 class PassMan;

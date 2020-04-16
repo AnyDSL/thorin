@@ -43,8 +43,6 @@ const Def* AutoDiffer::reverse_diff(const Def* src) {
 }
 
 const Def* AutoDiffer::j_wrap(const Def* def) {
-    THORIN_BREAK;
-
     if (auto dst = seen(def))
         return dst;
 
@@ -59,13 +57,22 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
     }
 
     if (auto lam = def->isa_nominal<Lam>()) {
+        auto dst = world_.lam(lam->type(), {lam->name()});
+        src_to_dst_[lam->param()] = dst->param();
+        dst->set_filter(lam->filter());
+        dst->set_body(j_wrap(lam->body()));
+        src_to_dst_[lam] = dst;
+        return dst;
     }
 
     if (auto app = def->isa<App>()) {
-        if (auto inner = app->callee()->isa<App>()) {
+        auto callee = app->callee();
+        auto arg = app->arg();
+
+        if (auto inner = callee->isa<App>()) {
             if (auto axiom = inner->callee()->isa<Axiom>()) {
                 if (axiom->tag() == Tag::ROp) {
-                    auto [a, b] = j_wrap(app->arg())->split<2>();
+                    auto [a, b] = j_wrap(arg)->split<2>();
                     auto [dst, pb] = j_wrap_rop(ROp(axiom->flags()), a, b)->split<2>();
                     dst_to_pullback_[dst] = pb;
                     src_to_dst_[app] = dst;
@@ -73,7 +80,7 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
                 }
 
                 if (axiom->tag() == Tag::RCmp) {
-                    auto [a, b] = j_wrap(app->arg())->split<2>();
+                    auto [a, b] = j_wrap(arg)->split<2>();
                     auto dst = world_.op(RCmp(axiom->flags()), nat_t(0), a, b);
                     src_to_dst_[app] = dst;
                     return dst;
@@ -81,7 +88,26 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
             }
         }
 
-        auto dst = world_.app(j_wrap(app->callee()), j_wrap(app->arg()));
+        if (callee->type()->as<Pi>()->is_returning()) {
+            auto rd_callee = world_.op_rev_diff(callee);
+
+            auto wrapper_pi = rd_callee->type()->as<Pi>()->domains().back()->as<Pi>();
+            auto wrapper_lam = world_.lam(wrapper_pi, {"wrapper"});
+
+            wrapper_lam->set_filter(world_.lit_true());
+            wrapper_lam->set_body(world_.app(j_wrap(app->args().back()), wrapper_lam->params().skip_back()));
+
+            auto num_args = app->num_args();
+            Array<const Def*> args{
+                num_args, [&](auto i) { return i < num_args - 1 ? j_wrap(app->arg(i)) : wrapper_lam; }};
+
+            auto dst = world_.app(rd_callee, args);
+            dst_to_pullback_[dst] = wrapper_lam->params().back();
+            src_to_dst_[app] = dst;
+            return dst;
+        }
+
+        auto dst = world_.app(j_wrap(callee), j_wrap(arg));
         src_to_dst_[app] = dst;
         return dst;
     }
@@ -174,9 +200,22 @@ void AutoDiffer::fill_grad(const Def* def, const Def* cur_grad) {
     if (auto app = def->isa<App>()) {
         if (dst_to_pullback_.contains(app)) {
             auto pb = dst_to_pullback_[app];
-            auto grads = world_.app(pb, cur_grad, {"∇" + app->callee()->name()});
-            for (size_t i = 0; i < app->num_args(); ++i) {
-                fill_grad(app->arg(i), world_.extract(grads, i, {"∇" + std::to_string(i)}));
+
+            if (pb->type()->as<Pi>()->is_cn()) {
+                /*
+                auto lam = world_.lam(pb->type()->as<Pi>(), {"adjoint_cn"});
+                auto grads = lam->params().skip_back().skip_back();
+                for (size_t i = 0; i < app->num_args(); ++i) {
+                    fill_grad(app->arg(i), grads[i]);
+                }
+                */
+
+                THORIN_BREAK;
+            } else {
+                auto grads = world_.app(pb, cur_grad, {"∇" + app->callee()->name()});
+                for (size_t i = 0; i < app->num_args(); ++i) {
+                    fill_grad(app->arg(i), world_.extract(grads, i, {"∇" + std::to_string(i)}));
+                }
             }
         } else {
             for (size_t i = 0; i < app->num_args(); ++i) {
@@ -231,232 +270,6 @@ const Def* AutoDiffer::add_part_grad(const Def* primal_def, const Def* part_grad
 
 const Def* AutoDiffer::seen(const Def* def) { return src_to_dst_.contains(def) ? src_to_dst_[def] : nullptr; }
 
-////////////////////////////////////////////////////////////////////////////////
-// OLD STUFF
-////////////////////////////////////////////////////////////////////////////////
-
-/*
-class AutoDiffImpl_OLD {
-public:
-    AutoDiffImpl_OLD(Lam* src_lam, Lam* dst_lam);
-
-    void fill_dst_lam();
-
-private:
-    const Def* emit_J_wrapper(const Def* def);
-    const Def* emit_axiom_pullback(const Axiom* axiom, const Def* op1, const Def* op2);
-    void emit_partial_grad(const Def* def, const Def* res_grad);
-    const Def* pack_param_grads(const Def* mem);
-
-    size_t num_params() const { return _src_lam->num_params(); }
-    const Def* src_param(size_t i) { return _src_lam->param(i); }
-    const Def* dst_param(size_t i) { return _dst_lam->param(i, {src_param(i)->name()}); }
-    const Def* isa_dst_param(const Def* def);
-
-    World& _world;
-    Lam* _src_lam;
-    Lam* _dst_lam;
-    Lam* _pb_lam;
-    Def2Def _src_to_dst;
-    Def2Def _dst_to_pullback;
-    Def2Def _dst_to_parts;
-};
-
-AutoDiffImpl_OLD::AutoDiffImpl_OLD(Lam* src_lam, Lam* dst_lam)
-    : _world(src_lam->world())
-    , _src_lam(src_lam)
-    , _dst_lam(dst_lam)
-    , _pb_lam(_world.lam(
-          _dst_lam->type()->as<Pi>()->domain()->ops().back()->as<Pi>()->domain()->ops().back()->as<Pi>(),
-          {"φ" + _src_lam->name()})) {
-    for (size_t i = 0; i < num_params(); ++i) {
-        _src_to_dst[src_param(i)] = dst_param(i);
-
-        if (i > 0 && i < num_params() - 1) {
-            _dst_to_parts[dst_param(i)] = _world.lit_real(r64(0), {"∂" + dst_param(i)->name()});
-        }
-    }
-}
-
-const Def* AutoDiffImpl_OLD::isa_dst_param(const Def* def) {
-    for (size_t i = 0, e = num_params(); i < e; ++i) {
-        if (def == dst_param(i))
-            return def;
-    }
-    return nullptr;
-}
-
-const Def* AutoDiffImpl_OLD::pack_param_grads(const Def* mem) {
-    Array<const Def*> grads{num_params() - 2, [&](auto i) { return _dst_to_parts[dst_param(i + 1)]; }};
-    return _world.tuple({mem, _world.tuple(grads)});
-}
-
-void AutoDiffImpl_OLD::fill_dst_lam() {
-    _dst_lam->set_filter(_world.lit_false());
-    _dst_lam->set_body(emit_J_wrapper(_src_lam->body()));
-
-    THORIN_BREAK;
-
-    emit_partial_grad(_dst_lam->body(), _pb_lam->param(1, {"∇" + _src_lam->name()}));
-
-    auto pb_ret = _pb_lam->ret_param({"return"});
-    auto pb_mem = _pb_lam->mem_param({"mem"});
-    _pb_lam->set_filter(_world.lit_true());
-    _pb_lam->set_body(_world.app(pb_ret, pack_param_grads(pb_mem)));
-
-    scope(_dst_lam);
-    scope(_pb_lam);
-}
-
-const Def* AutoDiffImpl_OLD::emit_J_wrapper(const Def* def) {
-    if (_src_to_dst.contains(def))
-        return _src_to_dst[def];
-
-    if (auto tuple = def->isa<Tuple>()) {
-        Array<const Def*> defs(tuple->num_ops());
-        for (size_t i = 0, e = defs.size(); i < e; ++i) {
-            defs[i] = emit_J_wrapper(tuple->op(i));
-        }
-        return _src_to_dst[def] = _world.tuple(defs);
-    }
-
-    if (auto pack = def->isa<Pack>()) {
-        return _src_to_dst[def] = _world.pack(pack->arity(), emit_J_wrapper(pack->body()));
-    }
-
-    if (auto app = def->isa<App>()) {
-        auto callee = app->callee();
-        auto arg = emit_J_wrapper(app->arg());
-
-        if (callee == _src_lam->ret_param()) {
-            return _world.app(_dst_lam->ret_param(), arg);
-        }
-
-        if (callee->type()->as<Pi>()->is_cn()) {
-            auto rd_callee = _world.op_rev_diff(callee);
-
-            auto cn = _world.lam(rd_callee->type()->as<Pi>()->domains().back()->as<Pi>(), {"rd_cn"});
-            Array<const Def*> args(arg->ops());
-            args.back() = cn;
-
-            auto [mem, res, B] = cn->param()->split<3>();
-            _dst_to_pullback[res] = B;
-
-            cn->set_filter(_world.lit_true());
-            cn->set_body(_world.app(arg->ops().back(), {mem, res}));
-
-            return _src_to_dst[def] = _world.app(rd_callee, args);
-        } else {
-            if (auto axiom_app = callee->isa<App>()) {
-                if (auto axiom = axiom_app->callee()->isa<Axiom>()) {
-                    if (axiom->tag() == flags_t(Tag::ROp)) {
-                        auto [op1, op2] = arg->split<2>();
-                        auto [res, B] = emit_axiom_pullback(axiom, op1, op2)->split<2>();
-
-                        _dst_to_pullback[res] = B;
-                        return _src_to_dst[def] = res;
-                    }
-                }
-            }
-        }
-    }
-
-    if (auto lam = def->isa<Lam>()) {
-        if (lam->type()->as<Pi>()->is_cn()) {
-            auto rd_lam = _world.lam(lam->type()->as<Pi>(), {"rd_" + lam->name()});
-            rd_lam->set_filter(lam->filter());
-            rd_lam->set_body(emit_J_wrapper(lam->body()));
-            return _src_to_dst[def] = rd_lam;
-        }
-    }
-
-    errf("Not differentiable: {}", def);
-    return def;
-}
-
-const Def* AutoDiffImpl_OLD::emit_axiom_pullback(const Axiom* axiom, const Def* op1, const Def* op2) {
-    assert(op1->type() == op2->type());
-
-    auto r_type = op1->type();
-    auto pi = _world.pi(r_type, _world.sigma({r_type, r_type}));
-
-    switch (ROp(axiom->flags())) {
-        // ∇(a + b) = λ∂f.[∂f, ∂f]
-        case ROp::add: {
-            auto B = _world.lam(pi, {"φ+"});
-            auto param = B->param();
-            B->set_filter(_world.lit_true());
-            B->set_body(_world.tuple({param, param}));
-            return _world.tuple({_world.op(ROp::add, (nat_t)0, op1, op2), B});
-        }
-        // ∇(a - b) = λ∂f.[∂f, -∂f]
-        case ROp::sub: {
-            auto B = _world.lam(pi, {"φ-"});
-            auto param = B->param();
-            B->set_filter(_world.lit_true());
-            B->set_body(_world.tuple({param, _world.op_ROp_minus((nat_t)0, param)}));
-            return _world.tuple({_world.op(ROp::sub, (nat_t)0, op1, op2), B});
-        }
-        // ∇(a * b) = λ∂f.[∂f*b, ∂f*a]
-        case ROp::mul: {
-            auto B = _world.lam(pi, {"φ*"});
-            auto param = B->param();
-            auto d1 = _world.op(ROp::mul, nat_t(0), param, op2);
-            auto d2 = _world.op(ROp::mul, nat_t(0), param, op1);
-            B->set_filter(_world.lit_true());
-            B->set_body(_world.tuple({d1, d2}));
-            return _world.tuple({_world.op(ROp::mul, (nat_t)0, op1, op2), B});
-        }
-        // ∇(a / b) = λ∂f.[∂f/b, (-∂f*a)/(b²)]
-        case ROp::div: {
-            auto B = _world.lam(pi, {"φ/"});
-            auto param = B->param();
-            auto neg_param = _world.op_ROp_minus(nat_t(0), B->param());
-            auto d1 = _world.op(ROp::div, nat_t(0), param, op2);
-            auto numerator = _world.op(ROp::mul, nat_t(0), neg_param, op1);
-            auto denominator = _world.op(ROp::mul, nat_t(0), op2, op2);
-            auto d2 = _world.op(ROp::div, nat_t(0), numerator, denominator);
-            B->set_filter(_world.lit_true());
-            B->set_body(_world.tuple({d1, d2}));
-            return _world.tuple({_world.op(ROp::div, (nat_t)0, op1, op2), B});
-        }
-        case ROp::mod: return nullptr;
-    }
-}
-
-void AutoDiffImpl_OLD::emit_partial_grad(const Def* def, const Def* res_grad) {
-    if (auto param = isa_dst_param(def)) {
-        _dst_to_parts[param] =
-            _world.op(ROp::add, nat_t(0), res_grad, _dst_to_parts[param], {"∂" + param->name()});
-    }
-
-    if (auto tuple = def->isa<Tuple>()) {
-        Array<const Def*> defs(tuple->num_ops());
-        for (size_t i = 0, e = defs.size(); i < e; ++i) {
-            emit_partial_grad(tuple->op(i), res_grad);
-        }
-    }
-
-    if (auto pack = def->isa<Pack>()) {
-        emit_partial_grad(pack->body(), res_grad);
-    }
-
-    if (auto app = def->isa<App>()) {
-        if (auto axiom_app = app->callee()->isa<App>()) {
-            if (auto axiom = axiom_app->callee()->isa<Axiom>()) {
-                if (axiom->tag() == flags_t(Tag::ROp)) {
-                    auto B = _dst_to_pullback[app];
-                    auto grads = _world.app(B, res_grad, {"∇"});
-
-                    for (size_t i = 0, e = app->num_args(); i < e; ++i) {
-                        emit_partial_grad(app->arg(i), _world.extract(grads, i, {"∇" + std::to_string(i)}));
-                    }
-                }
-            }
-        }
-    }
-}*/
-
 } // namespace
 
 const Def* AutoDiff::rewrite(const Def* def) {
@@ -499,6 +312,7 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 pb_lam->set_filter(world.lit_true());
                 pb_lam->set_body(world.app(pb_lam->ret_param(), {pb_lam->mem_param(), world.tuple(grads)}));
 
+                THORIN_BREAK;
                 return dst_lam;
             }
         }

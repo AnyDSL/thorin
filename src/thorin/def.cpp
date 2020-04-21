@@ -285,7 +285,7 @@ bool Ptrn::matches(const Def* arg) const {
 }
 
 /*
- * Rewrite
+ * Rewrite/ReplArray
  */
 
 std::optional<Repl> Rewrite::find(const Def* replacee) { return ReplArray::find(replacee, repls()); }

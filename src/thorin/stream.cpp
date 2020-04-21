@@ -51,7 +51,7 @@ Stream& stream(Stream& s, const Def* def) {
         if (pi->is_cn()) {
             return s.fmt("cn {}", pi->domain());
         } else {
-            return s.fmt("Π {} -> {}", pi->domain(), pi->codomain());
+            return s.fmt("{} -> {}", pi->domain(), pi->codomain());
         }
     } else if (auto lam = def->isa<Lam>()) {
         return s.fmt("λ@({}) {}", lam->filter(), lam->body());

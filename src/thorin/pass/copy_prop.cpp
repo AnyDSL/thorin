@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/copy_prop.h"
 
 #include "thorin/util.h"
@@ -125,3 +126,4 @@ void CopyProp::clear() {
 }
 
 }
+#endif

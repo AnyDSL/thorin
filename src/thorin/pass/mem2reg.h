@@ -1,3 +1,5 @@
+#if 0
+
 #ifndef THORIN_PASS_MEM2REG_H
 #define THORIN_PASS_MEM2REG_H
 
@@ -64,4 +66,5 @@ private:
 
 }
 
+#endif
 #endif

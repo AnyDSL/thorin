@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/mem2reg.h"
 
 #include "thorin/util.h"
@@ -232,3 +233,4 @@ void Mem2Reg::clear() {
 }
 
 }
+#endif

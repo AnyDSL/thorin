@@ -107,7 +107,7 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
     if (!is_type_i(continuation->arg(3)->type()))
         EDEF(continuation->arg(3), "atomic only supported for integer types");
-    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
+    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin
     u32 tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));

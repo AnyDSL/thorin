@@ -197,7 +197,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic");
+    else ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }

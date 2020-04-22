@@ -54,8 +54,6 @@ protected:
     virtual llvm::Value* emit_assembly(const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
-    virtual llvm::AtomicOrdering get_atomic_ordering() const { return llvm::AtomicOrdering::SequentiallyConsistent; }
-    virtual llvm::SyncScope::ID get_atomic_sync_scope(const AddrSpace) const { return llvm::SyncScope::System; }
 
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
     Continuation* emit_reserve_shared(const Continuation*, bool=false);

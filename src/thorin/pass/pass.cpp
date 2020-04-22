@@ -32,6 +32,30 @@ void PassMan::run() {
     cleanup(world());
 }
 
+Def* PassMan::inspect(Def* old_nom) {
+    auto new_type  = rewrite(old_nom->type() );
+    auto new_debug = rewrite(old_nom->debug() );
+    auto new_nom   = old_nom->stub(world(), new_type, new_debug);
+
+    for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
+        new_nom->set(i, world().rewrite(old_nom->op(i), old_nom->param(), new_nom->param()));
+
+    for (auto&& pass : passes_) {
+        if (pass->enter(new_nom))
+            pass->inspect(new_nom);
+    }
+
+    return new_nom;
+}
+
+const Def* PassMan::rewrite(const Def* def) {
+    if (def) {
+        if (auto rw = def->isa<Rewrite>())
+            return rewrite(rw->def(), rw->repls());
+    }
+    return def;
+}
+
 Def* PassMan::rewrite(Def* nom) {
     if (!needs_rewrite(nom)) return nom;
 
@@ -39,55 +63,21 @@ Def* PassMan::rewrite(Def* nom) {
     auto old_debug = nom->debug();
     auto old_ops   = nom->ops();
 
-    Array<Pass*> passes(passes_.size());
+    Array<PassBase*> passes(passes_.size());
     size_t i = 0;
     for (auto&& pass : passes_) {
-        if (pass->enter(nom))
-            passes[i++] = pass.get();
+        if (pass->enter(nom)) passes[i++] = pass.get();
     }
     passes.shrink(i);
 
-    auto new_type = old_type;
-    if (auto rw = old_type->isa<Rewrite>()) {
-        //rewrite(old_type, rw->repls(),
+    auto new_type  = rewrite(old_type );
+    auto new_debug = rewrite(old_debug);
+    Array<const Def*> new_ops(old_ops, [&](const Def* def) { return rewrite(def); });
+
+    for (auto op : nom->extended_ops()) {
+        if (!analyze(op))
+            return false;
     }
-
-    Array<const Def*> new_ops(old_ops);
-
-    for (size_t i = 0, e = old_ops.size(); i != e; ++i) {
-        if (auto rw = old_ops[i]->isa<Rewrite>()) {
-            rewrite(rw->def(), rw->repls());
-        }
-    }
-
-    //NomSet noms;
-    //for (auto op : nom->extended_ops())
-
-
-    while (!local_.noms.empty()) {
-        cur_nom_ = local_.noms.pop();
-        world_.DLOG("enter: {} (cur_nom)", cur_nom_);
-
-        local_.cur_passes.clear();
-        for (auto pass : local_.passes) {
-            if (pass->enter(cur_nom_))
-                local_.cur_passes.emplace_back(pass);
-        }
-
-        Array<const Def*> new_ops(cur_nom_->num_ops(), [&](size_t i) {
-            auto rw = cur_nom_->op(i)->as<Rewrite>();
-            auto [it, succ] = local_.map.emplace(rw->repls(), Def2Def());
-            return rewrite(rw->def(), *it);
-        });
-        cur_nom_->set(new_ops);
-
-        for (auto op : cur_nom_->extended_ops()) {
-            if (!analyze(op))
-                return false;
-        }
-    }
-
-    return true;
 }
 
 const Def* PassMan::rewrite(const Def* old_def, std::pair<const ReplArray, Def2Def>& repls) {

@@ -1,3 +1,4 @@
+#if 0
 #ifndef THORIN_PASS_COPY_PROP_H
 #define THORIN_PASS_COPY_PROP_H
 
@@ -11,7 +12,7 @@ namespace thorin {
  * This is not necessarily the case in loops.
  * More precisely, "dominated" in this context means the value must not depend on its phi.
  */
-class CopyProp : public Pass {
+class CopyProp : public Pass<CopyProp> {
 public:
     CopyProp(PassMan& man, size_t index)
         : Pass(man, index, "copy_prop")
@@ -41,4 +42,5 @@ private:
 
 }
 
+#endif
 #endif

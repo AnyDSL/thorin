@@ -68,10 +68,10 @@ private:
     std::array<PullbackGenerator, Num<ROp>> pullback_gens_;
 };
 
-class GradGen : public Pass {
+class GradGen : public PassBase {
 public:
     GradGen(PassMan& man, size_t index)
-        : Pass(man, index, "GradGen")
+        : PassBase(man, index, "GradGen")
     {}
     const Def* rewrite(const Def*) override;
 

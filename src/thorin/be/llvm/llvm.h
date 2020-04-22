@@ -70,6 +70,8 @@ private:
     Continuation* emit_vectorize_continuation(Continuation*);
     Continuation* emit_atomic(Continuation*);
     Continuation* emit_cmpxchg(Continuation*);
+    Continuation* emit_atomic_load(Continuation*);
+    Continuation* emit_atomic_store(Continuation*);
     llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);

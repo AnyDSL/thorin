@@ -62,21 +62,23 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:    return emit_atomic(continuation);
-        case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
-        case Intrinsic::Reserve:   return emit_reserve(continuation);
-        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
-        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
-        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
-        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
-        case Intrinsic::HLS:       return emit_hls(continuation);
-        case Intrinsic::Parallel:  return emit_parallel(continuation);
-        case Intrinsic::Spawn:     return emit_spawn(continuation);
-        case Intrinsic::Sync:      return emit_sync(continuation);
+        case Intrinsic::Atomic:      return emit_atomic(continuation);
+        case Intrinsic::AtomicLoad:  return emit_atomic_load(continuation);
+        case Intrinsic::AtomicStore: return emit_atomic_store(continuation);
+        case Intrinsic::CmpXchg:     return emit_cmpxchg(continuation);
+        case Intrinsic::Reserve:     return emit_reserve(continuation);
+        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
+        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
+        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
+        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
+        case Intrinsic::HLS:         return emit_hls(continuation);
+        case Intrinsic::Parallel:    return emit_parallel(continuation);
+        case Intrinsic::Spawn:       return emit_spawn(continuation);
+        case Intrinsic::Sync:        return emit_sync(continuation);
 #if THORIN_ENABLE_RV
-        case Intrinsic::Vectorize: return emit_vectorize_continuation(continuation);
+        case Intrinsic::Vectorize:   return emit_vectorize_continuation(continuation);
 #else
-        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with RV support");
+        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -117,6 +119,39 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     auto addr_space = continuation->arg(2)->type()->as<PtrType>()->addr_space();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, get_atomic_ordering(), get_atomic_sync_scope(addr_space));
     emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
+Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
+    assert(continuation->num_args() == 5 && "required arguments are missing");
+    auto ptr = lookup(continuation->arg(1));
+    u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)tag;
+    auto scope = continuation->arg(3)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(4)->as_continuation();
+    auto load = irbuilder_.CreateLoad(ptr);
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    context_->getOrInsertSyncScopeID("agent");
+    load->setAlignment(layout.getABITypeAlignment(ptr->getType()->getPointerElementType()));
+    load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_result_phi(cont->param(1), load);
+    return cont;
+}
+
+Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
+    assert(continuation->num_args() == 6 && "required arguments are missing");
+    auto ptr = lookup(continuation->arg(1));
+    auto val = lookup(continuation->arg(2));
+    u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)tag;
+    auto scope = continuation->arg(4)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(5)->as_continuation();
+    auto store = irbuilder_.CreateStore(val, ptr);
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    store->setAlignment(layout.getABITypeAlignment(ptr->getType()->getPointerElementType()));
+    store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 

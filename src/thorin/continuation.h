@@ -80,6 +80,8 @@ enum class Intrinsic : uint8_t {
     _Accelerator_End,
     Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
+    AtomicLoad,                 ///< Intrinsic atomic load function
+    AtomicStore,                ///< Intrinsic atomic store function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend

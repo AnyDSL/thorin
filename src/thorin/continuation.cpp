@@ -195,6 +195,8 @@ void Continuation::set_intrinsic() {
     else if (name() == "pipeline")             intrinsic_ = Intrinsic::Pipeline;
     else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
     else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
+    else if (name() == "atomic_load")          intrinsic_ = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")         intrinsic_ = Intrinsic::AtomicStore;
     else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic '{}'", name());

@@ -1,6 +1,8 @@
 #ifndef THORIN_PASS_PASS_H
 #define THORIN_PASS_PASS_H
 
+#include <map>
+
 #include "thorin/world.h"
 
 namespace thorin {
@@ -90,7 +92,7 @@ private:
             , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
         State(const State& prev, Def* nominal, Defs old_ops, const std::vector<PassPtr>& passes)
-            : old2new(prev.old2new)
+            : map(prev.map)
             , analyzed(prev.analyzed)
             , nominal(nominal)
             , old_ops(old_ops)
@@ -102,7 +104,7 @@ private:
                 passes[i]->dealloc(data[i]);
         }
 
-        Def2Def old2new;
+        std::map<ReplArray, Def2Def> map;
         DefSet analyzed;
         Def* nominal;
         Array<const Def*> old_ops;

@@ -40,15 +40,4 @@ llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
 
 Continuation* AMDGPUCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation, true); }
 
-llvm::SyncScope::ID AMDGPUCodeGen::get_atomic_sync_scope(const AddrSpace addr_space) const {
-    switch (addr_space) {
-        case AddrSpace::Generic:
-        case AddrSpace::Global:
-        case AddrSpace::Texture:
-        case AddrSpace::Constant: return context_->getOrInsertSyncScopeID("agent");
-        case AddrSpace::Shared:   return context_->getOrInsertSyncScopeID("workgroup");;
-        default:                  THORIN_UNREACHABLE;
-    }
-}
-
 }

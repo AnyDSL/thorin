@@ -135,7 +135,7 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    load->setAlignment(layout.getABITypeAlignment(ptr->getType()->getPointerElementType()));
+    load->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), load);
     return cont;
@@ -152,7 +152,7 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    store->setAlignment(layout.getABITypeAlignment(ptr->getType()->getPointerElementType()));
+    store->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }

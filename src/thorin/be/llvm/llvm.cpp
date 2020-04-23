@@ -107,14 +107,18 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 7 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "atomic only supported for integer types");
-    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin
+    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
     u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
+    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
+    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
+                        (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
+    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
+        EDEF(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
+    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
+        EDEF(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));
-    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
-    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;

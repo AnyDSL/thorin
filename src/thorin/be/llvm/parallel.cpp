@@ -90,6 +90,92 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
 }
 
 enum {
+    FIB_ARG_MEM,
+    FIB_ARG_NUMTHREADS,
+    FIB_ARG_NUMBLOCKS,
+    FIB_ARG_NUMWARPS,
+    FIB_ARG_BODY,
+    FIB_ARG_RETURN,
+    FIB_NUM_ARGS
+};
+
+Continuation* CodeGen::emit_fibers(Continuation* continuation) {
+    // arguments
+    assert(continuation->num_args() >= FIB_NUM_ARGS && "required arguments are missing");
+    auto num_threads = lookup(continuation->arg(FIB_ARG_NUMTHREADS));
+    auto num_blocks = lookup(continuation->arg(FIB_ARG_NUMBLOCKS));
+    auto num_warps = lookup(continuation->arg(FIB_ARG_NUMWARPS));
+    auto kernel = continuation->arg(FIB_ARG_BODY)->as<Global>()->init()->as_continuation();
+
+    const size_t num_kernel_args = continuation->num_args() - FIB_NUM_ARGS;
+
+    // build fibers-function signature
+    Array<llvm::Type*> fib_args(num_kernel_args + 2);
+    fib_args[0] = irbuilder_.getInt32Ty(); // block index
+    fib_args[1] = irbuilder_.getInt32Ty(); // warp index
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        auto type = continuation->arg(i + FIB_NUM_ARGS)->type();
+        fib_args[i + 2] = convert(type);
+    }
+
+    // fetch values and create a unified struct which contains all values (closure)
+    auto closure_type = convert(world_.tuple_type(continuation->arg_fn_type()->ops().skip_front(FIB_NUM_ARGS)));
+    llvm::Value* closure = llvm::UndefValue::get(closure_type);
+    if (num_kernel_args != 1) {
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + FIB_NUM_ARGS)), unsigned(i));
+    } else {
+        closure = lookup(continuation->arg(FIB_NUM_ARGS));
+    }
+
+    // allocate closure object and write values into it
+    auto ptr = emit_alloca(closure_type, "fibers_closure");
+    irbuilder_.CreateStore(closure, ptr, false);
+
+    // create wrapper function and call the runtime
+    // wrapper(void* closure, int lower, int upper)
+    llvm::Type* wrapper_arg_types[] = { irbuilder_.getInt8PtrTy(0), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
+    auto wrapper_ft = llvm::FunctionType::get(irbuilder_.getVoidTy(), wrapper_arg_types, false);
+    auto wrapper_name = kernel->unique_name() + "_fibers";
+    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
+    runtime_->spawn_fibers(num_threads, num_blocks, num_warps, ptr, wrapper);
+
+    // set insert point to the wrapper function
+    auto old_bb = irbuilder_.GetInsertBlock();
+    auto bb = llvm::BasicBlock::Create(*context_, wrapper_name, wrapper);
+    irbuilder_.SetInsertPoint(bb);
+
+    // extract all arguments from the closure
+    auto wrapper_args = wrapper->arg_begin();
+    auto load_ptr = irbuilder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
+    auto val = irbuilder_.CreateLoad(load_ptr);
+    std::vector<llvm::Value*> target_args(num_kernel_args + 2);
+    if (num_kernel_args != 1) {
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            target_args[i + 2] = irbuilder_.CreateExtractValue(val, { unsigned(i) });
+    } else {
+        target_args[2] = val;
+    }
+
+    auto wrapper_block = &*(++wrapper_args);
+    auto wrapper_warp = &*(++wrapper_args);
+
+    target_args[0] = wrapper_block;
+    target_args[1] = wrapper_warp;
+
+    // call kernel body
+    auto fib_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(fib_args), false);
+    auto kernel_fib_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), fib_type);
+    irbuilder_.CreateCall(kernel_fib_func, target_args);
+    irbuilder_.CreateRetVoid();
+
+    // restore old insert point
+    irbuilder_.SetInsertPoint(old_bb);
+
+    return continuation->arg(FIB_ARG_RETURN)->as_continuation();
+}
+
+enum {
     SPAWN_ARG_MEM,
     SPAWN_ARG_BODY,
     SPAWN_ARG_RETURN,

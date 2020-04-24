@@ -63,6 +63,7 @@ private:
     Continuation* emit_intrinsic(Continuation*);
     Continuation* emit_hls(Continuation*);
     Continuation* emit_parallel(Continuation*);
+    Continuation* emit_fibers(Continuation*);
     Continuation* emit_spawn(Continuation*);
     Continuation* emit_sync(Continuation*);
     Continuation* emit_vectorize_continuation(Continuation*);

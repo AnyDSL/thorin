@@ -73,6 +73,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
         case Intrinsic::HLS:         return emit_hls(continuation);
         case Intrinsic::Parallel:    return emit_parallel(continuation);
+        case Intrinsic::Fibers:      return emit_fibers(continuation);
         case Intrinsic::Spawn:       return emit_spawn(continuation);
         case Intrinsic::Sync:        return emit_sync(continuation);
 #if THORIN_ENABLE_RV

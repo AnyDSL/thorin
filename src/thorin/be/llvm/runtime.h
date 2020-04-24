@@ -47,6 +47,9 @@ public:
     /// Emits a call to anydsl_parallel_for.
     llvm::Value* parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
                               llvm::Value* closure_ptr, llvm::Value* fun_ptr);
+    /// Emits a call to anydsl_fibers_spawn.
+    llvm::Value* spawn_fibers(llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
+        llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_spawn_thread.
     llvm::Value* spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_sync_thread.

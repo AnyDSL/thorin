@@ -70,6 +70,7 @@ enum class Intrinsic : uint8_t {
     AMDGPU,                     ///< Internal AMDGPU-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
+    Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
     CreateGraph,                ///< Internal Flow-Graph-Backend.

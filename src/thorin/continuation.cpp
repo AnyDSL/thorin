@@ -184,6 +184,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;
     else if (name() == "hls")                  intrinsic_ = Intrinsic::HLS;
     else if (name() == "parallel")             intrinsic_ = Intrinsic::Parallel;
+    else if (name() == "fibers")               intrinsic_ = Intrinsic::Fibers;
     else if (name() == "spawn")                intrinsic_ = Intrinsic::Spawn;
     else if (name() == "sync")                 intrinsic_ = Intrinsic::Sync;
     else if (name() == "anydsl_create_graph")  intrinsic_ = Intrinsic::CreateGraph;

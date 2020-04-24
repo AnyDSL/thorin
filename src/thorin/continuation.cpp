@@ -186,6 +186,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;
     else if (name() == "hls")                  intrinsic_ = Intrinsic::HLS;
     else if (name() == "parallel")             intrinsic_ = Intrinsic::Parallel;
+    else if (name() == "fibers")               intrinsic_ = Intrinsic::Fibers;
     else if (name() == "spawn")                intrinsic_ = Intrinsic::Spawn;
     else if (name() == "sync")                 intrinsic_ = Intrinsic::Sync;
     else if (name() == "anydsl_create_graph")  intrinsic_ = Intrinsic::CreateGraph;
@@ -197,9 +198,11 @@ void Continuation::set_intrinsic() {
     else if (name() == "pipeline")             intrinsic_ = Intrinsic::Pipeline;
     else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
     else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
+    else if (name() == "atomic_load")          intrinsic_ = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")         intrinsic_ = Intrinsic::AtomicStore;
     else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic");
+    else ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
 

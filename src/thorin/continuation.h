@@ -70,6 +70,7 @@ enum class Intrinsic : uint8_t {
     AMDGPU,                     ///< Internal AMDGPU-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
+    Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
     CreateGraph,                ///< Internal Flow-Graph-Backend.
@@ -80,10 +81,12 @@ enum class Intrinsic : uint8_t {
     _Accelerator_End,
     Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
+    AtomicLoad,                 ///< Intrinsic atomic load function
+    AtomicStore,                ///< Intrinsic atomic store function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
-    Pipeline,                   ///< Intrinsic loop-piplining-HLS-Backend
+    Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.

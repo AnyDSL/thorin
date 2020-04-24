@@ -207,6 +207,16 @@ llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower,
     return builder_.CreateCall(get("anydsl_parallel_for"), parallel_args);
 }
 
+llvm::Value* Runtime::spawn_fibers(llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
+                                   llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+    llvm::Value* fibers_args[] = {
+        num_threads, num_blocks, num_warps,
+        builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
+        builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
+    };
+    return builder_.CreateCall(get("anydsl_fibers_spawn"), fibers_args);
+}
+
 llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* spawn_args[] = {
         builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),

@@ -54,8 +54,6 @@ protected:
     virtual llvm::Value* emit_assembly(const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
-    virtual llvm::AtomicOrdering get_atomic_ordering() const { return llvm::AtomicOrdering::SequentiallyConsistent; }
-    virtual llvm::SyncScope::ID get_atomic_sync_scope(const AddrSpace) const { return llvm::SyncScope::System; }
 
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
     Continuation* emit_reserve_shared(const Continuation*, bool=false);
@@ -65,11 +63,14 @@ private:
     Continuation* emit_intrinsic(Continuation*);
     Continuation* emit_hls(Continuation*);
     Continuation* emit_parallel(Continuation*);
+    Continuation* emit_fibers(Continuation*);
     Continuation* emit_spawn(Continuation*);
     Continuation* emit_sync(Continuation*);
     Continuation* emit_vectorize_continuation(Continuation*);
     Continuation* emit_atomic(Continuation*);
     Continuation* emit_cmpxchg(Continuation*);
+    Continuation* emit_atomic_load(Continuation*);
+    Continuation* emit_atomic_store(Continuation*);
     llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);

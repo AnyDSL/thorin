@@ -717,12 +717,10 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Rewrite* World::rewrite(const Def* def, const Def* replacee, const Def* replacer, Debug dbg) {
-    return unify<Rewrite>(3, def, replacee, replacer, debug(dbg));
-}
-
-const Rewrite* World::rewrite(Defs ops, Debug dbg) {
-    return unify<Rewrite>(ops.size(), ops, debug(dbg));
+const Def* World::subst(Defs ops, Debug dbg) {
+    if (ops[0]->is_const()) return ops[0];
+    // TODO look through repl list
+    return unify<Subst>(ops.size(), ops, debug(dbg));
 }
 
 /*

@@ -168,10 +168,12 @@ public:
     /// @name ops
     //@{
     Defs ops() const { return Defs(num_ops_, ops_ptr()); }
-    /// Includes @p debug (if not @c nullptr), @p type() (if not @p Universe), and then the other @p ops() (if @p is_set) in this order.
-    Defs extended_ops() const;
     const Def* op(size_t i) const { return ops()[i]; }
     size_t num_ops() const { return num_ops_; }
+    /// Includes @p debug (if not @c nullptr), @p type() (if not @p Universe), and then the other @p ops() (if @p is_set) in this order.
+    Defs extended_ops() const;
+    const Def* extended_op(size_t i) const { return extended_ops()[i]; }
+    size_t num_extended_ops() const { return extended_ops().size(); }
     Def* set(size_t i, const Def* def);
     Def* set(Defs ops) { for (size_t i = 0, e = num_ops(); i != e; ++i) set(i, ops[i]); return this; }
     void unset(size_t i);
@@ -1129,31 +1131,28 @@ struct Repl {
         : replacee(nullptr)
         , replacer(nullptr)
     {}
-    Repl(const Def* replacee, const Def* replacer)
+    Repl(const Param* replacee, const Def* replacer)
         : replacee(replacee)
         , replacer(replacer)
     {}
 
     bool operator<(const Repl& other) const { return this->replacee->gid() < other.replacee->gid(); }
 
-    const Def* replacee;
+    const Param* replacee;
     const Def* replacer;
 };
 
 typedef ArrayRef<Repl> Repls;
 
 /**
- * Rewrite a @p def by substituting some replacees with according replacers.
+ * Subst a @p def by substituting some replacees with according replacers.
  * First @p op is always the @p def to be rewritten.
  * Then, we have @p num_repls many pairs of @c (replacee, replacer) in the remaining @p ops (see @p repls).
  * The @p repls are sorted by the replacees' @p gid .
  */
-class Rewrite : public Def {
+class Subst : public Def {
 private:
-    Rewrite(const Def* def, const Def* replacee, const Def* replacer, const Def* dbg)
-        : Def(Node, def->type(), {def, replacee, replacer}, 0, dbg)
-    {}
-    Rewrite(Defs ops, const Def* dbg)
+    Subst(Defs ops, const Def* dbg)
         : Def(Node, ops.front()->type(), ops, 0, dbg)
     {}
 
@@ -1166,15 +1165,14 @@ public:
     //@}
     /// @name find a @c (replacee, replacer) pair by a given replacee
     //@{
-    std::optional<Repl> find() { return find(def()); }
-    std::optional<Repl> find(const Def* replacee);
+    std::optional<Repl> find(const Param* replacee);
     //@}
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     //@}
 
-    static constexpr auto Node = Node::Rewrite;
+    static constexpr auto Node = Node::Subst;
     friend class World;
 };
 
@@ -1198,8 +1196,8 @@ public:
 
     /// @name find a @c (replacee, replacer) pair by a given replacee
     //@{
-    std::optional<Repl> find(const Def* replacee) const { return find(replacee, repls()); }
-    static std::optional<Repl> find(const Def* replacee, Repls repls);
+    std::optional<Repl> find(const Param* replacee) const { return find(replacee, repls()); }
+    static std::optional<Repl> find(const Param* replacee, Repls repls);
     //@}
 
     /// @name operator == and <

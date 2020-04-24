@@ -21,7 +21,7 @@ using nat_t    = u64;
     m(Match, match)                                                                     \
     m(Bot, bot) m(Top, top)                                                             \
     m(CPS2DS, cps2ds) m(DS2CPS, ds2cps)                                                 \
-    m(Analyze, analyze)   m(Rewrite, rewrite)                                           \
+    m(Analyze, analyze)   m(Subst, subst)                                               \
     m(Axiom, axiom)                                                                     \
     m(Lit, lit)                                                                         \
     m(Nat, nat)                                                                         \

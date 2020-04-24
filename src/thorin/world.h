@@ -409,11 +409,11 @@ public:
     const Def* op(PE o) { return data_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
-    /// @name Analyze & Rewrite - used internally for Pass%es
+    /// @name Analyze & Subst - used internally for Pass%es
     //@{
     const Analyze* analyze(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, debug(dbg)); }
-    const Rewrite* rewrite(Defs ops, Debug dbg);
-    const Rewrite* rewrite(const Def* def, const Def* replacee, const Def* replacer, Debug dbg = {});
+    const Def* subst(Defs ops, Debug dbg);
+    const Def* subst(const Def* def, const Param* replacee, const Def* replacer, Debug dbg = {}) { return subst({def, replacee, replacer}, dbg); }
     //@}
     /// @name misc operations
     //@{

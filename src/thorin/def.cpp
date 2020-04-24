@@ -285,12 +285,12 @@ bool Ptrn::matches(const Def* arg) const {
 }
 
 /*
- * Rewrite/ReplArray
+ * Subst/ReplArray
  */
 
-std::optional<Repl> Rewrite::find(const Def* replacee) { return ReplArray::find(replacee, repls()); }
+std::optional<Repl> Subst::find(const Param* replacee) { return ReplArray::find(replacee, repls()); }
 
-std::optional<Repl> ReplArray::find(const Def* replacee, Repls repls) {
+std::optional<Repl> ReplArray::find(const Param* replacee, Repls repls) {
     Repl value = {replacee, nullptr};
     auto i = std::lower_bound(repls.begin(), repls.end(), value);
     if (i != repls.end() && replacee == i->replacee) return *i;
@@ -469,7 +469,7 @@ const Def* Nat     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) con
 const Def* Pack    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
-const Def* Rewrite ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.rewrite(o, dbg); }
+const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o, dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
 const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }

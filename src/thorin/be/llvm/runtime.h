@@ -49,7 +49,7 @@ public:
                               llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_fibers_spawn.
     llvm::Value* spawn_fibers(llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
-        llvm::Value* closure_ptr, llvm::Value* fun_ptr);
+                              llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_spawn_thread.
     llvm::Value* spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_sync_thread.

@@ -276,7 +276,7 @@ void GradEmitter::add_partial_grad(const Def* var, const Def* part_grad) {
     }
 }
 
-const Def* GradGen::rewrite(const Def* def) {
+const Def* GradGen::rewrite(Def*, const Def* def) {
     if (auto lam = has_lam_to_rewrite(def)) {
 
         auto grad_type = def->type()->as<Pi>();

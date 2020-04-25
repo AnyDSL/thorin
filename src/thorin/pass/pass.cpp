@@ -74,15 +74,21 @@ Def* PassMan::rewrite(Def* nom) {
 */
 
 uint32_t PassMan::rewrite(Def* cur_nom) {
-    new_state(cur_nom);
+    if (!has_subst(cur_nom)) return No_Undo;
+
+    new_state();
 
     for (auto&& pass : passes_)
         pass->enter(cur_nom);
 
+    Array<const Def*> old_ops(cur_nom->ops());
+    for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
+        cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i), *cur_state().map.begin())); // TODO
+
     auto undo = No_Undo;
     for (auto op : cur_nom->extended_ops()) {
         for (auto&& pass : passes_)
-            undo = std::min(undo, pass->analyze(op));
+            undo = std::min(undo, pass->analyze(cur_nom, op));
     }
 
     while (undo != No_Undo && !cur_state().noms.empty()) {
@@ -92,11 +98,21 @@ uint32_t PassMan::rewrite(Def* cur_nom) {
         cur_state().noms.erase(i);
     }
 
+    if (undo != No_Undo) cur_nom->set(old_ops);
+
     states_.pop_back();
     return undo;
 }
 
-const Def* PassMan::rewrite(const Def* old_def, std::pair<const ReplArray, Def2Def>& repls) {
+const Def* PassMan::rewrite(Def* cur_nom, const Def* def) {
+    if (auto subst = def->isa<Subst>()) {
+        auto i = cur_state().map.find(subst->repls());
+        return rewrite(cur_nom, subst->def(), *i); // TODO concat
+    }
+    return def;
+}
+
+const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const ReplArray, Def2Def>& repls) {
     if (old_def->is_const()) return old_def;
 
     if (auto old_param = old_def->isa<Param>()) {
@@ -117,8 +133,8 @@ const Def* PassMan::rewrite(const Def* old_def, std::pair<const ReplArray, Def2D
     }
     */
 
-    auto new_type = rewrite(old_def->type(), repls);
-    auto new_dbg  = old_def->debug() ? rewrite(old_def->debug(), repls) : nullptr;
+    auto new_type = rewrite(cur_nom, old_def->type(), repls);
+    auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), repls) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom   = old_nom->stub(world(), new_type, new_dbg);
@@ -127,21 +143,21 @@ const Def* PassMan::rewrite(const Def* old_def, std::pair<const ReplArray, Def2D
             new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param())); // TODO concat
 
         for (auto&& pass : passes_)
-            pass->inspect(new_nom);
+            pass->inspect(cur_nom, new_nom);
 
-        return new_nom;
+        return repls.second[old_nom] = new_nom;
     } else {
-        Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i), repls); });
+        Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), repls); });
 
         auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
         for (auto&& pass : passes_)
-            new_def = pass->rewrite(new_def);
+            new_def = pass->rewrite(cur_nom, new_def);
 
         return repls.second[old_def] = new_def;
     }
 }
 
-uint32_t PassMan::analyze(const Def* def) {
+uint32_t PassMan::analyze(Def* cur_nom, const Def* def) {
     if (def->is_const()) return true;
 
     // already analyzed in this or a prior state?
@@ -158,11 +174,11 @@ uint32_t PassMan::analyze(const Def* def) {
 
     auto undo = No_Undo;
     for (auto op : def->extended_ops())
-        undo = std::min(undo, analyze(op));
+        undo = std::min(undo, analyze(cur_nom, op));
 
     world().DLOG("analyze: {}", def);
     for (auto&& pass : passes_)
-        undo = std::min(undo, pass->analyze(def));
+        undo = std::min(undo, pass->analyze(cur_nom, def));
 
     return undo;
 }

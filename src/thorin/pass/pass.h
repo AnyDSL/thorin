@@ -34,10 +34,10 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    virtual void inspect(Def*) {}                       ///< Inspects a @em nominal @p Def when first encountering it.
-    virtual void enter(Def*) {}                         ///< Invoked just before a @em nominal is rewritten.
-    virtual const Def* rewrite(const Def*) = 0;         ///< Rewrites @em structural @p Def%s.
-    virtual uint32_t analyze(const Def*) { return No_Undo; } ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
+    virtual void inspect(Def*, Def*) {}                             ///< Inspects a @em nominal @p Def when first encountering it.
+    virtual void enter(Def*) {}                                     ///< Invoked just before a @em nominal is rewritten.
+    virtual const Def* rewrite(Def*, const Def*) = 0;               ///< Rewrites @em structural @p Def%s.
+    virtual uint32_t analyze(Def*, const Def*) { return No_Undo; }  ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
     ///@}
     /// @name mangage state - dummy implementations here
     //@{
@@ -93,11 +93,9 @@ private:
             : passes(passes.data())
             , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
-        State(const State& prev, Def* cur_nom, const std::vector<PassPtr>& passes)
+        State(const State& prev, const std::vector<PassPtr>& passes)
             : map(prev.map)
             , analyzed(prev.analyzed)
-            , cur_nom(cur_nom)
-            , old_ops(cur_nom->ops())
             , passes(passes.data())
             , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
@@ -108,21 +106,18 @@ private:
 
         std::map<ReplArray, Def2Def> map;
         DefSet analyzed;
-        Def* cur_nom;
         NomSet noms;
-        Array<const Def*> old_ops;
         const PassPtr* passes;
         Array<void*> data;
     };
 
-    void new_state(Def* cur_nom) { states_.emplace_back(cur_state(), cur_nom, passes_); }
+    void new_state() { states_.emplace_back(cur_state(), passes_); }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    Def* cur_nom() { return cur_state().cur_nom; }
     void enter(Def*);
     uint32_t rewrite(Def*);
-    const Def* rewrite(const Def*);
-    const Def* rewrite(const Def*, std::pair<const ReplArray, Def2Def>&);
-    uint32_t analyze(const Def*);
+    const Def* rewrite(Def*, const Def*);
+    const Def* rewrite(Def*, const Def*, std::pair<const ReplArray, Def2Def>&);
+    uint32_t analyze(Def*, const Def*);
 
     World& world_;
     std::vector<PassPtr> passes_;

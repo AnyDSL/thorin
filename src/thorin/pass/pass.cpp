@@ -32,47 +32,6 @@ void PassMan::run() {
     cleanup(world());
 }
 
-/*
-a: [int, [bool, float]] -> b
-b: [int, [bool, float]] -> (c#0, (c#1, c#2))
-c: [int, bool, float]   -> (d#0, d#1, 23.f)
-d: [int, bool]          -> (e#0, e#1)
-e: [int, bool, int]
-
-app A x
-app B x
-app C (x#0, x#1#0, x#1,1)
-app D (x#0, x#1#0)
-app E (x#0, x#1#0, y)
-*/
-
-/*
-const Def* PassMan::rewrite(const Def* def) {
-    if (def) {
-        if (auto subst = def->isa<Subst>())
-            return rewrite(subst->def(), subst->repls());
-    }
-    return def;
-}
-
-Def* PassMan::rewrite(Def* nom) {
-    if (!has_subst(nom)) return nom;
-
-    auto old_type  = nom->type();
-    auto old_debug = nom->debug();
-    auto old_ops   = nom->ops();
-
-    auto new_type  = rewrite(old_type );
-    auto new_debug = rewrite(old_debug);
-    Array<const Def*> new_ops(old_ops, [&](const Def* def) { return rewrite(def); });
-
-    for (auto op : nom->extended_ops()) {
-        if (!analyze(op))
-            return false;
-    }
-}
-*/
-
 uint32_t PassMan::rewrite(Def* cur_nom) {
     if (!has_subst(cur_nom)) return No_Undo;
 
@@ -125,13 +84,6 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
         if (auto new_def = repls.second.lookup(old_def))
             return *new_def;
     }
-
-    /*
-    if (auto subst = old_def->isa<Subst>()) {
-        auto [it, succ] = local_.map.emplace(ReplArray(repls.first, subst->repls()), Def2Def());
-        return rewrite(subst->def(), *it);
-    }
-    */
 
     auto new_type = rewrite(cur_nom, old_def->type(), repls);
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), repls) : nullptr;

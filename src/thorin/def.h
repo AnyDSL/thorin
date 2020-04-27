@@ -1163,7 +1163,7 @@ public:
     size_t num_repls() const { return num_ops() >> 1; }
     Repls repls() const { return Repls(num_repls(), reinterpret_cast<const Repl*>(ops().begin() + 1)); }
     //@}
-    /// @name find a @c (replacee, replacer) pair by a given replacee
+    /// @name find a @c (replacee, replacer) pair by a given @p replacee
     //@{
     std::optional<Repl> find(const Param* replacee);
     //@}
@@ -1180,6 +1180,7 @@ class ReplArray {
 public:
     /// merges @p repls1 with @p repls2 in this @p ReplArray
     ReplArray(Repls repls1, Repls repls2);
+    ReplArray(const Param* replacee, const Def* replacer, Repls repls);
     ReplArray(Repls repls)
         : repls_(repls.begin(), repls.end())
     {}
@@ -1192,6 +1193,7 @@ public:
     size_t size() const { return repls_.size(); }
     Repls repls() const { return repls_; }
     operator Repls() const { return repls_; }
+    const Repl* data() const { return repls_.data(); }
     //@}
 
     /// @name find a @c (replacee, replacer) pair by a given replacee

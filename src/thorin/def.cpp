@@ -392,6 +392,13 @@ Nat::Nat(World& world)
     : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
+ReplArray::ReplArray(const Param* replacee, const Def* replacer, Repls repls)
+    : repls_(repls.size() + 1)
+{
+    *std::copy(repls.begin(), repls.end(), repls_.begin()) = { replacee, replacer };
+    std::sort(repls_.begin(), repls_.end());
+}
+
 ReplArray::ReplArray(Repls repls1, Repls repls2)
     : repls_(repls1.size() + repls2.size())
 {

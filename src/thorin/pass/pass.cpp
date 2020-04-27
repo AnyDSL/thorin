@@ -41,8 +41,12 @@ uint32_t PassMan::rewrite(Def* cur_nom) {
         pass->enter(cur_nom);
 
     Array<const Def*> old_ops(cur_nom->ops());
-    for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
-        cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i), *cur_state().map.begin())); // TODO
+    for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
+        if (auto subst = cur_nom->op(i)->isa<Subst>()) {
+            auto [it, _] = cur_state().map.emplace(subst->repls(), Def2Def());
+            cur_nom->set(i, rewrite(cur_nom, subst->def(), *it));
+        }
+    }
 
     auto undo = No_Undo;
     for (auto op : cur_nom->extended_ops()) {
@@ -63,22 +67,13 @@ uint32_t PassMan::rewrite(Def* cur_nom) {
     return undo;
 }
 
-const Def* PassMan::rewrite(Def* cur_nom, const Def* def) {
-    if (auto subst = def->isa<Subst>()) {
-        auto i = cur_state().map.find(subst->repls());
-        return rewrite(cur_nom, subst->def(), *i); // TODO concat
-    }
-    return def;
-}
-
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const ReplArray, Def2Def>& pair) {
     auto& [repls, map] = pair;
 
     if (old_def->is_const()) return old_def;
 
     if (auto old_param = old_def->isa<Param>()) {
-        if (auto repl = repls.find(old_param))
-            return repl->replacer;
+        if (auto repl = repls.find(old_param)) return repl->replacer;
     }
 
     // already rewritten in this or a prior state?
@@ -91,6 +86,11 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
         }
     }
 
+    if (auto subst = old_def->isa<Subst>()) {
+        auto [it, _] = cur_state().map.emplace(ReplArray(subst->repls(), repls), Def2Def());
+        return rewrite(cur_nom, subst->def(), *it);
+    }
+
     auto new_type = rewrite(cur_nom, old_def->type(), pair);
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), pair) : nullptr;
 
@@ -98,7 +98,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
         auto new_nom = old_nom->stub(world(), new_type, new_dbg);
 
         for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
-            new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param())); // TODO concat
+            new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param(), repls, new_nom->op(i)->debug()));
 
         for (auto&& pass : passes_)
             pass->inspect(cur_nom, new_nom);

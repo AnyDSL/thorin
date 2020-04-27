@@ -129,7 +129,6 @@ private:
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void enter(Def*);
     uint32_t rewrite(Def*);
-    const Def* rewrite(Def*, const Def*);
     const Def* rewrite(Def*, const Def*, std::pair<const ReplArray, Def2Def>&);
     uint32_t analyze(Def*, const Def*);
 

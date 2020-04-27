@@ -723,6 +723,15 @@ const Def* World::subst(Defs ops, Debug dbg) {
     return unify<Subst>(ops.size(), ops, debug(dbg));
 }
 
+const Def* World::subst(const Def* def, const Param* replacee, const Def* replacer, Repls repls, Debug dbg) {
+    ReplArray repl_array(replacee, replacer, repls);
+    auto repl_data = reinterpret_cast<const Def* const*>(repl_array.data());
+    Array<const Def*> ops(repl_array.size()*2 + 1);
+    ops[0] = def;
+    std::copy(repl_data, repl_data + repl_array.size()*2, ops.begin()+1);
+    return subst(ops, dbg);
+}
+
 /*
  * misc
  */

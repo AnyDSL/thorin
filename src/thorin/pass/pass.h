@@ -8,6 +8,7 @@
 namespace thorin {
 
 class PassMan;
+static constexpr uint32_t No_Undo = -1;
 
 /**
  * All Pass%es that want to be registered in the @p PassMan must implement this interface.
@@ -16,8 +17,6 @@ class PassMan;
  */
 class PassBase {
 public:
-    static constexpr uint32_t No_Undo = -1;
-
     PassBase(PassMan& man, size_t index, const std::string& name)
         : man_(man)
         , index_(index)
@@ -34,10 +33,26 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    virtual void inspect(Def*, Def*) {}                             ///< Inspects a @em nominal @p Def when first encountering it.
-    virtual void enter(Def*) {}                                     ///< Invoked just before a @em nominal is rewritten.
-    virtual const Def* rewrite(Def*, const Def*) = 0;               ///< Rewrites @em structural @p Def%s.
-    virtual uint32_t analyze(Def*, const Def*) { return No_Undo; }  ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
+    /// Invoked just before @em nom%inal is rewritten.
+    virtual void enter([[maybe_unused]] Def* nom) {}
+
+    /**
+     * Inspects a @p nom%inal when first encountering it during rewriting @p cur_nom.
+     * Returns a potentially new @em nominal.
+     */
+    virtual Def* inspect([[maybe_unused]] Def* cur_nom, Def* nom) { return nom; }
+
+    /**
+     * Rewrites a @em structural @p def within @p cur_nom.
+     * Returns the rewrite.
+     */
+    virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
+
+    /**
+     * Invoked after the @p PassMan has finished rewriting @p cur_nom to analyze @p def.
+     * Return @p No_Undo or the state to roll back to.
+     */
+    virtual uint32_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     ///@}
     /// @name mangage state - dummy implementations here
     //@{
@@ -58,7 +73,6 @@ private:
  */
 class PassMan {
 public:
-    static constexpr uint32_t No_Undo = -1;
     typedef std::unique_ptr<PassBase> PassPtr;
 
     PassMan(World& world)

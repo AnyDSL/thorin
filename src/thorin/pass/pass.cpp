@@ -89,7 +89,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), repls) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
-        auto new_nom   = old_nom->stub(world(), new_type, new_dbg);
+        auto new_nom = old_nom->stub(world(), new_type, new_dbg);
 
         for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
             new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param())); // TODO concat
@@ -98,15 +98,15 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
             pass->inspect(cur_nom, new_nom);
 
         return repls.second[old_nom] = new_nom;
-    } else {
-        Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), repls); });
-
-        auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
-        for (auto&& pass : passes_)
-            new_def = pass->rewrite(cur_nom, new_def);
-
-        return repls.second[old_def] = new_def;
     }
+
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), repls); });
+
+    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+    for (auto&& pass : passes_)
+        new_def = pass->rewrite(cur_nom, new_def);
+
+    return repls.second[old_def] = new_def;
 }
 
 uint32_t PassMan::analyze(Def* cur_nom, const Def* def) {

@@ -1202,8 +1202,8 @@ public:
 
     /// @name operator == and <
     //@{
-    bool operator==(const ReplArray& other) const;
-    bool operator<(const ReplArray& other) const;
+    bool operator==(const ReplArray&) const;
+    bool operator< (const ReplArray&) const;
     //@}
 
 private:

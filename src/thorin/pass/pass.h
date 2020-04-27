@@ -37,19 +37,19 @@ public:
     virtual void enter([[maybe_unused]] Def* nom) {}
 
     /**
-     * Inspects a @p nom%inal when first encountering it during rewriting @p cur_nom.
+     * Inspects a @p nom%inal when first encountering it during @p rewrite%ing @p cur_nom.
      * Returns a potentially new @em nominal.
      */
     virtual Def* inspect([[maybe_unused]] Def* cur_nom, Def* nom) { return nom; }
 
     /**
      * Rewrites a @em structural @p def within @p cur_nom.
-     * Returns the rewrite.
+     * Returns the replacement.
      */
     virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
 
     /**
-     * Invoked after the @p PassMan has finished rewriting @p cur_nom to analyze @p def.
+     * Invoked after the @p PassMan has finished @p rewrite%ing @p cur_nom to analyze @p def.
      * Return @p No_Undo or the state to roll back to.
      */
     virtual uint32_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }

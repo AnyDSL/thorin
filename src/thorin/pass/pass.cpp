@@ -71,22 +71,28 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* def) {
     return def;
 }
 
-const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const ReplArray, Def2Def>& repls) {
+const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const ReplArray, Def2Def>& pair) {
+    auto& [repls, map] = pair;
+
     if (old_def->is_const()) return old_def;
 
     if (auto old_param = old_def->isa<Param>()) {
-        if (auto repl = repls.first.find(old_param))
+        if (auto repl = repls.find(old_param))
             return repl->replacer;
     }
 
     // already rewritten in this or a prior state?
-    for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-        if (auto new_def = repls.second.lookup(old_def))
-            return *new_def;
+    if (auto new_def = map.lookup(old_def)) return *new_def;
+
+    for (auto i = states_.rbegin() + 1, e = states_.rend(); i != e; ++i) {
+        auto& state = *i;
+        if (auto i = state.map.find(repls); i != state.map.end()) {
+            if (auto new_def = i->second.lookup(old_def)) return *new_def;
+        }
     }
 
-    auto new_type = rewrite(cur_nom, old_def->type(), repls);
-    auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), repls) : nullptr;
+    auto new_type = rewrite(cur_nom, old_def->type(), pair);
+    auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), pair) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom = old_nom->stub(world(), new_type, new_dbg);
@@ -97,31 +103,31 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
         for (auto&& pass : passes_)
             pass->inspect(cur_nom, new_nom);
 
-        return repls.second[old_nom] = new_nom;
+        return map[old_nom] = new_nom;
     }
 
-    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), repls); });
-
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), pair); });
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+
     for (auto&& pass : passes_)
         new_def = pass->rewrite(cur_nom, new_def);
 
-    return repls.second[old_def] = new_def;
+    return map[old_def] = new_def;
 }
 
 uint32_t PassMan::analyze(Def* cur_nom, const Def* def) {
-    if (def->is_const()) return true;
+    if (def->is_const()) return No_Undo;
 
     // already analyzed in this or a prior state?
     for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-        if (i->analyzed.contains(def)) return true;
+        if (i->analyzed.contains(def)) return No_Undo;
     }
     // no? then, do it now
     cur_state().analyzed.emplace(def);
 
     if (auto nom = def->isa_nominal()) {
         cur_state().noms.emplace(nom);
-        return true;
+        return No_Undo;
     }
 
     auto undo = No_Undo;

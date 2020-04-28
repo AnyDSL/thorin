@@ -65,7 +65,7 @@ uint32_t PassMan::rewrite(Def* cur_nom) {
     while (undo != No_Undo && !cur_state().noms.empty()) {
         auto i = cur_state().noms.begin();
         auto next_nom = *i;
-        rewrite(next_nom);
+        undo = rewrite(next_nom);
         cur_state().noms.erase(i);
     }
 

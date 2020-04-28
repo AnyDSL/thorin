@@ -1178,6 +1178,7 @@ public:
 
 class ReplArray {
 public:
+    ReplArray() = default;
     /// merges @p repls1 with @p repls2 in this @p ReplArray
     ReplArray(Repls repls1, Repls repls2);
     ReplArray(const Param* replacee, const Def* replacer, Repls repls);

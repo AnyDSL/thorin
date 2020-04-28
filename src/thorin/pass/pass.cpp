@@ -17,12 +17,20 @@ void PassMan::run() {
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
 
+    auto& map = cur_state().map.emplace(ReplArray(), Def2Def()).first->second;
     auto externals = world().externals(); // copy
     for (const auto& [_, old_nom] : externals) {
         assert(old_nom->is_set() && "external must not be empty");
-        //rewrite(old_nom)->make_external();
+
+        auto new_nom = old_nom->stub(world(), old_nom->type(), old_nom->debug());
+        for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
+            new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param(), old_nom->op(i)->debug()));
+
         old_nom->unset();
         old_nom->make_internal();
+        new_nom->make_external();
+
+        map[old_nom] = new_nom;
     }
 
     if (world().min_level() == LogLevel::Debug)

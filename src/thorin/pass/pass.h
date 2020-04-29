@@ -109,7 +109,7 @@ private:
 
         std::map<ReplArray, Def2Def> map;
         DefSet analyzed;
-        NomSet noms;
+        NomSet succs;
         Array<void*> data;
     };
 

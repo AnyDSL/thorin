@@ -81,10 +81,10 @@ size_t PassMan::rewrite(Def* cur_nom) {
                 undo = std::min(undo, pass->analyze(cur_nom, op));
         }
 
-        while (undo != No_Undo && !cur_state().noms.empty()) {
-            auto i = cur_state().noms.begin();
+        while (undo != No_Undo && !cur_state().succs.empty()) {
+            auto i = cur_state().succs.begin();
             undo = rewrite(*i);
-            cur_state().noms.erase(i);
+            cur_state().succs.erase(i);
         }
 
         if (undo != No_Undo) cur_nom->set(old_ops);
@@ -154,7 +154,7 @@ size_t PassMan::analyze(Def* cur_nom, const Def* def) {
     cur_state().analyzed.emplace(def);
 
     if (auto nom = def->isa_nominal()) {
-        cur_state().noms.emplace(nom);
+        cur_state().succs.emplace(nom);
         return No_Undo;
     }
 

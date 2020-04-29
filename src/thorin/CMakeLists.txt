@@ -66,6 +66,8 @@ set(THORIN_SOURCES
     transform/split_slots.h
     transform/hls_channels.cpp
     transform/hls_channels.h
+    transform/hls_kernel_launch.h
+    transform/hls_kernel_launch.cpp
     util/args.h
     util/array.h
     util/cast.h

@@ -103,30 +103,18 @@ private:
         State(const State&) = delete;
         State(State&&) = delete;
         State& operator=(State) = delete;
-
-        State(const std::vector<PassPtr>& passes)
-            : passes(passes.data())
-            , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
+        State(size_t num)
+            : data(num)
         {}
-        State(const State& prev, const std::vector<PassPtr>& passes)
-            : map(prev.map)
-            , analyzed(prev.analyzed)
-            , passes(passes.data())
-            , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
-        {}
-        ~State() {
-            for (size_t i = 0, e = data.size(); i != e; ++i)
-                passes[i]->dealloc(data[i]);
-        }
 
         std::map<ReplArray, Def2Def> map;
         DefSet analyzed;
         NomSet noms;
-        const PassPtr* passes;
         Array<void*> data;
     };
 
-    void new_state() { states_.emplace_back(cur_state(), passes_); }
+    void push_state();
+    void pop_state();
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void enter(Def*);
     size_t rewrite(Def*);

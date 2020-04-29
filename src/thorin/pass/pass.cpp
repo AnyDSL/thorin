@@ -9,11 +9,21 @@ static bool has_subst(Def* nom) {
     return std::any_of(nom->extended_ops().begin(), nom->extended_ops().end(), [&](const Def* op) { return op->isa<Subst>(); });
 }
 
+void PassMan::push_state() {
+    states_.emplace_back(num_passes());
+    for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
+        cur_state().data[i] = passes_[i]->alloc();
+}
+
+void PassMan::pop_state() {
+    for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
+        passes_[i]->dealloc(cur_state().data[i]);
+    states_.pop_back();
+}
+
 void PassMan::run() {
     world().ILOG("run");
-
-    // initial state
-    states_.emplace_back(passes_);
+    push_state();
 
     for (auto&& pass : passes_)
         world().ILOG(" + {}", pass->name());
@@ -41,6 +51,8 @@ void PassMan::run() {
         world().stream(world().stream());
 
     world().ILOG("finished");
+    pop_state();
+    assert(states_.empty());
     cleanup(world());
 }
 
@@ -49,7 +61,7 @@ size_t PassMan::rewrite(Def* cur_nom) {
 
     size_t undo;
     do {
-        new_state();
+        push_state();
 
         for (auto&& pass : passes_)
             pass->enter(cur_nom);
@@ -77,7 +89,7 @@ size_t PassMan::rewrite(Def* cur_nom) {
 
         if (undo != No_Undo) cur_nom->set(old_ops);
 
-        states_.pop_back();
+        pop_state();
     } while (undo == cur_state_id());
 
     return undo;

@@ -11,6 +11,10 @@ static bool has_subst(Def* nom) {
 
 void PassMan::run() {
     world().ILOG("run");
+
+    // initial state
+    states_.emplace_back(passes_);
+
     for (auto&& pass : passes_)
         world().ILOG(" + {}", pass->name());
 
@@ -40,38 +44,42 @@ void PassMan::run() {
     cleanup(world());
 }
 
-uint32_t PassMan::rewrite(Def* cur_nom) {
+size_t PassMan::rewrite(Def* cur_nom) {
     if (!has_subst(cur_nom)) return No_Undo;
 
-    new_state();
+    size_t undo;
+    do {
+        new_state();
 
-    for (auto&& pass : passes_)
-        pass->enter(cur_nom);
-
-    Array<const Def*> old_ops(cur_nom->ops());
-    for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-        if (auto subst = cur_nom->op(i)->isa<Subst>()) {
-            auto [it, _] = cur_state().map.emplace(subst->repls(), Def2Def());
-            cur_nom->set(i, rewrite(cur_nom, subst->def(), *it));
-        }
-    }
-
-    auto undo = No_Undo;
-    for (auto op : cur_nom->extended_ops()) {
         for (auto&& pass : passes_)
-            undo = std::min(undo, pass->analyze(cur_nom, op));
-    }
+            pass->enter(cur_nom);
 
-    while (undo != No_Undo && !cur_state().noms.empty()) {
-        auto i = cur_state().noms.begin();
-        auto next_nom = *i;
-        undo = rewrite(next_nom);
-        cur_state().noms.erase(i);
-    }
+        Array<const Def*> old_ops(cur_nom->ops());
 
-    if (undo != No_Undo) cur_nom->set(old_ops);
+        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
+            if (auto subst = cur_nom->op(i)->isa<Subst>()) {
+                auto [it, _] = cur_state().map.emplace(subst->repls(), Def2Def());
+                cur_nom->set(i, rewrite(cur_nom, subst->def(), *it));
+            }
+        }
 
-    states_.pop_back();
+        undo = No_Undo;
+        for (auto op : cur_nom->extended_ops()) {
+            for (auto&& pass : passes_)
+                undo = std::min(undo, pass->analyze(cur_nom, op));
+        }
+
+        while (undo != No_Undo && !cur_state().noms.empty()) {
+            auto i = cur_state().noms.begin();
+            undo = rewrite(*i);
+            cur_state().noms.erase(i);
+        }
+
+        if (undo != No_Undo) cur_nom->set(old_ops);
+
+        states_.pop_back();
+    } while (undo == cur_state_id());
+
     return undo;
 }
 
@@ -123,7 +131,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
     return map[old_def] = new_def;
 }
 
-uint32_t PassMan::analyze(Def* cur_nom, const Def* def) {
+size_t PassMan::analyze(Def* cur_nom, const Def* def) {
     if (def->is_const()) return No_Undo;
 
     // already analyzed in this or a prior state?

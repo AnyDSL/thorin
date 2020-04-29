@@ -8,7 +8,7 @@
 namespace thorin {
 
 class PassMan;
-static constexpr uint32_t No_Undo = -1;
+static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
 
 /**
  * All Pass%es that want to be registered in the @p PassMan must implement this interface.
@@ -27,6 +27,7 @@ public:
     /// @name getters
     //@{
     PassMan& man() { return man_; }
+    const PassMan& man() const { return man_; }
     size_t index() const { return index_; }
     const std::string& name() const { return name_; }
     World& world();
@@ -52,7 +53,7 @@ public:
      * Invoked after the @p PassMan has finished @p rewrite%ing @p cur_nom to analyze @p def.
      * Return @p No_Undo or the state to roll back to.
      */
-    virtual uint32_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
+    virtual size_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     ///@}
     /// @name mangage state - dummy implementations here
     //@{
@@ -93,7 +94,7 @@ public:
     //@{
     World& world() const { return world_; }
     size_t num_passes() const { return passes_.size(); }
-    template<class T = Def> T* cur_nom() const { return cur_nom()->template as<T>(); }
+    size_t cur_state_id() const { return states_.size(); }
     //@}
 
 private:
@@ -128,13 +129,15 @@ private:
     void new_state() { states_.emplace_back(cur_state(), passes_); }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void enter(Def*);
-    uint32_t rewrite(Def*);
+    size_t rewrite(Def*);
     const Def* rewrite(Def*, const Def*, std::pair<const ReplArray, Def2Def>&);
-    uint32_t analyze(Def*, const Def*);
+    size_t analyze(Def*, const Def*);
 
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
+
+    template<class P> friend class Pass;
 };
 
 inline World& PassBase::world() { return man().world(); }
@@ -152,15 +155,17 @@ public:
     auto& states() { return man().states_; }
     auto& state(size_t i) { return *static_cast<typename P::State*>(states()[i].data[index()]); }
     auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
+    size_t cur_state_id() const { return man().cur_state_id(); }
     //@}
     /// @name recursive search in the state stack
     //@{
     /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
     template<class M>
     auto& get(const typename M::key_type& key, typename M::mapped_type&& init) {
-        auto& map = std::get<M>(cur_state());
-        if (auto i = map.find(key); i != map.end())
-            return i->second;
+        for (auto i = man().states_.rbegin(), e = man().states_.rend(); i != e; ++i) {
+            auto& map = std::get<M>(*static_cast<typename P::State*>(i->data[index()]));
+            if (auto i = map.find(key); i != map.end()) return i->second;
+        }
 
         return std::get<M>(cur_state()).emplace(key, std::move(init)).first->second;
     }
@@ -170,7 +175,7 @@ public:
     //@}
     /// @name alloc/dealloc state
     //@{
-    void* alloc() override { return states().empty() ? new typename P::State() : new typename P::State(cur_state()); }
+    void* alloc() override { return new typename P::State(); }
     void dealloc(void* state) override { delete static_cast<typename P::State*>(state); }
     //@}
 };

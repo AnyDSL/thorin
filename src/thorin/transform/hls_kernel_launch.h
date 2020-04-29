@@ -6,8 +6,8 @@ namespace thorin {
 class World;
 
 /**
- * removes all calls to individual kernels in host code and replaces them with a
- * single call to a kernel named hls_top
+ * removes all calls to individual kernels in host code
+ * and replaces them with a single call to a kernel named hls_top
  */
 void hls_kernel_launch(World&);
 

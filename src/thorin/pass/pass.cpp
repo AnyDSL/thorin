@@ -1,7 +1,7 @@
 #include "thorin/pass/pass.h"
 
 #include "thorin/rewrite.h"
-#include "thorin/analyses/depends.h"
+//#include "thorin/analyses/depends.h"
 
 namespace thorin {
 

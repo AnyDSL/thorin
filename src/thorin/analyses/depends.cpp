@@ -4,6 +4,24 @@ namespace thorin {
 
 class DepChecker {
 public:
+    struct Node {
+        Node() = default;
+        Node(Def* nom)
+            : nom(nom)
+            , parent(nullptr)
+        {}
+        Node(Def* nom, Node* parent)
+            : nom(nom)
+            , parent(parent)
+        {
+            parent->children.emplace_back(this);
+        }
+
+        Def* nom;
+        Node* parent;
+        std::vector<std::unique_ptr<Node>> children;
+    };
+
     DepChecker(const Def* on)
         : on_(on)
     {}
@@ -19,6 +37,7 @@ public:
     }
 
 private:
+    std::vector<std::unique_ptr<Node>> children;
     const Def* on_;
     DefSet done_;
 };

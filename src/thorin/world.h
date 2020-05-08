@@ -16,7 +16,9 @@ namespace thorin {
 
 enum class LogLevel { Debug, Verbose, Info, Warn, Error };
 
+class DepNode;
 class ErrorHandler;
+class RecStreamer;
 class Scope;
 using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
@@ -535,6 +537,7 @@ public:
     //@}
 
     Stream& stream(Stream&) const;
+    Stream& stream(RecStreamer&, const DepNode*) const;
 
     friend void swap(World& w1, World& w2) {
         using std::swap;

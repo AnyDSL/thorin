@@ -14,22 +14,22 @@ void DepTree::run() {
 }
 
 ParamSet DepTree::run(Def* nom) {
-    if (auto node = nom2node_.lookup(nom)) {
+    auto [i, success] = nom2node_.emplace(nom, std::unique_ptr<DepNode>());
+    if (!success) {
         if (auto params = def2params_.lookup(nom))
             return *params;
         else
-            return ParamSet();
+            return {};
     }
 
-    auto node = std::make_unique<Node>(nom, stack_.size()+1);
-    stack_.push_back(node.get());
-    nom2node_[nom] = node.get();
+    i->second = std::make_unique<DepNode>(nom, stack_.size() + 1);
+    auto node = i->second.get();
+    stack_.push_back(node);
 
     auto result = run(nom, nom);
-
     auto parent = root_.get();
     for (auto param : result) {
-        auto n = nom2node_[param->nominal()];
+        auto n = nom2node_[param->nominal()].get();
         parent = n->depth() > parent->depth() ? n : parent;
     }
     node->set_parent(parent);
@@ -53,14 +53,14 @@ ParamSet DepTree::run(Def* cur_nom, const Def* def) {
         if (cur_nom == def) result.erase(cur_nom->param());
     }
 
-    return def2params_[def] = ParamSet(result);
+    return def2params_[def] = result;
 }
 
-void DepTree::adjust_depth(Node* node, size_t depth) {
+void DepTree::adjust_depth(DepNode* node, size_t depth) {
     node->depth_ = depth;
 
     for (const auto& child : node->children())
-        adjust_depth(child.get(), depth + 1);
+        adjust_depth(child, depth + 1);
 }
 
 }

@@ -1,6 +1,7 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
+#include "thorin/analyses/deptree.h"
 
 namespace thorin {
 
@@ -185,33 +186,28 @@ void Def::dump(size_t max) const {
     stream(s, max).endl();
 }
 
+// TODO polish this
 Stream& World::stream(Stream& s) const {
-    RecStreamer rec(s, std::numeric_limits<size_t>::max());
+    DepTree dep(*this);
+
+    RecStreamer rec(s, 0);
     s << "module '" << name();
 
-    for (const auto& [name, nom] : externals()) {
+    return stream(rec, dep.root());
+}
+
+Stream& World::stream(RecStreamer& rec, const DepNode* n) const {
+    rec.s.indent();
+
+    if (auto nom = n->nominal()) {
         rec.nominals.push(nom);
         rec.run();
     }
 
-    return s;
-#if 0
-    std::vector<const Global*> globals;
+    for (auto child : n->children())
+        stream(rec, child);
 
-    for (auto def : defs()) {
-        if (auto global = def->isa<Global>())
-            globals.emplace_back(global);
-    }
-
-    for (auto global : globals)
-        stream_assignment(s, global).endl();
-
-    visit<false>([&] (const Scope& scope) {
-        if (scope.entry()->isa<Axiom>()) return;
-        scope.stream(s);
-    });
-    return s;
-#endif
+    return rec.s.dedent();
 }
 
 }

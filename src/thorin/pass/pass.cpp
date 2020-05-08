@@ -9,6 +9,10 @@ static bool has_subst(Def* nom) {
     return std::any_of(nom->extended_ops().begin(), nom->extended_ops().end(), [&](const Def* op) { return op->isa<Subst>(); });
 }
 
+bool PassMan::depends(Def* nom, Repls repls) const {
+    return std::any_of(repls.begin(), repls.end(), [&](auto repl) { return deptree_.depends(nom, repl.replacee->nominal()); });
+}
+
 void PassMan::push_state() {
     states_.emplace_back(num_passes());
     for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
@@ -122,23 +126,28 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def, std::pair<const Re
     auto new_type = rewrite(cur_nom, old_def->type(), pair);
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug(), pair) : nullptr;
 
+    const Def* new_def;
     if (auto old_nom = old_def->isa_nominal()) {
-        auto new_nom = old_nom->stub(world(), new_type, new_dbg);
+        if (depends(old_nom, repls)) {
+            auto new_nom = old_nom->stub(world(), new_type, new_dbg);
 
-        for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
-            new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param(), repls, new_nom->op(i)->debug()));
+            for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
+                new_nom->set(i, world().subst(old_nom->op(i), old_nom->param(), new_nom->param(), repls, new_nom->op(i)->debug()));
+
+            for (auto&& pass : passes_)
+                pass->inspect(cur_nom, new_nom);
+
+            new_def = new_nom;
+        } else {
+            new_def = old_nom;
+        }
+    } else {
+        Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), pair); });
+        auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
         for (auto&& pass : passes_)
-            pass->inspect(cur_nom, new_nom);
-
-        return map[old_nom] = new_nom;
+            new_def = pass->rewrite(cur_nom, new_def);
     }
-
-    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i), pair); });
-    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
-
-    for (auto&& pass : passes_)
-        new_def = pass->rewrite(cur_nom, new_def);
 
     return map[old_def] = new_def;
 }

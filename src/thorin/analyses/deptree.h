@@ -44,6 +44,8 @@ public:
 
     const World& world() const { return world_; };
     const DepNode* root() const { return root_.get(); }
+    const DepNode* nom2node(Def* nom) const { return nom2node_.find(nom)->second.get(); }
+    bool depends(Def* a, Def* b) const; ///< Does @p a depend on @p b?
 
 private:
     void run();

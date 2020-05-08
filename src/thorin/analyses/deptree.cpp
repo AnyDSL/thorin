@@ -63,4 +63,16 @@ void DepTree::adjust_depth(DepNode* node, size_t depth) {
         adjust_depth(child, depth + 1);
 }
 
+bool DepTree::depends(Def* a, Def* b) const {
+    auto n = nom2node(a);
+    auto m = nom2node(b);
+
+    if (n->depth() < m->depth()) return false;
+
+    auto i = n;
+    for (size_t e = m->depth(); i->depth() != e; i = i->parent()) {}
+
+    return i == m;
+}
+
 }

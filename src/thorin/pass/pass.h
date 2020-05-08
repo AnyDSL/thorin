@@ -4,6 +4,7 @@
 #include <map>
 
 #include "thorin/world.h"
+#include "thorin/analyses/deptree.h"
 
 namespace thorin {
 
@@ -78,6 +79,7 @@ public:
 
     PassMan(World& world)
         : world_(world)
+        , deptree_(world)
     {}
 
     /// @name create and run
@@ -120,8 +122,10 @@ private:
     size_t rewrite(Def*);
     const Def* rewrite(Def*, const Def*, std::pair<const ReplArray, Def2Def>&);
     size_t analyze(Def*, const Def*);
+    bool depends(Def*, Repls) const;
 
     World& world_;
+    DepTree deptree_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
 

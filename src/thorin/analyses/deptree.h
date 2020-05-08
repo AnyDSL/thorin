@@ -10,13 +10,15 @@ public:
     class Node {
     public:
         Node() = default;
-        Node(Def* nominal)
+        Node(Def* nominal, size_t depth)
             : nominal_(nominal)
+            , depth_(depth)
         {}
 
         Def* nominal() const { return nominal_; }
-        Node* parent() const { return parent_; }
         size_t depth() const { return depth_; }
+        Node* parent() const { return parent_; }
+        const std::vector<std::unique_ptr<Node>>& children() const { return children_; }
 
     private:
         Node* set_parent(Node* parent) {
@@ -27,8 +29,8 @@ public:
         }
 
         Def* nominal_;
+        size_t depth_;
         Node* parent_ = nullptr;
-        size_t depth_ = 0;
         std::vector<std::unique_ptr<Node>> children_;
 
         friend class DepTree;
@@ -36,6 +38,7 @@ public:
 
     DepTree(World& world)
         : world_(world)
+        , root_(std::make_unique<Node>(nullptr, 0))
     {
         run();
     }
@@ -44,13 +47,15 @@ public:
 
 private:
     void run();
-    Node* run(Def*);
-    Node* run(Def*, const Def*);
+    ParamSet run(Def*);
+    ParamSet run(Def*, const Def*);
+    static void adjust_depth(Node* node, size_t depth);
 
     World& world_;
+    std::unique_ptr<Node> root_;
     NomMap<Node*> nom2node_;
-    DefSet done_;
-    std::vector<std::unique_ptr<Node>> roots_;
+    DefMap<ParamSet> def2params_;
+    std::deque<Node*> stack_;
 };
 
 }

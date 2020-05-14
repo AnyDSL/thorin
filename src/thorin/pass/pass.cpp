@@ -127,7 +127,6 @@ void PassMan::loop() {
         if (undo != No_Undo) {
             pop_states(undo-1);
             world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
-            //assert(cur_state().cur_nom == cur_nom);
         }
     }
 }

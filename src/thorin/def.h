@@ -1126,19 +1126,18 @@ public:
     friend class World;
 };
 
-/// Subst%itute a @p def by substituting the @p replacee with the replacer.
 class Subst : public Def {
 private:
-    Subst(const Def* def, const Def* replacee, const Def* replacer, const Def* dbg)
-        : Def(Node, def->type(), {def, replacee, replacer}, 0, dbg)
+    Subst(const Def* def, Def* old_nom, Def* new_nom, const Def* dbg)
+        : Def(Node, def->type(), {def, old_nom, new_nom}, 0, dbg)
     {}
 
 public:
     /// @name ops
     //@{
     const Def* def() const { return op(0); }
-    const Def* replacee() const { return op(1); }
-    const Def* replacer() const { return op(2); }
+    Def* old_nom() const { return op(1)->as_nominal(); }
+    Def* new_nom() const { return op(2)->as_nominal(); }
     //@}
     /// @name virtual methods
     //@{

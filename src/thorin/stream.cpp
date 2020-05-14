@@ -188,12 +188,24 @@ void Def::dump(size_t max) const {
 
 // TODO polish this
 Stream& World::stream(Stream& s) const {
+#if 1
     DepTree dep(*this);
 
     RecStreamer rec(s, 0);
     s << "module '" << name();
 
     return stream(rec, dep.root());
+#else
+    RecStreamer rec(s, std::numeric_limits<size_t>::max());
+    s << "module '" << name();
+
+    for (const auto& [name, nom] : externals()) {
+        rec.nominals.push(nom);
+        rec.run();
+    }
+
+    return s;
+#endif
 }
 
 Stream& World::stream(RecStreamer& rec, const DepNode* n) const {

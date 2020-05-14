@@ -427,7 +427,7 @@ const Def* Nat     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) con
 const Def* Pack    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
-const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o[0], o[1], o[2], dbg); }
+const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o[0], o[1]->as_nominal(), o[2]->as_nominal(), dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
 const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }

@@ -414,7 +414,7 @@ public:
     /// @name Analyze & Subst - used internally for Pass%es
     //@{
     const Analyze* analyze(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, debug(dbg)); }
-    const Def* subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg = {});
+    const Def* subst(const Def* def, Def* old_nom, Def* new_nom, Debug dbg = {});
     //@}
     /// @name misc operations
     //@{

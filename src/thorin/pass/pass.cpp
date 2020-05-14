@@ -45,11 +45,10 @@ bool PassMan::analyzed(const Def* def) {
 
 Def* PassMan::stub(Def* old_nom, const Def* type, const Def* dbg) {
     auto new_nom = old_nom->stub(world(), type, dbg);
-    size_t i = 0;
 
     if (old_nom->is_set()) {
-        for (auto op : old_nom->ops())
-            new_nom->set(i++, world().subst(op, old_nom->param(), new_nom->param(), op->debug()));
+        for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
+            new_nom->set(i, world().subst(old_nom->op(i), old_nom, new_nom, old_nom->op(i)->debug()));
     }
 
     return new_nom;
@@ -67,15 +66,14 @@ void PassMan::run() {
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
 
-    Array<std::array<Def*, 2>> old_new_exts(world().externals().size());
-    size_t i = 0;
-    for (const auto& [_, old_nom] : world().externals())
-        old_new_exts[i++] = {old_nom, stub(old_nom, old_nom->type(), old_nom->debug())};
 
-    for (const auto& [old_nom, new_nom] : old_new_exts) {
+    auto externals = world().externals(); // copy
+    for (const auto& [_, old_nom] : externals) {
+        auto new_nom = stub(old_nom, old_nom->type(), old_nom->debug());
         old_nom->unset();
         old_nom->make_internal();
         new_nom->make_external();
+
         map(old_nom, new_nom);
         analyzed(new_nom);
         cur_state().stack.push(new_nom);
@@ -85,11 +83,11 @@ void PassMan::run() {
 
     world().ILOG("finished");
     pop_states(0);
-    assert(states_.empty());
-    cleanup(world());
 
+    cleanup(world());
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
+
 }
 
 void PassMan::loop() {
@@ -99,9 +97,14 @@ void PassMan::loop() {
         if (!cur_nom->is_set()) continue;
 
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-            if (auto subst = cur_nom->op(i)->isa<Subst>())
-                cur_nom->set(i, rewrite(cur_nom, subst));
+            if (auto subst = cur_nom->op(i)->isa<Subst>()) {
+                cur_nom->set(i, subst->def());
+                map(subst->old_nom()->param(), subst->new_nom()->param());
+            }
         }
+
+        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
+            cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
 
         auto undo = No_Undo;
         for (auto op : cur_nom->extended_ops())
@@ -114,11 +117,6 @@ void PassMan::loop() {
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     if (old_def->is_const()) return old_def;
     if (auto new_def = lookup(old_def)) return *new_def;
-
-    if (auto subst = old_def->isa<Subst>()) {
-        map(subst->replacee(), subst->replacer());
-        return rewrite(cur_nom, subst->def());
-    }
 
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;

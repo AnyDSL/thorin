@@ -43,14 +43,14 @@ set(THORIN_SOURCES
     pass/grad_gen.h
     pass/inliner.cpp
     pass/inliner.h
-    pass/mem2reg.cpp
-    pass/mem2reg.h
     pass/optimize.cpp
     pass/optimize.h
     pass/partial_eval.cpp
     pass/partial_eval.h
     pass/pass.cpp
     pass/pass.h
+    pass/ssa_constr.cpp
+    pass/ssa_constr.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/codegen_prepare.h

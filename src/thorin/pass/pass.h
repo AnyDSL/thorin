@@ -89,7 +89,13 @@ public:
         return *this;
     }
     void run(); ///< Run all registered @p Pass%es on the whole @p world.
+    //@}
+    /// @name rewriting
+    //@{
     const Def* rewrite(Def*, const Def*);
+    template<class D> // D may be "Def" or "const Def"
+    D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
+    std::optional<const Def*> lookup(const Def* old_def);
     //@}
     /// @name getters
     //@{
@@ -118,9 +124,6 @@ private:
 
     /// @name state-related getters/setters
     //@{
-    std::optional<const Def*> lookup(const Def* old_def);
-    template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
     bool analyzed(const Def* def);
     void push_state();
     void pop_states(size_t undo);

@@ -1,11 +1,10 @@
-#if 0
-
-#ifndef THORIN_PASS_MEM2REG_H
-#define THORIN_PASS_MEM2REG_H
+#ifndef THORIN_PASS_SSA_CONSTR_H
+#define THORIN_PASS_SSA_CONST_RH
 
 #include <set>
 
 #include "thorin/pass/pass.h"
+#include "thorin/util/bitset.h"
 
 namespace thorin {
 
@@ -15,25 +14,24 @@ namespace thorin {
  * "Simple and Efficient Construction of Static Single Assignment Form"
  * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau
  */
-class Mem2Reg : public Pass {
+class SSAConstr : public Pass<SSAConstr> {
 public:
-    Mem2Reg(PassMan& man, size_t index)
-        : Pass(man, index, "mem2reg")
+    SSAConstr(PassMan& man, size_t index)
+        : Pass(man, index, "ssa_constr")
     {}
 
-    bool scope(Def* def) override { return def->isa<Lam>(); }
-    bool enter(Def* def) override { return def->isa<Lam>(); }
-    Def* inspect(Def*) override;
-    const Def* rewrite(const Def*) override;
-    bool analyze(const Def*) override;
-    void retry() override;
-    void clear() override;
+    Def* inspect(Def*, Def*) override;
+    void enter(Def*) override;
+    const Def* rewrite(Def*, const Def*) override;
+    size_t analyze(Def*, const Def*) override;
 
     struct Info {
         enum Lattice { Preds0, Preds1, PredsN, Keep };
 
-        Info()
+        Info() = default;
+        Info(size_t undo)
             : lattice(Preds0)
+            , undo(undo)
         {}
 
         GIDMap<const Analyze*, const Def*> proxy2val;
@@ -42,22 +40,24 @@ public:
         Lam* new_lam = nullptr;
         unsigned num_slots = 0;
         unsigned lattice :  2;
+        unsigned undo    : 30;
     };
+
+    using Lam2Info = LamMap<Info>;
+    using State    = std::tuple<Lam2Info>;
 
 private:
     const Analyze* isa_proxy(const Def*);
     const Analyze* isa_virtual_phi(const Def*);
     const Def* get_val(Lam*, const Analyze*);
-    const Def* get_val(const Analyze* proxy) { return get_val(man().cur_nom<Lam>(), proxy); }
     const Def* set_val(Lam*, const Analyze*, const Def*);
-    const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().cur_nom<Lam>(), proxy, val); }
 
+    auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, Info(man().cur_state_id())); }
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old_.lookup(new_lam)) return *old_lam;
         return new_lam;
     }
 
-    LamMap<Info> lam2info_;
     LamMap<Lam*> new2old_;
     LamMap<std::set<const Analyze*, GIDLt<const Analyze*>>> lam2phis_;
     DefSet keep_;
@@ -66,5 +66,4 @@ private:
 
 }
 
-#endif
 #endif

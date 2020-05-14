@@ -1,7 +1,6 @@
 #ifndef THORIN_PASS_PARTIAL_EVAL_H
 #define THORIN_PASS_PARTIAL_EVAL_H
 
-#if 0
 #include "thorin/pass/pass.h"
 
 namespace thorin {
@@ -9,13 +8,12 @@ namespace thorin {
 class PartialEval : public PassBase {
 public:
     PartialEval(PassMan& man, size_t index)
-        : PassBase(man, index)
+        : PassBase(man, index, "partial_eval")
     {}
 
-    const Def* rewrite(const Def*) override;
+    const Def* rewrite(Def*, const Def*) override;
 };
 
 }
 
-#endif
 #endif

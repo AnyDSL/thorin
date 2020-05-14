@@ -10,17 +10,28 @@ namespace thorin {
 
 void PassMan::push_state() {
     states_.emplace_back(num_passes());
+
     for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
         cur_state().data[i] = passes_[i]->alloc();
 
-    if (states_.size() > 1)
-        cur_state().stack = states_[states_.size() - 2].stack;
+    if (states_.size() > 1) {
+        const auto& prev_state = states_[states_.size() - 2];
+        cur_state().stack = prev_state.stack; // copy over stack
+        cur_state().cur_nom = prev_state.stack.top();
+        cur_state().old_ops = cur_state().cur_nom->ops();
+    }
 }
 
 void PassMan::pop_states(size_t undo) {
     while (states_.size() != undo) {
         for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
             passes_[i]->dealloc(cur_state().data[i]);
+
+        if (undo != 0) { // only reset if not final cleanup
+            if (cur_state().cur_nom)
+                cur_state().cur_nom->set(cur_state().old_ops);
+        }
+
         states_.pop_back();
     }
 }
@@ -44,8 +55,10 @@ bool PassMan::analyzed(const Def* def) {
 }
 
 Def* PassMan::stub(Def* old_nom, const Def* type, const Def* dbg) {
-    auto new_nom = old_nom->stub(world(), type, dbg);
+    auto [i, success] = cache_.emplace(old_nom, nullptr);
+    if (!success) return i->second;
 
+    auto new_nom = i->second = old_nom->stub(world(), type, dbg);
     if (old_nom->is_set()) {
         for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
             new_nom->set(i, world().subst(old_nom->op(i), old_nom, new_nom, old_nom->op(i)->debug()));
@@ -66,7 +79,6 @@ void PassMan::run() {
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
 
-
     auto externals = world().externals(); // copy
     for (const auto& [_, old_nom] : externals) {
         auto new_nom = stub(old_nom, old_nom->type(), old_nom->debug());
@@ -83,11 +95,10 @@ void PassMan::run() {
 
     world().ILOG("finished");
     pop_states(0);
-
     cleanup(world());
+
     if (world().min_level() == LogLevel::Debug)
         world().stream(world().stream());
-
 }
 
 void PassMan::loop() {
@@ -103,6 +114,9 @@ void PassMan::loop() {
             }
         }
 
+        for (auto&& pass : passes_)
+            pass->enter(cur_nom);
+
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
             cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
 
@@ -110,7 +124,11 @@ void PassMan::loop() {
         for (auto op : cur_nom->extended_ops())
             undo = std::min(undo, analyze(cur_nom, op));
 
-        if (undo != No_Undo) pop_states(undo);
+        if (undo != No_Undo) {
+            pop_states(undo-1);
+            world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
+            //assert(cur_state().cur_nom == cur_nom);
+        }
     }
 }
 

@@ -5,15 +5,14 @@
 
 namespace thorin {
 
-#if 0
 class Inliner : public Pass<Inliner> {
 public:
     Inliner(PassMan& man, size_t index)
-        : Pass(man, index)
+        : Pass(man, index, "inliner")
     {}
 
-    const Def* rewrite(const Def*) override;
-    void analyze(const Def*) override;
+    const Def* rewrite(Def*, const Def*) override;
+    size_t analyze(Def*, const Def*) override;
 
     enum Lattice { Bottom, Inlined_Once, Dont_Inline };
 
@@ -35,8 +34,6 @@ private:
 
     LamSet keep_;
 };
-
-#endif
 
 }
 

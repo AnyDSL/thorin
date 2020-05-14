@@ -1,27 +1,19 @@
 #include "thorin/pass/inliner.h"
 
-#if 0
 #include "thorin/rewrite.h"
 
 namespace thorin {
 
-// TODO here is another catch:
-// Say you have sth like this
-//  app(f, app(g, ...))
-// Now, this code will inline g and set g's lattice to Dont_Inline.
-// However, the inlined code might be dead after inlining f.
+static bool is_candidate(Lam* lam) { return lam != nullptr && lam->is_set() && !lam->is_external(); }
 
-bool is_candidate(Lam* lam) { return lam != nullptr && lam->is_set() && !lam->is_external(); }
-
-const Def* Inliner::rewrite(const Def* def) {
+const Def* Inliner::rewrite(Def* cur_nom, const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
             if (auto& info = lam2info(lam); info.lattice == Lattice::Bottom) {
                 info.lattice = Lattice::Inlined_Once;
                 info.undo = man().cur_state_id();
-                man().new_state();
                 world().DLOG("inline: {}", lam);
-                return man().rewrite(thorin::rewrite(lam, app->arg(), 1));
+                return man().rewrite(cur_nom, thorin::rewrite(lam, app->arg(), 1));
             }
         }
     }
@@ -29,12 +21,12 @@ const Def* Inliner::rewrite(const Def* def) {
     return def;
 }
 
-void Inliner::analyze(const Def* def) {
-    if (def->isa<Param>()) return;
+size_t Inliner::analyze(Def* cur_lam, const Def* def) {
+    if (def->isa<Param>()) return No_Undo;
 
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>()) {
-            if (keep_.contains(lam)) return;
+            if (keep_.contains(lam)) return No_Undo;
 
             auto& info = lam2info(lam);
             if (info.lattice == Lattice::Bottom) {
@@ -42,13 +34,14 @@ void Inliner::analyze(const Def* def) {
                 info.lattice = Lattice::Dont_Inline;
             } else if (info.lattice == Lattice::Inlined_Once) {
                 info.lattice = Lattice::Dont_Inline;
-                world().DLOG("rollback: {}", lam);
+                world().DLOG("rollback: {} - {}", cur_lam, lam);
                 keep_.emplace(lam);
-                man().undo(info.undo);
+                return info.undo;
             }
         }
     }
+
+    return No_Undo;
 }
 
 }
-#endif

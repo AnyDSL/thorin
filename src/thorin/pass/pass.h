@@ -89,6 +89,7 @@ public:
         return *this;
     }
     void run(); ///< Run all registered @p Pass%es on the whole @p world.
+    const Def* rewrite(Def*, const Def*);
     //@}
     /// @name getters
     //@{
@@ -107,6 +108,8 @@ private:
             : data(num)
         {}
 
+        Def* cur_nom = nullptr;
+        Array<const Def*> old_ops;
         std::stack<Def*> stack;
         Def2Def old2new;
         DefSet analyzed;
@@ -127,12 +130,12 @@ private:
     void loop();
     void enter(Def*);
     size_t rewrite(Def*);
-    const Def* rewrite(Def*, const Def*);
     size_t analyze(Def*, const Def*);
 
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
+    Nom2Nom cache_;
 
     template<class P> friend class Pass;
 };

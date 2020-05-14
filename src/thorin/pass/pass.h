@@ -4,7 +4,6 @@
 #include <map>
 
 #include "thorin/world.h"
-#include "thorin/analyses/deptree.h"
 
 namespace thorin {
 
@@ -79,7 +78,6 @@ public:
 
     PassMan(World& world)
         : world_(world)
-        , deptree_(world)
     {}
 
     /// @name create and run
@@ -109,23 +107,30 @@ private:
             : data(num)
         {}
 
-        std::map<ReplArray, Def2Def> map;
+        std::stack<Def*> stack;
+        Def2Def old2new;
         DefSet analyzed;
-        NomSet succs;
         Array<void*> data;
     };
 
+    /// @name state-related getters/setters
+    //@{
+    std::optional<const Def*> lookup(const Def* old_def);
+    template<class D> // D may be "Def" or "const Def"
+    D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
+    bool analyzed(const Def* def);
     void push_state();
-    void pop_state();
+    void pop_states(size_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
+    //@}
+    Def* stub(Def* old_nom, const Def* type, const Def* dbg);
+    void loop();
     void enter(Def*);
     size_t rewrite(Def*);
-    const Def* rewrite(Def*, const Def*, std::pair<const ReplArray, Def2Def>&);
+    const Def* rewrite(Def*, const Def*);
     size_t analyze(Def*, const Def*);
-    bool depends(Def*, Repls) const;
 
     World& world_;
-    DepTree deptree_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
 

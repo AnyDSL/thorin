@@ -717,19 +717,11 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Def* World::subst(Defs ops, Debug dbg) {
-    if (ops[0]->is_const()) return ops[0];
-    // TODO look through repl list
-    return unify<Subst>(ops.size(), ops, debug(dbg));
-}
+const Def* World::subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg) {
+    if (def->is_const() || replacee == replacer) return def;
+    if (def == replacee) return replacer;
 
-const Def* World::subst(const Def* def, const Param* replacee, const Def* replacer, Repls repls, Debug dbg) {
-    ReplArray repl_array(replacee, replacer, repls);
-    auto repl_data = reinterpret_cast<const Def* const*>(repl_array.data());
-    Array<const Def*> ops(repl_array.size()*2 + 1);
-    ops[0] = def;
-    std::copy(repl_data, repl_data + repl_array.size()*2, ops.begin()+1);
-    return subst(ops, dbg);
+    return unify<Subst>(3, def, replacee, replacer, debug(dbg));
 }
 
 /*

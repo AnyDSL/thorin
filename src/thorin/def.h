@@ -1126,46 +1126,19 @@ public:
     friend class World;
 };
 
-struct Repl {
-    Repl()
-        : replacee(nullptr)
-        , replacer(nullptr)
-    {}
-    Repl(const Param* replacee, const Def* replacer)
-        : replacee(replacee)
-        , replacer(replacer)
-    {}
-
-    bool operator<(const Repl& other) const { return this->replacee->gid() < other.replacee->gid(); }
-
-    const Param* replacee;
-    const Def* replacer;
-};
-
-typedef ArrayRef<Repl> Repls;
-
-/**
- * Subst a @p def by substituting some replacees with according replacers.
- * First @p op is always the @p def to be rewritten.
- * Then, we have @p num_repls many pairs of @c (replacee, replacer) in the remaining @p ops (see @p repls).
- * The @p repls are sorted by the replacees' @p gid .
- */
+/// Subst%itute a @p def by substituting the @p replacee with the replacer.
 class Subst : public Def {
 private:
-    Subst(Defs ops, const Def* dbg)
-        : Def(Node, ops.front()->type(), ops, 0, dbg)
+    Subst(const Def* def, const Def* replacee, const Def* replacer, const Def* dbg)
+        : Def(Node, def->type(), {def, replacee, replacer}, 0, dbg)
     {}
 
 public:
     /// @name ops
     //@{
     const Def* def() const { return op(0); }
-    size_t num_repls() const { return num_ops() >> 1; }
-    Repls repls() const { return Repls(num_repls(), reinterpret_cast<const Repl*>(ops().begin() + 1)); }
-    //@}
-    /// @name find a @c (replacee, replacer) pair by a given @p replacee
-    //@{
-    std::optional<Repl> find(const Param* replacee);
+    const Def* replacee() const { return op(1); }
+    const Def* replacer() const { return op(2); }
     //@}
     /// @name virtual methods
     //@{
@@ -1174,43 +1147,6 @@ public:
 
     static constexpr auto Node = Node::Subst;
     friend class World;
-};
-
-class ReplArray {
-public:
-    ReplArray() = default;
-    /// merges @p repls1 with @p repls2 in this @p ReplArray
-    ReplArray(Repls repls1, Repls repls2);
-    ReplArray(const Param* replacee, const Def* replacer, Repls repls);
-    ReplArray(Repls repls)
-        : repls_(repls.begin(), repls.end())
-    {}
-    ReplArray(size_t size)
-        : repls_(size)
-    {}
-
-    /// @name getters
-    //@{
-    size_t size() const { return repls_.size(); }
-    Repls repls() const { return repls_; }
-    operator Repls() const { return repls_; }
-    const Repl* data() const { return repls_.data(); }
-    //@}
-
-    /// @name find a @c (replacee, replacer) pair by a given replacee
-    //@{
-    std::optional<Repl> find(const Param* replacee) const { return find(replacee, repls()); }
-    static std::optional<Repl> find(const Param* replacee, Repls repls);
-    //@}
-
-    /// @name operator == and <
-    //@{
-    bool operator==(const ReplArray&) const;
-    bool operator< (const ReplArray&) const;
-    //@}
-
-private:
-    Array<Repl> repls_;
 };
 
 /**

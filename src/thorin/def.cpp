@@ -285,41 +285,6 @@ bool Ptrn::matches(const Def* arg) const {
 }
 
 /*
- * Subst/ReplArray
- */
-
-std::optional<Repl> Subst::find(const Param* replacee) { return ReplArray::find(replacee, repls()); }
-
-std::optional<Repl> ReplArray::find(const Param* replacee, Repls repls) {
-    Repl value = {replacee, nullptr};
-    auto i = std::lower_bound(repls.begin(), repls.end(), value);
-    if (i != repls.end() && replacee == i->replacee) return *i;
-    return std::nullopt;
-}
-
-bool ReplArray::operator==(const ReplArray& other) const {
-    bool result = this->repls_.size() == other.repls_.size();
-
-    for (size_t i = 0, e = repls_.size(); result && i != e; ++i)
-        result &= this->repls_[i].replacee->gid() == other.repls_[i].replacee->gid();
-
-    return result;
-}
-
-bool ReplArray::operator<(const ReplArray& other) const {
-    if (repls_.size() != other.repls_.size())
-        return this->repls_.size() < other.repls_.size();
-
-    for (size_t i = 0, e = repls_.size(); i != e; ++i) {
-        auto a = this->repls_[i].replacee->gid();
-        auto b = other.repls_[i].replacee->gid();
-        if (a != b) return a < b;
-    }
-
-    return false;
-}
-
-/*
  * Global
  */
 
@@ -392,20 +357,6 @@ Nat::Nat(World& world)
     : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
 {}
 
-ReplArray::ReplArray(const Param* replacee, const Def* replacer, Repls repls)
-    : repls_(repls.size() + 1)
-{
-    *std::copy(repls.begin(), repls.end(), repls_.begin()) = { replacee, replacer };
-    std::sort(repls_.begin(), repls_.end());
-}
-
-ReplArray::ReplArray(Repls repls1, Repls repls2)
-    : repls_(repls1.size() + repls2.size())
-{
-    std::copy(repls2.begin(), repls2.end(), std::copy(repls1.begin(), repls1.end(), repls_.begin()));
-    std::sort(repls_.begin(), repls_.end()); // maybe a manual merge sort is faster as both repls1 and repls2 are sorted
-}
-
 /*
  * param
  */
@@ -476,7 +427,7 @@ const Def* Nat     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) con
 const Def* Pack    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
-const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o, dbg); }
+const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o[0], o[1], o[2], dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
 const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }

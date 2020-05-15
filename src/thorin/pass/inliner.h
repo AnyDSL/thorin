@@ -22,11 +22,7 @@ public:
 
 private:
     bool first_inline(Lam* lam) { return get<LamMap<undo_t>>(lam, man().cur_state_id()).second; }
-    std::optional<size_t> inlined_once(Lam* lam) {
-        auto [i, success] = get<LamMap<undo_t>>(lam, man().cur_state_id());
-        if (!success) return std::make_optional(i->second);
-        return {};
-    }
+    std::optional<size_t> inlined_once(Lam* lam) { return retrieve<LamMap<undo_t>>(lam, man().cur_state_id()); }
 
     LamSet keep_;
 };

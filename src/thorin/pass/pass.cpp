@@ -27,10 +27,8 @@ void PassMan::pop_states(size_t undo) {
         for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
             passes_[i]->dealloc(cur_state().data[i]);
 
-        if (undo != 0) { // only reset if not final cleanup
-            if (cur_state().cur_nom)
-                cur_state().cur_nom->set(cur_state().old_ops);
-        }
+        if (undo != 0)// only reset if not final cleanup
+            cur_state().cur_nom->set(cur_state().old_ops);
 
         states_.pop_back();
     }
@@ -54,19 +52,6 @@ bool PassMan::analyzed(const Def* def) {
     return false;
 }
 
-Def* PassMan::stub(Def* old_nom, const Def* type, const Def* dbg) {
-    auto [i, success] = cache_.emplace(old_nom, nullptr);
-    if (!success) return i->second;
-
-    auto new_nom = i->second = old_nom->stub(world(), type, dbg);
-    if (old_nom->is_set()) {
-        for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i)
-            new_nom->set(i, world().subst(old_nom->op(i), old_nom, new_nom, old_nom->op(i)->debug()));
-    }
-
-    return new_nom;
-}
-
 //------------------------------------------------------------------------------
 
 void PassMan::run() {
@@ -77,16 +62,10 @@ void PassMan::run() {
         world().ILOG(" + {}", pass->name());
     world().debug_stream();
 
-    auto externals = world().externals(); // copy
-    for (const auto& [_, old_nom] : externals) {
-        auto new_nom = stub(old_nom, old_nom->type(), old_nom->debug());
-        old_nom->unset();
-        old_nom->make_internal();
-        new_nom->make_external();
-
-        map(old_nom, new_nom);
-        analyzed(new_nom);
-        cur_state().stack.push(new_nom);
+    for (const auto& [_, nom] : world().externals()) {
+        map(nom, nom);
+        analyzed(nom);
+        cur_state().stack.push(nom);
     }
 
     loop();
@@ -105,26 +84,28 @@ void PassMan::loop() {
         if (!cur_nom->is_set()) continue;
         world().DLOG("cur_nom: {}", cur_nom);
 
-        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-            if (auto subst = cur_nom->op(i)->isa<Subst>()) {
-                cur_nom->set(i, subst->def());
-                map(subst->old_nom()->param(), subst->new_nom()->param());
-            }
-        }
-
         for (auto&& pass : passes_)
             pass->enter(cur_nom);
 
-        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
-            cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
+        bool changed = false;
+        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
+            auto new_op = rewrite(cur_nom, cur_nom->op(i));
+            if (new_op != cur_nom->op(i)) {
+                cur_nom->set(i, new_op);
+                changed = true;
+            }
 
-        auto undo = No_Undo;
-        for (auto op : cur_nom->extended_ops())
-            undo = std::min(undo, analyze(cur_nom, op));
+        }
 
-        if (undo != No_Undo) {
-            pop_states(undo-1);
-            world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
+        if (changed) {
+            auto undo = No_Undo;
+            for (auto op : cur_nom->extended_ops())
+                undo = std::min(undo, analyze(cur_nom, op));
+
+            if (undo != No_Undo) {
+                pop_states(undo-1);
+                world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
+            }
         }
     }
 }
@@ -136,13 +117,11 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
 
-    if (auto old_nom = old_def->isa_nominal()) {
-        auto new_nom = stub(old_nom, new_type, new_dbg);
-
+    if (auto nom = old_def->isa_nominal()) {
         for (auto&& pass : passes_)
-            pass->inspect(cur_nom, new_nom);
+            pass->inspect(cur_nom, nom);
 
-        return map(old_nom, new_nom);
+        return map(nom, nom);
     }
 
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i)); });

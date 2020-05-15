@@ -717,13 +717,6 @@ const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Def* World::subst(const Def* def, Def* old_nom, Def* new_nom, Debug dbg) {
-    //if (def->is_const() || replacee == replacer) return def;
-    //if (def == replacee) return replacer;
-
-    return unify<Subst>(3, def, old_nom, new_nom, debug(dbg));
-}
-
 /*
  * misc
  */

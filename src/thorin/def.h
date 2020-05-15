@@ -1126,28 +1126,6 @@ public:
     friend class World;
 };
 
-class Subst : public Def {
-private:
-    Subst(const Def* def, Def* old_nom, Def* new_nom, const Def* dbg)
-        : Def(Node, def->type(), {def, old_nom, new_nom}, 0, dbg)
-    {}
-
-public:
-    /// @name ops
-    //@{
-    const Def* def() const { return op(0); }
-    Def* old_nom() const { return op(1)->as_nominal(); }
-    Def* new_nom() const { return op(2)->as_nominal(); }
-    //@}
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    //@}
-
-    static constexpr auto Node = Node::Subst;
-    friend class World;
-};
-
 /**
  * A global variable in the data segment.
  * A @p Global may be mutable or immutable.

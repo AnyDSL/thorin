@@ -122,7 +122,6 @@ private:
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     //@}
-    Def* stub(Def* old_nom, const Def* type, const Def* dbg);
     void loop();
     void enter(Def*);
     undo_t analyze(Def*, const Def*);
@@ -130,7 +129,6 @@ private:
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
-    Nom2Nom cache_;
 
     template<class P> friend class Pass;
 };
@@ -154,18 +152,6 @@ public:
     //@}
     /// @name search in the state stack
     //@{
-#if 0
-    /// Searches states from back to front in the map @p M for @p key and returns a @c std::optional.
-    template<class M>
-    std::optional<typename M::mapped_type> lookup(const typename M::key_type& key) {
-        for (auto i = man().states_.rbegin(), e = man().states_.rend(); i != e; ++i) {
-            auto& map = std::get<M>(*static_cast<typename P::State*>(i->data[index()]));
-            if (auto i = map.find(key); i != map.end()) return std::make_optional(i->second);
-        }
-
-        return {};
-    }
-#endif
     /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
     template<class M>
     auto get(const typename M::key_type& key, typename M::mapped_type&& init) {
@@ -175,6 +161,13 @@ public:
         }
 
         return std::get<M>(cur_state()).emplace(key, std::move(init));
+    }
+    /// Similar as above but retuns an optional if @p key is found, or @c std::nullopt otherwise while putting @p init into the map.
+    template<class M>
+    std::optional<typename M::mapped_type> retrieve(const typename M::key_type& key, typename M::mapped_type&& init) {
+        auto [i, success] = get<M>(key, std::move(init));
+        if (!success) return std::make_optional(i->second);
+        return {};
     }
     /// Same as above but uses the default constructor as init.
     template<class M>

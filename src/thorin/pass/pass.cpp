@@ -75,9 +75,7 @@ void PassMan::run() {
 
     for (auto&& pass : passes_)
         world().ILOG(" + {}", pass->name());
-
-    if (world().min_level() == LogLevel::Debug)
-        world().stream(world().stream());
+    world().debug_stream();
 
     auto externals = world().externals(); // copy
     for (const auto& [_, old_nom] : externals) {
@@ -95,10 +93,9 @@ void PassMan::run() {
 
     world().ILOG("finished");
     pop_states(0);
-    cleanup(world());
 
-    if (world().min_level() == LogLevel::Debug)
-        world().stream(world().stream());
+    cleanup(world());
+    world().debug_stream();
 }
 
 void PassMan::loop() {

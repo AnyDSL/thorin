@@ -498,7 +498,7 @@ public:
     /// @name logging
     //@{
     Stream& stream() { assert(state_.stream); return *state_.stream; }
-    LogLevel min_level() { return state_.min_level; }
+    LogLevel min_level() const { return state_.min_level; }
 
     void set(LogLevel min_level) { state_.min_level = min_level; }
     void set(Stream& stream) { state_.stream = &stream; }
@@ -528,14 +528,17 @@ public:
     static int level2color(LogLevel level);
     static std::string colorize(const std::string& str, int color);
     //@}
+    /// @name stream
+    //@{
+    Stream& stream(Stream&) const;
+    Stream& stream(RecStreamer&, const DepNode*) const;
+    void debug_stream(); ///< Stream thorin IR if @p min_level is @p LogLevel::Debug.
+    ///@}
     /// @name error handling
     //@{
     void set(std::unique_ptr<ErrorHandler>&& err);
     ErrorHandler* err() { return err_.get(); }
     //@}
-
-    Stream& stream(Stream&) const;
-    Stream& stream(RecStreamer&, const DepNode*) const;
 
     friend void swap(World& w1, World& w2) {
         using std::swap;

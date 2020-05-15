@@ -222,4 +222,8 @@ Stream& World::stream(RecStreamer& rec, const DepNode* n) const {
     return rec.s.dedent();
 }
 
+void World::debug_stream() {
+    if (min_level() == LogLevel::Debug) stream(stream());
+}
+
 }

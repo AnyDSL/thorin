@@ -1106,9 +1106,9 @@ public:
     friend class World;
 };
 
-class Analyze : public Def {
+class Proxy : public Def {
 private:
-    Analyze(const Def* type, Defs ops, fields_t index, const Def* dbg)
+    Proxy(const Def* type, Defs ops, fields_t index, const Def* dbg)
         : Def(Node, type, ops, index, dbg)
     {}
 
@@ -1122,7 +1122,7 @@ public:
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     //@}
 
-    static constexpr auto Node = Node::Analyze;
+    static constexpr auto Node = Node::Proxy;
     friend class World;
 };
 

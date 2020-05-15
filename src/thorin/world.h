@@ -401,7 +401,7 @@ public:
     const Def* op_load (const Def* mem, const Def* ptr, Debug dbg = {})                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
     const Def* op_alloc(const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
-    const Def* op_slot (const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, Debug dbg = {}) { auto id = lit_nat(cur_gid()); return app(app(op_slot(), {type, lit_nat(0)}), {mem, id}, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_nat(state_.cur_gid), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
@@ -411,9 +411,9 @@ public:
     const Def* op(PE o) { return data_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
-    /// @name Analyze - used internally for Pass%es
+    /// @name Proxy - used internally for Pass%es
     //@{
-    const Analyze* analyze(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, debug(dbg)); }
+    const Proxy* proxy(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, debug(dbg)); }
     //@}
     /// @name misc operations
     //@{

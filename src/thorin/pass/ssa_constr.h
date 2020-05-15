@@ -34,8 +34,8 @@ public:
             , undo(undo)
         {}
 
-        GIDMap<const Analyze*, const Def*> proxy2val;
-        GIDSet<const Analyze*> writable;
+        GIDMap<const Proxy*, const Def*> proxy2val;
+        GIDSet<const Proxy*> writable;
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
         unsigned num_slots = 0;
@@ -47,10 +47,10 @@ public:
     using State    = std::tuple<Lam2Info>;
 
 private:
-    const Analyze* isa_proxy(const Def*);
-    const Analyze* isa_virtual_phi(const Def*);
-    const Def* get_val(Lam*, const Analyze*);
-    const Def* set_val(Lam*, const Analyze*, const Def*);
+    const Proxy* isa_sloxy(const Def*);
+    const Proxy* isa_phixy(const Def*);
+    const Def* get_val(Lam*, const Proxy*);
+    const Def* set_val(Lam*, const Proxy*, const Def*);
 
     auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, Info(man().cur_state_id())).first->second; }
     Lam* original(Lam* new_lam) {
@@ -59,7 +59,7 @@ private:
     }
 
     LamMap<Lam*> new2old_;
-    LamMap<std::set<const Analyze*, GIDLt<const Analyze*>>> lam2phis_;
+    LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_;
     DefSet keep_;
     LamSet preds_n_;
 };

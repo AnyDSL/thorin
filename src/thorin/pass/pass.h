@@ -47,6 +47,9 @@ public:
     /// Invoked after the @p PassMan has finished @p rewrite%ing @p cur_nom to analyze @p def. Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     ///@}
+    /// @name Proxy-related operations
+    const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return world().proxy(type, ops, index(), dbg); }
+    const Proxy* isa_proxy(const Def* def) { return isa<Proxy>(index(), def); }
     /// @name mangage state - dummy implementations here
     //@{
     virtual void* alloc() { return nullptr; }

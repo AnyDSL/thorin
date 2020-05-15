@@ -408,7 +408,6 @@ const Def* Def::reduce() const {
  * rebuild
  */
 
-const Def* Analyze ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.analyze(t, o, fields(), dbg); }
 const Def* App     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.app(o[0], o[1], dbg); }
 const Def* Arr     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.arr(o[0], o[1], dbg); }
 const Def* Axiom   ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.axiom(normalizer(), t, tag(), flags(), dbg); }
@@ -427,6 +426,7 @@ const Def* Nat     ::rebuild(World& w, const Def*  , Defs  , const Def*    ) con
 const Def* Pack    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
+const Def* Proxy   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, fields(), dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
 const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }

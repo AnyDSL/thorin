@@ -194,7 +194,7 @@ Stream& World::stream(Stream& s) const {
     RecStreamer rec(s, 0);
     s << "module '" << name();
 
-    return stream(rec, dep.root());
+    return stream(rec, dep.root()).endl();
 #else
     RecStreamer rec(s, std::numeric_limits<size_t>::max());
     s << "module '" << name();

@@ -106,6 +106,7 @@ void PassMan::loop() {
         push_state();
         auto cur_nom = pop(cur_state().stack);
         if (!cur_nom->is_set()) continue;
+        world().DLOG("cur_nom: {}", cur_nom);
 
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
             if (auto subst = cur_nom->op(i)->isa<Subst>()) {
@@ -168,7 +169,6 @@ size_t PassMan::analyze(Def* cur_nom, const Def* def) {
     for (auto op : def->extended_ops())
         undo = std::min(undo, analyze(cur_nom, op));
 
-    world().DLOG("analyze: {}", def);
     for (auto&& pass : passes_)
         undo = std::min(undo, pass->analyze(cur_nom, def));
 

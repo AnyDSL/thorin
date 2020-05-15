@@ -12,25 +12,21 @@ public:
     {}
 
     const Def* rewrite(Def*, const Def*) override;
-    size_t analyze(Def*, const Def*) override;
+    undo_t analyze(Def*, const Def*) override;
 
-    enum Lattice { Bottom, Inlined_Once, Dont_Inline };
-
-    struct Info {
-        Info() = default;
-        Info(Lattice lattice, size_t undo)
-            : lattice(lattice)
-            , undo(undo)
-        {}
-
-        unsigned lattice :  4;
-        unsigned undo    : 28;
-    };
-
-    using State = std::tuple<LamMap<Info>>;
+    // 3 cases:
+    // * lam is keep_                        -> never inline
+    // * lam is not in this map              -> we have never seen this and it's safe to inline
+    // * lam is in this map but not in keep_ -> inlined once
+    using State = std::tuple<LamMap<undo_t>>;
 
 private:
-    Info& lam2info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, man().cur_state_id())); }
+    bool first_inline(Lam* lam) { return get<LamMap<undo_t>>(lam, man().cur_state_id()).second; }
+    std::optional<size_t> inlined_once(Lam* lam) {
+        auto [i, success] = get<LamMap<undo_t>>(lam, man().cur_state_id());
+        if (!success) return std::make_optional(i->second);
+        return {};
+    }
 
     LamSet keep_;
 };

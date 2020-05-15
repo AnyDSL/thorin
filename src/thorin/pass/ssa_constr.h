@@ -12,7 +12,7 @@ namespace thorin {
  * SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
  * This is loosely based upon:
  * "Simple and Efficient Construction of Static Single Assignment Form"
- * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau
+ * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
  */
 class SSAConstr : public Pass<SSAConstr> {
 public:
@@ -20,10 +20,10 @@ public:
         : Pass(man, index, "ssa_constr")
     {}
 
-    Def* inspect(Def*, Def*) override;
+    void inspect(Def*, Def*) override;
     void enter(Def*) override;
     const Def* rewrite(Def*, const Def*) override;
-    size_t analyze(Def*, const Def*) override;
+    undo_t analyze(Def*, const Def*) override;
 
     struct Info {
         enum Lattice { Preds0, Preds1, PredsN, Keep };
@@ -52,7 +52,7 @@ private:
     const Def* get_val(Lam*, const Analyze*);
     const Def* set_val(Lam*, const Analyze*, const Def*);
 
-    auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, Info(man().cur_state_id())); }
+    auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, Info(man().cur_state_id())).first->second; }
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old_.lookup(new_lam)) return *old_lam;
         return new_lam;

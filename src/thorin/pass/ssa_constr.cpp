@@ -4,6 +4,10 @@
 
 namespace thorin {
 
+/*
+ * helpers
+ */
+
 static const Def* proxy_type(const Analyze* proxy) { return as<Tag::Ptr>(proxy->type())->arg(0); }
 static std::tuple<Lam*, int64_t>        split_proxy      (const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), as_lit<u64>(proxy->op(1))};  }
 static std::tuple<Lam*, const Analyze*> split_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
@@ -16,6 +20,69 @@ const Analyze* SSAConstr::isa_proxy(const Def* def) {
 const Analyze* SSAConstr::isa_virtual_phi(const Def* def) {
     if (auto analyze = isa<Analyze>(index(), def); analyze && analyze->op(1)->isa<Analyze>()) return analyze;
     return nullptr;
+}
+
+/*
+ * PassMan hooks
+ */
+
+void SSAConstr::inspect(Def*, Def* nom) {
+    if (auto old_lam = nom->isa<Lam>()) {
+        auto& info = lam2info(old_lam);
+        if (preds_n_.contains(old_lam)) info.lattice = Info::PredsN;
+        if (keep_   .contains(old_lam)) info.lattice = Info::Keep;
+
+        if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
+            info.lattice = Info::Keep;
+        } else if (info.lattice != Info::Keep) {
+            auto& info = lam2info(old_lam);
+            auto& phis = lam2phis_[old_lam];
+
+            if (info.lattice == Info::PredsN && !phis.empty()) {
+                std::vector<const Def*> types;
+                for (auto i = phis.begin(); i != phis.end();) {
+                    auto proxy = *i;
+                    if (keep_.contains(proxy)) {
+                        i = phis.erase(i);
+                    } else {
+                        types.emplace_back(proxy_type(proxy));
+                        ++i;
+                    }
+                }
+                //Array<const Def*> types(phis.size(), [&](auto) { return proxy_type(*phi++); });
+                auto new_domain = merge_sigma(old_lam->domain(), types);
+                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+                world().DLOG("new_lam: {} -> {}", old_lam, new_lam);
+                new2old_[new_lam] = old_lam;
+                info.new_lam = new_lam;
+                lam2info(new_lam).lattice = Info::PredsN;
+            }
+        }
+    }
+}
+
+void SSAConstr::enter(Def* def) {
+    if (auto new_lam = def->isa<Lam>()) {
+        world().DLOG("enter: {}", new_lam);
+
+        if (auto old_lam_opt = new2old_.lookup(new_lam)) {
+            auto old_lam = *old_lam_opt;
+            if (!old_lam->is_set()) return;
+
+            auto& phis = lam2phis_[old_lam];
+
+            world().DLOG("enter: {}/{}", old_lam, new_lam);
+            size_t n = new_lam->num_params() - phis.size();
+
+            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
+            man().map(old_lam->param(), new_param);
+            new_lam->set(old_lam->ops());
+
+            size_t i = 0;
+            for (auto phi : phis)
+                set_val(new_lam, phi, new_lam->param(n + i++));
+        }
+    }
 }
 
 const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
@@ -57,67 +124,6 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     }
 
     return def;
-}
-
-Def* SSAConstr::inspect(Def*, Def* nom) {
-    if (auto old_lam = nom->isa<Lam>()) {
-        auto& info = lam2info(old_lam);
-        if (preds_n_.contains(old_lam)) info.lattice = Info::PredsN;
-        if (keep_   .contains(old_lam)) info.lattice = Info::Keep;
-
-        if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
-            info.lattice = Info::Keep;
-        } else if (info.lattice != Info::Keep) {
-            auto& info = lam2info(old_lam);
-            auto& phis = lam2phis_[old_lam];
-
-            if (info.lattice == Info::PredsN && !phis.empty()) {
-                std::vector<const Def*> types;
-                for (auto i = phis.begin(); i != phis.end();) {
-                    auto proxy = *i;
-                    if (keep_.contains(proxy)) {
-                        i = phis.erase(i);
-                    } else {
-                        types.emplace_back(proxy_type(proxy));
-                        ++i;
-                    }
-                }
-                //Array<const Def*> types(phis.size(), [&](auto) { return proxy_type(*phi++); });
-                auto new_domain = merge_sigma(old_lam->domain(), types);
-                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
-                world().DLOG("new_lam: {} -> {}", old_lam, new_lam);
-                new2old_[new_lam] = old_lam;
-                info.new_lam = new_lam;
-                lam2info(new_lam).lattice = Info::PredsN;
-            }
-        }
-    }
-
-    return nullptr; // TODO
-}
-
-void SSAConstr::enter(Def* def) {
-    if (auto new_lam = def->isa<Lam>()) {
-        world().DLOG("enter: {}", new_lam);
-
-        if (auto old_lam_opt = new2old_.lookup(new_lam)) {
-            auto old_lam = *old_lam_opt;
-            if (!old_lam->is_set()) return;
-
-            auto& phis = lam2phis_[old_lam];
-
-            world().DLOG("enter: {}/{}", old_lam, new_lam);
-            size_t n = new_lam->num_params() - phis.size();
-
-            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
-            man().map(old_lam->param(), new_param);
-            new_lam->set(old_lam->ops());
-
-            size_t i = 0;
-            for (auto phi : phis)
-                set_val(new_lam, phi, new_lam->param(n + i++));
-        }
-    }
 }
 
 const Def* SSAConstr::get_val(Lam* lam, const Analyze* proxy) {

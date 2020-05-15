@@ -1,4 +1,3 @@
-#if 0
 #include "thorin/pass/copy_prop.h"
 
 #include "thorin/util.h"
@@ -29,7 +28,7 @@ bool CopyProp::join(const Def*& a, const Def* b) {
  * PassMan hooks
  */
 
-Def* CopyProp::inspect(Def* def) {
+void CopyProp::inspect(Def*, Def*) {
     /*
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info_[old_lam];
@@ -74,14 +73,15 @@ Def* CopyProp::inspect(Def* def) {
             }
         }
     }
-
     */
-    return def;
 }
 
-const Def* CopyProp::rewrite(const Def* def) {
+void CopyProp::enter(Def*) {
+}
+
+const Def* CopyProp::rewrite(Def*, const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !man().outside(lam)) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam /*&& !man().outside(lam) TODO */) {
             //const auto& info = lam2info_[lam];
             /*
             if (auto new_lam = info.new_lam) {
@@ -97,9 +97,10 @@ const Def* CopyProp::rewrite(const Def* def) {
     return def;
 }
 
-bool CopyProp::analyze(const Def* def) {
-    if (def->isa<Param>()) return true;
+undo_t CopyProp::analyze(Def*, const Def* def) {
+    if (def->isa<Param>()) return No_Undo;
 
+    /*
     if (auto app = def->isa<App>()) {
         if (auto new_lam = app->callee()->isa_nominal<Lam>()) {
             if (auto old_lam = new2old_.lookup(new_lam)) {
@@ -107,23 +108,13 @@ bool CopyProp::analyze(const Def* def) {
                 bool todo = false;
                 for (size_t i = 0, e = app->num_args(); i != e; ++i)
                     todo |= join(info.args[i], app->arg(i));
-                return !todo;
+                return No_Undo;
             }
         }
     }
+    */
 
-    return true;
-}
-
-void CopyProp::retry() {
-    lam2info_.clear();
-}
-
-void CopyProp::clear() {
-    retry();
-    new2old_.clear();
-    keep_.clear();
+    return No_Undo;
 }
 
 }
-#endif

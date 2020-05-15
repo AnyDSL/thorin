@@ -38,7 +38,6 @@ public:
         GIDSet<const Proxy*> writable;
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
-        unsigned num_slots = 0;
         unsigned lattice :  2;
         unsigned undo    : 30;
     };

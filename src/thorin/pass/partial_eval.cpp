@@ -11,8 +11,8 @@ const Def* PartialEval::rewrite(Def* cur_nom, const Def* def) {
 
             Scope scope(lam);
             if (auto filter = isa_lit<bool>(thorin::rewrite(lam, app->arg(), 0, scope)); filter && *filter) {
-                world().DLOG("PE: {}", lam);
-                return man().rewrite(cur_nom, thorin::rewrite(lam, app->arg(), 1, scope));
+                world().DLOG("PE {} within {}", lam, cur_nom);
+                return thorin::rewrite(lam, app->arg(), 1, scope);
             }
         }
     }

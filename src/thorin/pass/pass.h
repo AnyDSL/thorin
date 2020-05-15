@@ -92,9 +92,8 @@ public:
     size_t num_passes() const { return passes_.size(); }
     undo_t cur_state_id() const { return states_.size(); }
     //@}
-    /// @name rewriting
+    /// @name working with the rewrite-map
     //@{
-    const Def* rewrite(Def*, const Def*);
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
     std::optional<const Def*> lookup(const Def* old_def);
@@ -118,15 +117,13 @@ private:
         Array<void*> data;
     };
 
-    /// @name state-related getters/setters
-    //@{
-    bool analyzed(const Def* def);
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    //@}
     void loop();
     void enter(Def*);
+    const Def* rewrite(Def*, const Def*);
+    bool analyzed(const Def* def);
     undo_t analyze(Def*, const Def*);
 
     World& world_;

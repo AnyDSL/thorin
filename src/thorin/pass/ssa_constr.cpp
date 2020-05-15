@@ -83,9 +83,8 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
         if (auto slot = isa<Tag::Slot>(def)) {
             auto [out_mem, out_ptr] = slot->split<2>();
             auto orig = original(cur_lam);
-            auto& info = lam2info(orig);
-            auto slot_id = info.num_slots++;
-            auto sloxy = proxy(out_ptr->type(), {orig, world().lit_nat(slot_id)}, slot->debug());
+            auto [_, slot_id] = slot->args<2>();
+            auto sloxy = proxy(out_ptr->type(), {orig, slot_id}, slot->debug());
             if (!keep_.contains(sloxy)) {
                 set_val(cur_lam, sloxy, world().bot(sloxy_type(sloxy)));
                 lam2info(cur_lam).writable.emplace(sloxy);
@@ -150,15 +149,15 @@ size_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     if (def->isa<Param>()) return No_Undo;
 
     // we need to install a phi in lam next time around
-    if (auto phi = isa_phixy(def)) {
-        auto [phi_lam, sloxy] = split_phixy(phi);
+    if (auto phixy = isa_phixy(def)) {
+        auto [phixy_lam, sloxy] = split_phixy(phixy);
         auto [sloxy_lam, slot_id] = split_sloxy(sloxy);
 
-        auto& phi_info   = lam2info(phi_lam);
+        auto& phixy_info = lam2info(phixy_lam);
         auto& sloxy_info = lam2info(sloxy_lam);
-        auto& phis = lam2phis_[phi_lam];
+        auto& phis = lam2phis_[phixy_lam];
 
-        if (phi_info.lattice == Info::Keep) {
+        if (phixy_info.lattice == Info::Keep) {
             if (keep_.emplace(sloxy).second) {
                 world().DLOG("keep: {}", sloxy);
                 if (auto i = phis.find(sloxy); i != phis.end())
@@ -166,11 +165,11 @@ size_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
                 return sloxy_info.undo;
             }
         } else {
-            assert(phi_info.lattice == Info::PredsN);
-            assertf(phis.find(sloxy) == phis.end(), "already added sloxy {} to {}", sloxy, phi_lam);
+            assert(phixy_info.lattice == Info::PredsN);
+            assertf(phis.find(sloxy) == phis.end(), "already added sloxy {} to {}", sloxy, phixy_lam);
             phis.emplace(sloxy);
-            world().DLOG("phi needed: {}", phi);
-            return phi_info.undo;
+            world().DLOG("phi needed: {}", phixy);
+            return phixy_info.undo;
         }
     } else if (isa_sloxy(def)) {
         return No_Undo;

@@ -10,7 +10,7 @@ const Def* Inliner::rewrite(Def* cur_nom, const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam) && first_inline(lam)) {
             world().DLOG("inline {} within {}", lam, cur_nom);
-            return man().rewrite(cur_nom, thorin::rewrite(lam, app->arg(), 1));
+            return thorin::rewrite(lam, app->arg(), 1);
         }
     }
 

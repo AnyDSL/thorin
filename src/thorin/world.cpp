@@ -171,12 +171,12 @@ World::World(const std::string& name) {
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         data_.op_alloc_ = axiom(nullptr, type, Tag::Alloc, 0, {"alloc"});
-    } { // slot: Π[T: *, as: nat]. Π[M, nat]. [M, ptr(T, as)]
+    } { // slot: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
-        type->set_codomain(pi(sigma({mem, nat}), sigma({mem, ptr})));
+        type->set_codomain(pi(mem, sigma({mem, ptr})));
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, {"slot"});
     } { // type_tangent_vector: Π*. *
         data_.type_tangent_vector_ = axiom(normalize_tangent, pi(star, star), Tag::TangentVector, 0, {"tangent"});

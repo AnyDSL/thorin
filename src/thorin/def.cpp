@@ -128,6 +128,7 @@ void Def::finalize() {
 }
 
 Def* Def::set(size_t i, const Def* def) {
+    if (op(i) == def) return this;
     if (op(i) != nullptr) unset(i);
 
     if (def != nullptr) {

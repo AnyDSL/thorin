@@ -44,7 +44,8 @@ public:
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
     virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
 
-    /// Invoked after the @p PassMan has finished @p rewrite%ing @p cur_nom to analyze @p def. Return @p No_Undo or the state to roll back to.
+    /// Invoked after the @p PassMan has finished @p rewrite%ing @p cur_nom to analyze @p def.
+    /// Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     ///@}
     /// @name Proxy-related operations
@@ -110,11 +111,11 @@ private:
         {}
 
         Def* cur_nom = nullptr;
+        Array<void*> data;
         Array<const Def*> old_ops;
         std::stack<Def*> stack;
         Def2Def old2new;
         DefSet analyzed;
-        Array<void*> data;
     };
 
     void push_state();

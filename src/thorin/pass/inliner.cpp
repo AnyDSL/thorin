@@ -18,15 +18,15 @@ const Def* Inliner::rewrite(Def* cur_nom, const Def* def) {
 }
 
 undo_t Inliner::analyze(Def* cur_nom, const Def* def) {
+    if (def->isa<Param>()) return No_Undo;
+
     auto undo = No_Undo;
-    if (!def->isa<Param>()) {
-        for (auto op : def->ops()) {
-            if (auto lam = op->isa_nominal<Lam>()) {
-                if (keep_.emplace(lam).second) {
-                    if (auto lam_undo = inlined_once(lam)) {
-                        world().DLOG("undo to {} inlinining of {} within {}", *lam_undo, lam, cur_nom);
-                        undo = std::min(undo, *lam_undo);
-                    }
+    for (auto op : def->ops()) {
+        if (auto lam = op->isa_nominal<Lam>()) {
+            if (keep_.emplace(lam).second) {
+                if (auto lam_undo = inlined_once(lam)) {
+                    world().DLOG("undo to {} inlinining of {} within {}", *lam_undo, lam, cur_nom);
+                    undo = std::min(undo, *lam_undo);
                 }
             }
         }

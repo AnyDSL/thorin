@@ -49,38 +49,31 @@ void PassMan::run() {
     world().ILOG("finished");
     pop_states(0);
 
-    cleanup(world());
     world().debug_stream();
+    cleanup(world());
 }
 
 void PassMan::loop() {
     while (!cur_state().stack.empty()) {
         push_state();
         auto cur_nom = pop(cur_state().stack);
-        if (!cur_nom->is_set()) continue;
         world().DLOG("cur_nom: {}", cur_nom);
 
         for (auto&& pass : passes_)
             pass->enter(cur_nom);
 
-        bool changed = false;
-        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-            auto new_op = rewrite(cur_nom, cur_nom->op(i));
-            if (new_op != cur_nom->op(i)) {
-                cur_nom->set(i, new_op);
-                changed = true;
-            }
-        }
+        if (!cur_nom->is_set()) continue;
 
-        if (changed) {
-            auto undo = No_Undo;
-            for (auto op : cur_nom->extended_ops())
-                undo = std::min(undo, analyze(cur_nom, op));
+        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
+            cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
 
-            if (undo != No_Undo) {
-                pop_states(undo-1);
-                world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
-            }
+        auto undo = No_Undo;
+        for (auto op : cur_nom->extended_ops())
+            undo = std::min(undo, analyze(cur_nom, op));
+
+        if (undo != No_Undo) {
+            pop_states(undo-1);
+            world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
         }
     }
 }
@@ -132,17 +125,16 @@ bool PassMan::analyzed(const Def* def) {
 size_t PassMan::analyze(Def* cur_nom, const Def* def) {
     if (def->is_const() || analyzed(def)) return No_Undo;
 
+    auto undo = No_Undo;
     if (auto nom = def->isa_nominal()) {
         cur_state().stack.push(nom);
-        return No_Undo;
+    } else {
+        for (auto op : def->extended_ops())
+            undo = std::min(undo, analyze(cur_nom, op));
+
+        for (auto&& pass : passes_)
+            undo = std::min(undo, pass->analyze(cur_nom, def));
     }
-
-    auto undo = No_Undo;
-    for (auto op : def->extended_ops())
-        undo = std::min(undo, analyze(cur_nom, op));
-
-    for (auto&& pass : passes_)
-        undo = std::min(undo, pass->analyze(cur_nom, def));
 
     return undo;
 }

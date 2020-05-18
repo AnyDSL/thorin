@@ -571,8 +571,8 @@ private:
         if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
         assert(!def->isa_nominal());
-        auto [i, success] = data_.defs_.emplace(def);
-        if (success) {
+        auto [i, inserted] = data_.defs_.emplace(def);
+        if (inserted) {
             def->finalize();
             return def;
         }

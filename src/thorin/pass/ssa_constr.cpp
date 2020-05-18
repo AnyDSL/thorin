@@ -14,7 +14,7 @@ const Proxy* SSAConstr::isa_phixy(const Def* def) { if (auto p = isa_proxy(def);
 // both sloxy and phixy reference the *old* lam
 // the value map for get_val/set_val uses the *new* lam
 
-void SSAConstr::inspect(Def*, Def* nom) {
+void SSAConstr::visit(Def*, Def* nom) {
     auto mem_lam = nom->isa<Lam>();
     if (mem_lam == nullptr || mem_lam->is_intrinsic() || mem_lam->is_external()) return;
     if (keep_.contains(mem_lam) || !preds_n_.contains(mem_lam)) return;

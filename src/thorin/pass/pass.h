@@ -35,8 +35,8 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    /// Inspects a @p nom%inal when first encountering it during @p rewrite%ing @p cur_nom.
-    virtual void inspect([[maybe_unused]] Def* cur_nom, [[maybe_unused]] Def* nom) {}
+    /// Inspects a @p nom%inal when first visited during @p rewrite%ing @p cur_nom.
+    virtual void visit([[maybe_unused]] Def* cur_nom, [[maybe_unused]] Def* nom) {}
 
     /// Invoked just before @em nom%inal is rewritten.
     virtual void enter([[maybe_unused]] Def* nom) {}
@@ -202,7 +202,7 @@ public:
 
     /// Similar as above but retuns an @c std::optional if @p key is found, or @c std::nullopt otherwise while putting @p init into the map.
     template<class M>
-    std::optional<std::pair<typename M::mapped_type, undo_t>> retrieve(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
+    auto retrieve(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
         auto [i, inserted, undo] = get<M>(key, std::move(init));
         if (!inserted) return std::make_optional(std::pair(i->second, undo));
         return {};

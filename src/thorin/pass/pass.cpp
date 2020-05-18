@@ -83,7 +83,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
 
     if (auto nom = old_def->isa_nominal()) {
         for (auto&& pass : passes_)
-            pass->inspect(cur_nom, nom);
+            pass->visit(cur_nom, nom);
 
         return map(nom, nom);
     }

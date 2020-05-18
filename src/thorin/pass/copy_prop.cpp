@@ -28,7 +28,7 @@ bool CopyProp::join(const Def*& a, const Def* b) {
  * PassMan hooks
  */
 
-void CopyProp::inspect(Def*, Def*) {
+void CopyProp::visit(Def*, Def*) {
     /*
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info_[old_lam];

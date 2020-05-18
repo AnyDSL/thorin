@@ -67,7 +67,8 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
         auto lam = mem2lam(cur_lam);
-        auto slot_id = lam2info(lam).num_slots++;
+        auto&& [enter, _] = get<Enter>(lam);
+        auto slot_id = enter.num_slots++;
         auto sloxy = proxy(out_ptr->type(), {lam, world().lit_nat(slot_id)}, slot->debug());
         if (!keep_.contains(sloxy)) {
             set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
@@ -101,27 +102,30 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
 }
 
 const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
-    const auto& info = lam2info(lam);
-
-    if (auto val = info.sloxy2val.lookup(sloxy)) {
+    auto&& [enter, _] = get<Enter>(lam);
+    if (auto val = enter.sloxy2val.lookup(sloxy)) {
         world().DLOG("get_val {} for {}: {}", lam, sloxy, *val);
         return *val;
-    } else if (preds_n_.contains(lam)) {
-        auto mem_lam = mem2lam(lam);
-        world().DLOG("phixy: {}/{} for {}", mem_lam, lam, sloxy);
-        return set_val(lam, sloxy, proxy(get_sloxy_type(sloxy), {mem_lam, sloxy}, {"phi"}));
-    } else if (info.lattice == Info::Preds1) {
-        world().DLOG("get_val pred: {}: {} -> {}", sloxy, lam, info.pred);
-        return get_val(info.pred, sloxy);
     } else {
-        assert(info.lattice == Info::Preds0);
-        return world().bot(get_sloxy_type(sloxy));
+        auto&& [visit, _] = get<Visit>(lam);
+        if (preds_n_.contains(lam)) {
+            auto mem_lam = mem2lam(lam);
+            world().DLOG("phixy: {}/{} for {}", mem_lam, lam, sloxy);
+            return set_val(lam, sloxy, proxy(get_sloxy_type(sloxy), {mem_lam, sloxy}, {"phi"}));
+        } else if (visit.preds == Visit::Preds1) {
+            world().DLOG("get_val pred: {}: {} -> {}", sloxy, lam, visit.pred);
+            return get_val(visit.pred, sloxy);
+        } else {
+            assert(visit.preds == Visit::Preds0);
+            return world().bot(get_sloxy_type(sloxy));
+        }
     }
 }
 
 const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
     world().DLOG("set_val {} for {}: {}", lam, sloxy, val);
-    return lam2info(lam).sloxy2val[sloxy] = val;
+    auto&& [enter, _] = get<Enter>(lam);
+    return enter.sloxy2val[sloxy] = val;
 }
 
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
@@ -138,7 +142,8 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
 
             if (keep_.emplace(sloxy).second) {
                 world().DLOG("keep: {}; pointer needed for: {}", sloxy, def);
-                undo = std::min(undo, (undo_t) lam2info(sloxy_lam).undo);
+                auto&& [_, undo_enter] = get<Enter>(sloxy_lam);
+                undo = std::min(undo, undo_enter);
             }
         } else if (auto phixy = isa_phixy(op)) {
             // we need to install a phi in lam next time around
@@ -151,46 +156,43 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
                     world().DLOG("keep: {}; I can't adjust {}", sloxy, phixy_lam);
                     erase_phi_lam(phixy_lam);
                     if (auto i = phis.find(sloxy); i != phis.end()) phis.erase(i);
-                    return lam2info(sloxy_lam).undo;
+                    auto&& [_, undo_visit] = get<Visit>(sloxy_lam);
+                    undo = std::min(undo, undo_visit);
                 }
             } else {
                 phis.emplace(sloxy);
                 erase_phi_lam(phixy_lam);
                 world().DLOG("phi needed: {} for {}", phixy, phixy_lam);
-                return lam2info(phixy_lam).undo;
+                auto&& [_, undo_visit] = get<Visit>(phixy_lam);
+                undo = std::min(undo, undo_visit);
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
             // TODO optimize
             //if (lam->is_basicblock() && lam != man().cur_lam())
                 //lam2info(lam).writable.insert_range(range(lam2info(man().cur_lam()).writable));
             lam = mem2lam(lam);
-            auto& info = lam2info(lam);
+            auto&& [visit, undo_visit] = get<Visit>(lam);
             auto& phis = lam2phis_[lam];
 
             if (preds_n_.contains(lam)) {
-            } else if (info.lattice == Info::Preds1) {
+            } else if (visit.preds == Visit::Preds1) {
                 preds_n_.emplace(lam);
                 world().DLOG("Preds1 -> PredsN: {}", lam);
-                undo = std::min(undo, (undo_t) info.undo);
-            } else if (info.lattice == Info::Preds0) {
-                if (info.pred != cur_lam) {
-                    info.lattice = Info::Preds1;
-                    info.pred = cur_lam;
+                undo = std::min(undo, undo_visit);
+            } else if (visit.preds == Visit::Preds0) {
+                if (visit.pred != cur_lam) {
+                    visit.pred = cur_lam;
+                    visit.preds = Visit::Preds1;
                     assert(phis.empty());
                 }
             }
 
-            // if lam does not occur as callee and has more than one pred
+            // if lam does not occur as callee and has more than one pred - we can't do anything
             if ((!def->isa<App>() || i != 0) && preds_n_.contains(lam)) {
                 keep_.emplace(lam);
+                undo = std::min(undo, undo_visit);
                 world().DLOG("keep: {}", lam);
-                for (auto phi : phis) {
-                    auto sloxy_lam = get_sloxy_lam(phi);
-                    auto& proxy_info = lam2info(sloxy_lam);
-                    keep_.emplace(phi);
-                    undo = std::min(undo, (undo_t)       info.undo);
-                    undo = std::min(undo, (undo_t) proxy_info.undo);
-                }
+                for (auto phi : phis) keep_.emplace(phi);
                 phis.clear();
             }
         }

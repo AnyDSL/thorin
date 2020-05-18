@@ -10,8 +10,8 @@ struct Checker {
         if (d1->gid() > d2->gid()) std::swap(d1, d2); // normalize: always put smaller gid to the left
 
         // this assumption will either hold true - or we will bail out with false anyway
-        auto [i, success] = equiv.emplace(d1, d2);
-        if (!success) return true;
+        auto [i, inserted] = equiv.emplace(d1, d2);
+        if (!inserted) return true;
 
         // params are equal if they appeared under the same binder
         if (auto p1 = d1->isa<Param>()) {

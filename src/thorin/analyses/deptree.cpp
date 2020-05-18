@@ -14,8 +14,8 @@ void DepTree::run() {
 }
 
 ParamSet DepTree::run(Def* nom) {
-    auto [i, success] = nom2node_.emplace(nom, std::unique_ptr<DepNode>());
-    if (!success) {
+    auto [i, inserted] = nom2node_.emplace(nom, std::unique_ptr<DepNode>());
+    if (!inserted) {
         if (auto params = def2params_.lookup(nom))
             return *params;
         else

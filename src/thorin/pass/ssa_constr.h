@@ -25,25 +25,18 @@ public:
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
-    struct Info {
-        enum Lattice { Preds0, Preds1 };
-
-        Info() = default;
-        Info(size_t undo)
-            : lattice(Preds0)
-            , undo(undo)
-        {}
-
-        GIDMap<const Proxy*, const Def*> sloxy2val;
-        GIDSet<const Proxy*> writable;
+    struct Visit {
         Lam* pred = nullptr;
-        unsigned num_slots = 0;
-        unsigned lattice :  1;
-        unsigned undo    : 30;
+        enum { Preds0, Preds1 } preds;
     };
 
-    using Lam2Info = LamMap<Info>;
-    using State    = std::tuple<Lam2Info>;
+    struct Enter {
+        GIDMap<const Proxy*, const Def*> sloxy2val;
+        GIDSet<const Proxy*> writable;
+        uint32_t num_slots;
+    };
+
+    using State = std::tuple<LamMap<Visit>, LamMap<Enter>>;
 
 private:
     const Proxy* isa_sloxy(const Def*);
@@ -51,7 +44,8 @@ private:
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
 
-    auto& lam2info(Lam* lam) { auto [i, undo, ins] = get<Lam2Info>(lam); return i->second; }
+    template<class T>
+    std::pair<T&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo}; }
     Lam* mem2phi(Lam* mem_lam) { auto phi_lam = mem2phi_.lookup(mem_lam); return phi_lam ? *phi_lam : nullptr; }
     Lam* phi2mem(Lam* phi_lam) { auto mem_lam = phi2mem_.lookup(phi_lam); return mem_lam ? *mem_lam : nullptr; }
     Lam* mem2lam(Lam* lam) { auto phi_lam = mem2phi(lam); return phi_lam ? phi_lam : lam; }
@@ -71,7 +65,7 @@ private:
 
     LamMap<Lam*> mem2phi_;
     LamMap<Lam*> phi2mem_;
-    LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the phis we have to add to the old_lam to build the new_lam.
+    LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the phis we have to add to the mem_lam to build the phi_lam.
     DefSet keep_;                                                  ///< Contains Lams as well as sloxys we want to keep.
     LamSet preds_n_;                                               ///< Contains Lams with more than one preds.
 };

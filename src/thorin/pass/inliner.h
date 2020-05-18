@@ -21,8 +21,8 @@ public:
     using State = std::tuple<LamSet>;
 
 private:
-    bool first_inline(Lam* lam) { return std::get<2>(put<LamSet>(lam)); }
-    std::optional<size_t> inlined_once(Lam* lam) { return contains<LamSet>(lam); }
+    bool first_inline(Lam* lam) { auto [i, undo, ins] = put<LamSet>(lam); return ins; }
+    std::optional<size_t> inlined_once(Lam* lam) { auto [i, undo, ins] = put<LamSet>(lam); return undo; }
 
     LamSet keep_;
 };

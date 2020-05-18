@@ -164,8 +164,7 @@ public:
     //@}
     /// @name search in the state stack
     //@{
-
-    /// Searches states from back to front in the set @p S for @p key and puts it into @p S if not found.
+    /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
     /// @return A triple: <tt> [iterator, undo, inserted] </tt>.
     template<class S>
     auto put(const typename S::key_type& key) {
@@ -176,20 +175,13 @@ public:
 
         auto [i, inserted] = std::get<S>(cur_state()).emplace(key);
         assert(inserted);
-        return std::tuple(i, states().size() - 1, true);
+        return std::tuple(i, states().size()-1, true);
     }
 
-    /// Similar as above but retuns an @c std::optional if @p key is found, or @c std::nullopt otherwise.
-    template<class S>
-    std::optional<undo_t> contains(const typename S::key_type& key) {
-        auto [i, undo, inserted] = put<S>(key);
-        if (!inserted) return std::make_optional(undo);
-        return {};
-    }
-
-    /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
+    /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
+    /// @return A triple: <tt> [iterator, undo, inserted] </tt>.
     template<class M>
-    auto get(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
+    auto insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {
             auto& map = std::get<M>(state(undo));
             if (auto i = map.find(key); i != map.end()) return std::tuple(i, undo, false);
@@ -197,15 +189,7 @@ public:
 
         auto [i, inserted] = std::get<M>(cur_state()).emplace(key, std::move(init));
         assert(inserted);
-        return std::tuple(i, states().size() - 1, true);
-    }
-
-    /// Similar as above but retuns an @c std::optional if @p key is found, or @c std::nullopt otherwise while putting @p init into the map.
-    template<class M>
-    auto retrieve(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
-        auto [i, inserted, undo] = get<M>(key, std::move(init));
-        if (!inserted) return std::make_optional(std::pair(i->second, undo));
-        return {};
+        return std::tuple(i, states().size()-1, true);
     }
     //@}
     /// @name alloc/dealloc state

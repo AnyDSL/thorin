@@ -44,16 +44,6 @@ void PassMan::run() {
         cur_state().stack.push(nom);
     }
 
-    loop();
-
-    world().ILOG("finished");
-    pop_states(0);
-
-    world().debug_stream();
-    cleanup(world());
-}
-
-void PassMan::loop() {
     while (!cur_state().stack.empty()) {
         push_state();
         auto cur_nom = pop(cur_state().stack);
@@ -76,15 +66,12 @@ void PassMan::loop() {
             world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
         }
     }
-}
 
-std::optional<const Def*> PassMan::lookup(const Def* old_def) {
-    for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-        const auto& old2new = i->old2new;
-        if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
-    }
+    world().ILOG("finished");
+    pop_states(0);
 
-    return {};
+    world().debug_stream();
+    cleanup(world());
 }
 
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
@@ -111,15 +98,6 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     }
 
     return map(old_def, new_def);
-}
-
-bool PassMan::analyzed(const Def* def) {
-    for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-        if (i->analyzed.contains(def)) return true;
-    }
-
-    cur_state().analyzed.emplace(def);
-    return false;
 }
 
 size_t PassMan::analyze(Def* cur_nom, const Def* def) {

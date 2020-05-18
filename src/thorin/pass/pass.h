@@ -97,7 +97,14 @@ public:
     //@{
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
-    std::optional<const Def*> lookup(const Def* old_def);
+    std::optional<const Def*> lookup(const Def* old_def) {
+        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
+            const auto& old2new = i->old2new;
+            if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
+        }
+
+        return {};
+    }
     //@}
 
 private:
@@ -121,11 +128,17 @@ private:
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    void loop();
     void enter(Def*);
     const Def* rewrite(Def*, const Def*);
-    bool analyzed(const Def* def);
     undo_t analyze(Def*, const Def*);
+
+    bool analyzed(const Def* def) {
+        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
+            if (i->analyzed.contains(def)) return true;
+        }
+        cur_state().analyzed.emplace(def);
+        return false;
+    }
 
     World& world_;
     std::vector<PassPtr> passes_;

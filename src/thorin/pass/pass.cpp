@@ -62,7 +62,7 @@ void PassMan::run() {
             undo = std::min(undo, analyze(cur_nom, op));
 
         if (undo != No_Undo) {
-            pop_states(undo-1);
+            pop_states(undo);
             world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
         }
     }

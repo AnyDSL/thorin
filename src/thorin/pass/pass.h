@@ -91,7 +91,6 @@ public:
     //@{
     World& world() const { return world_; }
     size_t num_passes() const { return passes_.size(); }
-    undo_t cur_state_id() const { return states_.size(); }
     //@}
     /// @name working with the rewrite-map
     //@{
@@ -162,30 +161,52 @@ public:
     auto& states() { return man().states_; }
     auto& state(size_t i) { return *static_cast<typename P::State*>(states()[i].data[index()]); }
     auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
-    undo_t cur_state_id() const { return man().cur_state_id(); }
     //@}
     /// @name search in the state stack
     //@{
-    /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
-    template<class M>
-    auto get(const typename M::key_type& key, typename M::mapped_type&& init) {
-        for (auto i = man().states_.rbegin(), e = man().states_.rend(); i != e; ++i) {
-            auto& map = std::get<M>(*static_cast<typename P::State*>(i->data[index()]));
-            if (auto i = map.find(key); i != map.end()) return std::make_pair(i, false);
+
+    /// Searches states from back to front in the set @p S for @p key and puts it into @p S if not found.
+    /// @return A triple: <tt> [iterator, undo, inserted] </tt>.
+    template<class S>
+    auto put(const typename S::key_type& key) {
+        for (undo_t undo = states().size(); undo-- != 0;) {
+            auto& set = std::get<S>(state(undo));
+            if (auto i = set.find(key); i != set.end()) return std::tuple(i, undo, false);
         }
 
-        return std::get<M>(cur_state()).emplace(key, std::move(init));
+        auto [i, inserted] = std::get<S>(cur_state()).emplace(key);
+        assert(inserted);
+        return std::tuple(i, states().size() - 1, true);
     }
-    /// Similar as above but retuns an optional if @p key is found, or @c std::nullopt otherwise while putting @p init into the map.
-    template<class M>
-    std::optional<typename M::mapped_type> retrieve(const typename M::key_type& key, typename M::mapped_type&& init) {
-        auto [i, success] = get<M>(key, std::move(init));
-        if (!success) return std::make_optional(i->second);
+
+    /// Similar as above but retuns an @c std::optional if @p key is found, or @c std::nullopt otherwise.
+    template<class S>
+    std::optional<undo_t> contains(const typename S::key_type& key) {
+        auto [i, undo, inserted] = put<S>(key);
+        if (!inserted) return std::make_optional(undo);
         return {};
     }
-    /// Same as above but uses the default constructor as init.
+
+    /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
     template<class M>
-    auto get(const typename M::key_type& key) { return get<M>(key, typename M::mapped_type()); }
+    auto get(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
+        for (undo_t undo = states().size(); undo-- != 0;) {
+            auto& map = std::get<M>(state(undo));
+            if (auto i = map.find(key); i != map.end()) return std::tuple(i, undo, false);
+        }
+
+        auto [i, inserted] = std::get<M>(cur_state()).emplace(key, std::move(init));
+        assert(inserted);
+        return std::tuple(i, states().size() - 1, true);
+    }
+
+    /// Similar as above but retuns an @c std::optional if @p key is found, or @c std::nullopt otherwise while putting @p init into the map.
+    template<class M>
+    std::optional<std::pair<typename M::mapped_type, undo_t>> retrieve(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
+        auto [i, inserted, undo] = get<M>(key, std::move(init));
+        if (!inserted) return std::make_optional(std::pair(i->second, undo));
+        return {};
+    }
     //@}
     /// @name alloc/dealloc state
     //@{

@@ -18,11 +18,11 @@ public:
     // * lam is keep_                        -> never inline
     // * lam is not in this map              -> we have never seen this and it's safe to inline
     // * lam is in this map but not in keep_ -> inlined once
-    using State = std::tuple<LamMap<undo_t>>;
+    using State = std::tuple<LamSet>;
 
 private:
-    bool first_inline(Lam* lam) { return get<LamMap<undo_t>>(lam, man().cur_state_id()).second; }
-    std::optional<size_t> inlined_once(Lam* lam) { return retrieve<LamMap<undo_t>>(lam, man().cur_state_id()); }
+    bool first_inline(Lam* lam) { return std::get<2>(put<LamSet>(lam)); }
+    std::optional<size_t> inlined_once(Lam* lam) { return contains<LamSet>(lam); }
 
     LamSet keep_;
 };

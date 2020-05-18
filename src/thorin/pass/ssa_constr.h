@@ -51,7 +51,7 @@ private:
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
 
-    auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, Info(man().cur_state_id())).first->second; }
+    auto& lam2info(Lam* lam) { auto [i, undo, ins] = get<Lam2Info>(lam); return i->second; }
     Lam* mem2phi(Lam* mem_lam) { auto phi_lam = mem2phi_.lookup(mem_lam); return phi_lam ? *phi_lam : nullptr; }
     Lam* phi2mem(Lam* phi_lam) { auto mem_lam = phi2mem_.lookup(phi_lam); return mem_lam ? *mem_lam : nullptr; }
     Lam* mem2lam(Lam* lam) { auto phi_lam = mem2phi(lam); return phi_lam ? phi_lam : lam; }

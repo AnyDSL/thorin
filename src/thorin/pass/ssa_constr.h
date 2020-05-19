@@ -41,7 +41,6 @@ private:
     const Proxy* isa_phixy(const Def*);
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    bool dont_add_phis(Lam* lam) { return lam->is_intrinsic() || lam->is_external() || keep_.contains(lam); }
 
     template<class T> // T = Visit or Enter
     std::pair<T&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo}; }

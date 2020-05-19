@@ -11,11 +11,9 @@ class PassMan;
 typedef size_t undo_t;
 static constexpr undo_t No_Undo = std::numeric_limits<undo_t>::max();
 
-/**
- * All Pass%es that want to be registered in the @p PassMan must implement this interface.
- * * Directly inherit from this class if your pass doesn't need state.
- * * Inherit from @p Pass using CRTP if you do need state.
- */
+/// All Pass%es that want to be registered in the @p PassMan must implement this interface.
+/// * Directly inherit from this class if your pass doesn't need state.
+/// * Inherit from @p Pass using CRTP if you do need state.
 class PassBase {
 public:
     PassBase(PassMan& man, size_t index, const std::string& name)
@@ -63,11 +61,9 @@ private:
     std::string name_;
 };
 
-/**
- * An optimizer that combines several optimizations in an optimal way.
- * This is loosely based upon:
- * "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
- */
+/// An optimizer that combines several optimizations in an optimal way.
+/// This is loosely based upon:
+/// "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
 class PassMan {
 public:
     typedef std::unique_ptr<PassBase> PassPtr;

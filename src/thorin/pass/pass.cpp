@@ -47,7 +47,7 @@ void PassMan::run() {
     while (!cur_state().stack.empty()) {
         push_state();
         auto cur_nom = pop(cur_state().stack);
-        world().DLOG("cur_nom: {}", cur_nom);
+        world().DLOG("state/cur_nom: {}/{}", states_.size() - 1, cur_nom);
 
         for (auto&& pass : passes_)
             pass->enter(cur_nom);
@@ -82,6 +82,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
 
     if (auto nom = old_def->isa_nominal()) {
+        world().DLOG("visit: {} within {}", nom, cur_nom);
         for (auto&& pass : passes_)
             pass->visit(cur_nom, nom);
 

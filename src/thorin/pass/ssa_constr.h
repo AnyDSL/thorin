@@ -8,12 +8,10 @@
 
 namespace thorin {
 
-/**
- * SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
- * This is loosely based upon:
- * "Simple and Efficient Construction of Static Single Assignment Form"
- * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
- */
+/// SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
+/// This is loosely based upon:
+/// "Simple and Efficient Construction of Static Single Assignment Form"
+/// by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
 class SSAConstr : public Pass<SSAConstr> {
 public:
     SSAConstr(PassMan& man, size_t index)
@@ -43,8 +41,9 @@ private:
     const Proxy* isa_phixy(const Def*);
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
+    bool dont_add_phis(Lam* lam) { return lam->is_intrinsic() || lam->is_external() || keep_.contains(lam); }
 
-    template<class T>
+    template<class T> // T = Visit or Enter
     std::pair<T&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo}; }
     Lam* mem2phi(Lam* mem_lam) { auto phi_lam = mem2phi_.lookup(mem_lam); return phi_lam ? *phi_lam : nullptr; }
     Lam* phi2mem(Lam* phi_lam) { auto mem_lam = phi2mem_.lookup(phi_lam); return mem_lam ? *mem_lam : nullptr; }
@@ -58,9 +57,9 @@ private:
     }
 
     void mem2phi(Lam* mem_lam, Lam* phi_lam) {
-        bool succ1 = mem2phi_.emplace(mem_lam, phi_lam).second;
-        bool succ2 = phi2mem_.emplace(phi_lam, mem_lam).second;
-        assertf(succ1 && succ2, "insertion should have happend in both maps");
+        auto [i, ins1] = mem2phi_.emplace(mem_lam, phi_lam);
+        auto [j, ins2] = phi2mem_.emplace(phi_lam, mem_lam);
+        assertf(ins1 && ins2, "insertion should have happend in both maps");
     }
 
     LamMap<Lam*> mem2phi_;

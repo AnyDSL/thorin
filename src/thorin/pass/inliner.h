@@ -14,10 +14,6 @@ public:
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
-    // 3 cases:
-    // * lam is keep_                        -> never inline
-    // * lam is not in this map              -> we have never seen this and it's safe to inline
-    // * lam is in this map but not in keep_ -> inlined once
     using State = std::tuple<LamSet>;
 
 private:

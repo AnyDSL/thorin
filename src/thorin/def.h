@@ -223,6 +223,8 @@ public:
     /// @name Debug
     //@{
     const Def* debug() const { return debug_; }
+    void set_debug(Debug dbg) const;
+    void set_name(const std::string&) const;
     const Def* debug_history() const; ///< In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     std::string name() const;
     std::string unique_name() const;  ///< name + "_" + gid

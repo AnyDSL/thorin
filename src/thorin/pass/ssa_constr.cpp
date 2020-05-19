@@ -101,13 +101,6 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     return def;
 }
 
-static const Def* phi_debug(const Def* dbg) {
-    auto& world = dbg->world();
-    if (dbg == nullptr) return world.tuple_str("phi");
-    auto name = tuple2str(world.extract(dbg, 0_s));
-    return world.insert(dbg, 0_s, world.tuple_str(std::string("phi_") + name));
-}
-
 const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
     auto&& [enter, _] = get<Enter>(lam);
     if (auto val = enter.sloxy2val.lookup(sloxy)) {
@@ -118,7 +111,9 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
         if (preds_n_.contains(lam)) {
             auto mem_lam = mem2lam(lam);
             world().DLOG("phixy: {}/{} for {}", mem_lam, lam, sloxy);
-            return set_val(lam, sloxy, proxy(get_sloxy_type(sloxy), {mem_lam, sloxy}, phi_debug(sloxy->debug())));
+            auto phixy = proxy(get_sloxy_type(sloxy), {mem_lam, sloxy}, sloxy->debug());
+            phixy->set_name(std::string("phi_") + phixy->name());
+            return set_val(lam, sloxy, phixy);
         } else if (visit.preds == Visit::Preds1) {
             world().DLOG("get_val pred: {}: {} -> {}", sloxy, lam, visit.pred);
             return get_val(visit.pred, sloxy);

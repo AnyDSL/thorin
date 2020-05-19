@@ -66,13 +66,13 @@ bool Def::equal(const Def* other) const {
     return result;
 }
 
-// TODO
 const Def* Def::debug_history() const {
-//#if THORIN_ENABLE_CHECKS
-    //return world().track_history() ? Debug(loc(), world().tuple_str(unique_name())) : debug();
-//#else
+#if THORIN_ENABLE_CHECKS
+    auto& w = world();
+    if (w.track_history())
+        return debug() ? w.insert(debug(), 0_s, w.tuple_str(unique_name())) : w.debug(Name(unique_name()));
+#endif
     return debug();
-//#endif
 }
 
 std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
@@ -104,6 +104,12 @@ std::string Def::loc() const {
     return oss.str();
 }
 
+void Def::set_debug(Debug dbg) const { debug_ = world().debug(dbg); }
+
+void Def::set_name(const std::string& name) const {
+    auto& w = world();
+    debug_ = debug_ ? w.insert(debug_, 0_s, w.tuple_str(name)) : w.debug(Name(name));
+}
 void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
         if (!op(i)->is_const()) {

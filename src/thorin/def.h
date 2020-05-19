@@ -329,7 +329,7 @@ protected:
     hash_t hash_;
     mutable Uses uses_;
     mutable const Def* substitute_ = nullptr; // TODO remove this
-    const Def* debug_;
+    mutable const Def* debug_;
     union {
         const Def* type_;
         mutable World* world_;

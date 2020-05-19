@@ -575,6 +575,8 @@ private:
         if (inserted) {
             def->finalize();
             return def;
+        } else {
+            if (auto new_dbg = def->debug()) (*i)->debug_ = new_dbg;
         }
 
         arena_.deallocate<T>(def);

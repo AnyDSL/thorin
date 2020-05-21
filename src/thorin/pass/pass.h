@@ -100,6 +100,14 @@ public:
 
         return {};
     }
+    bool is_tainted(Def* nom) {
+        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
+            if (i->tainted.contains(nom)) return true;
+        }
+
+        return false;
+    }
+    bool mark_tainted(Def* nom) { return cur_state().tainted.emplace(nom).second; }
     //@}
 
 private:
@@ -118,6 +126,7 @@ private:
         std::stack<Def*> stack;
         Def2Def old2new;
         DefSet analyzed;
+        NomSet tainted;
     };
 
     void push_state();

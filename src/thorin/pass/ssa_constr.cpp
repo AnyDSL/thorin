@@ -41,6 +41,7 @@ void SSAConstr::visit(Def* cur_nom, Def* nom) {
 
             auto phi_domain = merge_sigma(mem_lam->domain(), types);
             phi_lam = world().lam(world().pi(phi_domain, mem_lam->codomain()), mem_lam->debug());
+            man().mark_tainted(phi_lam);
             world().DLOG("mem_lam => phi_lam: {}: {} => {}: {}", mem_lam, mem_lam->type()->domain(), phi_lam, phi_domain);
             preds_n_.emplace(phi_lam);
             phi2mem_[phi_lam] = mem_lam;

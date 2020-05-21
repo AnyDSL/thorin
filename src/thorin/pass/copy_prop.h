@@ -21,6 +21,7 @@ public:
 
     struct Visit {
         std::vector<const Def*> args;
+        Lam* prop_lam = nullptr;
     };
 
     struct Enter {
@@ -29,16 +30,14 @@ public:
     using State = std::tuple<LamMap<Visit>, LamMap<Enter>>;
 
 private:
-    template<class T>
+    template<class T> // T = Visit or Enter
     std::pair<T&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo}; }
+    Lam* prop2param(Lam* prop_lam) { auto param_lam = prop2param_.lookup(prop_lam); return param_lam ? *param_lam : nullptr; }
+    Lam* lam2param(Lam* lam) { auto param_lam = prop2param(lam); return param_lam ? param_lam : lam; }
 
-    Lam* param2prop(Lam* param_lam) { auto  prop_lam = param2prop_.lookup(param_lam); return  prop_lam ? * prop_lam : nullptr; }
-    Lam* prop2param(Lam*  prop_lam) { auto param_lam = prop2param_.lookup( prop_lam); return param_lam ? *param_lam : nullptr; }
-    Lam* param2lam(Lam* lam) { auto prop_lam = param2prop(lam); return prop_lam ? prop_lam : lam; }
-
-    LamMap<Lam*> param2prop_;
     LamMap<Lam*> prop2param_;
-    DefSet keep_;
+    DefSet keep_;       ///< Contains Lams as well as sloxys we want to keep.
+    LamSet preds_n_;    ///< Contains Lams with more than one preds.
 };
 
 }

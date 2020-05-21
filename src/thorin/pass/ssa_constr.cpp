@@ -16,8 +16,7 @@ const Proxy* SSAConstr::isa_phixy(const Def* def) { if (auto p = isa_proxy(def);
 
 void SSAConstr::visit(Def* cur_nom, Def* nom) {
     auto [cur_lam, mem_lam] = std::pair(cur_nom->isa<Lam>(), nom->isa<Lam>());
-    if (cur_nom == nullptr || mem_lam == nullptr) return;
-    if (keep_.contains(mem_lam) || !preds_n_.contains(mem_lam)) return;
+    if (!cur_nom || !mem_lam || keep_.contains(mem_lam) || !preds_n_.contains(mem_lam)) return;
 
     if (mem_lam->is_intrinsic() || mem_lam->is_external()) {
         keep_.emplace(mem_lam);
@@ -27,7 +26,7 @@ void SSAConstr::visit(Def* cur_nom, Def* nom) {
     if (auto& phis = lam2phis_[mem_lam]; !phis.empty()) {
         // build a phi_lam with phis as params if we can're reuse an old one
         auto&& [visit, _] = get<Visit>(mem_lam);
-        if (auto& phi_lam = visit.phi_lam; phi_lam == nullptr) {
+        if (auto& phi_lam = visit.phi_lam; !phi_lam) {
             std::vector<const Def*> types;
             for (auto i = phis.begin(), e = phis.end(); i != e;) {
                 auto sloxy = *i;
@@ -51,7 +50,7 @@ void SSAConstr::visit(Def* cur_nom, Def* nom) {
 
 void SSAConstr::enter(Def* nom) {
     auto phi_lam = nom->isa<Lam>();
-    if (phi_lam == nullptr) return;
+    if (!phi_lam) return;
 
     if (auto mem_lam = phi2mem(phi_lam)) {
         auto& phis = lam2phis_[mem_lam];
@@ -69,7 +68,7 @@ void SSAConstr::enter(Def* nom) {
 
 const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
-    if (cur_lam == nullptr) return def;
+    if (!cur_lam) return def;
 
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
@@ -141,7 +140,7 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
-    if (cur_lam == nullptr || def->isa<Param>() || isa_phixy(def)) return No_Undo;
+    if (!cur_lam || def->isa<Param>() || isa_phixy(def)) return No_Undo;
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {

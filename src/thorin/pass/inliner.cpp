@@ -23,7 +23,7 @@ undo_t Inliner::analyze(Def* cur_nom, const Def* def) {
     auto undo = No_Undo;
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>()) {
-            if (keep_.emplace(lam).second) {
+            if (!lam->is_external() && !lam->is_intrinsic() && keep_.emplace(lam).second) {
                 if (auto lam_undo = inlined_once(lam)) {
                     world().DLOG("undo to {} inlinining of {} within {}", *lam_undo, lam, cur_nom);
                     undo = std::min(undo, *lam_undo);

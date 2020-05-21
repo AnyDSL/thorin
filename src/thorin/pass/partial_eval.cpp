@@ -6,7 +6,7 @@ namespace thorin {
 
 const Def* PartialEval::rewrite(Def* cur_nom, const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && lam->is_set()) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && lam->is_set() && !man().is_tainted(lam)) {
             if (lam->filter() == world().lit_false()) return def; // optimize this common case
 
             Scope scope(lam);

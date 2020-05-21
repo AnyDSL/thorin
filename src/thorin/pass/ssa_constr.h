@@ -26,6 +26,7 @@ public:
     struct Visit {
         Lam* pred = nullptr;
         enum { Preds0, Preds1 } preds;
+        Lam* phi_lam = nullptr;
     };
 
     struct Enter {
@@ -44,24 +45,9 @@ private:
 
     template<class T> // T = Visit or Enter
     std::pair<T&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo}; }
-    Lam* mem2phi(Lam* mem_lam) { auto phi_lam = mem2phi_.lookup(mem_lam); return phi_lam ? *phi_lam : nullptr; }
     Lam* phi2mem(Lam* phi_lam) { auto mem_lam = phi2mem_.lookup(phi_lam); return mem_lam ? *mem_lam : nullptr; }
-    Lam* mem2lam(Lam* lam) { auto phi_lam = mem2phi(lam); return phi_lam ? phi_lam : lam; }
+    Lam* lam2mem(Lam* lam) { auto mem_lam = phi2mem(lam); return mem_lam ? mem_lam : lam; }
 
-    void erase_phi_lam(Lam* phi_lam) {
-        if (auto i_phi2mem = phi2mem_.find(phi_lam); i_phi2mem != phi2mem_.end()) {
-            mem2phi_.erase(i_phi2mem->second);
-            phi2mem_.erase(i_phi2mem);
-        }
-    }
-
-    void mem2phi(Lam* mem_lam, Lam* phi_lam) {
-        auto [i, ins1] = mem2phi_.emplace(mem_lam, phi_lam);
-        auto [j, ins2] = phi2mem_.emplace(phi_lam, mem_lam);
-        assertf(ins1 && ins2, "insertion should have happend in both maps");
-    }
-
-    LamMap<Lam*> mem2phi_;
     LamMap<Lam*> phi2mem_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the phis we have to add to the mem_lam to build the phi_lam.
     DefSet keep_;                                                  ///< Contains Lams as well as sloxys we want to keep.

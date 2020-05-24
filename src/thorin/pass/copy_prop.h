@@ -20,7 +20,6 @@ public:
     undo_t analyze(Def*, const Def*) override;
 
     struct Visit {
-        std::vector<const Def*> args;
         Lam* prop_lam = nullptr;
     };
 
@@ -35,9 +34,9 @@ private:
     Lam* prop2param(Lam* prop_lam) { auto param_lam = prop2param_.lookup(prop_lam); return param_lam ? *param_lam : nullptr; }
     Lam* lam2param(Lam* lam) { auto param_lam = prop2param(lam); return param_lam ? param_lam : lam; }
 
+    LamMap<std::vector<const Def*>> args_;
     LamMap<Lam*> prop2param_;
     DefSet keep_;       ///< Contains Lams as well as sloxys we want to keep.
-    LamSet preds_n_;    ///< Contains Lams with more than one preds.
 };
 
 }

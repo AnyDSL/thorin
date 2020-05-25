@@ -111,6 +111,11 @@ public:
         return false;
     }
     bool mark_tainted(Def* nom) { return cur_state().tainted.emplace(nom).second; }
+    template<class T = Def> T*& reincarnate(T* old_nom) {
+        auto [i, inserted] = reincanate_.emplace(old_nom, nullptr);
+        assert(inserted || i->second->template isa<T>());
+        return (T*&) i->second;
+    }
     //@}
 
 private:
@@ -150,6 +155,7 @@ private:
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
+    Nom2Nom reincanate_;
 
     template<class P> friend class Pass;
 };

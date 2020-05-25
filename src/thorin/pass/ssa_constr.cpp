@@ -27,7 +27,7 @@ void SSAConstr::visit(Def* cur_nom, Def* vis_nom) {
     if (auto& phis = lam2phis_[mem_lam]; !phis.empty()) {
         // build a phi_lam with phis as params if we can're reuse an old one
         auto&& [visit, _] = get<Visit>(mem_lam);
-        if (auto& phi_lam = visit.phi_lam; !phi_lam) {
+        if (auto& visit_phi_lam = visit.phi_lam; !visit_phi_lam) {
             std::vector<const Def*> types;
             for (auto i = phis.begin(), e = phis.end(); i != e;) {
                 auto sloxy = *i;
@@ -40,11 +40,14 @@ void SSAConstr::visit(Def* cur_nom, Def* vis_nom) {
             }
 
             auto phi_domain = merge_sigma(mem_lam->domain(), types);
-            phi_lam = world().lam(world().pi(phi_domain, mem_lam->codomain()), mem_lam->debug());
+            auto new_type = world().pi(phi_domain, mem_lam->codomain());
+            auto& phi_lam = man().reincarnate<Lam>(mem_lam);
+            if (!phi_lam || phi_lam->type() != new_type) phi_lam = world().lam(new_type, mem_lam->debug());
             man().mark_tainted(phi_lam);
             world().DLOG("mem_lam => phi_lam: {}: {} => {}: {}", mem_lam, mem_lam->type()->domain(), phi_lam, phi_domain);
             preds_n_.emplace(phi_lam);
             phi2mem_[phi_lam] = mem_lam;
+            visit_phi_lam = phi_lam;
         }
     }
 }
@@ -142,6 +145,7 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
     if (!cur_lam || def->isa<Param>() || isa_phixy(def)) return No_Undo;
+    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {

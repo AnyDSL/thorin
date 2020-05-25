@@ -188,7 +188,7 @@ void Def::dump(size_t max) const {
 
 // TODO polish this
 Stream& World::stream(Stream& s) const {
-#if 1
+#if 0
     DepTree dep(*this);
 
     RecStreamer rec(s, 0);

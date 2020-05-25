@@ -36,7 +36,7 @@ private:
 
     LamMap<std::vector<const Def*>> args_;
     LamMap<Lam*> prop2param_;
-    DefSet keep_;       ///< Contains Lams as well as sloxys we want to keep.
+    DefSet keep_;
 };
 
 }

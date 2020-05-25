@@ -213,6 +213,8 @@ public:
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
+    Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
+    size_t num_outs() const { return lit_arity(); }
     //@}
     /// @name external handling
     //@{
@@ -701,9 +703,9 @@ public:
     const App* decurry() const { return callee()->as<App>(); } ///< Returns the @p callee again as @p App.
     const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
-    const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }
-    Array<const Def*> args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
-    size_t num_args() const { return callee_type()->domain()->lit_arity(); }
+    const Def* arg(size_t i, Debug dbg = {}) const { return arg()->out(i, dbg); }
+    Array<const Def*> args() const { return arg()->outs(); }
+    size_t num_args() const { return arg()->num_outs(); }
     //@}
     /// @name split arg
     //@{

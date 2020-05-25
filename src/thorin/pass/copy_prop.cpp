@@ -5,11 +5,12 @@
 namespace thorin {
 
 void CopyProp::visit(Def* cur_nom, Def* vis_nom) {
-    auto   cur_lam = cur_nom->isa<Lam>();
-    auto param_lam = vis_nom->isa<Lam>();
-    if (!cur_lam || !param_lam || keep_.contains(param_lam)) return;
+    auto cur_lam = cur_nom->isa<Lam>();
+    auto vis_lam = vis_nom->isa<Lam>();
+    if (!cur_lam || !vis_lam || keep_.contains(vis_lam) || prop2param_.contains(vis_lam)) return;
 
-    param_lam = lam2param(param_lam);
+    auto param_lam = vis_lam;
+    //param_lam = lam2param(param_lam);
     if (param_lam->is_intrinsic() || param_lam->is_external()) {
         keep_.emplace(param_lam);
         return;
@@ -40,9 +41,10 @@ void CopyProp::enter(Def* nom) {
 
     if (auto param_lam = prop2param(prop_lam)) {
         auto& args = args_[param_lam];
+        size_t j = 0;
         Array<const Def*> new_params(args.size(), [&](size_t i) {
             if (args[i])
-                return args[i]->isa<Top>() ? param_lam->param(i) : args[i];
+                return args[i]->isa<Top>() ? prop_lam->param(j++) : args[i];
             else
                 return world().bot(param_lam->param(i)->type());
         });
@@ -59,24 +61,15 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
             auto& args = args_[param_lam];
             if (auto& prop_lam = visit.prop_lam) {
                 std::vector<const Def*> new_args;
-                std::vector<const Def*> non_args;
                 bool use_proxy = false;
-                for (size_t i = 0, e = args.size(); i != e; ++i) {
-                    if (args[i] == app->arg(i)) {
-                        non_args.emplace_back(app->arg(i));
-                    } else {
+                for (size_t i = 0, e = args.size(); !use_proxy && i != e; ++i) {
+                    if (args[i] && args[i]->isa<Top>())
                         new_args.emplace_back(app->arg(i));
-                        non_args.emplace_back(world().top(app->arg(i)->type()));
-                        use_proxy = true;
-                    }
+                    else
+                        use_proxy |= args[i] != app->arg(i);
                 }
 
-                if (use_proxy) {
-                    non_args.emplace_back(param_lam);
-                    return proxy(app->type(), non_args);
-                } else {
-                    return world().app(prop_lam, new_args);
-                }
+                return use_proxy ? proxy(app->type(), app->ops()) : world().app(prop_lam, new_args);
             }
         }
     }
@@ -98,8 +91,8 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
     if (!cur_lam || def->isa<Param>()) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
-        auto param_lam = proxy->ops().back()->as_nominal<Lam>();
-        auto proxy_args = proxy->ops().skip_back(1);
+        auto param_lam  = proxy->op(0)->as_nominal<Lam>();
+        auto proxy_args = proxy->op(1)->outs();
         auto&& [visit, undo_visit] = get<Visit>(param_lam);
         auto& args = args_[param_lam];
         for (size_t i = 0, e = proxy_args.size(); i != e; ++i) {

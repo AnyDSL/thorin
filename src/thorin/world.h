@@ -411,9 +411,10 @@ public:
     const Def* op(PE o) { return data_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
-    /// @name Proxy - used internally for Pass%es
+    /// @name Proxy & Stub - used internally for Pass%es
     //@{
     const Proxy* proxy(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, debug(dbg)); }
+    const Def* subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg = {});
     //@}
     /// @name misc operations
     //@{

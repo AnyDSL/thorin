@@ -10,7 +10,6 @@ void CopyProp::visit(Def* cur_nom, Def* vis_nom) {
     if (!cur_lam || !vis_lam || keep_.contains(vis_lam) || prop2param_.contains(vis_lam)) return;
 
     auto param_lam = vis_lam;
-    //param_lam = lam2param(param_lam);
     if (param_lam->is_intrinsic() || param_lam->is_external()) {
         keep_.emplace(param_lam);
         return;
@@ -35,15 +34,6 @@ void CopyProp::visit(Def* cur_nom, Def* vis_nom) {
         world().DLOG("param_lam => prop_lam: {}: {} => {}: {}", param_lam, param_lam->type()->domain(), prop_lam, prop_domain);
         prop2param_[prop_lam] = param_lam;
         visit_prop_lam = prop_lam;
-    }
-}
-
-void CopyProp::enter(Def* nom) {
-    auto prop_lam = nom->isa<Lam>();
-    if (!prop_lam) return;
-
-    if (auto param_lam = prop2param(prop_lam)) {
-        auto& args = args_[param_lam];
         size_t j = 0;
         Array<const Def*> new_params(args.size(), [&](size_t i) {
             if (args[i])
@@ -52,8 +42,8 @@ void CopyProp::enter(Def* nom) {
                 return world().bot(param_lam->param(i)->type());
         });
         auto new_param = world().tuple(new_params);
-        man().map(param_lam->param(), new_param);
-        prop_lam->set(param_lam->ops());
+        prop_lam->set(0_s, world().subst(param_lam->op(0), param_lam->param(), new_param));
+        prop_lam->set(1_s, world().subst(param_lam->op(1), param_lam->param(), new_param));
     }
 }
 
@@ -83,7 +73,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 void join(const Def*& a, const Def* b) {
     if (!a) {
         a = b;
-    }else if (a == b) {
+    } else if (a == b) {
     } else {
         a = a->world().top(a->type());
     }

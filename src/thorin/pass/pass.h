@@ -36,9 +36,6 @@ public:
     /// Inspects a @p nom%inal when first visited during @p rewrite%ing @p cur_nom.
     virtual void visit([[maybe_unused]] Def* cur_nom, [[maybe_unused]] Def* nom) {}
 
-    /// Invoked just before @em nom%inal is rewritten.
-    virtual void enter([[maybe_unused]] Def* nom) {}
-
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
     virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
 
@@ -91,17 +88,28 @@ public:
     /// @name working with the rewrite-map
     //@{
     template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) {
-        assert(old_def->type() == new_def->type());
-        cur_state().old2new[old_def] = new_def; return new_def;
+    D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
+    const Def* lookup(const Def* old_def) {
+        if (auto new_def = _lookup(old_def)) {
+            while (true) {
+                world().DLOG("{} -> {}", old_def, new_def);
+                old_def = new_def;
+                new_def = _lookup(old_def);
+                if (new_def == nullptr) return old_def;
+                if (new_def == old_def) return new_def;
+            }
+        }
+
+        return nullptr;
     }
-    std::optional<const Def*> lookup(const Def* old_def) {
+
+    const Def* _lookup(const Def* old_def) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
             const auto& old2new = i->old2new;
             if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
         }
 
-        return {};
+        return nullptr;
     }
     bool is_tainted(Def* nom) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {

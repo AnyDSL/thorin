@@ -19,7 +19,6 @@ public:
     {}
 
     void visit(Def*, Def*) override;
-    void enter(Def*) override;
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 

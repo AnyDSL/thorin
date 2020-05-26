@@ -48,25 +48,16 @@ void SSAConstr::visit(Def* cur_nom, Def* vis_nom) {
             preds_n_.emplace(phi_lam);
             phi2mem_[phi_lam] = mem_lam;
             visit_phi_lam = phi_lam;
+
+            size_t n = phi_lam->num_params() - phis.size();
+            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return phi_lam->param(i); }));
+            phi_lam->set(0_s, world().subst(mem_lam->op(0), mem_lam->param(), new_param));
+            phi_lam->set(1_s, world().subst(mem_lam->op(1), mem_lam->param(), new_param));
+
+            size_t i = 0;
+            for (auto phi : phis)
+                set_val(phi_lam, phi, phi_lam->param(n + i++));
         }
-    }
-}
-
-void SSAConstr::enter(Def* nom) {
-    auto phi_lam = nom->isa<Lam>();
-    if (!phi_lam) return;
-
-    if (auto mem_lam = phi2mem(phi_lam)) {
-        auto& phis = lam2phis_[mem_lam];
-
-        size_t n = phi_lam->num_params() - phis.size();
-        auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return phi_lam->param(i); }));
-        man().map(mem_lam->param(), new_param);
-        phi_lam->set(mem_lam->ops());
-
-        size_t i = 0;
-        for (auto phi : phis)
-            set_val(phi_lam, phi, phi_lam->param(n + i++));
     }
 }
 

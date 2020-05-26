@@ -435,6 +435,7 @@ const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) con
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
 const Def* Proxy   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, fields(), dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
+const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o[0], o[1], o[2], dbg); }
 const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }
 const Def* Tuple   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }

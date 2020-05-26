@@ -625,6 +625,21 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
     return global(tuple(str_array, dbg), false, dbg);
 }
 
+const Def* World::subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg) {
+    if (def->is_const()) return def;
+    if (def == replacee) return replacer;
+
+    if (auto s = def->isa<Subst>()) {
+        // subst(subst(x, a, b), a, b) = subst(x, a, b)
+        if (s->replacee() == replacee && s->replacer() == replacer) return s;
+
+        // subst(subst(x, a, b), b, c) = subst(x, a, c)
+        if (s->replacer() == replacee) return subst(def, s->replacee(), replacer);
+    }
+
+    return unify<Subst>(3, def, replacee, replacer, debug(dbg));
+}
+
 /*
  * ops
  */

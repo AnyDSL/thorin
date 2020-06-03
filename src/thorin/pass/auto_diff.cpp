@@ -8,6 +8,254 @@ namespace thorin {
 
 namespace {
 
+class AutoDiffCtx {
+public:
+    AutoDiffCtx(World& world, Def2Def old2new)
+        : world_{world}
+        , old2new_{old2new} {}
+
+    const Def* emit_primal(const Def* def);
+    const Def* emit_adjoint(const Def* def);
+
+private:
+    const Def* emit_rop_primal(const Axiom* axiom);
+
+    World& world_;
+    Def2Def old2new_;
+    Def2Def app2pb_;
+    Def2Def ds_grads_;
+};
+
+const Def* AutoDiffCtx::emit_primal(const Def* def) {
+    if (old2new_.contains(def)) {
+        return old2new_[def];
+    }
+
+    if (auto lit = def->isa<Lit>()) {
+        old2new_[lit] = lit;
+        return lit;
+    }
+
+    if (auto nat = def->isa<Nat>()) {
+        old2new_[nat] = nat;
+        return nat;
+    }
+
+    if (auto tuple = def->isa<Tuple>()) {
+        Array<const Def*> new_ops{tuple->num_ops(), [&](auto i) { return emit_primal(proj(tuple, i)); }};
+        auto new_tuple = world_.tuple(new_ops, tuple->debug());
+        old2new_[tuple] = new_tuple;
+        return new_tuple;
+    }
+
+    if (auto pack = def->isa<Pack>()) {
+        auto new_body = emit_primal(pack->body());
+        auto new_pack = world_.pack(pack->arity(), new_body, pack->debug());
+        old2new_[pack] = new_pack;
+        return new_pack;
+    }
+
+    if (auto extract = def->isa<Extract>()) {
+        auto new_tuple = emit_primal(extract->tuple());
+        auto new_index = emit_primal(extract->index());
+        auto new_extract = world_.extract(new_tuple, new_index, extract->debug());
+        old2new_[extract] = new_extract;
+        return new_extract;
+    }
+
+    if (auto insert = def->isa<Insert>()) {
+        auto new_tuple = emit_primal(insert->tuple());
+        auto new_index = emit_primal(insert->index());
+        auto new_value = emit_primal(insert->value());
+        auto new_insert = world_.insert(new_tuple, new_index, new_value, insert->debug());
+        old2new_[insert] = new_insert;
+        return new_insert;
+    }
+
+    if (auto axiom = def->isa<Axiom>()) {
+        switch (axiom->tag()) {
+            case Tag::Alloc:
+            case Tag::Slot:
+            case Tag::Load:
+            case Tag::Store: {
+                errf("Memory operations are not supported for gradients: {}", def);
+                std::exit(1);
+            }
+            case Tag::ROp: {
+                return emit_rop_primal(axiom);
+            }
+            default: {
+                return axiom;
+            }
+        }
+    }
+
+    if (auto lam = def->isa<Lam>()) {
+        auto pi = lam->type();
+
+        if (pi->is_returning()) {
+            return world_.op_rev_diff(lam);
+        }
+
+        assert(pi->is_cn());
+
+        auto new_body = emit_primal(lam->body());
+        auto new_lam = world_.lam(pi, {"primal_" + lam->name()});
+        new_lam->set_filter(lam->filter());
+        new_lam->set_body(new_body);
+
+        old2new_[lam] = new_lam;
+        return new_lam;
+    }
+
+    if (auto app = def->isa<App>()) {
+        auto callee = app->callee();
+        auto arg = app->arg();
+
+        auto new_callee = emit_primal(callee);
+
+        if (new_callee->type() == callee->type()) {
+            auto new_arg = emit_primal(arg);
+            auto new_app = world_.app(new_callee, new_arg, app->debug());
+            old2new_[app] = new_app;
+            return new_app;
+        }
+
+        if (!new_callee->type()->as<Pi>()->is_cn()) {
+            auto new_arg = emit_primal(arg);
+            auto new_app = world_.app(new_callee, new_arg, app->debug());
+
+            if (new_app->type()->isa<Sigma>() || new_app->type()->isa<Arr>()) {
+                old2new_[app] = new_app;
+                app2pb_[new_app] = proj(new_app, 2, 1);
+                return proj(new_app, 2, 0);
+            }
+
+            old2new_[app] = new_app;
+            return new_app;
+        }
+
+        auto cont = arg->ops().back();
+        auto new_cn = new_callee->type()->as<Pi>()->domains().back()->as<Pi>();
+        auto new_cont = world_.lam(new_cn, {"primal_cont"});
+
+        auto new_cont_args = new_cont->params().skip_back();
+        new_cont->set_filter(world_.lit_true());
+        new_cont->set_body(world_.app(cont, new_cont_args));
+
+        auto num_args = arg->num_ops();
+        Array<const Def*> new_args{
+            num_args, [&](auto i) { return i < num_args - 1 ? emit_primal(arg->op(i)) : new_cont; }};
+        auto new_app = world_.app(new_callee, new_args, app->debug());
+
+        old2new_[app] = new_app;
+        app2pb_[new_app] = new_cont->params().back();
+        return new_app;
+    }
+
+    if (auto param = def->isa<Param>()) {
+        errf("Parameter is out of scope for gradient generation: {}", param);
+        std::exit(1);
+    }
+
+    if (auto top = def->isa<Top>()) {
+        return top;
+    }
+
+    if (auto bot = def->isa<Bot>()) {
+        return bot;
+    }
+
+    if (auto pi = def->isa<Pi>()) {
+        auto new_domain = emit_primal(pi->domain());
+        auto new_codomain = emit_primal(pi->codomain());
+        auto new_pi = world_.pi(new_domain, new_codomain, pi->debug());
+        old2new_[pi] = new_pi;
+        return new_pi;
+    }
+
+    if (auto sigma = def->isa<Sigma>()) {
+        Array<const Def*> new_ops{sigma->num_ops(), [&](auto i) { return emit_primal(sigma->op(i)); }};
+        auto new_sigma = world_.sigma(new_ops, sigma->debug());
+        old2new_[sigma] = new_sigma;
+        return new_sigma;
+    }
+
+    if (auto arr = def->isa<Arr>()) {
+        auto new_domain = emit_primal(arr->domain());
+        auto new_codomain = emit_primal(arr->codomain());
+        auto new_arr = world_.arr(new_domain, new_codomain, arr->debug());
+        old2new_[arr] = new_arr;
+        return new_arr;
+    }
+
+    errf("Unknown def for gradient generation: {}", def);
+    std::exit(1);
+}
+
+const Def* AutoDiffCtx::emit_rop_primal(const Axiom* axiom) {
+    THORIN_BREAK;
+    auto op = ROp(axiom->flags());
+
+    auto type = world_.pi(world_.kind_star())->set_domain({world_.type_nat(), world_.type_nat()});
+    auto m = type->param(0, {"m"});
+    auto w = type->param(1, {"w"});
+    auto real_w = world_.type_real(w);
+    auto pb_pi = world_.pi(real_w, world_.sigma({real_w, real_w}));
+    auto op_pi = world_.pi(world_.sigma({real_w, real_w}), world_.sigma({real_w, pb_pi}));
+    type->set_codomain(op_pi);
+
+    auto pb_lam = world_.lam(pb_pi, {"pullback_" + axiom->name()});
+    auto op_lam = world_.lam(op_pi, {"primal_" + axiom->name()});
+    auto axiom_lam = world_.lam(type, axiom->debug());
+
+    axiom_lam->set_filter(world_.lit_true());
+    axiom_lam->set_body(op_lam);
+
+    auto [a, b] = op_lam->param()->split<2>();
+    op_lam->set_filter(world_.lit_true());
+    op_lam->set_body(world_.tuple({world_.op(op, m, a, b), pb_lam}));
+
+    auto grad = pb_lam->param({"grad_" + axiom->name()});
+    pb_lam->set_filter(world_.lit_true());
+
+    switch (op) {
+        // ∇(a + b) = λ∂f.[∂f, ∂f]
+        case ROp::add: {
+            pb_lam->set_body(world_.tuple({grad, grad}));
+            break;
+        }
+        // ∇(a - b) = λ∂f.[∂f, -∂f]
+        case ROp::sub: {
+            pb_lam->set_body(world_.tuple({grad, world_.op_ROp_minus(m, grad)}));
+            break;
+        }
+        // ∇(a * b) = λ∂f.[∂f*b, ∂f*a]
+        case ROp::mul: {
+            auto d1 = world_.op(ROp::mul, m, grad, b);
+            auto d2 = world_.op(ROp::mul, m, grad, a);
+            pb_lam->set_body(world_.tuple({d1, d2}));
+            break;
+        }
+        // ∇(a / b) = λ∂f.[∂f/b, (-∂f*a)/(b²)]
+        case ROp::div: {
+            auto neg_grad = world_.op_ROp_minus(m, grad);
+            auto d1 = world_.op(ROp::div, m, grad, b);
+            auto numerator = world_.op(ROp::mul, m, neg_grad, a);
+            auto denominator = world_.op(ROp::mul, m, b, b);
+            auto d2 = world_.op(ROp::div, m, numerator, denominator);
+            pb_lam->set_body(world_.tuple({d1, d2}));
+            break;
+        }
+        case ROp::mod: {
+            errf("Mod is not supported for gradients: {}", axiom);
+            std::exit(1);
+        }
+    }
+
+    return axiom_lam;
+}
+
 class AutoDiffer {
 public:
     AutoDiffer(World& world, const Def* gradient, const Def2Def src_to_dst)
@@ -296,6 +544,15 @@ const Def* AutoDiff::rewrite(const Def* def) {
                     auto dst_param = dst_lam->param(i, {src_param->name()});
                     src_to_dst[src_param] = i == e - 1 ? ret_lam : dst_param;
                 }
+
+                THORIN_BREAK;
+                auto ctx = AutoDiffCtx{world, src_to_dst};
+                auto primal = ctx.emit_primal(src_lam->body());
+                dst_lam->set_filter(src_lam->filter());
+                dst_lam->set_body(primal);
+                scope(dst_lam);
+                THORIN_BREAK;
+
                 auto differ = AutoDiffer{world, pb_grad, src_to_dst};
 
                 dst_lam->set_filter(src_lam->filter());

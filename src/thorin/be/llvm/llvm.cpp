@@ -140,7 +140,7 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    load->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    load->setAlignment(layout.getABITypeAlign(ptr->getType()->getPointerElementType()));
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), load);
     return cont;
@@ -157,7 +157,7 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    store->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    store->setAlignment(layout.getABITypeAlign(ptr->getType()->getPointerElementType()));
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
@@ -452,7 +452,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         // must be a closure
                         auto closure = lookup(callee);
                         args.push_back(irbuilder_.CreateExtractValue(closure, 1));
-                        call = irbuilder_.CreateCall(irbuilder_.CreateExtractValue(closure, 0), args);
+                        auto func = irbuilder_.CreateExtractValue(closure, 0);
+                        call = irbuilder_.CreateCall(llvm::cast<llvm::FunctionType>(func->getType()), func, args);
                     }
 
                     // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -1015,18 +1016,18 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 llvm::Value* CodeGen::emit_load(const Load* load) {
     auto irPtr = lookup(load->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    llvm::MaybeAlign ptrAlignment(layout.getABITypeAlignment(irPtr->getType()->getPointerElementType()));
+    auto ptrAlign = layout.getABITypeAlign(irPtr->getType()->getPointerElementType());
     auto irLoad = irbuilder_.CreateLoad(irPtr);
-    irLoad->setAlignment(ptrAlignment);
+    irLoad->setAlignment(ptrAlign);
     return irLoad;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
     auto irPtr = lookup(store->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    llvm::MaybeAlign ptrAlignment(layout.getABITypeAlignment(irPtr->getType()->getPointerElementType()));
+    auto ptrAlign = layout.getABITypeAlign(irPtr->getType()->getPointerElementType());
     auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
-    irStore->setAlignment(ptrAlignment);
+    irStore->setAlignment(ptrAlign);
     return irStore;
 }
 

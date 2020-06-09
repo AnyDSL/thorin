@@ -206,7 +206,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // inline kernel
     llvm::InlineFunctionInfo info;
-    llvm::InlineFunction(simd_kernel_call, info);
+    llvm::InlineFunction(*simd_kernel_call, info);
 
     // remove vectorized function
     if (simd_kernel_func->hasNUses(0))

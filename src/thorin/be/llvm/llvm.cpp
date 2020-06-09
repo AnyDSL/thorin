@@ -237,7 +237,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
     if (vector_length(type) == 1)
         return types_[type] = llvm_type;
 
-    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type));
+    llvm_type = llvm::FixedVectorType::get(llvm_type, vector_length(type));
     return types_[type] = llvm_type;
 }
 
@@ -472,7 +472,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         llvm::CallInst* call = nullptr;
         if (auto callee = continuation->callee()->isa_continuation()) {
-            call = irbuilder.CreateCall(emit(callee), args);
+            call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
             if (callee->is_exported())
                 call->setCallingConv(kernel_calling_convention_);
             else if (callee->cc() == CC::Device)
@@ -483,7 +483,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             // must be a closure
             auto closure = emit(callee);
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
-            call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
+            auto func = irbuilder.CreateExtractValue(closure, 0);
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(func->getType()), func, args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -921,7 +922,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type*
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
-    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)));
+    alloca->setAlignment(layout.getABITypeAlign(type));
     return alloca;
 }
 
@@ -963,8 +964,8 @@ llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) 
     emit_unsafe(load->mem());
     auto ptr = emit(load->ptr());
     auto result = irbuilder.CreateLoad(ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    result->setAlignment(llvm::MaybeAlign(align));
+    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    result->setAlignment(align);
     return result;
 }
 
@@ -972,8 +973,8 @@ llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* stor
     emit_unsafe(store->mem());
     auto ptr = emit(store->ptr());
     auto result = irbuilder.CreateStore(emit(store->val()), ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    result->setAlignment(llvm::MaybeAlign(align));
+    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    result->setAlignment(align);
     return nullptr;
 }
 
@@ -1096,8 +1097,8 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder.CreateLoad(ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    load->setAlignment(llvm::MaybeAlign(align));
+    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    load->setAlignment(align);
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), load);
     return cont;
@@ -1113,8 +1114,8 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder.CreateStore(val, ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    store->setAlignment(llvm::MaybeAlign(align));
+    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    store->setAlignment(align);
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }

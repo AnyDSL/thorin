@@ -513,9 +513,16 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     }
 
     if (auto variant = from->isa<Variant>()) {
-        if (variant->op(0)->type() != to)
-            ELOG("variant downcast not possible");
-        return variant->op(0);
+        if (variant->op(0)->type() == to)
+            return variant->op(0);
+        // Note: If the downcast is not possible, it is still necessary to create a node.
+        // Consider for instance:
+        // match E::A {
+        //     E::A => 1,
+        //     E::B(x) => x
+        // }
+        // Here, the code generator will emit a cast to generate the `E::B()`
+        // arm and give a value to `x`, but this is safe since this is dead code.
     }
 
     auto lit = from->isa<PrimLit>();

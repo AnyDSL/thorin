@@ -70,7 +70,7 @@ public:
             return load->out_mem();
         } else if (auto store = mem_use->isa<Store>()) {
             // Try to find the slot corresponding to this store
-            auto slot = find_slot(store->ptr(), false);
+            auto slot = find_slot(store->ptr());
             if (slot) {
                 if (only_stores(slot)) {
                     store->replace(store->mem());

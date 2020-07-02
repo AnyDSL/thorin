@@ -16,7 +16,6 @@ public:
 
     struct Visit {
         std::vector<const Def*> args;
-        Lam* prop_lam = nullptr;
     };
 
     using State = std::tuple<LamMap<Visit>>;
@@ -27,7 +26,7 @@ private:
 
     std::pair<Visit&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Visit>>(lam); return {i->second, undo}; }
 
-    LamMap<Lam*> prop2param_;
+    LamMap<Lam*> param2prop_;
     DefSet keep_;
 };
 

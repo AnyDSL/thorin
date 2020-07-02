@@ -13,7 +13,6 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
             || param_lam->num_params() == 0
             || param_lam->is_external()
             || !param_lam->is_set()
-            || prop2param_.contains(param_lam)
             || keep_.contains(param_lam))
         return app;
 
@@ -40,13 +39,13 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         return proxy(app->type(), app->ops());
     }
 
-    auto& prop_lam = visit.prop_lam;
-    if (prop_lam == nullptr) {
+    auto& prop_lam = param2prop_[param_lam];
+    if (prop_lam == nullptr || prop_lam->num_params() != types.size()) {
         auto prop_domain = world().sigma(types);
         auto new_type = world().pi(prop_domain, param_lam->codomain());
         prop_lam = param_lam->stub(world(), new_type, param_lam->debug());
         man().mark_tainted(prop_lam);
-        prop2param_[prop_lam] = param_lam;
+        keep_.emplace(prop_lam); // don't try to propagate again
         world().DLOG("param_lam => prop_lam: {}: {} => {}: {}", param_lam, param_lam->type()->domain(), prop_lam, prop_domain);
 
         size_t j = 0;

@@ -14,17 +14,14 @@ public:
         : Pass(man, index, "copy_prop")
     {}
 
-    struct Visit {
-        std::vector<const Def*> args;
-    };
-
-    using State = std::tuple<LamMap<Visit>>;
+    using Args  = std::vector<const Def*>;
+    using State = std::tuple<LamMap<Args>>;
 
 private:
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
-    std::pair<Visit&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Visit>>(lam); return {i->second, undo}; }
+    std::pair<Args&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Args>>(lam); return {i->second, undo}; }
 
     LamMap<Lam*> param2prop_;
     DefSet keep_;

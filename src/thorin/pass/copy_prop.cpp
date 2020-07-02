@@ -16,8 +16,8 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
             || keep_.contains(param_lam))
         return app;
 
-    auto&& [visit, _] = get(param_lam);
-    visit.args.resize(app->num_args());
+    auto&& [args, _] = get(param_lam);
+    args.resize(app->num_args());
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
 
@@ -26,9 +26,9 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         if (keep_.contains(param_lam->param(i))) {
             types.emplace_back(param_lam->param(i)->type());
             new_args.emplace_back(app->arg(i));
-        } else if (visit.args[i] == nullptr) {
-            visit.args[i] = app->arg(i);
-        } else if (visit.args[i] != app->arg(i)) {
+        } else if (args[i] == nullptr) {
+            args[i] = app->arg(i);
+        } else if (args[i] != app->arg(i)) {
             keep_.emplace(param_lam->param(i));
             update = true;
         }
@@ -50,7 +50,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 
         size_t j = 0;
         Array<const Def*> new_params(app->num_args(), [&](size_t i) {
-            return keep_.contains(param_lam->param(i)) ? prop_lam->param(j++) : visit.args[i];
+            return keep_.contains(param_lam->param(i)) ? prop_lam->param(j++) : args[i];
         });
         auto new_param = world().tuple(new_params);
         prop_lam->set(0_s, world().subst(param_lam->op(0), param_lam->param(), new_param));

@@ -33,9 +33,6 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    /// Inspects a @p nom%inal when first visited during @p rewrite%ing @p cur_nom.
-    virtual void visit([[maybe_unused]] Def* cur_nom, [[maybe_unused]] Def* nom) {}
-
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
     virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
 
@@ -89,28 +86,16 @@ public:
     //@{
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
-    const Def* lookup(const Def* old_def) {
-        if (auto new_def = _lookup(old_def)) {
-            while (true) {
-                world().DLOG("{} -> {}", old_def, new_def);
-                old_def = new_def;
-                new_def = _lookup(old_def);
-                if (new_def == nullptr) return old_def;
-                if (new_def == old_def) return new_def;
-            }
-        }
 
-        return nullptr;
-    }
-
-    const Def* _lookup(const Def* old_def) {
+    std::optional<const Def*> lookup(const Def* old_def) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
             const auto& old2new = i->old2new;
             if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
         }
 
-        return nullptr;
+        return {};
     }
+
     bool is_tainted(Def* nom) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
             if (i->tainted.contains(nom)) return true;
@@ -178,12 +163,6 @@ public:
         : PassBase(man, index, name)
     {}
 
-    /// @name state-related getters
-    //@{
-    auto& states() { return man().states_; }
-    auto& state(size_t i) { return *static_cast<typename P::State*>(states()[i].data[index()]); }
-    auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
-    //@}
     /// @name search in the state stack
     //@{
     /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
@@ -218,6 +197,14 @@ public:
     //@{
     void* alloc() override { return new typename P::State(); }
     void dealloc(void* state) override { delete static_cast<typename P::State*>(state); }
+    //@}
+
+private:
+    /// @name state-related getters
+    //@{
+    auto& states() { return man().states_; }
+    auto& state(size_t i) { return *static_cast<typename P::State*>(states()[i].data[index()]); }
+    auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
     //@}
 };
 

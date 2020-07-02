@@ -14,7 +14,8 @@ const Proxy* SSAConstr::isa_phixy(const Def* def) { if (auto p = isa_proxy(def);
 // both sloxy and phixy reference the *old* lam
 // the value map for get_val/set_val uses the *new* lam
 
-void SSAConstr::visit(Def* cur_nom, Def* vis_nom) {
+#if 0
+void SSAConstr::mem2phi(Def* cur_nom) {
     auto cur_lam = cur_nom->isa<Lam>();
     auto mem_lam = vis_nom->isa<Lam>();
     if (!cur_lam || !mem_lam || keep_.contains(mem_lam) || !preds_n_.contains(mem_lam)) return;
@@ -60,6 +61,7 @@ void SSAConstr::visit(Def* cur_nom, Def* vis_nom) {
         }
     }
 }
+#endif
 
 const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();

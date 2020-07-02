@@ -73,7 +73,7 @@ void PassMan::run() {
 
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     if (old_def->is_const()) return old_def;
-    if (auto new_def = lookup(old_def)) return new_def;
+    if (auto new_def = lookup(old_def)) return *new_def;
 
     if (auto subst = old_def->isa<Subst>()) {
         map(subst->replacee(), subst->replacer());
@@ -83,13 +83,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
 
-    if (auto nom = old_def->isa_nominal()) {
-        world().DLOG("visit: {} within {}", nom, cur_nom);
-        for (auto&& pass : passes_)
-            pass->visit(cur_nom, nom);
-
-        return map(nom, nom);
-    }
+    if (auto nom = old_def->isa_nominal()) return map(nom, nom);
 
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i)); });
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);

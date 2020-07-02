@@ -64,12 +64,13 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
     if (!cur_lam || def->isa<Param>()) return No_Undo;
-    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
-    if (auto proxy = isa_proxy(def)) {
-        auto param_lam  = proxy->op(0)->as_nominal<Lam>();
-        auto&& [_, undo] = get(param_lam);
-        return undo;
+    if (auto proxy = def->isa<Proxy>()) {
+        if (proxy->index() == index())  {
+            auto&& [_, undo] = get(proxy->op(0)->as_nominal<Lam>());
+            return undo;
+        }
+        return No_Undo;
     }
 
     auto undo = No_Undo;

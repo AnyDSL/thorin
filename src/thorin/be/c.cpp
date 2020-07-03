@@ -967,6 +967,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
+    if (auto align_of = def->isa<AlignOf>()) {
+        func_impl_ << "alignof(";
+        emit_type(func_impl_, align_of->of()) << ")";
+        return func_impl_;
+    }
+
     if (auto size_of = def->isa<SizeOf>()) {
         func_impl_ << "sizeof(";
         emit_type(func_impl_, size_of->of()) << ")";

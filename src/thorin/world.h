@@ -137,6 +137,7 @@ public:
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    const Def* algin_of(const Type* type, Debug dbg = {});
     const Def* size_of(const Type* type, Debug dbg = {});
 
     // memory stuff

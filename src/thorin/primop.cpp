@@ -85,6 +85,10 @@ Known::Known(const Def* def, Debug dbg)
     : PrimOp(Node_Known, def->world().type_bool(), {def}, dbg)
 {}
 
+AlignOf::AlignOf(const Def* def, Debug dbg)
+    : PrimOp(Node_AlignOf, def->world().type_qs64(), {def}, dbg)
+{}
+
 SizeOf::SizeOf(const Def* def, Debug dbg)
     : PrimOp(Node_SizeOf, def->world().type_qs64(), {def}, dbg)
 {}
@@ -192,6 +196,7 @@ const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], debug()); }
 const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_tag(), value(), debug()); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], debug()); }
+const Def* AlignOf::vrebuild(World& to, Defs ops, const Type*  ) const { return to.algin_of(ops[0]->type(), debug()); }
 const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), debug()); }
 const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }

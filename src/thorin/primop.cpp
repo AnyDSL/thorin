@@ -86,7 +86,7 @@ Known::Known(const Def* def, Debug dbg)
 {}
 
 SizeOf::SizeOf(const Def* def, Debug dbg)
-    : PrimOp(Node_SizeOf, def->world().type_qs32(), {def}, dbg)
+    : PrimOp(Node_SizeOf, def->world().type_qs64(), {def}, dbg)
 {}
 
 Slot::Slot(const Type* type, const Def* frame, Debug dbg)

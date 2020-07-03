@@ -804,10 +804,16 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
+    if (auto align_of = def->isa<AlignOf>()) {
+        auto type = convert(align_of->of());
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        return irbuilder_.getInt64(layout.getABITypeAlignment(type));
+    }
+
     if (auto size_of = def->isa<SizeOf>()) {
         auto type = convert(size_of->of());
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+        return irbuilder_.getInt64(layout.getTypeAllocSize(type));
     }
 
     if (auto array = def->isa<DefiniteArray>()) {

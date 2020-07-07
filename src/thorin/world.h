@@ -263,7 +263,7 @@ public:
     //@}
     /// @name Lit: Nat
     //@{
-    const Lit* lit_nat(u64 a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
+    const Lit* lit_nat(nat_t a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
     //@}
     /// @name Lit: SInt
     //@{

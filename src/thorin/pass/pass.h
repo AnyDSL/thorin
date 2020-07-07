@@ -33,10 +33,16 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
+    /// Invoked just before @p rewrite%ing @p cur_nom's body.
+    virtual void enter([[maybe_unused]] Def* cur_nom) {}
+
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
     virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
 
-    /// Invoked after the @p PassMan has finished @p rewrite%ing @p cur_nom to analyze @p def.
+    /// Invoked just after @p rewrite%ing and before @p analyze%ing @p cur_nom's body.
+    virtual void finish([[maybe_unused]] Def* cur_nom) {}
+
+    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     ///@}

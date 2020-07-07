@@ -51,8 +51,14 @@ void PassMan::run() {
 
         if (!cur_nom->is_set()) continue;
 
+        for (auto&& pass : passes_)
+            pass->enter(cur_nom);
+
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
             cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
+
+        for (auto&& pass : passes_)
+            pass->finish(cur_nom);
 
         auto undo = No_Undo;
         for (auto op : cur_nom->extended_ops())

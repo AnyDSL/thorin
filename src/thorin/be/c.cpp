@@ -811,15 +811,16 @@ std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
     auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
     const char* suf = "", * pref = "";
 
-    if (lang_ == Lang::CUDA) {
-        if (std::is_same<T, half>::value) {
+    if (std::is_same<T, half>::value) {
+        if (lang_ == Lang::CUDA) {
             pref = "__float2half(";
             suf  = ")";
-        } else if (std::is_same<T, float>::value) {
-            suf  = "f";
+        } else {
+            suf = "h";
         }
-    } else if (std::is_same<T, half>::value) {
-        suf = "h";
+    }
+    if (std::is_same<T, float>::value) {
+        suf  = "f";
     }
 
     auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {

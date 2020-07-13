@@ -818,13 +818,20 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
-        if (is_const(array)) {
-            size_t size = array->num_ops();
-            Array<llvm::Constant*> vals(size);
-            for (size_t i = 0; i != size; ++i)
-                vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
-            return llvm::ConstantArray::get(type, llvm_ref(vals));
+
+        // Try to emit it as a constant first
+        Array<llvm::Constant*> consts(array->num_ops());
+        bool all_consts = true;
+        for (size_t i = 0, n = consts.size(); i != n; ++i) {
+            consts[i] = llvm::dyn_cast<llvm::Constant>(emit(array->op(i)));
+            if (!consts[i]) {
+                all_consts = false;
+                break;
+            }
         }
+        if (all_consts)
+            return llvm::ConstantArray::get(type, llvm_ref(consts));
+
         WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
         auto alloca = emit_alloca(type, array->name().str());
 

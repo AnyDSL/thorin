@@ -8,13 +8,10 @@
 
 namespace thorin {
 
-/**
- * SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
- * This is loosely based upon:
- * "Simple and Efficient Construction of Static Single Assignment Form"
- * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
- *
- */
+/// SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
+/// This is loosely based upon:
+/// "Simple and Efficient Construction of Static Single Assignment Form"
+/// by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
 class SSAConstr : public Pass<SSAConstr> {
 public:
     SSAConstr(PassMan& man, size_t index)
@@ -57,6 +54,7 @@ private:
 
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
+    const Def* rewrite(Lam*, const App*, Lam*);
 
     template<class T> // T = Visit or Enter
     std::pair<T&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo}; }

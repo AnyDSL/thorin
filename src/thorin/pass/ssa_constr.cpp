@@ -1,6 +1,7 @@
 #include "thorin/pass/ssa_constr.h"
 
 #include "thorin/util.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
 
@@ -39,15 +40,75 @@ const Proxy* SSAConstr::isa_phixy(const Def* def) { if (auto p = isa_proxy(def);
  * PassMan hooks
  */
 
-#if 0
-void SSAConstr::mem2phi(Def* cur_nom) {
-    auto cur_lam = cur_nom->isa<Lam>();
-    auto mem_lam = vis_nom->isa<Lam>();
-    if (!cur_lam || !mem_lam || keep_.contains(mem_lam) || !preds_n_.contains(mem_lam)) return;
+const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
+    if (auto cur_lam = cur_nom->isa<Lam>()) {
+        if (auto slot = isa<Tag::Slot>(def)) {
+            auto sloxy = make_sloxy(cur_lam, slot);
+            if (!keep_.contains(sloxy)) {
+                set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
+                //lam2info(cur_lam).writable.emplace(sloxy);
+                return world().tuple({slot->arg(), sloxy});
+            }
+        } else if (auto load = isa<Tag::Load>(def)) {
+            auto [mem, ptr] = load->args<2>();
+            if (auto sloxy = isa_sloxy(ptr))
+                return world().tuple({mem, get_val(cur_lam, sloxy)});
+        } else if (auto store = isa<Tag::Store>(def)) {
+            auto [mem, ptr, val] = store->args<3>();
+            if (auto sloxy = isa_sloxy(ptr)) {
+                //if (lam2info(cur_lam).writable.contains(sloxy)) {
+                    set_val(cur_lam, sloxy, val);
+                    return mem;
+                //}
+            }
+        } else if (auto app = def->isa<App>()) {
+            if (auto mem_lam = app->callee()->isa_nominal<Lam>()) return rewrite(cur_lam, app, mem_lam);
+        }
+    }
 
-    if (mem_lam->is_intrinsic() || mem_lam->is_external()) {
-        keep_.emplace(mem_lam);
-        return;
+    return def;
+}
+
+const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
+    if (auto val = sloxy2val_.lookup(sloxy)) {
+        world().DLOG("get_val {} for {}: {}", lam, sloxy, *val);
+        return *val;
+    } else {
+        auto&& [visit, _] = get<Visit>(lam);
+        if (preds_n_.contains(lam)) {
+            return set_val(lam, sloxy, make_phixy(lam, sloxy));
+        } else if (visit.preds == Visit::Preds1) {
+            world().DLOG("get_val pred: {}: {} -> {}", sloxy, lam, visit.pred);
+            return get_val(visit.pred, sloxy);
+        } else {
+            assert(visit.preds == Visit::Preds0);
+            return world().bot(get_sloxy_type(sloxy));
+        }
+    }
+}
+
+const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
+    world().DLOG("set_val {} for {}: {}", lam, sloxy, val);
+    return sloxy2val_[sloxy] = val;
+}
+
+const Def* SSAConstr::rewrite(Lam* /*cur_lam*/, const App* app, Lam* mem_lam) {
+    if (mem_lam->is_external() || !mem_lam->is_set() || keep_.contains(mem_lam))
+        return app;
+#if 0
+            auto&& [visit, _] = get<Visit>(mem_lam);
+            if (auto& phi_lam = visit.phi_lam) {
+                auto& phis = lam2phis_[mem_lam];
+                auto phi = phis.begin();
+                Array<const Def*> args(phis.size(), [&](auto) { return get_val(cur_lam, *phi++); });
+                return world().app(phi_lam, merge_tuple(app->arg(), args));
+#endif
+
+    Scope scope(mem_lam);
+    std::vector<const Proxy*> phis;
+
+    for (auto [sloxy, _] : sloxy2val_) {
+        if (scope.free().contains(sloxy)) phis.emplace_back(sloxy);
     }
 
     if (auto& phis = lam2phis_[mem_lam]; !phis.empty()) {
@@ -85,68 +146,8 @@ void SSAConstr::mem2phi(Def* cur_nom) {
                 set_val(phi_lam, phi, phi_lam->param(n + i++));
         }
     }
-}
-#endif
 
-const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
-    if (!cur_lam) return def;
-
-    if (auto slot = isa<Tag::Slot>(def)) {
-        auto sloxy = make_sloxy(cur_lam, slot);
-        if (!keep_.contains(sloxy)) {
-            set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
-            //lam2info(cur_lam).writable.emplace(sloxy);
-            return world().tuple({slot->arg(), sloxy});
-        }
-    } else if (auto load = isa<Tag::Load>(def)) {
-        auto [mem, ptr] = load->args<2>();
-        if (auto sloxy = isa_sloxy(ptr))
-            return world().tuple({mem, get_val(cur_lam, sloxy)});
-    } else if (auto store = isa<Tag::Store>(def)) {
-        auto [mem, ptr, val] = store->args<3>();
-        if (auto sloxy = isa_sloxy(ptr)) {
-            //if (lam2info(cur_lam).writable.contains(sloxy)) {
-                set_val(cur_lam, sloxy, val);
-                return mem;
-            //}
-        }
-    } else if (auto app = def->isa<App>()) {
-        if (auto mem_lam = app->callee()->isa_nominal<Lam>()) {
-            auto&& [visit, _] = get<Visit>(mem_lam);
-            if (auto& phi_lam = visit.phi_lam) {
-                auto& phis = lam2phis_[mem_lam];
-                auto phi = phis.begin();
-                Array<const Def*> args(phis.size(), [&](auto) { return get_val(cur_lam, *phi++); });
-                return world().app(phi_lam, merge_tuple(app->arg(), args));
-            }
-        }
-    }
-
-    return def;
-}
-
-const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
-    if (auto val = sloxy2val_.lookup(sloxy)) {
-        world().DLOG("get_val {} for {}: {}", lam, sloxy, *val);
-        return *val;
-    } else {
-        auto&& [visit, _] = get<Visit>(lam);
-        if (preds_n_.contains(lam)) {
-            return set_val(lam, sloxy, make_phixy(lam, sloxy));
-        } else if (visit.preds == Visit::Preds1) {
-            world().DLOG("get_val pred: {}: {} -> {}", sloxy, lam, visit.pred);
-            return get_val(visit.pred, sloxy);
-        } else {
-            assert(visit.preds == Visit::Preds0);
-            return world().bot(get_sloxy_type(sloxy));
-        }
-    }
-}
-
-const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
-    world().DLOG("set_val {} for {}: {}", lam, sloxy, val);
-    return sloxy2val_[sloxy] = val;
+    return app;
 }
 
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {

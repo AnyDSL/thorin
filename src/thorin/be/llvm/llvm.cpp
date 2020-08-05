@@ -123,7 +123,7 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), call);
@@ -136,7 +136,7 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(3)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
@@ -153,7 +153,7 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(4)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
@@ -172,7 +172,7 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));

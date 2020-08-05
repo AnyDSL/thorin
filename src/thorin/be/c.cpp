@@ -905,7 +905,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto dst_type = conv->type();
 
         // string handling: bitcast [n*pu8]* -> [pu8]*
-        if (conv->isa<Bitcast>() && conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
+        if (conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
             auto dst_ptr = dst_type->isa<PtrType>();
             if (dst_ptr && dst_ptr->pointee()->isa<IndefiniteArrayType>()) {
                 func_impl_ << "// skipped string bitcast: ";

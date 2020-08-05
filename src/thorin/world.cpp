@@ -789,7 +789,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     return cse(new Select(cond, a, b, dbg));
 }
 
-const Def* World::algin_of(const Type* type, Debug dbg) {
+const Def* World::align_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 

@@ -71,12 +71,14 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     auto target_device_id = code_gen.lookup(continuation->arg(LaunchArgs::Device));
     auto target_platform = builder_.getInt32(platform);
     auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
-    auto it_space = continuation->arg(LaunchArgs::Space)->as<Tuple>();
-    auto it_config = continuation->arg(LaunchArgs::Config)->as<Tuple>();
+
+    auto it_space = continuation->arg(LaunchArgs::Space);
+    auto it_config = continuation->arg(LaunchArgs::Config);
     auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
+    auto& world = continuation->world();
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
-    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
+    auto file_name = builder_.CreateGlobalStringPtr(world.name() + ext);
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types
@@ -152,16 +154,16 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     const auto get_u32 = [&](const Def* def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
 
     llvm::Value* grid_array  = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
-    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(0)), 0);
-    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(1)), 1);
-    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(2)), 2);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 0_u32)), 0);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 1_u32)), 1);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 2_u32)), 2);
     llvm::Value* grid_size = code_gen.emit_alloca(grid_array->getType(), "");
     builder_.CreateStore(grid_array, grid_size);
 
     llvm::Value* block_array = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
-    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(0)), 0);
-    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(1)), 1);
-    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(2)), 2);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(world.extract(it_config, 0_u32)), 0);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(world.extract(it_config, 1_u32)), 1);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(world.extract(it_config, 2_u32)), 2);
     llvm::Value* block_size = code_gen.emit_alloca(block_array->getType(), "");
     builder_.CreateStore(block_array, block_size);
 

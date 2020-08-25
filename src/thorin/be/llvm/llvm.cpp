@@ -1027,21 +1027,19 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
-    auto irPtr = lookup(load->ptr());
+    auto ptr = lookup(load->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    llvm::MaybeAlign ptrAlignment(layout.getABITypeAlignment(irPtr->getType()->getPointerElementType()));
-    auto irLoad = irbuilder_.CreateLoad(irPtr);
-    irLoad->setAlignment(ptrAlignment);
-    return irLoad;
+    auto result = irbuilder_.CreateLoad(ptr);
+    result->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    return result;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    auto irPtr = lookup(store->ptr());
+    auto ptr = lookup(store->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    llvm::MaybeAlign ptrAlignment(layout.getABITypeAlignment(irPtr->getType()->getPointerElementType()));
-    auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
-    irStore->setAlignment(ptrAlignment);
-    return irStore;
+    auto result = irbuilder_.CreateStore(lookup(store->val()), ptr);
+    result->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    return result;
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {

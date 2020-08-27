@@ -27,9 +27,19 @@ void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Fu
             annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<0>(block)));
             annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<1>(block)));
             annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<2>(block)));
-            f->setMetadata(llvm::StringRef("reqd_work_group_size"),  llvm::MDNode::get(*context_, llvm_ref(annotation_values_wgsize)));
+            f->setMetadata(llvm::StringRef("reqd_work_group_size"), llvm::MDNode::get(*context_, llvm_ref(annotation_values_wgsize)));
         }
     }
+}
+
+llvm::Function* AMDGPUCodeGen::emit_function_decl(Continuation* continuation) {
+    if (continuation->name() == "llvm.amdgcn.implicitarg.ptr")
+        if (auto f = thorin::find(fcts_, entry_))
+            f->addFnAttr("amdgpu-implicitarg-ptr");
+    if (continuation->name() == "__ockl_printf_begin")
+        if (auto f = thorin::find(fcts_, entry_))
+            f->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
+    return CodeGen::emit_function_decl(continuation);
 }
 
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {

@@ -256,6 +256,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
+
 std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {

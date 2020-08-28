@@ -43,6 +43,7 @@
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_kernel_launch.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -1343,12 +1344,14 @@ Backends::Backends(World& world)
             imported = cuda.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
             imported = nvvm.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL)) {
             imported = opencl.import(continuation)->as_continuation();
+            }
         else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
             imported = amdgpu.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS)) {
             imported = hls.import(continuation)->as_continuation();
+            }
         else
             return;
 
@@ -1361,6 +1364,7 @@ Backends::Backends(World& world)
 
         kernels.emplace_back(continuation);
     });
+
 
     // get the GPU kernel configurations
     if (!cuda.world().empty()   ||
@@ -1400,8 +1404,10 @@ Backends::Backends(World& world)
 
     // get the HLS kernel configurations
     Top2Kernel top2kernel;
+    DeviceParams hls_host_params;
     if (!hls.world().empty()) {
-        hls_channels(hls.world(), top2kernel);
+        hls_host_params = hls_channels(hls, top2kernel, world);
+
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
@@ -1436,6 +1442,9 @@ Backends::Backends(World& world)
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
         hls_annotate_top(hls.world(), top2kernel, kernel_config);
     }
+
+
+    hls_kernel_launch(world, hls_host_params);
 
     world.cleanup();
 

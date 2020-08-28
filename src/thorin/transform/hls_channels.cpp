@@ -4,6 +4,7 @@
 #include "thorin/transform/hls_channels.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/analyses/verify.h"
 #include "thorin/util/log.h"
 #include "thorin/type.h"
 
@@ -15,8 +16,10 @@ using Dependencies = std::vector<std::pair<size_t, size_t>>; // <From, To>
 static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& block : schedule) {
         auto continuation = block.continuation();
+
         if (continuation->empty())
             continue;
+
         auto callee = continuation->callee()->isa_continuation();
         if (callee && callee->is_channel()) {
             if (continuation->arg(1)->order() == 0 && !(is_mem(continuation->arg(1)) || is_unit(continuation->arg(1)))) {
@@ -139,12 +142,21 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
     return remaining_dependencies == 0;
 }
 
-// ------------------------------------
+/**
+ * @param importer hls world
+ * @param Top2Kernel annonating hls_top configuration
+ * @param old_world to connect with runtime (host) world
+ * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
+ */
 
-void hls_channels(World& world, Top2Kernel& top2kernel) {
+DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
+    auto& world = importer.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
-    Def2Def param2arg; // contains map from new kernel parameter to arguments of call inside hls_top (for all kernels)
+    Def2Def kernel_new2old;
+    Def2Def param2arg; // contains map from new kernel parameter to arguments of calls inside hls_top (for all kernels)
+    Def2Def arg2param;
+
 
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();
@@ -161,14 +173,16 @@ void hls_channels(World& world, Top2Kernel& top2kernel) {
             // - The old global definition for the channel
             std::vector<std::pair<size_t, const Def*>> index2def;
             for (auto map : def2mode) {
-            index2def.emplace_back(i, map.first);
-            new_param_types[i++] = map.first->type();
+                index2def.emplace_back(i, map.first);
+                new_param_types[i++] = map.first->type();
             }
 
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
             new_kernel->make_external();
+
+            kernel_new2old.emplace(new_kernel, old_kernel);
 
             if (is_single_kernel(new_kernel))
                 new_kernels.emplace(new_kernels.begin(),new_kernel);
@@ -233,11 +247,40 @@ void hls_channels(World& world, Top2Kernel& top2kernel) {
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
     for (auto tuple : param_index) {
         // (non-channel params, top params as kernel call args)
-        param2arg.emplace(std::get<0>(tuple)->param(std::get<1>(tuple)), hls_top->param(std::get<2>(tuple)));
+        auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
+        auto arg   = hls_top->param(std::get<2>(tuple));
+        param2arg.emplace(param, arg);
+        arg2param.emplace(arg, param);
     }
+
+    // ---------- Preparing args for calling hls_top from host ------------
+
+    // Maping new_kernels params to old kernels params
+    std::vector<const Def*> old_kernels_params;
+    for (auto param : hls_top->params()) {
+        if (arg2param.contains(param)) {
+            auto new_kernel_param = arg2param[param]->as<Param>();
+            auto old_kernel = kernel_new2old[new_kernel_param->continuation()];
+            old_kernels_params.emplace_back(old_kernel->as_continuation()->param(new_kernel_param->index()));
+        }
+    }
+
+    // Maping hls world params (from old kernels) to old_world params. Required for host code (runtime) generation
+    for (auto& elem : old_kernels_params) {
+        for (auto ocontinuation : old_world.continuations()) {
+            auto ncontinuation = elem->as<Param>()->continuation();
+            if (ncontinuation == importer.def_old2new_[ocontinuation]) {
+                elem = ocontinuation->param(elem->as<Param>()->index());
+                break;
+            }
+        }
+    }
+
+    // --------------------------------------------------------------------
 
     auto enter   = world.enter(hls_top->mem_param());
     auto cur_mem = world.extract(enter, 0_s);
+    // hls_top memory obj frame to be used in making channel slots
     auto frame   = world.extract(enter, 1_s);
 
     Def2Def global2slot;
@@ -340,6 +383,7 @@ void hls_channels(World& world, Top2Kernel& top2kernel) {
                 assert(false);
             }
         }
+
         cur_bb->jump(kernel, args);
         cur_bb = ret;
         cur_mem = ret->mem_param();
@@ -347,8 +391,10 @@ void hls_channels(World& world, Top2Kernel& top2kernel) {
 
     hls_top->make_external();
 
+    debug_verify(world);
     world.cleanup();
-    //world.dump();
+
+    return old_kernels_params;
 }
 
 }

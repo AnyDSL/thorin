@@ -1410,7 +1410,7 @@ Backends::Backends(World& world)
 
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
+            for (size_t i = hls_free_vars_offset, e = use->num_args(); i != e; ++i) {
                 auto arg = use->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;
@@ -1435,7 +1435,7 @@ Backends::Backends(World& world)
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
 
                 // imported has type: fn (mem, fn (mem), ...)
-                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
+                param_sizes.emplace(imported->param(i - hls_free_vars_offset + 2), num_elems);
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         };

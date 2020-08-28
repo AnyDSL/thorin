@@ -75,7 +75,8 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
         case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
-        case Intrinsic::HLS:         return emit_hls(continuation);
+        //case Intrinsic::HLS:         return emit_hls(continuation);
+        //case Intrinsic::HLS:         return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM,    ".cpp", continuation);
         case Intrinsic::Parallel:    return emit_parallel(continuation);
         case Intrinsic::Fibers:      return emit_fibers(continuation);
         case Intrinsic::Spawn:       return emit_spawn(continuation);
@@ -89,22 +90,22 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     }
 }
 
-Continuation* CodeGen::emit_hls(Continuation* continuation) {
-    std::vector<llvm::Value*> args(continuation->num_args()-3);
-    Continuation* ret = nullptr;
-    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
-        if (auto cont = continuation->arg(i)->isa_continuation()) {
-            ret = cont;
-            continue;
-        }
-        args[j++] = lookup(continuation->arg(i));
-    }
-    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_external();
-    irbuilder_.CreateCall(emit_function_decl(callee), args);
-    assert(ret);
-    return ret;
-}
+//Continuation* CodeGen::emit_hls(Continuation* continuation) {
+//    std::vector<llvm::Value*> args(continuation->num_args()-3);
+//    Continuation* ret = nullptr;
+//    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
+//        if (auto cont = continuation->arg(i)->isa_continuation()) {
+//            ret = cont;
+//            continue;
+//        }
+//        args[j++] = lookup(continuation->arg(i));
+//    }
+//    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
+//    callee->make_external();
+//    irbuilder_.CreateCall(emit_function_decl(callee), args);
+//    assert(ret);
+//    return ret;
+//}
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());

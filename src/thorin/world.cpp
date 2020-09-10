@@ -513,9 +513,16 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     }
 
     if (auto variant = from->isa<Variant>()) {
-        if (variant->op(0)->type() != to)
-            ELOG("variant downcast not possible");
-        return variant->op(0);
+        if (variant->op(0)->type() == to)
+            return variant->op(0);
+        // Note: If the downcast is not possible, it is still necessary to create a node.
+        // Consider for instance:
+        // match E::A {
+        //     E::A => 1,
+        //     E::B(x) => x
+        // }
+        // Here, the code generator will emit a cast to generate the `E::B()`
+        // arm and give a value to `x`, but this is safe since this is dead code.
     }
 
     auto lit = from->isa<PrimLit>();
@@ -782,9 +789,16 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     return cse(new Select(cond, a, b, dbg));
 }
 
+const Def* World::align_of(const Type* type, Debug dbg) {
+    if (auto ptype = type->isa<PrimType>())
+        return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
+
+    return cse(new AlignOf(bottom(type, dbg), dbg));
+}
+
 const Def* World::size_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
-        return literal(qs32(num_bits(ptype->primtype_tag()) / 8), dbg);
+        return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
     return cse(new SizeOf(bottom(type, dbg), dbg));
 }

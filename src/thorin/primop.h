@@ -154,6 +154,19 @@ public:
     friend class World;
 };
 
+/// Get the alignment in number of bytes needed for any value (including bottom) of a given @p Type.
+class AlignOf : public PrimOp {
+private:
+    AlignOf(const Def* def, Debug dbg);
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const Type* of() const { return op(0)->type(); }
+
+    friend class World;
+};
+
 /// Get number of bytes needed for any value (including bottom) of a given @p Type.
 class SizeOf : public PrimOp {
 private:

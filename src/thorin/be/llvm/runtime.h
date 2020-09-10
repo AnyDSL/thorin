@@ -41,7 +41,7 @@ public:
     llvm::Value* launch_kernel(llvm::Value* device,
                                llvm::Value* file, llvm::Value* kernel,
                                llvm::Value* grid, llvm::Value* block,
-                               llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* types,
+                               llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
                                llvm::Value* num_args);
 
     /// Emits a call to anydsl_parallel_for.

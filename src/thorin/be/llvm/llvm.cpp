@@ -123,7 +123,7 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), call);
@@ -136,7 +136,7 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(3)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
@@ -153,7 +153,7 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(4)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
@@ -172,7 +172,7 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
@@ -256,6 +256,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
+
 std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
@@ -605,6 +606,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
+    alloca->setAlignment(layout.getABITypeAlign(type));
     return alloca;
 }
 
@@ -805,21 +807,34 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
+    if (auto align_of = def->isa<AlignOf>()) {
+        auto type = convert(align_of->of());
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        return irbuilder_.getInt64(layout.getABITypeAlignment(type));
+    }
+
     if (auto size_of = def->isa<SizeOf>()) {
         auto type = convert(size_of->of());
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+        return irbuilder_.getInt64(layout.getTypeAllocSize(type));
     }
 
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
-        if (is_const(array)) {
-            size_t size = array->num_ops();
-            Array<llvm::Constant*> vals(size);
-            for (size_t i = 0; i != size; ++i)
-                vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
-            return llvm::ConstantArray::get(type, llvm_ref(vals));
+
+        // Try to emit it as a constant first
+        Array<llvm::Constant*> consts(array->num_ops());
+        bool all_consts = true;
+        for (size_t i = 0, n = consts.size(); i != n; ++i) {
+            consts[i] = llvm::dyn_cast<llvm::Constant>(emit(array->op(i)));
+            if (!consts[i]) {
+                all_consts = false;
+                break;
+            }
         }
+        if (all_consts)
+            return llvm::ConstantArray::get(type, llvm_ref(consts));
+
         WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
         auto alloca = emit_alloca(type, array->name().str());
 
@@ -1014,21 +1029,19 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
-    auto irPtr = lookup(load->ptr());
+    auto ptr = lookup(load->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto ptrAlign = layout.getABITypeAlign(irPtr->getType()->getPointerElementType());
-    auto irLoad = irbuilder_.CreateLoad(irPtr);
-    irLoad->setAlignment(ptrAlign);
-    return irLoad;
+    auto result = irbuilder_.CreateLoad(ptr);
+    result->setAlignment(layout.getABITypeAlign(ptr->getType()->getPointerElementType()));
+    return result;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    auto irPtr = lookup(store->ptr());
+    auto ptr = lookup(store->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto ptrAlign = layout.getABITypeAlign(irPtr->getType()->getPointerElementType());
-    auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
-    irStore->setAlignment(ptrAlign);
-    return irStore;
+    auto result = irbuilder_.CreateStore(lookup(store->val()), ptr);
+    result->setAlignment(layout.getABITypeAlign(ptr->getType()->getPointerElementType()));
+    return result;
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {

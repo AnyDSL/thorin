@@ -49,7 +49,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
     llvm::Type* wrapper_arg_types[] = { irbuilder_.getInt8PtrTy(0), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder_.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_parallel_for";
-    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
+    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
     runtime_->parallel_for(num_threads, lower, upper, ptr, wrapper);
 
     // set insert point to the wrapper function
@@ -78,7 +78,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
         // call kernel body
         target_args[0] = counter; // loop index
         auto par_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(par_args), false);
-        auto kernel_par_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), par_type);
+        auto kernel_par_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), par_type).getCallee()->stripPointerCasts();
         irbuilder_.CreateCall(kernel_par_func, target_args);
     });
     irbuilder_.CreateRetVoid();
@@ -137,7 +137,7 @@ Continuation* CodeGen::emit_fibers(Continuation* continuation) {
     llvm::Type* wrapper_arg_types[] = { irbuilder_.getInt8PtrTy(0), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder_.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_fibers";
-    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
+    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
     runtime_->spawn_fibers(num_threads, num_blocks, num_warps, ptr, wrapper);
 
     // set insert point to the wrapper function
@@ -165,7 +165,7 @@ Continuation* CodeGen::emit_fibers(Continuation* continuation) {
 
     // call kernel body
     auto fib_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(fib_args), false);
-    auto kernel_fib_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), fib_type);
+    auto kernel_fib_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), fib_type).getCallee()->stripPointerCasts();
     irbuilder_.CreateCall(kernel_fib_func, target_args);
     irbuilder_.CreateRetVoid();
 
@@ -214,7 +214,7 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
     llvm::Type* wrapper_arg_types[] = { irbuilder_.getInt8PtrTy(0) };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder_.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_spawn_thread";
-    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
+    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
     auto call = runtime_->spawn_thread(ptr, wrapper);
 
     // set insert point to the wrapper function
@@ -236,7 +236,7 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
 
     // call kernel body
     auto par_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(par_args), false);
-    auto kernel_par_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), par_type);
+    auto kernel_par_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), par_type).getCallee()->stripPointerCasts();
     irbuilder_.CreateCall(kernel_par_func, target_args);
     irbuilder_.CreateRetVoid();
 

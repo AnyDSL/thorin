@@ -40,7 +40,7 @@ protected:
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Value* emit_alloc(const Type*, const Def*);
-    llvm::Function* emit_function_decl(Continuation*);
+    virtual llvm::Function* emit_function_decl(Continuation*);
     virtual unsigned convert_addr_space(const AddrSpace);
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }

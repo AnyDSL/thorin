@@ -113,18 +113,22 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 7 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "atomic only supported for integer types");
-    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin
+    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
     u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
+    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
+    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
+                        (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
+    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
+        EDEF(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
+    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
+        EDEF(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));
-    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
-    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), call);
@@ -137,11 +141,11 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(3)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    load->setAlignment(layout.getABITypeAlignment(ptr->getType()->getPointerElementType()));
+    load->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), load);
     return cont;
@@ -154,11 +158,11 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(4)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    store->setAlignment(layout.getABITypeAlignment(ptr->getType()->getPointerElementType()));
+    store->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
@@ -173,7 +177,7 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
@@ -225,7 +229,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
         return f;
 
     std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
     // set dll storage class for MSVC
@@ -257,6 +261,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
+
 std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
@@ -605,6 +610,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
+    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)));
     return alloca;
 }
 
@@ -805,21 +811,34 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
+    if (auto align_of = def->isa<AlignOf>()) {
+        auto type = convert(align_of->of());
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        return irbuilder_.getInt64(layout.getABITypeAlignment(type));
+    }
+
     if (auto size_of = def->isa<SizeOf>()) {
         auto type = convert(size_of->of());
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+        return irbuilder_.getInt64(layout.getTypeAllocSize(type));
     }
 
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
-        if (is_const(array)) {
-            size_t size = array->num_ops();
-            Array<llvm::Constant*> vals(size);
-            for (size_t i = 0; i != size; ++i)
-                vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
-            return llvm::ConstantArray::get(type, llvm_ref(vals));
+
+        // Try to emit it as a constant first
+        Array<llvm::Constant*> consts(array->num_ops());
+        bool all_consts = true;
+        for (size_t i = 0, n = consts.size(); i != n; ++i) {
+            consts[i] = llvm::dyn_cast<llvm::Constant>(emit(array->op(i)));
+            if (!consts[i]) {
+                all_consts = false;
+                break;
+            }
         }
+        if (all_consts)
+            return llvm::ConstantArray::get(type, llvm_ref(consts));
+
         WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
         auto alloca = emit_alloca(type, array->name().str());
 
@@ -1014,21 +1033,19 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
-    auto irPtr = lookup(load->ptr());
+    auto ptr = lookup(load->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
-    auto irLoad = irbuilder_.CreateLoad(irPtr);
-    irLoad->setAlignment(ptrAlignment);
-    return irLoad;
+    auto result = irbuilder_.CreateLoad(ptr);
+    result->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    return result;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    auto irPtr = lookup(store->ptr());
+    auto ptr = lookup(store->ptr());
     auto layout = llvm::DataLayout(module_->getDataLayout());
-    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
-    auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
-    irStore->setAlignment(ptrAlignment);
-    return irStore;
+    auto result = irbuilder_.CreateStore(lookup(store->val()), ptr);
+    result->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    return result;
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
@@ -1212,7 +1229,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 auto layout = module_->getDataLayout();
                 uint64_t max_size = 0;
                 for (auto op : type->ops())
-                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
+                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)).getFixedSize());
                 return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
             }
         }

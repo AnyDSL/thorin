@@ -1025,15 +1025,16 @@ std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
     auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
     const char* suf = "", * pref = "";
 
-    if (lang_ == Lang::CUDA) {
-        if (std::is_same<T, half>::value) {
+    if (std::is_same<T, half>::value) {
+        if (lang_ == Lang::CUDA) {
             pref = "__float2half(";
             suf  = ")";
-        } else if (std::is_same<T, float>::value) {
-            suf  = "f";
+        } else {
+            suf = "h";
         }
-    } else if (std::is_same<T, half>::value) {
-        suf = "h";
+    }
+    if (std::is_same<T, float>::value) {
+        suf  = "f";
     }
 
     auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
@@ -1116,10 +1117,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
         emit_aggop_defs(conv->from());
         auto src_type = conv->from()->type();
         auto dst_type = conv->type();
+        auto src_ptr = src_type->isa<PtrType>();
+        auto dst_ptr = dst_type->isa<PtrType>();
 
         // string handling: bitcast [n*pu8]* -> [pu8]*
-        if (conv->isa<Bitcast>() && conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
-            auto dst_ptr = dst_type->isa<PtrType>();
+        if (conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
             if (dst_ptr && dst_ptr->pointee()->isa<IndefiniteArrayType>()) {
                 func_impl_ << "// skipped string bitcast: ";
                 emit(conv->from());
@@ -1130,6 +1132,15 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         emit_addr_space(func_impl_, dst_type);
         emit_type(func_impl_, dst_type) << " " << def_name << ";" << endl;
+
+        if (src_ptr && dst_ptr && src_ptr->addr_space() == dst_ptr->addr_space()) {
+            func_impl_ << def_name << " = (";
+            emit_addr_space(func_impl_, dst_type);
+            emit_type(func_impl_, dst_type) << ")";
+            emit(conv->from()) << ";";
+            insert(def, def_name);
+            return func_impl_;
+        }
 
         if (conv->isa<Cast>()) {
             func_impl_ << def_name << " = ";
@@ -1157,27 +1168,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
 
         if (conv->isa<Bitcast>()) {
-            auto src_ptr = src_type->isa<PtrType>();
-            auto dst_ptr = dst_type->isa<PtrType>();
-            if (src_ptr && dst_ptr && src_ptr->addr_space() == dst_ptr->addr_space()) {
-                func_impl_ << def_name << " = (";
-                emit_addr_space(func_impl_, dst_type);
-                emit_type(func_impl_, dst_type) << ")";
-                emit(conv->from()) << ";";
-            } else {
-                func_impl_ << "union { ";
-                emit_addr_space(func_impl_, dst_type);
-                emit_type(func_impl_, dst_type) << " dst; ";
-                emit_addr_space(func_impl_, src_type);
-                emit_type(func_impl_, src_type) << " src; ";
-                func_impl_ << "} u" << def_name << ";" << endl;
-                func_impl_ << "u" << def_name << ".src = ";
-                emit(conv->from()) << ";" << endl;
-                func_impl_ << def_name << " = u" << def_name << ".dst;";
-            }
+            func_impl_ << "union { ";
+            emit_addr_space(func_impl_, dst_type);
+            emit_type(func_impl_, dst_type) << " dst; ";
+            emit_addr_space(func_impl_, src_type);
+            emit_type(func_impl_, src_type) << " src; ";
+            func_impl_ << "} u" << def_name << ";" << endl;
+            func_impl_ << "u" << def_name << ".src = ";
+            emit(conv->from()) << ";" << endl;
+            func_impl_ << def_name << " = u" << def_name << ".dst;";
         }
 
         insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto align_of = def->isa<AlignOf>()) {
+        func_impl_ << "alignof(";
+        emit_type(func_impl_, align_of->of()) << ")";
         return func_impl_;
     }
 

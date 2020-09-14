@@ -11,3 +11,4 @@ CMakeFiles/
 build*
 test/impala
 tags
+.vimrc

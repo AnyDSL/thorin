@@ -9,7 +9,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
-#include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
@@ -51,6 +50,19 @@ World::World(std::string name)
 World::~World() {
     for (auto continuation : continuations_) delete continuation;
     for (auto primop : primops_) delete primop;
+}
+
+const Def* World::variant_index(const Def* value, Debug dbg) {
+    if (auto variant = value->isa<Variant>())
+        return literal_qu64(variant->index(), dbg);
+        //return cast(type_qu64(), variant->index(), dbg);
+    return cse(new VariantIndex(type_qu64(), value, dbg));
+}
+
+const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
+    if (auto variant = value->isa<Variant>())
+        return variant->value();
+    return cse(new VariantExtract(value->type()->as<VariantType>()->op(index), value, index, dbg));
 }
 
 /*
@@ -512,19 +524,6 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
-    if (auto variant = from->isa<Variant>()) {
-        if (variant->op(0)->type() == to)
-            return variant->op(0);
-        // Note: If the downcast is not possible, it is still necessary to create a node.
-        // Consider for instance:
-        // match E::A {
-        //     E::A => 1,
-        //     E::B(x) => x
-        // }
-        // Here, the code generator will emit a cast to generate the `E::B()`
-        // arm and give a value to `x`, but this is safe since this is dead code.
-    }
-
     auto lit = from->isa<PrimLit>();
     auto to_type = to->isa<PrimType>();
     if (lit && to_type) {
@@ -979,7 +978,6 @@ void World::opt() {
     flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);
-    closure_conversion(*this);
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);

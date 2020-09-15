@@ -149,6 +149,8 @@ uint64_t PrimOp::vhash() const {
     return seed;
 }
 
+uint64_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index_); }
+uint64_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index_); }
 uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
 uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
@@ -165,6 +167,9 @@ bool PrimOp::equal(const PrimOp* other) const {
     return result;
 }
 
+bool Variant::equal(const PrimOp* other) const { return PrimOp::equal(other) && other->as<Variant>()->index() == index_; }
+bool VariantExtract::equal(const PrimOp* other) const { return PrimOp::equal(other) && other->as<VariantExtract>()->index() == index_; }
+
 bool PrimLit::equal(const PrimOp* other) const {
     return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
 }
@@ -179,31 +184,33 @@ bool Slot::equal(const PrimOp* other) const { return this == other; }
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-const Def* ArithOp::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
-const Def* Bitcast::vrebuild(World& to, Defs ops, const Type* t) const { return to.bitcast(t, ops[0], debug()); }
-const Def* Bottom ::vrebuild(World& to, Defs,     const Type* t) const { return to.bottom(t, debug()); }
-const Def* Top    ::vrebuild(World& to, Defs,     const Type* t) const { return to.top(t, debug()); }
-const Def* Cast   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], debug()); }
-const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
-const Def* Enter  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], debug()); }
-const Def* Extract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], debug()); }
-const Def* Global ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], is_mutable(), debug()); }
-const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], debug()); }
-const Def* Known  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.known(ops[0], debug()); }
-const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], debug()); }
-const Def* Insert ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
-const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], debug()); }
-const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], debug()); }
-const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_tag(), value(), debug()); }
-const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], debug()); }
-const Def* AlignOf::vrebuild(World& to, Defs ops, const Type*  ) const { return to.align_of(ops[0]->type(), debug()); }
-const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), debug()); }
-const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
-const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
-const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
-const Def* Closure::vrebuild(World& to, Defs ops, const Type* t) const { return to.closure(t->as<ClosureType>(), ops[0], ops[1], debug()); }
-const Def* Variant::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
-const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
+const Def* ArithOp       ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
+const Def* Bitcast       ::vrebuild(World& to, Defs ops, const Type* t) const { return to.bitcast(t, ops[0], debug()); }
+const Def* Bottom        ::vrebuild(World& to, Defs,     const Type* t) const { return to.bottom(t, debug()); }
+const Def* Top           ::vrebuild(World& to, Defs,     const Type* t) const { return to.top(t, debug()); }
+const Def* Cast          ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], debug()); }
+const Def* Cmp           ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
+const Def* Enter         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], debug()); }
+const Def* Extract       ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], debug()); }
+const Def* Global        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], is_mutable(), debug()); }
+const Def* Hlt           ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], debug()); }
+const Def* Known         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.known(ops[0], debug()); }
+const Def* Run           ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], debug()); }
+const Def* Insert        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
+const Def* LEA           ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], debug()); }
+const Def* Load          ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], debug()); }
+const Def* PrimLit       ::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_tag(), value(), debug()); }
+const Def* Select        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], debug()); }
+const Def* AlignOf       ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.align_of(ops[0]->type(), debug()); }
+const Def* SizeOf        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), debug()); }
+const Def* Slot          ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
+const Def* Store         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
+const Def* Tuple         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
+const Def* Variant       ::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], index(), debug()); }
+const Def* VariantIndex  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.variant_index(ops[0], debug()); }
+const Def* VariantExtract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.variant_extract(ops[0], index(), debug()); }
+const Def* Closure       ::vrebuild(World& to, Defs ops, const Type* t) const { THORIN_UNREACHABLE; }
+const Def* Vector        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
@@ -360,11 +367,12 @@ bool Closure::is_thin() const {
 }
 
 const VariantType* Closure::environment_type(World& world) {
-    std::vector<const Type*> env_ops;
+    /*std::vector<const Type*> env_ops;
 #define THORIN_ALL_TYPE(T, M) env_ops.push_back(world.type_##T());
 #include "thorin/tables/primtypetable.h"
     env_ops.push_back(environment_ptr_type(world));
-    return world.variant_type(env_ops);
+    return world.variant_type(env_ops);*/
+    THORIN_UNREACHABLE;
 }
 
 const PtrType* Closure::environment_ptr_type(World& world) {

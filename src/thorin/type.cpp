@@ -22,9 +22,13 @@ const Type* StructType::vrebuild(TypeTable&, Types ops) const {
     return this;
 }
 
+const Type* VariantType::vrebuild(TypeTable&, Types ops) const {
+    assert_unused(this->ops() == ops);
+    return this;
+}
+
 const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
 const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { return to.variant_type(ops); }
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
@@ -65,6 +69,15 @@ const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) con
         struct_type->set(i, op(i)->reduce(depth, type, map));
 
     return struct_type;
+}
+
+const Type* VariantType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto variant_type = table().variant_type(name(), num_ops());
+    map[this] = variant_type;
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        variant_type->set(i, op(i)->reduce(depth, type, map));
+
+    return variant_type;
 }
 
 //------------------------------------------------------------------------------
@@ -143,8 +156,8 @@ std::ostream& FrameType          ::stream(std::ostream& os) const { return os <<
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
-std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
-std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+std::ostream& StructType         ::stream(std::ostream& os) const { return os << "struct " << name(); }
+std::ostream& VariantType        ::stream(std::ostream& os) const { return os << "variant " << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
@@ -195,6 +208,13 @@ TypeTable::TypeTable()
 
 const StructType* TypeTable::struct_type(Symbol name, size_t size) {
     auto type = new StructType(*this, name, size);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
+}
+
+const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
+    auto type = new VariantType(*this, name, size);
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;

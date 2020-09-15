@@ -119,7 +119,11 @@ public:
         return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
     }
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
-    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return cse(new Variant(variant_type, value, dbg)); }
+
+    const Def* variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg = {}) { return cse(new Variant(variant_type, value, index, dbg)); }
+    const Def* variant_index  (const Def* value, Debug dbg = {});
+    const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
+
     const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(closure_type, fn, env, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];

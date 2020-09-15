@@ -126,15 +126,23 @@ private:
 /// The type of a variant (structurally typed).
 class VariantType : public Type {
 private:
-    VariantType(TypeTable& table, Types ops)
-        : Type(table, Node_VariantType, ops)
+    VariantType(TypeTable& table, Symbol name, size_t size)
+        : Type(table, Node_VariantType, thorin::Array<const Type*>(size))
+        , name_(name)
     {
-        assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
+        nominal_ = true;
     }
+
+public:
+    Symbol name() const { return name_; }
+    void set(size_t i, const Type* type) const { return const_cast<VariantType*>(this)->Type::set(i, type); }
 
 private:
     virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
     virtual std::ostream& stream(std::ostream&) const override;
+
+    Symbol name_;
 
     friend class TypeTable;
 };
@@ -371,7 +379,7 @@ public:
 
     const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
+    const VariantType* variant_type(Symbol name, size_t size);
     const StructType* struct_type(Symbol name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \

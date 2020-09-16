@@ -731,7 +731,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto to = convert(dst_type);
 
         if (conv->isa<Cast>()) {
-            if (auto variant_type = src_type->isa<VariantType>()) {
+            // TODO nuke, right ?
+            /*if (auto variant_type = src_type->isa<VariantType>()) {
                 auto bits = compute_variant_bits(variant_type);
                 if (bits != 0) {
                     auto value_bits = compute_variant_op_bits(dst_type);
@@ -746,7 +747,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                         return irbuilder_.CreateLoad(casted_ptr);
                     });
                 }
-            }
+            }*/
 
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
                 return irbuilder_.CreatePointerCast(from, to);
@@ -943,8 +944,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
 
+    // TODO implement codegen for variant index/extracting/ctor ops
+    if (auto variant = def->isa<VariantIndex>()) {
+
+    }
+    if (auto variant = def->isa<VariantExtract>()) {
+
+    }
     if (auto variant = def->isa<Variant>()) {
-        auto bits = compute_variant_bits(variant->type());
+        /*auto bits = compute_variant_bits(variant->type());
         auto value = lookup(variant->op(0));
         if (bits != 0) {
             auto value_bits = compute_variant_op_bits(variant->op(0)->type());
@@ -957,7 +965,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 irbuilder_.CreateStore(value, casted_ptr);
                 return irbuilder_.CreateLoad(alloca);
             });
-        }
+        }*/
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -1106,26 +1114,6 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
     }
 }
 
-unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
-    unsigned total_bits = 0;
-    for (auto op : variant->ops()) {
-        auto type_bits = compute_variant_op_bits(op);
-        if (type_bits == 0) return 0;
-        total_bits = std::max(total_bits, type_bits);
-    }
-    return total_bits;
-}
-
-unsigned CodeGen::compute_variant_op_bits(const Type* type) {
-    auto llvm_type = convert(type);
-    auto layout = module_->getDataLayout();
-    if (llvm_type->isPointerTy()       ||
-        llvm_type->isFloatingPointTy() ||
-        llvm_type->isIntegerTy())
-        return layout.getTypeSizeInBits(llvm_type);
-    return 0;
-}
-
 llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
@@ -1220,16 +1208,39 @@ llvm::Type* CodeGen::convert(const Type* type) {
         }
 
         case Node_VariantType: {
-            auto bits = compute_variant_bits(type->as<VariantType>());
-            if (bits != 0) {
-                return irbuilder_.getIntNTy(bits);
-            } else {
-                auto layout = module_->getDataLayout();
-                uint64_t max_size = 0;
-                for (auto op : type->ops())
-                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)).getFixedSize());
-                return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
+            size_t max_alignment = 0;
+            size_t max_size = 0;
+
+            auto layout = module_->getDataLayout();
+            for(auto op : type->ops()) {
+                auto variant_llvm_type = convert(op);
+
+                size_t size (layout.getTypeAllocSize(variant_llvm_type).getFixedSize());
+                size_t align(layout.getABITypeAlignment(variant_llvm_type));
+                max_alignment = std::max(max_alignment, align);
+                max_size = std::max(max_size, size);
             }
+
+            llvm::Type* base_data_type;
+            switch (max_alignment) {
+                case 8: base_data_type = irbuilder_. getInt8Ty();  break;
+                case 16: base_data_type = irbuilder_. getInt16Ty();  break;
+                case 32: base_data_type = irbuilder_. getInt32Ty();  break;
+                case 64: base_data_type = irbuilder_. getInt64Ty();  break;
+                default: ELOG("Unsupported alignment constraint: {} bytes", max_alignment);
+            }
+
+            size_t count = max_size % max_alignment == 0 ? max_size / max_alignment : max_size / max_alignment + 1;
+            assert(max_alignment * count >= max_size);
+
+            Array<llvm::Type*> llvm_types(2);
+            llvm_types[0] = llvm::ArrayType::get(base_data_type, count);
+
+            // TODO be smarter and scavenge bits from padding and/or aligned ptrs
+            llvm_types[1] = irbuilder_.getInt64Ty();
+            llvm_type = llvm::StructType::get(*context_, llvm_ref(llvm_types));
+            return types_[type] = llvm_type;
         }
 
         default:

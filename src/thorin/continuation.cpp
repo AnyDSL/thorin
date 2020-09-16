@@ -229,8 +229,8 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
                 if (args.size() == 2) return jump(args[1], {}, dbg);
                 if (auto lit = args[0]->isa<PrimLit>()) {
                     for (size_t i = 2; i < args.size(); i++) {
-                        if (world().variant_extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().variant_extract(args[i], 1), {}, dbg);
+                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
+                            return jump(world().extract(args[i], 1), {}, dbg);
                     }
                     return jump(args[1], {}, dbg);
                 }

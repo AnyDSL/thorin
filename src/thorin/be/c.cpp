@@ -60,8 +60,7 @@ private:
     std::ostream& emit(const Def*);
     std::ostream& fpga(const Cl vendor, const size_t status);
 
-    template <typename T, typename IsInfFn, typename IsNanFn>
-    std::ostream& emit_float(T, IsInfFn, IsNanFn);
+    template <typename T> std::ostream& emit_float(T);
 
     // TODO use Symbol instead of std::string
     bool lookup(const Type*);
@@ -408,19 +407,20 @@ std::ostream& CCodeGen::emit_temporaries(const Def* def) {
 }
 
 void CCodeGen::emit() {
-    if (lang_==Lang::CUDA) {
-        func_decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
-        func_decls_ << "__device__ inline int threadIdx_y() { return threadIdx.y; }" << endl;
-        func_decls_ << "__device__ inline int threadIdx_z() { return threadIdx.z; }" << endl;
-        func_decls_ << "__device__ inline int blockIdx_x() { return blockIdx.x; }" << endl;
-        func_decls_ << "__device__ inline int blockIdx_y() { return blockIdx.y; }" << endl;
-        func_decls_ << "__device__ inline int blockIdx_z() { return blockIdx.z; }" << endl;
-        func_decls_ << "__device__ inline int blockDim_x() { return blockDim.x; }" << endl;
-        func_decls_ << "__device__ inline int blockDim_y() { return blockDim.y; }" << endl;
-        func_decls_ << "__device__ inline int blockDim_z() { return blockDim.z; }" << endl;
-        func_decls_ << "__device__ inline int gridDim_x() { return gridDim.x; }" << endl;
-        func_decls_ << "__device__ inline int gridDim_y() { return gridDim.y; }" << endl;
-        func_decls_ << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
+    if (lang_ == Lang::CUDA) {
+        func_decls_ <<
+            "__device__ inline int threadIdx_x() { return threadIdx.x; }\n"
+            "__device__ inline int threadIdx_y() { return threadIdx.y; }\n"
+            "__device__ inline int threadIdx_z() { return threadIdx.z; }\n"
+            "__device__ inline int blockIdx_x() { return blockIdx.x; }\n"
+            "__device__ inline int blockIdx_y() { return blockIdx.y; }\n"
+            "__device__ inline int blockIdx_z() { return blockIdx.z; }\n"
+            "__device__ inline int blockDim_x() { return blockDim.x; }\n"
+            "__device__ inline int blockDim_y() { return blockDim.y; }\n"
+            "__device__ inline int blockDim_z() { return blockDim.z; }\n"
+            "__device__ inline int gridDim_x() { return gridDim.x; }\n"
+            "__device__ inline int gridDim_y() { return gridDim.y; }\n"
+            "__device__ inline int gridDim_z() { return gridDim.z; }\n";
     }
 
     // emit all globals
@@ -1003,11 +1003,35 @@ void CCodeGen::emit() {
         }
     }
 
-    if (lang_==Lang::CUDA && use_16_)
+    if (lang_ == Lang::OPENCL) {
+        if (use_16_)
+            func_decls_ << "static inline half   intBitsToHalf(unsigned short i)  { return as_half(i);  }\n";
+        func_decls_ <<
+            "static inline float  intBitsToFloat(unsigned int i)  { return as_float(i);  }\n"
+            "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n";
+    } else {
+        // Use memcpy instead
+        const char* types[] = { "half", "float", "double" };
+        const char* int_types[] = { "uint16_t", "uint32_t", "uint64_t" };
+        for (size_t i = use_16_ ? 0 : 1; i < 3; ++i) {
+            auto type = types[i];
+            auto int_type = int_types[i];
+            func_decls_
+                << "static inline " << type << " intBitsTo" << (char)std::toupper(type[0]) << (type + 1) << "(" << int_type << " x) {\n"
+                << "    " << type << " f;\n"
+                << "    memcpy(&f, &x, sizeof(" << type << "));\n"
+                << "    return f;\n"
+                << "}\n";
+        }
+    }
+
+    if (lang_ != Lang::OPENCL)
+        os_ << "#include <stdint.h>\n#include <string.h>\n";
+    if (lang_ == Lang::CUDA && use_16_)
         os_ << "#include <cuda_fp16.h>" << endl << endl;
 
-    if (lang_==Lang::CUDA || lang_==Lang::HLS) {
-        if (lang_==Lang::HLS)
+    if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
+        if (lang_ == Lang::HLS)
             os_ << "#include \"hls_stream.h\""<< endl << "#include \"hls_math.h\""<< endl;
         os_ << "extern \"C\" {" << endl;
     }
@@ -1020,50 +1044,26 @@ void CCodeGen::emit() {
         os_ << "}"; // extern "C"
 }
 
-template <typename T, typename IsInfFn, typename IsNanFn>
-std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
-    auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-    const char* suf = "", * pref = "";
+template <size_t> struct SizedIntType {};
+template <> struct SizedIntType<sizeof(uint16_t)> { using Type = uint16_t; };
+template <> struct SizedIntType<sizeof(uint32_t)> { using Type = uint32_t; };
+template <> struct SizedIntType<sizeof(uint64_t)> { using Type = uint64_t; };
 
-    if (std::is_same<T, half>::value) {
-        if (lang_ == Lang::CUDA) {
-            pref = "__float2half(";
-            suf  = ")";
-        } else {
-            suf = "h";
-        }
-    }
-    if (std::is_same<T, float>::value) {
-        suf  = "f";
-    }
+template <typename T, std::enable_if_t<std::is_same<T, half_float::half>::value || std::is_floating_point<T>::value, int> = 0>
+static inline typename SizedIntType<sizeof(T)>::Type as_int(const T& f) {
+    typename SizedIntType<sizeof(T)>::Type u;
+    memcpy(&u, &f, sizeof(u));
+    return u;
+}
 
-    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
-        switch (lang_) {
-            default:           func_impl_ << def;    break;
-            case Lang::CUDA:   func_impl_ << cuda;   break;
-            case Lang::OPENCL: func_impl_ << opencl; break;
-        }
-    };
-
-    if (is_inf(t)) {
-        if (std::is_same<T, half>::value) {
-            emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
-        } else if (std::is_same<T, float>::value) {
-            emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
-        } else {
-            emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
-        }
-    } else if (is_nan(t)) {
-        if (std::is_same<T, half>::value) {
-            emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
-        } else if (std::is_same<T, float>::value) {
-            emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
-        } else {
-            emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
-        }
-    } else {
-        func_impl_ << float_mode << pref << t << suf;
-    }
+template <typename T>
+std::ostream& CCodeGen::emit_float(T t) {
+    auto bits = as_int(t);
+    auto type =
+        std::is_same<T, double>::value ? "Double" :
+        std::is_same<T, float >::value ? "Float"  :
+        "Half";
+    func_impl_ << "intBitsTo" << type << "(" << bits << ")";
     return func_impl_;
 }
 
@@ -1289,24 +1289,18 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false");      break;
-            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
-            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
-            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                           break;
-            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                           break;
-            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                           break;
-            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                           break;
-            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                           break;
-            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                           break;
-            case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value(),
-                                                                     [](half v) { return half_float::isinf(v); },
-                                                                     [](half v) { return half_float::isnan(v); }); break;
-            case PrimType_pf32: case PrimType_qf32: emit_float<float>(primlit->pf32_value(),
-                                                                      [](float v) { return std::isinf(v); },
-                                                                      [](float v) { return std::isnan(v); });      break;
-            case PrimType_pf64: case PrimType_qf64: emit_float<double>(primlit->pf64_value(),
-                                                                       [](double v) { return std::isinf(v); },
-                                                                       [](double v) { return std::isnan(v); });    break;
+            case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false"); break;
+            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                 break;
+            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();            break;
+            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                      break;
+            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                      break;
+            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                      break;
+            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                      break;
+            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                      break;
+            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                      break;
+            case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value());                  break;
+            case PrimType_pf32: case PrimType_qf32: emit_float<float>(primlit->pf32_value());                 break;
+            case PrimType_pf64: case PrimType_qf64: emit_float<double>(primlit->pf64_value());                break;
         }
         return func_impl_;
     }

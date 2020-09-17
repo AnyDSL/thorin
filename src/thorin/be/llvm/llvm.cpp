@@ -1197,16 +1197,22 @@ llvm::Type* CodeGen::convert(const Type* type) {
             size_t max_align = 0;
             size_t max_size = 0;
 
+            assert(type->num_ops() > 0);
+
             auto layout = module_->getDataLayout();
 
-            llvm::Type* max_align_type = nullptr;
+            llvm::Type* max_align_type = convert(type->op(0));
             for (auto op : type->ops()) {
+                // Ignore empty tuples for picking alignment
+                auto tuple = op->isa<TupleType>();
+                if (tuple && tuple->num_ops() == 0)
+                    continue;
+
                 auto op_type = convert(op);
 
                 size_t size  = layout.getTypeAllocSize(op_type);
                 size_t align = layout.getABITypeAlignment(op_type);
-                //  Avoid choosing a tuple as the type with maximum alignment whenever possible
-                if (align > max_align || (align == max_align && op->isa<TupleType>())) {
+                if (align > max_align) {
                     max_align_type = op_type;
                     max_align = align;
                 }
@@ -1216,7 +1222,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
             auto union_type = rem_size > 0
                     ? llvm::StructType::get(*context_, { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
-                    : llvm::StructType::get(*context_, { max_align_type });
+                    : llvm::StructType::get(*context_,  llvm::ArrayRef<llvm::Type*> { max_align_type });
 
             auto tag_type =
                     type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :

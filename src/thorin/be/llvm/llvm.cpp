@@ -926,19 +926,46 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
 
-    // TODO implement codegen for variant index/extracting/ctor ops
-    if (auto variant = def->isa<VariantIndex>()) {
-        assert(false && "VariantIndex not implemented yet");
-    }
-    if (auto variant = def->isa<VariantExtract>()) {
-        assert(false && "VariantExtract not implemented yet");
-    }
-    if (auto variant = def->isa<Variant>()) {
-        auto layout = module_->getDataLayout();
-        auto llvm_type = convert(variant->type());
+    if (auto variant_index = def->isa<VariantIndex>()) {
+        auto variant_value = variant_index->op(0);
+        auto llvm_value = lookup(variant_value);
+        auto llvm_type = convert(variant_index->op(0)->type());
 
-        auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant->index());
-        auto payload_value = lookup(variant->op(0));
+        auto desired_output_type = convert(variant_index->type());
+
+        auto tag_addr = create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
+            irbuilder_.CreateStore(llvm_value, alloca);
+            return irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
+        });
+
+        if(llvm_type->getStructElementType(1) != desired_output_type)
+            return irbuilder_.CreateIntCast(irbuilder_.CreateLoad(tag_addr), desired_output_type, false);
+        else
+            return irbuilder_.CreateLoad(tag_addr);
+    }
+    if (auto variant_xtract = def->isa<VariantExtract>()) {
+        auto variant_value = variant_xtract->op(0);
+        auto llvm_value = lookup(variant_value);
+        auto llvm_type = convert(variant_value->type());
+
+        auto target_type = convert(variant_value->type()->op(variant_xtract->index()));
+
+        return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
+            irbuilder_.CreateStore(llvm_value, alloca);
+
+            auto payload_addr = irbuilder_.CreateBitOrPointerCast(
+                    irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(0) }),
+                    llvm::PointerType::get(target_type, alloca->getType()->getPointerAddressSpace()));
+
+            return irbuilder_.CreateLoad(payload_addr);
+        });
+    }
+    if (auto variant_ctor = def->isa<Variant>()) {
+        auto layout = module_->getDataLayout();
+        auto llvm_type = convert(variant_ctor->type());
+
+        auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
+        auto payload_value = lookup(variant_ctor->op(0));
 
         return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
             auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
@@ -1193,26 +1220,18 @@ llvm::Type* CodeGen::convert(const Type* type) {
         }
 
         case Node_VariantType: {
-            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
-            size_t max_align = 0;
-            size_t max_size = 0;
-
             assert(type->num_ops() > 0);
+            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
+            size_t max_align = 0, max_size = 0;
 
             auto layout = module_->getDataLayout();
-
-            llvm::Type* max_align_type = convert(type->op(0));
+            llvm::Type* max_align_type;
             for (auto op : type->ops()) {
-                // Ignore empty tuples for picking alignment
-                auto tuple = op->isa<TupleType>();
-                if (tuple && tuple->num_ops() == 0)
-                    continue;
-
                 auto op_type = convert(op);
-
                 size_t size  = layout.getTypeAllocSize(op_type);
                 size_t align = layout.getABITypeAlignment(op_type);
-                if (align > max_align) {
+                // Favor types that are not empty
+                if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
                     max_align_type = op_type;
                     max_align = align;
                 }
@@ -1221,7 +1240,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
             auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
             auto union_type = rem_size > 0
-                    ? llvm::StructType::get(*context_, { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
+                    ? llvm::StructType::get(*context_, llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
                     : llvm::StructType::get(*context_,  llvm::ArrayRef<llvm::Type*> { max_align_type });
 
             auto tag_type =

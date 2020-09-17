@@ -334,13 +334,14 @@ public:
     friend class World;
 };
 
+/// Yields the tag/index for this variant in the supplied integer type
 class VariantIndex : public PrimOp {
 private:
-    VariantIndex(const Type* type, const Def* value, Debug dbg)
-        : PrimOp(Node_VariantIndex, type, {value}, dbg)
+    VariantIndex(const Type* interger_type, const Def* value, Debug dbg)
+        : PrimOp(Node_VariantIndex, interger_type, {value}, dbg)
     {
         assert(value->type()->isa<VariantType>());
-        assert(is_type_s(type) || is_type_u(type));
+        assert(is_type_s(interger_type) || is_type_u(interger_type));
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;

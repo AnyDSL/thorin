@@ -22,9 +22,11 @@ const Type* StructType::vrebuild(TypeTable&, Types ops) const {
     return this;
 }
 
-const Type* VariantType::vrebuild(TypeTable&, Types ops) const {
-    assert_unused(this->ops() == ops);
-    return this;
+const Type* VariantType::vrebuild(TypeTable& to, Types ops) const {
+    auto* _new = to.variant_type(name(), ops.size());
+    for(int i = 0; i < ops.size(); i++)
+        _new->set(i, ops[i]);
+    return _new;
 }
 
 const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }

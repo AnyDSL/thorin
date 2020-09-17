@@ -731,24 +731,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto to = convert(dst_type);
 
         if (conv->isa<Cast>()) {
-            // TODO nuke, right ?
-            /*if (auto variant_type = src_type->isa<VariantType>()) {
-                auto bits = compute_variant_bits(variant_type);
-                if (bits != 0) {
-                    auto value_bits = compute_variant_op_bits(dst_type);
-                    auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
-                    return irbuilder_.CreateBitOrPointerCast(trunc, to);
-                } else {
-                    WDEF(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
-                    auto ptr_type = llvm::PointerType::get(to, 0);
-                    return create_tmp_alloca(from->getType(), [&] (auto alloca) {
-                        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                        irbuilder_.CreateStore(from, alloca);
-                        return irbuilder_.CreateLoad(casted_ptr);
-                    });
-                }
-            }*/
-
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
                 return irbuilder_.CreatePointerCast(from, to);
             }
@@ -946,26 +928,29 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     // TODO implement codegen for variant index/extracting/ctor ops
     if (auto variant = def->isa<VariantIndex>()) {
-
+        assert(false && "VariantIndex not implemented yet");
     }
     if (auto variant = def->isa<VariantExtract>()) {
-
+        assert(false && "VariantExtract not implemented yet");
     }
     if (auto variant = def->isa<Variant>()) {
-        /*auto bits = compute_variant_bits(variant->type());
-        auto value = lookup(variant->op(0));
-        if (bits != 0) {
-            auto value_bits = compute_variant_op_bits(variant->op(0)->type());
-            auto bitcast = irbuilder_.CreateBitOrPointerCast(value, irbuilder_.getIntNTy(value_bits));
-            return irbuilder_.CreateZExt(bitcast, irbuilder_.getIntNTy(bits));
-        } else {
-            auto ptr_type = llvm::PointerType::get(value->getType(), 0);
-            return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
-                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                irbuilder_.CreateStore(value, casted_ptr);
-                return irbuilder_.CreateLoad(alloca);
-            });
-        }*/
+        auto layout = module_->getDataLayout();
+        auto llvm_type = convert(variant->type());
+
+        auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant->index());
+        auto payload_value = lookup(variant->op(0));
+
+        return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
+            auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
+            irbuilder_.CreateStore(tag_value, tag_addr);
+
+            auto payload_addr = irbuilder_.CreateBitOrPointerCast(
+                irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(0) }),
+                llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
+            irbuilder_.CreateStore(payload_value, payload_addr);
+
+            return irbuilder_.CreateLoad(alloca);
+        });
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -1209,38 +1194,37 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
         case Node_VariantType: {
             // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
-            size_t max_alignment = 0;
+            size_t max_align = 0;
             size_t max_size = 0;
 
             auto layout = module_->getDataLayout();
-            for(auto op : type->ops()) {
-                auto variant_llvm_type = convert(op);
 
-                size_t size (layout.getTypeAllocSize(variant_llvm_type).getFixedSize());
-                size_t align(layout.getABITypeAlignment(variant_llvm_type));
-                max_alignment = std::max(max_alignment, align);
+            llvm::Type* max_align_type = nullptr;
+            for (auto op : type->ops()) {
+                auto op_type = convert(op);
+
+                size_t size  = layout.getTypeAllocSize(op_type);
+                size_t align = layout.getABITypeAlignment(op_type);
+                //  Avoid choosing a tuple as the type with maximum alignment whenever possible
+                if (align > max_align || (align == max_align && op->isa<TupleType>())) {
+                    max_align_type = op_type;
+                    max_align = align;
+                }
                 max_size = std::max(max_size, size);
             }
 
-            llvm::Type* base_data_type;
-            switch (max_alignment) {
-                case 8: base_data_type = irbuilder_. getInt8Ty();  break;
-                case 16: base_data_type = irbuilder_. getInt16Ty();  break;
-                case 32: base_data_type = irbuilder_. getInt32Ty();  break;
-                case 64: base_data_type = irbuilder_. getInt64Ty();  break;
-                default: ELOG("Unsupported alignment constraint: {} bytes", max_alignment);
-            }
+            auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
+            auto union_type = rem_size > 0
+                    ? llvm::StructType::get(*context_, { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
+                    : llvm::StructType::get(*context_, { max_align_type });
 
-            size_t count = max_size % max_alignment == 0 ? max_size / max_alignment : max_size / max_alignment + 1;
-            assert(max_alignment * count >= max_size);
+            auto tag_type =
+                    type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :
+                    type->num_ops() < (UINT64_C(1) << 16) ? irbuilder_.getInt16Ty() :
+                    type->num_ops() < (UINT64_C(1) << 32) ? irbuilder_.getInt32Ty() :
+                    irbuilder_.getInt64Ty();
 
-            Array<llvm::Type*> llvm_types(2);
-            llvm_types[0] = llvm::ArrayType::get(base_data_type, count);
-
-            // TODO be smarter and scavenge bits from padding and/or aligned ptrs
-            llvm_types[1] = irbuilder_.getInt64Ty();
-            llvm_type = llvm::StructType::get(*context_, llvm_ref(llvm_types));
-            return types_[type] = llvm_type;
+            return llvm::StructType::get(*context_, { union_type, tag_type });
         }
 
         default:

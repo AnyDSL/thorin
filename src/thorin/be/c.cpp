@@ -998,12 +998,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, array->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
         emit_type(func_impl_, array->type()) << " " << def_name << "_tmp = { { ";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
         func_impl_ << "} };" << endl;
-        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
+        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << down << endl << "}" << endl;
         insert(def, def_name);
         return func_impl_;
     }
@@ -1110,11 +1110,16 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto variant = def->isa<Variant>()) {
         emit_type(func_impl_, variant->type()) << " " << def_name << ";" << endl;
-        if (!is_type_void(variant->op(0)->type())) {
-            func_impl_ << def_name << ".data.variant_case" << variant->index() << " = ";
-            emit(variant->op(0)) << ";";
+        func_impl_ << "{" << up << endl;
+        emit_type(func_impl_, variant->type()) << " " << def_name << "_tmp;" << endl;
+        if (!is_type_unit(variant->op(0)->type())) {
+            func_impl_ << def_name << "_tmp.data.variant_case" << variant->index() << " = ";
+            emit(variant->op(0)) << ";" << endl;
         }
-        func_impl_ << endl << def_name << ".tag = " << variant->index() << ";";
+        func_impl_
+            << def_name << "_tmp.tag = " << variant->index() << ";" << endl
+            << def_name << " = " << def_name << "_tmp;" << down << endl
+            << "}" << endl;
         insert(def, def_name);
         return func_impl_;
     }

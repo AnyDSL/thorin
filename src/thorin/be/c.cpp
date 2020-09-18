@@ -167,15 +167,13 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         }
         os << down << endl << "} data;";
 
-        auto tag_type = variant->num_ops() < (UINT64_C(1) <<  8u) ?  world_.type_qu8() :
-                        variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
-                        variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() : world_.type_qu64();
-        os << endl;
-        emit_type(os, tag_type);
-        os << " tag;";
-
-        os << down << endl << "};";
-        return os;
+        auto tag_type =
+            variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
+            variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
+            variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() :
+            world_.type_qu64();
+        emit_type(os << endl, tag_type);
+        return os << " tag; " << down << endl << "};";
     } else if (auto struct_type = type->isa<StructType>()) {
         os << "typedef struct {" << up;
         for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
@@ -877,7 +875,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     auto def_name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
-        if (is_type_void(bin->lhs()->type()))
+        if (is_type_unit(bin->lhs()->type()))
             return func_impl_;
 
         // emit definitions of inlined elements

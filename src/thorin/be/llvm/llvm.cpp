@@ -933,17 +933,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
     if (auto variant_extract = def->isa<VariantExtract>()) {
         auto variant_value = variant_extract->op(0);
-        auto llvm_value = lookup(variant_value);
+        auto llvm_value    = lookup(variant_value);
         auto payload_value = irbuilder_.CreateExtractValue(llvm_value, { 0 });
 
         auto target_type = convert(variant_value->type()->op(variant_extract->index()));
-
         return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
             irbuilder_.CreateStore(payload_value, alloca);
-
-            auto payload_addr = irbuilder_.CreateBitOrPointerCast(
-                    irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0) }),
-                    llvm::PointerType::get(target_type, alloca->getType()->getPointerAddressSpace()));
+            auto addr_space = alloca->getType()->getPointerAddressSpace();
+            auto payload_addr = irbuilder_.CreateBitOrPointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
 
             return irbuilder_.CreateLoad(payload_addr);
         });

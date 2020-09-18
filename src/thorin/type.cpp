@@ -17,16 +17,9 @@ namespace thorin {
  * vrebuild
  */
 
-const Type* StructType::vrebuild(TypeTable&, Types ops) const {
-    assert_unused(this->ops() == ops);
+const Type* NominalType::vrebuild(TypeTable&, Types) const {
+    THORIN_UNREACHABLE;
     return this;
-}
-
-const Type* VariantType::vrebuild(TypeTable& to, Types ops) const {
-    auto* _new = to.variant_type(name(), ops.size());
-    for(int i = 0; i < ops.size(); i++)
-        _new->set(i, ops[i]);
-    return _new;
 }
 
 const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
@@ -64,22 +57,24 @@ const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
         return this;                          // this variable is not free - don't adjust
 }
 
-const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto struct_type = table().struct_type(name(), num_ops());
-    map[this] = struct_type;
+const Type* NominalType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto nominal_type = stub(table());
+    map[this] = nominal_type;
     for (size_t i = 0, e = num_ops(); i != e; ++i)
-        struct_type->set(i, op(i)->reduce(depth, type, map));
-
-    return struct_type;
+        nominal_type->set(i, op(i)->reduce(depth, type, map));
+    return nominal_type;
 }
 
-const Type* VariantType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto variant_type = table().variant_type(name(), num_ops());
-    map[this] = variant_type;
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        variant_type->set(i, op(i)->reduce(depth, type, map));
+/*
+ * stub
+ */
 
-    return variant_type;
+const NominalType* StructType::stub(TypeTable& to) const {
+    return to.struct_type(name(), num_ops());
+}
+
+const NominalType* VariantType::stub(TypeTable& to) const {
+    return to.variant_type(name(), num_ops());
 }
 
 //------------------------------------------------------------------------------

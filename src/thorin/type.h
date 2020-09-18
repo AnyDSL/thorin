@@ -99,50 +99,59 @@ public:
     friend class TypeTable;
 };
 
-/// The type of a structure (nominally typed).
-class StructType : public Type {
-private:
-    StructType(TypeTable& table, Symbol name, size_t size)
-        : Type(table, Node_StructType, thorin::Array<const Type*>(size))
+/// Base class for nominal types (types that have
+/// a name that uniquely identifies them).
+class NominalType : public Type {
+protected:
+    NominalType(TypeTable& table, int tag, Symbol name, size_t size)
+        : Type(table, tag, thorin::Array<const Type*>(size))
         , name_(name)
     {
         nominal_ = true;
     }
 
-public:
-    Symbol name() const { return name_; }
-    void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
+    Symbol name_;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    virtual const Type* vrebuild(TypeTable&, Types) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+
+public:
+    Symbol name() const { return name_; }
+    void set(size_t i, const Type* type) const {
+        return const_cast<NominalType*>(this)->Type::set(i, type);
+    }
+
+    /// Recreates a fresh new nominal type of the
+    /// same kind with the same number of operands,
+    /// initially all unset.
+    virtual const NominalType* stub(TypeTable&) const = 0;
+};
+
+class StructType : public NominalType {
+private:
+    StructType(TypeTable& table, Symbol name, size_t size)
+        : NominalType(table, Node_StructType, name, size)
+    {}
+
     virtual std::ostream& stream(std::ostream&) const override;
 
-    Symbol name_;
+public:
+    virtual const NominalType* stub(TypeTable&) const override;
 
     friend class TypeTable;
 };
 
-/// The type of a variant (structurally typed).
-class VariantType : public Type {
+class VariantType : public NominalType {
 private:
     VariantType(TypeTable& table, Symbol name, size_t size)
-        : Type(table, Node_VariantType, thorin::Array<const Type*>(size))
-        , name_(name)
-    {
-        nominal_ = true;
-    }
+        : NominalType(table, Node_VariantType, name, size)
+    {}
 
-public:
-    Symbol name() const { return name_; }
-    void set(size_t i, const Type* type) const { return const_cast<VariantType*>(this)->Type::set(i, type); }
-
-private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
-    Symbol name_;
+public:
+    virtual const NominalType* stub(TypeTable&) const override;
 
     friend class TypeTable;
 };

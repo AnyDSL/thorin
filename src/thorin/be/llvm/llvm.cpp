@@ -940,8 +940,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
             irbuilder_.CreateStore(payload_value, alloca);
             auto addr_space = alloca->getType()->getPointerAddressSpace();
-            auto payload_addr = irbuilder_.CreateBitOrPointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
-
+            auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
             return irbuilder_.CreateLoad(payload_addr);
         });
     }
@@ -956,7 +955,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
             irbuilder_.CreateStore(tag_value, tag_addr);
 
-            auto payload_addr = irbuilder_.CreateBitOrPointerCast(
+            auto payload_addr = irbuilder_.CreatePointerCast(
                 irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(0) }),
                 llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
             irbuilder_.CreateStore(payload_value, payload_addr);

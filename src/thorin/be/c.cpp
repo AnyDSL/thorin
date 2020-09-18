@@ -946,25 +946,21 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (conv->isa<Cast>()) {
             func_impl_ << def_name << " = ";
 
-            if (src_type->isa<VariantType>()) {
-                emit(conv->from()) << "." << dst_type << ";";
-            } else {
-                auto from = src_type->as<PrimType>();
-                auto to   = dst_type->as<PrimType>();
+            auto from = src_type->as<PrimType>();
+            auto to   = dst_type->as<PrimType>();
 
-                if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
-                    func_impl_ << "(";
-                    emit_type(func_impl_, dst_type) << ") __half2float(";
-                    emit(conv->from()) << ");";
-                } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
-                    func_impl_ << "__float2half((float)";
-                    emit(conv->from()) << ");";
-                } else {
-                    func_impl_ << "(";
-                    emit_addr_space(func_impl_, dst_type);
-                    emit_type(func_impl_, dst_type) << ")";
-                    emit(conv->from()) << ";";
-                }
+            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
+                func_impl_ << "(";
+                emit_type(func_impl_, dst_type) << ") __half2float(";
+                emit(conv->from()) << ");";
+            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
+                func_impl_ << "__float2half((float)";
+                emit(conv->from()) << ");";
+            } else {
+                func_impl_ << "(";
+                emit_addr_space(func_impl_, dst_type);
+                emit_type(func_impl_, dst_type) << ")";
+                emit(conv->from()) << ";";
             }
         }
 

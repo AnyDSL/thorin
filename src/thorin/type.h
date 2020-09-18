@@ -236,6 +236,7 @@ inline bool is_type_u   (const Type* t) { return thorin::is_type_u  (t->tag()); 
 inline bool is_type_i   (const Type* t) { return thorin::is_type_i  (t->tag()); }
 inline bool is_type_f   (const Type* t) { return thorin::is_type_f  (t->tag()); }
 inline bool is_type_bool(const Type* t) { return t->tag() == Node_PrimType_bool; }
+inline bool is_type_void(const Type* t) { auto tuple = t->isa<TupleType>(); return tuple && tuple->num_ops() == 0; }
 
 enum class AddrSpace : uint32_t {
     Generic  = 0,

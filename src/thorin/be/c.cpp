@@ -156,9 +156,18 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         return os;
     } else if (auto variant = type->isa<VariantType>()) {
         os << "union variant_" << variant->gid() << " {" << up;
+        auto tag_type = variant->num_ops() < (UINT64_C(1) <<  8u) ?  world_.type_qu8() :
+                        variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
+                        variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() : world_.type_qu64();
+        os << endl;
+        emit_type(os, tag_type);
+        os << " tag;";
         for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
             os << endl;
-            emit_type(os, variant->op(i)) << " " << variant->op(i) << ";";
+            // Do not emit the empty tuple ('void')
+            if(is_type_void(variant->op(i)))
+                os << "//";
+            emit_type(os, variant->op(i)) << " variant_case" << i << ";";
         }
         os << down << endl << "};";
         return os;
@@ -863,6 +872,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
     auto def_name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
+        if (is_type_void(bin->lhs()->type()))
+            return func_impl_;
+
         // emit definitions of inlined elements
         emit_aggop_defs(bin->lhs());
         emit_aggop_defs(bin->rhs());

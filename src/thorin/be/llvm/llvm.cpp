@@ -139,8 +139,8 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    load->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    load->setAlignment(llvm::MaybeAlign(align));
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), load);
     return cont;
@@ -156,8 +156,8 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    store->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    store->setAlignment(llvm::MaybeAlign(align));
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
@@ -598,8 +598,9 @@ llvm::Value* CodeGen::lookup(const Def* def) {
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
+    // Emit the alloca in the entry block
     auto entry = &irbuilder_.GetInsertBlock()->getParent()->getEntryBlock();
-    auto layout = llvm::DataLayout(module_->getDataLayout());
+    auto layout = module_->getDataLayout();
     llvm::AllocaInst* alloca;
     if (entry->empty())
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
@@ -808,14 +809,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto align_of = def->isa<AlignOf>()) {
         auto type = convert(align_of->of());
-        auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt64(layout.getABITypeAlignment(type));
+        return irbuilder_.getInt64(module_->getDataLayout().getABITypeAlignment(type));
     }
 
     if (auto size_of = def->isa<SizeOf>()) {
         auto type = convert(size_of->of());
-        auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt64(layout.getTypeAllocSize(type));
+        return irbuilder_.getInt64(module_->getDataLayout().getTypeAllocSize(type));
     }
 
     if (auto array = def->isa<DefiniteArray>()) {
@@ -1029,17 +1028,17 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
     auto ptr = lookup(load->ptr());
-    auto layout = llvm::DataLayout(module_->getDataLayout());
     auto result = irbuilder_.CreateLoad(ptr);
-    result->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    result->setAlignment(llvm::MaybeAlign(align));
     return result;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
     auto ptr = lookup(store->ptr());
-    auto layout = llvm::DataLayout(module_->getDataLayout());
     auto result = irbuilder_.CreateStore(lookup(store->val()), ptr);
-    result->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(ptr->getType()->getPointerElementType())));
+    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    result->setAlignment(llvm::MaybeAlign(align));
     return result;
 }
 
@@ -1269,11 +1268,8 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 }
 
 llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
-    // emit the alloca in the entry block
     auto alloca = emit_alloca(type, "tmp_alloca");
-
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto size = irbuilder_.getInt64(layout.getTypeAllocSize(type));
+    auto size = irbuilder_.getInt64(module_->getDataLayout().getTypeAllocSize(type));
 
     irbuilder_.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);

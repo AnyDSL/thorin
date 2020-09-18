@@ -1003,7 +1003,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
         func_impl_ << "} };" << endl;
-        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << down << endl << "}" << endl;
+        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}" << endl;
         insert(def, def_name);
         return func_impl_;
     }

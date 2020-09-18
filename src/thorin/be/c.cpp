@@ -155,13 +155,9 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
     } else if (auto variant = type->isa<VariantType>()) {
-        os << "union variant_" << variant->gid() << " {" << up;
-        auto tag_type = variant->num_ops() < (UINT64_C(1) <<  8u) ?  world_.type_qu8() :
-                        variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
-                        variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() : world_.type_qu64();
-        os << endl;
-        emit_type(os, tag_type);
-        os << " tag;";
+        os << "struct variant_" << variant->gid() << " {" << up;
+
+        os << endl << "union {" << up ;
         for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
             os << endl;
             // Do not emit the empty tuple ('void')
@@ -169,6 +165,15 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
                 os << "//";
             emit_type(os, variant->op(i)) << " variant_case" << i << ";";
         }
+        os << down << endl << "} data;";
+
+        auto tag_type = variant->num_ops() < (UINT64_C(1) <<  8u) ?  world_.type_qu8() :
+                        variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
+                        variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() : world_.type_qu64();
+        os << endl;
+        emit_type(os, tag_type);
+        os << " tag;";
+
         os << down << endl << "};";
         return os;
     } else if (auto struct_type = type->isa<StructType>()) {
@@ -304,7 +309,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         for (auto op : variant->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, variant) << endl;
-        insert(type, "union variant_" + std::to_string(type->gid()));
+        insert(type, "struct variant_" + std::to_string(type->gid()));
     }
 
     // restore indent
@@ -1111,8 +1116,25 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto variant = def->isa<Variant>()) {
         emit_type(func_impl_, variant->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << "." << variant->op(0)->type() << " = ";
-        emit(variant->op(0)) << ";";
+        if (!is_type_void(variant->op(0)->type())) {
+            func_impl_ << def_name << ".data.variant_case" << variant->index() << " = ";
+            emit(variant->op(0)) << ";";
+        }
+        func_impl_ << endl << def_name << ".tag = " << variant->index() << ";";
+        insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto variant_index = def->isa<VariantIndex>()) {
+        emit_type(func_impl_, variant_index->type()) << " " << def_name << " = ";
+        emit(variant_index->op(0)) << ".tag" << ";";
+        insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto variant_extract = def->isa<VariantExtract>()) {
+        emit_type(func_impl_, variant_extract->type()) << " " << def_name << " = ";
+        emit(variant_extract->op(0)) << ".data.variant_case" << variant_extract->index() << ";";
         insert(def, def_name);
         return func_impl_;
     }

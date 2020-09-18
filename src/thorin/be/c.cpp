@@ -1015,14 +1015,14 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (auto op : agg->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
         emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
             func_impl_ << endl;
             emit(agg->op(i)) << ",";
         }
         func_impl_ << down << endl << "};" << endl;
-        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
+        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}" << endl;
         insert(def, def_name);
         return func_impl_;
     }

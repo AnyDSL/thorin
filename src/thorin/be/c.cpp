@@ -161,7 +161,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
             os << endl;
             // Do not emit the empty tuple ('void')
-            if(is_type_void(variant->op(i)))
+            if (is_type_unit(variant->op(i)))
                 os << "//";
             emit_type(os, variant->op(i)) << " variant_case" << i << ";";
         }

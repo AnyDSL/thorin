@@ -1003,7 +1003,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
         func_impl_ << "} };" << endl;
-        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}" << endl;
+        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
         return func_impl_;
     }
@@ -1022,7 +1022,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit(agg->op(i)) << ",";
         }
         func_impl_ << down << endl << "};" << endl;
-        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}" << endl;
+        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
         return func_impl_;
     }
@@ -1119,20 +1119,22 @@ std::ostream& CCodeGen::emit(const Def* def) {
         func_impl_
             << def_name << "_tmp.tag = " << variant->index() << ";" << endl
             << def_name << " = " << def_name << "_tmp;" << down << endl
-            << "}" << endl;
+            << "}";
         insert(def, def_name);
         return func_impl_;
     }
 
     if (auto variant_index = def->isa<VariantIndex>()) {
-        emit_type(func_impl_, variant_index->type()) << " " << def_name << " = ";
+        emit_type(func_impl_, variant_index->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
         emit(variant_index->op(0)) << ".tag" << ";";
         insert(def, def_name);
         return func_impl_;
     }
 
     if (auto variant_extract = def->isa<VariantExtract>()) {
-        emit_type(func_impl_, variant_extract->type()) << " " << def_name << " = ";
+        emit_type(func_impl_, variant_extract->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
         emit(variant_extract->op(0)) << ".data.variant_case" << variant_extract->index() << ";";
         insert(def, def_name);
         return func_impl_;

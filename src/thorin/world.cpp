@@ -60,13 +60,10 @@ const Def* World::variant_index(const Def* value, Debug dbg) {
 }
 
 const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
-    auto expected_t = value->type()->as<VariantType>()->op(index);
+    auto type = value->type()->as<VariantType>()->op(index);
     if (auto variant = value->isa<Variant>())
-        return variant->index() == index
-            ? variant->value()
-            : bottom(expected_t);
-
-    return cse(new VariantExtract(expected_t, value, index, dbg));
+        return variant->index() == index ? variant->value() : bottom(type);
+    return cse(new VariantExtract(type, value, index, dbg));
 }
 
 /*

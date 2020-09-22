@@ -1,3 +1,5 @@
+#include <unordered_map>
+
 #include "thorin/transform/mangle.h"
 #include "thorin/world.h"
 
@@ -40,7 +42,18 @@ static const Type* graph_type(World& world) {
     return world.type_qs32();
 }
 
-static const Type* rewrite_type(World& world, const Type* type) {
+static const Type* rewrite_type(World& world, std::unordered_map<const Type*, const Type*>& types, const Type* type) {
+    auto nominal_type = type->isa<NominalType>();
+    if (nominal_type) {
+        if (types[nominal_type])
+            return types[nominal_type];
+        auto ntype = nominal_type->stub(world);
+        types[type] = ntype;
+        for (size_t i = 0; i != type->num_ops(); ++i)
+            ntype->set(i, rewrite_type(world, types, type->op(i)));
+        return ntype;
+    }
+
     Array<const Type*> new_ops(type->num_ops());
     for (size_t i = 0; i < type->num_ops(); ++i) {
         if (is_graph_type(type->op(i)))
@@ -48,7 +61,7 @@ static const Type* rewrite_type(World& world, const Type* type) {
         else if (is_task_type(type->op(i)))
             new_ops[i] = task_type(world);
         else
-            new_ops[i] = rewrite_type(world, type->op(i));
+            new_ops[i] = rewrite_type(world, types, type->op(i));
     }
 
     return type->rebuild(world, new_ops);
@@ -63,14 +76,14 @@ static void rewrite_jump(Continuation* old_cont, Continuation* new_cont, Rewrite
     new_cont->jump(callee, args, old_cont->jump_debug());
 }
 
-static void rewrite_def(const Def* def, Rewriter& rewriter) {
+static void rewrite_def(const Def* def, std::unordered_map<const Type*, const Type*> types, Rewriter& rewriter) {
     if (rewriter.old2new.count(def) || def->isa_continuation())
         return;
 
     for (auto op : def->ops())
-        rewrite_def(op, rewriter);
+        rewrite_def(op, types, rewriter);
 
-    auto new_type = rewrite_type(def->world(), def->type());
+    auto new_type = rewrite_type(def->world(), types, def->type());
     if (new_type != def->type()) {
         auto primop = def->as<PrimOp>();
         Array<const Def*> ops(def->num_ops());
@@ -78,7 +91,7 @@ static void rewrite_def(const Def* def, Rewriter& rewriter) {
             ops[i] = rewriter.instantiate(def->op(i));
         rewriter.old2new[primop] = primop->rebuild(ops, new_type);
         for (auto use : primop->uses())
-            rewrite_def(use.def(), rewriter);
+            rewrite_def(use.def(), types, rewriter);
     } else {
         rewriter.instantiate(def);
     }
@@ -87,6 +100,7 @@ static void rewrite_def(const Def* def, Rewriter& rewriter) {
 void rewrite_flow_graphs(World& world) {
     Rewriter rewriter;
     std::vector<std::pair<Continuation*, Continuation*>> transformed;
+    std::unordered_map<const Type*, const Type*> rewritten_types;
     TypeMap<bool> cache;
 
     for (auto cont : world.copy_continuations()) {
@@ -100,7 +114,7 @@ void rewrite_flow_graphs(World& world) {
         if (!transform)
             continue;
 
-        auto new_cont = world.continuation(rewrite_type(world, cont->type())->as<FnType>(), cont->debug());
+        auto new_cont = world.continuation(rewrite_type(world, rewritten_types, cont->type())->as<FnType>(), cont->debug());
         if (cont->is_external())
             new_cont->make_external();
         rewriter.old2new[cont] = new_cont;
@@ -115,7 +129,7 @@ void rewrite_flow_graphs(World& world) {
     for (auto pair : transformed) {
         for (auto param : pair.second->params()) {
             for (auto use : param->uses())
-                rewrite_def(use.def(), rewriter);
+                rewrite_def(use.def(), rewritten_types, rewriter);
         }
     }
 

@@ -381,9 +381,8 @@ private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    bool is_thin() const;
-    static const VariantType* environment_type(World&);
-    static const PtrType*     environment_ptr_type(World&);
+    static const Type*    environment_type(World&);
+    static const PtrType* environment_ptr_type(World&);
 
     friend class World;
 };

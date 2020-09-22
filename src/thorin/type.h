@@ -284,6 +284,11 @@ private:
     friend class TypeTable;
 };
 
+/// Returns true if the given type is small enough to fit in a closure environment
+inline bool is_thin(const Type* type) {
+    return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
+}
+
 class FnType : public Type {
 protected:
     FnType(TypeTable& table, Types ops, int tag = Node_FnType)

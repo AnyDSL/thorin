@@ -360,19 +360,9 @@ bool is_from_match(const PrimOp* primop) {
     return from_match;
 }
 
-bool Closure::is_thin() const {
-    return op(1)->type()->isa<PrimType>() ||
-           op(1)->type()->isa<PtrType>()  ||
-           (op(1)->type()->isa<TupleType>() && op(1)->type()->num_ops() == 0);
-}
-
-const VariantType* Closure::environment_type(World& world) {
-    /*std::vector<const Type*> env_ops;
-#define THORIN_ALL_TYPE(T, M) env_ops.push_back(world.type_##T());
-#include "thorin/tables/primtypetable.h"
-    env_ops.push_back(environment_ptr_type(world));
-    return world.variant_type(env_ops);*/
-    THORIN_UNREACHABLE;
+const Type* Closure::environment_type(World& world) {
+    // We assume that ptrs are <= 64 bits, if they're not, god help you
+    return world.type_qu64();
 }
 
 const PtrType* Closure::environment_ptr_type(World& world) {

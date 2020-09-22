@@ -101,14 +101,11 @@ public:
 
             // get the environment type
             const Type* env_type = nullptr;
-            bool thin_env = false;
-            if (free_vars.size() == 1 &&
-                (free_vars[0]->type()->isa<PrimType>() ||
-                 free_vars[0]->type()->isa<PtrType>())) {
+            bool thin_env = free_vars.size() == 1 && is_thin(free_vars[0]->type());
+            if (thin_env) {
                 // optimization: if the environment fits within a pointer or
                 // primitive type, pass it by value.
                 env_type = free_vars[0]->type();
-                thin_env  = true;
             } else {
                 Array<const Type*> env_ops(free_vars.size());
                 for (size_t i = 0, e = free_vars.size(); i != e; ++i)
@@ -128,12 +125,7 @@ public:
             Array<const Def*> wrapper_args(lifted->num_params());
             const Def* new_mem = wrapper->mem_param();
             if (thin_env) {
-                if (free_vars[0]->type()->isa<PtrType>()) {
-                    auto env_ptr = world_.cast(Closure::environment_ptr_type(world_), wrapper->param(env_param_index));
-                    wrapper_args[env_param_index] = world_.bitcast(free_vars[0]->type(), env_ptr);
-                } else {
-                    wrapper_args[env_param_index] = world_.cast(free_vars[0]->type(), wrapper->param(env_param_index));
-                }
+                wrapper_args[env_param_index] = world_.cast(free_vars[0]->type(), wrapper->param(env_param_index));
             } else {
                 // make the wrapper load the pointer and pass each
                 // variable of the environment to the lifted continuation

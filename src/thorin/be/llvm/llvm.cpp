@@ -841,16 +841,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
         } else if (auto closure = def->isa<Closure>()) {
-            /*auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
+            auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
             auto val = agg->op(1);
             llvm::Value* env = nullptr;
-            if (closure->is_thin()) {
-                if (val->type() == world_.unit()) {
+            if (is_thin(closure->op(1)->type())) {
+                if (is_type_unit(val->type())) {
                     env = emit(world_.bottom(Closure::environment_type(world_)));
                 } else {
-                    if (val->type()->isa<PtrType>())
-                        val = world_.bitcast(Closure::environment_ptr_type(world_), val);
-                    env = emit(world_.variant(Closure::environment_type(world_), val));
+                    env = emit(world_.cast(Closure::environment_type(world_), val));
                 }
             } else {
                 WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
@@ -859,8 +857,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 env = irbuilder_.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
             }
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);*/
-            THORIN_UNREACHABLE;
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);
         } else {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -1168,14 +1165,12 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 return types_[type] = llvm_type;
             }
 
-            THORIN_UNREACHABLE;
-            /*
             auto env_type = convert(Closure::environment_type(world_));
             ops.push_back(env_type);
             auto fn_type = llvm::FunctionType::get(ret, ops, false);
             auto ptr_type = llvm::PointerType::get(fn_type, 0);
             llvm_type = llvm::StructType::get(*context_, { ptr_type, env_type });
-            return types_[type] = llvm_type;*/
+            return types_[type] = llvm_type;
         }
 
         case Node_StructType: {

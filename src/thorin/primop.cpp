@@ -214,7 +214,7 @@ const Def* Tuple         ::vrebuild(World& to, Defs ops, const Type*  ) const { 
 const Def* Variant       ::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], index(), debug()); }
 const Def* VariantIndex  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.variant_index(ops[0], debug()); }
 const Def* VariantExtract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.variant_extract(ops[0], index(), debug()); }
-const Def* Closure       ::vrebuild(World& to, Defs ops, const Type* t) const { THORIN_UNREACHABLE; }
+const Def* Closure       ::vrebuild(World& to, Defs ops, const Type* t) const { return to.closure(t->as<ClosureType>(), ops[0], ops[1], debug()); }
 const Def* Vector        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {

@@ -265,11 +265,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto src_file = llvm::sys::path::filename(entry_->location().filename());
             auto src_dir = llvm::sys::path::parent_path(entry_->location().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
-                                                      dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      entry_->location().front_line(),
-                                                      llvm::DINode::FlagPrototyped,
-                                                      llvm::DISubprogram::SPFlagDefinition | (opt > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
+            disub_program = dibuilder_.createFunction(
+                discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
+                dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
+                entry_->location().front_line(),
+                llvm::DINode::FlagPrototyped,
+                llvm::DISubprogram::SPFlagDefinition | (opt > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
             fct->setSubprogram(disub_program);
             discope = disub_program;
         }

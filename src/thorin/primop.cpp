@@ -149,8 +149,8 @@ uint64_t PrimOp::vhash() const {
     return seed;
 }
 
-uint64_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index_); }
-uint64_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index_); }
+uint64_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+uint64_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
 uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
 uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
@@ -167,8 +167,13 @@ bool PrimOp::equal(const PrimOp* other) const {
     return result;
 }
 
-bool Variant::equal(const PrimOp* other) const { return PrimOp::equal(other) && other->as<Variant>()->index() == index_; }
-bool VariantExtract::equal(const PrimOp* other) const { return PrimOp::equal(other) && other->as<VariantExtract>()->index() == index_; }
+bool Variant::equal(const PrimOp* other) const {
+    return PrimOp::equal(other) && other->as<Variant>()->index() == index();
+}
+
+bool VariantExtract::equal(const PrimOp* other) const {
+    return PrimOp::equal(other) && other->as<VariantExtract>()->index() == index();
+}
 
 bool PrimLit::equal(const PrimOp* other) const {
     return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
@@ -300,7 +305,6 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 }
 
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
-
 
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
     return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;

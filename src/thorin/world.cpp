@@ -56,7 +56,6 @@ World::~World() {
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto variant = value->isa<Variant>())
         return literal_qu64(variant->index(), dbg);
-        //return cast(type_qu64(), variant->index(), dbg);
     return cse(new VariantIndex(type_qu64(), value, dbg));
 }
 

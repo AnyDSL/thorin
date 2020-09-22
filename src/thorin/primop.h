@@ -311,6 +311,65 @@ public:
     friend class World;
 };
 
+/// Data constructor for a @p VariantType.
+class Variant : public PrimOp {
+private:
+    Variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg)
+        : PrimOp(Node_Variant, variant_type, {value}, dbg), index_(index)
+    {
+        assert(variant_type->op(index) == value->type());
+    }
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+    virtual uint64_t vhash() const override;
+    virtual bool equal(const PrimOp* other) const override;
+
+    size_t index_;
+
+public:
+    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+    size_t index() const { return index_; }
+    const Def* value() const { return op(0); }
+
+    friend class World;
+};
+
+/// Yields the tag/index for this variant in the supplied integer type
+class VariantIndex : public PrimOp {
+private:
+    VariantIndex(const Type* int_type, const Def* value, Debug dbg)
+        : PrimOp(Node_VariantIndex, int_type, {value}, dbg)
+    {
+        assert(value->type()->isa<VariantType>());
+        assert(is_type_s(int_type) || is_type_u(int_type));
+    }
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+    friend class World;
+};
+
+class VariantExtract : public PrimOp {
+private:
+    VariantExtract(const Type* type, const Def* value, size_t index, Debug dbg)
+        : PrimOp(Node_VariantExtract, type, {value}, dbg), index_(index)
+    {
+        assert(value->type()->as<VariantType>()->op(index) == type);
+    }
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+    virtual uint64_t vhash() const override;
+    virtual bool equal(const PrimOp* other) const override;
+
+    size_t index_;
+
+public:
+    size_t index() const { return index_; }
+    const Def* value() const { return op(0); }
+
+    friend class World;
+};
+
 /// Data constructor for a @p ClosureType.
 class Closure : public Aggregate {
 private:
@@ -323,27 +382,8 @@ private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    bool is_thin() const;
-    static const VariantType* environment_type(World&);
-    static const PtrType*     environment_ptr_type(World&);
-
-    friend class World;
-};
-
-/// Data constructor for a @p VariantType.
-class Variant : public PrimOp {
-private:
-    Variant(const VariantType* variant_type, const Def* value, Debug dbg)
-        : PrimOp(Node_Variant, variant_type, {value}, dbg)
-    {
-        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
-        set_type(variant_type);
-    }
-
-    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
-public:
-    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+    static const Type*    environment_type(World&);
+    static const PtrType* environment_ptr_type(World&);
 
     friend class World;
 };

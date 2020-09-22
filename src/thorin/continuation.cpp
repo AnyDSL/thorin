@@ -293,6 +293,8 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
     stream_list(os, params(), [&](const Param* param) { streamf(os, "{} {}", param->type(), param); }, "(", ")");
     if (is_external())
         os << " extern ";
+    if (is_intrinsic() && intrinsic_ == Intrinsic::Match)
+        os << " " << "match" << " ";
     if (cc() == CC::Device)
         os << " device ";
     if (!filter().empty())

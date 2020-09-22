@@ -720,23 +720,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto to = convert(dst_type);
 
         if (conv->isa<Cast>()) {
-            if (auto variant_type = src_type->isa<VariantType>()) {
-                auto bits = compute_variant_bits(variant_type);
-                if (bits != 0) {
-                    auto value_bits = compute_variant_op_bits(dst_type);
-                    auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
-                    return irbuilder_.CreateBitOrPointerCast(trunc, to);
-                } else {
-                    WDEF(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
-                    auto ptr_type = llvm::PointerType::get(to, 0);
-                    return create_tmp_alloca(from->getType(), [&] (auto alloca) {
-                        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                        irbuilder_.CreateStore(from, alloca);
-                        return irbuilder_.CreateLoad(casted_ptr);
-                    });
-                }
-            }
-
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
                 return irbuilder_.CreatePointerCast(from, to);
             }
@@ -849,13 +832,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
             auto val = agg->op(1);
             llvm::Value* env = nullptr;
-            if (closure->is_thin()) {
-                if (val->type() == world_.unit()) {
+            if (is_thin(closure->op(1)->type())) {
+                if (is_type_unit(val->type())) {
                     env = emit(world_.bottom(Closure::environment_type(world_)));
                 } else {
-                    if (val->type()->isa<PtrType>())
-                        val = world_.bitcast(Closure::environment_ptr_type(world_), val);
-                    env = emit(world_.variant(Closure::environment_type(world_), val));
+                    env = emit(world_.cast(Closure::environment_type(world_), val));
                 }
             } else {
                 WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
@@ -929,21 +910,42 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
 
-    if (auto variant = def->isa<Variant>()) {
-        auto bits = compute_variant_bits(variant->type());
-        auto value = lookup(variant->op(0));
-        if (bits != 0) {
-            auto value_bits = compute_variant_op_bits(variant->op(0)->type());
-            auto bitcast = irbuilder_.CreateBitOrPointerCast(value, irbuilder_.getIntNTy(value_bits));
-            return irbuilder_.CreateZExt(bitcast, irbuilder_.getIntNTy(bits));
-        } else {
-            auto ptr_type = llvm::PointerType::get(value->getType(), 0);
-            return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
-                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                irbuilder_.CreateStore(value, casted_ptr);
-                return irbuilder_.CreateLoad(alloca);
-            });
-        }
+    if (auto variant_index = def->isa<VariantIndex>()) {
+        auto llvm_value = lookup(variant_index->op(0));
+        auto tag_value = irbuilder_.CreateExtractValue(llvm_value, { 1 });
+        return irbuilder_.CreateIntCast(tag_value, convert(variant_index->type()), false);
+    }
+    if (auto variant_extract = def->isa<VariantExtract>()) {
+        auto variant_value = variant_extract->op(0);
+        auto llvm_value    = lookup(variant_value);
+        auto payload_value = irbuilder_.CreateExtractValue(llvm_value, { 0 });
+
+        auto target_type = convert(variant_value->type()->op(variant_extract->index()));
+        return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
+            irbuilder_.CreateStore(payload_value, alloca);
+            auto addr_space = alloca->getType()->getPointerAddressSpace();
+            auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
+            return irbuilder_.CreateLoad(payload_addr);
+        });
+    }
+    if (auto variant_ctor = def->isa<Variant>()) {
+        auto layout = module_->getDataLayout();
+        auto llvm_type = convert(variant_ctor->type());
+
+        auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
+        auto payload_value = lookup(variant_ctor->op(0));
+
+        return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
+            auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
+            irbuilder_.CreateStore(tag_value, tag_addr);
+
+            auto payload_addr = irbuilder_.CreatePointerCast(
+                irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(0) }),
+                llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
+            irbuilder_.CreateStore(payload_value, payload_addr);
+
+            return irbuilder_.CreateLoad(alloca);
+        });
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -1092,26 +1094,6 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
     }
 }
 
-unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
-    unsigned total_bits = 0;
-    for (auto op : variant->ops()) {
-        auto type_bits = compute_variant_op_bits(op);
-        if (type_bits == 0) return 0;
-        total_bits = std::max(total_bits, type_bits);
-    }
-    return total_bits;
-}
-
-unsigned CodeGen::compute_variant_op_bits(const Type* type) {
-    auto llvm_type = convert(type);
-    auto layout = module_->getDataLayout();
-    if (llvm_type->isPointerTy()       ||
-        llvm_type->isFloatingPointTy() ||
-        llvm_type->isIntegerTy())
-        return layout.getTypeSizeInBits(llvm_type);
-    return 0;
-}
-
 llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
@@ -1204,16 +1186,36 @@ llvm::Type* CodeGen::convert(const Type* type) {
         }
 
         case Node_VariantType: {
-            auto bits = compute_variant_bits(type->as<VariantType>());
-            if (bits != 0) {
-                return irbuilder_.getIntNTy(bits);
-            } else {
-                auto layout = module_->getDataLayout();
-                uint64_t max_size = 0;
-                for (auto op : type->ops())
-                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)).getFixedSize());
-                return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+            assert(type->num_ops() > 0);
+            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
+            size_t max_align = 0, max_size = 0;
+
+            auto layout = module_->getDataLayout();
+            llvm::Type* max_align_type;
+            for (auto op : type->ops()) {
+                auto op_type = convert(op);
+                size_t size  = layout.getTypeAllocSize(op_type);
+                size_t align = layout.getABITypeAlignment(op_type);
+                // Favor types that are not empty
+                if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
+                    max_align_type = op_type;
+                    max_align = align;
+                }
+                max_size = std::max(max_size, size);
             }
+
+            auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
+            auto union_type = rem_size > 0
+                    ? llvm::StructType::get(*context_, llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
+                    : llvm::StructType::get(*context_,  llvm::ArrayRef<llvm::Type*> { max_align_type });
+
+            auto tag_type =
+                    type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :
+                    type->num_ops() < (UINT64_C(1) << 16) ? irbuilder_.getInt16Ty() :
+                    type->num_ops() < (UINT64_C(1) << 32) ? irbuilder_.getInt32Ty() :
+                    irbuilder_.getInt64Ty();
+
+            return llvm::StructType::get(*context_, { union_type, tag_type });
         }
 
         default:

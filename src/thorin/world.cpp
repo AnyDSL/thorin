@@ -53,6 +53,19 @@ World::~World() {
     for (auto primop : primops_) delete primop;
 }
 
+const Def* World::variant_index(const Def* value, Debug dbg) {
+    if (auto variant = value->isa<Variant>())
+        return literal_qu64(variant->index(), dbg);
+    return cse(new VariantIndex(type_qu64(), value, dbg));
+}
+
+const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
+    auto type = value->type()->as<VariantType>()->op(index);
+    if (auto variant = value->isa<Variant>())
+        return variant->index() == index ? variant->value() : bottom(type);
+    return cse(new VariantExtract(type, value, index, dbg));
+}
+
 /*
  * literals
  */
@@ -510,19 +523,6 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         for (size_t i = 0; i != num; ++i)
             ops[i] = cast(to_vec->scalarize(), vec->op(i), dbg);
         return vector(ops, dbg);
-    }
-
-    if (auto variant = from->isa<Variant>()) {
-        if (variant->op(0)->type() == to)
-            return variant->op(0);
-        // Note: If the downcast is not possible, it is still necessary to create a node.
-        // Consider for instance:
-        // match E::A {
-        //     E::A => 1,
-        //     E::B(x) => x
-        // }
-        // Here, the code generator will emit a cast to generate the `E::B()`
-        // arm and give a value to `x`, but this is safe since this is dead code.
     }
 
     auto lit = from->isa<PrimLit>();

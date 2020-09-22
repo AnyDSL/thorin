@@ -17,14 +17,13 @@ namespace thorin {
  * vrebuild
  */
 
-const Type* StructType::vrebuild(TypeTable&, Types ops) const {
-    assert_unused(this->ops() == ops);
+const Type* NominalType::vrebuild(TypeTable&, Types) const {
+    THORIN_UNREACHABLE;
     return this;
 }
 
 const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
 const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { return to.variant_type(ops); }
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
@@ -58,13 +57,24 @@ const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
         return this;                          // this variable is not free - don't adjust
 }
 
-const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto struct_type = table().struct_type(name(), num_ops());
-    map[this] = struct_type;
+const Type* NominalType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto nominal_type = stub(table());
+    map[this] = nominal_type;
     for (size_t i = 0, e = num_ops(); i != e; ++i)
-        struct_type->set(i, op(i)->reduce(depth, type, map));
+        nominal_type->set(i, op(i)->reduce(depth, type, map));
+    return nominal_type;
+}
 
-    return struct_type;
+/*
+ * stub
+ */
+
+const NominalType* StructType::stub(TypeTable& to) const {
+    return to.struct_type(name(), num_ops());
+}
+
+const NominalType* VariantType::stub(TypeTable& to) const {
+    return to.variant_type(name(), num_ops());
 }
 
 //------------------------------------------------------------------------------
@@ -143,8 +153,8 @@ std::ostream& FrameType          ::stream(std::ostream& os) const { return os <<
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
-std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
-std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+std::ostream& StructType         ::stream(std::ostream& os) const { return os << "struct " << name(); }
+std::ostream& VariantType        ::stream(std::ostream& os) const { return os << "variant " << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
@@ -195,6 +205,13 @@ TypeTable::TypeTable()
 
 const StructType* TypeTable::struct_type(Symbol name, size_t size) {
     auto type = new StructType(*this, name, size);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
+}
+
+const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
+    auto type = new VariantType(*this, name, size);
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;

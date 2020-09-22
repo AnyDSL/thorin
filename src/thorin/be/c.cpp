@@ -233,13 +233,25 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
     } else if (auto variant = type->isa<VariantType>()) {
-        os << "union variant_" << variant->gid() << " {" << up;
+        os << "struct variant_" << variant->gid() << " {" << up;
+
+        os << endl << "union {" << up ;
         for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
             os << endl;
-            emit_type(os, variant->op(i)) << " " << variant->op(i) << ";";
+            // Do not emit the empty tuple ('void')
+            if (is_type_unit(variant->op(i)))
+                os << "//";
+            emit_type(os, variant->op(i)) << " variant_case" << i << ";";
         }
-        os << down << endl << "};";
-        return os;
+        os << down << endl << "} data;";
+
+        auto tag_type =
+            variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
+            variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
+            variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() :
+            world_.type_qu64();
+        emit_type(os << endl, tag_type);
+        return os << " tag; " << down << endl << "};";
     } else if (auto struct_type = type->isa<StructType>()) {
         if ((lang_ == Lang::HLS || lang_ == Lang::OPENCL) && is_channel_type(struct_type)) {
             os << "typedef ";
@@ -384,7 +396,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         for (auto op : variant->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, variant) << endl;
-        insert(type, "union variant_" + std::to_string(type->gid()));
+        insert(type, "struct variant_" + std::to_string(type->gid()));
     }
 
     // restore indent
@@ -1077,6 +1089,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
     auto def_name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
+        if (is_type_unit(bin->lhs()->type()))
+            return func_impl_;
+
         // emit definitions of inlined elements
         emit_aggop_defs(bin->lhs());
         emit_aggop_defs(bin->rhs());
@@ -1145,25 +1160,21 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (conv->isa<Cast>()) {
             func_impl_ << def_name << " = ";
 
-            if (src_type->isa<VariantType>()) {
-                emit(conv->from()) << "." << dst_type << ";";
-            } else {
-                auto from = src_type->as<PrimType>();
-                auto to   = dst_type->as<PrimType>();
+            auto from = src_type->as<PrimType>();
+            auto to   = dst_type->as<PrimType>();
 
-                if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
-                    func_impl_ << "(";
-                    emit_type(func_impl_, dst_type) << ") __half2float(";
-                    emit(conv->from()) << ");";
-                } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
-                    func_impl_ << "__float2half((float)";
-                    emit(conv->from()) << ");";
-                } else {
-                    func_impl_ << "(";
-                    emit_addr_space(func_impl_, dst_type);
-                    emit_type(func_impl_, dst_type) << ")";
-                    emit(conv->from()) << ";";
-                }
+            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
+                func_impl_ << "(";
+                emit_type(func_impl_, dst_type) << ") __half2float(";
+                emit(conv->from()) << ");";
+            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
+                func_impl_ << "__float2half((float)";
+                emit(conv->from()) << ");";
+            } else {
+                func_impl_ << "(";
+                emit_addr_space(func_impl_, dst_type);
+                emit_type(func_impl_, dst_type) << ")";
+                emit(conv->from()) << ";";
             }
         }
 
@@ -1201,12 +1212,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, array->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
         emit_type(func_impl_, array->type()) << " " << def_name << "_tmp = { { ";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
         func_impl_ << "} };" << endl;
-        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
+        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
         return func_impl_;
     }
@@ -1218,14 +1229,14 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (auto op : agg->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
         emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
             func_impl_ << endl;
             emit(agg->op(i)) << ",";
         }
         func_impl_ << down << endl << "};" << endl;
-        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
+        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
         return func_impl_;
     }
@@ -1307,8 +1318,32 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto variant = def->isa<Variant>()) {
         emit_type(func_impl_, variant->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << "." << variant->op(0)->type() << " = ";
-        emit(variant->op(0)) << ";";
+        func_impl_ << "{" << up << endl;
+        emit_type(func_impl_, variant->type()) << " " << def_name << "_tmp;" << endl;
+        if (!is_type_unit(variant->op(0)->type())) {
+            func_impl_ << def_name << "_tmp.data.variant_case" << variant->index() << " = ";
+            emit(variant->op(0)) << ";" << endl;
+        }
+        func_impl_
+            << def_name << "_tmp.tag = " << variant->index() << ";" << endl
+            << def_name << " = " << def_name << "_tmp;" << down << endl
+            << "}";
+        insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto variant_index = def->isa<VariantIndex>()) {
+        emit_type(func_impl_, variant_index->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
+        emit(variant_index->op(0)) << ".tag" << ";";
+        insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto variant_extract = def->isa<VariantExtract>()) {
+        emit_type(func_impl_, variant_extract->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
+        emit(variant_extract->op(0)) << ".data.variant_case" << variant_extract->index() << ";";
         insert(def, def_name);
         return func_impl_;
     }

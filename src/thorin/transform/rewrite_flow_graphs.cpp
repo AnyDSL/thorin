@@ -1,5 +1,3 @@
-#include <unordered_map>
-
 #include "thorin/transform/mangle.h"
 #include "thorin/world.h"
 
@@ -42,11 +40,13 @@ static const Type* graph_type(World& world) {
     return world.type_qs32();
 }
 
-static const Type* rewrite_type(World& world, std::unordered_map<const Type*, const Type*>& types, const Type* type) {
+static const Type* rewrite_type(World& world, Type2Type& types, const Type* type) {
+    auto it = types.find(type);
+    if (it != types.end())
+        return it->second;
+
     auto nominal_type = type->isa<NominalType>();
     if (nominal_type) {
-        if (types[nominal_type])
-            return types[nominal_type];
         auto ntype = nominal_type->stub(world);
         types[type] = ntype;
         for (size_t i = 0; i != type->num_ops(); ++i)
@@ -64,7 +64,7 @@ static const Type* rewrite_type(World& world, std::unordered_map<const Type*, co
             new_ops[i] = rewrite_type(world, types, type->op(i));
     }
 
-    return type->rebuild(world, new_ops);
+    return types[type] = type->rebuild(world, new_ops);
 }
 
 static void rewrite_jump(Continuation* old_cont, Continuation* new_cont, Rewriter& rewriter) {
@@ -76,7 +76,7 @@ static void rewrite_jump(Continuation* old_cont, Continuation* new_cont, Rewrite
     new_cont->jump(callee, args, old_cont->jump_debug());
 }
 
-static void rewrite_def(const Def* def, std::unordered_map<const Type*, const Type*> types, Rewriter& rewriter) {
+static void rewrite_def(const Def* def, Type2Type& types, Rewriter& rewriter) {
     if (rewriter.old2new.count(def) || def->isa_continuation())
         return;
 
@@ -100,7 +100,7 @@ static void rewrite_def(const Def* def, std::unordered_map<const Type*, const Ty
 void rewrite_flow_graphs(World& world) {
     Rewriter rewriter;
     std::vector<std::pair<Continuation*, Continuation*>> transformed;
-    std::unordered_map<const Type*, const Type*> rewritten_types;
+    Type2Type rewritten_types;
     TypeMap<bool> cache;
 
     for (auto cont : world.copy_continuations()) {

@@ -28,7 +28,7 @@ public:
     {}
 
     void emit();
-    void emit_cint();
+    void emit_cint(bool);
     World& world() const { return world_; }
 
 private:
@@ -819,7 +819,15 @@ void CCodeGen::emit() {
         os_ << "}"; // extern "C"
 }
 
-void CCodeGen::emit_cint() {
+void CCodeGen::emit_cint(bool all_types) {
+    if (all_types) {
+        for (auto t : world().types()) {
+            if (t->isa<MemType>() || is_type_unit(t) || t->order() > 0 || !t->isa<NominalType>())
+                continue;
+            emit_aggop_decl(t);
+        }
+    }
+
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;
@@ -867,7 +875,6 @@ void CCodeGen::emit_cint() {
         os_ << type_decls_.str() << endl;
     if (!func_decls_.str().empty())
         os_ << func_decls_.str() << endl;
-    return;
 }
 
 template <typename T, typename IsInfFn, typename IsNanFn>
@@ -1458,7 +1465,7 @@ bool CCodeGen::is_texture_type(const Type* type) {
 //------------------------------------------------------------------------------
 
 void emit_c(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug) { CCodeGen(world, kernel_config, stream, lang, debug).emit(); }
-void emit_cint(World& world, std::ostream& stream) { CCodeGen(world, {}, stream, Lang::C99, false).emit_cint(); }
+void emit_cint(World& world, std::ostream& stream, bool all_types) { CCodeGen(world, {}, stream, Lang::C99, false).emit_cint(all_types); }
 
 //------------------------------------------------------------------------------
 

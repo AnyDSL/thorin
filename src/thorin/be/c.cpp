@@ -28,6 +28,7 @@ public:
     {}
 
     void emit();
+    void emit_cint();
     World& world() const { return world_; }
 
 private:
@@ -179,8 +180,9 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
             emit_type(os, struct_type->op(i)) << " e" << i << ";";
+            // TODO: emit_type(os, struct_type->op(i)) << " " << struct_type->op(i)->name() << ";";
         }
-        os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
+        os << down << endl << "} " << struct_type->name() << ";";
         if (struct_type->name().str().find("channel_") != std::string::npos)
             use_channels_ = true;
         return os;
@@ -299,7 +301,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
-        insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
+        insert(type, struct_type->name().str());
     }
 
     // look for nested variants
@@ -816,6 +818,57 @@ void CCodeGen::emit() {
 
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "}"; // extern "C"
+}
+
+void CCodeGen::emit_cint() {
+    Scope::for_each(world(), [&] (const Scope& scope) {
+        if (scope.entry() == world().branch())
+            return;
+
+        // continuation declarations
+        auto continuation = scope.entry();
+        if (continuation->is_external()) {
+            assert(continuation->is_returning());
+
+            // retrieve return param
+            const Param* ret_param = nullptr;
+            for (auto param : continuation->params()) {
+                if (param->order() != 0) {
+                    assert(!ret_param);
+                    ret_param = param;
+                }
+            }
+            assert(ret_param);
+
+            // emit function declaration
+            auto ret_param_fn_type = ret_param->type()->as<FnType>();
+            auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
+            emit_aggop_decl(ret_type);
+            emit_type(func_decls_, ret_type) << " " << continuation->name() << "(";
+            size_t i = 0;
+
+            // emit and store all first-order params
+            for (auto param : continuation->params()) {
+                if (is_mem(param) || is_unit(param))
+                    continue;
+                if (param->order() == 0) {
+                    emit_aggop_decl(param->type());
+                    if (i++ > 0)
+                        func_decls_ << ", ";
+
+                    emit_type(func_decls_, param->type());
+                    insert(param, param->unique_name());
+                }
+            }
+            func_decls_ << ");" << endl;
+        }
+    });
+
+    if (!type_decls_.str().empty())
+        os_ << type_decls_.str() << endl;
+    if (!func_decls_.str().empty())
+        os_ << func_decls_.str() << endl;
+    return;
 }
 
 template <typename T, typename IsInfFn, typename IsNanFn>
@@ -1399,6 +1452,7 @@ bool CCodeGen::is_texture_type(const Type* type) {
 //------------------------------------------------------------------------------
 
 void emit_c(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug) { CCodeGen(world, kernel_config, stream, lang, debug).emit(); }
+void emit_cint(World& world, std::ostream& stream) { CCodeGen(world, {}, stream, Lang::C99, false).emit_cint(); }
 
 //------------------------------------------------------------------------------
 

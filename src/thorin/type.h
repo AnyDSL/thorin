@@ -131,13 +131,25 @@ public:
 class StructType : public NominalType {
 private:
     StructType(TypeTable& table, Symbol name, size_t size)
-        : NominalType(table, Node_StructType, name, size)
-    {}
+        : NominalType(table, Node_StructType, name, size), field_names_(size)
+    {
+        // Front-end can and should replace those
+        for (size_t i = 0; i < size; i++)
+            field_names_[i] = Symbol("field" + std::to_string(i));
+    }
+
+    Array<Symbol> field_names_;
 
     virtual std::ostream& stream(std::ostream&) const override;
 
 public:
     virtual const NominalType* stub(TypeTable&) const override;
+    const Symbol& field_name(size_t i) const {
+        return field_names_[i];
+    }
+    void set_field_name(size_t i, Symbol s) const {
+        const_cast<StructType*>(this)->field_names_[i] = s;
+    }
 
     friend class TypeTable;
 };
@@ -145,13 +157,25 @@ public:
 class VariantType : public NominalType {
 private:
     VariantType(TypeTable& table, Symbol name, size_t size)
-        : NominalType(table, Node_VariantType, name, size)
-    {}
+        : NominalType(table, Node_VariantType, name, size), variant_names_(size)
+    {
+        // Front-end can and should replace those
+        for (size_t i = 0; i < size; i++)
+            variant_names_[i] = Symbol("variant_case" + std::to_string(i));
+    }
+
+    Array<Symbol> variant_names_;
 
     virtual std::ostream& stream(std::ostream&) const override;
 
 public:
     virtual const NominalType* stub(TypeTable&) const override;
+    const Symbol& variant_name(size_t i) const {
+        return variant_names_[i];
+    }
+    void set_variant_name(size_t i, Symbol s) const {
+        const_cast<VariantType*>(this)->variant_names_[i] = s;
+    }
 
     friend class TypeTable;
 };

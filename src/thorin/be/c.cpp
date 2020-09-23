@@ -179,8 +179,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << "typedef struct {" << up;
         for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
-            emit_type(os, struct_type->op(i)) << " e" << i << ";";
-            // TODO: emit_type(os, struct_type->op(i)) << " " << struct_type->op(i)->name() << ";";
+            emit_type(os, struct_type->op(i)) << " " << struct_type->field_name(i) << ";";
         }
         os << down << endl << "} " << struct_type->name() << ";";
         if (struct_type->name().str().find("channel_") != std::string::npos)
@@ -1087,9 +1086,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
                 emit(index) << "]";
-            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
+            } else if (def->type()->isa<TupleType>()) {
                 func_impl_ << ".e";
                 emit(index);
+            } else if (def->type()->isa<StructType>()) {
+                func_impl_ << def->type()->as<StructType>()->field_name(primlit_value<size_t>(index));
             } else if (def->type()->isa<VectorType>()) {
                 if (is_primlit(index, 0))
                     func_impl_ << ".x";
@@ -1245,11 +1246,16 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>()) {
+            if (lea->ptr_pointee()->isa<TupleType>()) {
                 emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
                 func_impl_ << def_name << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
+            } if (lea->ptr_pointee()->isa<StructType>()) {
+                emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
+                func_impl_ << def_name << " = &";
+                emit(lea->ptr()) << "->";
+                func_impl_ << lea->ptr_pointee()->isa<StructType>()->field_name(primlit_value<size_t>(lea->index())) << ";";
             } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
                 emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
                 func_impl_ << def_name << " = &";

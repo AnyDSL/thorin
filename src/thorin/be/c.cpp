@@ -827,6 +827,8 @@ void CCodeGen::emit() {
 }
 
 void CCodeGen::emit_c_int() {
+    // Do not emit C interfaces for definitions that are not used
+    world().cleanup();
 
     for (auto continuation : world().continuations()) {
         if (!continuation->is_imported() && !continuation->is_exported())
@@ -844,9 +846,20 @@ void CCodeGen::emit_c_int() {
         }
         assert(ret_param);
 
-        // emit function declaration
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
         auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
+        if (continuation->is_imported()) {
+            // only emit types
+            emit_aggop_decl(ret_type);
+            for (auto param : continuation->params()) {
+                if (is_mem(param) || is_unit(param) || param->order() != 0)
+                    continue;
+                emit_aggop_decl(param->type());
+            }
+            continue;
+        }
+
+        // emit function declaration
         emit_aggop_decl(ret_type);
         emit_type(func_decls_, ret_type) << " " << continuation->name() << "(";
         size_t i = 0;

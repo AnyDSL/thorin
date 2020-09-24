@@ -127,6 +127,9 @@ public:
     void set_op_name(size_t i, Symbol name) const {
         const_cast<NominalType*>(this)->op_names_[i] = name;
     }
+    Array<Symbol>& op_names() const {
+        return const_cast<NominalType*>(this)->op_names_;
+    }
 
     /// Recreates a fresh new nominal type of the
     /// same kind with the same number of operands,

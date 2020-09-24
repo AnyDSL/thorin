@@ -19,7 +19,7 @@ enum class Lang : uint8_t {
 };
 
 void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);
-void emit_cint(World&, std::ostream& stream, bool all_types);
+void emit_c_int(World&, std::ostream& stream);
 
 }
 

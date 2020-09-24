@@ -96,7 +96,7 @@ Continuation* CodeGen::emit_hls(Continuation* continuation) {
         args[j++] = emit(continuation->arg(i));
     }
     auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_external();
+    callee->make_exported();
     irbuilder_.CreateCall(emit_function_decl(callee), args);
     assert(ret);
     return ret;
@@ -223,7 +223,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     if (auto f = thorin::find(fcts_, continuation))
         return f;
 
-    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
+    std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
@@ -231,20 +231,20 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
         if (continuation->empty()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
-        } else if (continuation->is_external()) {
+        } else if (continuation->is_exported()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
         }
     }
 #endif
 
     // set linkage
-    if (continuation->empty() || continuation->is_external())
+    if (continuation->empty() || continuation->is_exported())
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
 
     // set calling convention
-    if (continuation->is_external()) {
+    if (continuation->is_exported()) {
         f->setCallingConv(kernel_calling_convention_);
         emit_function_decl_hook(continuation, f);
     } else {
@@ -444,7 +444,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     llvm::CallInst* call = nullptr;
                     if (auto callee_continuation = callee->isa_continuation()) {
                         call = irbuilder_.CreateCall(emit_function_decl(callee_continuation), args);
-                        if (callee_continuation->is_external())
+                        if (callee_continuation->is_exported())
                             call->setCallingConv(kernel_calling_convention_);
                         else if (callee_continuation->cc() == CC::Device)
                             call->setCallingConv(device_calling_convention_);
@@ -1289,13 +1289,13 @@ static void get_kernel_configs(Importer& importer,
 {
     importer.world().opt();
 
-    auto externals = importer.world().externals();
+    auto exported_continuations = importer.world().exported_continuations();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto external : externals) {
-            if (external->name() == continuation->name())
-                imported = external;
+        for (auto exported : exported_continuations) {
+            if (exported->name() == continuation->name())
+                imported = exported;
         }
         if (!imported) continue;
 
@@ -1367,7 +1367,7 @@ Backends::Backends(World& world)
             return;
 
         imported->debug().set(continuation->unique_name());
-        imported->make_external();
+        imported->make_exported();
         continuation->debug().set(continuation->unique_name());
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)

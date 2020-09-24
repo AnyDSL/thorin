@@ -104,7 +104,7 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    if (!param->continuation()->is_external())
+    if (!param->continuation()->is_exported())
         return arg;
     else if (auto var = resolve_global_variable(param))
         return var;
@@ -122,7 +122,7 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
 }
 
 void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuation) {
-    if (!continuation->is_external())
+    if (!continuation->is_exported())
         return;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun();

@@ -46,9 +46,9 @@ void lift_pipeline(World& world) {
             // Note the use of 'return' as the second argument to pipeline_continue.
             // This is required to encode the dependence of the loop body over the call to pipeline,
             // so that lift_builtins can extract the correct free variables.
-            auto pipeline_continue = world.continuation(p_cont_type, CC::C, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
+            auto pipeline_continue = world.continuation(p_cont_type, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
             auto continue_wrapper = world.continuation(cont_type, Debug("continue_wrapper"));
-            auto new_pipeline = world.continuation(pipe_type, CC::C, Intrinsic::Pipeline, callee->debug());
+            auto new_pipeline = world.continuation(pipe_type, Intrinsic::Pipeline, callee->debug());
             auto old_body = cont->arg(4);
             auto body_cont = world.continuation(body_type, old_body->debug());
             cont->jump(new_pipeline, thorin::Defs { cont->arg(0), cont->arg(1), cont->arg(2), cont->arg(3), body_cont, cont->arg(5), pipeline_continue });
@@ -115,7 +115,7 @@ void lift_builtins(World& world) {
 
                         // jump to new top-level dummy function with new args
                         auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
-                        auto ncontinuation = world.continuation(fn_type, callee->cc(), callee->intrinsic(), callee->debug());
+                        auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
                         ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->jump_debug());
                     }
                 }

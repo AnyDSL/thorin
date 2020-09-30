@@ -1297,7 +1297,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
             func_impl_ << def_name << " = &";
             emit(lea->ptr()) << "->";
-            func_impl_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";" << endl;
+            func_impl_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";";
         } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
             emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
             func_impl_ << def_name << " = &";

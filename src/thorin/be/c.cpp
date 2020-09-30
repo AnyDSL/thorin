@@ -1288,29 +1288,27 @@ std::ostream& CCodeGen::emit(const Def* def) {
             func_impl_ << def_name << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
+        } else if (lea->ptr_pointee()->isa<TupleType>()) {
+            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
+            func_impl_ << def_name << " = &";
+            emit(lea->ptr()) << "->e";
+            emit(lea->index()) << ";";
+        } else if (lea->ptr_pointee()->isa<StructType>()) {
+            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
+            func_impl_ << def_name << " = &";
+            emit(lea->ptr()) << "->";
+            func_impl_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";" << endl;
+        } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
+            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
+            func_impl_ << def_name << " = &";
+            emit(lea->ptr()) << "->e[";
+            emit(lea->index()) << "];";
         } else {
-            if (lea->ptr_pointee()->isa<TupleType>()) {
-                emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-                func_impl_ << def_name << " = &";
-                emit(lea->ptr()) << "->e";
-                emit(lea->index()) << ";";
-            } if (lea->ptr_pointee()->isa<StructType>()) {
-                emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-                func_impl_ << def_name << " = &";
-                emit(lea->ptr()) << "->";
-                func_impl_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";";
-            } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
-                emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-                func_impl_ << def_name << " = &";
-                emit(lea->ptr()) << "->e[";
-                emit(lea->index()) << "];";
-            } else {
-                emit_addr_space(func_impl_, lea->ptr()->type());
-                emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-                func_impl_ << def_name << " = ";
-                emit(lea->ptr()) << " + ";
-                emit(lea->index()) << ";";
-            }
+            emit_addr_space(func_impl_, lea->ptr()->type());
+            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
+            func_impl_ << def_name << " = ";
+            emit(lea->ptr()) << " + ";
+            emit(lea->index()) << ";";
         }
 
         insert(def, def_name);

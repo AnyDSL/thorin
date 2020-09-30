@@ -1131,7 +1131,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 func_impl_ << ".e";
                 emit(index);
             } else if (def->type()->isa<StructType>()) {
-                func_impl_ << def->type()->as<StructType>()->op_name(primlit_value<size_t>(index));
+                func_impl_ << "." << def->type()->as<StructType>()->op_name(primlit_value<size_t>(index));
             } else if (def->type()->isa<VectorType>()) {
                 if (is_primlit(index, 0))
                     func_impl_ << ".x";
@@ -1208,7 +1208,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
         func_impl_ << "{" << up << endl;
         emit_type(func_impl_, variant->type()) << " " << def_name << "_tmp;" << endl;
         if (!is_type_unit(variant->op(0)->type())) {
-            func_impl_ << def_name << "_tmp.data.variant_case" << variant->index() << " = ";
+            auto variant_type = variant->type()->as<VariantType>();
+            func_impl_ << def_name << "_tmp.data." << variant_type->op_name(variant->index()) << " = ";
             emit(variant->op(0)) << ";" << endl;
         }
         func_impl_
@@ -1230,7 +1231,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
     if (auto variant_extract = def->isa<VariantExtract>()) {
         emit_type(func_impl_, variant_extract->type()) << " " << def_name << ";" << endl;
         func_impl_ << def_name << " = ";
-        emit(variant_extract->op(0)) << ".data.variant_case" << variant_extract->index() << ";";
+        auto variant_type = variant_extract->value()->type()->as<VariantType>();
+        emit(variant_extract->op(0)) << ".data." << variant_type->op_name(variant_extract->index()) << ";";
         insert(def, def_name);
         return func_impl_;
     }

@@ -121,6 +121,13 @@ void rewrite_flow_graphs(World& world) {
             for (size_t i = 0; i < cont->num_params(); ++i)
                 rewriter.old2new[cont->param(i)] = new_cont->param(i);
             transformed.emplace_back(new_cont, cont);
+        } else {
+            // This must be a flow graph intrinsic. Now
+            // that the types have been rewritten, it
+            // can be turned into a regular imported function.
+            new_cont->attributes().intrinsic = Intrinsic::None;
+            new_cont->attributes().visibility = Visibility::Imported;
+            new_cont->attributes().cc = CC::C;
         }
     }
 

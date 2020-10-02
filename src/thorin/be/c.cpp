@@ -810,8 +810,12 @@ void CCodeGen::emit() {
             os_ << endl;
     }
 
-    if (lang_==Lang::CUDA && use_16_)
+    if (lang_==Lang::CUDA && use_16_) {
         os_ << "#include <cuda_fp16.h>" << endl << endl;
+        os_ << "#if __CUDACC_VER_MAJOR__ > 8" << endl
+            << "#define half __half_raw" << endl
+            << "#endif" << endl << endl;
+    }
 
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "extern \"C\" {" << endl;

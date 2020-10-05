@@ -5,9 +5,16 @@
 namespace thorin {
 
 
-const Def* Inliner::rewrite(Def* cur_nom, const Def* def) {
+std::variant<const Def*, undo_t> Inliner::rewrite(Def* cur_nom, const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam) && first_inline(lam)) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
+            auto [undo, ins] = put<LamSet>(lam);
+            if (!ins) {
+                keep_.emplace(lam);
+                world().DLOG("xxx: undo to {} inlinining of {} within {}", undo, lam, cur_nom);
+                return undo;
+            }
+
             world().DLOG("inline {} within {}", lam, cur_nom);
             return thorin::rewrite(lam, app->arg(), 1);
         }
@@ -22,9 +29,10 @@ undo_t Inliner::analyze(Def* cur_nom, const Def* def) {
     auto undo = No_Undo;
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam) && keep_.emplace(lam).second) {
-            if (auto lam_undo = inlined_once(lam)) {
-                world().DLOG("undo to {} inlinining of {} within {}", *lam_undo, lam, cur_nom);
-                undo = std::min(undo, *lam_undo);
+            auto [lam_undo, ins] = put<LamSet>(lam);
+            if (!ins) {
+                world().DLOG("yyy: undo to {} inlinining of {} within {}", lam_undo, lam, cur_nom);
+                undo = std::min(undo, lam_undo);
             }
         }
     }

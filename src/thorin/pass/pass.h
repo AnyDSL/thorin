@@ -30,14 +30,14 @@ public:
     size_t index() const { return index_; }
     const std::string& name() const { return name_; }
     World& world();
-    ///@}
+    //@}
     /// @name hooks for the PassMan
     //@{
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
     virtual void enter([[maybe_unused]] Def* cur_nom) {}
 
-    /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
-    virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
+    /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement or the undo state if sth went wrong.
+    virtual std::variant<const Def*, undo_t> rewrite(Def* cur_nom, const Def* def) = 0;
 
     /// Invoked just after @p rewrite%ing and before @p analyze%ing @p cur_nom's body.
     virtual void finish([[maybe_unused]] Def* cur_nom) {}
@@ -45,10 +45,21 @@ public:
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
-    ///@}
-    /// @name Proxy-related operations
-    const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return world().proxy(type, ops, index(), dbg); }
-    const Proxy* isa_proxy(const Def* def) { return isa<Proxy>(index(), def); }
+    //@}
+    /// @name create Proxy
+    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, Debug dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
+    const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return proxy(type, ops, 0, dbg); }
+    //@{
+    /// @name check whether given @c def is a Proxy whose index matches this Pass's index
+    const Proxy* isa_proxy(const Def* def) {
+        if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index()) return proxy;
+        return nullptr;
+    }
+    const Proxy* isa_proxy(flags_t flags, const Def* def) {
+        if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;
+        return nullptr;
+    }
+    //@}
     /// @name mangage state - dummy implementations here
     //@{
     virtual void* alloc() { return nullptr; }
@@ -140,7 +151,7 @@ private:
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void enter(Def*);
-    const Def* rewrite(Def*, const Def*);
+    std::variant<const Def*, undo_t> rewrite(Def*, const Def*);
     undo_t analyze(Def*, const Def*);
 
     bool analyzed(const Def* def) {
@@ -172,17 +183,17 @@ public:
     /// @name search in the state stack
     //@{
     /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
-    /// @return A triple: <tt> [iterator, undo, inserted] </tt>.
+    /// @return A triple: <tt> [undo, inserted] </tt>.
     template<class S>
     auto put(const typename S::key_type& key) {
         for (undo_t undo = states().size(); undo-- != 0;) {
             auto& set = std::get<S>(state(undo));
-            if (auto i = set.find(key); i != set.end()) return std::tuple(i, undo, false);
+            if (auto i = set.find(key); i != set.end()) return std::tuple(undo, false);
         }
 
-        auto [i, inserted] = std::get<S>(cur_state()).emplace(key);
+        auto [_, inserted] = std::get<S>(cur_state()).emplace(key);
         assert(inserted);
-        return std::tuple(i, states().size()-1, true);
+        return std::tuple(states().size()-1, true);
     }
 
     /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.

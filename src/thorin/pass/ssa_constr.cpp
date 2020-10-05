@@ -1,5 +1,4 @@
 #include "thorin/pass/ssa_constr.h"
-
 #include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 
@@ -9,40 +8,54 @@ namespace thorin {
  * Proxies & helpers
  */
 
+/*
+   N(a) -> N_ssa(a, x) -> N_copy()
+*/
+
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
 static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
 static std::tuple<Lam*, const Proxy*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as_nominal<Lam>(), phixy->op(1)->as<Proxy>()}; }
 
 const Proxy* SSAConstr::make_sloxy(Lam* lam, const Def* slot) {
     auto [out_mem, out_ptr] = slot->split<2>();
-    auto sloxy = proxy(out_ptr->type(), {lam, world().lit_nat(slot_id_++)}, slot->debug());
+    auto sloxy = proxy(out_ptr->type(), {lam, world().lit_nat(slot_id_++)}, Sloxy, slot->debug());
     world().DLOG("sloxy: {}", sloxy);
     return sloxy;
 }
 
 const Proxy* SSAConstr::make_phixy(Lam* lam, const Proxy* sloxy) {
-    auto phixy = proxy(get_sloxy_type(sloxy), {lam, sloxy}, sloxy->debug());
+    auto phixy = proxy(get_sloxy_type(sloxy), {lam, sloxy}, Phixy, sloxy->debug());
     phixy->set_name(std::string("phi_") + phixy->name());
     world().DLOG("phixy within {} for {}", lam, sloxy);
     return phixy;
 }
 
-const Proxy* SSAConstr::make_setxy(const Def* mem, const Proxy* sloxy, const Def* value) {
+/*
+const Proxy* SSAConstr::make_traxy(const Def* mem, const Proxy* sloxy, const Def* value) {
     auto setxy = proxy(get_sloxy_type(sloxy), {mem, sloxy, value});
     world().DLOG("setxy({}, {}, {})", mem, sloxy, value);
     return setxy;
 }
-
-const Proxy* SSAConstr::isa_sloxy(const Def* def) { if (auto p = isa_proxy(def); p && !p->op(1)->isa<Proxy>()) return p; return nullptr; }
-const Proxy* SSAConstr::isa_phixy(const Def* def) { if (auto p = isa_proxy(def); p &&  p->op(1)->isa<Proxy>()) return p; return nullptr; }
+*/
 
 /*
  * PassMan hooks
  */
 
-const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
+void SSAConstr::enter(Def* nom) {
+    slot_id_ = 0;
+    orig_ = nom->isa<Lam>();
+    sloxy2val_.clear();
+}
+
+std::variant<const Def*, undo_t> SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     if (auto cur_lam = cur_nom->isa<Lam>()) {
-        if (auto slot = isa<Tag::Slot>(def)) {
+        if (auto traxy = isa_proxy(Traxy, def)) {
+            orig_ = traxy->op(0)->as_nominal<Lam>();
+            for (size_t i = 2, e = traxy->num_ops(); i != e; i += 2)
+                set_val(cur_lam, traxy->op(i)->as<Proxy>(), traxy->op(i+1));
+            return traxy->op(1);
+        } else if (auto slot = isa<Tag::Slot>(def)) {
             auto sloxy = make_sloxy(cur_lam, slot);
             if (!keep_.contains(sloxy)) {
                 set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
@@ -51,11 +64,11 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
             }
         } else if (auto load = isa<Tag::Load>(def)) {
             auto [mem, ptr] = load->args<2>();
-            if (auto sloxy = isa_sloxy(ptr))
+            if (auto sloxy = isa_proxy(Sloxy, ptr))
                 return world().tuple({mem, get_val(cur_lam, sloxy)});
         } else if (auto store = isa<Tag::Store>(def)) {
             auto [mem, ptr, val] = store->args<3>();
-            if (auto sloxy = isa_sloxy(ptr)) {
+            if (auto sloxy = isa_proxy(Sloxy, ptr)) {
                 //if (lam2info(cur_lam).writable.contains(sloxy)) {
                     set_val(cur_lam, sloxy, val);
                     return mem;
@@ -152,14 +165,14 @@ const Def* SSAConstr::rewrite(Lam* /*cur_lam*/, const App* app, Lam* mem_lam) {
 
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
-    if (!cur_lam || def->isa<Param>() || isa_phixy(def)) return No_Undo;
+    if (!cur_lam || def->isa<Param>() || isa_proxy(Phixy, def)) return No_Undo;
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         auto op = def->op(i);
 
-        if (auto sloxy = isa_sloxy(op)) {
+        if (auto sloxy = isa_proxy(Sloxy, op)) {
             // we can't SSA-construct this slot
             auto sloxy_lam = get_sloxy_lam(sloxy);
 
@@ -168,7 +181,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
                 auto&& [_, undo_enter] = get<Enter>(sloxy_lam);
                 undo = std::min(undo, undo_enter);
             }
-        } else if (auto phixy = isa_phixy(op)) {
+        } else if (auto phixy = isa_proxy(Phixy, op)) {
             // we need to install a phi in lam next time around
             auto [phixy_lam, sloxy] = split_phixy(phixy);
             auto sloxy_lam = get_sloxy_lam(sloxy);

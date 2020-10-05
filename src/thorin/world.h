@@ -413,7 +413,9 @@ public:
     //@}
     /// @name Proxy & Stub - used internally for Pass%es
     //@{
-    const Proxy* proxy(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, debug(dbg)); }
+    const Proxy* proxy(const Def* type, Defs ops, tag_t index, flags_t flags, Debug dbg = {}) {
+        return unify<Proxy>(ops.size(), type, ops, index, flags, debug(dbg));
+    }
     const Def* subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg = {});
     //@}
     /// @name misc operations

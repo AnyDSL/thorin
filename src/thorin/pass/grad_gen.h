@@ -73,7 +73,7 @@ public:
     GradGen(PassMan& man, size_t index)
         : PassBase(man, index, "GradGen")
     {}
-    const Def* rewrite(Def*, const Def*) override;
+    std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
 
 private:
     Lam* has_lam_to_rewrite(const Def* def) const;

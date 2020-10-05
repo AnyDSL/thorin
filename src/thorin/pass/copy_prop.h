@@ -18,7 +18,7 @@ public:
     using State = std::tuple<LamMap<Args>>;
 
 private:
-    const Def* rewrite(Def*, const Def*) override;
+    std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
     std::pair<Args&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Args>>(lam); return {i->second, undo}; }

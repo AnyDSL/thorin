@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-const Def* CopyProp::rewrite(Def*, const Def* def) {
+std::variant<const Def*, undo_t> CopyProp::rewrite(Def*, const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 
@@ -36,7 +36,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 
     if (update) {
         if (new_args.size() == app->num_args()) keep_.emplace(param_lam);
-        return proxy(app->type(), app->ops());
+        return proxy(app->type(), app->ops(), 0);
     }
 
     auto& prop_lam = param2prop_[param_lam];

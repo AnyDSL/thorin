@@ -31,6 +31,8 @@ public:
     using State = std::tuple<LamMap<Visit>, LamMap<Enter>>;
 
 private:
+    enum : flags_t { Sloxy, Phixy, Traxy };
+
     //@{
     /// @name Proxy%is & helpers
     /// This thing replaces a @p slot within @p lam and identifies it via the @p slot_id_.
@@ -42,14 +44,11 @@ private:
     /// Like a store but does not trigger any load-related optimizations.
     /// Used to mark the initial @p value of a @p sloxy for the value table @p sloxy2val_.
     const Proxy* make_setxy(const Def* mem, const Proxy* sloxy, const Def* value);
-
-    const Proxy* isa_sloxy(const Def*);
-    const Proxy* isa_phixy(const Def*);
     //@}
 
     Def* mem2phi(Def*);
-    void enter(Def*) override { slot_id_ = 0; sloxy2val_.clear(); }
-    const Def* rewrite(Def*, const Def*) override;
+    void enter(Def*) override;
+    std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
     const Def* get_val(Lam*, const Proxy*);
@@ -61,6 +60,7 @@ private:
     Lam* phi2mem(Lam* phi_lam) { auto mem_lam = phi2mem_.lookup(phi_lam); return mem_lam ? *mem_lam : nullptr; }
     Lam* lam2mem(Lam* lam) { auto mem_lam = phi2mem(lam); return mem_lam ? mem_lam : lam; }
 
+    Lam* orig_ = nullptr;
     size_t slot_id_;
     GIDMap<const Proxy*, const Def*> sloxy2val_;
     LamMap<Lam*> phi2mem_;

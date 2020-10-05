@@ -1112,14 +1112,15 @@ public:
 
 class Proxy : public Def {
 private:
-    Proxy(const Def* type, Defs ops, fields_t index, const Def* dbg)
-        : Def(Node, type, ops, index, dbg)
+    Proxy(const Def* type, Defs ops, tag_t index, flags_t flags, const Def* dbg)
+        : Def(Node, type, ops, (nat_t(index) << 32_u64) | nat_t(flags), dbg)
     {}
 
 public:
     /// @name misc getters
     //@{
-    fields_t index() const { return fields(); }
+    tag_t index() const { return fields() >> 32_u64; }
+    flags_t flags() const { return fields(); }
     //@}
     /// @name virtual methods
     //@{

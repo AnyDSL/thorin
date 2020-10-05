@@ -11,7 +11,7 @@ public:
         : PassBase(man, index, "partial_eval")
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
+    std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
 };
 
 }

@@ -131,7 +131,7 @@ inline bool is_string_type(const Type* type) {
 }
 
 inline bool is_channel_type(const StructType* struct_type) {
-    return struct_type->name().str().find("channel_") != std::string::npos;
+    return struct_type->name().str().find("channel") != std::string::npos;
 }
 
 

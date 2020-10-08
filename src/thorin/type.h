@@ -106,11 +106,13 @@ protected:
     NominalType(TypeTable& table, int tag, Symbol name, size_t size)
         : Type(table, tag, thorin::Array<const Type*>(size))
         , name_(name)
+        , op_names_(size)
     {
         nominal_ = true;
     }
 
     Symbol name_;
+    Array<Symbol> op_names_;
 
 private:
     virtual const Type* vrebuild(TypeTable&, Types) const override;
@@ -118,8 +120,15 @@ private:
 
 public:
     Symbol name() const { return name_; }
+    Symbol op_name(size_t i) const { return op_names_[i]; }
     void set(size_t i, const Type* type) const {
         return const_cast<NominalType*>(this)->Type::set(i, type);
+    }
+    void set_op_name(size_t i, Symbol name) const {
+        const_cast<NominalType*>(this)->op_names_[i] = name;
+    }
+    Array<Symbol>& op_names() const {
+        return const_cast<NominalType*>(this)->op_names_;
     }
 
     /// Recreates a fresh new nominal type of the

@@ -61,10 +61,21 @@ private:
 
 //------------------------------------------------------------------------------
 
+enum class Visibility : uint8_t {
+    Imported,   ///< Imported from another source
+    Exported,   ///< Exported to other modules/object files
+    Internal    ///< Internal to the module
+};
+
+enum class CC : uint8_t {
+    C,          ///< C calling convention.
+    Device,     ///< Device calling convention. These are special functions only available on a particular device.
+};
+
 enum class Intrinsic : uint8_t {
-    None,                       ///< Not an intrinsic.
-    _Accelerator_Begin,
-    CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
+    None,
+    AcceleratorBegin,
+    CUDA = AcceleratorBegin,    ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     AMDGPU,                     ///< Internal AMDGPU-Backend.
@@ -78,8 +89,8 @@ enum class Intrinsic : uint8_t {
     CreateEdge,                 ///< Internal Flow-Graph-Backend.
     ExecuteGraph,               ///< Internal Flow-Graph-Backend.
     Vectorize,                  ///< External vectorizer.
-    _Accelerator_End,
-    Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
+    AcceleratorEnd,
+    Reserve = AcceleratorEnd,   ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
     AtomicLoad,                 ///< Intrinsic atomic load function
     AtomicStore,                ///< Intrinsic atomic store function
@@ -90,14 +101,8 @@ enum class Intrinsic : uint8_t {
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
-    EndScope,                   ///< Dummy function which marks the end of a @p Scope.
+    EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
-
-enum class CC : uint8_t {
-    C,          ///< C calling convention.
-    Device,     ///< Device calling convention. These are special functions only available on a particular device.
-};
-
 
 /**
  * A function abstraction.
@@ -105,11 +110,21 @@ enum class CC : uint8_t {
  * Each element of this function type is associated a properly typed @p Param - retrieved via @p params().
  */
 class Continuation : public Def {
+public:
+    struct Attributes {
+        Intrinsic intrinsic = Intrinsic::None;
+        Visibility visibility = Visibility::Internal;
+        CC cc = CC::C;
+
+        Attributes() = default;
+        Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
+        Attributes(Visibility visibility, CC cc = CC::C) : visibility(visibility), cc(cc) {}
+    };
+
 private:
-    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
+    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
         : Def(Node_Continuation, fn, 0, dbg)
-        , cc_(cc)
-        , intrinsic_(intrinsic)
+        , attributes_(attributes)
     {
         params_.reserve(fn->num_ops());
         contains_continuation_ = true;
@@ -137,17 +152,20 @@ public:
     const FnType* arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
-    Intrinsic& intrinsic() { return intrinsic_; }
-    Intrinsic intrinsic() const { return intrinsic_; }
-    CC& cc() { return cc_; }
-    CC cc() const { return cc_; }
+    Attributes& attributes() { return attributes_; }
+    const Attributes& attributes() const { return attributes_; }
+    Intrinsic intrinsic() const { return attributes().intrinsic; }
+    CC cc() const { return attributes().cc; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
-    bool is_external() const;
-    void make_external();
-    void make_internal();
+    void make_exported() { attributes().visibility = Visibility::Exported; }
+    void make_imported() { attributes().visibility = Visibility::Imported; }
+    void make_internal() { attributes().visibility = Visibility::Internal; }
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;
+    bool is_exported() const;
+    bool is_imported() const;
+    bool is_internal() const;
     bool is_channel() const;
     bool is_pipe() const;
     bool is_accelerator() const;
@@ -187,8 +205,7 @@ private:
 
     std::vector<const Param*> params_;
     Array<const Def*> filter_; ///< used during @p partial_evaluation
-    CC cc_;
-    Intrinsic intrinsic_;
+    Attributes attributes_;
 
     friend class Cleaner;
     friend class Scope;

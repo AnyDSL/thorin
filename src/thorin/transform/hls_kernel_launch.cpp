@@ -54,7 +54,7 @@ static Continuation* make_opencl(World& world, const Continuation* cont_hls, con
 
     auto opencl_type = world.fn_type(opencl_param_types);
 
-    auto opencl = world.continuation(opencl_type, CC::C, Intrinsic::OpenCL, Debug("opencl"));
+    auto opencl = world.continuation(opencl_type, Intrinsic::OpenCL, Debug("opencl"));
     return opencl;
 }
 

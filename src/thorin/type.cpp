@@ -70,11 +70,15 @@ const Type* NominalType::vreduce(int depth, const Type* type, Type2Type& map) co
  */
 
 const NominalType* StructType::stub(TypeTable& to) const {
-    return to.struct_type(name(), num_ops());
+    auto type = to.struct_type(name(), num_ops());
+    std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
+    return type;
 }
 
 const NominalType* VariantType::stub(TypeTable& to) const {
-    return to.variant_type(name(), num_ops());
+    auto type = to.variant_type(name(), num_ops());
+    std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
+    return type;
 }
 
 //------------------------------------------------------------------------------

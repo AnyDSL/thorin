@@ -44,8 +44,8 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
 {
-    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, {"br"});
-    end_scope_ = continuation(fn_type(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -896,8 +896,8 @@ const Def* World::run(const Def* def, Debug dbg) {
  * continuations
  */
 
-Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
-    auto l = new Continuation(fn, cc, intrinsic, dbg);
+Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
+    auto l = new Continuation(fn, attributes, dbg);
     THORIN_CHECK_BREAK(l->gid());
     continuations_.insert(l);
 
@@ -916,7 +916,7 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     arg_types[1] = fn_type();
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = tuple_type({type, fn_type()});
-    return continuation(fn_type(arg_types), CC::C, Intrinsic::Match, {"match"});
+    return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
@@ -950,6 +950,15 @@ Array<Continuation*> World::copy_continuations() const {
     Array<Continuation*> result(continuations().size());
     std::copy(continuations().begin(), continuations().end(), result.begin());
     return result;
+}
+
+Array<Continuation*> World::exported_continuations() const {
+    std::vector<Continuation*> exported;
+    for (auto continuation : continuations()) {
+        if (continuation->is_exported())
+            exported.push_back(continuation);
+    }
+    return exported;
 }
 
 const Def* World::cse_base(const PrimOp* primop) {

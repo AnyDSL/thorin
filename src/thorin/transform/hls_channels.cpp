@@ -62,10 +62,11 @@ bool is_single_kernel(Continuation* kernel) {
 
 void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& cont2config) {
     auto find_kernel_by_name = [&] (const std::string& name) {
-        auto it = std::find_if(world.externals().begin(), world.externals().end(), [&] (auto external) {
-                return external->name() == name;
+        auto exported_continuations = world.exported_continuations();
+        auto it = std::find_if(exported_continuations.begin(), exported_continuations.end(), [&] (auto exported) {
+                return exported->name() == name;
                 });
-        return it != world.externals().end() ? *it : nullptr;
+        return it != world.exported_continuations().end() ? *it : nullptr;
     };
     // Extract and save param size info for hls_top then insert it into configuration map.
     auto hls_top = find_kernel_by_name("hls_top");
@@ -180,7 +181,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
-            new_kernel->make_external();
+            new_kernel->make_exported();
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -389,7 +390,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         cur_mem = ret->mem_param();
     }
 
-    hls_top->make_external();
+    hls_top->make_exported();
 
     debug_verify(world);
     world.cleanup();

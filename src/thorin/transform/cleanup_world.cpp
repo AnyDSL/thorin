@@ -102,7 +102,7 @@ void Cleaner::eta_conversion() {
             if (!continuation->empty()) {
                 // eat calls to known continuations that are only used once
                 while (auto callee = continuation->callee()->isa_continuation()) {
-                    if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
+                    if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
                         for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
                             callee->param(i)->replace(continuation->arg(i));
                         continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
@@ -115,7 +115,7 @@ void Cleaner::eta_conversion() {
                 // try to subsume continuations which call a parameter
                 // (that is free within that continuation) with that parameter
                 if (auto param = continuation->callee()->isa<Param>()) {
-                    if (param->continuation() == continuation || continuation->is_external())
+                    if (param->continuation() == continuation || continuation->is_exported())
                         continue;
 
                     if (continuation->args() == continuation->params_as_defs()) {
@@ -167,7 +167,7 @@ void Cleaner::eliminate_params() {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (!ocontinuation->empty() && !world().is_external(ocontinuation)) {
+        if (!ocontinuation->empty() && !ocontinuation->is_exported()) {
             for (auto use : ocontinuation->uses()) {
                 if (use.index() != 0 || !use->isa_continuation())
                     goto next_continuation;
@@ -182,8 +182,9 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto ncontinuation = world().continuation(world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
-                                            ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
+                auto ncontinuation = world().continuation(
+                    world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
+                    ocontinuation->attributes(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
@@ -217,8 +218,8 @@ void Cleaner::rebuild() {
     world_.swap_breakpoints(importer.world());
 #endif
 
-    for (auto external : world().externals())
-        importer.import(external);
+    for (auto continuation : world().exported_continuations())
+        importer.import(continuation);
 
     swap(importer.world(), world_);
     todo_ |= importer.todo();
@@ -278,9 +279,9 @@ void Cleaner::clean_pe_infos() {
         if (done.emplace(continuation).second)
             queue.push(continuation);
     };
-    for (auto external : world().externals()) {
-        enqueue(external);
-    }
+
+    for (auto continuation : world().exported_continuations())
+        enqueue(continuation);
 
     while (!queue.empty()) {
         auto continuation = pop(queue);

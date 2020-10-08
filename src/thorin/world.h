@@ -168,9 +168,11 @@ public:
 
     // continuations
 
-    Continuation* continuation(const FnType* fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {});
-    Continuation* continuation(const FnType* fn, Debug dbg = {}) { return continuation(fn, CC::C, Intrinsic::None, dbg); }
-    Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), CC::C, Intrinsic::None, dbg); }
+    Continuation* continuation(const FnType*, Continuation::Attributes, Debug = {});
+    Continuation* continuation(const FnType* fn_type, Debug dbg = {}) {
+        return continuation(fn_type, Continuation::Attributes(), dbg);
+    }
+    Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }
@@ -185,16 +187,13 @@ public:
     const PrimOpSet& primops() const { return primops_; }
     const ContinuationSet& continuations() const { return continuations_; }
     Array<Continuation*> copy_continuations() const;
-    const ContinuationSet& externals() const { return externals_; }
+    Array<Continuation*> exported_continuations() const;
     bool empty() const { return continuations().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
     bool is_pe_done() const { return pe_done_; }
-    void add_external(Continuation* continuation) { externals_.insert(continuation); }
-    void remove_external(Continuation* continuation) { externals_.erase(continuation); }
-    bool is_external(const Continuation* continuation) { return externals().contains(const_cast<Continuation*>(continuation)); }
 #if THORIN_ENABLE_CHECKS
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
@@ -213,7 +212,6 @@ public:
         swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
         swap(w1.name_,          w2.name_);
         swap(w1.continuations_, w2.continuations_);
-        swap(w1.externals_,     w2.externals_);
         swap(w1.primops_,       w2.primops_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
@@ -233,7 +231,6 @@ private:
 
     std::string name_;
     ContinuationSet continuations_;
-    ContinuationSet externals_;
     PrimOpSet primops_;
     Continuation* branch_;
     Continuation* end_scope_;

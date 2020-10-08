@@ -114,15 +114,20 @@ void rewrite_flow_graphs(World& world) {
         if (!transform)
             continue;
 
-        auto new_cont = world.continuation(rewrite_type(world, rewritten_types, cont->type())->as<FnType>(), cont->debug());
-        if (cont->is_external())
-            new_cont->make_external();
+        auto new_cont = world.continuation(rewrite_type(world, rewritten_types, cont->type())->as<FnType>(), cont->attributes(), cont->debug());
         rewriter.old2new[cont] = new_cont;
 
         if (!cont->is_intrinsic()) {
             for (size_t i = 0; i < cont->num_params(); ++i)
                 rewriter.old2new[cont->param(i)] = new_cont->param(i);
             transformed.emplace_back(new_cont, cont);
+        } else {
+            // This must be a flow graph intrinsic. Now
+            // that the types have been rewritten, it
+            // can be turned into a regular imported function.
+            new_cont->attributes().intrinsic = Intrinsic::None;
+            new_cont->attributes().visibility = Visibility::Imported;
+            new_cont->attributes().cc = CC::C;
         }
     }
 

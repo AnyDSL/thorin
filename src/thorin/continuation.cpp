@@ -33,7 +33,7 @@ const Def* Continuation::callee() const {
 Continuation* Continuation::stub() const {
     Rewriter rewriter;
 
-    auto result = world().continuation(type(), cc(), intrinsic(), debug_history());
+    auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->debug() = param(i)->debug_history();
         rewriter.old2new[param(i)] = result->param(i);
@@ -172,36 +172,36 @@ void Continuation::set_all_true_filter() {
     filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
 
-void Continuation::make_external() { return world().add_external(this); }
-void Continuation::make_internal() { return world().remove_external(this); }
-bool Continuation::is_external() const { return world().is_external(this); }
-bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
+bool Continuation::is_exported() const { return attributes().visibility == Visibility::Exported; }
+bool Continuation::is_imported() const { return attributes().visibility == Visibility::Imported; }
+bool Continuation::is_internal() const { return attributes().visibility == Visibility::Internal; }
+bool Continuation::is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
+bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
 bool Continuation::is_channel() const { return name().str().find("channel") != std::string::npos; }
 bool Continuation::is_pipe() const { return name().str().find("pipe") != std::string::npos; }
-bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Continuation::set_intrinsic() {
-    if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
-    else if (name() == "nvvm")                 intrinsic_ = Intrinsic::NVVM;
-    else if (name() == "opencl")               intrinsic_ = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;
-    else if (name() == "hls")                  intrinsic_ = Intrinsic::HLS;
-    else if (name() == "parallel")             intrinsic_ = Intrinsic::Parallel;
-    else if (name() == "fibers")               intrinsic_ = Intrinsic::Fibers;
-    else if (name() == "spawn")                intrinsic_ = Intrinsic::Spawn;
-    else if (name() == "sync")                 intrinsic_ = Intrinsic::Sync;
-    else if (name() == "anydsl_create_graph")  intrinsic_ = Intrinsic::CreateGraph;
-    else if (name() == "anydsl_create_task")   intrinsic_ = Intrinsic::CreateTask;
-    else if (name() == "anydsl_create_edge")   intrinsic_ = Intrinsic::CreateEdge;
-    else if (name() == "anydsl_execute_graph") intrinsic_ = Intrinsic::ExecuteGraph;
-    else if (name() == "vectorize")            intrinsic_ = Intrinsic::Vectorize;
-    else if (name() == "pe_info")              intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == "pipeline")             intrinsic_ = Intrinsic::Pipeline;
-    else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
-    else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
-    else if (name() == "atomic_load")          intrinsic_ = Intrinsic::AtomicLoad;
-    else if (name() == "atomic_store")         intrinsic_ = Intrinsic::AtomicStore;
-    else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
-    else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
+    if      (name() == "cuda")                 attributes().intrinsic = Intrinsic::CUDA;
+    else if (name() == "nvvm")                 attributes().intrinsic = Intrinsic::NVVM;
+    else if (name() == "opencl")               attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")               attributes().intrinsic = Intrinsic::AMDGPU;
+    else if (name() == "hls")                  attributes().intrinsic = Intrinsic::HLS;
+    else if (name() == "parallel")             attributes().intrinsic = Intrinsic::Parallel;
+    else if (name() == "fibers")               attributes().intrinsic = Intrinsic::Fibers;
+    else if (name() == "spawn")                attributes().intrinsic = Intrinsic::Spawn;
+    else if (name() == "sync")                 attributes().intrinsic = Intrinsic::Sync;
+    else if (name() == "anydsl_create_graph")  attributes().intrinsic = Intrinsic::CreateGraph;
+    else if (name() == "anydsl_create_task")   attributes().intrinsic = Intrinsic::CreateTask;
+    else if (name() == "anydsl_create_edge")   attributes().intrinsic = Intrinsic::CreateEdge;
+    else if (name() == "anydsl_execute_graph") attributes().intrinsic = Intrinsic::ExecuteGraph;
+    else if (name() == "vectorize")            attributes().intrinsic = Intrinsic::Vectorize;
+    else if (name() == "pe_info")              attributes().intrinsic = Intrinsic::PeInfo;
+    else if (name() == "pipeline")             attributes().intrinsic = Intrinsic::Pipeline;
+    else if (name() == "reserve_shared")       attributes().intrinsic = Intrinsic::Reserve;
+    else if (name() == "atomic")               attributes().intrinsic = Intrinsic::Atomic;
+    else if (name() == "atomic_load")          attributes().intrinsic = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")         attributes().intrinsic = Intrinsic::AtomicStore;
+    else if (name() == "cmpxchg")              attributes().intrinsic = Intrinsic::CmpXchg;
+    else if (name() == "undef")                attributes().intrinsic = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
@@ -291,9 +291,11 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
     //stream_type_params(os, type());
     stream_list(os, params(), [&](const Param* param) { streamf(os, "{} {}", param->type(), param); }, "(", ")");
-    if (is_external())
-        os << " extern ";
-    if (is_intrinsic() && intrinsic_ == Intrinsic::Match)
+    if (is_exported())
+        os << " export ";
+    else if (is_imported())
+        os << " import ";
+    if (is_intrinsic() && intrinsic() == Intrinsic::Match)
         os << " " << "match" << " ";
     if (cc() == CC::Device)
         os << " device ";

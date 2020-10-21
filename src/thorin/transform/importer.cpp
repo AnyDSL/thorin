@@ -9,8 +9,8 @@ const Type* Importer::import(const Type* otype) {
     }
     size_t size = otype->num_ops();
 
-    if (auto struct_type = otype->isa<StructType>()) {
-        auto ntype = world_.struct_type(struct_type->name(), struct_type->num_ops());
+    if (auto nominal_type = otype->isa<NominalType>()) {
+        auto ntype = nominal_type->stub(world_);
         type_old2new_[otype] = ntype;
         for (size_t i = 0; i != size; ++i)
             ntype->set(i, import(otype->op(i)));
@@ -53,7 +53,7 @@ const Def* Importer::import(Tracker odef) {
         if (ocontinuation == ocontinuation->world().end_scope())
             return def_old2new_[ocontinuation] = world().end_scope();
         auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
+        ncontinuation = world().continuation(npi, ocontinuation->attributes(), ocontinuation->debug_history());
         assert(&ncontinuation->world() == &world());
         assert(&npi->table() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
@@ -62,9 +62,6 @@ const Def* Importer::import(Tracker odef) {
         }
 
         def_old2new_[ocontinuation] = ncontinuation;
-
-        if (ocontinuation->is_external())
-            ncontinuation->make_external();
 
         if (ocontinuation->num_ops() > 0 && ocontinuation->callee() == ocontinuation->world().branch()) {
             auto cond = import(ocontinuation->arg(0));

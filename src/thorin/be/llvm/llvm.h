@@ -33,8 +33,6 @@ public:
 protected:
     virtual void optimize(int opt);
 
-    unsigned compute_variant_bits(const VariantType*);
-    unsigned compute_variant_op_bits(const Type*);
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);

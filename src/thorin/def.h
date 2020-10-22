@@ -167,7 +167,17 @@ public:
     //@}
     /// @name ops
     //@{
-    Defs ops() const { return Defs(num_ops_, ops_ptr()); }
+    template<size_t N = size_t(-1)>
+    auto ops() const {
+        if constexpr (N == size_t(-1)) {
+            return Defs(num_ops_, ops_ptr());
+        } else {
+            assert(num_ops() == N);
+            std::array<const Def*, N> array;
+            std::copy(ops().begin(), ops().end(), array.begin());
+            return array;
+        }
+    }
     const Def* op(size_t i) const { return ops()[i]; }
     size_t num_ops() const { return num_ops_; }
     /// Includes @p debug (if not @c nullptr), @p type() (if not @p Universe), and then the other @p ops() (if @p is_set) in this order.
@@ -272,9 +282,10 @@ public:
     const Def* apply(const Def* arg) const;
     const Def* apply(const Def* arg);
     //@}
-    /// @name reduce
+    /// @name reduce/subst
     //@{
     const Def* reduce() const;
+    Def* subst(const Def* replacer, const Def* replacee, Debug dbg = {});
     //@}
     /// @name misc getters
     //@{

@@ -11,8 +11,8 @@ void PassMan::push_state() {
         cur_state().data[i] = passes_[i]->alloc();
 
     if (states_.size() > 1) {
-        const auto& prev_state = states_[states_.size() - 2];
-        cur_state().stack = prev_state.stack; // copy over stack
+        auto&& prev_state   = states_[states_.size() - 2];
+        cur_state().stack   = prev_state.stack; // copy over stack
         cur_state().cur_nom = prev_state.stack.top();
         cur_state().old_ops = cur_state().cur_nom->ops();
     }
@@ -23,7 +23,7 @@ void PassMan::pop_states(size_t undo) {
         for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
             passes_[i]->dealloc(cur_state().data[i]);
 
-        if (undo != 0)// only reset if not final cleanup
+        if (undo != 0) // only reset if not final cleanup
             cur_state().cur_nom->set(cur_state().old_ops);
 
         states_.pop_back();
@@ -57,7 +57,11 @@ void PassMan::run() {
             pass->enter(cur_nom);
 
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-            auto rw = rewrite(cur_nom, cur_nom->op(i));
+            auto old_op = cur_nom->op(i);
+            for (auto&& pass : passes_)
+                old_op = pass->prewrite(cur_nom, old_op);
+
+            auto rw = rewrite(cur_nom, old_op);
             if (auto u = std::get_if<undo_t>(&rw))
                 undo = std::min(undo, *u);
             else
@@ -86,7 +90,7 @@ void PassMan::run() {
 }
 
 std::variant<const Def*, undo_t> PassMan::rewrite(Def* cur_nom, const Def* old_def) {
-    if (old_def->is_const()) return old_def;
+    if (old_def->is_const() || old_def->isa<Proxy>()) return old_def;
     if (auto new_def = lookup(old_def)) return *new_def;
 
     if (auto subst = old_def->isa<Subst>()) {
@@ -104,7 +108,11 @@ std::variant<const Def*, undo_t> PassMan::rewrite(Def* cur_nom, const Def* old_d
 
     Array<const Def*> new_ops(old_def->num_ops());
     for (size_t i = 0, e = old_def->num_ops(); i != e; ++i) {
-        auto new_def = rewrite(cur_nom, old_def->op(i));
+        auto old_op = old_def->op(i);
+        for (auto&& pass : passes_)
+            old_op = pass->prewrite(cur_nom, old_op);
+
+        auto new_def = rewrite(cur_nom, old_op);
         if (auto undo = std::get_if<undo_t>(&new_def)) return *undo;
         new_ops[i] = std::get<const Def*>(new_def);
     }

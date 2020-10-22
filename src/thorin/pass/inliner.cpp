@@ -8,8 +8,7 @@ namespace thorin {
 std::variant<const Def*, undo_t> Inliner::rewrite(Def* cur_nom, const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
-            auto [undo, ins] = put<LamSet>(lam);
-            if (!ins) {
+            if (auto [undo, ins] = put<LamSet>(lam); !ins) {
                 keep_.emplace(lam);
                 world().DLOG("xxx: undo to {} inlinining of {} within {}", undo, lam, cur_nom);
                 return undo;

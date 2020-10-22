@@ -1,8 +1,6 @@
 #ifndef THORIN_PASS_PASS_H
 #define THORIN_PASS_PASS_H
 
-#include <map>
-
 #include "thorin/world.h"
 
 namespace thorin {
@@ -35,6 +33,9 @@ public:
     //@{
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
     virtual void enter([[maybe_unused]] Def* cur_nom) {}
+
+    /// Same as @p rewrite but in @em preorder.
+    virtual const Def* prewrite(Def*, const Def* def) { return def; }
 
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement or the undo state if sth went wrong.
     virtual std::variant<const Def*, undo_t> rewrite(Def* cur_nom, const Def* def) = 0;
@@ -121,11 +122,6 @@ public:
         return false;
     }
     bool mark_tainted(Def* nom) { return cur_state().tainted.emplace(nom).second; }
-    template<class T = Def> T*& reincarnate(T* old_nom) {
-        auto [i, inserted] = reincanate_.emplace(old_nom, nullptr);
-        assert(inserted || i->second->template isa<T>());
-        return (T*&) i->second;
-    }
     //@}
 
 private:
@@ -165,7 +161,6 @@ private:
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
-    Nom2Nom reincanate_;
 
     template<class P> friend class Pass;
 };
@@ -226,4 +221,5 @@ private:
 };
 
 }
+
 #endif

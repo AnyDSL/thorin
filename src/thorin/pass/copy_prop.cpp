@@ -52,9 +52,7 @@ std::variant<const Def*, undo_t> CopyProp::rewrite(Def*, const Def* def) {
         Array<const Def*> new_params(app->num_args(), [&](size_t i) {
             return keep_.contains(param_lam->param(i)) ? prop_lam->param(j++) : args[i];
         });
-        auto new_param = world().tuple(new_params);
-        prop_lam->set(0_s, world().subst(param_lam->op(0), param_lam->param(), new_param));
-        prop_lam->set(1_s, world().subst(param_lam->op(1), param_lam->param(), new_param));
+        prop_lam->subst(param_lam->param(), world().tuple(new_params));
     }
 
     return app->world().app(prop_lam, new_args, app->debug());

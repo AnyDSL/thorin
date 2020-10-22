@@ -65,6 +65,7 @@ private:
     Continuation* emit_spawn(Continuation*);
     Continuation* emit_sync(Continuation*);
     Continuation* emit_vectorize_continuation(Continuation*);
+    Continuation* emit_sequence_continuation(Continuation*);
     Continuation* emit_atomic(Continuation*);
     Continuation* emit_cmpxchg(Continuation*);
     Continuation* emit_atomic_load(Continuation*);
@@ -73,6 +74,7 @@ private:
     virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
+    void emit_sequence(llvm::Function*);
 
 protected:
     void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
@@ -94,6 +96,7 @@ protected:
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
+    std::vector<llvm::Function*> seq_todo_;
 #endif
 
     std::unique_ptr<Runtime> runtime_;

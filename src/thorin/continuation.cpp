@@ -192,6 +192,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "anydsl_create_edge")   attributes().intrinsic = Intrinsic::CreateEdge;
     else if (name() == "anydsl_execute_graph") attributes().intrinsic = Intrinsic::ExecuteGraph;
     else if (name() == "vectorize")            attributes().intrinsic = Intrinsic::Vectorize;
+    else if (name() == "sequence")             attributes().intrinsic = Intrinsic::Sequence;
     else if (name() == "pe_info")              attributes().intrinsic = Intrinsic::PeInfo;
     else if (name() == "pipeline")             attributes().intrinsic = Intrinsic::Pipeline;
     else if (name() == "reserve_shared")       attributes().intrinsic = Intrinsic::Reserve;

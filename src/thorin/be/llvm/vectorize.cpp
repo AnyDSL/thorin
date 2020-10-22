@@ -31,6 +31,72 @@
 
 namespace thorin {
 
+struct SequenceArgs {
+    enum {
+        Mem = 0,
+        Body,
+        Return,
+        Num
+    };
+};
+
+Continuation* CodeGen::emit_sequence_continuation(Continuation* continuation) {
+    auto target = continuation->callee()->as_continuation();
+    assert_unused(target->intrinsic() == Intrinsic::Sequence);
+    assert(continuation->num_args() >= SequenceArgs::Num && "required arguments are missing");
+
+    // arguments
+    auto kernel = continuation->arg(SequenceArgs::Body)->as<Global>()->init()->as_continuation();
+    const size_t num_kernel_args = continuation->num_args() - SequenceArgs::Num;
+
+    // build function signature
+    Array<llvm::Type*> arg_types(num_kernel_args);
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        auto type = continuation->arg(i + SequenceArgs::Num)->type();
+        arg_types[i] = convert(type);
+    }
+
+    // build iteration loop and wire the calls
+    Array<llvm::Value*> args(num_kernel_args);
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        // check target type
+        auto arg = continuation->arg(i + SequenceArgs::Num);
+        auto llvm_arg = lookup(arg);
+        if (arg->type()->isa<PtrType>())
+            llvm_arg = irbuilder_.CreateBitCast(llvm_arg, arg_types[i]);
+        args[i] = llvm_arg;
+    }
+
+    auto kernel_func = emit_function_decl(kernel);
+
+    irbuilder_.CreateCall(kernel_func, llvm_ref(args));
+
+    seq_todo_.emplace_back(kernel_func);
+
+    return continuation->arg(SequenceArgs::Return)->as_continuation();
+}
+
+void CodeGen::emit_sequence(llvm::Function* kernel_func) {
+    if (kernel_func->hasNUses(0)) {
+        kernel_func->eraseFromParent();
+        return;
+    }
+
+    // inline kernel
+    llvm::InlineFunctionInfo info;
+    for (auto *user : kernel_func->users()) {
+        auto kernel_call = llvm::dyn_cast<llvm::CallInst>(user);
+        if (kernel_call && kernel_call->getCalledFunction() == kernel_func)
+            llvm::InlineFunction(kernel_call, info);
+    }
+
+    // remove vectorized function
+    if (kernel_func->hasNUses(0))
+        kernel_func->eraseFromParent();
+    else
+        kernel_func->addFnAttr(llvm::Attribute::AlwaysInline);
+}
+
 struct VectorizeArgs {
     enum {
         Mem = 0,

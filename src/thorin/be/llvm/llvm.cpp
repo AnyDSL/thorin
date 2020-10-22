@@ -78,8 +78,10 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Sync:        return emit_sync(continuation);
 #if THORIN_ENABLE_RV
         case Intrinsic::Vectorize:   return emit_vectorize_continuation(continuation);
+        case Intrinsic::Sequence:    return emit_sequence_continuation(continuation);
 #else
         case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
+        case Intrinsic::Sequence:    throw std::runtime_error("rebuild with RV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -520,6 +522,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     for (const auto& tuple : vec_todo_)
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
     vec_todo_.clear();
+    for (const auto& call : seq_todo_)
+        emit_sequence(call);
+    seq_todo_.clear();
 
     rv::lowerIntrinsics(*module_);
 #endif

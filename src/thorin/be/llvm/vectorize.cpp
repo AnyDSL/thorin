@@ -98,12 +98,16 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
       abort();
     }
 
-    llvm::FunctionAnalysisManager FAM;
     llvm::PassBuilder PB;
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    LAM.registerPass([&] { return llvm::FunctionAnalysisManagerLoopProxy(FAM); });
+    FAM.registerPass([&] { return llvm::LoopAnalysisManagerFunctionProxy(LAM); });
     PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
 
     // ensure proper loop forms
-    llvm::FunctionPassManager FPM(module_.get());
+    llvm::FunctionPassManager FPM;
     FPM.addPass(llvm::SimplifyCFGPass());
     FPM.addPass(llvm::SROA());
     FPM.addPass(llvm::EarlyCSEPass());
@@ -111,7 +115,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     FPM.addPass(rv::CNSWrapperPass()); // make all loops reducible (has to run first!)
     FPM.addPass(llvm::PromotePass()); // CNSPass relies on mem2reg for now
 
-    llvm::LoopPassManager LPM(module_.get());
+    llvm::LoopPassManager LPM;
     LPM.addPass(llvm::LICMPass());
     FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 

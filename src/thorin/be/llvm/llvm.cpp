@@ -12,16 +12,18 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Verifier.h>
-#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/IPO/Inliner.h>
 #include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/Scalar/ADCE.h>
 
 #include "thorin/config.h"
 #if THORIN_ENABLE_RV
@@ -544,22 +546,36 @@ void CodeGen::emit(std::ostream& stream, int opt, bool debug) {
 
 void CodeGen::optimize(int opt) {
     if (opt != 0) {
-        llvm::PassManagerBuilder pmbuilder;
-        llvm::legacy::PassManager pass_manager;
-        if (opt == -1) {
-            pmbuilder.OptLevel = 2u;
-            pmbuilder.SizeLevel = 1;
-        } else {
-            pmbuilder.OptLevel = (unsigned) opt;
-            pmbuilder.SizeLevel = 0u;
-        }
-        if (opt == 3) {
-            pass_manager.add(llvm::createFunctionInliningPass());
-            pass_manager.add(llvm::createAggressiveDCEPass());
-        }
-        pmbuilder.populateModulePassManager(pass_manager);
+        llvm::PassBuilder PB;
+        llvm::PassBuilder::OptimizationLevel opt_level;
+        llvm::FunctionAnalysisManager FAM;
+        llvm::ModuleAnalysisManager MAM;
+        FAM.registerPass([&] { return llvm::ModuleAnalysisManagerFunctionProxy(MAM); });
+        MAM.registerPass([&] { return llvm::FunctionAnalysisManagerModuleProxy(FAM); });
+        PB.registerModuleAnalyses(MAM);
 
-        pass_manager.run(*module_);
+        switch (opt) {
+        case 0: opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
+        case 1: opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
+        case 2: opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
+        case 3: opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
+        default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
+        }
+
+        if (opt == 3) {
+            FAM.registerPass([&] { return llvm::PostDominatorTreeAnalysis(); });
+
+            llvm::ModulePassManager module_pass_manager;
+            module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass());
+            llvm::FunctionPassManager function_pass_manager;
+            function_pass_manager.addPass(llvm::ADCEPass());
+            module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
+
+            module_pass_manager.run(*module_, MAM);
+        }
+
+        llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
+        builder_passes.run(*module_, MAM);
     }
 }
 

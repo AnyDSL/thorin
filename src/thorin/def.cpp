@@ -411,9 +411,10 @@ const Def* Def::reduce() const {
     return def;
 }
 
-Def* Def::subst(const Def* replacer, const Def* replacee, Debug dbg) {
+Def* Def::subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg) {
+    assert(this->node() == from->node());
     for (size_t i = 0, e = num_ops(); i != e; ++i)
-        set(i, world().subst(op(i), replacer, replacee, dbg));
+        set(i, world().subst(from->op(i), replacer, replacee, dbg));
     return this;
 }
 

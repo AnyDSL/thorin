@@ -34,9 +34,6 @@ public:
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
     virtual void enter([[maybe_unused]] Def* cur_nom) {}
 
-    /// Same as @p rewrite but in @em preorder.
-    virtual const Def* prewrite(Def*, const Def* def) { return def; }
-
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement or the undo state if sth went wrong.
     virtual std::variant<const Def*, undo_t> rewrite(Def* cur_nom, const Def* def) = 0;
 

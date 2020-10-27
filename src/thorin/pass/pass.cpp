@@ -57,11 +57,7 @@ void PassMan::run() {
             pass->enter(cur_nom);
 
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-            auto old_op = cur_nom->op(i);
-            for (auto&& pass : passes_)
-                old_op = pass->prewrite(cur_nom, old_op);
-
-            auto rw = rewrite(cur_nom, old_op);
+            auto rw = rewrite(cur_nom, cur_nom->op(i));
             if (auto u = std::get_if<undo_t>(&rw))
                 undo = std::min(undo, *u);
             else
@@ -108,11 +104,7 @@ std::variant<const Def*, undo_t> PassMan::rewrite(Def* cur_nom, const Def* old_d
 
     Array<const Def*> new_ops(old_def->num_ops());
     for (size_t i = 0, e = old_def->num_ops(); i != e; ++i) {
-        auto old_op = old_def->op(i);
-        for (auto&& pass : passes_)
-            old_op = pass->prewrite(cur_nom, old_op);
-
-        auto new_def = rewrite(cur_nom, old_op);
+        auto new_def = rewrite(cur_nom, old_def->op(i));
         if (auto undo = std::get_if<undo_t>(&new_def)) return *undo;
         new_ops[i] = std::get<const Def*>(new_def);
     }

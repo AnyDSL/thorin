@@ -285,7 +285,7 @@ public:
     /// @name reduce/subst
     //@{
     const Def* reduce() const;
-    Def* subst(const Def* replacer, const Def* replacee, Debug dbg = {});
+    Def* subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg = {});
     //@}
     /// @name misc getters
     //@{

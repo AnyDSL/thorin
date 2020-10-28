@@ -46,29 +46,19 @@ public:
 private:
     enum : flags_t { Sloxy, Phixy, Traxy, Stoxy };
 
-    //@{
-    /// @name Proxy%s & helpers
-    /// This thing replaces a @p slot within @p lam and identifies it via the @p slot_id_.
-    const Proxy* make_sloxy(Lam* lam, const Def* slot);
-
-    /// A virtual phi; marks the necessity to introduce a phi param within @p lam for @p sloxy.
-    const Proxy* make_phixy(const Proxy* sloxy, Lam* lam);
-
-    /// Tracks the pred @p lam for a @p mem value.
-    const Proxy* make_traxy(const Def* mem, Lam* lam);
-    //@}
-
-    Def* mem2phi(Def*);
     void enter(Def*) override;
+    const Def* prewrite(Def*, const Def*);
     std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    std::variant<const Def*, undo_t> rewrite(Lam*, const App*, Lam*);
+    std::optional<undo_t> join(Lam* cur_lam, Lam* lam, bool callee_pos);
+    std::variant<const Def*, undo_t> mem2phi(Lam*, const App*, Lam*);
 
     template<class T> // T = Visit or Enter
     std::tuple<T&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo, ins}; }
+    bool keep(Lam* lam) { return lam->is_external() || !lam->is_set() || keep_.contains(lam); }
 
     size_t slot_id_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;

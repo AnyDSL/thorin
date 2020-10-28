@@ -34,6 +34,9 @@ public:
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
     virtual void enter([[maybe_unused]] Def* cur_nom) {}
 
+    /// Invoked during @p rewrite but in @em pre-order.
+    virtual const Def* prewrite([[maybe_unused]] Def* cur_nom, const Def* def) { return def; }
+
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement or the undo state if sth went wrong.
     virtual std::variant<const Def*, undo_t> rewrite(Def* cur_nom, const Def* def) = 0;
 
@@ -49,13 +52,14 @@ public:
     const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return proxy(type, ops, 0, dbg); }
     //@{
     /// @name check whether given @c def is a Proxy whose index matches this Pass's index
-    const Proxy* isa_proxy(const Def* def) {
-        if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index()) return proxy;
-        return nullptr;
-    }
     const Proxy* isa_proxy(flags_t flags, const Def* def) {
         if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;
         return nullptr;
+    }
+    const Proxy* as_proxy(flags_t flags, const Def* def) {
+        auto proxy = def->as<Proxy>();
+        assert(proxy->index() == index() && proxy->flags() == flags);
+        return proxy;
     }
     //@}
     /// @name mangage state - dummy implementations here

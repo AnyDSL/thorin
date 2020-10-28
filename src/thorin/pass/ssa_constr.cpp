@@ -4,17 +4,9 @@
 
 namespace thorin {
 
-/*
- * destruct proxies
- */
-
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
 static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
-
-/*
- * PassMan hooks
- */
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
@@ -65,6 +57,8 @@ std::variant<const Def*, undo_t> SSAConstr::rewrite(Def* cur_nom, const Def* def
     auto app = def->isa<App>();
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nominal<Lam>()) {
+            if (lam->gid() == 12493)
+                std::cout << "asdf" << std::endl;
             bool callee_pos = app != nullptr && i == 0;
             if (auto undo = join(cur_lam, lam, callee_pos); undo != No_Undo) return undo;
         }
@@ -113,16 +107,18 @@ undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, bool callee_pos) {
                 world().DLOG("preds_1_callee_pos -> preds_n: '{}'", lam);
                 visit.phi_lam = nullptr;
             } else {
-                world().DLOG("preds_1_{}callee_pos join {}callee_pos -> keep: '{}'",
-                        visit.callee_pos ? "" : "non_", callee_pos ? "" : "non_", lam);
+                world().DLOG("preds_1_{}callee_pos join {}callee_pos -> keep: '{}' with pred '{}'",
+                        visit.callee_pos ? "" : "non_", callee_pos ? "" : "non_", lam, cur_lam);
                 keep_.emplace(lam);
+                // TODO invalidate phis
             }
             return undo;
         }
     } else {
         if (!callee_pos) {
-            keep_.emplace(lam);
             world().DLOG("preds_n -> keep: {}", lam);
+            keep_.emplace(lam);
+            // TODO invalidate phis
             return undo;
         }
     }
@@ -148,6 +144,9 @@ std::variant<const Def*, undo_t> SSAConstr::mem2phi(Lam* cur_lam, const App* app
             }
         }
 
+        size_t num_phis = phis.size();
+        if (num_phis == 0) return app;
+
         if (phi_lam == nullptr) {
             auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
             phi_lam = world().lam(new_type, mem_lam->debug());
@@ -160,10 +159,10 @@ std::variant<const Def*, undo_t> SSAConstr::mem2phi(Lam* cur_lam, const App* app
         auto num_mem_params = mem_lam->num_params();
         Array<const Def*> new_params(num_mem_params, [&](size_t i) { return phi_lam->param(i); });
         auto new_param = world().tuple(new_params);
-        auto filter    = world().subst(mem_lam->op(0), mem_lam->param(), new_param);
-        auto body      = world().subst(mem_lam->op(1), mem_lam->param(), new_param);
+        auto filter    = world().subst(mem_lam->filter(), mem_lam->param(), new_param);
+        auto body      = world().subst(mem_lam->body(),   mem_lam->param(), new_param);
 
-        size_t i = 0, num_phis = phis.size();
+        size_t i = 0;
         Array<const Def*> stoxy_ops(2*num_phis + 1);
         stoxy_ops[0] = filter;
         for (auto phi : phis) {
@@ -191,68 +190,23 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
         auto op = def->op(i);
 
         if (auto sloxy = isa_proxy(Sloxy, op)) {
-            // we can't SSA-construct this slot
             auto sloxy_lam = get_sloxy_lam(sloxy);
 
             if (keep_.emplace(sloxy).second) {
                 world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, def);
-                auto&& [_, undo_enter, __] = get<Enter>(sloxy_lam);
-                undo = std::min(undo, undo_enter);
+                auto&& [_, u, __] = get<Enter>(sloxy_lam);
+                undo = std::min(undo, u);
             }
         } else if (auto phixy = isa_proxy(Phixy, op)) {
-            // we need to install a phi in lam next time around
-            auto [sloxy, phixy_lam] = split_phixy(phixy);
-            auto sloxy_lam = get_sloxy_lam(sloxy);
-            auto& phis = lam2phis_[phixy_lam];
+            auto [sloxy, mem_lam] = split_phixy(phixy);
+            //auto sloxy_lam = get_sloxy_lam(sloxy);
+            auto& phis = lam2phis_[mem_lam];
 
-            if (keep_.contains(phixy)) {
-                if (keep_.emplace(sloxy).second) {
-                    world().DLOG("keep: '{}'; I can't adjust '{}'", sloxy, phixy_lam);
-                    //get<Visit>(phixy_lam).first.phi_lam = nullptr; TODO
-                    if (auto i = phis.find(sloxy); i != phis.end()) phis.erase(i);
-                    auto&& [_, __, undo_visit] = get<Visit>(sloxy_lam);
-                    return undo_visit;
-                }
-            } else {
-                phis.emplace(sloxy);
-                std::get<0>(get<Visit>(phixy_lam)).phi_lam = nullptr;
-                world().DLOG("phi needed: phixy '{}' for sloxy '{}' for phixy_lam '{}'", phixy, sloxy, phixy_lam);
-                auto&& [_, undo_visit, __] = get<Visit>(phixy_lam);
-                return undo_visit;
-            }
-        } else if (auto lam = op->isa_nominal<Lam>()) {
-            // TODO optimize
-            //if (lam->is_basicblock() && lam != man().cur_lam())
-                //lam2info(lam).writable.insert_range(range(lam2info(man().cur_lam()).writable));
-            //lam = lam2mem(lam);
-            auto&& [visit, undo_visit, __] = get<Visit>(lam);
-            auto& phis = lam2phis_[lam];
-
-#if 0
-            if (preds_n_.contains(lam) || keep_.contains(lam) || lam->is_intrinsic() || lam->is_external()) {
-            } else if (visit.preds == Visit::Preds1) {
-                preds_n_.emplace(lam);
-                world().DLOG("Preds1 -> PredsN: '{}'", lam);
-                undo = std::min(undo, undo_visit);
-            } else if (visit.preds == Visit::Preds0) {
-                if (visit.pred != cur_lam) {
-                    visit.pred = cur_lam;
-                    visit.preds = Visit::Preds1;
-                    assert(phis.empty());
-                }
-            }
-#endif
-
-            // if lam does not occur as callee and has more than one pred - we can't do anything
-            if ((!def->isa<App>() || i != 0) && preds_n_.contains(lam)) {
-                if (keep_.emplace(lam).second) {
-                    world().DLOG("keep: '{}'", lam);
-
-                    if (!phis.empty()) {
-                        undo = std::min(undo, undo_visit);
-                        phis.clear();
-                    }
-                }
+            if (phis.emplace(sloxy).second) {
+                auto&& [visit, u, _] = get<Visit>(mem_lam);
+                world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, u);
+                visit.phi_lam = nullptr;
+                undo = std::min(undo, u);
             }
         }
     }

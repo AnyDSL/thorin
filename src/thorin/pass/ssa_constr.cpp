@@ -66,7 +66,7 @@ std::variant<const Def*, undo_t> SSAConstr::rewrite(Def* cur_nom, const Def* def
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nominal<Lam>()) {
             bool callee_pos = app != nullptr && i == 0;
-            if (auto undo = join(cur_lam, lam, callee_pos)) return *undo;
+            if (auto undo = join(cur_lam, lam, callee_pos); undo != No_Undo) return undo;
         }
     }
 
@@ -98,8 +98,8 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
     return lam2sloxy2val_[lam][sloxy] = val;
 }
 
-std::optional<undo_t> SSAConstr::join(Lam* cur_lam, Lam* lam, bool callee_pos) {
-    if (keep(lam)) return {};
+undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, bool callee_pos) {
+    if (keep(lam)) return No_Undo;
 
     auto&& [visit, undo, inserted] = get<Visit>(lam);
     if (!preds_n_.contains(lam)) {
@@ -127,7 +127,7 @@ std::optional<undo_t> SSAConstr::join(Lam* cur_lam, Lam* lam, bool callee_pos) {
         }
     }
 
-    return {};
+    return No_Undo;
 }
 
 std::variant<const Def*, undo_t> SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {

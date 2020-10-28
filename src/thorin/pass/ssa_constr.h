@@ -53,7 +53,7 @@ private:
 
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    std::optional<undo_t> join(Lam* cur_lam, Lam* lam, bool callee_pos);
+    undo_t join(Lam* cur_lam, Lam* lam, bool callee_pos);
     std::variant<const Def*, undo_t> mem2phi(Lam*, const App*, Lam*);
 
     template<class T> // T = Visit or Enter

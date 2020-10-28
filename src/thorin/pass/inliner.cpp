@@ -23,7 +23,7 @@ std::variant<const Def*, undo_t> Inliner::rewrite(Def* cur_nom, const Def* def) 
 }
 
 undo_t Inliner::analyze(Def* cur_nom, const Def* def) {
-    if (def->isa<Param>()) return No_Undo;
+    if (def->is_const() || analyzed(def) || def->isa<Param>()) return No_Undo;
 
     auto undo = No_Undo;
     for (auto op : def->ops()) {
@@ -34,6 +34,8 @@ undo_t Inliner::analyze(Def* cur_nom, const Def* def) {
                 undo = std::min(undo, lam_undo);
             }
         }
+
+        undo = std::min(undo, analyze(cur_nom, def));
     }
 
     return undo;

@@ -34,7 +34,6 @@ public:
     struct Visit {
         bool callee_pos = true;
         Lam* pred = nullptr;
-        Lam* phi_lam = nullptr;
     };
 
     struct Enter {
@@ -44,7 +43,7 @@ public:
     using State = std::tuple<LamMap<Visit>, LamMap<Enter>>;
 
 private:
-    enum : flags_t { Sloxy, Phixy, Traxy, Stoxy };
+    enum : flags_t { Sloxy, Phixy, Traxy };
 
     void enter(Def*) override;
     const Def* prewrite(Def*, const Def*);
@@ -65,6 +64,7 @@ private:
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the phis we have to add to the mem_lam to build the phi_lam.
     DefSet keep_;                                                  ///< Contains Lams as well as sloxys we want to keep.
     LamSet preds_n_;                                               ///< Contains Lams with more than one preds.
+    Lam2Lam mem2phi_;
 };
 
 }

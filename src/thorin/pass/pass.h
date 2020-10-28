@@ -46,6 +46,12 @@ public:
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
+    virtual undo_t analyze(Def* cur_nom) {
+        undo_t undo = No_Undo;
+        for (auto op : cur_nom->extended_ops())
+            undo = std::min(undo, analyze(cur_nom, op));
+        return undo;
+    }
     //@}
     /// @name create Proxy
     const Proxy* proxy(const Def* type, Defs ops, flags_t flags, Debug dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
@@ -133,14 +139,16 @@ private:
         State& operator=(State) = delete;
         State(size_t num)
             : data(num)
+            , analyzed(num)
         {}
 
         Def* cur_nom = nullptr;
         Array<void*> data;
+        Array<DefSet> analyzed;
+        DefSet enqueued;
         Array<const Def*> old_ops;
         std::stack<Def*> stack;
         Def2Def old2new;
-        DefSet analyzed;
         NomSet tainted;
     };
 
@@ -149,13 +157,13 @@ private:
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void enter(Def*);
     std::variant<const Def*, undo_t> rewrite(Def*, const Def*);
-    undo_t analyze(Def*, const Def*);
+    void enqueue(const Def*);
 
-    bool analyzed(const Def* def) {
+    bool enqueued(const Def* def) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-            if (i->analyzed.contains(def)) return true;
+            if (i->enqueued.contains(def)) return true;
         }
-        cur_state().analyzed.emplace(def);
+        cur_state().enqueued.emplace(def);
         return false;
     }
 
@@ -176,6 +184,14 @@ public:
         : PassBase(man, index, name)
     {}
 
+    //@}
+    /// @name alloc/dealloc state
+    //@{
+    void* alloc() override { return new typename P::State(); }
+    void dealloc(void* state) override { delete static_cast<typename P::State*>(state); }
+    //@}
+
+protected:
     /// @name search in the state stack
     //@{
     /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
@@ -205,12 +221,14 @@ public:
         assert(inserted);
         return std::tuple(i, states().size()-1, true);
     }
-    //@}
-    /// @name alloc/dealloc state
-    //@{
-    void* alloc() override { return new typename P::State(); }
-    void dealloc(void* state) override { delete static_cast<typename P::State*>(state); }
-    //@}
+
+    bool analyzed(const Def* def) {
+        for (auto i = states().rbegin(), e = states().rend(); i != e; ++i) {
+            if (i->analyzed[index()].contains(def)) return true;
+        }
+        states().back().analyzed[index()].emplace(def);
+        return false;
+    }
 
 private:
     /// @name state-related getters

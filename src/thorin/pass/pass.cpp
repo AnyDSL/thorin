@@ -40,7 +40,7 @@ void PassMan::run() {
 
     for (const auto& [_, nom] : world().externals()) {
         map(nom, nom);
-        analyzed(nom);
+        enqueued(nom);
         cur_state().stack.push(nom);
     }
 
@@ -68,11 +68,14 @@ void PassMan::run() {
             pass->finish(cur_nom);
 
         if (undo == No_Undo) {
-            for (auto op : cur_nom->extended_ops())
-                undo = std::min(undo, analyze(cur_nom, op));
+            for (auto&& pass : passes_)
+                undo = std::min(undo, pass->analyze(cur_nom));
         }
 
-        if (undo != No_Undo) {
+        if (undo == No_Undo) {
+            for (auto op : cur_nom->extended_ops())
+                enqueue(op);
+        } else {
             pop_states(undo);
             world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
         }
@@ -129,21 +132,15 @@ std::variant<const Def*, undo_t> PassMan::rewrite(Def* cur_nom, const Def* old_d
     return map(old_def, new_def);
 }
 
-size_t PassMan::analyze(Def* cur_nom, const Def* def) {
-    if (def->is_const() || analyzed(def)) return No_Undo;
+void PassMan::enqueue(const Def* def) {
+    if (def->is_const() || enqueued(def)) return;
 
-    auto undo = No_Undo;
     if (auto nom = def->isa_nominal()) {
         cur_state().stack.push(nom);
     } else {
         for (auto op : def->extended_ops())
-            undo = std::min(undo, analyze(cur_nom, op));
-
-        for (auto&& pass : passes_)
-            undo = std::min(undo, pass->analyze(cur_nom, def));
+            enqueue(op);
     }
-
-    return undo;
 }
 
 }

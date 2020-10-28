@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-std::variant<const Def*, undo_t> CopyProp::rewrite(Def*, const Def* def) {
+const Def* CopyProp::rewrite(Def*, const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 

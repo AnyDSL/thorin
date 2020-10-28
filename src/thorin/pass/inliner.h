@@ -11,7 +11,7 @@ public:
         : Pass(man, index, "inliner")
     {}
 
-    std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
+    const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
     using State = std::tuple<LamSet>;

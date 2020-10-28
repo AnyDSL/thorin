@@ -45,8 +45,6 @@ void PassMan::run() {
     }
 
     while (!cur_state().stack.empty()) {
-        auto undo = No_Undo;
-
         push_state();
         auto cur_nom = pop(cur_state().stack);
         world().DLOG("state/cur_nom: {}/{}", states_.size() - 1, cur_nom);
@@ -56,21 +54,15 @@ void PassMan::run() {
         for (auto&& pass : passes_)
             pass->enter(cur_nom);
 
-        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i) {
-            auto rw = rewrite(cur_nom, cur_nom->op(i));
-            if (auto u = std::get_if<undo_t>(&rw))
-                undo = std::min(undo, *u);
-            else
-                cur_nom->set(i, std::get<const Def*>(rw));
-        }
+        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
+            cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
 
         for (auto&& pass : passes_)
             pass->finish(cur_nom);
 
-        if (undo == No_Undo) {
-            for (auto&& pass : passes_)
-                undo = std::min(undo, pass->analyze(cur_nom));
-        }
+        undo_t undo = No_Undo;
+        for (auto&& pass : passes_)
+            undo = std::min(undo, pass->analyze(cur_nom));
 
         if (undo == No_Undo) {
             for (auto op : cur_nom->extended_ops())
@@ -88,7 +80,7 @@ void PassMan::run() {
     cleanup(world());
 }
 
-std::variant<const Def*, undo_t> PassMan::rewrite(Def* cur_nom, const Def* old_def) {
+const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     for (auto&& pass : passes_)
         old_def = pass->prewrite(cur_nom, old_def);
 
@@ -105,28 +97,18 @@ std::variant<const Def*, undo_t> PassMan::rewrite(Def* cur_nom, const Def* old_d
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
 
-    if (auto undo = std::get_if<undo_t>(&new_type)) return *undo;
-    if (auto undo = std::get_if<undo_t>(&new_dbg )) return *undo;
-
     Array<const Def*> new_ops(old_def->num_ops());
     for (size_t i = 0, e = old_def->num_ops(); i != e; ++i) {
         auto new_def = rewrite(cur_nom, old_def->op(i));
-        if (auto undo = std::get_if<undo_t>(&new_def)) return *undo;
-        new_ops[i] = std::get<const Def*>(new_def);
+        new_ops[i] = new_def;
     }
 
-    auto new_def = old_def->rebuild(world(), std::get<const Def*>(new_type), new_ops, std::get<const Def*>(new_dbg));
+    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
     for (auto&& pass : passes_) {
         auto prev_def = new_def;
-        auto rw = pass->rewrite(cur_nom, new_def);
-        if (auto undo = std::get_if<undo_t>(&rw)) return *undo;
-        new_def = std::get<const Def*>(rw);
-        if (prev_def != new_def) {
-            auto rw = rewrite(cur_nom, new_def);
-            if (auto undo = std::get_if<undo_t>(&rw)) return *undo;
-            new_def = std::get<const Def*>(rw);
-        }
+        new_def =  pass->rewrite(cur_nom, new_def);
+        if (prev_def != new_def) new_def = rewrite(cur_nom, new_def);
     }
 
     return map(old_def, new_def);

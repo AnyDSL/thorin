@@ -28,7 +28,7 @@ const Def* SSAConstr::prewrite(Def* cur_nom, const Def* def) {
     return def;
 }
 
-std::variant<const Def*, undo_t> SSAConstr::rewrite(Def* cur_nom, const Def* def) {
+const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
     if (cur_lam == nullptr || def->isa<Param>() || def->isa<Proxy>()) return def;
 
@@ -81,7 +81,7 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
     return lam2sloxy2val_[lam][sloxy] = val;
 }
 
-std::variant<const Def*, undo_t> SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
+const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     auto& phis = lam2phis_[mem_lam];
     if (phis.empty()) return app;
 

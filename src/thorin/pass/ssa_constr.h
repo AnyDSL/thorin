@@ -47,13 +47,13 @@ private:
 
     void enter(Def*) override;
     const Def* prewrite(Def*, const Def*);
-    std::variant<const Def*, undo_t> rewrite(Def*, const Def*) override;
+    const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
     undo_t join(Lam* cur_lam, Lam* lam, bool callee_pos);
-    std::variant<const Def*, undo_t> mem2phi(Lam*, const App*, Lam*);
+    const Def* mem2phi(Lam*, const App*, Lam*);
 
     template<class T> // T = Visit or Enter
     std::tuple<T&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo, ins}; }

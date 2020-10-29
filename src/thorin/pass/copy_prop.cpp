@@ -9,14 +9,9 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
     if (app == nullptr) return def;
 
     auto param_lam = app->callee()->isa_nominal<Lam>();
-    if (       param_lam == nullptr
-            || param_lam->num_params() == 0
-            || param_lam->is_external()
-            || !param_lam->is_set()
-            || keep_.contains(param_lam))
-        return app;
+    if (ignore(param_lam) || param_lam->num_params() == 0 || keep_.contains(param_lam)) return app;
 
-    auto&& [args, _] = get(param_lam);
+    auto&& [args, _, __] = get(param_lam);
     args.resize(app->num_args());
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
@@ -52,8 +47,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         Array<const Def*> new_params(app->num_args(), [&](size_t i) {
             return keep_.contains(param_lam->param(i)) ? prop_lam->param(j++) : args[i];
         });
-        // TODO
-        //prop_lam->subst(param_lam->param(), world().tuple(new_params));
+        prop_lam->subst(param_lam, param_lam->param(), world().tuple(new_params));
     }
 
     return app->world().app(prop_lam, new_args, app->debug());
@@ -61,27 +55,23 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 
 undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
-    if (!cur_lam || def->isa<Param>()) return No_Undo;
+    if (!cur_lam || def->is_const() || analyzed(def) || def->isa<Param>() || def->isa_nominal()) return No_Undo;
+    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
-    if (auto proxy = def->isa<Proxy>()) {
-        if (proxy->index() == index())  {
-            auto&& [_, undo] = get(proxy->op(0)->as_nominal<Lam>());
-            return undo;
-        }
-        return No_Undo;
+    if (auto proxy = isa_proxy(def)) {
+        auto&& [_, undo, __] = get(proxy->op(0)->as_nominal<Lam>());
+        return undo;
     }
 
     auto undo = No_Undo;
+    auto app = def->isa<App>();
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        auto op = def->op(i);
-        if (auto lam = op->isa_nominal<Lam>()) {
-            // if lam does not occur as callee - we can't do anything
-            if ((!def->isa<App>() || i != 0)) {
-                if (keep_.emplace(lam).second) {
-                    auto&& [_, u] = get(lam);
-                    world().DLOG("keep: {}", lam);
-                    undo = std::min(undo, u);
-                }
+        undo = std::min(undo, analyze(cur_nom, def->op(i)));
+        if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam)) {
+            if (app != nullptr && i == 0 && keep_.emplace(lam).second) {
+                auto&& [_, u, __] = get(lam);
+                undo = std::min(undo, u);
+                world().DLOG("keep: {}", lam);
             }
         }
     }

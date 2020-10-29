@@ -176,6 +176,7 @@ private:
 };
 
 inline World& PassBase::world() { return man().world(); }
+inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || lam->is_intrinsic() || !lam->is_set(); }
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
 template<class P>

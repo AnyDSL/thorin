@@ -55,8 +55,8 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
             //}
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); mem_lam != nullptr && !ignore(mem_lam)) {
-            if (auto glob = lam2glob_.lookup(mem_lam); glob && *glob != Glob::Keep)
+        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); !ignore(mem_lam)) {
+            if (auto glob = lam2glob_.lookup(mem_lam); glob && *glob != Glob::Top)
                 return mem2phi(cur_lam, app, mem_lam);
         }
     }
@@ -200,15 +200,15 @@ undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
                 world().DLOG("Preds1::Callee_Pos -> preds_n: '{}'", lam);
             } else {
                 world().DLOG("{} join {} -> keep: '{}' with pred '{}'", loc2str(visit.loc), loc2str(loc), lam, cur_lam);
-                lam2glob_[lam] = Glob::Keep;
+                lam2glob_[lam] = Glob::Top;
                 invalidate_phis();
             }
             return undo;
         }
     } else if (glob_i->second == Glob::PredsN) {
         if (loc == Loc::Preds1_Non_Callee_Pos) {
-            world().DLOG("PredsN -> Keep: {}", lam);
-            glob_i->second = Glob::Keep;
+            world().DLOG("PredsN -> Top: {}", lam);
+            glob_i->second = Glob::Top;
             invalidate_phis();
 
             return undo;

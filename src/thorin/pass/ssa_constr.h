@@ -16,7 +16,7 @@ namespace thorin {
  * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
  * We use the following lattice:
  * @code
- *                 Keep                         <-+
+ *                 Top                          <-+
  *               /      \                         |- Glob
  *            PredsN     \                      <-+
  *               \        \
@@ -32,7 +32,7 @@ public:
     {}
 
     enum class Loc  : bool { Preds1_Callee_Pos, Preds1_Non_Callee_Pos };
-    enum class Glob : bool { PredsN, Keep };
+    enum class Glob : bool { PredsN, Top };
     enum : flags_t { Sloxy, Phixy, Traxy };
 
     struct Visit {
@@ -59,7 +59,6 @@ private:
 
     template<class T> // T = Visit or Enter
     std::tuple<T&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo, ins}; }
-    bool ignore(Lam* lam) { return lam->is_external() || !lam->is_set(); }
 
     size_t slot_id_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;

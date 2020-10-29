@@ -17,7 +17,7 @@ public:
     using Data = std::tuple<LamSet>;
 
 private:
-    bool is_candidate(Lam* lam) { return lam != nullptr && lam->is_set() && !lam->is_external() && !lam->is_intrinsic() && !man().is_tainted(lam); }
+    bool is_candidate(Lam* lam) { return !ignore(lam) && !man().is_tainted(lam); }
 
     LamSet keep_;
 };

@@ -107,7 +107,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
 
     for (auto&& pass : passes_) {
         auto prev_def = new_def;
-        new_def =  pass->rewrite(cur_nom, new_def);
+        new_def = pass->rewrite(cur_nom, new_def);
         if (prev_def != new_def) new_def = rewrite(cur_nom, new_def);
     }
 
@@ -115,7 +115,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
 }
 
 void PassMan::enqueue(const Def* def) {
-    if (def->is_const() || enqueued(def)) return;
+    if (!def->is_const() && !enqueued(def)) return;
 
     if (auto nom = def->isa_nominal()) {
         cur_state().stack.push(nom);

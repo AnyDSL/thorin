@@ -44,26 +44,26 @@ public:
     virtual void finish([[maybe_unused]] Def* cur_nom) {}
 
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
+    /// Default implementation invokes the other @p analyze method for all @p extended_ops of @p cur_nom.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     virtual undo_t analyze(Def* cur_nom) {
         undo_t undo = No_Undo;
         for (auto op : cur_nom->extended_ops())
             undo = std::min(undo, analyze(cur_nom, op));
         return undo;
     }
+    virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     //@}
     /// @name create Proxy
     const Proxy* proxy(const Def* type, Defs ops, flags_t flags, Debug dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
     const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return proxy(type, ops, 0, dbg); }
     //@{
     /// @name check whether given @c def is a Proxy whose index matches this Pass's index
-    const Proxy* isa_proxy(const Def* def) { return isa_proxy(0, def); }
-    const Proxy* isa_proxy(flags_t flags, const Def* def) {
+    const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
         if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;
         return nullptr;
     }
-    const Proxy* as_proxy(flags_t flags, const Def* def) {
+    const Proxy* as_proxy(const Def* def, flags_t flags = 0) {
         auto proxy = def->as<Proxy>();
         assert(proxy->index() == index() && proxy->flags() == flags);
         return proxy;
@@ -188,8 +188,8 @@ public:
     //@}
     /// @name alloc/dealloc state
     //@{
-    void* alloc() override { return new typename P::State(); }
-    void dealloc(void* state) override { delete static_cast<typename P::State*>(state); }
+    void* alloc() override { return new typename P::Data(); }
+    void dealloc(void* state) override { delete static_cast<typename P::Data*>(state); }
     //@}
 
 protected:
@@ -200,11 +200,11 @@ protected:
     template<class S>
     auto put(const typename S::key_type& key) {
         for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& set = std::get<S>(state(undo));
+            auto& set = std::get<S>(data(undo));
             if (auto i = set.find(key); i != set.end()) return std::tuple(undo, false);
         }
 
-        auto [_, inserted] = std::get<S>(cur_state()).emplace(key);
+        auto [_, inserted] = std::get<S>(data()).emplace(key);
         assert(inserted);
         return std::tuple(states().size()-1, true);
     }
@@ -214,15 +214,17 @@ protected:
     template<class M>
     auto insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& map = std::get<M>(state(undo));
+            auto& map = std::get<M>(data(undo));
             if (auto i = map.find(key); i != map.end()) return std::tuple(i, undo, false);
         }
 
-        auto [i, inserted] = std::get<M>(cur_state()).emplace(key, std::move(init));
+        auto [i, inserted] = std::get<M>(data()).emplace(key, std::move(init));
         assert(inserted);
         return std::tuple(i, states().size()-1, true);
     }
 
+    /// Use when implementing your own @p PassBase::analyze to remember whether you have already seen @p def.
+    /// @return @c true if already analyzed, @c false if not - but subsequent invocations will then yield @c true.
     bool analyzed(const Def* def) {
         for (auto i = states().rbegin(), e = states().rend(); i != e; ++i) {
             if (i->analyzed[index()].contains(def)) return true;
@@ -235,8 +237,8 @@ private:
     /// @name state-related getters
     //@{
     auto& states() { return man().states_; }
-    auto& state(size_t i) { return *static_cast<typename P::State*>(states()[i].data[index()]); }
-    auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
+    auto& data(size_t i) { return *static_cast<typename P::Data*>(states()[i].data[index()]); }
+    auto& data() { assert(!states().empty()); return *static_cast<typename P::Data*>(states().back().data[index()]); }
     //@}
 };
 

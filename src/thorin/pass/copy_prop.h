@@ -14,8 +14,8 @@ public:
         : Pass(man, index, "copy_prop")
     {}
 
-    using Args  = std::vector<const Def*>;
-    using State = std::tuple<LamMap<Args>>;
+    using Args = std::vector<const Def*>;
+    using Data = std::tuple<LamMap<Args>>;
 
 private:
     const Def* rewrite(Def*, const Def*) override;

@@ -17,10 +17,10 @@ void SSAConstr::enter(Def* nom) {
 
 const Def* SSAConstr::prewrite(Def* cur_nom, const Def* def) {
     if (auto cur_lam = cur_nom->isa<Lam>()) {
-        if (auto traxy = isa_proxy(Traxy, def)) {
+        if (auto traxy = isa_proxy(def, Traxy)) {
             world().DLOG("traxy '{}'", traxy);
             for (size_t i = 1, e = def->num_ops(); i != e; i += 2)
-                set_val(cur_lam, as_proxy(Sloxy, traxy->op(i)), traxy->op(i+1));
+                set_val(cur_lam, as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
             return traxy->op(0);
         }
     }
@@ -43,11 +43,11 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
         }
     } else if (auto load = isa<Tag::Load>(def)) {
         auto [mem, ptr] = load->args<2>();
-        if (auto sloxy = isa_proxy(Sloxy, ptr))
+        if (auto sloxy = isa_proxy(ptr, Sloxy))
             return world().tuple({mem, get_val(cur_lam, sloxy)});
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
-        if (auto sloxy = isa_proxy(Sloxy, ptr)) {
+        if (auto sloxy = isa_proxy(ptr, Sloxy)) {
             //if (lam2info(cur_lam).writable.contains(sloxy)) {
                 set_val(cur_lam, sloxy, val);
                 return mem;
@@ -143,7 +143,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     if (!cur_lam || def->is_const() || analyzed(def) || def->isa<Param>() || def->isa_nominal()) return No_Undo;
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
-    if (auto sloxy = isa_proxy(Sloxy, def)) {
+    if (auto sloxy = isa_proxy(def, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);
 
         if (keep_.emplace(sloxy).second) {
@@ -151,7 +151,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
             auto&& [_, undo, __] = get<Enter>(sloxy_lam);
             return undo;
         }
-    } else if (auto phixy = isa_proxy(Phixy, def)) {
+    } else if (auto phixy = isa_proxy(def, Phixy)) {
         auto [sloxy, mem_lam] = split_phixy(phixy);
         //auto sloxy_lam = get_sloxy_lam(sloxy);
         auto& phis = lam2phis_[mem_lam];

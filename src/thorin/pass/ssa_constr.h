@@ -40,7 +40,7 @@ public:
         GIDSet<const Proxy*> writable;
     };
 
-    using State = std::tuple<LamMap<Visit>, LamMap<Enter>>;
+    using Data = std::tuple<LamMap<Visit>, LamMap<Enter>>;
 
 private:
     enum : flags_t { Sloxy, Phixy, Traxy };

@@ -14,7 +14,7 @@ public:
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
-    using State = std::tuple<LamSet>;
+    using Data = std::tuple<LamSet>;
 
 private:
     bool is_candidate(Lam* lam) { return lam != nullptr && lam->is_set() && !lam->is_external() && !lam->is_intrinsic() && !man().is_tainted(lam); }

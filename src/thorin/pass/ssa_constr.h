@@ -16,13 +16,13 @@ namespace thorin {
  * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
  * We use the following lattice:
  * @code
- *                    keep
- *                   /    \
- *             preds_n     preds1_non_callee_pos
- *              \             /
- * preds_1_callee_pos        /
- *                  \       /
- *                   preds_0
+ *                 Keep                         <-+
+ *               /      \                         |- Glob
+ *            PredsN     \                      <-+
+ *               \        \
+ * Preds1_Callee_Pos      Preds1_Non_Callee_Pos <--- Loc
+ *                 \      /
+ *                  Preds0                      <--- not in any map
  * @endcode
  */
 class SSAConstr : public Pass<SSAConstr> {
@@ -31,8 +31,12 @@ public:
         : Pass(man, index, "ssa_constr")
     {}
 
+    enum class Loc  : bool { Preds1_Callee_Pos, Preds1_Non_Callee_Pos };
+    enum class Glob : bool { PredsN, Keep };
+    enum : flags_t { Sloxy, Phixy, Traxy };
+
     struct Visit {
-        bool callee_pos = true;
+        Loc loc;
         Lam* pred = nullptr;
     };
 
@@ -43,8 +47,6 @@ public:
     using Data = std::tuple<LamMap<Visit>, LamMap<Enter>>;
 
 private:
-    enum : flags_t { Sloxy, Phixy, Traxy };
-
     void enter(Def*) override;
     const Def* prewrite(Def*, const Def*);
     const Def* rewrite(Def*, const Def*) override;
@@ -52,18 +54,18 @@ private:
 
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    undo_t join(Lam* cur_lam, Lam* lam, bool callee_pos);
+    undo_t join(Lam* cur_lam, Lam* lam, Loc);
     const Def* mem2phi(Lam*, const App*, Lam*);
 
     template<class T> // T = Visit or Enter
     std::tuple<T&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo, ins}; }
-    bool keep(Lam* lam) { return lam->is_external() || !lam->is_set() || keep_.contains(lam); }
+    bool ignore(Lam* lam) { return lam->is_external() || !lam->is_set(); }
 
     size_t slot_id_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the phis we have to add to the mem_lam to build the phi_lam.
-    DefSet keep_;                                                  ///< Contains Lams as well as sloxys we want to keep.
-    LamSet preds_n_;                                               ///< Contains Lams with more than one preds.
+    DefSet keep_;                                                  ///< Contains sloxys we want to keep.
+    LamMap<Glob> lam2glob_;                                        ///< Contains Lams with more than one preds.
     Lam2Lam mem2phi_;
 };
 

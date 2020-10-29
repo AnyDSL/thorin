@@ -7,6 +7,7 @@ namespace thorin {
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
 static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
+static const char* loc2str(SSAConstr::Loc l) { return l == SSAConstr::Loc::Preds1_Callee_Pos ? "Preds1_Callee_Pos" : "Preds1_Non_Callee_Pos"; }
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
@@ -54,8 +55,10 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
             //}
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); mem_lam != nullptr && !keep(mem_lam))
-            return mem2phi(cur_lam, app, mem_lam);
+        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); mem_lam != nullptr && !ignore(mem_lam)) {
+            if (auto glob = lam2glob_.lookup(mem_lam); glob && *glob != Glob::Keep)
+                return mem2phi(cur_lam, app, mem_lam);
+        }
     }
 
     return def;
@@ -109,7 +112,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
 
         man().mark_tainted(phi_lam);
         world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
-        preds_n_.emplace(phi_lam);
+        lam2glob_[phi_lam] = Glob::PredsN;
 
         auto num_mem_params = mem_lam->num_params();
         Array<const Def*> new_params(num_mem_params, [&](size_t i) { return phi_lam->param(i); });
@@ -131,7 +134,6 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }
-
 
     auto phi = phis.begin();
     Array<const Def*> args(phis.size(), [&](auto) { return get_val(cur_lam, *phi++); });
@@ -169,41 +171,46 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(cur_nom, def->op(i)));
         if (auto lam = def->op(i)->isa_nominal<Lam>()) {
-            bool callee_pos = app != nullptr && i == 0;
-            if (auto u = join(cur_lam, lam, callee_pos); u != No_Undo) undo = std::min(undo, u);
+            auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee_Pos : Loc::Preds1_Non_Callee_Pos;
+            if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
         }
     }
 
     return undo;
 }
 
-undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, bool callee_pos) {
-    if (keep(lam)) return No_Undo;
+undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
+    if (ignore(lam)) return No_Undo;
 
+    auto invalidate_phis = [&]() {
+        // TODO
+    };
+
+    auto glob_i = lam2glob_.find(lam);
     auto&& [visit, undo, inserted] = get<Visit>(lam);
-    if (!preds_n_.contains(lam)) {
-        if (inserted) {
-            visit.callee_pos = callee_pos;
-            visit.pred = cur_lam;
-            world().DLOG("preds_1_{}callee_pos '{}' with pred '{}'", callee_pos ? "" : "non_", lam, visit.pred);
-        } else {
-            if (visit.callee_pos && callee_pos) {
-                preds_n_.emplace(lam);
-                world().DLOG("preds_1_callee_pos -> preds_n: '{}'", lam);
-            } else {
-                world().DLOG("preds_1_{}callee_pos join {}callee_pos -> keep: '{}' with pred '{}'",
-                        visit.callee_pos ? "" : "non_", callee_pos ? "" : "non_", lam, cur_lam);
-                keep_.emplace(lam);
 
-                // TODO invalidate phis
+    if (glob_i == lam2glob_.end()) {
+        if (inserted) {
+            world().DLOG("{} '{}' with pred '{}'", loc2str(loc), lam, cur_lam);
+            visit.loc = loc;
+            visit.pred = cur_lam;
+        } else {
+            if (visit.loc == Loc::Preds1_Callee_Pos && loc == Loc::Preds1_Callee_Pos) {
+                lam2glob_[lam] = Glob::PredsN;
+                world().DLOG("Preds1::Callee_Pos -> preds_n: '{}'", lam);
+            } else {
+                world().DLOG("{} join {} -> keep: '{}' with pred '{}'", loc2str(visit.loc), loc2str(loc), lam, cur_lam);
+                lam2glob_[lam] = Glob::Keep;
+                invalidate_phis();
             }
             return undo;
         }
-    } else {
-        if (!callee_pos) {
-            world().DLOG("preds_n -> keep: {}", lam);
-            keep_.emplace(lam);
-            // TODO invalidate phis
+    } else if (glob_i->second == Glob::PredsN) {
+        if (loc == Loc::Preds1_Non_Callee_Pos) {
+            world().DLOG("PredsN -> Keep: {}", lam);
+            glob_i->second = Glob::Keep;
+            invalidate_phis();
+
             return undo;
         }
     }

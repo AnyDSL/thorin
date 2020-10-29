@@ -5,9 +5,9 @@
 
 namespace thorin {
 
-/// This one is similar to sparse conditional constant propagation (SCCP) but also propagates arbitrary values through Param%s.
+/// This @p Pass is similar to sparse conditional constant propagation (SCCP) but also propagates arbitrary values through @p Param%s.
 /// However, this optmization also works on all @p Lam%s alike and does not only consider basic blocks as opposed to traditional SCCP.
-/// What is more, this optimization will also propagate arbitrary @p Def%s.
+/// What is more, this optimization will also propagate arbitrary @p Def%s and not only constants.
 class CopyProp : public Pass<CopyProp> {
 public:
     CopyProp(PassMan& man, size_t index)
@@ -22,6 +22,7 @@ private:
     undo_t analyze(Def*, const Def*) override;
 
     std::pair<Args&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Args>>(lam); return {i->second, undo}; }
+    //std::tuple<Args&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Args>>(lam); return {i->second, undo, ins}; }
 
     LamMap<Lam*> param2prop_;
     DefSet keep_;

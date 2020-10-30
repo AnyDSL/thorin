@@ -561,7 +561,14 @@ void CodeGen::optimize(int opt) {
             FAM.registerPass([&] { return llvm::PostDominatorTreeAnalysis(); });
 
             llvm::ModulePassManager module_pass_manager;
-            module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass());
+
+            //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
+            llvm::CGSCCPassManager MainCGPipeline;
+            MainCGPipeline.addPass(llvm::InlinerPass());
+            module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
+                  createDevirtSCCRepeatedPass(
+                    std::move(MainCGPipeline), 4)));
+
             llvm::FunctionPassManager function_pass_manager;
             function_pass_manager.addPass(llvm::ADCEPass());
             module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));

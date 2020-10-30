@@ -947,7 +947,7 @@ public:
     friend class World;
 };
 
-/// Extracts from aggregate <tt>tuple</tt> the element at position <tt>index</tt>.
+/// Extracts from a @p Sigma or @p Variadic typed @p Def the element at position @p index.
 class Extract : public Def {
 private:
     Extract(const Def* type, const Def* tuple, const Def* index, const Def* dbg)
@@ -970,10 +970,10 @@ public:
 };
 
 /**
- * Creates a new Tuple by inserting <tt>value</tt> at position <tt>index</tt> into <tt>tuple</tt>.
+ * Creates a new @p Tuple/@p Pack by inserting @p value at position @p index into @p tuple.
  * @attention { This is a @em functional insert.
- *              The value <tt>tuple</tt> remains untouched.
- *              The \p Insert itself is a \em new Tuple which contains the newly created <tt>value</tt>. }
+ *              The @p tuple itself remains untouched.
+ *              The @p Insert itself is a @em new @p Tuple/@p Pack which contains the inserted @p value. }
  */
 class Insert : public Def {
 private:
@@ -1022,7 +1022,7 @@ public:
     friend class World;
 };
 
-/// Matches against a value, using the patterns specified in <tt>cases</tt>.
+/// Matches against a value, using @p ptrns.
 class Match : public Def {
 private:
     Match(const Def* type, Defs ops, const Def* dbg)

@@ -7,10 +7,12 @@ namespace thorin {
 
 /**
  * Performs β- and η-reduction.
- * * β-reduction happens optimistically if a @p Lam only occurs exactly once in callee postion.
+ * * β-reduction happens optimistically if a @p Lam only occurs exactly once in callee position.
  * * η-reduction: (TODO)
- *     * λx.f x -> f, whenever x does not appear free in f.
- *     * f -> λx.f x, if f occurs in both callee and some other position.
+ *     * <code>λx.e x -> f</code>, whenever <code>x</code> does not appear free in <code>e</code>.
+ *     * <code>f -> λx.f x</code>, if <code>f</code> is a @p Lam that appears in callee and some other position.
+ *       This rule has the effect of critical edge elimination and gives other @p Pass%es such as @p SSAConstr the opportunity
+ *       to change <code>f</code>'s signature (e.g. adding or removing parameters).
  */
 class Reducer : public Pass<Reducer> {
 public:

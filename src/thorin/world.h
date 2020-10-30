@@ -35,7 +35,7 @@ using RewriteFn = std::function<const Def*(const Def*)>;
  *      This is corresponds to value numbering.
  *  - constant folding
  *  - canonicalization of expressions
- *  - several local optimizations like <tt>x + 0 -> x</tt>
+ *  - several local optimizations like <code>x + 0 -> x</code>
  *
  *  Use @p cleanup to remove dead and unreachable code.
  *
@@ -186,7 +186,7 @@ public:
     const Def* tuple(Defs ops, Debug dbg = {});
     const Def* tuple_str(const char* s, Debug = {});
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
-    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <tt>[]</tt>
+    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <code>[]</code>
     //@}
     /// @name Which
     //@{

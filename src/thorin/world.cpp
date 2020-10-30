@@ -634,7 +634,7 @@ const Def* World::subst(const Def* def, const Def* replacee, const Def* replacer
         if (s->replacee() == replacee && s->replacer() == replacer) return s;
 
         // subst(subst(x, a, b), b, c) = subst(x, a, c)
-        if (s->replacer() == replacee) return subst(def, s->replacee(), replacer);
+        //if (s->replacer() == replacee) return subst(def, s->replacee(), replacer);
     }
 
     return unify<Subst>(3, def, replacee, replacer, debug(dbg));

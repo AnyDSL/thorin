@@ -547,7 +547,7 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * This container is for the most part compatible with <tt>std::unordered_set</tt>.
+ * This container is for the most part compatible with <code>std::unordered_set</code>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class H = typename Key::Hash, size_t StackCapacity = 4>
@@ -581,7 +581,7 @@ public:
 //------------------------------------------------------------------------------
 
 /**
- * This container is for the most part compatible with <tt>std::unordered_map</tt>.
+ * This container is for the most part compatible with <code>std::unordered_map</code>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class T, class H = typename Key::Hash, size_t StackCapacity = 4>

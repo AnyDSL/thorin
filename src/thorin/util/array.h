@@ -20,7 +20,7 @@ class Array;
 
 /**
  * A container-like wrapper for an array.
- * The array may either stem from a C array, a <tt>std::vector</tt>, a <tt>std::initializer_list</tt>, an @p Array or another @p ArrayRef.
+ * The array may either stem from a C array, a <code>std::vector</code>, a <code>std::initializer_list</code>, an @p Array or another @p ArrayRef.
  * @p ArrayRef does <em>not</em> own the data and, thus, does not destroy any data.
  * Likewise, you must be carefull to not destroy data an @p ArrayRef is pointing to.
  * Thorin makes use of @p ArrayRef%s in many places.
@@ -193,7 +193,7 @@ private:
 
 /**
  * A container for an array, either heap-allocated or stack allocated.
- * This class is similar to <tt>std::vector</tt> with the following differences:
+ * This class is similar to <code>std::vector</code> with the following differences:
  *  - If the size is small enough, the array resides on the stack.
  *  - In contrast to std::vector, @p Array cannot grow dynamically.
  *    A @p Array may @p shrink, however.

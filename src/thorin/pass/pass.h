@@ -197,7 +197,7 @@ protected:
     /// @name search in the state stack
     //@{
     /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
-    /// @return A triple: <tt> [undo, inserted] </tt>.
+    /// @return A triple: <code> [undo, inserted] </code>.
     template<class S>
     auto put(const typename S::key_type& key) {
         for (undo_t undo = states().size(); undo-- != 0;) {
@@ -211,7 +211,7 @@ protected:
     }
 
     /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
-    /// @return A triple: <tt> [iterator, undo, inserted] </tt>.
+    /// @return A triple: <code> [iterator, undo, inserted] </code>.
     template<class M>
     auto insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {

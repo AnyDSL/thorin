@@ -59,7 +59,9 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
-        auto&& [_, undo, __] = get(proxy->op(0)->as_nominal<Lam>());
+        auto lam = proxy->op(0)->as_nominal<Lam>();
+        auto&& [_, undo, __] = get(lam);
+        world().DLOG("found proxy : {}", lam);
         return undo;
     }
 
@@ -69,9 +71,11 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
         undo = std::min(undo, analyze(cur_nom, def->op(i)));
         if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam)) {
             if (app != nullptr && i == 0 && keep_.emplace(lam).second) {
-                auto&& [_, u, __] = get(lam);
-                undo = std::min(undo, u);
-                world().DLOG("keep: {}", lam);
+                auto&& [_, u,ins] = get(lam);
+                if (!ins) {
+                    undo = std::min(undo, u);
+                    world().DLOG("keep: {}", lam);
+                }
             }
         }
     }

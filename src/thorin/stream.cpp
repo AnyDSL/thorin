@@ -88,6 +88,8 @@ Stream& stream(Stream& s, const Def* def) {
     } else if (auto union_ = def->isa<Union>()) {
         if (union_->isa_nominal()) s.fmt("{}: {}", union_->unique_name(), union_->type());
         return s.fmt("⋃({, })", union_->ops());
+    } else if (auto proxy = def->isa<Proxy>()) {
+        return s.fmt(".proxy#{}#{} {, }", proxy->index(), proxy->flags(), proxy->ops());
     }
 
     // other

@@ -81,14 +81,19 @@ void PassMan::run() {
 }
 
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
-    for (auto&& pass : passes_)
-        old_def = pass->prewrite(cur_nom, old_def);
+    while (true) {
+        auto prev_def = old_def;
+        for (auto&& pass : passes_)
+            old_def = pass->prewrite(cur_nom, old_def);
+
+        if (prev_def == old_def) break;
+    }
 
     if (old_def->is_const() || old_def->isa<Proxy>()) return old_def;
 
     if (auto subst = old_def->isa<Subst>()) {
         map(subst->replacee(), subst->replacer());
-        old_def = subst->def();
+        return rewrite(cur_nom, subst->def());
     }
 
     if (auto new_def = lookup(old_def)) return *new_def;

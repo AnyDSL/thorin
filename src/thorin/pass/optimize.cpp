@@ -18,16 +18,12 @@ void optimize(World& world) {
     PassMan(world)
     .create<PartialEval>()
     .create<Inliner>()
-    //.create<CopyProp>()
     .run();
 
     PassMan(world)
     .create<SSAConstr>()
+    .create<CopyProp>()
     .run();
-
-    //PassMan(world)
-    //.create<CopyProp>()
-    //.run();
 }
 
 void optimize_old(World& world) {

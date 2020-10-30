@@ -544,10 +544,15 @@ void CodeGen::optimize(int opt) {
         llvm::PassBuilder PB;
         llvm::PassBuilder::OptimizationLevel opt_level;
         llvm::FunctionAnalysisManager FAM;
+        llvm::CGSCCAnalysisManager CAM;
         llvm::ModuleAnalysisManager MAM;
         FAM.registerPass([&] { return llvm::ModuleAnalysisManagerFunctionProxy(MAM); });
         MAM.registerPass([&] { return llvm::FunctionAnalysisManagerModuleProxy(FAM); });
+        CAM.registerPass([&] { return llvm::ModuleAnalysisManagerCGSCCProxy(MAM); });
+        MAM.registerPass([&] { return llvm::CGSCCAnalysisManagerModuleProxy(CAM); });
         PB.registerModuleAnalyses(MAM);
+        PB.registerFunctionAnalyses(FAM);
+        PB.registerCGSCCAnalyses(CAM);
 
         switch (opt) {
         case 0: opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;

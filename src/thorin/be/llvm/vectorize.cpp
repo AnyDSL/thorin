@@ -117,6 +117,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     llvm::LoopPassManager LPM;
     LPM.addPass(llvm::LICMPass());
+    FPM.addPass(llvm::RequireAnalysisPass<llvm::OptimizationRemarkEmitterAnalysis, llvm::Function>());
     FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
     FPM.addPass(llvm::LCSSAPass());

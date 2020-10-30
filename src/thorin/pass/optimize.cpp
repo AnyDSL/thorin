@@ -1,5 +1,5 @@
 #include "thorin/pass/copy_prop.h"
-#include "thorin/pass/inliner.h"
+#include "thorin/pass/reducer.h"
 #include "thorin/pass/ssa_constr.h"
 #include "thorin/pass/partial_eval.h"
 #include "thorin/pass/grad_gen.h"
@@ -17,7 +17,7 @@ namespace thorin {
 void optimize(World& world) {
     PassMan(world)
     .create<PartialEval>()
-    .create<Inliner>()
+    .create<Reducer>()
     .run();
 
     PassMan(world)

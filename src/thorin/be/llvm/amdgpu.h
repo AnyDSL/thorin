@@ -9,16 +9,16 @@ class Load;
 
 class AMDGPUCodeGen : public CodeGen {
 public:
-    AMDGPUCodeGen(World& world, const Cont2Config&);
+    AMDGPUCodeGen(World& world, const Lam2Config&);
 
 protected:
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) override;
-    virtual unsigned convert_addr_space(const AddrSpace) override;
+    virtual llvm::Function* emit_function_decl(Lam*) override;
     virtual llvm::Value* emit_global(const Global*) override;
     virtual Lam* emit_reserve(const Lam*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
 
-    const Cont2Config& kernel_config_;
+    const Lam2Config& kernel_config_;
 };
 
 }

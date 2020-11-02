@@ -36,7 +36,11 @@ public:
         if (Log::get_stream() && Log::get_min_level() <= level) {
             std::ostringstream oss;
             oss << location;
+            #ifdef _MSC_VER
+            streamf(Log::stream(), "{}: {}: ", colorize(oss.str(), 7), colorize(level2string(level), level2color(level)));
+            #else
             streamf(Log::stream(), "{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
+            #endif
             streamf(Log::stream(), fmt, std::forward<Args>(args)...) << std::endl;
         }
     }
@@ -64,7 +68,7 @@ template<typename... Args> std::ostream& errf(const char* fmt, Args... args) { r
 #define WDEF(def, ...) thorin::Log::log(thorin::Log::Warn, (def)->location(), __VA_ARGS__)
 #define IDEF(def, ...) thorin::Log::log(thorin::Log::Info, (def)->location(), __VA_ARGS__)
 
-#define ELOG(...) thorin::Log::log(thorin::Log::Error,   Location(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define ELOG(...) thorin::Log::error(                    Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define WLOG(...) thorin::Log::log(thorin::Log::Warn,    Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define ILOG(...) thorin::Log::log(thorin::Log::Info,    Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define VLOG(...) thorin::Log::log(thorin::Log::Verbose, Location(__FILE__, __LINE__, -1), __VA_ARGS__)

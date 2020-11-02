@@ -12,6 +12,26 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+static const Param* is_from_param_checked(const Def* def, bool& failed) {
+    if (failed)
+        return nullptr;
+    if (auto param = def->isa<Param>())
+        return param;
+    if (auto extract = def->isa<Extract>()) {
+        auto index_param = is_from_param_checked(extract->index(), failed);
+        auto agg_param   = is_from_param_checked(extract->agg(), failed);
+        failed |= (index_param && index_param != agg_param);
+        return agg_param;
+    }
+    return nullptr;
+}
+
+const Param* is_from_param(const Def* def) {
+    bool failed = false;
+    auto param = is_from_param_checked(def, failed);
+    return failed ? nullptr : param;
+}
+
 Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
         return extract->agg()->as<Param>()->lam();
@@ -47,10 +67,9 @@ const Def* App  ::vrebuild(World& to, const Type*, Defs ops) const { return to.a
 
 //------------------------------------------------------------------------------
 
-Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
+Lam::Lam(const Pi* pi, const Attributes& attributes, Debug dbg)
     : Def(Node_Lam, pi, 2, dbg)
-    , cc_(cc)
-    , intrinsic_(intrinsic)
+    , attributes_(attributes)
 {
     set_op(0, world().literal_bool(false));
     set_op(1, world().top(pi->codomain()));
@@ -68,9 +87,8 @@ void Lam::set_filter(Defs filter) {
     set_filter(world().tuple(filter));
 }
 
-
 Def* Lam::vstub(World& to, const Type* type) const {
-    return to.lam(type->as<Pi>(), cc(), intrinsic(), debug_history());
+    return to.lam(type->as<Pi>(), attributes(), debug_history());
 }
 
 size_t Lam::num_params() const {
@@ -80,9 +98,9 @@ size_t Lam::num_params() const {
 }
 
 const Def* Lam::param(size_t i, Debug dbg) const {
-    //if (param()->type()->isa<TupleType>())
+    if (param()->type()->isa<TupleType>())
         return world().extract(param(), i, dbg);
-    //return param();
+    return param();
 }
 
 Array<const Def*> Lam::params() const {
@@ -140,6 +158,11 @@ const Def* Lam::ret_param() const {
     return result;
 }
 
+void Lam::set_all_true_filter() {
+    Array<const Def*> filter_ops(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
+    set_filter(world().tuple(filter_ops));
+}
+
 void Lam::destroy_filter() {
     update_op(0, world().literal_bool(false));
 }
@@ -148,12 +171,6 @@ void Lam::destroy_body() {
     update_op(0, world().literal_bool(false));
     update_op(1, world().top(type()->codomain()));
 }
-
-#if 0
-const Pi* Lam::arg_pi() const {
-    return world().pi(arg()->type());
-}
-#endif
 
 Lams Lam::preds() const {
     std::vector<Lam*> preds;
@@ -216,37 +233,35 @@ Lams Lam::succs() const {
     return succs;
 }
 
-#if 0
-void Lam::set_all_true_filter() {
-    filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
-}
-#endif
-
-void Lam::make_external() { return world().add_external(this); }
-void Lam::make_internal() { return world().remove_external(this); }
-bool Lam::is_external() const { return world().is_external(this); }
-bool Lam::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
-bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
+bool Lam::is_exported() const { return attributes().visibility == Visibility::Exported; }
+bool Lam::is_imported() const { return attributes().visibility == Visibility::Imported; }
+bool Lam::is_internal() const { return attributes().visibility == Visibility::Internal; }
+bool Lam::is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
+bool Lam::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
 void Lam::set_intrinsic() {
-    if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
-    else if (name() == "nvvm")                 intrinsic_ = Intrinsic::NVVM;
-    else if (name() == "opencl")               intrinsic_ = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;
-    else if (name() == "hls")                  intrinsic_ = Intrinsic::HLS;
-    else if (name() == "parallel")             intrinsic_ = Intrinsic::Parallel;
-    else if (name() == "spawn")                intrinsic_ = Intrinsic::Spawn;
-    else if (name() == "sync")                 intrinsic_ = Intrinsic::Sync;
-    else if (name() == "anydsl_create_graph")  intrinsic_ = Intrinsic::CreateGraph;
-    else if (name() == "anydsl_create_task")   intrinsic_ = Intrinsic::CreateTask;
-    else if (name() == "anydsl_create_edge")   intrinsic_ = Intrinsic::CreateEdge;
-    else if (name() == "anydsl_execute_graph") intrinsic_ = Intrinsic::ExecuteGraph;
-    else if (name() == "vectorize")            intrinsic_ = Intrinsic::Vectorize;
-    else if (name() == "pe_info")              intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
-    else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
-    else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
-    else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic");
+    if      (name() == "cuda")                 attributes().intrinsic = Intrinsic::CUDA;
+    else if (name() == "nvvm")                 attributes().intrinsic = Intrinsic::NVVM;
+    else if (name() == "opencl")               attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")               attributes().intrinsic = Intrinsic::AMDGPU;
+    else if (name() == "hls")                  attributes().intrinsic = Intrinsic::HLS;
+    else if (name() == "parallel")             attributes().intrinsic = Intrinsic::Parallel;
+    else if (name() == "fibers")               attributes().intrinsic = Intrinsic::Fibers;
+    else if (name() == "spawn")                attributes().intrinsic = Intrinsic::Spawn;
+    else if (name() == "sync")                 attributes().intrinsic = Intrinsic::Sync;
+    else if (name() == "anydsl_create_graph")  attributes().intrinsic = Intrinsic::CreateGraph;
+    else if (name() == "anydsl_create_task")   attributes().intrinsic = Intrinsic::CreateTask;
+    else if (name() == "anydsl_create_edge")   attributes().intrinsic = Intrinsic::CreateEdge;
+    else if (name() == "anydsl_execute_graph") attributes().intrinsic = Intrinsic::ExecuteGraph;
+    else if (name() == "vectorize")            attributes().intrinsic = Intrinsic::Vectorize;
+    else if (name() == "pe_info")              attributes().intrinsic = Intrinsic::PeInfo;
+    else if (name() == "pipeline")             attributes().intrinsic = Intrinsic::Pipeline;
+    else if (name() == "reserve_shared")       attributes().intrinsic = Intrinsic::Reserve;
+    else if (name() == "atomic")               attributes().intrinsic = Intrinsic::Atomic;
+    else if (name() == "atomic_load")          attributes().intrinsic = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")         attributes().intrinsic = Intrinsic::AtomicStore;
+    else if (name() == "cmpxchg")              attributes().intrinsic = Intrinsic::CmpXchg;
+    else if (name() == "undef")                attributes().intrinsic = Intrinsic::Undef;
+    else ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }
@@ -325,8 +340,10 @@ void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
 std::ostream& Lam::stream_head(std::ostream& os) const {
     os << unique_name();
     streamf(os, "{} {}", param()->type(), param());
-    if (is_external())
-        os << " extern ";
+    if (is_exported())
+        os << " export ";
+    else if (is_imported())
+        os << " import ";
     if (cc() == CC::Device)
         os << " device ";
     if (filter())

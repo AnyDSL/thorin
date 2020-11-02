@@ -30,18 +30,31 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
 {
-    branch_ = lam(cn(tuple_type({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
-    end_scope_ = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    branch_ = lam(cn(tuple_type({type_bool(), cn(), cn()})), Intrinsic::Branch, {"br"});
+    end_scope_ = lam(cn(), Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
     for (auto def : defs_) delete def;
 }
 
-const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
+const App* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     assertf(pi->domain() == arg->type(), "'{}' is if of type '{}' but calls '{}' of type '{}'\n", callee, pi, arg, arg->type());
     return unify(new App(pi->codomain(), callee, arg, dbg));
+}
+
+const Def* World::variant_index(const Def* value, Debug dbg) {
+    if (auto variant = value->isa<Variant>())
+        return literal_qu64(variant->index(), dbg);
+    return unify(new VariantIndex(type_qu64(), value, dbg));
+}
+
+const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
+    auto type = value->type()->as<VariantType>()->op(index);
+    if (auto variant = value->isa<Variant>())
+        return variant->index() == index ? variant->value() : bottom(type);
+    return unify(new VariantExtract(type, value, index, dbg));
 }
 
 /*
@@ -503,12 +516,6 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
-    if (auto variant = from->isa<Variant>()) {
-        if (variant->op(0)->type() != to)
-            ELOG("variant downcast not possible");
-        return variant->op(0);
-    }
-
     auto lit = from->isa<PrimLit>();
     auto to_type = to->isa<PrimType>();
     if (lit && to_type) {
@@ -773,9 +780,16 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     return unify(new Select(cond, a, b, dbg));
 }
 
+const Def* World::align_of(const Type* type, Debug dbg) {
+    if (auto ptype = type->isa<PrimType>())
+        return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
+
+    return unify(new AlignOf(bottom(type, dbg), dbg));
+}
+
 const Def* World::size_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
-        return literal(qs32(num_bits(ptype->primtype_tag()) / 8), dbg);
+        return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
     return unify(new SizeOf(bottom(type, dbg), dbg));
 }
@@ -879,7 +893,7 @@ Lam* World::match(const Type* type, size_t num_patterns) {
     arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = tuple_type({type, cn()});
-    return lam(cn(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
+    return lam(cn(tuple_type(arg_types)), Intrinsic::Match, {"match"});
 }
 
 /*
@@ -905,12 +919,21 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
 
 std::vector<Lam*> World::copy_lams() const {
     std::vector<Lam*> result;
-
     for (auto def : defs_) {
         if (auto lam = def->isa_lam())
             result.emplace_back(lam);
     }
+    return result;
+}
 
+std::vector<Lam*> World::exported_lams() const {
+    std::vector<Lam*> result;
+    for (auto def : defs_) {
+        if (auto lam = def->isa_lam()) {
+            if (lam->is_exported())
+                result.push_back(lam);
+        }
+    }
     return result;
 }
 
@@ -932,8 +955,8 @@ void World::opt() {
     hoist_enters(*this);
     //dead_load_opt(*this);
     cleanup();
-    codegen_prepare(*this);
     rewrite_flow_graphs(*this);
+    codegen_prepare(*this);
 }
 
 /*

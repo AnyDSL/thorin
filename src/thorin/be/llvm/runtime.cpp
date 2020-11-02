@@ -7,7 +7,6 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IRReader/IRReader.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"
@@ -32,7 +31,7 @@ Runtime::Runtime(llvm::LLVMContext& context,
 }
 
 llvm::Function* Runtime::get(const char* name) {
-    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
+    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()).getCallee()->stripPointerCasts());
     assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }
@@ -76,14 +75,16 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
     auto it_config = lam->app()->arg(LaunchArgs::Config)->as<Tuple>();
     auto kernel = lam->app()->arg(LaunchArgs::Body)->as<Global>()->init()->as<Lam>();
 
+    auto& world = lam->world();
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
-    auto file_name = builder_.CreateGlobalStringPtr(lam->world().name() + ext);
+    auto file_name = builder_.CreateGlobalStringPtr(world.name() + ext);
     const size_t num_kernel_args = lam->app()->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types
     llvm::Value* args   = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8PtrTy(), num_kernel_args), "args");
     llvm::Value* sizes  = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "sizes");
     llvm::Value* aligns = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "aligns");
+    llvm::Value* allocs = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "allocs");
     llvm::Value* types  = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8Ty(),    num_kernel_args), "types");
 
     // fill array of arguments
@@ -130,19 +131,21 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
         auto arg_ptr   = builder_.CreateInBoundsGEP(args,   llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
         auto size_ptr  = builder_.CreateInBoundsGEP(sizes,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
         auto align_ptr = builder_.CreateInBoundsGEP(aligns, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto alloc_ptr = builder_.CreateInBoundsGEP(allocs, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
         auto type_ptr  = builder_.CreateInBoundsGEP(types,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
 
-        auto size = layout_.getTypeStoreSize(target_val->getType());
+        auto size = layout_.getTypeStoreSize(target_val->getType()).getFixedSize();
         if (auto struct_type = llvm::dyn_cast<llvm::StructType>(target_val->getType())) {
             // In the case of a structure, do not include the padding at the end in the size
             auto last_elem   = struct_type->getStructNumElements() - 1;
             auto last_offset = layout_.getStructLayout(struct_type)->getElementOffset(last_elem);
-            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem));
+            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem)).getFixedSize();
         }
 
         builder_.CreateStore(void_ptr, arg_ptr);
         builder_.CreateStore(builder_.getInt32(size), size_ptr);
         builder_.CreateStore(builder_.getInt32(layout_.getABITypeAlignment(target_val->getType())), align_ptr);
+        builder_.CreateStore(builder_.getInt32(layout_.getTypeAllocSize(target_val->getType())), alloc_ptr);
         builder_.CreateStore(builder_.getInt8((uint8_t)arg_type), type_ptr);
     }
 
@@ -150,16 +153,16 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
     const auto get_u32 = [&](const Def* def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
 
     llvm::Value* grid_array  = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
-    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(0)), 0);
-    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(1)), 1);
-    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(2)), 2);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 0_u32)), 0);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 1_u32)), 1);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 2_u32)), 2);
     llvm::Value* grid_size = code_gen.emit_alloca(grid_array->getType(), "");
     builder_.CreateStore(grid_array, grid_size);
 
     llvm::Value* block_array = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
-    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(0)), 0);
-    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(1)), 1);
-    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(2)), 2);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(world.extract(it_config, 0_u32)), 0);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(world.extract(it_config, 1_u32)), 1);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(world.extract(it_config, 2_u32)), 2);
     llvm::Value* block_size = code_gen.emit_alloca(block_array->getType(), "");
     builder_.CreateStore(block_array, block_size);
 
@@ -169,12 +172,13 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
     args       = builder_.CreateInBoundsGEP(args,       gep_first_elem);
     sizes      = builder_.CreateInBoundsGEP(sizes,      gep_first_elem);
     aligns     = builder_.CreateInBoundsGEP(aligns,     gep_first_elem);
+    allocs     = builder_.CreateInBoundsGEP(allocs,     gep_first_elem);
     types      = builder_.CreateInBoundsGEP(types,      gep_first_elem);
 
     launch_kernel(target_device,
                   file_name, kernel_name,
                   grid_size, block_size,
-                  args, sizes, aligns, types,
+                  args, sizes, aligns, allocs, types,
                   builder_.getInt32(num_kernel_args));
 
     return lam->app()->arg(LaunchArgs::Return)->as_lam();
@@ -183,9 +187,9 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 llvm::Value* Runtime::launch_kernel(llvm::Value* device,
                                     llvm::Value* file, llvm::Value* kernel,
                                     llvm::Value* grid, llvm::Value* block,
-                                    llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* types,
+                                    llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
                                     llvm::Value* num_args) {
-    llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, aligns, types, num_args };
+    llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, aligns, allocs, types, num_args };
     return builder_.CreateCall(get("anydsl_launch_kernel"), launch_args);
 }
 
@@ -197,6 +201,16 @@ llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower,
         builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
     return builder_.CreateCall(get("anydsl_parallel_for"), parallel_args);
+}
+
+llvm::Value* Runtime::spawn_fibers(llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
+                                   llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+    llvm::Value* fibers_args[] = {
+        num_threads, num_blocks, num_warps,
+        builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
+        builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
+    };
+    return builder_.CreateCall(get("anydsl_fibers_spawn"), fibers_args);
 }
 
 llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr) {

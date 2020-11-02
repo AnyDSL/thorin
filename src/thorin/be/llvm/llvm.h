@@ -26,20 +26,19 @@ public:
     virtual ~CodeGen() {}
 
     World& world() const { return world_; }
+    std::unique_ptr<llvm::LLVMContext>& context() { return context_; }
     std::unique_ptr<llvm::Module>& emit(int opt, bool debug);
     virtual void emit(std::ostream& stream, int opt, bool debug);
 
 protected:
     virtual void optimize(int opt);
 
-    unsigned compute_variant_bits(const VariantType*);
-    unsigned compute_variant_op_bits(const Type*);
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Value* emit_alloc(const Type*, const Def*);
-    llvm::Function* emit_function_decl(Lam*);
+    virtual llvm::Function* emit_function_decl(Lam*);
     virtual unsigned convert_addr_space(const AddrSpace);
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Def*) { return a; }
@@ -53,6 +52,7 @@ protected:
     virtual llvm::Value* emit_assembly(const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
+
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
     Lam* emit_reserve_shared(const Lam*, bool=false);
 
@@ -61,11 +61,14 @@ private:
     Lam* emit_intrinsic(Lam*);
     Lam* emit_hls(Lam*);
     Lam* emit_parallel(Lam*);
+    Lam* emit_fibers(Lam*);
     Lam* emit_spawn(Lam*);
     Lam* emit_sync(Lam*);
     Lam* emit_vectorize_lam(Lam*);
     Lam* emit_atomic(Lam*);
     Lam* emit_cmpxchg(Lam*);
+    Lam* emit_atomic_load(Lam*);
+    Lam* emit_atomic_store(Lam*);
     llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Lam* emit_reserve(const Lam*);
     void emit_result_phi(const Def*, llvm::Value*);
@@ -76,7 +79,7 @@ protected:
     llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 
     World& world_;
-    llvm::LLVMContext context_;
+    std::unique_ptr<llvm::LLVMContext> context_;
     std::unique_ptr<llvm::TargetMachine> machine_;
     std::unique_ptr<llvm::Module> module_;
     llvm::IRBuilder<> irbuilder_;
@@ -107,7 +110,7 @@ llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(arr
 struct Backends {
     Backends(World& world);
 
-    Cont2Config kernel_config;
+    Lam2Config kernel_config;
     std::vector<Lam*> kernels;
 
     Importer cuda;

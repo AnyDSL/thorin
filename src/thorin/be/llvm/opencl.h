@@ -7,14 +7,14 @@ namespace thorin {
 
 class OpenCLCodeGen : public CodeGen {
 public:
-    OpenCLCodeGen(World& world, const Cont2Config&);
+    OpenCLCodeGen(World& world, const Lam2Config&);
 
     void emit(std::ostream& stream, int opt, bool debug) override;
 
 protected:
     virtual std::string get_alloc_name() const override { THORIN_UNREACHABLE; /*alloc not supported in OpenCL*/; }
 
-    const Cont2Config& kernel_config_;
+    const Lam2Config& kernel_config_;
 };
 
 }

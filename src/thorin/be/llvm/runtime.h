@@ -30,22 +30,20 @@ public:
             llvm::Module& target,
             llvm::IRBuilder<>& builder);
 
-    enum Platform {
-        CPU_PLATFORM,
-        CUDA_PLATFORM,
-        OPENCL_PLATFORM,
-        HSA_PLATFORM
-    };
+    enum Platform { CPU, CUDA, OpenCL, HSA };
 
     /// Emits a call to anydsl_launch_kernel.
     llvm::Value* launch_kernel(llvm::Value* device,
                                llvm::Value* file, llvm::Value* kernel,
                                llvm::Value* grid, llvm::Value* block,
-                               llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* types,
+                               llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
                                llvm::Value* num_args);
 
     /// Emits a call to anydsl_parallel_for.
     llvm::Value* parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
+                              llvm::Value* closure_ptr, llvm::Value* fun_ptr);
+    /// Emits a call to anydsl_fibers_spawn.
+    llvm::Value* spawn_fibers(llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
                               llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_spawn_thread.
     llvm::Value* spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr);
@@ -53,9 +51,9 @@ public:
     llvm::Value* sync_thread(llvm::Value* id);
 
     Lam* emit_host_code(CodeGen& code_gen,
-                                 Platform platform,
-                                 const std::string& ext,
-                                 Lam* lam);
+                        Platform platform,
+                        const std::string& ext,
+                        Lam* lam);
 
     llvm::Function* get(const char* name);
 

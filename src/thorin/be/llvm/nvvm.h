@@ -9,7 +9,7 @@ class Load;
 
 class NVVMCodeGen : public CodeGen {
 public:
-    NVVMCodeGen(World& world, const Cont2Config&);
+    NVVMCodeGen(World& world, const Lam2Config&);
 
 protected:
     // NVVM-specific optimizations are run in the runtime
@@ -30,7 +30,7 @@ private:
     llvm::Function* get_texture_handle_fun();
     llvm::GlobalVariable* resolve_global_variable(const Def*);
 
-    const Cont2Config& kernel_config_;
+    const Lam2Config& kernel_config_;
     DefMap<llvm::MDNode*> metadata_;
 };
 

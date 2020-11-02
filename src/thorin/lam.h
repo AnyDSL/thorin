@@ -34,21 +34,34 @@ private:
     Lam* from_;
 };
 
+const Param* is_from_param(const Def*);
 size_t get_param_index(const Def* def);
 Lam* get_param_lam(const Def* def);
 std::vector<Peek> peek(const Def*);
 
 //------------------------------------------------------------------------------
 
+enum class Visibility : uint8_t {
+    Imported,   ///< Imported from another source
+    Exported,   ///< Exported to other modules/object files
+    Internal    ///< Internal to the module
+};
+
+enum class CC : uint8_t {
+    C,          ///< C calling convention.
+    Device,     ///< Device calling convention. These are special functions only available on a particular device.
+};
+
 enum class Intrinsic : uint8_t {
-    None,                       ///< Not an intrinsic.
-    _Accelerator_Begin,
-    CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
+    None,
+    AcceleratorBegin,
+    CUDA = AcceleratorBegin,    ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     AMDGPU,                     ///< Internal AMDGPU-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
+    Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
     CreateGraph,                ///< Internal Flow-Graph-Backend.
@@ -56,20 +69,19 @@ enum class Intrinsic : uint8_t {
     CreateEdge,                 ///< Internal Flow-Graph-Backend.
     ExecuteGraph,               ///< Internal Flow-Graph-Backend.
     Vectorize,                  ///< External vectorizer.
-    _Accelerator_End,
-    Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
+    AcceleratorEnd,
+    Reserve = AcceleratorEnd,   ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
+    AtomicLoad,                 ///< Intrinsic atomic load function
+    AtomicStore,                ///< Intrinsic atomic store function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Undef,                      ///< Intrinsic undef function
+    PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
+    Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
-    EndScope,                   ///< Dummy function which marks the end of a @p Scope.
-};
-
-enum class CC : uint8_t {
-    C,          ///< C calling convention.
-    Device,     ///< Device calling convention. These are special functions only available on a particular device.
+    EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
 
 class App : public Def {
@@ -96,8 +108,19 @@ public:
  * A @p Lam is always of function type @p FnTypeNode.
  */
 class Lam : public Def {
+public:
+    struct Attributes {
+        Intrinsic intrinsic = Intrinsic::None;
+        Visibility visibility = Visibility::Internal;
+        CC cc = CC::C;
+
+        Attributes() = default;
+        Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
+        Attributes(Visibility visibility, CC cc = CC::C) : visibility(visibility), cc(cc) {}
+    };
+
 private:
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg);
+    Lam(const Pi* pi, const Attributes& attrs, Debug dbg);
 
 public:
     //@{ operands
@@ -136,17 +159,20 @@ public:
     Lams preds() const;
     Lams succs() const;
     bool is_empty() const;
-    Intrinsic& intrinsic() { return intrinsic_; }
-    Intrinsic intrinsic() const { return intrinsic_; }
-    CC& cc() { return cc_; }
-    CC cc() const { return cc_; }
-    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
-    bool is_external() const;
-    void make_external();
-    void make_internal();
+    Attributes& attributes() { return attributes_; }
+    const Attributes& attributes() const { return attributes_; }
+    Intrinsic intrinsic() const { return attributes().intrinsic; }
+    CC cc() const { return attributes().cc; }
+    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
+    void make_exported() { attributes().visibility = Visibility::Exported; }
+    void make_imported() { attributes().visibility = Visibility::Imported; }
+    void make_internal() { attributes().visibility = Visibility::Internal; }
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;
+    bool is_exported() const;
+    bool is_imported() const;
+    bool is_internal() const;
     bool is_accelerator() const;
     void destroy_body();
 
@@ -163,8 +189,7 @@ public:
     void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
 
 private:
-    CC cc_;
-    Intrinsic intrinsic_;
+    Attributes attributes_;
 
     friend class Cleaner;
     friend class Scope;

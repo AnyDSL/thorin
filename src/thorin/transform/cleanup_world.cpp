@@ -37,7 +37,6 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
-#if 0
     Scope::for_each(world_, [&](Scope& scope) {
         auto entry = scope.entry();
 
@@ -94,87 +93,45 @@ void Cleaner::eliminate_tail_rec() {
             }
         }
     });
-#endif
 }
 
 void Cleaner::eta_conversion() {
-#if 0
     for (bool todo = true; todo;) {
         todo = false;
-
-        for (auto def : world().defs()) {
-            auto lam = def->isa_lam();
-            if (lam == nullptr) continue;
-
-            // eat calls to known lams that are only used once
-            while (auto callee = lam->app()->callee()->isa_lam()) {
-                if (callee->num_uses() == 1 && !callee->is_empty() && !callee->is_external()) {
-                    for (size_t i = 0, e = lam->num_args(); i != e; ++i)
-                        callee->param(i)->replace(lam->arg(i));
-                    lam->jump(callee->callee(), callee->args(), callee->jump_debug());
-                    callee->destroy_body();
-                    todo_ = todo = true;
-                } else
-                    break;
-            }
-
-            // try to subsume lams which call a parameter
-            // (that is free within that lam) with that parameter
-            if (auto param = lam->callee()->isa<Param>()) {
-                if (param->lam() == lam || lam->is_external())
-                    continue;
-
-                if (lam->arg() == lam->param()) {
-                    lam->replace(lam->callee());
-                    lam->destroy_body();
-                    todo_ = todo = true;
-                    continue;
-                }
-
-                // build the permutation of the arguments
-                Array<size_t> perm(lam->num_args());
-                bool is_permutation = true;
-                for (size_t i = 0, e = lam->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(lam->params().begin(),
-                                                lam->params().end(),
-                                                lam->arg(i));
-
-                    if (param_it == lam->params().end()) {
-                        is_permutation = false;
-                        break;
-                    }
-
-                    perm[i] = param_it - lam->params().begin();
-                }
-
-                if (!is_permutation) continue;
-
-                // for every use of the lam at a call site,
-                // permute the arguments and call the parameter instead
+        for (auto lam : world().copy_lams()) {
+            if (lam->is_empty())
+                continue;
+            // Perform eta-conversion
+            //
+            // f = lam (x, y, z)
+            //   app g (x, (z, y))
+            //
+            // if g is from a parameter or a lambda with only one use, any call to f can be inlined,
+            // which results in a new app with the arguments automatically permuted. Special care has
+            // to be taken when f is recursive (even if it has only one use, that use can be its own body).
+            auto callee_lam = lam->app()->callee()->isa_lam();
+            auto callee_param = is_from_param(lam->app()->callee());
+            auto arg_param    = is_from_param(lam->app()->arg());
+            if ((callee_lam && callee_lam->num_uses() == 1 && callee_lam != lam && !callee_lam->is_exported()) ||
+                (callee_param && arg_param && callee_param->lam() == lam && arg_param->lam() == lam)) {
                 for (auto use : lam->copy_uses()) {
                     auto ulam = use->isa_lam();
                     if (ulam && use.index() == 0) {
-                        Array<const Def*> new_args(perm.size());
-                        for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                            new_args[i] = ulam->arg(perm[i]);
-                        }
-                        ulam->jump(param, new_args, ulam->jump_debug());
+                        ulam->set_body(drop(ulam->app()));
                         todo_ = todo = true;
                     }
                 }
             }
         }
     }
-#endif
 }
 
 void Cleaner::eliminate_params() {
-#if 0
     for (auto olam : world().copy_lams()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (!olam->is_empty() && !world().is_external(olam)) {
+        if (!olam->is_empty() && !olam->is_exported()) {
             for (auto use : olam->uses()) {
                 if (use.index() != 0 || !use->isa_lam())
                     goto next_lam;
@@ -189,16 +146,8 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto old_domain = olam->type()->domain();
-                const Type* new_domain;
-                if (auto tuple_type = old_domain->isa<TupleType>())
-                    new_domain = world().tuple_type(tuple_type->ops().cut(proxy_idx));
-                else {
-                    assert(proxy_idx.size() == 1 && proxy_idx[0] == 0);
-                    new_domain = world().tuple_type({});
-                }
-                auto cn = world().cn(new_domain);
-                auto nlam = world().lam(cn, olam->cc(), olam->intrinsic(), olam->debug_history());
+                auto cn = world().cn(olam->type()->domains().cut(proxy_idx));
+                auto nlam = world().lam(cn, olam->attributes(), olam->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     olam->param(i)->replace(nlam->param(j));
@@ -213,13 +162,13 @@ void Cleaner::eliminate_params() {
 
                     nlam->set_filter(world().tuple(new_filter));
                 }
-                nlam->jump(olam->callee(), olam->args(), olam->jump_debug());
+                nlam->app(olam->app()->callee(), olam->app()->args(), olam->app()->debug());
                 olam->destroy_body();
 
                 for (auto use : olam->copy_uses()) {
                     auto ulam = use->as_lam();
                     assert(use.index() == 0);
-                    ulam->jump(nlam, ulam->args().cut(proxy_idx), ulam->jump_debug());
+                    ulam->app(nlam, ulam->app()->args().cut(proxy_idx), ulam->app()->debug());
                 }
 
                 todo_ = true;
@@ -227,7 +176,6 @@ void Cleaner::eliminate_params() {
         }
 next_lam:;
     }
-#endif
 }
 
 void Cleaner::rebuild() {
@@ -239,8 +187,8 @@ void Cleaner::rebuild() {
     world_.swap_breakpoints(importer.world());
 #endif
 
-    for (auto external : world().externals())
-        importer.import(external);
+    for (auto continuation : world().exported_lams())
+        importer.import(continuation);
 
     swap(importer.world(), world_);
     todo_ |= importer.todo();
@@ -275,8 +223,7 @@ void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
     auto next = app->arg(3);
     auto msg = app->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    assert(!is_const(app->arg(2)));
-    IDEF(app->callee(), "pe_info not constant: {}: {}", msg->as_string(), app->arg(2));
+    IDEF(app->callee(), "pe_info was not constant: {}: {}", msg->as_string(), app->arg(2));
     cur->app(next, {app->arg(0)}, app->debug());
     todo_ = true;
 
@@ -292,9 +239,9 @@ void Cleaner::clean_pe_infos() {
         if (done.emplace(lam).second)
             queue.push(lam);
     };
-    for (auto external : world().externals()) {
-        enqueue(external);
-    }
+
+    for (auto continuation : world().exported_lams())
+        enqueue(continuation);
 
     while (!queue.empty()) {
         auto lam = pop(queue);

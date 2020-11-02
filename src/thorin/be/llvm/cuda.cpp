@@ -9,7 +9,7 @@
 
 namespace thorin {
 
-CUDACodeGen::CUDACodeGen(World& world, const Cont2Config& kernel_config)
+CUDACodeGen::CUDACodeGen(World& world, const Lam2Config& kernel_config)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
     , kernel_config_(kernel_config)
 {}

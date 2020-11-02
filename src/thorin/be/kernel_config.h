@@ -11,7 +11,7 @@ public:
     virtual ~KernelConfig() {}
 };
 
-typedef LamMap<std::unique_ptr<KernelConfig>> Cont2Config;
+typedef LamMap<std::unique_ptr<KernelConfig>> Lam2Config;
 
 class GPUKernelConfig : public KernelConfig {
 public:

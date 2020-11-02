@@ -144,29 +144,24 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
     auto late  = schedule_late (def);
 
     const CFNode* result;
-    if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
-        // Place allocas early for LLVM
-        result = early;
-    } else {
-        result = late;
-        int depth = looptree_[late]->depth();
-        for (auto i = late; i != early;) {
-            auto idom = domtree_.idom(i);
-            assert(i != idom);
-            i = idom;
+    result = late;
+    int depth = looptree_[late]->depth();
+    for (auto i = late; i != early;) {
+        auto idom = domtree_.idom(i);
+        assert(i != idom);
+        i = idom;
 
-            // HACK this should actually never occur
-            if (i == nullptr) {
-                WLOG("don't know where to put {}", def);
-                result = late;
-                break;
-            }
+        // HACK this should actually never occur
+        if (i == nullptr) {
+            WLOG("don't know where to put {}", def);
+            result = late;
+            break;
+        }
 
-            int cur_depth = looptree_[i]->depth();
-            if (cur_depth < depth) {
-                result = i;
-                depth = cur_depth;
-            }
+        int cur_depth = looptree_[i]->depth();
+        if (cur_depth < depth) {
+            result = i;
+            depth = cur_depth;
         }
     }
 

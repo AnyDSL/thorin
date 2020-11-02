@@ -68,10 +68,10 @@ private:
 };
 
 /// Type application.
-class App_ : public Type {
+class TypeApp : public Type {
 private:
-    App_(TypeTable& table, const Type* callee, const Type* arg)
-        : Type(table, Node_App_, {callee, arg})
+    TypeApp(TypeTable& table, const Type* callee, const Type* arg)
+        : Type(table, Node_TypeApp, {callee, arg})
     {}
 
 public:
@@ -101,26 +101,68 @@ public:
 
 const Type* merge_tuple_type(const Type*, const Type*);
 
-/// The type of a structure (nominally typed).
-class StructType : public Type {
-private:
-    StructType(TypeTable& table, Symbol name, size_t size)
-        : Type(table, Node_StructType, thorin::Array<const Type*>(size))
+/// Base class for nominal types (types that have
+/// a name that uniquely identifies them).
+class NominalType : public Type {
+protected:
+    NominalType(TypeTable& table, int tag, Symbol name, size_t size)
+        : Type(table, tag, thorin::Array<const Type*>(size))
         , name_(name)
+        , op_names_(size)
     {
         nominal_ = true;
     }
 
-public:
-    Symbol name() const { return name_; }
-    void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
+    Symbol name_;
+    Array<Symbol> op_names_;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    virtual const Type* vrebuild(TypeTable&, Types) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+
+public:
+    Symbol name() const { return name_; }
+    Symbol op_name(size_t i) const { return op_names_[i]; }
+    void set(size_t i, const Type* type) const {
+        return const_cast<NominalType*>(this)->Type::set(i, type);
+    }
+    void set_op_name(size_t i, Symbol name) const {
+        const_cast<NominalType*>(this)->op_names_[i] = name;
+    }
+    Array<Symbol>& op_names() const {
+        return const_cast<NominalType*>(this)->op_names_;
+    }
+
+    /// Recreates a fresh new nominal type of the
+    /// same kind with the same number of operands,
+    /// initially all unset.
+    virtual const NominalType* stub(TypeTable&) const = 0;
+};
+
+class StructType : public NominalType {
+private:
+    StructType(TypeTable& table, Symbol name, size_t size)
+        : NominalType(table, Node_StructType, name, size)
+    {}
+
     virtual std::ostream& stream(std::ostream&) const override;
 
-    Symbol name_;
+public:
+    virtual const NominalType* stub(TypeTable&) const override;
+
+    friend class TypeTable;
+};
+
+class VariantType : public NominalType {
+private:
+    VariantType(TypeTable& table, Symbol name, size_t size)
+        : NominalType(table, Node_VariantType, name, size)
+    {}
+
+    virtual std::ostream& stream(std::ostream&) const override;
+
+public:
+    virtual const NominalType* stub(TypeTable&) const override;
 
     friend class TypeTable;
 };
@@ -139,21 +181,6 @@ private:
     friend class TypeTable;
 };
 
-/// The type of a variant (structurally typed).
-class VariantType : public Type {
-private:
-    VariantType(TypeTable& table, Types ops)
-        : Type(table, Node_VariantType, ops)
-    {
-        assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
-    }
-
-private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
-
-    friend class TypeTable;
-};
 
 /// The type of the memory monad.
 class MemType : public Type {
@@ -244,6 +271,7 @@ inline bool is_type_u   (const Type* t) { return thorin::is_type_u  (t->tag()); 
 inline bool is_type_i   (const Type* t) { return thorin::is_type_i  (t->tag()); }
 inline bool is_type_f   (const Type* t) { return thorin::is_type_f  (t->tag()); }
 inline bool is_type_bool(const Type* t) { return t->tag() == Node_PrimType_bool; }
+inline bool is_type_unit(const Type* t) { auto tuple = t->isa<TupleType>(); return tuple && tuple->num_ops() == 0; }
 
 enum class AddrSpace : uint32_t {
     Generic  = 0,
@@ -281,6 +309,11 @@ private:
 
     friend class TypeTable;
 };
+
+/// Returns true if the given type is small enough to fit in a closure environment
+inline bool is_thin(const Type* type) {
+    return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
+}
 
 class Pi : public Type {
 protected:
@@ -370,11 +403,11 @@ public:
 
     const Var* var(int depth) { return unify(new Var(*this, depth)); }
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(*this, body, name)); }
-    const Type* app_(const Type* callee, const Type* arg);
+    const Type* type_app(const Type* callee, const Type* arg);
 
     const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
+    const VariantType* variant_type(Symbol name, size_t size);
     const StructType* struct_type(Symbol name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \

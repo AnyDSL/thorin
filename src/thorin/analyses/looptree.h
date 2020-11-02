@@ -43,8 +43,6 @@ public:
         size_t num_cf_nodes() const { return cf_nodes().size(); }
 
     protected:
-        std::ostream& indent() const;
-
         Head* parent_;
         std::vector<const CFNode*> cf_nodes_;
         int depth_;

@@ -1,10 +1,10 @@
 if(MSVC)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4800 /wd4520")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4800 /wd4520")
+    add_compile_options("/wd4800" "/wd4520")
+    add_compile_options("/experimental:external" "/external:anglebrackets" "/external:W0")
 else()
-    add_definitions("-Wall -Wextra")
+    add_compile_options("-Wall" "-Wextra")
 endif()
 
 # check for Half library
@@ -14,7 +14,6 @@ include_directories(${Half_INCLUDE_DIRS})
 
 if(LLVM_FOUND)
     add_definitions(${LLVM_DEFINITIONS})
-    add_definitions("-DLLVM_SUPPORT")
     include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 endif()
 

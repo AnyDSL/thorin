@@ -62,8 +62,6 @@ public:
     World(std::string name = "");
     ~World();
 
-    bool empty() { return externals().empty(); }
-
     // literals
 
 #define THORIN_ALL_TYPE(T, M) \
@@ -126,8 +124,15 @@ public:
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
         return try_fold_aggregate(unify(new StructAgg(struct_type, args, dbg)));
     }
+
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(unify(new Tuple(*this, args, dbg))); }
-    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
+
+    const Def* variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg = {}) { return unify(new Variant(variant_type, value, index, dbg)); }
+    const Def* variant_index  (const Def* value, Debug dbg = {});
+    const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
+
+    const Def* closure(const Pi* pi, const Def* fn, const Def* env, Debug dbg = {}) { return unify(new Closure(pi, fn, env, dbg)); }
+
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(unify(new Vector(*this, args, dbg)));
@@ -144,6 +149,7 @@ public:
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    const Def* align_of(const Type* type, Debug dbg = {});
     const Def* size_of(const Type* type, Debug dbg = {});
 
     // memory stuff
@@ -169,18 +175,18 @@ public:
     const Def* run(const Def* def, Debug dbg = {});
 
     // lams
-
     const Param* param(Lam* lam, Debug dbg) { return unify(new Param(lam->domain(), lam, dbg)); }
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
-        return insert(new Lam(cn, cc, intrinsic, dbg));
+    Lam* lam(const Pi* cn, Lam::Attributes attrs, Debug dbg = {}) {
+        return insert(new Lam(cn, attrs, dbg));
     }
-    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
-    Lam* lam(Debug dbg = {}) { return lam(cn(), CC::C, Intrinsic::None, dbg); }
+    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, Lam::Attributes(), dbg); }
+    Lam* lam(Debug dbg = {}) { return lam(cn(), Lam::Attributes(), dbg); }
     Lam* branch() const { return branch_; }
     Lam* match(const Type* type, size_t num_patterns);
     Lam* end_scope() const { return end_scope_; }
-    const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
-    const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
+
+    const App* app(const Def* callee, const Def* arg, Debug dbg = {});
+    const App* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -191,15 +197,15 @@ public:
     const std::string& name() const { return name_; }
     const DefSet& defs() const { return defs_; }
     std::vector<Lam*> copy_lams() const;
-    const LamSet& externals() const { return externals_; }
+    std::vector<Lam*> exported_lams() const;
+
+    bool is_empty() const { return exported_lams().empty(); }
 
     // other stuff
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
     bool is_pe_done() const { return pe_done_; }
-    void add_external(Lam* lam) { externals_.insert(lam); }
-    void remove_external(Lam* lam) { externals_.erase(lam); }
-    bool is_external(const Lam* lam) { return externals().contains(const_cast<Lam*>(lam)); }
+
 #if THORIN_ENABLE_CHECKS
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
@@ -217,7 +223,6 @@ public:
         using std::swap;
         swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
         swap(w1.name_,          w2.name_);
-        swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
@@ -244,7 +249,6 @@ private:
 
     template<class T>
     const T* unify(const T* def) {
-
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -261,7 +265,6 @@ private:
     }
 
     std::string name_;
-    LamSet externals_;
     DefSet defs_;
     Lam* branch_;
     Lam* end_scope_;

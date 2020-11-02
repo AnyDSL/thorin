@@ -18,6 +18,7 @@
             THORIN_NODE(Enter, enter)
             THORIN_NODE(Leave, leave)
         THORIN_NODE(Select, select)
+        THORIN_NODE(AlignOf, align_of)
         THORIN_NODE(SizeOf, size_of)
         THORIN_NODE(Global, global)
         THORIN_NODE(Slot, slot)
@@ -30,6 +31,8 @@
         THORIN_NODE(IndefiniteArray, indefinite_array)
         THORIN_NODE(Tuple, tuple)
         THORIN_NODE(Variant, variant)
+        THORIN_NODE(VariantIndex, variant_index)
+        THORIN_NODE(VariantExtract, variant_extract)
         THORIN_NODE(StructAgg, struct_agg)
         THORIN_NODE(Vector, vector)
         THORIN_NODE(Closure, closure)
@@ -44,7 +47,7 @@
     // Type
         // PrimType
         THORIN_NODE(App, app)
-        THORIN_NODE(App_, app)
+        THORIN_NODE(TypeApp, type_app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(Pi, pi)
         THORIN_NODE(ClosureType, closure_type)
@@ -56,7 +59,6 @@
         THORIN_NODE(PtrType, ptr)
         THORIN_NODE(StructType, struct_type)
         THORIN_NODE(VariantType, variant_type)
-        THORIN_NODE(EnumType, enum_type)
         THORIN_NODE(TupleType, tuple_type)
         THORIN_NODE(Var, var)
 

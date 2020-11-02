@@ -177,7 +177,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
             // do not change the signature of intrinsic/external functions
             if (lam->is_empty() ||
                 lam->is_intrinsic() ||
-                lam->is_external() ||
+                lam->is_exported() ||
                 is_passed_to_accelerator(lam))
                 continue;
 

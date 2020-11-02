@@ -77,7 +77,7 @@ const DefSet& Scope::free() const {
 }
 
 const ParamSet& Scope::free_params() const {
-    if (!free_) {
+    if (!free_params_) {
         free_params_ = std::make_unique<ParamSet>();
         unique_queue<DefSet> queue;
 
@@ -110,8 +110,8 @@ template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     unique_queue<LamSet> lam_queue;
 
-    for (auto lam : world.externals()) {
-        assert(!lam->is_empty() && "external must not be empty");
+    for (auto lam : world.exported_lams()) {
+        assert(!lam->is_empty() && "exported lambda must not be empty");
         lam_queue.push(lam);
     }
 

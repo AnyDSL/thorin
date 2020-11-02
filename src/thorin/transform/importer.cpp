@@ -24,8 +24,8 @@ const Type* Importer::import(const Type* otype) {
 
     size_t size = otype->num_ops();
 
-    if (auto struct_type = otype->isa<StructType>()) {
-        auto ntype = world_.struct_type(struct_type->name(), struct_type->num_ops());
+    if (auto nominal_type = otype->isa<NominalType>()) {
+        auto ntype = nominal_type->stub(world_);
         type_old2new_[otype] = ntype;
         for (size_t i = 0; i != size; ++i)
             ntype->set(i, import(otype->op(i)));
@@ -68,10 +68,6 @@ const Def* Importer::import(Tracker odef) {
     if (ndef) {
         for (size_t i = 0; i != size; ++i)
             const_cast<Def*>(ndef)->update_op(i, nops[i]); // TODO use set_op here
-        if (auto olam = odef->isa<Lam>()) { // TODO do sth smarter here
-            if (olam->is_external())
-                ndef->as_lam()->make_external();
-        }
     } else {
         ndef = odef->vrebuild(world_, ntype, nops);
         def_old2new_[odef] = ndef;

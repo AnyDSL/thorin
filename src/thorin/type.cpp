@@ -56,14 +56,13 @@ const Type* Pi::domain(size_t i) const {
  * vrebuild
  */
 
-const Type* StructType::vrebuild(TypeTable&, Types ops) const {
-    assert_unused(this->ops() == ops);
+const Type* NominalType::vrebuild(TypeTable&, Types) const {
+    THORIN_UNREACHABLE;
     return this;
 }
 
-const Type* App_               ::vrebuild(TypeTable& to, Types ops) const { return to.app_(ops[0], ops[1]); }
+const Type* TypeApp            ::vrebuild(TypeTable& to, Types ops) const { return to.type_app(ops[0], ops[1]); }
 const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { return to.variant_type(ops); }
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
@@ -97,13 +96,28 @@ const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
         return this;                          // this variable is not free - don't adjust
 }
 
-const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto struct_type = table().struct_type(name(), num_ops());
-    map[this] = struct_type;
+const Type* NominalType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto nominal_type = stub(table());
+    map[this] = nominal_type;
     for (size_t i = 0, e = num_ops(); i != e; ++i)
-        struct_type->set(i, op(i)->reduce(depth, type, map));
+        nominal_type->set(i, op(i)->reduce(depth, type, map));
+    return nominal_type;
+}
 
-    return struct_type;
+/*
+ * stub
+ */
+
+const NominalType* StructType::stub(TypeTable& to) const {
+    auto type = to.struct_type(name(), num_ops());
+    std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
+    return type;
+}
+
+const NominalType* VariantType::stub(TypeTable& to) const {
+    auto type = to.variant_type(name(), num_ops());
+    std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
+    return type;
 }
 
 //------------------------------------------------------------------------------
@@ -173,7 +187,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
    return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App_               ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
+std::ostream& TypeApp            ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
@@ -181,8 +195,8 @@ std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return strea
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& BottomType         ::stream(std::ostream& os) const { return os << "bottom_type"; }
-std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
-std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+std::ostream& StructType         ::stream(std::ostream& os) const { return os << "struct " << name(); }
+std::ostream& VariantType        ::stream(std::ostream& os) const { return os << "variant " << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& Pi::stream(std::ostream& os) const {
@@ -245,8 +259,15 @@ const StructType* TypeTable::struct_type(Symbol name, size_t size) {
     return type;
 }
 
-const Type* TypeTable::app_(const Type* callee, const Type* op) {
-    auto app = unify(new App_(*this, callee, op));
+const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
+    auto type = new VariantType(*this, name, size);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
+}
+
+const Type* TypeTable::type_app(const Type* callee, const Type* op) {
+    auto app = unify(new TypeApp(*this, callee, op));
 
     if (auto cache = app->cache_)
         return cache;

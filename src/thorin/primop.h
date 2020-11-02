@@ -125,6 +125,19 @@ public:
     friend class World;
 };
 
+/// Get the alignment in number of bytes needed for any value (including bottom) of a given @p Type.
+class AlignOf : public PrimOp {
+private:
+    AlignOf(const Def* def, Debug dbg);
+
+    virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
+
+public:
+    const Type* of() const { return op(0)->type(); }
+
+    friend class World;
+};
+
 /// Get number of bytes needed for any value (including bottom) of a given @p Type.
 class SizeOf : public PrimOp {
 private:
@@ -274,16 +287,74 @@ const Def* merge_tuple(const Def*, const Def*);
 /// Data constructor for a @p VariantType.
 class Variant : public PrimOp {
 private:
-    Variant(const VariantType* variant_type, const Def* value, Debug dbg)
-        : PrimOp(Node_Variant, variant_type, {value}, dbg)
+    Variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg)
+        : PrimOp(Node_Variant, variant_type, {value}, dbg), index_(index)
     {
-        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
+        assert(variant_type->op(index) == value->type());
+    }
+
+    virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
+    virtual uint64_t vhash() const override;
+    virtual bool equal(const Def* other) const override;
+
+    size_t index_;
+
+public:
+    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+    size_t index() const { return index_; }
+    const Def* value() const { return op(0); }
+
+    friend class World;
+};
+
+/// Yields the tag/index for this variant in the supplied integer type
+class VariantIndex : public PrimOp {
+private:
+    VariantIndex(const Type* int_type, const Def* value, Debug dbg)
+        : PrimOp(Node_VariantIndex, int_type, {value}, dbg)
+    {
+        assert(value->type()->isa<VariantType>());
+        assert(is_type_s(int_type) || is_type_u(int_type));
     }
 
     virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
 
+    friend class World;
+};
+
+class VariantExtract : public PrimOp {
+private:
+    VariantExtract(const Type* type, const Def* value, size_t index, Debug dbg)
+        : PrimOp(Node_VariantExtract, type, {value}, dbg), index_(index)
+    {
+        assert(value->type()->as<VariantType>()->op(index) == type);
+    }
+
+    virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
+    virtual uint64_t vhash() const override;
+    virtual bool equal(const Def* other) const override;
+
+    size_t index_;
+
 public:
-    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+    size_t index() const { return index_; }
+    const Def* value() const { return op(0); }
+
+    friend class World;
+};
+
+/// Data constructor for a closure carrying some environment.
+class Closure : public Aggregate {
+private:
+    Closure(const Pi* pi, const Def* fn, const Def* env, Debug dbg)
+        : Aggregate(Node_Closure, pi, {fn, env}, dbg)
+    {}
+
+    virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
+
+public:
+    static const Type*    environment_type(World&);
+    static const PtrType* environment_ptr_type(World&);
 
     friend class World;
 };

@@ -183,7 +183,7 @@ undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
     if (ignore(lam)) return No_Undo;
 
     auto invalidate_phis = [&]() {
-        // TODO
+        world().DLOG("TODO invalidate phis");
     };
 
     auto glob_i = lam2glob_.find(lam);

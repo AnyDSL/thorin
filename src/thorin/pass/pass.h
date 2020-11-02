@@ -111,7 +111,11 @@ public:
     /// @name working with the rewrite-map
     //@{
     template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
+    D* map(const Def* old_def, D* new_def) {
+        cur_state().old2new[old_def] = new_def;
+        cur_state().old2new.emplace(new_def, new_def);
+        return new_def;
+    }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {

@@ -1,8 +1,8 @@
 #include "thorin/pass/copy_prop.h"
-#include "thorin/pass/reducer.h"
-#include "thorin/pass/ssa_constr.h"
-#include "thorin/pass/partial_eval.h"
 #include "thorin/pass/grad_gen.h"
+#include "thorin/pass/partial_eval.h"
+#include "thorin/pass/reduction.h"
+#include "thorin/pass/ssa_constr.h"
 
 #include "thorin/transform/compile_ptrns.h"
 
@@ -17,12 +17,12 @@ namespace thorin {
 void optimize(World& world) {
     PassMan(world)
     .create<PartialEval>()
-    .create<Reducer>()
+    .create<Reduction>()
     .run();
 
     PassMan(world)
     .create<SSAConstr>()
-    .create<CopyProp>()
+    //.create<CopyProp>()
     .run();
 }
 

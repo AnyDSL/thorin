@@ -47,7 +47,8 @@ void PassMan::run() {
     while (!cur_state().stack.empty()) {
         push_state();
         auto cur_nom = pop(cur_state().stack);
-        world().DLOG("state/cur_nom: {}/{}", states_.size() - 1, cur_nom);
+        world().DLOG("=== state/cur_nom ===: {}/{}", states_.size() - 1, cur_nom);
+        //cur_nom->dump(1);
 
         if (!cur_nom->is_set()) continue;
 
@@ -67,6 +68,8 @@ void PassMan::run() {
         if (undo == No_Undo) {
             for (auto op : cur_nom->extended_ops())
                 enqueue(op);
+            //cur_nom->dump(1);
+            world().DLOG("=== done ===");
         } else {
             pop_states(undo);
             world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
@@ -81,23 +84,15 @@ void PassMan::run() {
 }
 
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
-    while (true) {
-        auto prev_def = old_def;
-        for (auto&& pass : passes_)
-            old_def = pass->prewrite(cur_nom, old_def);
+    //old_def->dump(1);
+    if (old_def->is_const() || old_def->isa_nominal()) return old_def;
 
-        if (prev_def == old_def) break;
+    if (auto new_def = lookup(old_def)) {
+        if (old_def == *new_def)
+            return old_def;
+        else
+            return map(old_def, rewrite(cur_nom, *new_def));
     }
-
-    if (old_def->is_const() || old_def->isa<Proxy>()) return old_def;
-
-    if (auto subst = old_def->isa<Subst>()) {
-        map(subst->replacee(), subst->replacer());
-        return rewrite(cur_nom, subst->def());
-    }
-
-    if (auto new_def = lookup(old_def)) return *new_def;
-    if (auto nom = old_def->isa_nominal()) return map(nom, nom);
 
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
@@ -108,15 +103,24 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
         new_ops[i] = new_def;
     }
 
-    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+    old_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
     for (auto&& pass : passes_) {
-        auto prev_def = new_def;
-        new_def = pass->rewrite(cur_nom, new_def);
-        if (prev_def != new_def) new_def = rewrite(cur_nom, new_def);
+        if (auto new_def = pass->prewrite(cur_nom, old_def); old_def != new_def)
+            return map(old_def, rewrite(cur_nom, new_def));
     }
 
-    return map(old_def, new_def);
+    if (auto subst = old_def->isa<Subst>()) {
+        map(subst->replacee(), subst->replacer());
+        return map(old_def, rewrite(cur_nom, subst->def()));
+    }
+
+    for (auto&& pass : passes_) {
+        if (auto new_def = pass->rewrite(cur_nom, old_def); old_def != new_def)
+            return map(old_def, rewrite(cur_nom, new_def));
+    }
+
+    return map(old_def, old_def);
 }
 
 void PassMan::enqueue(const Def* def) {

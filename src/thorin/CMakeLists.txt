@@ -41,8 +41,8 @@ set(THORIN_SOURCES
     pass/copy_prop.h
     pass/grad_gen.cpp
     pass/grad_gen.h
-    pass/reducer.cpp
-    pass/reducer.h
+    pass/reduction.cpp
+    pass/reduction.h
     pass/optimize.cpp
     pass/optimize.h
     pass/partial_eval.cpp

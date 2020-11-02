@@ -1,10 +1,10 @@
-#include "thorin/pass/reducer.h"
+#include "thorin/pass/reduction.h"
 
 #include "thorin/rewrite.h"
 
 namespace thorin {
 
-const Def* Reducer::rewrite(Def* cur_nom, const Def* def) {
+const Def* Reduction::rewrite(Def* cur_nom, const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
             if (auto [_, ins] = put<LamSet>(lam); ins) {
@@ -19,7 +19,7 @@ const Def* Reducer::rewrite(Def* cur_nom, const Def* def) {
     return def;
 }
 
-undo_t Reducer::analyze(Def* cur_nom, const Def* def) {
+undo_t Reduction::analyze(Def* cur_nom, const Def* def) {
     if (def->is_const() || analyzed(def) || def->isa<Param>()) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {

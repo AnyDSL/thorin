@@ -8,26 +8,25 @@
 
 namespace thorin {
 
-static Lam*   wrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
-static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
+static Lam*   wrap_def(Def2Def&, Def2Def&, const Def*, const Pi*);
+static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*);
 
 // Computes the type of the wrapped function
-static const Type* wrapped_type(const Pi* cn, size_t max_tuple_size) {
-    std::vector<const Type*> nops;
-    for (auto op : cn->ops()) {
-        if (auto tuple_type = op->isa<TupleType>()) {
-            if (tuple_type->num_ops() <= max_tuple_size) {
-                for (auto arg : tuple_type->ops())
-                    nops.push_back(arg);
-            } else
-                nops.push_back(op);
-        } else if (auto op_cn = op->isa<Pi>()) {
-            nops.push_back(wrapped_type(op_cn, max_tuple_size));
-        } else {
-            nops.push_back(op);
+static const Type* flatten_type(const Type* type) {
+    if (type->isa<TupleType>()) {
+        std::vector<const Type*> flat_ops;
+        for (auto op : type->ops()) {
+            auto flat_op = flatten_type(op);
+            if (flat_op->isa<TupleType>())
+                flat_ops.insert(flat_ops.end(), flat_op->ops().begin(), flat_op->ops().end());
+            else
+                flat_ops.push_back(flat_op);
         }
-    }
-    return cn->table().cn(nops);
+        return type->table().tuple_type(flat_ops);
+    } else if (auto pi = type->isa<Pi>()) {
+        return type->table().pi(flatten_type(pi->domain()), flatten_type(pi->codomain()));
+    } else
+        return type;
 }
 
 static Lam* app(Lam* lam, Array<const Def*>& args) {
@@ -59,7 +58,7 @@ static void inline_calls(Lam* lam) {
 }
 
 // Wraps around a def, flattening tuples passed as parameters (dual of unwrap)
-static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const Pi* new_type, size_t max_tuple_size) {
+static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const Pi* new_type) {
     // Transform:
     //
     // old_def(a: T, b: (U, V), c: fn (W, (X, Y))):
@@ -87,18 +86,15 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
     for (size_t i = 0, j = 0, e = old_type->num_ops(); i != e; ++i) {
         auto op = old_type->op(i);
         if (auto tuple_type = op->isa<TupleType>()) {
-            if (tuple_type->num_ops() <= max_tuple_size) {
-                Array<const Def*> tuple_args(tuple_type->num_ops());
-                for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
-                    tuple_args[k] = new_lam->param(j++);
-                call_args[i + 1] = world.tuple(tuple_args);
-            } else
-                call_args[i + 1] = new_lam->param(j++);
+            Array<const Def*> tuple_args(tuple_type->num_ops());
+            for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
+                tuple_args[k] = new_lam->param(j++);
+            call_args[i + 1] = world.tuple(tuple_args);
         } else if (auto cn = op->isa<Pi>()) {
             auto fn_param = new_lam->param(j++);
             // no need to unwrap if the types are identical
             if (fn_param->type() != op)
-                call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_param, cn, max_tuple_size);
+                call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_param, cn);
             else
                 call_args[i + 1] = fn_param;
         } else {
@@ -112,7 +108,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
 }
 
 // Unwrap a def, flattening tuples passed as arguments (dual of wrap)
-static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def, const Pi* old_type, size_t max_tuple_size) {
+static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def, const Pi* old_type) {
     // Transform:
     //
     // new_def(a: T, b: U, c: V, d: fn (W, X, Y)):
@@ -140,16 +136,13 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
     for (size_t i = 0, j = 1, e = old_lam->num_params(); i != e; ++i) {
         auto param = old_lam->param(i);
         if (auto tuple_type = param->type()->isa<TupleType>()) {
-            if (tuple_type->num_ops() <= max_tuple_size) {
-                for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
-                    call_args[j++] = world.extract(param, k);
-            } else
-                call_args[j++] = param;
+            for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
+                call_args[j++] = world.extract(param, k);
         } else if (auto cn = param->type()->isa<Pi>()) {
             auto new_cn = new_type->op(j - 1)->as<Pi>();
             // no need to wrap if the types are identical
             if (cn != new_cn)
-                call_args[j++] = wrap_def(wrapped, unwrapped, param, new_cn, max_tuple_size);
+                call_args[j++] = wrap_def(wrapped, unwrapped, param, new_cn);
             else
                 call_args[j++] = param;
         } else {
@@ -162,7 +155,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
     return app(old_lam, call_args);
 }
 
-static void flatten_tuples(World& world, size_t max_tuple_size) {
+void flatten_tuples(World& world) {
     // flatten tuples passed as arguments to functions
     bool todo = true;
     Def2Def wrapped, unwrapped;
@@ -181,14 +174,14 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
                 is_passed_to_accelerator(lam))
                 continue;
 
-            auto new_type = wrapped_type(lam->type(), max_tuple_size)->as<Pi>();
+            auto new_type = flatten_type(lam->type())->as<Pi>();
             if (new_type == lam->type()) continue;
 
             // do not transform lams multiple times
             if (wrapped.contains(lam) || unwrapped_codom.contains(lam)) continue;
 
             // generate a version of that lam that operates without tuples
-            wrap_def(wrapped, unwrapped, lam, new_type, max_tuple_size);
+            wrap_def(wrapped, unwrapped, lam, new_type);
 
             todo = true;
 
@@ -202,7 +195,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
             if (def->num_ops() == 0) continue;
 
             auto new_lam = wrap_pair.second->as_lam();
-            auto old_lam = unwrap_def(wrapped, unwrapped, new_lam, def->type()->as<Pi>(), max_tuple_size);
+            auto old_lam = unwrap_def(wrapped, unwrapped, new_lam, def->type()->as<Pi>());
 
             def->replace(old_lam);
             if (auto lam = def->isa_lam())
@@ -215,10 +208,6 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
     world.cleanup();
     debug_verify(world);
-}
-
-void flatten_tuples(World& world) {
-    flatten_tuples(world, std::numeric_limits<size_t>::max());
 }
 
 }

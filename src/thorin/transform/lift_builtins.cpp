@@ -9,6 +9,8 @@ namespace thorin {
 
 void lift_pipeline(World& world) {
     for (auto lam : world.copy_lams()) {
+        if (lam->is_empty())
+            continue;
         auto callee = lam->app()->callee()->isa_lam();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && lam->app()->num_args() == 6) {

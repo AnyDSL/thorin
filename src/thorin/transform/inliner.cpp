@@ -75,6 +75,8 @@ void inliner(World& world) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto lam = n->lam();
+            if (lam->is_empty())
+                continue;
             if (auto callee = lam->app()->callee()->isa_lam()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls

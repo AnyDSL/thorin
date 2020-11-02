@@ -136,8 +136,11 @@ void rewrite_flow_graphs(World& world) {
         }
     }
 
-    for (auto lam : world.copy_lams())
+    for (auto lam : world.copy_lams()) {
+        if (lam->is_empty())
+            continue;
         rewrite_app(lam, lam, rewriter);
+    }
 
     world.cleanup();
 }

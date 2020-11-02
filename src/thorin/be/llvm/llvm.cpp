@@ -543,16 +543,17 @@ void CodeGen::optimize(int opt) {
     if (opt != 0) {
         llvm::PassBuilder PB;
         llvm::PassBuilder::OptimizationLevel opt_level;
+
+        llvm::LoopAnalysisManager LAM;
         llvm::FunctionAnalysisManager FAM;
-        llvm::CGSCCAnalysisManager CAM;
+        llvm::CGSCCAnalysisManager CGAM;
         llvm::ModuleAnalysisManager MAM;
-        FAM.registerPass([&] { return llvm::ModuleAnalysisManagerFunctionProxy(MAM); });
-        MAM.registerPass([&] { return llvm::FunctionAnalysisManagerModuleProxy(FAM); });
-        CAM.registerPass([&] { return llvm::ModuleAnalysisManagerCGSCCProxy(MAM); });
-        MAM.registerPass([&] { return llvm::CGSCCAnalysisManagerModuleProxy(CAM); });
+
         PB.registerModuleAnalyses(MAM);
+        PB.registerCGSCCAnalyses(CGAM);
         PB.registerFunctionAnalyses(FAM);
-        PB.registerCGSCCAnalyses(CAM);
+        PB.registerLoopAnalyses(LAM);
+        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
         switch (opt) {
         case 0: opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
@@ -563,8 +564,6 @@ void CodeGen::optimize(int opt) {
         }
 
         if (opt == 3) {
-            FAM.registerPass([&] { return llvm::PostDominatorTreeAnalysis(); });
-
             llvm::ModulePassManager module_pass_manager;
 
             //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10

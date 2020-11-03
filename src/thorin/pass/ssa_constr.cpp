@@ -78,25 +78,25 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 }
 
 const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
-    auto& phis = lam2phis_[mem_lam];
-    if (phis.empty()) return app;
+    auto& lam2phixys = lam2phixys_[mem_lam];
+    if (lam2phixys.empty()) return app;
 
     get<Visit>(mem_lam); // create undo
     auto& phi_lam = mem2phi_.emplace(mem_lam, nullptr).first->second;
 
     std::vector<const Def*> types;
-    for (auto i = phis.begin(), e = phis.end(); i != e;) {
+    for (auto i = lam2phixys.begin(), e = lam2phixys.end(); i != e;) {
         auto sloxy = *i;
         if (keep_.contains(sloxy)) {
-            i = phis.erase(i);
+            i = lam2phixys.erase(i);
         } else {
             types.emplace_back(get_sloxy_type(sloxy));
             ++i;
         }
     }
 
-    size_t num_phis = phis.size();
-    if (num_phis == 0) return app;
+    size_t num_phixys = lam2phixys.size();
+    if (num_phixys == 0) return app;
 
     if (phi_lam == nullptr) {
         auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
@@ -109,10 +109,10 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
 
         auto num_mem_params = mem_lam->num_params();
         size_t i = 0;
-        Array<const Def*> traxy_ops(2*num_phis + 1);
+        Array<const Def*> traxy_ops(2*num_phixys + 1);
         traxy_ops[0] = phi_lam->param();
-        for (auto phi : phis) {
-            traxy_ops[2*i + 1] = phi;
+        for (auto phixy : lam2phixys) {
+            traxy_ops[2*i + 1] = phixy;
             traxy_ops[2*i + 2] = phi_lam->param(num_mem_params + i);
             ++i;
         }
@@ -124,15 +124,14 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }
 
-    auto phi = phis.begin();
-    Array<const Def*> args(phis.size(), [&](auto) { return get_val(cur_lam, *phi++); });
+    auto phi = lam2phixys.begin();
+    Array<const Def*> args(num_phixys, [&](auto) { return get_val(cur_lam, *phi++); });
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
-    if (!cur_lam || def->is_const() || analyzed(def) || def->isa<Param>() || def->isa_nominal()) return No_Undo;
-    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
+    auto cur_lam = descend(cur_nom, def);
+    if (cur_lam == nullptr) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);
@@ -144,10 +143,9 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
         }
     } else if (auto phixy = isa_proxy(def, Phixy)) {
         auto [sloxy, mem_lam] = split_phixy(phixy);
-        //auto sloxy_lam = get_sloxy_lam(sloxy);
-        auto& phis = lam2phis_[mem_lam];
+        auto& phixys = lam2phixys_[mem_lam];
 
-        if (phis.emplace(sloxy).second) {
+        if (phixys.emplace(sloxy).second) {
             auto&& [_, undo, __] = get<Visit>(mem_lam);
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, undo);
             mem2phi_[mem_lam] = nullptr;
@@ -159,6 +157,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     auto app = def->isa<App>();
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(cur_nom, def->op(i)));
+
         if (auto lam = def->op(i)->isa_nominal<Lam>()) {
             auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee_Pos : Loc::Preds1_Non_Callee_Pos;
             if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
@@ -171,10 +170,6 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
 undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
     if (ignore(lam)) return No_Undo;
 
-    auto invalidate_phis = [&]() {
-        world().DLOG("TODO invalidate phis");
-    };
-
     auto glob_i = lam2glob_.find(lam);
     auto&& [visit, undo, inserted] = get<Visit>(lam);
 
@@ -183,23 +178,21 @@ undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
             world().DLOG("{} '{}' with pred '{}'", loc2str(loc), lam, cur_lam);
             visit.loc = loc;
             visit.pred = cur_lam;
-        } else {
-            if (visit.loc == Loc::Preds1_Callee_Pos && loc == Loc::Preds1_Callee_Pos) {
-                lam2glob_[lam] = Glob::PredsN;
-                world().DLOG("Preds1::Callee_Pos -> preds_n: '{}'", lam);
-            } else {
-                world().DLOG("{} join {} -> keep: '{}' with pred '{}'", loc2str(visit.loc), loc2str(loc), lam, cur_lam);
-                lam2glob_[lam] = Glob::Top;
-                invalidate_phis();
-            }
-            return undo;
+            return No_Undo;
         }
+
+        if (visit.loc == Loc::Preds1_Callee_Pos && loc == Loc::Preds1_Callee_Pos) {
+            lam2glob_[lam] = Glob::PredsN;
+            world().DLOG("Preds1::Callee_Pos -> preds_n: '{}'", lam);
+        } else {
+            world().DLOG("{} join {} -> keep: '{}' with pred '{}'", loc2str(visit.loc), loc2str(loc), lam, cur_lam);
+            lam2glob_[lam] = Glob::Top;
+        }
+        return undo;
     } else if (glob_i->second == Glob::PredsN) {
         if (loc == Loc::Preds1_Non_Callee_Pos) {
             world().DLOG("PredsN -> Top: {}", lam);
             glob_i->second = Glob::Top;
-            invalidate_phis();
-
             return undo;
         }
     }

@@ -54,9 +54,8 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 }
 
 undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
-    if (!cur_lam || def->is_const() || analyzed(def) || def->isa<Param>() || def->isa_nominal()) return No_Undo;
-    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
+    auto cur_lam = descend(cur_nom, def);
+    if (cur_lam == nullptr) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
         auto lam = proxy->op(0)->as_nominal<Lam>();
@@ -66,17 +65,13 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
     }
 
     auto undo = No_Undo;
-    auto app = def->isa<App>();
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(cur_nom, def->op(i)));
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam)) {
-            if (app != nullptr && i == 0 && keep_.emplace(lam).second) {
-                auto&& [_, u,ins] = get(lam);
-                if (!ins) {
-                    undo = std::min(undo, u);
-                    world().DLOG("keep: {}", lam);
-                }
-            }
+
+        if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
+            auto&& [_, u,ins] = get(lam);
+            undo = std::min(undo, u);
+            world().DLOG("keep: {}", lam);
         }
     }
 

@@ -15,6 +15,14 @@
 namespace thorin {
 
 void optimize(World& world) {
+#if 1
+    PassMan(world)
+    .create<PartialEval>()
+    .create<Reduction>()
+    .create<SSAConstr>()
+    .create<CopyProp>()
+    .run();
+#else
     PassMan(world)
     .create<PartialEval>()
     .create<Reduction>()
@@ -22,8 +30,9 @@ void optimize(World& world) {
 
     PassMan(world)
     .create<SSAConstr>()
-    //.create<CopyProp>()
+    .create<CopyProp>()
     .run();
+#endif
 }
 
 void optimize_old(World& world) {

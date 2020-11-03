@@ -21,7 +21,6 @@ private:
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 
-    //std::pair<Args&, undo_t> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Args>>(lam); return {i->second, undo}; }
     std::tuple<Args&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<Args>>(lam); return {i->second, undo, ins}; }
 
     Lam2Lam param2prop_;

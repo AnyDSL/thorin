@@ -20,9 +20,8 @@ const Def* Reduction::rewrite(Def* cur_nom, const Def* def) {
 }
 
 undo_t Reduction::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
-    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || analyzed(def) || def->isa<Param>()) return No_Undo;
-    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
+    auto cur_lam = descend(cur_nom, def);
+    if (cur_lam == nullptr) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
         auto lam = proxy->op(0)->as_nominal<Lam>();

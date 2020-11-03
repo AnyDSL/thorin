@@ -118,7 +118,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         auto traxy = proxy(phi_lam->param()->type(), traxy_ops, Traxy);
 
         Array<const Def*> new_params(num_mem_params, [&](size_t i) { return traxy->out(i); });
-        phi_lam->subst(mem_lam, mem_lam->param(), world().tuple(new_params));
+        phi_lam->subst(mem_lam, mem_lam->param(), world().tuple(mem_lam->domain(), new_params));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }

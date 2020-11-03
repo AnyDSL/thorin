@@ -9,7 +9,7 @@ const Def* Reduction::rewrite(Def* cur_nom, const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
             if (auto [_, ins] = put<LamSet>(lam); ins) {
                 world().DLOG("inline {} within {}", lam, cur_nom);
-                return thorin::rewrite(lam, app->arg(), 1);
+                return lam->apply(app->arg());
             } else {
                 return proxy(app->type(), {lam, app->arg()});
             }

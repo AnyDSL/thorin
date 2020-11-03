@@ -391,7 +391,7 @@ const Def* Def::apply(const Def* arg) const {
 
 const Def* Def::apply(const Def* arg) {
     auto& rewrites = world().data_.rewrites_;
-    //if (auto def = rewrites.lookup({this, arg})) return *def;
+    if (auto def = rewrites.lookup({this, arg})) return *def;
 
     auto res = rewrite(this, arg, num_ops() - 1);
     return rewrites[{this, arg}] = res;

@@ -12,7 +12,7 @@ const Def* PartialEval::rewrite(Def* cur_nom, const Def* def) {
             Scope scope(lam);
             if (auto filter = isa_lit<bool>(thorin::rewrite(lam, app->arg(), 0, scope)); filter && *filter) {
                 world().DLOG("PE {} within {}", lam, cur_nom);
-                return thorin::rewrite(lam, app->arg(), 1, scope);
+                return thorin::rewrite(lam, app->arg(), 1, scope); // TODO use rewrite cache
             }
         }
     }

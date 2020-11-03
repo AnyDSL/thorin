@@ -92,8 +92,6 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     }
 
     if (auto subst = old_def->isa<Subst>()) {
-        //auto replacee = rewrite(cur_nom, replacee);
-        //auto replacer = rewrite(cur_nom, subst->replacer());
         map(subst->replacee(), rewrite(cur_nom, subst->replacer()));
         return map(subst, rewrite(cur_nom, subst->def()));
     }

@@ -11,6 +11,7 @@ static const char* loc2str(SSAConstr::Loc l) { return l == SSAConstr::Loc::Preds
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
+        get<Enter>(lam); // create undo point
         lam2sloxy2val_[lam].clear();
         slot_id_ = 0;
     }

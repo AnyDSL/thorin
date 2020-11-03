@@ -20,7 +20,9 @@ const Def* Reduction::rewrite(Def* cur_nom, const Def* def) {
 }
 
 undo_t Reduction::analyze(Def* cur_nom, const Def* def) {
-    if (def->is_const() || analyzed(def) || def->isa<Param>()) return No_Undo;
+    auto cur_lam = cur_nom->isa<Lam>();
+    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || analyzed(def) || def->isa<Param>()) return No_Undo;
+    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
         auto lam = proxy->op(0)->as_nominal<Lam>();
@@ -33,6 +35,8 @@ undo_t Reduction::analyze(Def* cur_nom, const Def* def) {
 
     auto undo = No_Undo;
     for (auto op : def->ops()) {
+        undo = std::min(undo, analyze(cur_nom, op));
+
         if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam) && keep_.emplace(lam).second) {
             auto [lam_undo, ins] = put<LamSet>(lam);
             if (!ins) {
@@ -40,8 +44,6 @@ undo_t Reduction::analyze(Def* cur_nom, const Def* def) {
                 undo = std::min(undo, lam_undo);
             }
         }
-
-        undo = std::min(undo, analyze(cur_nom, def));
     }
 
     return undo;

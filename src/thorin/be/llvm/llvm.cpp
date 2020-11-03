@@ -175,7 +175,7 @@ llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
     if (auto f = fcts_.lookup(lam)) return *f;
 
     std::string name = (lam->is_external() || !lam->is_set()) ? lam->name() : lam->unique_name();
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)));
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
     // set dll storage class for MSVC

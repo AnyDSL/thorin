@@ -62,7 +62,7 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
     }
 
     auto simd_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(simd_args), false);
-    auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
+    auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type).getCallee()->stripPointerCasts();
 
     // build iteration loop and wire the calls
     Array<llvm::Value*> args(num_kernel_args + 1);
@@ -142,7 +142,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     llvm::TargetIRAnalysis ir_analysis;
     llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func, FAM);
     llvm::TargetLibraryAnalysis lib_analysis;
-    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent(), MAM);
+    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func, FAM);
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     if (vector_length == 1) {
@@ -185,13 +185,12 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         LoopExitCanonicalizer canonicalizer(loop_info);
         canonicalizer.canonicalize(*kernel_func);
 
-        vectorizer.analyze(vec_info, dom_tree, pdom_tree, loop_info);
+        vectorizer.analyze(vec_info, FAM);
 
-        bool lin_ok = vectorizer.linearize(vec_info, dom_tree, pdom_tree, loop_info);
+        bool lin_ok = vectorizer.linearize(vec_info, FAM);
         assert_unused(lin_ok);
 
-        llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-        bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
+        bool vectorize_ok = vectorizer.vectorize(vec_info, FAM, nullptr);
         assert_unused(vectorize_ok);
 
         vectorizer.finalize();

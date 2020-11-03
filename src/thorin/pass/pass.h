@@ -234,6 +234,7 @@ protected:
         return false;
     }
 
+    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p nom&inal.
     template<class T = Lam>
     T* descend(Def* nom, const Def* def) {
         auto cur_nom = nom->template isa<T>();

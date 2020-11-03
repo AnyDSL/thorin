@@ -59,7 +59,7 @@ private:
     size_t slot_id_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phixys_; ///< Contains the @p Phixy%s to add to @c mem_lam to build the @c phi_lam.
-    DefSet keep_;                                                        ///< Contains @p Sloxy%s we want to keep.
+    GIDSet<const Proxy*> keep_;                                      ///< Contains @p Sloxy%s we want to keep.
     LamMap<Glob> lam2glob_;
     Lam2Lam mem2phi_;
 };

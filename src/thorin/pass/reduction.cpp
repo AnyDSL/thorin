@@ -30,22 +30,24 @@ undo_t Reduction::analyze(Def* cur_nom, const Def* def) {
             auto [undo, _] = put<LamSet>(lam);
             return undo;
         }
-    }
+    } else {
+        auto undo = No_Undo;
+        for (auto op : def->ops()) {
+            undo = std::min(undo, analyze(cur_nom, op));
 
-    auto undo = No_Undo;
-    for (auto op : def->ops()) {
-        undo = std::min(undo, analyze(cur_nom, op));
-
-        if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam) && keep_.emplace(lam).second) {
-            auto [lam_undo, ins] = put<LamSet>(lam);
-            if (!ins) {
-                world().DLOG("non-callee-position of '{}'; undo to {} inlining of {} within {}", lam, lam_undo, lam, cur_nom);
-                undo = std::min(undo, lam_undo);
+            if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam) && keep_.emplace(lam).second) {
+                auto [lam_undo, ins] = put<LamSet>(lam);
+                if (!ins) {
+                    world().DLOG("non-callee-position of '{}'; undo to {} inlining of {} within {}", lam, lam_undo, lam, cur_nom);
+                    undo = std::min(undo, lam_undo);
+                }
             }
         }
+
+        return undo;
     }
 
-    return undo;
+    return No_Undo;
 }
 
 }

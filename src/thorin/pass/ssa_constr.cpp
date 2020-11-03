@@ -32,7 +32,8 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
             set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
-            //lam2info(cur_lam).writable.emplace(sloxy);
+            auto&& [enter, _, __] = insert<LamMap<Enter>>(cur_lam);
+            enter.writable.emplace(sloxy);
             return world().tuple({slot->arg(), sloxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
@@ -42,10 +43,10 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
         if (auto sloxy = isa_proxy(ptr, Sloxy)) {
-            //if (lam2info(cur_lam).writable.contains(sloxy)) {
+            if (auto&& [enter, _, __] = insert<LamMap<Enter>>(cur_lam); enter.writable.contains(sloxy)) {
                 set_val(cur_lam, sloxy, val);
                 return mem;
-            //}
+            }
         }
     } else if (auto app = def->isa<App>()) {
         if (auto mem_lam = app->callee()->isa_nominal<Lam>(); !ignore(mem_lam)) {
@@ -151,20 +152,29 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
             mem2phi_[mem_lam] = nullptr;
             return undo;
         }
-    }
+    } else {
+        auto undo = No_Undo;
+        auto app = def->isa<App>();
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+            undo = std::min(undo, analyze(cur_nom, def->op(i)));
 
-    auto undo = No_Undo;
-    auto app = def->isa<App>();
-    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        undo = std::min(undo, analyze(cur_nom, def->op(i)));
+            if (auto lam = def->op(i)->isa_nominal<Lam>()) {
+                if (lam->is_basicblock() && lam != cur_lam) {
+                    // TODO this is a bit scruffy - maybe we can do better
+                    auto&& [lam_enter, _, __] = insert<LamMap<Enter>>(lam);
+                    auto&& [cur_enter, x, xx] = insert<LamMap<Enter>>(cur_lam);
+                    lam_enter.writable.insert_range(range(cur_enter.writable));
+                }
 
-        if (auto lam = def->op(i)->isa_nominal<Lam>()) {
-            auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee_Pos : Loc::Preds1_Non_Callee_Pos;
-            if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
+                auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee_Pos : Loc::Preds1_Non_Callee_Pos;
+                if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
+            }
         }
+
+        return undo;
     }
 
-    return undo;
+    return No_Undo;
 }
 
 undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {

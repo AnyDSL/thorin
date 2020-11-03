@@ -70,8 +70,10 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
 
         if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
             auto&& [_, u,ins] = get(lam);
-            undo = std::min(undo, u);
-            world().DLOG("keep: {}", lam);
+            if (!ins) {
+                undo = std::min(undo, u);
+                world().DLOG("keep: {}", lam);
+            }
         }
     }
 

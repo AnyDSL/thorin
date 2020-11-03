@@ -16,24 +16,16 @@ void SSAConstr::enter(Def* nom) {
     }
 }
 
-const Def* SSAConstr::prewrite(Def* cur_nom, const Def* def) {
-    if (auto cur_lam = cur_nom->isa<Lam>()) {
-        if (auto traxy = isa_proxy(def, Traxy)) {
-            world().DLOG("traxy '{}'", traxy);
-            for (size_t i = 1, e = def->num_ops(); i != e; i += 2)
-                set_val(cur_lam, as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
-            return traxy->op(0);
-        }
-    }
-
-    return def;
-}
-
 const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     auto cur_lam = cur_nom->isa<Lam>();
-    if (cur_lam == nullptr || def->isa<Param>() || def->isa<Proxy>()) return def;
+    if (cur_lam == nullptr) return def;
 
-    if (auto slot = isa<Tag::Slot>(def)) {
+    if (auto traxy = isa_proxy(def, Traxy)) {
+        world().DLOG("traxy '{}'", traxy);
+        for (size_t i = 1, e = def->num_ops(); i != e; i += 2)
+            set_val(cur_lam, as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
+        return traxy->op(0);
+    } else if (auto slot = isa<Tag::Slot>(def)) {
         auto [out_mem, out_ptr] = slot->split<2>();
         auto sloxy = proxy(out_ptr->type(), {cur_lam, world().lit_nat(slot_id_++)}, Sloxy, slot->debug());
         world().DLOG("sloxy: '{}'", sloxy);
@@ -115,22 +107,18 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         lam2glob_[phi_lam] = Glob::PredsN;
 
         auto num_mem_params = mem_lam->num_params();
-        Array<const Def*> new_params(num_mem_params, [&](size_t i) { return phi_lam->param(i); });
-        auto new_param = world().tuple(new_params);
-        auto filter    = world().subst(mem_lam->filter(), mem_lam->param(), new_param);
-        auto body      = world().subst(mem_lam->body(),   mem_lam->param(), new_param);
-
         size_t i = 0;
         Array<const Def*> traxy_ops(2*num_phis + 1);
-        traxy_ops[0] = filter;
+        traxy_ops[0] = phi_lam->param();
         for (auto phi : phis) {
             traxy_ops[2*i + 1] = phi;
             traxy_ops[2*i + 2] = phi_lam->param(num_mem_params + i);
             ++i;
         }
+        auto traxy = proxy(phi_lam->param()->type(), traxy_ops, Traxy);
 
-        phi_lam->set_filter(proxy(filter->type(), traxy_ops, Traxy));
-        phi_lam->set_body(body);
+        Array<const Def*> new_params(num_mem_params, [&](size_t i) { return traxy->out(i); });
+        phi_lam->subst(mem_lam, mem_lam->param(), world().tuple(new_params));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }

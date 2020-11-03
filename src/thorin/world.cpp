@@ -631,7 +631,7 @@ const Def* World::subst(const Def* def, const Def* replacee, const Def* replacer
 
     if (auto s = def->isa<Subst>()) {
         // subst(subst(x, a, b), a, b) = subst(x, a, b)
-        if (s->replacee() == replacee && s->replacer() == replacer) return s;
+        //if (s->replacee() == replacee && s->replacer() == replacer) return s;
 
         // subst(subst(x, a, b), b, c) = subst(x, a, c)
         //if (s->replacer() == replacee) return subst(def, s->replacee(), replacer);

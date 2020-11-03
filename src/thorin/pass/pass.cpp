@@ -48,7 +48,6 @@ void PassMan::run() {
         push_state();
         auto cur_nom = pop(cur_state().stack);
         world().DLOG("=== state/cur_nom ===: {}/{}", states_.size() - 1, cur_nom);
-        //cur_nom->dump(1);
 
         if (!cur_nom->is_set()) continue;
 
@@ -68,7 +67,6 @@ void PassMan::run() {
         if (undo == No_Undo) {
             for (auto op : cur_nom->extended_ops())
                 enqueue(op);
-            //cur_nom->dump(1);
             world().DLOG("=== done ===");
         } else {
             pop_states(undo);
@@ -84,7 +82,6 @@ void PassMan::run() {
 }
 
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
-    //old_def->dump(1);
     if (old_def->is_const() || old_def->isa_nominal()) return old_def;
 
     if (auto new_def = lookup(old_def)) {
@@ -92,6 +89,13 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
             return old_def;
         else
             return map(old_def, rewrite(cur_nom, *new_def));
+    }
+
+    if (auto subst = old_def->isa<Subst>()) {
+        //auto replacee = rewrite(cur_nom, replacee);
+        //auto replacer = rewrite(cur_nom, subst->replacer());
+        map(subst->replacee(), rewrite(cur_nom, subst->replacer()));
+        return map(subst, rewrite(cur_nom, subst->def()));
     }
 
     auto new_type = rewrite(cur_nom, old_def->type());
@@ -103,24 +107,14 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
         new_ops[i] = new_def;
     }
 
-    old_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
+    auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
     for (auto&& pass : passes_) {
-        if (auto new_def = pass->prewrite(cur_nom, old_def); old_def != new_def)
-            return map(old_def, rewrite(cur_nom, new_def));
+        if (auto rw = pass->rewrite(cur_nom, new_def); rw != new_def)
+            return map(old_def, rewrite(cur_nom, rw));
     }
 
-    if (auto subst = old_def->isa<Subst>()) {
-        map(subst->replacee(), subst->replacer());
-        return map(old_def, rewrite(cur_nom, subst->def()));
-    }
-
-    for (auto&& pass : passes_) {
-        if (auto new_def = pass->rewrite(cur_nom, old_def); old_def != new_def)
-            return map(old_def, rewrite(cur_nom, new_def));
-    }
-
-    return map(old_def, old_def);
+    return map(old_def, new_def);
 }
 
 void PassMan::enqueue(const Def* def) {

@@ -48,7 +48,6 @@ public:
 
 private:
     void enter(Def*) override;
-    const Def* prewrite(Def*, const Def*);
     const Def* rewrite(Def*, const Def*) override;
     undo_t analyze(Def*, const Def*) override;
 

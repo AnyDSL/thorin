@@ -34,9 +34,6 @@ public:
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
     virtual void enter([[maybe_unused]] Def* cur_nom) {}
 
-    /// Invoked during @p rewrite but in @em pre-order.
-    virtual const Def* prewrite([[maybe_unused]] Def* cur_nom, const Def* def) { return def; }
-
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
     virtual const Def* rewrite(Def* cur_nom, const Def* def) = 0;
 

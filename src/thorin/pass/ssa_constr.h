@@ -56,9 +56,6 @@ private:
     undo_t join(Lam* cur_lam, Lam* lam, Loc);
     const Def* mem2phi(Lam*, const App*, Lam*);
 
-    template<class T> // T = Visit or Enter
-    std::tuple<T&, undo_t, bool> get(Lam* lam) { auto [i, undo, ins] = insert<LamMap<T>>(lam); return {i->second, undo, ins}; }
-
     size_t slot_id_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phixys_; ///< Contains the @p Phixy%s to add to @c mem_lam to build the @c phi_lam.

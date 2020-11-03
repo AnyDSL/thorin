@@ -213,15 +213,15 @@ protected:
     /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
     /// @return A triple: <code> [iterator, undo, inserted] </code>.
     template<class M>
-    auto insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
+    std::tuple<typename M::mapped_type&, undo_t, bool> insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {
             auto& map = std::get<M>(data(undo));
-            if (auto i = map.find(key); i != map.end()) return std::tuple(i, undo, false);
+            if (auto i = map.find(key); i != map.end()) return {i->second, undo, false};
         }
 
         auto [i, inserted] = std::get<M>(data()).emplace(key, std::move(init));
         assert(inserted);
-        return std::tuple(i, states().size()-1, true);
+        return {i->second, states().size()-1, true};
     }
 
     /// Use when implementing your own @p PassBase::analyze to remember whether you have already seen @p def.

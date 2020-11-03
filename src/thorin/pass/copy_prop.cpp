@@ -11,7 +11,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
     auto param_lam = app->callee()->isa_nominal<Lam>();
     if (ignore(param_lam) || param_lam->num_params() == 0 || keep_.contains(param_lam)) return app;
 
-    auto&& [args, _, __] = get(param_lam);
+    auto&& [args, _, __] = insert<LamMap<Args>>(param_lam);
     args.resize(app->num_args());
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
@@ -59,7 +59,7 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
 
     if (auto proxy = isa_proxy(def)) {
         auto lam = proxy->op(0)->as_nominal<Lam>();
-        auto&& [_, undo, __] = get(lam);
+        auto&& [_, undo, __] = insert<LamMap<Args>>(lam);
         world().DLOG("found proxy : {}", lam);
         return undo;
     }
@@ -69,7 +69,7 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
         undo = std::min(undo, analyze(cur_nom, def->op(i)));
 
         if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
-            auto&& [_, u,ins] = get(lam);
+            auto&& [_, u,ins] = insert<LamMap<Args>>(lam);
             if (!ins) {
                 undo = std::min(undo, u);
                 world().DLOG("keep: {}", lam);

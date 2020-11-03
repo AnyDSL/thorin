@@ -11,7 +11,7 @@ static const char* loc2str(SSAConstr::Loc l) { return l == SSAConstr::Loc::Preds
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
-        get<Enter>(lam); // create undo point
+        insert<LamMap<Enter>>(lam); // create undo point
         lam2sloxy2val_[lam].clear();
         slot_id_ = 0;
     }
@@ -61,7 +61,7 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
     if (auto val = lam2sloxy2val_[lam].lookup(sloxy)) {
         world().DLOG("get_val found: '{}': '{}': '{}'", sloxy, *val, lam);
         return *val;
-    } else if (auto pred = std::get<0>(get<Visit>(lam)).pred) {
+    } else if (auto pred = std::get<0>(insert<LamMap<Visit>>(lam)).pred) {
         world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, pred, lam);
         return get_val(pred, sloxy);
     } else {
@@ -81,7 +81,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     auto& lam2phixys = lam2phixys_[mem_lam];
     if (lam2phixys.empty()) return app;
 
-    get<Visit>(mem_lam); // create undo
+    insert<LamMap<Visit>>(mem_lam); // create undo
     auto& phi_lam = mem2phi_.emplace(mem_lam, nullptr).first->second;
 
     std::vector<const Def*> types;
@@ -138,7 +138,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
 
         if (keep_.emplace(sloxy).second) {
             world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, def);
-            auto&& [_, undo, __] = get<Enter>(sloxy_lam);
+            auto&& [_, undo, __] = insert<LamMap<Enter>>(sloxy_lam);
             return undo;
         }
     } else if (auto phixy = isa_proxy(def, Phixy)) {
@@ -146,7 +146,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
         auto& phixys = lam2phixys_[mem_lam];
 
         if (phixys.emplace(sloxy).second) {
-            auto&& [_, undo, __] = get<Visit>(mem_lam);
+            auto&& [_, undo, __] = insert<LamMap<Visit>>(mem_lam);
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, undo);
             mem2phi_[mem_lam] = nullptr;
             return undo;
@@ -171,7 +171,7 @@ undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
     if (ignore(lam)) return No_Undo;
 
     auto glob_i = lam2glob_.find(lam);
-    auto&& [visit, undo, inserted] = get<Visit>(lam);
+    auto&& [visit, undo, inserted] = insert<LamMap<Visit>>(lam);
 
     if (glob_i == lam2glob_.end()) {
         if (inserted) {

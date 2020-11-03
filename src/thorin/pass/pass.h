@@ -107,8 +107,7 @@ public:
     //@}
     /// @name working with the rewrite-map
     //@{
-    template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) {
+    const Def* map(const Def* old_def, const Def* new_def) {
         cur_state().old2new[old_def] = new_def;
         cur_state().old2new.emplace(new_def, new_def);
         return new_def;

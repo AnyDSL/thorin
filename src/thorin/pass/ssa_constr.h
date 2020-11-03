@@ -17,10 +17,10 @@ namespace thorin {
  * We use the following lattice:
  * @code
  *                 Top                          <-+
- *               /      \                         |- Glob
+ *               /      \                         |- Glob(al lattice)
  *            PredsN     \                      <-+
  *               \        \
- * Preds1_Callee_Pos      Preds1_Non_Callee_Pos <--- Loc
+ * Preds1_Callee_Pos      Preds1_Non_Callee_Pos <--- Loc(al lattice)
  *                 \      /
  *                  Preds0                      <--- not in any map
  * @endcode
@@ -61,9 +61,9 @@ private:
 
     size_t slot_id_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
-    LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the phis we have to add to the mem_lam to build the phi_lam.
-    DefSet keep_;                                                  ///< Contains sloxys we want to keep.
-    LamMap<Glob> lam2glob_;                                        ///< Contains Lams with more than one preds.
+    LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phis_; ///< Contains the @p Phixy%s we have to add to the @c mem_lam to build the @c phi_lam.
+    DefSet keep_;                                                  ///< Contains @p Sloxy%s we want to keep.
+    LamMap<Glob> lam2glob_;
     Lam2Lam mem2phi_;
 };
 

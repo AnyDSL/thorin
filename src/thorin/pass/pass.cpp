@@ -47,7 +47,7 @@ void PassMan::run() {
     while (!cur_state().stack.empty()) {
         push_state();
         auto cur_nom = pop(cur_state().stack);
-        world().DLOG("=== state/cur_nom ===: {}/{}", states_.size() - 1, cur_nom);
+        world().VLOG("=== state/cur_nom ===: {}/{}", states_.size() - 1, cur_nom);
 
         if (!cur_nom->is_set()) continue;
 
@@ -106,7 +106,6 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
         auto new_def = rewrite(cur_nom, old_def->op(i));
         new_ops[i] = new_def;
     }
-
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
     for (auto&& pass : passes_) {

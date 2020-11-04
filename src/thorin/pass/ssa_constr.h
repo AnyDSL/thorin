@@ -16,13 +16,13 @@ namespace thorin {
  * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau.
  * We use the following lattice:
  * @code
- *                 Top                          <-+
- *               /      \                         |- Glob(al lattice)
- *            PredsN     \                      <-+
- *               \        \
- * Preds1_Callee_Pos      Preds1_Non_Callee_Pos <--- Loc(al lattice)
- *                 \      /
- *                  Preds0                      <--- not in any map
+ *             Top                      <-+
+ *           /      \                     |- Glob(al lattice)
+ *        PredsN     \                  <-+
+ *           \        \
+ * Preds1_Callee      Preds1_Non_Callee <--- Loc(al lattice)
+ *             \      /
+ *              Preds0                  <--- not in any map
  * @endcode
  */
 class SSAConstr : public Pass<SSAConstr> {
@@ -31,7 +31,7 @@ public:
         : Pass(man, index, "ssa_constr")
     {}
 
-    enum class Loc  : bool { Preds1_Callee_Pos, Preds1_Non_Callee_Pos };
+    enum class Loc  : bool { Preds1_Callee, Preds1_Non_Callee };
     enum class Glob : bool { PredsN, Top };
     enum : flags_t { Sloxy, Phixy, Traxy };
 

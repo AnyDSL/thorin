@@ -7,7 +7,7 @@ namespace thorin {
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
 static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
-static const char* loc2str(SSAConstr::Loc l) { return l == SSAConstr::Loc::Preds1_Callee_Pos ? "Preds1_Callee_Pos" : "Preds1_Non_Callee_Pos"; }
+static const char* loc2str(SSAConstr::Loc l) { return l == SSAConstr::Loc::Preds1_Callee ? "Preds1_Callee" : "Preds1_Non_Callee"; }
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
@@ -176,7 +176,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
                     lam_enter.writable.insert_range(range(cur_enter.writable));
                 }
 
-                auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee_Pos : Loc::Preds1_Non_Callee_Pos;
+                auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee : Loc::Preds1_Non_Callee;
                 if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
             }
         }
@@ -201,16 +201,16 @@ undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
             return No_Undo;
         }
 
-        if (visit.loc == Loc::Preds1_Callee_Pos && loc == Loc::Preds1_Callee_Pos) {
+        if (visit.loc == Loc::Preds1_Callee && loc == Loc::Preds1_Callee) {
             lam2glob_[lam] = Glob::PredsN;
-            world().DLOG("Preds1::Callee_Pos -> preds_n: '{}'", lam);
+            world().DLOG("Preds1::Callee -> preds_n: '{}'", lam);
         } else {
             world().DLOG("{} join {} -> keep: '{}' with pred '{}'", loc2str(visit.loc), loc2str(loc), lam, cur_lam);
             lam2glob_[lam] = Glob::Top;
         }
         return undo;
     } else if (glob_i->second == Glob::PredsN) {
-        if (loc == Loc::Preds1_Non_Callee_Pos) {
+        if (loc == Loc::Preds1_Non_Callee) {
             world().DLOG("PredsN -> Top: {}", lam);
             glob_i->second = Glob::Top;
             return undo;

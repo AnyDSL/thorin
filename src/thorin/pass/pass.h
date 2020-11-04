@@ -10,14 +10,15 @@ typedef size_t undo_t;
 static constexpr undo_t No_Undo = std::numeric_limits<undo_t>::max();
 
 /// All Pass%es that want to be registered in the @p PassMan must implement this interface.
-/// * Directly inherit from this class if your pass doesn't need state.
+/// * Directly inherit from this class if your pass doesn't need state and a fixed-point iteration.
 /// * Inherit from @p Pass using CRTP if you do need state.
 class PassBase {
 public:
-    PassBase(PassMan& man, size_t index, const std::string& name)
+    PassBase(PassMan& man, size_t index, const std::string& name, bool needs_fixed_point = false)
         : man_(man)
         , index_(index)
         , name_(name)
+        , needs_fixed_point_(needs_fixed_point)
     {}
     virtual ~PassBase() {}
 
@@ -28,6 +29,7 @@ public:
     size_t index() const { return index_; }
     const std::string& name() const { return name_; }
     World& world();
+    bool needs_fixed_point() const { return needs_fixed_point_; }
     //@}
     /// @name hooks for the PassMan
     //@{
@@ -76,6 +78,7 @@ private:
     PassMan& man_;
     size_t index_;
     std::string name_;
+    const bool needs_fixed_point_ = false;
 };
 
 /// An optimizer that combines several optimizations in an optimal way.
@@ -95,6 +98,7 @@ public:
     template<class P, class... Args>
     PassMan& create(Args... args) {
         passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...);
+        needs_fixed_point_ |= passes_.back()->needs_fixed_point();
         return *this;
     }
     /// Run all registered @p Pass%es on the whole @p world.
@@ -104,6 +108,7 @@ public:
     //@{
     World& world() const { return world_; }
     size_t num_passes() const { return passes_.size(); }
+    bool needs_fixed_point() const { return needs_fixed_point_; }
     //@}
     /// @name working with the rewrite-map
     //@{
@@ -171,6 +176,7 @@ private:
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
+    bool needs_fixed_point_ = false;;
 
     template<class P> friend class Pass;
 };
@@ -183,7 +189,7 @@ template<class P>
 class Pass : public PassBase {
 public:
     Pass(PassMan& man, size_t index, const std::string& name)
-        : PassBase(man, index, name)
+        : PassBase(man, index, name, true)
     {}
 
     //@}

@@ -45,7 +45,7 @@ void PassMan::run() {
     }
 
     while (!cur_state().stack.empty()) {
-        push_state();
+        if (needs_fixed_point()) push_state();
         auto cur_nom = pop(cur_state().stack);
         world().VLOG("=== state/cur_nom {}/{} ===", states_.size() - 1, cur_nom);
 
@@ -61,8 +61,10 @@ void PassMan::run() {
             pass->finish(cur_nom);
 
         undo_t undo = No_Undo;
-        for (auto&& pass : passes_)
-            undo = std::min(undo, pass->analyze(cur_nom));
+        if (needs_fixed_point()) {
+            for (auto&& pass : passes_)
+                undo = std::min(undo, pass->analyze(cur_nom));
+        }
 
         if (undo == No_Undo) {
             for (auto op : cur_nom->extended_ops())

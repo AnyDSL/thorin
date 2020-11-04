@@ -37,27 +37,25 @@
 
 ## Optimizations
 
-- [ ] finish new optimizer
-    - [ ] passes with no fixed point needed
-    - [x] passes with scope-wide fixed point
-    - [ ] passes with global fixed point needed
-    - [ ] passes on-the-fly inlining
+- [x] finish new optimizer
+    - [x] passes with no fixed point needed
+    - [x] passes with fixed point
 - [ ] rewrite all optimizations to work with new optimizer
-    - [ ] inliner      (wip)
-    - [ ] partial eval (wip)
+    - [x] inliner      (wip)
+    - [x] partial eval (wip)
     - [x] mem2reg
     - [ ] scalarize (destroys slots)
     - [ ] flatten   (nukes tuple params)
     - [ ] eta conv
-    - [ ] copy prop
+    - [x] copy prop
     - [ ] tail rec elim (maybe can be merged with copy prop)
     - [ ] closure elim
     - [ ] closure conv
     - [ ] compile ptrn (wip)
-    - [x] codegen prepare
+    - [x] ret_wrap
     - [ ] reg2mem (for aggregates)
     - [ ] acc prepare (phase that prepares special `vectorize`/`cuda` and friends for code generation)
-- [ ] remove old optimizations/passes and `replace` infrastructure
+- [ ] remove old optimizations/passes and `replace` infrastructure (wip)
 
 ## Type Checking
 

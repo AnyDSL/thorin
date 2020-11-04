@@ -8,23 +8,25 @@ void RetWrap::enter(Def* cur_nom) {
             // new wrapper that calls the return continuation
             auto ret_cont = world().lam(ret_param->type()->as<Pi>(), ret_param->debug());
             ret_cont->app(ret_param, ret_cont->param(), ret_param->debug());
-            ret_param2cont_[ret_param] = ret_cont;
+
+            // rebuild a new "param" that substitutes the actual ret_param with ret_cont
+            auto new_params = cur_lam->param()->split();
+            assert(new_params.back() == ret_param && "we assume that the last element is the ret_param");
+            new_params.back() = ret_cont;
+            auto new_param = world().tuple(cur_lam->domain(), new_params);
+            old2new_[cur_lam->param()] = new_param;
+            ret_conts_.emplace(ret_cont);
         }
     }
 }
 
-const Def* RetWrap::rewrite(Def*, const Def* def) {
-    if (auto app = def->isa<App>()) {
-        bool update = false;
-        Array<const Def*> new_args(app->num_args(), [&](size_t i) {
-            if (auto ret_cont = ret_param2cont_.lookup(app->arg(i))) {
-                update = true;
-                return *ret_cont;
-            }
-            return app->arg(i);
-        });
+const Def* RetWrap::rewrite(Def* cur_nom, const Def* def) {
+    if (auto cur_lam = cur_nom->isa<Lam>()) {
+        if (ret_conts_.contains(cur_lam)) return man().map(def, def);
 
-        if (update) return world().app(app->callee(), new_args, app->debug());
+        if (auto param = def->isa<Param>()) {
+            if (auto new_param = old2new_.lookup(param)) return man().map(*new_param, *new_param);
+        }
     }
 
     return def;

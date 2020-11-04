@@ -15,7 +15,8 @@ public:
     const Def* rewrite(Def*, const Def*) override;
 
 private:
-    Def2Def ret_param2cont_;
+    Def2Def old2new_;
+    LamSet ret_conts_;
 };
 
 }

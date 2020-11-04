@@ -38,7 +38,7 @@ void optimize(World& world) {
 
 void optimize_old(World& world) {
     optimize(world);
-#if 0
+#if 1
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);

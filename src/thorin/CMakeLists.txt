@@ -55,8 +55,6 @@ set(THORIN_SOURCES
     pass/ssa_constr.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/codegen_prepare.h
-    transform/codegen_prepare.cpp
     transform/compile_ptrns.h
     transform/compile_ptrns.cpp
     transform/flatten_tuples.cpp

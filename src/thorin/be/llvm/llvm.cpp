@@ -41,7 +41,6 @@
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/pass/optimize.h"
 #include "thorin/transform/cleanup_world.h"
-#include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
 
 namespace thorin {

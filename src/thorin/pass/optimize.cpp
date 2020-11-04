@@ -9,7 +9,6 @@
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"
-#include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/partial_evaluation.h"
 
@@ -43,7 +42,6 @@ void optimize_old(World& world) {
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
-    //codegen_prepare(world);
 #endif
     PassMan(world).create<RetWrap>().run();
 }

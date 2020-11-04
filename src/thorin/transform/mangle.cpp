@@ -11,13 +11,11 @@ const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = find(old2new, odef))
         return ndef;
 
-    if (auto oprimop = odef->isa<PrimOp>()) {
-        Array<const Def*> nops(oprimop->num_ops());
-        for (size_t i = 0; i != oprimop->num_ops(); ++i)
+    if (!odef->is_nominal()) {
+        Array<const Def*> nops(odef->num_ops());
+        for (size_t i = 0; i != odef->num_ops(); ++i)
             nops[i] = instantiate(odef->op(i));
-
-        auto nprimop = oprimop->rebuild(nops);
-        return old2new[oprimop] = nprimop;
+        return old2new[odef] = odef->rebuild(nops);
     }
 
     return old2new[odef] = odef;
@@ -105,30 +103,26 @@ Lam* Mangler::mangle_head(Lam* old_lam) {
     assert(!old_lam->is_empty());
     Lam* new_lam = old_lam->stub()->as_lam();
     def2def_[old_lam] = new_lam;
-
-    for (size_t i = 0, e = old_lam->num_params(); i != e; ++i)
-        def2def_[old_lam->param(i)] = new_lam->param(i);
-
     return new_lam;
 }
 
 void Mangler::mangle_body(Lam* old_lam, Lam* new_lam) {
     // check whether we can optimize tail recursion
-    //if (ntarget == old_entry()) {
-        //std::vector<size_t> cut;
-        //bool substitute = true;
-        //for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
-            //if (auto def = args_[i]) {
-                //substitute &= def == nargs[i];
-                //cut.push_back(i);
-            //}
-        //}
+    /*if (ntarget == old_entry()) {
+        std::vector<size_t> cut;
+        bool substitute = true;
+        for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
+            if (auto def = args_[i]) {
+                substitute &= def == nargs[i];
+                cut.push_back(i);
+            }
+        }
 
-        //if (substitute) {
-            //const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            //return new_lam->app(new_entry(), args, old_lam->app()->debug());
-        //}
-    //}
+        if (substitute) {
+            const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
+            return new_lam->app(new_entry(), args, old_lam->app()->debug());
+        }
+    }*/
 
     auto new_filter = mangle(old_lam->filter());
     auto new_body   = mangle(old_lam->body());
@@ -145,19 +139,12 @@ const Def* Mangler::mangle(const Def* old_def) {
         auto new_lam = mangle_head(old_lam);
         mangle_body(old_lam, new_lam);
         return new_lam;
-    } else if (auto param = old_def->isa<Param>()) {
-        assert(within(param->lam()));
-        mangle(param->lam());
-        assert(def2def_.contains(param));
-        return def2def_[param];
     } else {
-        auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->num_ops());
-        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
-            nops[i] = mangle(old_primop->op(i));
-
-        auto type = old_primop->type();
-        return def2def_[old_primop] = old_primop->rebuild(type, nops);
+        Array<const Def*> nops(old_def->num_ops());
+        for (size_t i = 0, e = old_def->num_ops(); i != e; ++i)
+            nops[i] = mangle(old_def->op(i));
+        auto type = old_def->type();
+        return def2def_[old_def] = old_def->rebuild(type, nops);
     }
 }
 

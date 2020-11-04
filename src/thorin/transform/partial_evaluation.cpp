@@ -67,16 +67,17 @@ public:
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level lam
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
-        if (lower2cff)
-            if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<Pi>()
-                        || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
-            return true;
+        if (lower2cff) {
+            if (order >= 2 || (order == 1 &&
+                (!callee_->param(i)->type()->isa<Pi>() ||
+                 !callee_->is_returning() ||
+                 !is_top_level(callee_)))) {
+                DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
+                return true;
+            }
         }
 
         return (!callee_->is_exported() && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
-        //return is_one(instantiate(filter(i)));
     }
 
     const Def* filter(size_t i) {

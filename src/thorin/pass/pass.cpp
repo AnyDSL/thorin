@@ -47,7 +47,7 @@ void PassMan::run() {
     while (!cur_state().stack.empty()) {
         push_state();
         auto cur_nom = pop(cur_state().stack);
-        world().VLOG("=== state/cur_nom ===: {}/{}", states_.size() - 1, cur_nom);
+        world().VLOG("=== state/cur_nom {}/{} ===", states_.size() - 1, cur_nom);
 
         if (!cur_nom->is_set()) continue;
 
@@ -70,7 +70,7 @@ void PassMan::run() {
             world().DLOG("=== done ===");
         } else {
             pop_states(undo);
-            world().DLOG("undo: {} - {}", undo, cur_state().stack.top());
+            world().DLOG("=== undo: {} -> {} ===", undo, cur_state().stack.top());
         }
     }
 

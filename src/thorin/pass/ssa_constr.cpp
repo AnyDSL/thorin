@@ -130,9 +130,18 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
+undo_t SSAConstr::analyze(Def* cur_nom) {
+    analyzed_.clear();
+    undo_t undo = No_Undo;
+    for (auto op : cur_nom->extended_ops())
+        undo = std::min(undo, analyze(cur_nom, op));
+    return undo;
+}
+
 undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = descend(cur_nom, def);
-    if (cur_lam == nullptr) return No_Undo;
+    auto cur_lam = cur_nom->isa<Lam>();
+    if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || !analyzed_.emplace(def).second) return No_Undo;
+    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);

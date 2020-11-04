@@ -31,7 +31,9 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 
     if (update) {
         if (new_args.size() == app->num_args()) keep_.emplace(param_lam);
-        return proxy(app->type(), app->ops(), 0);
+        auto p = proxy(app->type(), app->ops(), 0);
+        world().DLOG("proxy: '{}'", p);
+        return p;
     }
 
     auto& prop_lam = param2prop_[param_lam];

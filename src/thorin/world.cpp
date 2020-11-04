@@ -502,11 +502,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     if (isa_lit_arity(index->type(), 1)) return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
 
     // insert((a, b, c, d), 2, x) -> (a, b, x, d)
-    if (auto t = tup->isa<Tuple>()) {
-        Array<const Def*> new_ops = t->ops();
-        new_ops[as_lit<u64>(index)] = val;
-        return tuple(type, new_ops, dbg);
-    }
+    if (auto t = tup->isa<Tuple>()) return t->refine(as_lit<u64>(index), val);
 
     // insert(‹4; x›, 2, y) -> (x, x, y, x)
     if (auto pack = tup->isa<Pack>()) {

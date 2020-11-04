@@ -420,6 +420,12 @@ Def* Def::subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg) 
     return this;
 }
 
+const Def* Def::refine(size_t i, const Def* new_op) const {
+    Array<const Def*> new_ops(ops());
+    new_ops[i] = new_op;
+    return rebuild(world(), type(), new_ops, debug());
+}
+
 /*
  * rebuild
  */

@@ -29,9 +29,7 @@ const Def* Reduction::rewrite(Def* cur_nom, const Def* def) {
 
             //  η-reduction: λx.e x -> e, whenever x does not appear free in e
             if (app != nullptr && app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
-                Array<const Def*> new_ops(def->ops());
-                new_ops[i] = app->callee();
-                auto new_def = def->rebuild(world(), def->type(), new_ops, def->debug());
+                auto new_def = def->refine(i, app->callee());
                 world().DLOG("eta-reduction '{}' -> '{}'", def, new_def);
                 return new_def;
             }

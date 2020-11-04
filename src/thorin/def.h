@@ -286,6 +286,8 @@ public:
     //@{
     const Def* reduce() const;
     Def* subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg = {});
+    /// @p rebuild%s this @p Def while using @p new_op as substitute for its @p i'th @p op
+    const Def* refine(size_t i, const Def* new_op) const;
     //@}
     /// @name misc getters
     //@{

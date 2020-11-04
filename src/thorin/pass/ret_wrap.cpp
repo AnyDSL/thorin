@@ -16,14 +16,14 @@ void RetWrap::enter(Def* cur_nom) {
             auto new_param = world().tuple(cur_lam->domain(), new_params);
             old2new_[cur_lam->param()] = new_param;
             ret_conts_.emplace(ret_cont);
+        } else if (ret_conts_.contains(cur_lam)) {
+            man().map(cur_lam->body(), cur_lam->body());
         }
     }
 }
 
 const Def* RetWrap::rewrite(Def* cur_nom, const Def* def) {
-    if (auto cur_lam = cur_nom->isa<Lam>()) {
-        if (ret_conts_.contains(cur_lam)) return man().map(def, def);
-
+    if (cur_nom->isa<Lam>()) {
         if (auto param = def->isa<Param>()) {
             if (auto new_param = old2new_.lookup(param)) return man().map(*new_param, *new_param);
         }

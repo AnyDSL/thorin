@@ -30,6 +30,7 @@ private:
     bool is_candidate(Lam* lam) { return !ignore(lam) && !man().is_tainted(lam); }
 
     LamSet keep_;
+    LamMap<const Def*> eta_wrap_;
 };
 
 }

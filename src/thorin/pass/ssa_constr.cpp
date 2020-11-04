@@ -90,6 +90,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         auto sloxy = *i;
         if (keep_.contains(sloxy)) {
             i = lam2phixys.erase(i);
+            phi_lam = nullptr;
         } else {
             types.emplace_back(get_sloxy_type(sloxy));
             ++i;

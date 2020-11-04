@@ -201,9 +201,11 @@ const Def* Lam::mem_param(thorin::Debug dbg) {
 }
 
 const Def* Lam::ret_param(thorin::Debug dbg) {
-    auto p = param(num_params() - 1, dbg);
-    assert(p->type()->as<thorin::Pi>()->is_cn());
-    return p;
+    if (num_params() > 0) {
+        auto p = param(num_params() - 1, dbg);
+        if (auto pi = p->type()->isa<thorin::Pi>(); pi != nullptr && pi->is_cn()) return p;
+    }
+    return nullptr;
 }
 
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }

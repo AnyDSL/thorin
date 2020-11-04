@@ -2,6 +2,7 @@
 #include "thorin/pass/grad_gen.h"
 #include "thorin/pass/partial_eval.h"
 #include "thorin/pass/reduction.h"
+#include "thorin/pass/ret_wrap.h"
 #include "thorin/pass/ssa_constr.h"
 
 #include "thorin/transform/compile_ptrns.h"
@@ -37,13 +38,14 @@ void optimize(World& world) {
 
 void optimize_old(World& world) {
     optimize(world);
-#if 1
+#if 0
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
-    codegen_prepare(world);
+    //codegen_prepare(world);
 #endif
+    PassMan(world).create<RetWrap>().run();
 }
 
 }

@@ -49,6 +49,8 @@ set(THORIN_SOURCES
     pass/partial_eval.h
     pass/pass.cpp
     pass/pass.h
+    pass/ret_wrap.cpp
+    pass/ret_wrap.h
     pass/ssa_constr.cpp
     pass/ssa_constr.h
     transform/cleanup_world.cpp

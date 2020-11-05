@@ -19,6 +19,7 @@
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
+#include "thorin/transform/vectorize.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -995,6 +996,7 @@ void World::opt() {
     dead_load_opt(*this);
     cleanup();
     rewrite_flow_graphs(*this);
+    vectorize(*this);
     codegen_prepare(*this);
 }
 

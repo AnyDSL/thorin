@@ -144,7 +144,7 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     auto cont = continuation->arg(4)->as_continuation();
     auto load = irbuilder_.CreateLoad(ptr);
     auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    load->setAlignment(llvm::MaybeAlign(align));
+    load->setAlignment(llvm::MaybeAlign(align).getValue());
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), load);
     return cont;
@@ -161,7 +161,7 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder_.CreateStore(val, ptr);
     auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    store->setAlignment(llvm::MaybeAlign(align));
+    store->setAlignment(llvm::MaybeAlign(align).getValue());
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
@@ -458,7 +458,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         // must be a closure
                         auto closure = lookup(callee);
                         args.push_back(irbuilder_.CreateExtractValue(closure, 1));
-                        call = irbuilder_.CreateCall(irbuilder_.CreateExtractValue(closure, 0), args);
+                        call = irbuilder_.CreateCall(convert_fn_type(continuation), irbuilder_.CreateExtractValue(closure, 0), args);
                     }
 
                     // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -639,7 +639,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
-    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)));
+    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)).getValue());
     return alloca;
 }
 
@@ -1065,7 +1065,7 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
     auto ptr = lookup(load->ptr());
     auto result = irbuilder_.CreateLoad(ptr);
     auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    result->setAlignment(llvm::MaybeAlign(align));
+    result->setAlignment(llvm::MaybeAlign(align).getValue());
     return result;
 }
 
@@ -1073,7 +1073,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
     auto ptr = lookup(store->ptr());
     auto result = irbuilder_.CreateStore(lookup(store->val()), ptr);
     auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    result->setAlignment(llvm::MaybeAlign(align));
+    result->setAlignment(llvm::MaybeAlign(align).getValue());
     return result;
 }
 
@@ -1270,7 +1270,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
     if (vector_length(type) == 1)
         return types_[type] = llvm_type;
 
-    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type));
+    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type), false);
     return types_[type] = llvm_type;
 }
 

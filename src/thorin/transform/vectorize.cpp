@@ -62,7 +62,7 @@ private:
 
 Vectorizer::DivergenceAnalysis::State
 Vectorizer::DivergenceAnalysis::getUniform(Def * def) {
-    return Varying;
+    return uniform[def];
 }
 
 ContinuationSet Vectorizer::DivergenceAnalysis::successors(Continuation * cont) {
@@ -323,7 +323,7 @@ void Vectorizer::DivergenceAnalysis::run() {
 
         if (cont->succs().size() > 1) {
             splitNodes.emplace(cont);
-            cont->dump();
+            //cont->dump();
         }
 
         for (auto succ : cont->succs())
@@ -331,13 +331,16 @@ void Vectorizer::DivergenceAnalysis::run() {
                 queue.push(succ);
     }
 
-    std::cerr << "Chapter 5\n";
-
-    done.clear();
+    //std::cerr << "Chapter 5\n";
 
     //Step 2.2: Chapter 5, alg. 1: Construct labelmaps.
     for (auto *split : splitNodes) {
+        done.clear();
+
         GIDMap<Continuation*, Continuation*> LabelMap;
+
+        //std::cerr << "\nSplit analysis\n";
+        //split->dump();
 
         ContinuationSet Joins;
         
@@ -352,9 +355,9 @@ void Vectorizer::DivergenceAnalysis::run() {
             Continuation *cont = pop(queue);
 
             auto keys = predecessors(cont);
-            std::cerr << "Predecessors\n";
-            cont->dump();
-            keys.dump();
+            //std::cerr << "Predecessors\n";
+            //cont->dump();
+            //keys.dump();
 
             ContinuationSet toDelete;
             for (auto key : keys) {
@@ -392,9 +395,9 @@ void Vectorizer::DivergenceAnalysis::run() {
             }
 
             if (done.emplace(cont).second || oldkey != LabelMap[cont]) {
-                std::cerr << "Successors\n";
-                cont->dump();
-                successors(cont).dump();
+                //std::cerr << "Successors\n";
+                //cont->dump();
+                //successors(cont).dump();
                 for (auto succ : successors(cont))
                     queue.push(succ);
             }
@@ -402,20 +405,18 @@ void Vectorizer::DivergenceAnalysis::run() {
 
         relJoins[split] = Joins;
 
-        std::cerr << "Split node\n";
-        split->dump();
-        std::cerr << "Labelmap:\n";
-        LabelMap.dump();
-        std::cerr << "Joins:\n";
-        Joins.dump();
-        std::cerr << "End\n";
+        //std::cerr << "Split node\n";
+        //split->dump();
+        //std::cerr << "Labelmap:\n";
+        //LabelMap.dump();
+        //std::cerr << "Joins:\n";
+        //Joins.dump();
+        //std::cerr << "End\n";
     }
 
     //TODO: Heavy caching is of the essence.
     //Step 3: Definite Reaching Definitions Analysis (see Chapter 6) (not at first, focus on CFG analysis first)
     //Note: I am currently not sure which is better, first doing the Definite Reachign Analysis, or first doing the CFG analysis.
-
-    done.clear();
 
     //Step 4: Vaule Uniformity
     //Step 4.1: Mark all Values as being uniform.
@@ -423,37 +424,127 @@ void Vectorizer::DivergenceAnalysis::run() {
     for (auto def : scope.defs())
         uniform[def] = Uniform;
 
-    //Step 4.2: Mark everything in relevant joins as varying (for now at least)
+    std::queue <const Def*> def_queue;
+
+    //Step 4.2: Mark varying defs
+    //TODO: Memory Analysis: We need to track values that lie in memory slots!
+
+    //Step 4.2.1: Mark incomming trip counter as varying.
+    //for (auto def : base->params_as_defs()) {
+    //    uniform[def] = Varying;
+    //    def_queue.push(def);
+    //}
+    auto def = base->params_as_defs()[1];
+    uniform[def] = Varying;
+    def_queue.push(def);
+
+    //Step 4.2.2: Mark everything in relevant joins as varying (for now at least)
     for (auto it : relJoins) {
         Continuation *split = it.first;
+        //use split to capture information about the branching condition
+        const Continuation * branch_int = split->op(0)->isa_continuation();
+        const Def * branch_cond;
+        if (branch_int && (branch_int->intrinsic() == Intrinsic::Branch || branch_int->intrinsic() == Intrinsic::Match))
+            branch_cond = split->op(1);
+        if (branch_cond && uniform[branch_cond] == Uniform)
+            continue;
         ContinuationSet joins = it.second;
         for (auto join : joins) {
             Scope scope(join);
-            for (auto def : scope.defs())
+            std::cerr << "Varying values in\n";
+            scope.dump();
+            for (auto def : scope.defs()) {
                 uniform[def] = Varying;
+                def_queue.push(def);
+            }
         }
     }
 
-    //queue.push(base);
-    //done.emplace(base);
+    for (auto it : relJoins) {
+        it.first->dump();
+        it.second.dump();
+    }
 
-    //std::cerr << "\n";
-    //while (!queue.empty()) {
-        //Continuation *cont = pop(queue);
+    std::cerr << "\n";
 
-        //std::cerr << "Node\n";
-        //cont->dump();
+    //Step 4.3: Profit?
+    while (!def_queue.empty()) {
+        const Def *def = pop(def_queue);
 
-        //scope.dump();
+        std::cerr << "Will analyze ";
+        def->dump();
 
+        if (uniform[def] == Uniform)
+            continue;
 
-        //for (auto succ : cont->succs())
-            //if (done.emplace(succ).second)
-                //queue.push(succ);
+        for (auto use : def->uses()) {
+            auto old_state = uniform[use];
 
-        //std::cerr << "Node end\n";
-    //}
-    //std::cerr << "\n";
+            if (old_state == Uniform) {
+                //Communicate Uniformity over continuation parameters
+                Continuation *cont = use.def()->isa_continuation();
+                if (cont) {
+                    cont->dump();
+                    bool is_op = false; //TODO: this is not a good filter for finding continuation calls!
+                    int opnum = 0;
+                    for (auto param : cont->ops()) {
+                        if (param == def) {
+                            is_op = true;
+                            break;
+                        }
+                        opnum++;
+                    }
+                    std::cerr << is_op << "\n";
+                    std::cerr << opnum << "\n";
+                    auto target = cont->ops()[0]->isa_continuation();
+                    if (is_op && target && target->is_intrinsic() && opnum == 1 && relJoins.find(cont) != relJoins.end()) {
+                        ContinuationSet joins = relJoins[cont];
+                        for (auto join : joins) {
+                            Scope scope(join);
+                            std::cerr << "Varying values in\n";
+                            scope.dump();
+                            for (auto def : scope.defs()) { //TODO: only parameters are verying, not the entire continuation!
+                                std::cerr << "Push def ";
+                                def->dump();
+                                uniform[def] = Varying;
+                                def_queue.push(def);
+                            }
+                        }
+                    } else if (target && is_op) {
+                        for (size_t i = 1; i < cont->num_ops(); ++i) {
+                            auto source_param = cont->op(i);
+                            auto target_param = target->params_as_defs()[i - 1];
+
+                            if (!uniform.contains(source_param))
+                                continue;
+
+                            if (uniform[source_param] == Varying && uniform[target_param] == Uniform) {
+                                uniform[target_param] = Varying;
+                                def_queue.push(target_param);
+                                std::cerr << "Push param ";
+                                target_param->dump();
+                            }
+                        }
+                    } else {
+                        std::cerr << "\nNot Found\n";
+                        cont->dump();
+                        for (auto it : relJoins) {
+                            it.first->dump();
+                            it.second.dump();
+                        }
+                        std::cerr << "\n";
+                    }
+                } else {
+                    uniform[use] = Varying;
+                    def_queue.push(use);
+                    std::cerr << "Push ";
+                    use->dump();
+                }
+            }
+        }
+    }
+
+    std::cerr << "\n";
 
     for (auto uni : uniform) {
         if (uni.second == Varying)
@@ -462,7 +553,7 @@ void Vectorizer::DivergenceAnalysis::run() {
             std::cerr << "Uniform ";
         uni.first->dump();
     }
-    //Step 4.2: For all splits, and for all joins for those splits: Mark all merged values in join node as varying.
+
 }
 
 bool Vectorizer::run() {
@@ -504,14 +595,13 @@ bool Vectorizer::run() {
             enqueue(succ);
     }
 
+
     return false;
-
-    //TODO: take a look at partial_evaluation for recomended controll flow.
-
 
     //Task 2: Communicate, annotate the IR, or transform it alltogether
 
     //Task 3: Widening (during CodeGen)
+    //TODO: Uniform branches might still need masking. => Predicate generation relevant!
 
     //world.cleanup();
 }

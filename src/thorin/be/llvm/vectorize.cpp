@@ -95,7 +95,7 @@ void CodeGen::emit_sequence(llvm::Function* kernel_func) {
     for (auto *user : kernel_func->users()) {
         auto kernel_call = llvm::dyn_cast<llvm::CallInst>(user);
         if (kernel_call && kernel_call->getCalledFunction() == kernel_func)
-            llvm::InlineFunction(kernel_call, info);
+            llvm::InlineFunction(*kernel_call, info);
     }
 
     // remove vectorized function
@@ -274,7 +274,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // inline kernel
     llvm::InlineFunctionInfo info;
-    llvm::InlineFunction(simd_kernel_call, info);
+    llvm::InlineFunction(*simd_kernel_call, info);
 
     // remove vectorized function
     if (simd_kernel_func->hasNUses(0))

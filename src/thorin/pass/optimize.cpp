@@ -1,7 +1,7 @@
 #include "thorin/pass/copy_prop.h"
 #include "thorin/pass/grad_gen.h"
 #include "thorin/pass/partial_eval.h"
-#include "thorin/pass/reduction.h"
+#include "thorin/pass/beta_eta_conv.h"
 #include "thorin/pass/ret_wrap.h"
 #include "thorin/pass/ssa_constr.h"
 
@@ -18,14 +18,14 @@ void optimize(World& world) {
 #if 1
     PassMan(world)
     .create<PartialEval>()
-    .create<Reduction>()
+    .create<BetaEtaConv>()
     .create<SSAConstr>()
     .create<CopyProp>()
     .run();
 #else
     PassMan(world)
     .create<PartialEval>()
-    .create<Reduction>()
+    .create<BetaEtaConv>()
     .run();
 
     PassMan(world)

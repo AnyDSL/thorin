@@ -136,7 +136,7 @@ public:
 #if defined(__x86_64__) || (_M_X64)
     TaggedPtr(T* ptr, I index)
         : ptr_(reinterpret_cast<int64_t>(ptr))
-        , index_(uint16_t(index))
+        , index_(int16_t(index))
     {}
 #else
     TaggedPtr(T* ptr, I index)
@@ -154,7 +154,7 @@ public:
 
 #if defined(__x86_64__) || (_M_X64)
     TaggedPtr& operator=(T*  ptr) { ptr_ = reinterpret_cast<int64_t>(ptr); return *this; }
-    TaggedPtr& operator=(I index) { index_ = uint16_t(index); return *this; }
+    TaggedPtr& operator=(I index) { index_ = int16_t(index); return *this; }
 #else
     TaggedPtr& operator=(T*  ptr) {   ptr_ =   ptr; return *this; }
     TaggedPtr& operator=(I index) { index_ = index; return *this; }
@@ -164,7 +164,7 @@ public:
 private:
 #if defined(__x86_64__) || (_M_X64)
     int64_t ptr_    : 48; // sign extend to make pointer canonical
-    uint64_t index_ : 16;
+    int64_t index_  : 16;
 #else
     T* ptr_;
     I index_;

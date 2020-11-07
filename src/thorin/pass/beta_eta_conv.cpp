@@ -41,6 +41,8 @@ BetaEtaConv::Lattice BetaEtaConv::lattice(Lam* lam) {
 
 const Def* BetaEtaConv::rewrite(Def*, const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+        if (def->isa<Param>() || def->isa<Proxy>()) continue;
+
         if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && !man().is_tainted(lam)) {
             //  η-reduction: λx.e x -> e, whenever x does not appear free in e
             if (auto app = lam->body()->isa<App>(); app != nullptr && app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
@@ -72,10 +74,10 @@ const Def* BetaEtaConv::rewrite(Def*, const Def* def) {
                         auto eta = lam2eta_[lam];
                         if (eta == nullptr) {
                             eta = lam->stub(world(), lam->type(), lam->debug());
+                            eta->set_name(std::string("eta_wrap_") + lam->name());
                             eta->app(lam, eta->param());
                         }
-                        //return def->refine(i, eta);
-                        return def;
+                        return def->refine(i, eta);
                     }
                     break;
             }
@@ -122,11 +124,18 @@ undo_t BetaEtaConv::analyze(Def* cur_nom, const Def* def) {
                 case Lattice::Bot:
                     assert(!callee);
                     loc = Loc::Non_Callee_1;
+                    world().DLOG("Bot -> Non_Callee_1: '{}'", lam);
+                    break;
+                case Lattice::Non_Callee_1:
+                    world().DLOG("Non_Callee_1 -> Eta_Wrap: '{}'", lam);
+                    lam2eta_[lam].set(nullptr, Glob::Eta_Wrap);
+                    undo = std::min(undo, u);
                     break;
                 case Lattice::Eta_Wrap:
                     break;
                 default:
                     if (!callee) {
+                        world().DLOG("? -> Eta_Wrap: '{}'", lam);
                         lam2eta_[lam].set(nullptr, Glob::Eta_Wrap);
                         undo = std::min(undo, u);
                     }
@@ -135,7 +144,7 @@ undo_t BetaEtaConv::analyze(Def* cur_nom, const Def* def) {
         }
     }
 
-    return No_Undo;
+    return undo;
 }
 
 }

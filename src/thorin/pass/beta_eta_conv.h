@@ -9,8 +9,10 @@ namespace thorin {
  * Performs β- and η-conversion.
  * It uses the following strategy:
  * * β-reduction of <code>f e</code>happens if <code>f</code> only occurs exactly once in the program in callee position.
+ *   This happens optimistically within the big fixed-point loop.
  * * η-reduction:
- *      * <code>λx.e x -> e</code>, whenever <code>x</code> does not appear free in <code>e</code> (always).
+ *      * <code>λx.e x -> e</code>, whenever <code>x</code> does not appear free in <code>e</code>.
+ *        Right now however, @p BetaEtaConv will assume this if <code>e</code> is a @p Lam.
  *      * <code>f -> λx.f x</code>, if <code>f</code> is a @p Lam that does not appear in callee position.
  *       This rule is a generalization of critical edge elimination.
  *       It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature (e.g. adding or removing params).

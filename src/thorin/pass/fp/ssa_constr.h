@@ -1,5 +1,5 @@
-#ifndef THORIN_PASS_SSA_CONSTR_H
-#define THORIN_PASS_SSA_CONSTR_H
+#ifndef THORIN_PASS_FP_SSA_CONSTR_H
+#define THORIN_PASS_FP_SSA_CONSTR_H
 
 #include <map>
 #include <set>
@@ -25,10 +25,10 @@ namespace thorin {
  *              Preds0                  <--- not in any map
  * @endcode
  */
-class SSAConstr : public Pass<SSAConstr> {
+class SSAConstr : public FPPass<SSAConstr> {
 public:
     SSAConstr(PassMan& man, size_t index)
-        : Pass(man, index, "ssa_constr")
+        : FPPass(man, index, "ssa_constr")
     {}
 
     enum class Loc  : bool { Preds1_Callee, Preds1_Non_Callee };

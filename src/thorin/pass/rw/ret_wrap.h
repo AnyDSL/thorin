@@ -5,10 +5,10 @@
 
 namespace thorin {
 
-class RetWrap : public PassBase {
+class RetWrap : public RWPass {
 public:
     RetWrap(PassMan& man, size_t index)
-        : PassBase(man, index, "ret_wrap")
+        : RWPass(man, index, "ret_wrap")
     {}
 
     void enter(Def*) override;

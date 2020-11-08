@@ -1,4 +1,5 @@
-#include "thorin/pass/grad_gen.h"
+#include "thorin/pass/rw/grad_gen.h"
+
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 

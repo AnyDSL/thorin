@@ -1,5 +1,5 @@
-#ifndef THORIN_GRAD_GEN_H
-#define THORIN_GRAD_GEN_H
+#ifndef THORIN_RW_GRAD_GEN_H
+#define THORIN_RW_GRAD_GEN_H
 
 #include <functional>
 
@@ -68,10 +68,10 @@ private:
     std::array<PullbackGenerator, Num<ROp>> pullback_gens_;
 };
 
-class GradGen : public PassBase {
+class GradGen : public RWPass {
 public:
     GradGen(PassMan& man, size_t index)
-        : PassBase(man, index, "GradGen")
+        : RWPass(man, index, "GradGen")
     {}
     const Def* rewrite(Def*, const Def*) override;
 

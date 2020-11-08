@@ -37,22 +37,22 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
-    pass/copy_prop.cpp
-    pass/copy_prop.h
-    pass/grad_gen.cpp
-    pass/grad_gen.h
-    pass/beta_eta_conv.cpp
-    pass/beta_eta_conv.h
     pass/optimize.cpp
     pass/optimize.h
-    pass/partial_eval.cpp
-    pass/partial_eval.h
     pass/pass.cpp
     pass/pass.h
-    pass/ret_wrap.cpp
-    pass/ret_wrap.h
-    pass/ssa_constr.cpp
-    pass/ssa_constr.h
+    pass/fp/beta_eta_conv.cpp
+    pass/fp/beta_eta_conv.h
+    pass/fp/copy_prop.cpp
+    pass/fp/copy_prop.h
+    pass/fp/ssa_constr.cpp
+    pass/fp/ssa_constr.h
+    pass/rw/grad_gen.cpp
+    pass/rw/grad_gen.h
+    pass/rw/partial_eval.cpp
+    pass/rw/partial_eval.h
+    pass/rw/ret_wrap.cpp
+    pass/rw/ret_wrap.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/compile_ptrns.h

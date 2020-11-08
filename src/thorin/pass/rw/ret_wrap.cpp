@@ -1,4 +1,4 @@
-#include "thorin/pass/ret_wrap.h"
+#include "thorin/pass/rw/ret_wrap.h"
 
 namespace thorin {
 

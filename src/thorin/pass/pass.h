@@ -213,7 +213,7 @@ protected:
 
         auto [_, inserted] = std::get<S>(data()).emplace(key);
         assert(inserted);
-        return std::tuple(states().size()-1, true);
+        return std::tuple(cur_undo(), true);
     }
 
     /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
@@ -227,7 +227,7 @@ protected:
 
         auto [i, inserted] = std::get<M>(data()).emplace(key, std::move(init));
         assert(inserted);
-        return {i->second, states().size()-1, true};
+        return {i->second, cur_undo(), true};
     }
 
     /// Use when implementing your own @p PassBase::analyze to remember whether you have already seen @p def.
@@ -248,6 +248,8 @@ protected:
         if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return nullptr;
         return cur_nom;
     }
+
+    undo_t cur_undo() const { return man().states_.size()-1; }
 
 private:
     /// @name state-related getters

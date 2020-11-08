@@ -18,13 +18,14 @@ namespace thorin {
  *       It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature (e.g. adding or removing params).
  *       The exact rules when which rule is triggered is best understood by the underlying lattice:
  * @code
- *          Eta_Wrap (η)                <-+
- *            /    \                      |- lam2eta_
- * Callee_N (-)     \                   <-+
- *           |      Non_Callee_1     (-) <-+
- * Callee_1 (β)     /                   <--- LamSet
- *            \    /
- *              Bot                     <--- not in any map
+ *          Eta_Wrap                  <-+
+ *          /    \                      |- lam2glob_    - glob(al) lattice
+ * Callee_N       \                   <-+
+ *         |       \
+ *         |      Non_Callee_1        <-+
+ * Beta_Reduced   /                   <-+- LambMap<Loc> -  loc(al) lattice
+ *          \    /                      |
+ *            Bot                     <-+
  * @endcode
  */
 class BetaEtaConv : public Pass<BetaEtaConv> {
@@ -33,8 +34,8 @@ public:
         : Pass(man, index, "reduction")
     {}
 
-    enum class Lattice { Bot, Callee_1, Non_Callee_1, Callee_N, Eta_Wrap };
-    enum class Loc { Bot, Callee_1, Non_Callee_1 };
+    enum class Lattice { Bot, Beta_Reduced, Non_Callee_1, Callee_N, Eta_Wrap };
+    enum class Loc { Bot, Beta_Reduced, Non_Callee_1 };
     enum class Glob : uint16_t { Callee_N, Eta_Wrap };
 
     const Def* rewrite(Def*, const Def*) override;
@@ -44,10 +45,9 @@ public:
     using Data = std::tuple<LamMap<Loc>>;
 
 private:
-    bool is_candidate(Lam* lam) { return !ignore(lam) && !man().is_tainted(lam); }
-
     LamSet keep_;
-    LamMap<TaggedPtr<Lam, Glob>> lam2eta_;
+    LamMap<Glob> lam2glob_;
+    Def2Def def2eta_;
 };
 
 }

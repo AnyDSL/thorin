@@ -1,4 +1,4 @@
-#include "thorin/pass/ssa_constr.h"
+#include "thorin/pass/fp/ssa_constr.h"
 
 #include "thorin/util.h"
 

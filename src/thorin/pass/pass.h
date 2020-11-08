@@ -9,18 +9,18 @@ class PassMan;
 typedef size_t undo_t;
 static constexpr undo_t No_Undo = std::numeric_limits<undo_t>::max();
 
-/// All Pass%es that want to be registered in the @p PassMan must implement this interface.
-/// * Directly inherit from this class if your pass doesn't need state and a fixed-point iteration.
-/// * Inherit from @p Pass using CRTP if you do need state.
-class PassBase {
+/// All Passes that want to be registered in the @p PassMan must implement this interface.
+/// * Directly inherit from this class if your pass doesn't need state and a fixed-point iteration (a ReWrite pass).
+/// * Inherit from @p FPPass using CRTP if you do need state.
+class RWPass {
 public:
-    PassBase(PassMan& man, size_t index, const std::string& name, bool needs_fixed_point = false)
+    RWPass(PassMan& man, size_t index, const std::string& name, bool needs_fixed_point = false)
         : man_(man)
         , index_(index)
         , name_(name)
         , needs_fixed_point_(needs_fixed_point)
     {}
-    virtual ~PassBase() {}
+    virtual ~RWPass() {}
 
     /// @name getters
     //@{
@@ -86,7 +86,7 @@ private:
 /// "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
 class PassMan {
 public:
-    typedef std::unique_ptr<PassBase> PassPtr;
+    typedef std::unique_ptr<RWPass> PassPtr;
 
     PassMan(World& world)
         : world_(world)
@@ -94,14 +94,14 @@ public:
 
     /// @name create and run
     //@{
-    /// Add @p Pass to this @p PassMan.
+    /// Add a pass to this @p PassMan.
     template<class P, class... Args>
     PassMan& create(Args... args) {
         passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...);
         needs_fixed_point_ |= passes_.back()->needs_fixed_point();
         return *this;
     }
-    /// Run all registered @p Pass%es on the whole @p world.
+    /// Run all registered passes on the whole @p world.
     void run();
     //@}
     /// @name getters
@@ -176,20 +176,20 @@ private:
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
-    bool needs_fixed_point_ = false;;
+    bool needs_fixed_point_ = false;
 
-    template<class P> friend class Pass;
+    template<class P> friend class FPPass;
 };
 
-inline World& PassBase::world() { return man().world(); }
+inline World& RWPass::world() { return man().world(); }
 inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || lam->is_intrinsic() || !lam->is_set(); }
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
 template<class P>
-class Pass : public PassBase {
+class FPPass : public RWPass {
 public:
-    Pass(PassMan& man, size_t index, const std::string& name)
-        : PassBase(man, index, name, true)
+    FPPass(PassMan& man, size_t index, const std::string& name)
+        : RWPass(man, index, name, true)
     {}
 
     //@}
@@ -230,7 +230,7 @@ protected:
         return {i->second, cur_undo(), true};
     }
 
-    /// Use when implementing your own @p PassBase::analyze to remember whether you have already seen @p def.
+    /// Use when implementing your own @p RWPass::analyze to remember whether you have already seen @p def.
     /// @return @c true if already analyzed, @c false if not - but subsequent invocations will then yield @c true.
     bool analyzed(const Def* def) {
         for (auto i = states().rbegin(), e = states().rend(); i != e; ++i) {

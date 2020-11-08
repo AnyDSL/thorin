@@ -1,4 +1,4 @@
-#include "thorin/pass/partial_eval.h"
+#include "thorin/pass/rw/partial_eval.h"
 
 #include "thorin/rewrite.h"
 

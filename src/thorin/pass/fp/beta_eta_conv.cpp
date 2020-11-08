@@ -1,4 +1,4 @@
-#include "thorin/pass/beta_eta_conv.h"
+#include "thorin/pass/fp/beta_eta_conv.h"
 
 #include "thorin/rewrite.h"
 

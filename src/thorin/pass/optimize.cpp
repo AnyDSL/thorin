@@ -1,9 +1,9 @@
-#include "thorin/pass/copy_prop.h"
-#include "thorin/pass/grad_gen.h"
-#include "thorin/pass/partial_eval.h"
-#include "thorin/pass/beta_eta_conv.h"
-#include "thorin/pass/ret_wrap.h"
-#include "thorin/pass/ssa_constr.h"
+#include "thorin/pass/fp/beta_eta_conv.h"
+#include "thorin/pass/fp/copy_prop.h"
+#include "thorin/pass/fp/ssa_constr.h"
+#include "thorin/pass/rw/grad_gen.h"
+#include "thorin/pass/rw/partial_eval.h"
+#include "thorin/pass/rw/ret_wrap.h"
 
 #include "thorin/transform/compile_ptrns.h"
 

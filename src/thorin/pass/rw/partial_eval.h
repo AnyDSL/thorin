@@ -5,10 +5,10 @@
 
 namespace thorin {
 
-class PartialEval : public PassBase {
+class PartialEval : public RWPass {
 public:
     PartialEval(PassMan& man, size_t index)
-        : PassBase(man, index, "partial_eval")
+        : RWPass(man, index, "partial_eval")
     {}
 
     const Def* rewrite(Def*, const Def*) override;

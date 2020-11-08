@@ -1,5 +1,5 @@
-#ifndef THORIN_PASS_BETA_ETA_CONV_H
-#define THORIN_PASS_BETA_ETA_CONV_H
+#ifndef THORIN_PASS_FP_BETA_ETA_CONV_H
+#define THORIN_PASS_FP_BETA_ETA_CONV_H
 
 #include "thorin/pass/pass.h"
 
@@ -17,11 +17,10 @@ namespace thorin {
  *       This rule is a generalization of critical edge elimination.
  *       It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature (e.g. adding or removing params).
  */
-
-class BetaEtaConv : public Pass<BetaEtaConv> {
+class BetaEtaConv : public FPPass<BetaEtaConv> {
 public:
     BetaEtaConv(PassMan& man, size_t index)
-        : Pass(man, index, "reduction")
+        : FPPass(man, index, "reduction")
     {}
 
     const Def* rewrite(Def*, const Def*) override;

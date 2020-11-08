@@ -48,8 +48,6 @@ const Def* BetaEtaConv::rewrite(Def*, const Def* def) {
             if (auto app = lam->body()->isa<App>(); app != nullptr && app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
                 auto new_def = def->refine(i, app->callee());
                 world().DLOG("eta-reduction '{}' -> '{}' by eliminating '{}'", def, new_def, lam);
-                def->dump(0);
-                new_def->dump(0);
                 return new_def;
             }
 
@@ -63,7 +61,6 @@ const Def* BetaEtaConv::rewrite(Def*, const Def* def) {
                     if (callee) {
                         std::get<Loc&>(insert<LamMap<Loc>>(lam)) = Loc::Beta_Reduced;
                         world().DLOG("beta-reduction '{}'", lam);
-                        app->arg()->dump(0);
                         return lam->apply(app->arg());
                     }
                     break;

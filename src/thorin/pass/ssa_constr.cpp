@@ -65,6 +65,9 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
     } else if (auto pred = std::get<0>(insert<LamMap<Visit>>(lam)).pred) {
         world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, pred, lam);
         return get_val(pred, sloxy);
+    } else if (auto glob = lam2glob_.lookup(lam); glob && *glob == Glob::Top) {
+        world().DLOG("cannot install phi for '{}' because '{}' is Glob::Top", sloxy, lam);
+        return sloxy;
     } else {
         auto phixy = proxy(get_sloxy_type(sloxy), {sloxy, lam}, Phixy, sloxy->debug());
         phixy->set_name(std::string("phi_") + phixy->name());

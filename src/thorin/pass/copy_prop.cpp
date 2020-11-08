@@ -17,12 +17,14 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
     std::vector<const Def*> types;
 
     bool update = false;
+    bool changed = false;
     for (size_t i = 0, e = app->num_args(); i != e; ++i) {
         if (keep_.contains(param_lam->param(i))) {
             types.emplace_back(param_lam->param(i)->type());
             new_args.emplace_back(app->arg(i));
         } else if (args[i] == nullptr) {
             args[i] = app->arg(i);
+            changed = true;
         } else if (args[i] != app->arg(i)) {
             keep_.emplace(param_lam->param(i));
             update = true;
@@ -35,6 +37,8 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         world().DLOG("proxy: '{}'", p);
         return p;
     }
+
+    if (!changed) return def;
 
     auto& prop_lam = param2prop_[param_lam];
     if (prop_lam == nullptr || prop_lam->num_params() != types.size()) {

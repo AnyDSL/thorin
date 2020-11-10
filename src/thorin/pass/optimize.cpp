@@ -1,12 +1,11 @@
-#include "thorin/pass/fp/beta_eta_conv.h"
+#include "thorin/pass/fp/beta_red.h"
 #include "thorin/pass/fp/copy_prop.h"
+#include "thorin/pass/fp/eta_conv.h"
 #include "thorin/pass/fp/scalarize.h"
 #include "thorin/pass/fp/ssa_constr.h"
 #include "thorin/pass/rw/grad_gen.h"
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
-
-#include "thorin/transform/compile_ptrns.h"
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"
@@ -19,7 +18,8 @@ void optimize(World& world) {
 #if 1
     PassMan(world)
     .add<PartialEval>()
-    .add<BetaEtaConv>()
+    .add<EtaConv>()
+    .add<BetaRed>()
     .add<SSAConstr>()
     .add<CopyProp>()
     //.add<Scalerize>()

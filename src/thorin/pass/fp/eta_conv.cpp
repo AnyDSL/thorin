@@ -1,4 +1,4 @@
-#include "thorin/pass/fp/beta_eta_conv.h"
+#include "thorin/pass/fp/eta_conv.h"
 
 #include "thorin/rewrite.h"
 
@@ -22,7 +22,7 @@ static bool is_free(const Param* param, const Def* def) {
     return is_free(done, param, def);
 }
 
-const Def* BetaEtaConv::rewrite(Def*, const Def* def) {
+const Def* EtaConv::rewrite(Def*, const Def* def) {
     if (def->isa<Param>() || def->isa<Proxy>()) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
@@ -64,7 +64,7 @@ const Def* BetaEtaConv::rewrite(Def*, const Def* def) {
 }
 
 
-undo_t BetaEtaConv::analyze(Def* cur_nom, const Def* def) {
+undo_t EtaConv::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = descend(cur_nom, def);
     if (cur_lam == nullptr) return No_Undo;
 

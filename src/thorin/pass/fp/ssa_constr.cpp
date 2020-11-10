@@ -7,7 +7,6 @@ namespace thorin {
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
 static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
-static const char* loc2str(SSAConstr::Loc l) { return l == SSAConstr::Loc::Preds1_Callee ? "Preds1_Callee" : "Preds1_Non_Callee"; }
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
@@ -49,25 +48,23 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
             }
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); !ignore(mem_lam)) {
-            if (auto glob = lam2glob_.lookup(mem_lam); glob && *glob != Glob::Top)
-                return mem2phi(cur_lam, app, mem_lam);
-        }
+        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); !ignore(mem_lam))
+            return mem2phi(cur_lam, app, mem_lam);
     }
 
     return def;
 }
 
 const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
-    if (auto val = lam2sloxy2val_[lam].lookup(sloxy)) {
+    if (ignore(lam)) {
+        world().DLOG("cannot install phi for '{}' because I must ignore it", sloxy, lam);
+        return sloxy;
+    } else if (auto val = lam2sloxy2val_[lam].lookup(sloxy)) {
         world().DLOG("get_val found: '{}': '{}': '{}'", sloxy, *val, lam);
         return *val;
     } else if (auto pred = std::get<0>(insert<LamMap<Visit>>(lam)).pred) {
         world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, pred, lam);
         return get_val(pred, sloxy);
-    } else if (auto glob = lam2glob_.lookup(lam); glob && *glob == Glob::Top) {
-        world().DLOG("cannot install phi for '{}' because '{}' is Glob::Top", sloxy, lam);
-        return sloxy;
     } else {
         auto phixy = proxy(get_sloxy_type(sloxy), {sloxy, lam}, Phixy, sloxy->debug());
         phixy->set_name(std::string("phi_") + phixy->name());
@@ -110,7 +107,8 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
 
         man().mark_tainted(phi_lam);
         world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
-        lam2glob_[phi_lam] = Glob::PredsN;
+        auto [_, ins] = preds_n_.emplace(phi_lam);
+        assert(ins);
 
         auto num_mem_params = mem_lam->num_params();
         size_t i = 0;
@@ -170,7 +168,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             undo = std::min(undo, analyze(cur_nom, def->op(i)));
 
-            if (auto lam = def->op(i)->isa_nominal<Lam>()) {
+            if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam)) {
                 if (lam->is_basicblock() && lam != cur_lam) {
                     // TODO this is a bit scruffy - maybe we can do better
                     auto&& [lam_enter, _, __] = insert<LamMap<Enter>>(lam);
@@ -178,45 +176,21 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
                     lam_enter.writable.insert_range(range(cur_enter.writable));
                 }
 
-                auto preds1 = is_callee(def, i) ? Loc::Preds1_Callee : Loc::Preds1_Non_Callee;
-                if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
+                auto&& [visit, u, ins] = insert<LamMap<Visit>>(lam);
+                if (!preds_n_.contains(lam)) {
+                    if (ins) {
+                        world().DLOG("bot -> preds_1: '{}' with pred '{}'", lam, cur_lam);
+                        visit.pred = cur_lam;
+                    } else {
+                        preds_n_.emplace(lam);
+                        world().DLOG("preds_1 -> preds_n: '{}'", lam);
+                        undo = std::min(undo, u);
+                    }
+                }
             }
         }
 
         return undo;
-    }
-
-    return No_Undo;
-}
-
-undo_t SSAConstr::join(Lam* cur_lam, Lam* lam, Loc loc) {
-    if (ignore(lam)) return No_Undo;
-
-    auto glob_i = lam2glob_.find(lam);
-    auto&& [visit, undo, inserted] = insert<LamMap<Visit>>(lam);
-
-    if (glob_i == lam2glob_.end()) {
-        if (inserted) {
-            world().DLOG("{} '{}' with pred '{}'", loc2str(loc), lam, cur_lam);
-            visit.loc = loc;
-            visit.pred = cur_lam;
-            return No_Undo;
-        }
-
-        if (visit.loc == Loc::Preds1_Callee && loc == Loc::Preds1_Callee) {
-            lam2glob_[lam] = Glob::PredsN;
-            world().DLOG("Preds1::Callee -> preds_n: '{}'", lam);
-        } else {
-            world().DLOG("{} join {} -> keep: '{}' with pred '{}'", loc2str(visit.loc), loc2str(loc), lam, cur_lam);
-            lam2glob_[lam] = Glob::Top;
-        }
-        return undo;
-    } else if (glob_i->second == Glob::PredsN) {
-        if (loc == Loc::Preds1_Non_Callee) {
-            world().DLOG("PredsN -> Top: {}", lam);
-            glob_i->second = Glob::Top;
-            return undo;
-        }
     }
 
     return No_Undo;

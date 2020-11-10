@@ -45,6 +45,7 @@ private:
     std::string name_;
 };
 
+/// Base class for all FPPass%es.
 class FPPassBase : public RWPass {
 public:
     FPPassBase(PassMan& man, const std::string& name, size_t index)
@@ -103,6 +104,8 @@ public:
         : world_(world)
     {}
 
+    World& world() const { return world_; }
+
     /// @name create and run
     //@{
     /// Add a pass to this @p PassMan.
@@ -123,10 +126,6 @@ public:
     void run();
     //@}
 
-    /// @name getters
-    //@{
-    World& world() const { return world_; }
-    //@}
     /// @name working with the rewrite-map
     //@{
     const Def* map(const Def* old_def, const Def* new_def) {
@@ -143,15 +142,12 @@ public:
 
         return {};
     }
+    //@}
 
-    bool is_tainted(Def* nom) {
-        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-            if (i->tainted.contains(nom)) return true;
-        }
-
-        return false;
-    }
-    bool mark_tainted(Def* nom) { return cur_state().tainted.emplace(nom).second; }
+    /// @name tainted nominals
+    ///@{
+    bool is_tainted(Def* nom) { return tainted_.contains(nom); }
+    bool mark_tainted(Def* nom) { return tainted_.emplace(nom).second; }
     //@}
 
 private:
@@ -172,7 +168,6 @@ private:
         Array<const Def*> old_ops;
         std::stack<Def*> stack;
         Def2Def old2new;
-        NomSet tainted;
     };
 
     void init_state();
@@ -196,12 +191,10 @@ private:
     std::vector<std::unique_ptr<RWPass    >> rw_passes_;
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
+    NomSet tainted_;
 
     template<class P> friend class FPPass;
 };
-
-inline World& RWPass::world() { return man().world(); }
-inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || lam->is_intrinsic() || !lam->is_set(); }
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
 template<class P>
@@ -279,6 +272,9 @@ private:
     auto& data() { assert(!states().empty()); return *static_cast<typename P::Data*>(states().back().data[index()]); }
     //@}
 };
+
+inline World& RWPass::world() { return man().world(); }
+inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || lam->is_intrinsic() || !lam->is_set(); }
 
 }
 

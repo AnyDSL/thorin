@@ -45,6 +45,8 @@ set(THORIN_SOURCES
     pass/fp/beta_eta_conv.h
     pass/fp/copy_prop.cpp
     pass/fp/copy_prop.h
+    pass/fp/scalarize.cpp
+    pass/fp/scalarize.h
     pass/fp/ssa_constr.cpp
     pass/fp/ssa_constr.h
     pass/rw/grad_gen.cpp

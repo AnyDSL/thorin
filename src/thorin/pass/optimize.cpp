@@ -1,5 +1,6 @@
 #include "thorin/pass/fp/beta_eta_conv.h"
 #include "thorin/pass/fp/copy_prop.h"
+#include "thorin/pass/fp/scalarize.h"
 #include "thorin/pass/fp/ssa_constr.h"
 #include "thorin/pass/rw/grad_gen.h"
 #include "thorin/pass/rw/partial_eval.h"
@@ -21,6 +22,7 @@ void optimize(World& world) {
     .add<BetaEtaConv>()
     .add<SSAConstr>()
     .add<CopyProp>()
+    //.add<Scalerize>()
     .run();
 #else
     PassMan(world)

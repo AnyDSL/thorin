@@ -4,13 +4,17 @@
 
 namespace thorin {
 
+void PassMan::init_state() {
+    auto num = fp_passes_.size();
+    states_.emplace_back(num);
+
+    for (size_t i = 0; i != num; ++i)
+        cur_state().data[i] = fp_passes_[i]->alloc();
+}
+
 void PassMan::push_state() {
-    states_.emplace_back(num_passes());
-
-    for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
-        cur_state().data[i] = passes_[i]->alloc();
-
-    if (states_.size() > 1) {
+    if (!fp_passes_.empty()) {
+        init_state();
         auto&& prev_state   = states_[states_.size() - 2];
         cur_state().stack   = prev_state.stack; // copy over stack
         cur_state().cur_nom = prev_state.stack.top();
@@ -21,7 +25,7 @@ void PassMan::push_state() {
 void PassMan::pop_states(size_t undo) {
     while (states_.size() != undo) {
         for (size_t i = 0, e = cur_state().data.size(); i != e; ++i)
-            passes_[i]->dealloc(cur_state().data[i]);
+            fp_passes_[i]->dealloc(cur_state().data[i]);
 
         if (undo != 0) // only reset if not final cleanup
             cur_state().cur_nom->set(cur_state().old_ops);
@@ -32,9 +36,9 @@ void PassMan::pop_states(size_t undo) {
 
 void PassMan::run() {
     world().ILOG("run");
-    push_state();
+    init_state();
 
-    for (auto&& pass : passes_)
+    for (auto pass : passes_)
         world().ILOG(" + {}", pass->name());
     world().debug_stream();
 
@@ -45,26 +49,24 @@ void PassMan::run() {
     }
 
     while (!cur_state().stack.empty()) {
-        if (needs_fixed_point()) push_state();
+        push_state();
         auto cur_nom = pop(cur_state().stack);
         world().VLOG("=== state/cur_nom {}/{} ===", states_.size() - 1, cur_nom);
 
         if (!cur_nom->is_set()) continue;
 
-        for (auto&& pass : passes_)
+        for (auto pass : passes_)
             pass->enter(cur_nom);
 
         for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
             cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
 
-        for (auto&& pass : passes_)
+        for (auto pass : passes_)
             pass->finish(cur_nom);
 
         undo_t undo = No_Undo;
-        if (needs_fixed_point()) {
-            for (auto&& pass : passes_)
-                undo = std::min(undo, pass->analyze(cur_nom));
-        }
+        for (auto&& pass : fp_passes_)
+            undo = std::min(undo, pass->analyze(cur_nom));
 
         if (undo == No_Undo) {
             for (auto op : cur_nom->extended_ops())
@@ -108,7 +110,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     }
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
-    for (auto&& pass : passes_) {
+    for (auto pass : passes_) {
         if (auto rw = pass->rewrite(cur_nom, new_def); rw != new_def)
             return map(old_def, rewrite(cur_nom, rw));
     }

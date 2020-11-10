@@ -70,8 +70,8 @@ private:
 
 class GradGen : public RWPass {
 public:
-    GradGen(PassMan& man, size_t index)
-        : RWPass(man, index, "GradGen")
+    GradGen(PassMan& man)
+        : RWPass(man, "GradGen")
     {}
     const Def* rewrite(Def*, const Def*) override;
 

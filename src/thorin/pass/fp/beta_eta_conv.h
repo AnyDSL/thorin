@@ -20,7 +20,7 @@ namespace thorin {
 class BetaEtaConv : public FPPass<BetaEtaConv> {
 public:
     BetaEtaConv(PassMan& man, size_t index)
-        : FPPass(man, index, "reduction")
+        : FPPass(man, "reduction", index)
     {}
 
     const Def* rewrite(Def*, const Def*) override;

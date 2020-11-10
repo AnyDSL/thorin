@@ -28,7 +28,7 @@ namespace thorin {
 class SSAConstr : public FPPass<SSAConstr> {
 public:
     SSAConstr(PassMan& man, size_t index)
-        : FPPass(man, index, "ssa_constr")
+        : FPPass(man, "ssa_constr", index)
     {}
 
     enum class Loc  : bool { Preds1_Callee, Preds1_Non_Callee };

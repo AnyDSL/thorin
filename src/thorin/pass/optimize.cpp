@@ -17,20 +17,20 @@ namespace thorin {
 void optimize(World& world) {
 #if 1
     PassMan(world)
-    .create<PartialEval>()
-    .create<BetaEtaConv>()
-    .create<SSAConstr>()
-    .create<CopyProp>()
+    .add<PartialEval>()
+    .add<BetaEtaConv>()
+    .add<SSAConstr>()
+    .add<CopyProp>()
     .run();
 #else
     PassMan(world)
-    .create<PartialEval>()
-    .create<BetaEtaConv>()
+    .add<PartialEval>()
+    .add<BetaEtaConv>()
     .run();
 
     PassMan(world)
-    .create<SSAConstr>()
-    .create<CopyProp>()
+    .add<SSAConstr>()
+    .add<CopyProp>()
     .run();
 #endif
 }
@@ -42,7 +42,7 @@ void optimize_old(World& world) {
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
-    PassMan(world).create<RetWrap>().run();
+    PassMan(world).add<RetWrap>().run();
 #endif
 }
 

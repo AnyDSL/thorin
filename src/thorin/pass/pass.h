@@ -14,11 +14,9 @@ static constexpr undo_t No_Undo = std::numeric_limits<undo_t>::max();
 /// * Inherit from @p FPPass using CRTP if you do need state.
 class RWPass {
 public:
-    RWPass(PassMan& man, size_t index, const std::string& name, bool needs_fixed_point = false)
+    RWPass(PassMan& man, const std::string& name)
         : man_(man)
-        , index_(index)
         , name_(name)
-        , needs_fixed_point_(needs_fixed_point)
     {}
     virtual ~RWPass() {}
 
@@ -26,11 +24,10 @@ public:
     //@{
     PassMan& man() { return man_; }
     const PassMan& man() const { return man_; }
-    size_t index() const { return index_; }
     const std::string& name() const { return name_; }
     World& world();
-    bool needs_fixed_point() const { return needs_fixed_point_; }
     //@}
+
     /// @name hooks for the PassMan
     //@{
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
@@ -41,22 +38,26 @@ public:
 
     /// Invoked just after @p rewrite%ing and before @p analyze%ing @p cur_nom's body.
     virtual void finish([[maybe_unused]] Def* cur_nom) {}
-
-    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
-    /// Default implementation invokes the other @p analyze method for all @p extended_ops of @p cur_nom.
-    /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze(Def* cur_nom) {
-        undo_t undo = No_Undo;
-        for (auto op : cur_nom->extended_ops())
-            undo = std::min(undo, analyze(cur_nom, op));
-        return undo;
-    }
-    virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
     //@}
+
+private:
+    PassMan& man_;
+    std::string name_;
+};
+
+class FPPassBase : public RWPass {
+public:
+    FPPassBase(PassMan& man, const std::string& name, size_t index)
+        : RWPass(man, name)
+        , index_(index)
+    {}
+
+    size_t index() const { return index_; }
+
     /// @name create Proxy
+    //@{
     const Proxy* proxy(const Def* type, Defs ops, flags_t flags, Debug dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
     const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return proxy(type, ops, 0, dbg); }
-    //@{
     /// @name check whether given @c def is a Proxy whose index matches this Pass's index
     const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
         if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;
@@ -68,6 +69,21 @@ public:
         return proxy;
     }
     //@}
+
+    /// @name hooks for the PassMan
+    //@{
+    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
+    /// Default implementation invokes the other @p analyze method for all @p extended_ops of @p cur_nom.
+    /// Return @p No_Undo or the state to roll back to.
+    virtual undo_t analyze(Def* cur_nom) {
+        undo_t undo = No_Undo;
+        for (auto op : cur_nom->extended_ops())
+            undo = std::min(undo, analyze(cur_nom, op));
+        return undo;
+    }
+    virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
+    //@}
+
     /// @name mangage state - dummy implementations here
     //@{
     virtual void* alloc() { return nullptr; }
@@ -75,10 +91,7 @@ public:
     //@}
 
 private:
-    PassMan& man_;
     size_t index_;
-    std::string name_;
-    const bool needs_fixed_point_ = false;
 };
 
 /// An optimizer that combines several optimizations in an optimal way.
@@ -86,8 +99,6 @@ private:
 /// "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
 class PassMan {
 public:
-    typedef std::unique_ptr<RWPass> PassPtr;
-
     PassMan(World& world)
         : world_(world)
     {}
@@ -96,19 +107,25 @@ public:
     //@{
     /// Add a pass to this @p PassMan.
     template<class P, class... Args>
-    PassMan& create(Args... args) {
-        passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...);
-        needs_fixed_point_ |= passes_.back()->needs_fixed_point();
+    PassMan& add(Args... args) {
+        if constexpr (std::is_base_of<FPPassBase, P>::value) {
+            auto p = std::make_unique<P>(*this, fp_passes_.size(), std::forward<Args>(args)...);
+            passes_.emplace_back(p.get());
+            fp_passes_.emplace_back(std::move(p));
+        } else {
+            auto p = std::make_unique<P>(*this, std::forward<Args>(args)...);
+            passes_.emplace_back(p.get());
+            rw_passes_.emplace_back(std::move(p));
+        }
         return *this;
     }
     /// Run all registered passes on the whole @p world.
     void run();
     //@}
+
     /// @name getters
     //@{
     World& world() const { return world_; }
-    size_t num_passes() const { return passes_.size(); }
-    bool needs_fixed_point() const { return needs_fixed_point_; }
     //@}
     /// @name working with the rewrite-map
     //@{
@@ -158,6 +175,7 @@ private:
         NomSet tainted;
     };
 
+    void init_state();
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
@@ -174,9 +192,10 @@ private:
     }
 
     World& world_;
-    std::vector<PassPtr> passes_;
+    std::vector<RWPass*> passes_;
+    std::vector<std::unique_ptr<RWPass    >> rw_passes_;
+    std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
-    bool needs_fixed_point_ = false;
 
     template<class P> friend class FPPass;
 };
@@ -186,10 +205,10 @@ inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || la
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
 template<class P>
-class FPPass : public RWPass {
+class FPPass : public FPPassBase {
 public:
-    FPPass(PassMan& man, size_t index, const std::string& name)
-        : RWPass(man, index, name, true)
+    FPPass(PassMan& man, const std::string& name, size_t index)
+        : FPPassBase(man, name, index)
     {}
 
     //@}
@@ -239,6 +258,7 @@ protected:
         states().back().analyzed[index()].emplace(def);
         return false;
     }
+    //@}
 
     /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p nom&inal.
     template<class T = Lam>

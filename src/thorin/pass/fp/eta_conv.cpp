@@ -1,61 +1,49 @@
 #include "thorin/pass/fp/eta_conv.h"
 
-#include "thorin/rewrite.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
 
-static bool is_free(DefSet& done, const Param* param, const Def* def) {
-    if (/* over-approximation */ def->isa_nominal() || def == param) return true;
-    if (def->isa<Param>()) return false;
-
-    if (done.emplace(def).second) {
-        for (auto op : def->ops()) {
-            if (is_free(done, param, op)) return true;
-        }
-    }
-
-    return false;
-}
-
 static bool is_free(const Param* param, const Def* def) {
-    DefSet done;
-    return is_free(done, param, def);
+    auto lam = param->nominal()->as<Lam>();
+
+    // optimize common cases
+    if (def == param) return true;
+    for (auto p : lam->params())
+        if (p == param) return true;
+
+    Scope scope(lam);
+    return scope.contains(def);
 }
 
 const Def* EtaConv::rewrite(Def*, const Def* def) {
     if (def->isa<Param>() || def->isa<Proxy>()) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && !man().is_tainted(lam)) {
-            if (auto app = lam->body()->isa<App>(); app != nullptr && app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
-                auto new_def = def->refine(i, app->callee());
-                world().DLOG("eta-reduction '{}' -> '{}' by eliminating '{}'", def, new_def, lam);
-                return new_def;
+        if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam) && !man().is_tainted(lam)) {
+            if (auto app = lam->body()->isa<App>())  {
+                if (auto callee = app->callee()->isa_nominal<Lam>()) {
+                    if (expand_.contains(callee)) continue;
+                }
+
+                if (app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
+                    auto new_def = def->refine(i, app->callee());
+                    world().DLOG("eta-reduction '{}' -> '{}' by eliminating '{}'", def, new_def, lam);
+                    return new_def;
+                }
             }
 
-            if (auto app = def->isa<App>(); app != nullptr && i == 0) {
-                if (auto lam = app->callee()->isa_nominal<Lam>(); !ignore(lam) && !man().is_tainted(lam) && !keep_.contains(lam)) {
-                    if (auto [_, ins] = put<LamSet>(lam); ins) {
-                        world().DLOG("beta-redunction '{}'", lam);
-                        return lam->apply(app->arg());
-                    } else {
-                        return proxy(app->type(), {lam, app->arg()});
-                    }
-                }
-            } else {
-                if (wrappers_.contains(def)) return def;
-
-                auto& eta = def2eta_.emplace(def, nullptr).first->second;
-                if (eta == nullptr) {
+            if (auto exp_i = def2expansion_.find(def); exp_i != def2expansion_.end()) {
+                auto& exp = exp_i->second;
+                if (exp == nullptr) {
                     auto wrap = lam->stub(world(), lam->type(), lam->debug());
                     wrap->set_name(std::string("eta_wrap_") + lam->name());
                     wrap->app(lam, wrap->param());
-                    eta = def->refine(i, wrap);
-                    world().DLOG("eta-wrap '{}' -> '{}' using '{}'", def, eta, wrap);
-                    wrappers_.emplace(eta);
+                    exp = def->refine(i, wrap);
+                    world().DLOG("eta-wrap '{}' -> '{}' using '{}'", def, exp, wrap);
                 }
 
-                return eta;
+                return exp;
             }
         }
     }
@@ -63,36 +51,56 @@ const Def* EtaConv::rewrite(Def*, const Def* def) {
     return def;
 }
 
-
 undo_t EtaConv::analyze(Def* cur_nom, const Def* def) {
     auto cur_lam = descend(cur_nom, def);
     if (cur_lam == nullptr) return No_Undo;
 
-    if (auto proxy = isa_proxy(def)) {
-        auto lam = proxy->op(0)->as_nominal<Lam>();
-        if (keep_.emplace(lam).second) {
-            world().DLOG("found proxy app of '{}'", lam);
-            auto [undo, _] = put<LamSet>(lam);
-            return undo;
-        }
-    } else {
-        auto undo = No_Undo;
-        for (auto op : def->ops()) {
-            undo = std::min(undo, analyze(cur_nom, op));
+    auto undo = No_Undo;
+    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+        undo = std::min(undo, analyze(cur_nom, def->op(i)));
 
-            if (auto lam = op->isa_nominal<Lam>(); !ignore(lam) && !man().is_tainted(lam) && keep_.emplace(lam).second) {
-                auto [lam_undo, ins] = put<LamSet>(lam);
-                if (!ins) {
-                    world().DLOG("non-callee-position of '{}'; undo to {} beta-reduction of {} within {}", lam, lam_undo, lam, cur_nom);
-                    undo = std::min(undo, lam_undo);
+        if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam) && !man().is_tainted(lam)) {
+            if (is_callee(def, i)) {
+                if (expand_.contains(lam)) continue;
+
+                auto&& [l, u, ins] = insert<LamMap<Lattice>>(lam, Lattice::Callee);
+                if (ins) {
+                    world().DLOG("Bot -> Callee: '{}'", lam);
+                    l = Lattice::Callee;
+                } else if (l == Lattice::Once_Non_Callee) {
+                    world().DLOG("Once_Non_Callee -> expand: '{}'", lam);
+                    expand_.emplace(lam);
+                    undo = std::min(undo, u);
+                }
+            } else { // non-callee
+                auto expand = [&](undo_t u, bool put) {
+                    if (put) expand_.emplace(lam);
+                    def2expansion_.emplace(def, nullptr);
+                    undo = std::min(undo, u);
+                };
+
+                if (expand_.contains(lam)) {
+                    expand(cur_undo(), false);
+                    continue;
+                }
+
+                auto&& [l, u, ins] = insert<LamMap<Lattice>>(lam, Lattice::Callee);
+                if (ins) {
+                    world().DLOG("Bot -> Once_Non_Callee: '{}'", lam);
+                    l = Lattice::Once_Non_Callee;
+                } else if (l == Lattice::Callee) {
+                    world().DLOG("Callee -> expand: '{}'", lam);
+                    expand(cur_undo(), true);
+                    //expand(u, true);
+                } else { // l == Lattice::Once_Non_Callee
+                    world().DLOG("Once_Non_Callee -> expand: '{}'", lam);
+                    expand(u, true);
                 }
             }
         }
-
-        return undo;
     }
 
-    return No_Undo;
+    return undo;
 }
 
 }

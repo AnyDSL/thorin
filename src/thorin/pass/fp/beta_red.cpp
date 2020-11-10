@@ -4,11 +4,11 @@
 
 namespace thorin {
 
-const Def* BetaRed::rewrite(Def* cur_nom, const Def* def) {
+const Def* BetaRed::rewrite(Def*, const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
             if (auto [_, ins] = put<LamSet>(lam); ins) {
-                world().DLOG("beta-reduction {} within {}", lam, cur_nom);
+                world().DLOG("beta-reduction {}", lam);
                 return lam->apply(app->arg());
             } else {
                 return proxy(app->type(), {lam, app->arg()});

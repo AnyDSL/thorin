@@ -167,7 +167,6 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
         }
     } else {
         auto undo = No_Undo;
-        auto app = def->isa<App>();
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             undo = std::min(undo, analyze(cur_nom, def->op(i)));
 
@@ -179,7 +178,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
                     lam_enter.writable.insert_range(range(cur_enter.writable));
                 }
 
-                auto preds1 = app != nullptr && i == 0 ? Loc::Preds1_Callee : Loc::Preds1_Non_Callee;
+                auto preds1 = is_callee(def, i) ? Loc::Preds1_Callee : Loc::Preds1_Non_Callee;
                 if (auto u = join(cur_lam, lam, preds1); u != No_Undo) undo = std::min(undo, u);
             }
         }

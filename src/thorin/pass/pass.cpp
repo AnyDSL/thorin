@@ -114,7 +114,8 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
 }
 
 void PassMan::enqueue(const Def* def) {
-    if (def->is_const() || def->isa<Proxy>() || enqueued(def)) return;
+    if (def->is_const() || enqueued(def)) return;
+    assert(!def->isa<Proxy>() && "proxies must not occur anymore after finishing a nominal with No_Undo");
 
     if (auto nom = def->isa_nominal()) {
         cur_state().stack.push(nom);

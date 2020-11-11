@@ -56,12 +56,12 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
 }
 
 const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
-    if (ignore(lam)) {
-        world().DLOG("cannot install phi for '{}' because I must ignore it", sloxy, lam);
-        return sloxy;
-    } else if (auto val = lam2sloxy2val_[lam].lookup(sloxy)) {
+    if (auto val = lam2sloxy2val_[lam].lookup(sloxy)) {
         world().DLOG("get_val found: '{}': '{}': '{}'", sloxy, *val, lam);
         return *val;
+    } else if (ignore(lam)) {
+        world().DLOG("cannot install phi for '{}' in '{}'", sloxy, lam);
+        return sloxy;
     } else if (auto pred = std::get<0>(insert<LamMap<Visit>>(lam)).pred) {
         world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, pred, lam);
         return get_val(pred, sloxy);

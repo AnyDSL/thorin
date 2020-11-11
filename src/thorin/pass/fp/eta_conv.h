@@ -37,6 +37,7 @@ public:
 private:
     Def2Def def2exp_;
     LamSet expand_;
+    LamSet wrappers_;
     Def2Def def2expansion_;
 };
 

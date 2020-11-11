@@ -90,7 +90,6 @@ undo_t EtaConv::analyze(Def* cur_nom, const Def* def) {
                 } else if (l == Lattice::Callee) {
                     world().DLOG("Callee -> expand: '{}'", lam);
                     expand(cur_undo(), true);
-                    //expand(u, true);
                 } else { // l == Lattice::Once_Non_Callee
                     world().DLOG("Once_Non_Callee -> expand: '{}'", lam);
                     expand(u, true);

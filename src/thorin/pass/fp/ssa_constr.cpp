@@ -104,8 +104,6 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
         phi_lam = world().lam(new_type, mem_lam->debug());
         world().DLOG("new phi_lam '{}'", phi_lam);
-
-        man().mark_tainted(phi_lam);
         world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
         auto [_, ins] = preds_n_.emplace(phi_lam);
         assert(ins);
@@ -122,7 +120,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         auto traxy = proxy(phi_lam->param()->type(), traxy_ops, Traxy);
 
         Array<const Def*> new_params(num_mem_params, [&](size_t i) { return traxy->out(i); });
-        phi_lam->subst(mem_lam, mem_lam->param(), world().tuple(mem_lam->domain(), new_params));
+        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->domain(), new_params)));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }

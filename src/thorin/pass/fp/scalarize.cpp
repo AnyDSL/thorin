@@ -53,7 +53,7 @@ undo_t Scalerize::analyze(Def* cur_nom, const Def* def) {
         for (auto op : def->ops()) {
             undo = std::min(undo, analyze(cur_nom, op));
 
-            if (auto lam = op->isa_nominal<Lam>(); !ignore(lam) && !man().is_tainted(lam) && keep_.emplace(lam).second) {
+            if (auto lam = op->isa_nominal<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
             }
         }
 

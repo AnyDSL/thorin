@@ -279,13 +279,13 @@ public:
     //@}
     /// @name rewrites last op by substituting @p param with @p arg.
     //@{
-    const Def* apply(const Def* arg) const;
-    const Def* apply(const Def* arg);
+    Array<const Def*> apply(const Def* arg) const;
+    Array<const Def*> apply(const Def* arg);
     //@}
     /// @name reduce/subst
     //@{
     const Def* reduce() const;
-    Def* subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg = {});
+    //Def* subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg = {});
     /// @p rebuild%s this @p Def while using @p new_op as substitute for its @p i'th @p op
     const Def* refine(size_t i, const Def* new_op) const;
     //@}
@@ -1141,28 +1141,6 @@ public:
     //@}
 
     static constexpr auto Node = Node::Proxy;
-    friend class World;
-};
-
-class Subst : public Def {
-private:
-    Subst(const Def* def, const Def* replacee, const Def* replacer, const Def* dbg)
-        : Def(Node, def->type(), {def, replacee, replacer}, 0, dbg)
-    {}
-
-public:
-    /// @name misc getters
-    //@{
-    const Def* def() const { return op(0); }
-    const Def* replacee() const { return op(1); }
-    const Def* replacer() const { return op(2); }
-    //@}
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    //@}
-
-    static constexpr auto Node = Node::Subst;
     friend class World;
 };
 

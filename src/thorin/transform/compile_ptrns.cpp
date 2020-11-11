@@ -118,7 +118,7 @@ public:
         // If the first pattern of the list matches everything, then no need for a match
         if (arg->type()->reduce()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
             redundant_[parent_[ptrns[0]]] = false;
-            return ptrns[0]->apply(arg);
+            return ptrns[0]->apply(arg).back();
         }
 
         // Flatten tuple patterns

@@ -144,12 +144,6 @@ public:
     }
     //@}
 
-    /// @name tainted nominals
-    ///@{
-    bool is_tainted(Def* nom) { return tainted_.contains(nom); }
-    bool mark_tainted(Def* nom) { return tainted_.emplace(nom).second; }
-    //@}
-
 private:
     struct State {
         State() = default;
@@ -191,7 +185,6 @@ private:
     std::vector<std::unique_ptr<RWPass    >> rw_passes_;
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
-    NomSet tainted_;
 
     template<class P> friend class FPPass;
 };

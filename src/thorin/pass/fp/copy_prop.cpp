@@ -45,7 +45,6 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         auto prop_domain = world().sigma(types);
         auto new_type = world().pi(prop_domain, param_lam->codomain());
         prop_lam = param_lam->stub(world(), new_type, param_lam->debug());
-        man().mark_tainted(prop_lam);
         keep_.emplace(prop_lam); // don't try to propagate again
         world().DLOG("param_lam => prop_lam: {}: {} => {}: {}", param_lam, param_lam->type()->domain(), prop_lam, prop_domain);
 
@@ -53,7 +52,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         Array<const Def*> new_params(app->num_args(), [&](size_t i) {
             return keep_.contains(param_lam->param(i)) ? prop_lam->param(j++) : args[i];
         });
-        prop_lam->subst(param_lam, param_lam->param(), world().tuple(new_params));
+        prop_lam->set(param_lam->apply(world().tuple(new_params)));
     }
 
     return app->world().app(prop_lam, new_args, app->debug());

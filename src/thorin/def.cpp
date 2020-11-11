@@ -386,17 +386,16 @@ const Def*   Def::param(size_t i) { return param(i, Debug()); }
  * apply/reduce
  */
 
-const Def* Def::apply(const Def* arg) const {
+Array<const Def*> Def::apply(const Def* arg) const {
     if (auto nom = isa_nominal()) return nom->apply(arg);
-    return ops().back();
+    return ops();
 }
 
-const Def* Def::apply(const Def* arg) {
-    auto& rewrites = world().data_.rewrites_;
-    if (auto def = rewrites.lookup({this, arg})) return *def;
+Array<const Def*> Def::apply(const Def* arg) {
+    auto& cache = world().data_.cache_;
+    if (auto res = cache.lookup({this, arg})) return *res;
 
-    auto res = rewrite(this, arg, num_ops() - 1);
-    return rewrites[{this, arg}] = res;
+    return cache[{this, arg}] = rewrite(this, arg);
 }
 
 const Def* Def::reduce() const {
@@ -404,20 +403,13 @@ const Def* Def::reduce() const {
     while (auto app = def->isa<App>()) {
         auto callee = app->callee()->reduce();
         if (callee->isa_nominal()) {
-            def = callee->apply(app->arg());
+            def = callee->apply(app->arg()).back();
         } else {
             def = callee != app->callee() ? world().app(callee, app->arg(), app->debug()) : app;
             break;
         }
     }
     return def;
-}
-
-Def* Def::subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg) {
-    assert(this->node() == from->node());
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        set(i, world().subst(from->op(i), replacer, replacee, dbg));
-    return this;
 }
 
 const Def* Def::refine(size_t i, const Def* new_op) const {
@@ -450,7 +442,6 @@ const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) con
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
 const Def* Proxy   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, as<Proxy>()->index(), as<Proxy>()->flags(), dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
-const Def* Subst   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.subst(o[0], o[1], o[2], dbg); }
 const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }
 const Def* Tuple   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }

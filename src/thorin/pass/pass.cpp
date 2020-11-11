@@ -95,11 +95,6 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
             return map(old_def, rewrite(cur_nom, *new_def));
     }
 
-    if (auto subst = old_def->isa<Subst>()) {
-        map(subst->replacee(), rewrite(cur_nom, subst->replacer()));
-        return map(subst, rewrite(cur_nom, subst->def()));
-    }
-
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
 

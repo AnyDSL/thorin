@@ -411,12 +411,11 @@ public:
     const Def* op(PE o) { return data_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
-    /// @name Proxy & Stub - used internally for Pass%es
+    /// @name Proxy - used internally for Pass%es
     //@{
     const Proxy* proxy(const Def* type, Defs ops, tag_t index, flags_t flags, Debug dbg = {}) {
         return unify<Proxy>(ops.size(), type, ops, index, flags, debug(dbg));
     }
-    const Def* subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg = {});
     //@}
     /// @name misc operations
     //@{
@@ -717,13 +716,13 @@ private:
         std::string name_;
         Externals externals_;
         Sea defs_;
-        DefDef2Def rewrites_;
+        DefDefMap<Array<const Def*>> cache_;
     } data_;
 
     std::unique_ptr<ErrorHandler> err_;
 
     friend class Cleaner;
-    friend const Def* Def::apply(const Def*);
+    friend Array<const Def*> Def::apply(const Def*);
     friend void Def::replace(Tracker) const;
 };
 

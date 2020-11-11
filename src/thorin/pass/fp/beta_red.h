@@ -21,7 +21,6 @@ public:
     using Data = std::tuple<LamSet>;
 
 private:
-    bool is_candidate(Lam* lam) { return !ignore(lam) && !man().is_tainted(lam); }
 
     LamSet keep_;
 };

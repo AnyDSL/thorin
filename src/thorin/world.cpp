@@ -217,7 +217,7 @@ const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Deb
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
-    auto type = pi->apply(arg);
+    auto type = pi->apply(arg).back();
 
     auto [axiom, currying_depth] = get_axiom(callee); // TODO move down again
 #if 0
@@ -235,7 +235,7 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
 
 const Def* World::raw_app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
-    auto type = pi->apply(arg);
+    auto type = pi->apply(arg).back();
     auto [axiom, currying_depth] = get_axiom(callee);
     return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
 }
@@ -339,7 +339,7 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
 
     bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
     if (trivial)
-        return ptrns[0]->as<Ptrn>()->apply(arg);
+        return ptrns[0]->as<Ptrn>()->apply(arg).back();
     if (ptrns.size() == 1 && !trivial) {
         if (err()) err()->incomplete_match(match);
         return bot(type);
@@ -349,7 +349,7 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
         for (auto ptrn : ptrns) {
             // If the pattern matches the argument
             if (ptrn->as<Ptrn>()->matches(arg))
-                return ptrn->as<Ptrn>()->apply(arg);
+                return ptrn->as<Ptrn>()->apply(arg).back();
         }
         return bot(type);
     }
@@ -619,21 +619,6 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
     str_array.back() = lit_nat('\0', dbg);
 
     return global(tuple(str_array, dbg), false, dbg);
-}
-
-const Def* World::subst(const Def* def, const Def* replacee, const Def* replacer, Debug dbg) {
-    if (def->is_const()) return def;
-    if (def == replacee) return replacer;
-
-    if (auto s = def->isa<Subst>()) {
-        // subst(subst(x, a, b), a, b) = subst(x, a, b)
-        //if (s->replacee() == replacee && s->replacer() == replacer) return s;
-
-        // subst(subst(x, a, b), b, c) = subst(x, a, c)
-        //if (s->replacer() == replacee) return subst(def, s->replacee(), replacer);
-    }
-
-    return unify<Subst>(3, def, replacee, replacer, debug(dbg));
 }
 
 /*

@@ -45,7 +45,7 @@ undo_t Scalerize::analyze(Def* cur_nom, const Def* def) {
         auto lam = proxy->op(0)->as_nominal<Lam>();
         if (keep_.emplace(lam).second) {
             world().DLOG("found proxy app of '{}'", lam);
-            auto [undo, _] = put<LamSet>(lam);
+            auto [undo, _] = put(lam);
             return undo;
         }
     } else {

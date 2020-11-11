@@ -209,14 +209,14 @@ protected:
     //@{
     /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
     /// @return A triple: <code> [undo, inserted] </code>.
-    template<class S>
-    auto put(const typename S::key_type& key) {
+    template<class K, size_t I = 0>
+    auto put(const K& key) {
         for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& set = std::get<S>(data(undo));
+            auto& set = std::get<I>(data(undo));
             if (auto i = set.find(key); i != set.end()) return std::tuple(undo, false);
         }
 
-        auto [_, inserted] = std::get<S>(data()).emplace(key);
+        auto [_, inserted] = std::get<I>(data()).emplace(key);
         assert(inserted);
         return std::tuple(cur_undo(), true);
     }

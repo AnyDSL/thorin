@@ -10,7 +10,7 @@ static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {
 
 void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
-        insert<LamMap<Enter>>(lam); // create undo point
+        insert<Writable>(lam); // create undo point
         lam2sloxy2val_[lam].clear();
         slot_id_ = 0;
     }
@@ -31,8 +31,8 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
             set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
-            auto&& [enter, _, __] = insert<LamMap<Enter>>(cur_lam);
-            enter.writable.emplace(sloxy);
+            auto&& [writable, _, __] = insert<Writable>(cur_lam);
+            writable.emplace(sloxy);
             return world().tuple({slot->arg(), sloxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
@@ -42,7 +42,7 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
         if (auto sloxy = isa_proxy(ptr, Sloxy)) {
-            if (auto&& [enter, _, __] = insert<LamMap<Enter>>(cur_lam); enter.writable.contains(sloxy)) {
+            if (auto&& [writable, _, __] = insert<Writable>(cur_lam); writable.contains(sloxy)) {
                 set_val(cur_lam, sloxy, val);
                 return mem;
             }
@@ -62,7 +62,7 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
     } else if (ignore(lam)) {
         world().DLOG("cannot install phi for '{}' in '{}'", sloxy, lam);
         return sloxy;
-    } else if (auto pred = std::get<0>(insert<LamMap<Visit>>(lam)).pred) {
+    } else if (auto pred = std::get<0>(insert<LamMap<Lam*>>(lam))) {
         world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, pred, lam);
         return get_val(pred, sloxy);
     } else {
@@ -82,7 +82,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     auto& lam2phixys = lam2phixys_[mem_lam];
     if (lam2phixys.empty()) return app;
 
-    insert<LamMap<Visit>>(mem_lam); // create undo
+    insert<LamMap<Lam*>>(mem_lam); // create undo
     auto& phi_lam = mem2phi_.emplace(mem_lam, nullptr).first->second;
 
     std::vector<const Def*> types;
@@ -148,7 +148,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
 
         if (keep_.emplace(sloxy).second) {
             world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, def);
-            auto&& [_, undo, __] = insert<LamMap<Enter>>(sloxy_lam);
+            auto&& [_, undo, __] = insert<Writable>(sloxy_lam);
             return undo;
         }
     } else if (auto phixy = isa_proxy(def, Phixy)) {
@@ -156,7 +156,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
         auto& phixys = lam2phixys_[mem_lam];
 
         if (phixys.emplace(sloxy).second) {
-            auto&& [_, undo, __] = insert<LamMap<Visit>>(mem_lam);
+            auto&& [_, undo, __] = insert<LamMap<Lam*>>(mem_lam);
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, undo);
             mem2phi_[mem_lam] = nullptr;
             return std::min(undo, analyze(cur_nom, phixy->op(0)));
@@ -169,16 +169,16 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
             if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam)) {
                 if (lam->is_basicblock() && lam != cur_lam) {
                     // TODO this is a bit scruffy - maybe we can do better
-                    auto&& [lam_enter, _, __] = insert<LamMap<Enter>>(lam);
-                    auto&& [cur_enter, x, xx] = insert<LamMap<Enter>>(cur_lam);
-                    lam_enter.writable.insert_range(range(cur_enter.writable));
+                    auto&& [lam_writable, _, __] = insert<Writable>(lam);
+                    auto&& [cur_writable, x, xx] = insert<Writable>(cur_lam);
+                    lam_writable.insert_range(range(cur_writable));
                 }
 
-                auto&& [visit, u, ins] = insert<LamMap<Visit>>(lam);
+                auto&& [pred, u, ins] = insert<LamMap<Lam*>>(lam);
                 if (!preds_n_.contains(lam)) {
                     if (ins) {
                         world().DLOG("bot -> preds_1: '{}' with pred '{}'", lam, cur_lam);
-                        visit.pred = cur_lam;
+                        pred = cur_lam;
                     } else {
                         preds_n_.emplace(lam);
                         world().DLOG("preds_1 -> preds_n: '{}'", lam);

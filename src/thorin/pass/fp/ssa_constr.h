@@ -23,16 +23,8 @@ public:
     {}
 
     enum : flags_t { Sloxy, Phixy, Traxy };
-
-    struct Visit {
-        Lam* pred = nullptr;
-    };
-
-    struct Enter {
-        GIDSet<const Proxy*> writable;
-    };
-
-    using Data = std::tuple<LamMap<Visit>, LamMap<Enter>>;
+    using Writable = LamMap<GIDSet<const Proxy*>>;
+    using Data = std::tuple<LamMap<Lam*>, Writable>;
 
 private:
     void enter(Def*) override;

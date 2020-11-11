@@ -22,7 +22,7 @@ const Def* EtaConv::rewrite(Def*, const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
             if (auto app = lam->body()->isa<App>()) {
-                    if (wrappers_.contains(lam)) continue;
+                if (wrappers_.contains(lam)) continue;
 
                 if (app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
                     auto new_def = def->refine(i, app->callee());

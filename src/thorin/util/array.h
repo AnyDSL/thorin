@@ -286,6 +286,12 @@ public:
     T const& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return data()[i]; }
     bool operator==(const Array other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     Array& operator=(Array other) { swap(*this, other); return *this; }
+    template<size_t N = size_t(-1)> std::array<T, N> to_array() const {
+        assert(size() == N);
+        std::array<T, N> result;
+        std::copy(begin(), end(), result.begin());
+        return result;
+    }
 
     friend void swap(Array& a, Array& b) {
         swap(a.storage_, b.storage_);

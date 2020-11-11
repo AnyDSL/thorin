@@ -172,10 +172,7 @@ public:
         if constexpr (N == size_t(-1)) {
             return Defs(num_ops_, ops_ptr());
         } else {
-            assert(num_ops() == N);
-            std::array<const Def*, N> array;
-            std::copy(ops().begin(), ops().end(), array.begin());
-            return array;
+            return ops().template to_array<N>();
         }
     }
     const Def* op(size_t i) const { return ops()[i]; }

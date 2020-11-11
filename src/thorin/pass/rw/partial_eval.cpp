@@ -9,10 +9,10 @@ const Def* PartialEval::rewrite(Def* cur_nom, const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && lam->is_set()) {
             if (lam->filter() == world().lit_false()) return def; // optimize this common case
 
-            Scope scope(lam);
-            if (auto filter = isa_lit<bool>(thorin::rewrite(lam, app->arg(), 0, scope)); filter && *filter) {
+            auto [filter, body] = lam->apply(app->arg()).to_array<2>();
+            if (isa_lit<bool>(filter)) {
                 world().DLOG("PE {} within {}", lam, cur_nom);
-                return lam->apply(app->arg()).back();
+                return body;
             }
         }
     }

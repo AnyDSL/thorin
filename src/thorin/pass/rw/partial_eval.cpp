@@ -10,7 +10,7 @@ const Def* PartialEval::rewrite(Def* cur_nom, const Def* def) {
             if (lam->filter() == world().lit_false()) return def; // optimize this common case
 
             auto [filter, body] = lam->apply(app->arg()).to_array<2>();
-            if (isa_lit<bool>(filter)) {
+            if (auto f = isa_lit<bool>(filter); f && *f) {
                 world().DLOG("PE {} within {}", lam, cur_nom);
                 return body;
             }

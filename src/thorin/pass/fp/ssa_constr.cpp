@@ -161,7 +161,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
             auto&& [_, undo, __] = insert<LamMap<Visit>>(mem_lam);
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, undo);
             mem2phi_[mem_lam] = nullptr;
-            return undo;
+            return std::min(undo, analyze(cur_nom, phixy->op(0)));
         }
     } else {
         auto undo = No_Undo;

@@ -35,6 +35,8 @@ protected:
 
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
+    llvm::Value* createComplexCast(llvm::Value*, llvm::Type*, size_t);
+    llvm::Value* createComplexBackCast(llvm::Value*, llvm::Value*, size_t);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Value* emit_alloc(const Type*, const Def*);

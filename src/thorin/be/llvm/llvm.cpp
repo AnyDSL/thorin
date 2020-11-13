@@ -664,6 +664,174 @@ llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
     return irbuilder_.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
 }
 
+llvm::Value *CodeGen::createComplexCast(llvm::Value *source, llvm::Type *target_type, size_t offset) {
+    auto layout = module_->getDataLayout();
+    auto source_type = source->getType(); // {max_align, [n x i8]}
+
+    size_t source_type_size = layout.getTypeAllocSize(source_type);
+    size_t target_type_size = layout.getTypeAllocSize(target_type);
+    size_t max_align = layout.getTypeAllocSize(source_type->getStructElementType(0));
+
+    assert(source_type_size >= target_type_size);
+
+    if (target_type->isAggregateType()) {
+        if (llvm::isa<llvm::StructType>(target_type)) {
+            auto target_type_struct = llvm::dyn_cast<llvm::StructType>(target_type);
+            auto struct_layout = layout.getStructLayout(target_type_struct);
+            llvm::Value *buffer = llvm::UndefValue::get(target_type_struct);
+            for (unsigned k = 0; k < target_type_struct->getNumElements(); k++) {
+                auto element_type = target_type_struct->getElementType(k);
+                auto element_offset = struct_layout->getElementOffset(k);
+                auto converted = createComplexCast(source, element_type, offset + element_offset);
+                assert(converted->getType() == element_type);
+                buffer = irbuilder_.CreateInsertValue(buffer, converted, { k });
+            }
+            return buffer;
+        } else if (llvm::isa<llvm::ArrayType>(target_type)) {
+            assert(false && "not yet implemented");
+        } else {
+            assert(false && "these should be the only relevant aggregate types");
+        }
+    } else {
+        if (offset < max_align) { //Contained in first element.
+            source = irbuilder_.CreateExtractValue(source, { 0 });
+            auto source_type = source->getType();
+            size_t source_type_size = layout.getTypeAllocSize(source_type);
+            auto equal_sized_int_source = llvm::IntegerType::get(module_->getContext(), source_type_size * 8);
+            auto equal_sized_int_target = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
+            if (source_type != equal_sized_int_source)
+                source = irbuilder_.CreateBitCast(source, equal_sized_int_source);
+            if (offset != 0)
+                source = irbuilder_.CreateLShr(source, offset * 8);
+            source = irbuilder_.CreateTrunc(source, equal_sized_int_target);
+            if (target_type != equal_sized_int_target)
+                source = irbuilder_.CreateBitCast(source, target_type);
+            return source;
+        } else { //Contained in second element.
+            source = irbuilder_.CreateExtractValue(source, { 1 });
+            size_t offset_back = offset - max_align;
+            auto element_type = source->getType()->getArrayElementType();
+            size_t element_type_size = layout.getTypeAllocSize(element_type);
+
+            assert(offset_back % element_type_size == 0 && "Smaller types not supported as of now");
+            assert(target_type_size % element_type_size == 0 && "Smaller types not supported as of now");
+
+            auto build = irbuilder_.CreateExtractValue(source, { offset_back / element_type_size });
+            if (layout.getTypeAllocSize(build->getType()) < target_type_size) {
+                auto equal_sized_int = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
+
+                build = irbuilder_.CreateZExt(build, equal_sized_int);
+
+                for (size_t k = element_type_size; k < target_type_size; k += element_type_size) {
+                    auto nextelem = irbuilder_.CreateExtractValue(source, { (offset_back + k) / element_type_size });
+                    nextelem = irbuilder_.CreateZExt(nextelem, equal_sized_int);
+                    nextelem = irbuilder_.CreateShl(nextelem, k * 8);
+                    build = irbuilder_.CreateOr(build, nextelem);
+                }
+
+                if (target_type != equal_sized_int)
+                    build = irbuilder_.CreateBitCast(build, target_type);
+            }
+            if (build->getType() != target_type) { //TODO: sizes might differ!
+                build = irbuilder_.CreateBitCast(build, target_type); //TODO: there might be aggregates involved here?
+            }
+
+            return build;
+        }
+    }
+
+    THORIN_UNREACHABLE;
+}
+
+llvm::Value *CodeGen::createComplexBackCast(llvm::Value *source, llvm::Value *target, size_t offset) {
+    auto layout = module_->getDataLayout();
+    auto source_type = source->getType();
+    auto target_type = target->getType();
+
+    size_t source_type_size = layout.getTypeAllocSize(source_type);
+    size_t target_type_size = layout.getTypeAllocSize(target_type);
+    size_t max_align = layout.getTypeAllocSize(target_type->getStructElementType(0));
+
+    assert(source_type_size <= target_type_size);
+
+    if (source_type->isAggregateType()) {
+        if (llvm::isa<llvm::StructType>(source_type)) {
+            auto source_type_struct = llvm::dyn_cast<llvm::StructType>(source_type);
+            auto struct_layout = layout.getStructLayout(source_type_struct);
+            llvm::Value *buffer = target;
+            for (unsigned k = 0; k < source_type_struct->getNumElements(); k++) {
+                auto element_offset = struct_layout->getElementOffset(k);
+                auto element = irbuilder_.CreateExtractValue(source, { k });
+                buffer = createComplexBackCast(element, buffer, offset + element_offset);
+            }
+            return buffer;
+        } else if (llvm::isa<llvm::ArrayType>(source_type)) {
+            assert(false && "not yet implemented");
+        } else {
+            assert(false && "these should be the only relevant aggregate types");
+        }
+    } else {
+        if (offset < max_align) { //Contained in first element.
+            target_type = target_type->getStructElementType(0);
+            target_type_size = layout.getTypeAllocSize(target_type);
+            auto equal_sized_int_source = llvm::IntegerType::get(module_->getContext(), source_type_size * 8);
+            auto equal_sized_int_target = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
+            if (source_type != equal_sized_int_source)
+                source = irbuilder_.CreateBitCast(source, equal_sized_int_source);
+            source = irbuilder_.CreateZExt(source, equal_sized_int_target);
+            if (offset != 0)
+                source = irbuilder_.CreateShl(source, offset * 8);
+            if (target_type != equal_sized_int_target)
+                source = irbuilder_.CreateBitCast(source, target_type);
+            if (source_type_size != target_type_size) {
+                auto oldvalue = irbuilder_.CreateExtractValue(target, { 0 });
+                oldvalue = irbuilder_.CreateAnd(oldvalue, ((1 << target_type_size) - 1) ^ (((1 << source_type_size) - 1) << offset));
+                source = irbuilder_.CreateOr(oldvalue, source);
+            }
+            target = irbuilder_.CreateInsertValue(target, source, { 0 });
+            return target;
+        } else { //Contained in second element.
+            size_t offset_back = offset - max_align;
+
+            auto build = irbuilder_.CreateExtractValue(target, { 1 });
+            auto element_type = build->getType()->getArrayElementType();
+            auto element_type_size = layout.getTypeAllocSize(element_type);
+
+            assert(offset_back % element_type_size == 0 && "Smaller types not supported as of now");
+            assert(source_type_size % element_type_size == 0 && "Smaller types not supported as of now");
+
+            if (element_type_size < source_type_size) {
+                auto equal_sized_int_source = llvm::IntegerType::get(module_->getContext(), source_type_size * 8);
+                auto equal_sized_int_target = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
+
+                if (source->getType() != equal_sized_int_source)
+                    source = irbuilder_.CreateBitCast(source, equal_sized_int_source);
+
+                if (equal_sized_int_source < equal_sized_int_target)
+                    source = irbuilder_.CreateZExt(source, equal_sized_int_target);
+
+                for (size_t k = 0; k < source_type_size; k += element_type_size) {
+                    auto nextelem = irbuilder_.CreateLShr(source, k * 8);
+                    if (nextelem->getType() != element_type)
+                        nextelem = irbuilder_.CreateTrunc(nextelem, element_type);
+                    build = irbuilder_.CreateInsertValue(build, nextelem, { (offset_back + k) / element_type_size });
+                }
+            } else if (source->getType() != element_type) {
+                source = irbuilder_.CreateBitCast(source, element_type);
+                build = irbuilder_.CreateInsertValue(build, source, { offset_back / element_type_size });
+            } else {
+                build = irbuilder_.CreateInsertValue(build, source, { offset_back / element_type_size });
+            }
+
+            target = irbuilder_.CreateInsertValue(target, build, { 1 });
+
+            return target;
+        }
+    }
+
+    THORIN_UNREACHABLE;
+}
+
 llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
@@ -966,12 +1134,17 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto payload_value = irbuilder_.CreateExtractValue(llvm_value, { 0 });
 
         auto target_type = convert(variant_value->type()->op(variant_extract->index()));
+#if 1
+        auto target_value = createComplexCast(payload_value, target_type, 0);
+        return target_value;
+#else
         return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
             irbuilder_.CreateStore(payload_value, alloca);
             auto addr_space = alloca->getType()->getPointerAddressSpace();
             auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
             return irbuilder_.CreateLoad(payload_addr);
         });
+#endif
     }
     if (auto variant_ctor = def->isa<Variant>()) {
         auto layout = module_->getDataLayout();
@@ -979,7 +1152,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
         auto payload_value = lookup(variant_ctor->op(0));
-
+#if 1
+        llvm::Value *target_value = llvm::UndefValue::get(llvm_type->getStructElementType(0));
+        target_value = createComplexBackCast(payload_value, target_value, 0);
+        llvm::Value *buffer = llvm::UndefValue::get(llvm_type);
+        buffer = irbuilder_.CreateInsertValue(buffer, target_value, { 0 });
+        buffer = irbuilder_.CreateInsertValue(buffer, tag_value, { 1 });
+        return buffer;
+#else
         return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
             auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
             irbuilder_.CreateStore(tag_value, tag_addr);
@@ -991,6 +1171,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
             return irbuilder_.CreateLoad(alloca);
         });
+#endif
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -1233,7 +1414,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_VariantType: {
             assert(type->num_ops() > 0);
             // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
-            size_t max_align = 0, max_size = 0;
+            size_t max_align = 0, max_size = 0, min_size = 0;
 
             auto layout = module_->getDataLayout();
             llvm::Type* max_align_type;
@@ -1243,15 +1424,41 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 size_t align = layout.getABITypeAlignment(op_type);
                 // Favor types that are not empty
                 if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
+                    while (op_type->isAggregateType()) {
+                        if (llvm::isa<llvm::StructType>(op_type) && op_type->getStructNumElements() > 0) {
+                            op_type = op_type->getStructElementType(0);
+                        } else if (llvm::isa<llvm::StructType>(op_type) && op_type->getStructNumElements() == 0) {
+                            break;
+                        } else if (llvm::isa<llvm::ArrayType>(op_type))
+                            op_type = op_type->getArrayElementType();
+                        else
+                            THORIN_UNREACHABLE;
+                    }
+                    size_t align_new = layout.getABITypeAlignment(op_type);
                     max_align_type = op_type;
                     max_align = align;
                 }
                 max_size = std::max(max_size, size);
+
+                size  = layout.getTypeAllocSize(op_type); //Might have changed.
+                if (min_size == 0 || (min_size > size && size > 0))
+                    min_size = size;
             }
 
             auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
+            auto rem_type = irbuilder_.getInt8Ty();
+            if (rem_size % 8 == 0 && min_size >= 8) {
+                rem_size /= 8;
+                rem_type = irbuilder_.getInt64Ty();
+            } else if (rem_size % 4 == 0 && min_size >= 4) {
+                rem_size /= 4;
+                rem_type = irbuilder_.getInt32Ty();
+            } else if (rem_size % 2 == 0 && min_size >= 2) {
+                rem_size /= 2;
+                rem_type = irbuilder_.getInt16Ty();
+            }
             auto union_type = rem_size > 0
-                    ? llvm::StructType::get(*context_, llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
+                    ? llvm::StructType::get(*context_, llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(rem_type, rem_size)})
                     : llvm::StructType::get(*context_,  llvm::ArrayRef<llvm::Type*> { max_align_type });
 
             auto tag_type =

@@ -489,8 +489,8 @@ public:
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
-    void breakpoint(size_t number) { state_.breakpoints.insert(number); }
-    const Breakpoints& breakpoints() const { return state_.breakpoints; }
+    void     breakpoint(size_t number) { state_.    breakpoints.insert(number); }
+    void use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
     bool track_history() const { return state_.track_history; }
     void enable_history(bool flag = true) { state_.track_history = flag; }
     const Def* gid2def(u32 gid);
@@ -575,6 +575,11 @@ private:
         assert(!def->isa_nominal());
         auto [i, inserted] = data_.defs_.emplace(def);
         if (inserted) {
+#ifndef NDEBUG
+            for (auto op : def->ops()) {
+                if (state_.use_breakpoints.contains(op->gid())) THORIN_BREAK;
+            }
+#endif
             def->finalize();
             return def;
         } else {
@@ -673,6 +678,7 @@ private:
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;
         Breakpoints breakpoints;
+        Breakpoints use_breakpoints;
 #endif
     } state_;
 

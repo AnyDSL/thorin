@@ -1185,6 +1185,10 @@ template<tag_t tag> struct Tag2Def_ { using type = App; };
 template<> struct Tag2Def_<Tag::Mem> { using type = Axiom; };
 template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
 
+Stream& operator<<(Stream&, const Def* def);
+Stream& operator<<(Stream&, std::pair<const Def*, const Def*>);
+inline Stream& operator<<(Stream& s, std::pair<Lam*, Lam*> p) { return operator<<(s, std::pair<const Def*, const Def*>(p.first, p.second)); }
+
 //------------------------------------------------------------------------------
 
 }

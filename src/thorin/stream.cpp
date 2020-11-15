@@ -157,6 +157,8 @@ Stream& operator<<(Stream& s, const Def* def) {
     return def->stream(s);
 }
 
+Stream& operator<<(Stream& s, std::pair<const Def*, const Def*> p) { return s.fmt("({}, {})", p.first, p.second); }
+
 Stream& Def::stream(Stream& s) const {
     if (is_const()) return thorin::stream(s, this);
     return s << unique_name();
@@ -227,5 +229,8 @@ Stream& World::stream(RecStreamer& rec, const DepNode* n) const {
 void World::debug_stream() {
     if (min_level() == LogLevel::Debug) stream(stream());
 }
+
+template void Streamable<Def>::dump() const;
+template void detail::HashTable<const Def*, void, GIDHash<const Def*>, 4>::dump() const;
 
 }

@@ -508,6 +508,4 @@ bool Succ    ::is_type() const { return as<Succ>()->sigmafy(); }
 bool Kind    ::is_kind() const { return true; }
 bool Universe::is_kind() const { return false; }
 
-template void Streamable<Def>::dump() const;
-
 }

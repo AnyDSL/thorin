@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "thorin/config.h"
+#include "thorin/util/stream.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -404,6 +405,8 @@ public:
             delete[] old_nodes;
     }
 
+    void dump() const { Stream s; s.fmt("[{, }]\n", *this); }
+
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
 
@@ -573,8 +576,6 @@ public:
         : Super(ilist)
     {}
 
-    void dump() const { stream_list(std::cout, *this, [&] (const auto& elem) { std::cout << elem; }, "{", "}\n"); }
-
     friend void swap(HashSet& s1, HashSet& s2) { swap(static_cast<Super&>(s1), static_cast<Super&>(s2)); }
 };
 
@@ -615,10 +616,6 @@ public:
     }
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
     mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
-
-    void dump() const {
-        stream_list(std::cout, *this, [&] (const auto& p) { std::cout << p.first << " : " << p.second; }, "{", "}\n");
-    }
 
     friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };

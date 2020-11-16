@@ -39,7 +39,7 @@ const Def* EtaConv::rewrite(Def*, const Def* def) {
                     wrap->set_name(std::string("eta_wrap_") + lam->name());
                     wrap->app(lam, wrap->param());
                     exp = def->refine(i, wrap);
-                    world().DLOG("eta-wrap '{}' -> '{}' using '{}'", def, exp, wrap);
+                    world().DLOG("eta-expansion '{}' -> '{}' using '{}'", def, exp, wrap);
                 }
 
                 return exp;

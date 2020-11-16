@@ -128,6 +128,8 @@ public:
 
     /// @name working with the rewrite-map
     //@{
+    const Def* rewrite(Def*, const Def*);
+
     const Def* map(const Def* old_def, const Def* new_def) {
         cur_state().old2new[old_def] = new_def;
         cur_state().old2new.emplace(new_def, new_def);
@@ -169,7 +171,6 @@ private:
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void enter(Def*);
-    const Def* rewrite(Def*, const Def*);
     void enqueue(const Def*);
 
     bool enqueued(const Def* def) {

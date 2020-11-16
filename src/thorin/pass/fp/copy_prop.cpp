@@ -16,6 +16,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
 
+    auto& prop_lam = param2prop_[param_lam];
     bool update = false;
     bool changed = false;
     for (size_t i = 0, e = app->num_args(); i != e; ++i) {
@@ -28,6 +29,7 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         } else if (args[i] != app->arg(i)) {
             keep_.emplace(param_lam->param(i));
             update = true;
+            prop_lam = nullptr;
         }
     }
 
@@ -40,7 +42,6 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
 
     if (!changed) return def;
 
-    auto& prop_lam = param2prop_[param_lam];
     if (prop_lam == nullptr || prop_lam->num_params() != types.size()) {
         auto prop_domain = world().sigma(types);
         auto new_type = world().pi(prop_domain, param_lam->codomain());
@@ -55,7 +56,12 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
         prop_lam->set(param_lam->apply(world().tuple(new_params)));
     }
 
-    return app->world().app(prop_lam, new_args, app->debug());
+    auto na = world().tuple(new_args);
+    auto new_app = world().app(prop_lam, new_args, app->debug());
+    app->dump(1);
+    world().DLOG("---");
+    na->dump(1);
+    return new_app;
 }
 
 undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
@@ -73,6 +79,7 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(cur_nom, def->op(i)));
 
+#if 0
         if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
             auto&& [_, u,ins] = insert<LamMap<Args>>(lam);
             if (!ins) {
@@ -80,6 +87,7 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
                 world().DLOG("keep: {}", lam);
             }
         }
+#endif
     }
 
     return undo;

@@ -17,11 +17,11 @@ namespace thorin {
 void optimize(World& world) {
 #if 1
     PassMan(world)
-    .add<PartialEval>()
+    //.add<PartialEval>()
     .add<EtaConv>()
-    .add<BetaRed>()
+    //.add<BetaRed>()
     .add<SSAConstr>()
-    .add<CopyProp>()
+    //.add<CopyProp>()
     //.add<Scalerize>()
     .run();
 #else
@@ -39,7 +39,7 @@ void optimize(World& world) {
 
 void optimize_old(World& world) {
     optimize(world);
-#if 1
+#if 0
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);

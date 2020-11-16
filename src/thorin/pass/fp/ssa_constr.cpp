@@ -12,7 +12,6 @@ void SSAConstr::enter(Def* nom) {
     if (auto lam = nom->isa<Lam>()) {
         insert<Lam2Info>(lam); // create undo point
         lam2sloxy2val_[lam].clear();
-        slot_id_ = 0;
     }
 }
 
@@ -26,14 +25,15 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
             set_val(cur_lam, as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
         return traxy->op(0);
     } else if (auto slot = isa<Tag::Slot>(def)) {
-        auto [out_mem, out_ptr] = slot->split<2>();
-        auto sloxy = proxy(out_ptr->type(), {cur_lam, world().lit_nat(slot_id_++)}, Sloxy, slot->debug());
+        auto [mem, id] = slot->args<2>();
+        auto [_, ptr] = slot->split<2>();
+        auto sloxy = proxy(ptr->type(), {cur_lam, id}, Sloxy, slot->debug());
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
             set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
             auto&& [info, _, __] = insert<Lam2Info>(cur_lam);
             info.writable.emplace(sloxy);
-            return world().tuple({slot->arg(), sloxy});
+            return world().tuple({mem, sloxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
         auto [mem, ptr] = load->args<2>();

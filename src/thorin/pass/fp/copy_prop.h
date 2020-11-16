@@ -5,9 +5,12 @@
 
 namespace thorin {
 
-/// This @p FPPass is similar to sparse conditional constant propagation (SCCP) but also propagates arbitrary values through @p Param%s.
-/// However, this optmization also works on all @p Lam%s alike and does not only consider basic blocks as opposed to traditional SCCP.
-/// What is more, this optimization will also propagate arbitrary @p Def%s and not only constants.
+/**
+ * This @p FPPass is similar to sparse conditional constant propagation (SCCP) but also propagates arbitrary values through @p Param%s.
+ * However, this optmization also works on all @p Lam%s alike and does not only consider basic blocks as opposed to traditional SCCP.
+ * What is more, this optimization will also propagate arbitrary @p Def%s and not only constants. <br>
+ * Depends on: @p EtaConv.
+ */
 class CopyProp : public FPPass<CopyProp> {
 public:
     CopyProp(PassMan& man, size_t index)

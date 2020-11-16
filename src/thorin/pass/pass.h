@@ -222,7 +222,19 @@ protected:
     }
 
     /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
-    /// @return A triple: <code> [iterator, undo, inserted] </code>.
+    /// @return A triple: <code> TODO </code>.
+    template<class M>
+    typename M::mapped_type* find(const typename M::key_type& key) {
+        for (undo_t undo = states().size(); undo-- != 0;) {
+            auto& map = std::get<M>(data(undo));
+            if (auto i = map.find(key); i != map.end()) return &i->second;
+        }
+
+        return nullptr;
+    }
+
+    /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
+    /// @return A triple: <code> [ref_to_mapped_val, undo, inserted] </code>.
     template<class M>
     std::tuple<typename M::mapped_type&, undo_t, bool> insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {

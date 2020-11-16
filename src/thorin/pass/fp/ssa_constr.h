@@ -23,8 +23,14 @@ public:
     {}
 
     enum : flags_t { Sloxy, Phixy, Traxy };
-    using Writable = LamMap<GIDSet<const Proxy*>>;
-    using Data = std::tuple<LamMap<Lam*>, Writable>;
+
+    struct Info {
+        Lam* pred = nullptr;
+        GIDSet<const Proxy*> writable;
+    };
+
+    using Lam2Info = std::map<Lam*, Info, GIDLt<Lam*>>;
+    using Data = std::tuple<Lam2Info>;
 
 private:
     void enter(Def*) override;

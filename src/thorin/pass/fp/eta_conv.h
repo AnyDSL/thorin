@@ -35,10 +35,9 @@ public:
     using Data = std::tuple<LamMap<Lattice>>;
 
 private:
-    Def2Def def2exp_;
     LamSet expand_;
     LamSet wrappers_;
-    Def2Def def2expansion_;
+    Def2Def def2exp_;
 };
 
 }

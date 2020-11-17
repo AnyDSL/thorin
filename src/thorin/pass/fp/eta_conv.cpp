@@ -21,28 +21,30 @@ const Def* EtaConv::rewrite(Def*, const Def* def) {
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
-            if (auto app = lam->body()->isa<App>()) {
-                if (wrappers_.contains(lam)) continue;
+            if (!is_callee(def, i)) {
+                if (expand_.contains(lam)) {
+                    auto [j, ins] = def2exp_.emplace(def, nullptr);
+                    if (ins) {
+                        auto wrap = lam->stub(world(), lam->type(), lam->debug());
+                        wrappers_.emplace(wrap);
+                        wrap->set_name(std::string("eta_wrap_") + lam->name());
+                        wrap->app(lam, wrap->param());
+                        j->second = def->refine(i, wrap);
+                        world().DLOG("eta-expansion '{}' -> '{}' using '{}'", def, j->second, wrap);
+                    }
 
+                    return j->second;
+                }
+            }
+
+            if (wrappers_.contains(lam)) continue;
+
+            if (auto app = lam->body()->isa<App>()) {
                 if (app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
                     auto new_def = def->refine(i, app->callee());
                     world().DLOG("eta-reduction '{}' -> '{}' by eliminating '{}'", def, new_def, lam);
                     return new_def;
                 }
-            }
-
-            if (auto exp_i = def2expansion_.find(def); exp_i != def2expansion_.end()) {
-                auto& exp = exp_i->second;
-                if (exp == nullptr) {
-                    auto wrap = lam->stub(world(), lam->type(), lam->debug());
-                    wrappers_.emplace(wrap);
-                    wrap->set_name(std::string("eta_wrap_") + lam->name());
-                    wrap->app(lam, wrap->param());
-                    exp = def->refine(i, wrap);
-                    world().DLOG("eta-expansion '{}' -> '{}' using '{}'", def, exp, wrap);
-                }
-
-                return exp;
             }
         }
     }
@@ -72,27 +74,21 @@ undo_t EtaConv::analyze(Def* cur_nom, const Def* def) {
                     undo = std::min(undo, u);
                 }
             } else { // non-callee
-                auto expand = [&](undo_t u, bool put) {
-                    if (put) expand_.emplace(lam);
-                    def2expansion_.emplace(def, nullptr);
-                    undo = std::min(undo, u);
-                };
-
                 if (expand_.contains(lam)) {
-                    expand(cur_undo(), false);
+                    undo = std::min(undo, cur_undo());
                     continue;
                 }
 
-                auto&& [l, u, ins] = insert<LamMap<Lattice>>(lam, Lattice::Callee);
+                auto&& [l, u, ins] = insert<LamMap<Lattice>>(lam, Lattice::Once_Non_Callee);
                 if (ins) {
                     world().DLOG("Bot -> Once_Non_Callee: '{}'", lam);
-                    l = Lattice::Once_Non_Callee;
-                } else if (l == Lattice::Callee) {
-                    world().DLOG("Callee -> expand: '{}'", lam);
-                    expand(cur_undo(), true);
-                } else { // l == Lattice::Once_Non_Callee
-                    world().DLOG("Once_Non_Callee -> expand: '{}'", lam);
-                    expand(u, true);
+                } else {
+                    if (l == Lattice::Callee)
+                        world().DLOG("Callee -> expand: '{}'", lam);
+                    else // l == Lattice::Once_Non_Callee
+                        world().DLOG("Once_Non_Callee -> expand: '{}'", lam);
+                    expand_.emplace(lam);
+                    undo = std::min(undo, u);
                 }
             }
         }

@@ -246,8 +246,6 @@ public:
     /// @name Lit
     //@{
     const Lit* lit(const Def* type, u64 val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
-    template<class T>
-    const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, thorin::bitcast<u64>(val), dbg); }
     //@}
     /// @name Lit: Arity - note that this is a type
     //@{
@@ -267,7 +265,7 @@ public:
     //@}
     /// @name Lit: Int
     //@{
-    const Lit* lit_int(nat_t width, u64 val, Debug dbg = {}) { return lit(type_int(width), (u64(-1) >> (64_u64 - width)) & val, dbg); }
+    const Lit* lit_int(nat_t width, u64 val, Debug dbg = {}) { return lit(type_int(width), val, dbg); }
     template<class I> const Lit* lit_int(I val, Debug dbg = {}) {
         static_assert(std::is_integral<I>());
         return lit(type_int(sizeof(I)*8), val, dbg);
@@ -286,7 +284,11 @@ public:
 
     template<class R> const Lit* lit_real(R val, Debug dbg = {}) {
         static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
-        return lit(type_real(sizeof(R)*8), val, dbg);
+        if constexpr (false) {}
+        else if (sizeof(R) == 2) return lit(type_real(16), thorin::bitcast<u16>(val), dbg);
+        else if (sizeof(R) == 4) return lit(type_real(32), thorin::bitcast<u32>(val), dbg);
+        else if (sizeof(R) == 8) return lit(type_real(64), thorin::bitcast<u64>(val), dbg);
+        else THORIN_UNREACHABLE;
     }
     //@}
     /// @name Top/Bottom

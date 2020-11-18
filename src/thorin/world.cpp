@@ -56,10 +56,9 @@ World::World(const std::string& name) {
     data_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});
     data_.table_not = tuple({lit_true (), lit_false()} , { "not"});
 
-    {   // int/sint/real: Πw: Nat. *
+    {   // int/real: Πw: Nat. *
         auto p = pi(nat, star);
         data_.type_int_  = axiom(p, Tag:: Int, 0, { "int"});
-        data_.type_sint_ = axiom(p, Tag::SInt, 0, {"sint"});
         data_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
     } { // ptr: Π[T: *, as: nat]. *
         data_.type_ptr_ = axiom(nullptr, pi({star, nat}, star), Tag::Ptr, 0, {"ptr"});
@@ -636,81 +635,6 @@ const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
     auto Ts = tuple_of_types(pointee);
     return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, debug(dbg));
-}
-
-const Def* World::op_cast(const Def* dst_type, const Def* src, Debug dbg) {
-    if (isa_lit_arity(src->type(), 2) && get_width(dst_type))
-        src = op_bitcast(type_int(1), src); // cast bool first to i1
-
-    if (auto _int = isa<Tag::Int>(src->type())) {
-        if (false) {}
-        else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::u2u, dst_type, src, dbg);
-        else if (auto sint = isa<Tag::SInt>(dst_type)) return tos(op(Conv::u2u, dst_type, src, dbg));
-        else if (auto real = isa<Tag::Real>(dst_type)) return     op(Conv::u2r, dst_type, src, dbg);
-    } else if (auto sint = isa<Tag::SInt>(src->type())) {
-        src = toi(src);
-        if (false) {}
-        else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::s2s, dst_type, src, dbg);
-        else if (auto sint = isa<Tag::SInt>(dst_type)) return tos(op(Conv::s2s, dst_type, src, dbg));
-        else if (auto real = isa<Tag::Real>(dst_type)) return     op(Conv::s2r, dst_type, src, dbg);
-    } else if (auto real = isa<Tag::Real>(src->type())) {
-        if (false) {}
-        else if (auto _int = isa<Tag:: Int>(dst_type)) return     op(Conv::r2u, dst_type, src, dbg);
-        else if (auto sint = isa<Tag::SInt>(dst_type)) return tos(op(Conv::r2s, dst_type, src, dbg));
-        else if (auto real = isa<Tag::Real>(dst_type)) return     op(Conv::r2r, dst_type, src, dbg);
-    }
-
-    return op_bitcast(dst_type, src, dbg);
-}
-
-const Def* World::op(Cmp cmp, const Def* a, const Def* b, Debug dbg) {
-    if (isa_lit_arity(a->type(), 2)) {
-        switch (cmp) {
-            case Cmp::eq: return extract_eq(a, b, dbg);
-            case Cmp::ne: return extract_ne(a, b, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    } else if (auto _int = isa<Tag::Int>(a->type())) {
-        switch (cmp) {
-            case Cmp::eq: return op(ICmp::  e, a, b, dbg);
-            case Cmp::ne: return op(ICmp:: ne, a, b, dbg);
-            case Cmp::lt: return op(ICmp::ul , a, b, dbg);
-            case Cmp::le: return op(ICmp::ule, a, b, dbg);
-            case Cmp::gt: return op(ICmp::ug , a, b, dbg);
-            case Cmp::ge: return op(ICmp::uge, a, b, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    } else if (auto sint = isa<Tag::SInt>(a->type())) {
-        switch (cmp) {
-            case Cmp::eq: return op(ICmp::  e, toi(a), toi(b), dbg);
-            case Cmp::ne: return op(ICmp:: ne, toi(a), toi(b), dbg);
-            case Cmp::lt: return op(ICmp::sl , toi(a), toi(b), dbg);
-            case Cmp::le: return op(ICmp::sle, toi(a), toi(b), dbg);
-            case Cmp::gt: return op(ICmp::sg , toi(a), toi(b), dbg);
-            case Cmp::ge: return op(ICmp::sge, toi(a), toi(b), dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    } else if (auto real = isa<Tag::Real>(a->type())) {
-        // TODO for now, use RMode::none
-        switch (cmp) {
-            case Cmp::eq: return op(RCmp::  e, RMode::none, a, b, dbg);
-            case Cmp::ne: return op(RCmp::une, RMode::none, a, b, dbg);
-            case Cmp::lt: return op(RCmp:: l , RMode::none, a, b, dbg);
-            case Cmp::le: return op(RCmp:: le, RMode::none, a, b, dbg);
-            case Cmp::gt: return op(RCmp:: g , RMode::none, a, b, dbg);
-            case Cmp::ge: return op(RCmp:: ge, RMode::none, a, b, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    } else if (isa<Tag::Ptr>(a->type())) {
-        auto x = op_bitcast(type_int(64), a);
-        auto y = op_bitcast(type_int(64), b);
-        switch (cmp) {
-            case Cmp::eq: return op(ICmp:: e, x, y, dbg);
-            case Cmp::ne: return op(ICmp::ne, x, y, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-    THORIN_UNREACHABLE;
 }
 
 /*

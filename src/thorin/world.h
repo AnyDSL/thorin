@@ -265,14 +265,6 @@ public:
     //@{
     const Lit* lit_nat(nat_t a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
     //@}
-    /// @name Lit: SInt
-    //@{
-    const Lit* lit_sint(nat_t width, s64 val, Debug dbg = {}) { return lit(type_sint(width), (u64(-1) >> (64_u64 - width)) & val, dbg); }
-    template<class I> const Lit* lit_sint(I val, Debug dbg = {}) {
-        static_assert(std::is_integral<I>() && std::is_signed_v<I>);
-        return lit(type_sint(sizeof(I)*8), val, dbg);
-    }
-    //@}
     /// @name Lit: Int
     //@{
     const Lit* lit_int(nat_t width, u64 val, Debug dbg = {}) { return lit(type_int(width), (u64(-1) >> (64_u64 - width)) & val, dbg); }
@@ -317,14 +309,11 @@ public:
     const Lit* type_bool()   { return data_.type_bool_; }
     const Axiom* type_mem()  { return data_.type_mem_; }
     const Axiom* type_int()  { return data_.type_int_; }
-    const Axiom* type_sint() { return data_.type_sint_; }
     const Axiom* type_real() { return data_.type_real_; }
     const Axiom* type_ptr()  { return data_.type_ptr_; }
     const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
-    const App* type_sint(nat_t w) { return type_sint(lit_nat(w)); }
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
     const App* type_int (const Def* w) { return app(type_int(),  w)->as<App>(); }
-    const App* type_sint(const Def* w) { return app(type_sint(), w)->as<App>(); }
     const App* type_real(const Def* w) { return app(type_real(), w)->as<App>(); }
     const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     const App* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
@@ -339,14 +328,14 @@ public:
     /// @name Shr
     //@{
     const Axiom* op(Shr o) { return data_.Shr_[size_t(o)]; }
-    const Def* op(Shr o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return tos(a, app(app(op(o), w), {toi(a), toi(b)}, dbg)); }
+    const Def* op(Shr o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
     //@}
     /// @name WOp
     //@{
     const Axiom* op(WOp o) { return data_.WOp_[size_t(o)]; }
     const Def* op(WOp o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) {
         auto w = infer_width(a);
-        return tos(a, app(app(op(o), {wmode, w}), {toi(a), toi(b)}, dbg));
+        return app(app(op(o), {wmode, w}), {a, b}, dbg);
     }
     const Def* op(WOp o, nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(wmode), a, b, dbg); }
     const Def* op_WOp_minus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(WOp::sub, wmode, lit_int(*w, 0), a, dbg); }
@@ -356,8 +345,8 @@ public:
     const Axiom* op(ZOp o) { return data_.ZOp_[size_t(o)]; }
     const Def* op(ZOp o, const Def* mem, const Def* a, const Def* b, Debug dbg = {}) {
         auto w = infer_width(a);
-        auto [m, x] = app(app(op(o), w), {mem, toi(a), toi(b)}, dbg)->split<2>();
-        return tuple({m, tos(a, x)});
+        auto [m, x] = app(app(op(o), w), {mem, a, b}, dbg)->split<2>();
+        return tuple({m, x});
     }
     //@}
     /// @name ROp
@@ -375,9 +364,6 @@ public:
     const Def* op(ICmp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
     const Def* op(RCmp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(RCmp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
-    enum class Cmp { eq, ne, lt, le, gt, ge };
-    /// Automatically selects the proper @p Cmp or @p Bitcast.
-    const Def* op(Cmp cmp, const Def* a, const Def* b, Debug dbg = {});
     //@}
     /// @name Casts
     //@{
@@ -389,8 +375,6 @@ public:
     }
     const Axiom* op_bitcast() const { return data_.op_bitcast_; }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
-    /// Automatically builds the proper @p Conv or @p Bitcast.
-    const Def* op_cast(const Def* dst_type, const Def* src, Debug dbg = {});
     //@}
     /// @name memory-related operations
     //@{
@@ -554,16 +538,6 @@ public:
     }
 
 private:
-    /// @name convert from int to sint and vice versa
-    //@{
-    const Def* toi(const Def* a) { return op_bitcast(type_int (a->type()->as<App>()->arg()), a); }
-    const Def* tos(const Def* a) { return op_bitcast(type_sint(a->type()->as<App>()->arg()), a); }
-    const Def* tos(const Def* a, const Def* app) {
-        if (auto sint = isa<Tag::SInt>(a->type()))
-            return op_bitcast(sint, app);
-        return app;
-    }
-    //@}
     /// @name put into sea of nodes
     //@{
     template<class T, class... Args>
@@ -706,7 +680,6 @@ private:
         std::array<const Axiom*, Num<PE>>   PE_;
         const Axiom* type_mem_;
         const Axiom* type_int_;
-        const Axiom* type_sint_;
         const Axiom* type_real_;
         const Axiom* type_ptr_;
         const Axiom* op_bitcast_;

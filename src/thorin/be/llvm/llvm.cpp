@@ -875,7 +875,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return irbuilder_.getInt64(lit->get());
         }
 
-        if (isa<Tag::Int>(lit->type()) || isa<Tag::SInt>(lit->type())) {
+        if (isa<Tag::Int>(lit->type())) {
             switch (*get_width(lit->type())) {
                 case  1: return irbuilder_. getInt1(lit->get< u1>());
                 case  8: return irbuilder_. getInt8(lit->get< u8>());
@@ -983,7 +983,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
         if (auto a = isa_lit<u64>(type); a && *a == 2)
             return types_[type] = irbuilder_.getInt1Ty();
         return types_[type] = irbuilder_.getInt64Ty();
-    } else if (isa<Tag::Int>(type) || isa<Tag::SInt>(type)) {
+    } else if (isa<Tag::Int>(type)) {
         switch (*get_width(type)) {
             case  1: return types_[type] = irbuilder_. getInt1Ty();
             case  8: return types_[type] = irbuilder_. getInt8Ty();

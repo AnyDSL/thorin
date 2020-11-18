@@ -66,7 +66,6 @@ Query<Tag2Enum<tag>, Tag2Def<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
 inline const Def* get_width_as_def(const Def* type) {
     if (false) {}
     else if (auto int_ = isa<Tag:: Int>(type)) return int_->arg();
-    else if (auto sint = isa<Tag::SInt>(type)) return sint->arg();
     else if (auto real = isa<Tag::Real>(type)) return real->arg();
     return nullptr;
 }

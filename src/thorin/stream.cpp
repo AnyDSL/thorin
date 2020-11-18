@@ -59,7 +59,6 @@ Stream& stream(Stream& s, const Def* def) {
     } else if (auto app = def->isa<App>()) {
         if (auto w = get_width(app)) {
             if (auto _int = thorin::isa<Tag:: Int>(app)) return s.fmt("i{}", *w);
-            if (auto sint = thorin::isa<Tag::SInt>(app)) return s.fmt("s{}", *w);
             if (auto real = thorin::isa<Tag::Real>(app)) return s.fmt("r{}", *w);
             THORIN_UNREACHABLE;
         } else if (auto ptr = thorin::isa<Tag::Ptr>(app)) {

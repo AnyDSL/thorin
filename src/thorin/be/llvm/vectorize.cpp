@@ -27,7 +27,6 @@
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
 #include <rv/resolver/resolvers.h>
-#include <rv/transform/CNSPass.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
 #include <rv/region/FunctionRegion.h>
@@ -112,7 +111,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     FPM.addPass(llvm::SROA());
     FPM.addPass(llvm::EarlyCSEPass());
     FPM.addPass(llvm::SCCPPass());
-    FPM.addPass(rv::CNSWrapperPass()); // make all loops reducible (has to run first!)
+    FPM.addPass(llvm::createFixIrreduciblePass()); // make all loops reducible (has to run first!)
     FPM.addPass(llvm::PromotePass()); // CNSPass relies on mem2reg for now
 
     llvm::LoopPassManager LPM;

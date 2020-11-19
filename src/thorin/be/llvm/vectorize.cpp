@@ -15,6 +15,7 @@
 #include <llvm/Transforms/Scalar/EarlyCSE.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/Utils/LCSSA.h>
+#include <llvm/Transforms/Scalar/DCE.h>
 #include <llvm/Transforms/Scalar/LICM.h>
 #include <llvm/Transforms/Scalar/SCCP.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
@@ -173,6 +174,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // ensure proper loop forms
     llvm::FunctionPassManager FPM;
+    FPM.addPass(llvm::DCEPass());
     FPM.addPass(llvm::SimplifyCFGPass());
     FPM.addPass(llvm::SROA());
     FPM.addPass(llvm::EarlyCSEPass());
@@ -242,9 +244,11 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         kernel_func->addFnAttr("target-features", machine_->getTargetFeatureString());
         rv::Config config = rv::Config::createForFunction(*kernel_func);
         config.enableIRPolish = config.useAVX2;
+        config.enableGreedyIPV = true;
 
         config.maxULPErrorBound = 35; // allow vector math with imprecision up to 3.5 ULP
         rv::addSleefResolver(config, platform_info);
+        rv::addRecursiveResolver(config, platform_info);
 
         rv::VectorizerInterface vectorizer(platform_info, config);
         {
@@ -269,6 +273,14 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
         vectorizer.finalize();
     }
+
+    // final cleanup
+    llvm::FunctionAnalysisManager FAM2;
+    PB.registerFunctionAnalyses(FAM2);
+    llvm::FunctionPassManager FPM2;
+    FPM2.addPass(llvm::DCEPass());
+    FPM2.addPass(llvm::SimplifyCFGPass());
+    FPM2.run(*simd_kernel_func, FAM2);
 
     // inline kernel
     llvm::InlineFunctionInfo info;

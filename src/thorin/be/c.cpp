@@ -758,8 +758,13 @@ void CCodeGen::emit() {
                         }
                     }
 
-                    if (n == 0) func_impl_ << "return ;";
-                    else if (n == 1) {
+                    if (n == 0) {
+                        if (lang_ == Lang::HLS) {
+                            func_impl_ << "return void();";
+                        } else {
+                            func_impl_ << "return ;";
+                        }
+                    } else if (n == 1) {
                         func_impl_ << "return ";
                         emit(values[0]) << ";";
                     } else {

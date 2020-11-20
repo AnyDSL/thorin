@@ -30,7 +30,8 @@ enum Cl : uint8_t {
 
 enum class HlsInterface : uint8_t {
     SOC,  ///< SoC HW module (Embedded)
-    HPC,  ///< HPC accelerator (HLS for HPC via OpenCL)
+    HPC,  ///< HPC accelerator (HLS for HPC via OpenCL/XRT + XDMA)
+    HPC_STREAM,  ///< HPC accelerator (HLS for HPC via XRT + QDMA)
     None
 };
 
@@ -156,14 +157,28 @@ inline bool get_interface(HlsInterface &interface) {
         std::string fpga_env_str = fpga_env;
         for (auto& ch : fpga_env_str)
             ch = std::toupper(ch, std::locale());
+        std::istringstream fpga_env_stream(fpga_env_str);
+        std::string token;
+        gmem = HlsInterface::None;
+        bool set_interface = false;
 
-        if (fpga_env_str.compare("SOC") == 0 ) {
-            interface = HlsInterface::SOC;
-            return true;
-        }
-        else if (fpga_env_str.compare("HPC") == 0 ) {
-            interface = HlsInterface::HPC;
-            return true;
+        while (std::getline(fpga_env_stream, token, ',')) {
+            if (token.compare("GMEM_OPT") == 0) {
+                gmem = HlsInterface::GMEM_OPT;
+                continue;
+            } else if (token.compare("SOC") == 0 ) {
+                interface = HlsInterface::SOC;
+                set_interface = true;
+                continue;
+            } else if (token.compare("HPC") == 0 ) {
+                interface = HlsInterface::HPC;
+                set_interface = true;
+                continue;
+            } else if (token.compare("HPC_STREAM") == 0 ) {
+                interface = HlsInterface::HPC_STREAM;
+                set_interface = true;
+                continue;
+            }
         }
     }
     return false;
@@ -582,8 +597,15 @@ void CCodeGen::emit() {
                     if (auto array_type = elem_type->isa<ArrayType>()){
                         elem_type = array_type->elem_type();
                     }
-                    emit_type(func_decls_, elem_type) << "[" << array_size << "]";
-                    emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    if (interface == HlsInterface::HPC_STREAM) {
+                        func_decls_ << "hls::stream<";
+                        emit_type(func_decls_ , elem_type) <<">*";
+                        func_impl_ << "hls::stream<";
+                        emit_type(func_impl_,  elem_type) << ">* " << param->unique_name();
+                    } else {
+                        emit_type(func_decls_, elem_type) << "[" << array_size << "]";
+                        emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    }
                     if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
                         hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
                 } else {
@@ -632,7 +654,7 @@ void CCodeGen::emit() {
 
                             func_impl_ << "\n#pragma HLS STABLE variable = " << param->unique_name();
                         }
-                        if (interface == HlsInterface::SOC)
+                        if (interface == HlsInterface::SOC || interface == HlsInterface::HPC_STREAM)
                             hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
                         else if (interface == HlsInterface::HPC)
                             hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_chain port = return        bundle = control";

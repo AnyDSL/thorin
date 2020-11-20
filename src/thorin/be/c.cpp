@@ -633,7 +633,7 @@ void CCodeGen::emit() {
                         if (interface == HlsInterface::SOC)
                             hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
                         else if (interface == HlsInterface::HPC)
-                            hls_pragmas_ += "\n#pragma HLS INTERFACE s_axilite port = return        bundle = control";
+                            hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_chain port = return        bundle = control";
                     }
                 } else {
                     interface = HlsInterface::None;

@@ -629,6 +629,8 @@ void CCodeGen::emit() {
                                 else if (interface == HlsInterface::HPC)
                                     func_impl_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control";
                             }
+
+                            func_impl_ << "\n#pragma HLS STABLE variable = " << param->unique_name();
                         }
                         if (interface == HlsInterface::SOC)
                             hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";

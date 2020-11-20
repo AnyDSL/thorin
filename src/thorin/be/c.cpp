@@ -765,6 +765,9 @@ void CCodeGen::emit() {
 
                 emit_debug_info(primop);
                 emit(primop) << endl;
+
+                if (name =="hls_top" && primop->isa<Slot>())
+                    func_impl_ << "#pragma HLS STREAM variable = "<< var_name(primop) << " depth = 4" << endl;
             }
 
             // emit definitions for temporaries

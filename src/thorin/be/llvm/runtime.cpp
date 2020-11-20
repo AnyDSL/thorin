@@ -38,7 +38,7 @@ llvm::Function* Runtime::get(const char* name) {
 static bool contains_ptrtype(const Def* type) {
     if (isa<Tag::Ptr>(type)) return false;
     switch (type->node()) {
-        case Node::Arr: return contains_ptrtype(type->as<Arr>()->codomain());
+        case Node::Arr: return contains_ptrtype(type->as<Arr>()->body());
         case Node::Pi:  return false;
         case Node::Sigma: {
             // TODO deal with recursive sigmas

@@ -282,7 +282,6 @@ public:
     /// @name reduce/subst
     //@{
     const Def* reduce() const;
-    //Def* subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg = {});
     /// @p rebuild%s this @p Def while using @p new_op as substitute for its @p i'th @p op
     const Def* refine(size_t i, const Def* new_op) const;
     //@}
@@ -308,6 +307,7 @@ public:
     //@{
     virtual const Def* rebuild(World&, const Def*, Defs, const Def*) const { THORIN_UNREACHABLE; }
     virtual Def* stub(World&, const Def*, const Def*) { THORIN_UNREACHABLE; }
+    virtual const Def* resolve() { return nullptr; }
     virtual bool is_value() const { return type()->is_type();                } ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
     virtual bool is_type()  const { return type()->is_kind();                } ///< Anything that can be the @p type of a value (see @p is_value).
     virtual bool is_kind()  const { return type()->node() == Node::Universe; } ///< Anything that can be the @p type of a type (see @p is_type).
@@ -575,6 +575,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Pi* stub(World&, const Def*, const Def*) override;
+    const Pi* resolve();
     bool is_value() const override;
     bool is_type()  const override;
     //@}
@@ -888,19 +889,32 @@ public:
 
 class Arr : public Def {
 private:
-    Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node, type, {domain, codomain}, 0, dbg)
+    /// Constructor for a @em structural Arr.
+    Arr(const Def* type, const Def* shape, const Def* body, const Def* dbg)
+        : Def(Node, type, {shape, body}, 0, dbg)
     {}
+    /// Constructor for a @em nominal Arr.
+    Arr(const Def* type, const Def* shape, const Def* dbg)
+        : Def(Node, type, 2, 0, dbg)
+    {
+        Def::set(0, shape);
+    }
 
 public:
     /// @name ops
     //@{
-    const Def* domain() const { return op(0); }
-    const Def* codomain() const { return op(1); }
+    const Def* shape() const { return op(0); }
+    const Def* body() const { return op(1); }
+    //@}
+    /// @name methods for nominals
+    //@{
+    Arr* set(const Def* body) { return Def::set(1, body)->as<Arr>(); }
     //@}
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    Arr* stub(World&, const Def*, const Def*) override;
+    const Def* resolve();
     bool is_value() const override;
     bool is_type()  const override;
     //@}
@@ -916,15 +930,11 @@ private:
     {}
 
 public:
-    /// @name ops
+    /// @name getters
     //@{
     const Def* body() const { return op(0); }
-    //@}
-    /// @name type
-    //@{
     const Arr* type() const { return Def::type()->as<Arr>(); }
-    const Def* domain() const { return type()->domain(); }
-    const Def* codomain() const { return type()->codomain(); }
+    const Def* shape() const { return type()->shape(); }
     //@}
     /// @name virtual methods
     //@{
@@ -986,29 +996,6 @@ public:
     //@}
 
     static constexpr auto Node = Node::Insert;
-    friend class World;
-};
-
-class Succ : public Def {
-private:
-    Succ(const Def* type, bool tuplefy, const Def* dbg)
-        : Def(Node, type, Defs{}, tuplefy, dbg)
-    {}
-
-public:
-    /// @name Does this thing collapse into a tuple or a sigma?
-    //@{
-    bool tuplefy() const { return fields(); }
-    bool sigmafy() const { return !tuplefy(); }
-    //@}
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
-    //@}
-
-    static constexpr auto Node = Node::Succ;
     friend class World;
 };
 

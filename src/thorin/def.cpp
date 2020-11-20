@@ -6,6 +6,7 @@
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -38,7 +39,7 @@ size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Def::tuple_arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
-    if (auto arr    = isa<Arr  >()) return arr->domain();
+    if (auto arr    = isa<Arr  >()) return arr->shape();
     if (is_value())                 return type()->tuple_arity();
     assert(is_type());
     return world().lit_nat(1);
@@ -47,7 +48,7 @@ const Def* Def::tuple_arity() const {
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
     if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
-    if (auto arr    = isa<Arr  >()) return arr->domain();
+    if (auto arr    = isa<Arr  >()) return arr->shape();
     if (is_value())                 return type()->arity();
     assert(is_type());
     return world().lit_nat(1);
@@ -369,11 +370,14 @@ Nat::Nat(World& world)
  */
 
 const Param* Def::param(Debug dbg) {
-    if (auto lam    = isa<Lam  >()) return world().param(lam ->domain(), lam,    dbg);
-    if (auto ptrn   = isa<Ptrn >()) return world().param(ptrn->domain(), ptrn,   dbg);
-    if (auto pi     = isa<Pi   >()) return world().param(pi  ->domain(), pi,     dbg);
-    if (auto sigma  = isa<Sigma>()) return world().param(sigma,          sigma,  dbg);
-    if (auto union_ = isa<Union>()) return world().param(union_,         union_, dbg);
+    auto& w = world();
+    if (auto lam    = isa<Lam  >()) return w.param(lam ->domain(), lam,    dbg);
+    if (auto ptrn   = isa<Ptrn >()) return w.param(ptrn->domain(), ptrn,   dbg);
+    if (auto pi     = isa<Pi   >()) return w.param(pi  ->domain(), pi,     dbg);
+    if (auto sigma  = isa<Sigma>()) return w.param(sigma,          sigma,  dbg);
+    if (auto union_ = isa<Union>()) return w.param(union_,         union_, dbg);
+    if (auto arr    = isa<Arr  >()) return w.param(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
+    if (auto pack   = isa<Pack >()) return w.param(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
     THORIN_UNREACHABLE;
 }
 
@@ -440,7 +444,6 @@ const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) con
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
 const Def* Proxy   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, as<Proxy>()->index(), as<Proxy>()->flags(), dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
-const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }
 const Def* Tuple   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }
 const Def* Union   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.union_(t, o, dbg); }
@@ -456,6 +459,23 @@ Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.pi(t, Debu
 Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
 Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.sigma(t, num_ops(), dbg); }
 Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.union_(t, num_ops(), dbg); }
+Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.arr_nom(t, shape(), dbg); }
+
+/*
+ * resolve
+ */
+
+const Pi* Pi::resolve() {
+    if (!is_free(param(), codomain())) return world().pi(domain(), codomain(), debug());
+    return nullptr;
+}
+
+const Def* Arr::resolve() {
+    auto& w = world();
+    if (auto n = isa_lit(shape()))
+        return w.sigma(type(), Array<const Def*>(*n, [&](size_t i) { return body()->apply(w.lit_int(*n, i)).back(); }));
+    return nullptr;
+}
 
 /*
  * is_value
@@ -476,7 +496,6 @@ bool Pack    ::is_value() const { return true; }
 bool Ptrn    ::is_value() const { return true; }
 bool Tuple   ::is_value() const { return true; }
 bool Which   ::is_value() const { return true; }
-bool Succ    ::is_value() const { return as<Succ>()->tuplefy(); }
 
 /*
  * is_type
@@ -497,7 +516,6 @@ bool Pack    ::is_type() const { return false; }
 bool Ptrn    ::is_type() const { return false; }
 bool Tuple   ::is_type() const { return false; }
 bool Which   ::is_type() const { return false; }
-bool Succ    ::is_type() const { return as<Succ>()->sigmafy(); }
 
 /*
  * is_kind

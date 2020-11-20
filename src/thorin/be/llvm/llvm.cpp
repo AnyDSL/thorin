@@ -144,7 +144,7 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     auto l = lam->body()->as<App>()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Arr>()->codomain();
+    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Arr>()->body();
     auto smem_type = this->convert(lam->world().arr(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -592,11 +592,11 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
     if (auto arr = type->isa<Arr>()) {
-        auto num = lookup(arr->domain());
+        auto num = lookup(arr->body());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(arr->codomain())))));
+                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(arr->body())))));
         llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
         void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
     } else {
@@ -797,7 +797,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (pack->body()->isa<Bot>()) return llvm_agg;
 
         auto elem = lookup(pack->body());
-        for (size_t i = 0, e = as_lit<u64>(pack->domain()); i != e; ++i)
+        for (size_t i = 0, e = as_lit<u64>(pack->shape()); i != e; ++i)
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });
 
         return llvm_agg;
@@ -1001,8 +1001,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
         auto llvm_type = llvm::PointerType::get(convert(pointee), convert_addr_space(as_lit<nat_t>(addr_space)));
         return types_[type] = llvm_type;
     } else if (auto arr = type->isa<Arr>()) {
-        auto elem_type = convert(arr->codomain());
-        if (auto arity = isa_lit<u64>(arr->domain()))
+        auto elem_type = convert(arr->body());
+        if (auto arity = isa_lit<u64>(arr->shape()))
             return types_[type] = llvm::ArrayType::get(elem_type, *arity);
         else
             return types_[type] = llvm::ArrayType::get(elem_type, 0);

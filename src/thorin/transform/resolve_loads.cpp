@@ -208,7 +208,7 @@ public:
                 auto arr_from = ptr_from->arg(0)->isa<Arr>();
                 if (!arr_to || !arr_from)
                     return false;
-                if (arr_to->codomain() != arr_from->codomain())
+                if (arr_to->body() != arr_from->body())
                     return false;
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
             } else if (!allow_load || !isa<Tag::Load>(use)) {

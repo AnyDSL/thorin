@@ -73,11 +73,9 @@ Stream& stream(Stream& s, const Def* def) {
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto arr = def->isa<Arr>()) {
-        return s.fmt("«{}; {}»", arr->domain(), arr->codomain());
+        return s.fmt("«{}; {}»", arr->shape(), arr->body());
     } else if (auto pack = def->isa<Pack>()) {
-        return s.fmt("‹{}; {}›", pack->domain(), pack->body());
-    } else if (auto succ = def->isa<Succ>()) {
-        return s.fmt("succ{}{}{}", succ->tuplefy() ? '(' : '[', succ->type(), succ->tuplefy() ? ')' : ']');
+        return s.fmt("‹{}; {}›", pack->shape(), pack->body());
     } else if (auto union_ = def->isa<Union>()) {
         if (union_->isa_nominal()) s.fmt("{}: {}", union_->unique_name(), union_->type());
         return s.fmt("⋃({, })", union_->ops());

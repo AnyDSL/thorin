@@ -42,7 +42,7 @@ const Def* proj(const Def* def, u64 a, u64 i) {
     if (def == nullptr) return nullptr; // pass through nullptr for nested proj calls
     if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
     if (auto pack = def->isa<Pack>()) { assert(i < pack->type()->lit_arity()); return pack->body();     }
-    if (auto arr  = def->isa<Arr >()) { assert(i < arr         ->lit_arity()); return arr ->codomain(); }
+    if (auto arr  = def->isa<Arr >()) { assert(i < arr         ->lit_arity()); return arr ->body(); }
     if (!no_extract && def->is_value()) { return def->world().extract(def, a, i); }
     return nullptr;
 }

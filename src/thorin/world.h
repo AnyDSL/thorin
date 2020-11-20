@@ -168,6 +168,8 @@ public:
     //@}
     /// @name Arr
     //@{
+    Arr* arr_nom(const Def* type, const Def* shape, Debug dbg = {}) { return insert<Arr>(2, type, shape, debug(dbg)); }
+    Arr* arr_nom(const Def* shape, Debug dbg = {}) { return arr_nom(kind(), shape, dbg); }
     const Def* arr(const Def* shape, const Def* body, Debug dbg = {});
     const Def* arr(Defs shape, const Def* body, Debug dbg = {});
     const Def* arr(u64 n, const Def* body, Debug dbg = {}) { return arr(lit_nat(n), body, dbg); }
@@ -229,12 +231,6 @@ public:
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_int(agg->type()->reduce()->lit_arity(), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(type_int(agg->type()->reduce()->lit_arity()), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(0, i), value, dbg); }
-    //@}
-    /// @name Succ
-    //@{
-    const Def* succ(const Def* type, bool tuplefy, Debug dbg = {});
-    const Def* succ_tup(const Def* type, Debug dbg = {}) { return succ(type,  true, dbg); }
-    const Def* succ_sig(const Def* type, Debug dbg = {}) { return succ(type, false, dbg); }
     //@}
     /// @name Match/Ptrn/Case
     //@{
@@ -400,7 +396,10 @@ public:
     const Axiom* op_lea()    const { return data_.op_lea_;     }
     const Axiom* op_sizeof() const { return data_.op_sizeof_;  }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
-    const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
+    const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) {
+        auto safe_int = type_int(as<Tag::Ptr>(ptr->type())->arg(0)->arity());
+        return op_lea(ptr, op_bitcast(safe_int, i), dbg);
+    }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     //@}

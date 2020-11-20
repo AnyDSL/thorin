@@ -76,6 +76,8 @@ private:
     mutable std::unique_ptr<const CFA> cfa_;
 };
 
+bool is_free(const Param* param, const Def* def);
+
 }
 
 #endif

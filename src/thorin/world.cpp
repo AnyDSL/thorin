@@ -20,6 +20,31 @@
 
 namespace thorin {
 
+
+static bool check(const Def* type, const Def* val) {
+    if (type == val->type()) return true;
+    if (type->arity() != val->type()->arity()) return false;
+    auto& world = type->world();
+
+    if (auto sigma = type->isa<Sigma>()) {
+        auto red = sigma->apply(val);
+        for (size_t i = 0, e = red.size(); i != e; ++i) {
+            if (!check(red[i], val->out(i))) return false;
+        }
+
+        return true;
+    } else if (auto arr = type->isa<Arr>()) {
+        auto n = arr->lit_arity();
+        for (size_t i = 0; i != n; ++i) {
+            if (!check(arr->apply(world.lit_int(n, i)).back() , val->out(i))) return false;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * constructor & destructor
  */
@@ -133,18 +158,19 @@ World::World(const std::string& name) {
         auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
         data_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
-    } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(Ts#Succ(n), as), i: int n]. ptr(Ts#i, as)
-    } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«n; Ts#succ(n)», as), i: int n]. ptr(Ts#i, as)
+    } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
+        // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, nat);
-        domain->set(1, arr(domain->param(0, {"s"}), kind()));
+        domain->set(1, arr(domain->param(0, {"n"}), kind()));
         domain->set(2, nat);
         auto pi1 = pi(kind())->set_domain(domain);
         auto n  = pi1->param(0, {"n"});
         auto Ts = pi1->param(1, {"Ts"});
         auto as = pi1->param(2, {"as"});
-        auto src_ptr = type_ptr(extract(Ts, succ_sig(n)), as);
-        auto pi2 = pi(kind())->set_domain({src_ptr, type_int(n)});
+        auto in = arr_nom(n);
+        in->set(extract(Ts, in->param({"j"})));
+        auto pi2 = pi(kind())->set_domain({type_ptr(in, as), type_int(n)});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
         data_.op_lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, {"lea"});
@@ -198,16 +224,18 @@ World::~World() {
  * core calculus
  */
 
-static const Def* lub(const Def* t1, const Def* t2) { // TODO broken
+#if 0
+// TODO use for sigma
+static const Def* lub(const Def* t1, const Def* t2) {
     if (t1->isa<Universe>()) return t1;
     if (t2->isa<Universe>()) return t2;
     assert(t1->isa<Kind>() && t2->isa<Kind>());
     return t1;
 }
+#endif
 
 const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
-    auto type = lub(domain->type(), codomain->type());
-    return unify<Pi>(2, type, domain, codomain, debug(dbg));
+    return unify<Pi>(2, codomain->type(), domain, codomain, debug(dbg));
 }
 
 const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
@@ -217,9 +245,12 @@ const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Deb
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
-    auto type = pi->apply(arg).back();
-    assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 
+    if (err()) {
+        if (!check(pi->domain(), arg)) err()->ill_typed_app(callee, arg);
+    }
+
+    auto type = pi->apply(arg).back();
     auto [axiom, currying_depth] = get_axiom(callee); // TODO move down again
     if (axiom && currying_depth == 1) {
         if (auto normalize = axiom->normalizer())
@@ -253,7 +284,10 @@ static const Def* infer_sigma(World& world, Defs ops) {
 }
 
 const Def* World::tuple(Defs ops, Debug dbg) {
-    return tuple(infer_sigma(*this, ops), ops, dbg);
+    auto sigma = infer_sigma(*this, ops);
+    assert(sigma->lit_arity() == ops.size());
+
+    return tuple(sigma, ops, dbg);
 }
 
 const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
@@ -428,7 +462,7 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
             }
 
             if (ascending)
-                return op_bitcast(arr->codomain(), index, dbg);
+                return op_bitcast(arr->body(), index, dbg);
 
             // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
             // this also deals with NOT
@@ -484,7 +518,7 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
 
     // TODO absorption
 
-    type = type->as<Arr>()->codomain();
+    type = type->as<Arr>()->body();
     return unify<Extract>(2, type, tup, index, debug(dbg));
 }
 
@@ -528,46 +562,37 @@ bool is_shape(const Def* s) {
     return false;
 }
 
-const Def* World::arr(const Def* domain, const Def* codomain, Debug dbg) {
-    assert(is_shape(domain));
+const Def* World::arr(const Def* shape, const Def* body, Debug dbg) {
+    assert(is_shape(shape));
 
-    if (auto a = isa_lit<u64>(domain)) {
+    if (auto a = isa_lit<u64>(shape)) {
         if (*a == 0) return sigma();
-        if (*a == 1) return codomain;
+        if (*a == 1) return body;
     }
 
-    return unify<Arr>(2, kind(), domain, codomain, debug(dbg));
+    return unify<Arr>(2, kind(), shape, body, debug(dbg));
 }
 
-const Def* World::pack(const Def* domain, const Def* body, Debug dbg) {
-    assert(is_shape(domain));
+const Def* World::pack(const Def* shape, const Def* body, Debug dbg) {
+    assert(is_shape(shape));
 
-    if (auto a = isa_lit<u64>(domain)) {
+    if (auto a = isa_lit<u64>(shape)) {
         if (*a == 0) return tuple();
         if (*a == 1) return body;
     }
 
-    auto type = arr(domain, body->type());
+    auto type = arr(shape, body->type());
     return unify<Pack>(1, type, body, debug(dbg));
 }
 
-const Def* World::arr(Defs domains, const Def* codomain, Debug dbg) {
-    if (domains.empty()) return codomain;
-    return arr(domains.skip_back(), arr(domains.back(), codomain, dbg), dbg);
+const Def* World::arr(Defs shape, const Def* body, Debug dbg) {
+    if (shape.empty()) return body;
+    return arr(shape.skip_back(), arr(shape.back(), body, dbg), dbg);
 }
 
-const Def* World::pack(Defs domains, const Def* body, Debug dbg) {
-    if (domains.empty()) return body;
-    return pack(domains.skip_back(), pack(domains.back(), body, dbg), dbg);
-}
-
-const Def* World::succ(const Def* shape, bool tuplefy, Debug dbg) {
-    if (auto a = isa_lit<nat_t>(shape)) {
-        Array<const Def*> ops(*a, [&](size_t i) { return lit_int(*a, i); });
-        return tuplefy ? tuple(ops, dbg) : sigma(ops, dbg);
-    }
-
-    return unify<Succ>(0, type_int(shape), tuplefy, debug(dbg));
+const Def* World::pack(Defs shape, const Def* body, Debug dbg) {
+    if (shape.empty()) return body;
+    return pack(shape.skip_back(), pack(shape.back(), body, dbg), dbg);
 }
 
 const Lit* World::lit_int(const Def* type, u64 i, Debug dbg) {
@@ -575,14 +600,14 @@ const Lit* World::lit_int(const Def* type, u64 i, Debug dbg) {
     if (size->isa<Top>()) return lit(size, i, dbg);
 
     if (auto a = isa_lit(size)) {
-        if (err() && i >= *a) err()->index_out_of_range(*a, i);
+        if (err() && *a != 0 && i >= *a) err()->index_out_of_range(*a, i);
     }
 
     return lit(type, i, dbg);
 }
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
-    if (auto arr = type->isa<Arr>()) return pack(arr->domain(), bot_top(is_top, arr->codomain()), dbg);
+    if (auto arr = type->isa<Arr>()) return pack(arr->shape(), bot_top(is_top, arr->body()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
     auto d = debug(dbg);
@@ -632,7 +657,7 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 static const Def* tuple_of_types(const Def* t) {
     auto& world = t->world();
     if (auto sigma = t->isa<Sigma>()) return world.tuple(sigma->ops());
-    if (auto arr   = t->isa<Arr  >()) return world.pack(arr->domain(), arr->codomain());
+    if (auto arr   = t->isa<Arr  >()) return world.pack(arr->shape(), arr->body());
     return t;
 }
 

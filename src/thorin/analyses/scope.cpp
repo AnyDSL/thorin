@@ -196,4 +196,14 @@ Stream& Scope::stream(Stream& s) const { return schedule(*this).stream(s); }
 template void Streamable<Scope>::dump() const;
 template void Streamable<Scope>::write() const;
 
+bool is_free(const Param* param, const Def* def) {
+    // optimize common cases
+    if (def == param) return true;
+    for (auto p : param->nominal()->params())
+        if (p == param) return true;
+
+    Scope scope(param->nominal());
+    return scope.contains(def);
+}
+
 }

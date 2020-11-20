@@ -32,6 +32,7 @@ enum class HlsInterface : uint8_t {
     SOC,  ///< SoC HW module (Embedded)
     HPC,  ///< HPC accelerator (HLS for HPC via OpenCL/XRT + XDMA)
     HPC_STREAM,  ///< HPC accelerator (HLS for HPC via XRT + QDMA)
+    GMEM_OPT, ///< Dedicated global memory interfaces and memory banks
     None
 };
 
@@ -151,7 +152,7 @@ inline bool has_params(Continuation* kernel) {
     return false;
 }
 
-inline bool get_interface(HlsInterface &interface) {
+inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
     const char* fpga_env = std::getenv("ANYDSL_FPGA");
     if (fpga_env != NULL) {
         std::string fpga_env_str = fpga_env;
@@ -180,6 +181,7 @@ inline bool get_interface(HlsInterface &interface) {
                 continue;
             }
         }
+        return (set_interface ? true : false);
     }
     return false;
 }
@@ -442,6 +444,8 @@ std::ostream& CCodeGen::emit_temporaries(const Def* def) {
     return emit(def) << endl;
 }
 
+            HlsInterface interface, gmem_config;
+            auto interface_status = get_interface(interface, gmem_config);
 void CCodeGen::emit() {
     if (lang_ == Lang::CUDA) {
         func_decls_ <<
@@ -628,8 +632,6 @@ void CCodeGen::emit() {
         func_impl_  << ") {" << up;
 
         if (lang_ == Lang::HLS && continuation->is_exported()) {
-            HlsInterface interface;
-            auto interface_status = get_interface(interface);
             if (name == "hls_top") {
                 if (interface_status) {
                     if (continuation->num_params() > 2) {
@@ -641,9 +643,13 @@ void CCodeGen::emit() {
                                 if (interface == HlsInterface::SOC)
                                     func_impl_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
                                 else if (interface == HlsInterface::HPC) {
+                                    if (gmem_config == HlsInterface::GMEM_OPT)
+                                        hls_gmem_index++;
                                     func_impl_ << "\n#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
-                                        << " bundle = gmem" << hls_gmem_index++ << std::string(2, ' ') << "offset = slave" << "\n"
+                                        << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n"
                                         << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name() <<  " bundle = control";
+                                } else if (interface == HlsInterface::HPC_STREAM) {
+                                    func_impl_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
                                 }
                             } else {
                                 if (interface == HlsInterface::SOC)

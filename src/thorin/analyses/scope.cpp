@@ -14,7 +14,7 @@ namespace thorin {
 Scope::Scope(Def* entry)
     : world_(entry->world())
     , entry_(entry)
-    , exit_(world().lam(world().cn(world().bot_star()), {"exit"}))
+    , exit_(world().lam(world().cn(world().bot_kind()), {"exit"}))
 {
     run();
 }

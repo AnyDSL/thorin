@@ -734,9 +734,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
-        if (isa<Kind>(Kind::Arity, bitcast->type()))          return lookup(bitcast->arg());
-        if (isa<Kind>(Kind::Arity, bitcast->type()->type()))  return lookup(bitcast->arg());
-        if (isa<Kind>(Kind::Arity, bitcast->arg()->type()))   return lookup(bitcast->arg());
         auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
         auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
         if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
@@ -869,20 +866,19 @@ llvm::Value* CodeGen::emit(const Def* def) {
 #endif
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        if (isa<Kind>(Kind::Arity, lit->type()->type())) {
-            if (auto a = isa_lit<u64>(lit->type()); a && *a == 2)
-                return irbuilder_.getInt1(lit->get());
-            return irbuilder_.getInt64(lit->get());
-        }
-
         if (isa<Tag::Int>(lit->type())) {
-            switch (*get_width(lit->type())) {
-                case  1: return irbuilder_. getInt1(lit->get< u1>());
-                case  8: return irbuilder_. getInt8(lit->get< u8>());
-                case 16: return irbuilder_.getInt16(lit->get<u16>());
-                case 32: return irbuilder_.getInt32(lit->get<u32>());
-                case 64: return irbuilder_.getInt64(lit->get<u64>());
-                default: THORIN_UNREACHABLE;
+            auto size = as_lit(isa_sized_type(lit->type()));
+            if (auto bound = bound2width(size)) {
+                switch (*bound) {
+                    case  1: return irbuilder_. getInt1(lit->get< u1>());
+                    case  8: return irbuilder_. getInt8(lit->get< u8>());
+                    case 16: return irbuilder_.getInt16(lit->get<u16>());
+                    case 32: return irbuilder_.getInt32(lit->get<u32>());
+                    case 64: return irbuilder_.getInt64(lit->get<u64>());
+                    default: THORIN_UNREACHABLE;
+                }
+            } else {
+                return irbuilder_.getInt64(lit->get<u64>());
             }
         }
 
@@ -979,18 +975,19 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!isa<Tag::Mem>(type));
 
-    if (isa<Kind>(Kind::Arity, type->type())) {
-        if (auto a = isa_lit<u64>(type); a && *a == 2)
-            return types_[type] = irbuilder_.getInt1Ty();
-        return types_[type] = irbuilder_.getInt64Ty();
-    } else if (isa<Tag::Int>(type)) {
-        switch (*get_width(type)) {
-            case  1: return types_[type] = irbuilder_. getInt1Ty();
-            case  8: return types_[type] = irbuilder_. getInt8Ty();
-            case 16: return types_[type] = irbuilder_.getInt16Ty();
-            case 32: return types_[type] = irbuilder_.getInt32Ty();
-            case 64: return types_[type] = irbuilder_.getInt64Ty();
-            default: THORIN_UNREACHABLE;
+    if (isa<Tag::Int>(type)) {
+        auto size = as_lit(isa_sized_type(type));
+        if (auto width = bound2width(size)) {
+            switch (*width) {
+                case  1: return types_[type] = irbuilder_. getInt1Ty();
+                case  8: return types_[type] = irbuilder_. getInt8Ty();
+                case 16: return types_[type] = irbuilder_.getInt16Ty();
+                case 32: return types_[type] = irbuilder_.getInt32Ty();
+                case 64: return types_[type] = irbuilder_.getInt64Ty();
+                default: THORIN_UNREACHABLE;
+            }
+        } else {
+            return types_[type] = irbuilder_.getInt64Ty();
         }
     } else if (auto real = isa<Tag::Real>(type)) {
         switch (as_lit<nat_t>(real->arg())) {

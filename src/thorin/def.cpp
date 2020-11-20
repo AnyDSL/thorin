@@ -37,24 +37,24 @@ Defs Def::extended_ops() const {
 size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Def::tuple_arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
+    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->domain();
     if (is_value())                 return type()->tuple_arity();
     assert(is_type());
-    return world().lit_arity(1);
+    return world().lit_nat(1);
 }
 
 const Def* Def::arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
-    if (auto union_ = isa<Union>()) return world().lit_arity(union_->num_ops());
+    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
+    if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->domain();
     if (is_value())                 return type()->arity();
     assert(is_type());
-    return world().lit_arity(1);
+    return world().lit_nat(1);
 }
 
-nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
-nat_t Def::lit_tuple_arity() const { return as_lit<nat_t>(tuple_arity()); }
+nat_t Def::lit_arity() const { return as_lit(arity()); }
+nat_t Def::lit_tuple_arity() const { return as_lit(tuple_arity()); }
 
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
@@ -77,10 +77,10 @@ const Def* Def::debug_history() const {
 
 std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_line() const { return debug() ? as_lit(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_col()  const { return debug() ? as_lit(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_line()  const { return debug() ? as_lit(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_col()   const { return debug() ? as_lit(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
 const Def* Def::meta() const { return debug() ? debug()->out(3) : nullptr; }
 
 std::string Def::loc() const {
@@ -356,14 +356,12 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const 
     normalizer_depth_.set(normalizer, currying_depth);
 }
 
-Kind::Kind(World& world, Tag tag)
-    : Def(Node, tag == Star  ? (const Def*) world.universe() :
-                tag == Multi ? (const Def*) world.kind(Star) :
-                               (const Def*) world.kind(Multi), Defs{}, fields_t(tag), nullptr)
+Kind::Kind(World& world)
+    : Def(Node, (const Def*) world.universe(), Defs{}, 0, nullptr)
 {}
 
 Nat::Nat(World& world)
-    : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
+    : Def(Node, world.kind(), Defs{}, 0, nullptr)
 {}
 
 /*
@@ -432,7 +430,7 @@ const Def* DS2CPS  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) con
 const Def* Extract ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.extract(t, o[0], o[1], dbg); }
 const Def* Global  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.global(o[0], o[1], is_mutable(), dbg); }
 const Def* Insert  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(as<Kind>()->tag()); }
+const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(); }
 const Def* Lam     ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Lit     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
 const Def* Match   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.match(o[0], o.skip_front(), dbg); }

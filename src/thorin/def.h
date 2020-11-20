@@ -89,7 +89,7 @@ template<bool no_extract = false> const Def* proj(const Def* def, u64 arity, u64
  */
 template<bool = false> const Def* proj(const Def* def, u64 i);
 
-template<class T> std::optional<T> isa_lit(const Def*);
+template<class T = u64> std::optional<T> isa_lit(const Def*);
 
 //------------------------------------------------------------------------------
 
@@ -205,7 +205,7 @@ public:
         using R = decltype(f(this));
 
         if constexpr (N == size_t(-1)) {
-            auto a = isa_lit<nat_t>(tuple_arity());
+            auto a = isa_lit(tuple_arity());
             auto lit = a ? *a : 1;
             return Array<R>(lit, [&](size_t i) { return f(proj(this, lit, i)); });
         } else {
@@ -292,12 +292,10 @@ public:
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
-        if (node()                                         == Node::Universe) return *world_;
-        if (type()->node()                                 == Node::Universe) return *type()->world_;
-        if (type()->type()->node()                         == Node::Universe) return *type()->type()->world_;
-        if (type()->type()->type()->node()                 == Node::Universe) return *type()->type()->type()->world_;
-        if (type()->type()->type()->type()->node()         == Node::Universe) return *type()->type()->type()->type()->world_;
-        if (type()->type()->type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->type()->type()->world_;
+        if (node()                         == Node::Universe) return *world_;
+        if (type()->node()                 == Node::Universe) return *type()->world_;
+        if (type()->type()->node()         == Node::Universe) return *type()->type()->world_;
+        if (type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->world_;
         THORIN_UNREACHABLE;
     }
     //@}
@@ -447,14 +445,10 @@ public:
 };
 
 class Kind : public Def {
-public:
-    enum Tag { Arity, Multi, Star };
-
 private:
-    Kind(World&, Tag);
+    Kind(World&);
 
 public:
-    Tag tag() const { return Tag(fields()); }
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
@@ -538,16 +532,13 @@ public:
     friend class World;
 };
 
-template<class T> std::optional<T> isa_lit(const Def* def) {
+template<class T = u64> std::optional<T> isa_lit(const Def* def) {
+    if (def == nullptr) return {};
     if (auto lit = def->isa<Lit>()) return lit->get<T>();
     return {};
 }
 
-template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
-
-inline nat_t as_arity(const Def* def) { assert(def->type()->as<Kind>()->tag() == Kind::Tag::Arity); return  as_lit<nat_t>(def); }
-inline std::optional<nat_t> isa_lit_arity(const Def* def) { return def->type()->as<Kind>()->tag() == Kind::Tag::Arity ? isa_lit<nat_t>(def) : std::nullopt; }
-inline bool isa_lit_arity(const Def* def, nat_t arity) { if (auto a = isa_lit_arity(def)) return *a == arity; return false; }
+template<class T = u64> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
 /// A function type AKA Pi type.
 class Pi : public Def {

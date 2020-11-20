@@ -17,9 +17,9 @@ std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
 }
 
 bool is_symmetric(const Def* def) {
-    if (auto a = isa_lit_arity(def->type()->arity())) {
+    if (auto a = isa_lit<nat_t>(def->type()->arity())) {
         if (auto z = proj<true>(def, *a, 0)) {
-            if (auto b = isa_lit_arity(z->type()->arity())) {
+            if (auto b = isa_lit<nat_t>(z->type()->arity())) {
                 if (*a == *b) {
                     for (size_t i = 0; i != *a; ++i) {
                         for (size_t j = i+1; j != *a; ++j) {

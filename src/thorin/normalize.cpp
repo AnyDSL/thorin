@@ -4,6 +4,10 @@
 
 namespace thorin {
 
+template<class O> constexpr bool is_int      () { return true;  }
+template<>        constexpr bool is_int<ROp >() { return false; }
+template<>        constexpr bool is_int<RCmp>() { return false; }
+
 /*
  * small helpers
  */
@@ -92,7 +96,7 @@ template<nat_t w> struct Fold<WOp, WOp::shl, w> {
     static Res run(u64 a, u64 b, bool nsw, bool nuw) {
         using T = w2u<w>;
         auto x = get<T>(a), y = get<T>(b);
-        if (u64(y) > w) return {};
+        if (u64(y) >= w) return {};
         decltype(x) res;
         if constexpr (std::is_same_v<T, bool>)
             res = bool(u64(x) << u64(y));
@@ -179,6 +183,8 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
         } else {
             width = as_lit<nat_t>(a->type()->as<App>()->arg());
         }
+
+        if (is_int<Op>()) width = *bound2width(width);
 
         Res res;
         switch (width) {
@@ -760,12 +766,8 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
 
     if (auto lit = src->isa<Lit>()) {
         if (dst_type->isa<Nat>()) return world.lit(dst_type, lit->get(), dbg);
-        if (get_width(dst_type))  return world.lit(dst_type, lit->get(), dbg);
-
-        if (auto a = isa_lit_arity(dst_type)) {
-            if (lit->get() < *a) return world.lit_index(dst_type, lit->get(), dbg);
-            return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
-        }
+        if (isa_lit(isa_sized_type(dst_type)))   return world.lit(dst_type, lit->get(), dbg);
+        return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
     }
 
     return world.raw_app(callee, src, dbg);
@@ -776,7 +778,8 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     auto [ptr, index] = arg->split<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
-    if (isa_lit_arity(pointee->arity(), 1)) return ptr;
+    if (auto a = isa_lit(pointee->arity()); a && *a ==  1) return ptr;
+    //TODO
 
     return world.raw_app(callee, {ptr, index}, dbg);
 }
@@ -784,7 +787,7 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
 const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = t->world();
 
-    if (auto w = get_width(arg)) return world.lit_nat(*w / 8, dbg);
+    if (auto w = isa_lit(isa_sized_type(arg))) return world.lit_nat(*w / 8, dbg);
 
     return world.raw_app(callee, arg, dbg);
 }

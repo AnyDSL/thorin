@@ -460,6 +460,10 @@ void CCodeGen::emit() {
     if (lang_==Lang::OPENCL)
         func_decls_ << "#ifndef __xilinx__" << endl;
 
+    // removing function prototypes from HLS synthesis
+    if (lang_ == Lang::HLS)
+        func_decls_ << "#ifndef __SYNTHESIS__\n";
+
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;
@@ -988,7 +992,9 @@ void CCodeGen::emit() {
         def2str_.clear();
     });
     if (lang_ == Lang::OPENCL)
-        func_decls_ << "#endif"<< endl; // for __xilinx__
+        func_decls_ << "#endif /* __xilinx__ */"<< endl;
+    if (lang_ == Lang::HLS)
+        func_decls_ << "#endif /* __SYNTHESIS__ */\n";
     type2str_.clear();
     global2str_.clear();
 

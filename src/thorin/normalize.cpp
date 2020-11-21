@@ -516,6 +516,8 @@ static const Def* fold_Conv(const Def* dst_type, const App* callee, const Def* s
     auto [lit_dw, lit_sw] = callee->args<2>(isa_lit<nat_t>);
     auto lit_src = src->isa<Lit>();
     if (lit_src && lit_dw && lit_sw) {
+        if (isa<Tag::Int>(src->type())) *lit_sw = *bound2width(*lit_sw);
+        if (isa<Tag::Int>( dst_type  )) *lit_dw = *bound2width(*lit_dw);
         Res res;
 #define CODE(sw, dw)                                             \
         else if (*lit_dw == dw && *lit_sw == sw) {               \

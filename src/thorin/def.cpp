@@ -50,7 +50,6 @@ const Def* Def::arity() const {
     if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->shape();
     if (is_value())                 return type()->arity();
-    assert(is_type());
     return world().lit_nat(1);
 }
 

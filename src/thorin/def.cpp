@@ -473,7 +473,7 @@ const Pi* Pi::resolve() {
 const Def* Arr::resolve() {
     auto& w = world();
     if (auto n = isa_lit(shape()))
-        return w.sigma(type(), Array<const Def*>(*n, [&](size_t i) { return body()->apply(w.lit_int(*n, i)).back(); }));
+        return w.sigma(type(), Array<const Def*>(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));
     return nullptr;
 }
 

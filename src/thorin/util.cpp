@@ -36,6 +36,7 @@ bool is_symmetric(const Def* def) {
     return false;
 }
 
+// TODO nominal arr/pack
 template<bool no_extract>
 const Def* proj(const Def* def, u64 a, u64 i) {
     if (a == 1) return def;

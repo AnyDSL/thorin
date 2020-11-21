@@ -20,26 +20,55 @@
 
 namespace thorin {
 
+// TODO not all cases implemented
+// TODO move somewhere else and polish
 
-static bool check(const Def* type, const Def* val) {
+static bool check(const Def* t1, const Def* t2) {
+    if (t1 == t2) return true;
+    if (!check(t1->arity(), t2->arity())) return false;
+    auto a = t1->lit_arity();
+
+    if (auto s1 = t1->isa<Sigma>()) {
+        for (size_t i = 0; i != a; ++i) {
+            if (!check(s1->op(i), proj(t2, a, i))) return false;
+        }
+
+        return true;
+    }
+
+    if (t1->node() == t2->node() && t1->num_ops() == t2->num_ops()) {
+        size_t n = t1->num_ops();
+        for (size_t i = 0; i != n; ++i) {
+            if (!check(t1->op(i), t2->op(i))) return false;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+static bool assignable(const Def* type, const Def* val) {
     if (type == val->type()) return true;
-    if (type->arity() != val->type()->arity()) return false;
+    if (!check(type->arity(), val->type()->arity())) return false;
     auto& world = type->world();
 
     if (auto sigma = type->isa<Sigma>()) {
         auto red = sigma->apply(val);
         for (size_t i = 0, e = red.size(); i != e; ++i) {
-            if (!check(red[i], val->out(i))) return false;
+            if (!assignable(red[i], val->out(i))) return false;
         }
 
         return true;
     } else if (auto arr = type->isa<Arr>()) {
         auto n = arr->lit_arity();
         for (size_t i = 0; i != n; ++i) {
-            if (!check(arr->apply(world.lit_int(n, i)).back() , val->out(i))) return false;
+            if (!assignable(arr->apply(world.lit_int(n, i)).back(), val->out(i))) return false;
         }
 
         return true;
+    } else {
+        return check(type, val->type());
     }
 
     return false;
@@ -72,8 +101,8 @@ World::World(const std::string& name) {
         data_.lit_bool_[0]  = lit_int(2, 0_u64);
         data_.lit_bool_[1]  = lit_int(2, 1_u64);
 
-        data_.table_not = tuple({lit_false(), lit_true ()} , {  "id"});
-        data_.table_not = tuple({lit_true (), lit_false()} , { "not"});
+        data_.table_not = tuple({lit_false(), lit_true ()}, {  "id"});
+        data_.table_not = tuple({lit_true (), lit_false()}, { "not"});
 
         // fill truth tables
         for (size_t i = 0; i != Num<Bit>; ++i) {
@@ -159,7 +188,6 @@ World::World(const std::string& name) {
         type->set_codomain(pi(S, D));
         data_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
     } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
-        // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
         auto domain = sigma(universe(), 3);
         domain->set(0, nat);
         domain->set(1, arr(domain->param(0, {"n"}), kind()));
@@ -247,7 +275,7 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
 
     if (err()) {
-        if (!check(pi->domain(), arg)) err()->ill_typed_app(callee, arg);
+        if (!assignable(pi->domain(), arg)) err()->ill_typed_app(callee, arg);
     }
 
     auto type = pi->apply(arg).back();

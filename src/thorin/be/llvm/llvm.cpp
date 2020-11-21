@@ -976,8 +976,9 @@ llvm::Type* CodeGen::convert(const Def* type) {
     assert(!isa<Tag::Mem>(type));
 
     if (isa<Tag::Int>(type)) {
-        auto size = as_lit(isa_sized_type(type));
-        if (auto width = bound2width(size)) {
+        auto size = isa_sized_type(type);
+        if (size->isa<Top>()) return types_[type] = irbuilder_.getInt64Ty();
+        if (auto width = bound2width(as_lit(size))) {
             switch (*width) {
                 case  1: return types_[type] = irbuilder_. getInt1Ty();
                 case  8: return types_[type] = irbuilder_. getInt8Ty();

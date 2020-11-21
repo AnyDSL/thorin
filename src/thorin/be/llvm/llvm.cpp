@@ -592,7 +592,7 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
     if (auto arr = type->isa<Arr>()) {
-        auto num = lookup(arr->body());
+        auto num = lookup(arr->shape());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),
@@ -866,7 +866,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
 #endif
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        if (isa<Tag::Int>(lit->type())) {
+
+        if (lit->type()->isa<Nat>()) {
+            return irbuilder_.getInt64(lit->get<u64>());
+        } else if (isa<Tag::Int>(lit->type())) {
             auto size = as_lit(isa_sized_type(lit->type()));
             if (auto bound = bound2width(size)) {
                 switch (*bound) {
@@ -975,7 +978,9 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!isa<Tag::Mem>(type));
 
-    if (isa<Tag::Int>(type)) {
+    if (type->isa<Nat>()) {
+        return types_[type] = irbuilder_.getInt64Ty();
+    } else if (isa<Tag::Int>(type)) {
         auto size = isa_sized_type(type);
         if (size->isa<Top>()) return types_[type] = irbuilder_.getInt64Ty();
         if (auto width = bound2width(as_lit(size))) {

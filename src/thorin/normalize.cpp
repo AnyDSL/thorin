@@ -768,7 +768,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
 
     if (auto lit = src->isa<Lit>()) {
         if (dst_type->isa<Nat>()) return world.lit(dst_type, lit->get(), dbg);
-        if (isa_lit(isa_sized_type(dst_type))) return world.lit(dst_type, lit->get(), dbg);
+        if (isa_sized_type(dst_type)) return world.lit(dst_type, lit->get(), dbg);
         return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
     }
 

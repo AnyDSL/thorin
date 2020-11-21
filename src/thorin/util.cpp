@@ -36,15 +36,17 @@ bool is_symmetric(const Def* def) {
     return false;
 }
 
-// TODO nominal arr/pack
+// TODO nominal sigma
 template<bool no_extract>
 const Def* proj(const Def* def, u64 a, u64 i) {
+    auto& world = def->world();
+
     if (a == 1) return def;
     if (def == nullptr) return nullptr; // pass through nullptr for nested proj calls
     if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
-    if (auto pack = def->isa<Pack>()) { assert(i < pack->type()->lit_arity()); return pack->body();     }
-    if (auto arr  = def->isa<Arr >()) { assert(i < arr         ->lit_arity()); return arr ->body(); }
     if (!no_extract && def->is_value()) { return def->world().extract(def, a, i); }
+    if (auto arr  = def->isa<Arr >()) return arr ->apply(world.lit_int(arr ->lit_arity(), i)).back();
+    if (auto pack = def->isa<Pack>()) return pack->apply(world.lit_int(pack->lit_arity(), i)).back();
     return nullptr;
 }
 

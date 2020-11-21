@@ -25,15 +25,28 @@ namespace thorin {
 
 static bool check(const Def* t1, const Def* t2) {
     if (t1 == t2) return true;
-    if (!check(t1->arity(), t2->arity())) return false;
-    auto a = t1->lit_arity();
+    auto& world = t1->world();
 
-    if (auto s1 = t1->isa<Sigma>()) {
+    if (t1->isa<Top>() || t2->isa<Top>()) return check(t1->type(), t2->type());
+    if (auto sig = t1->isa<Sigma>()) {
+        if (!check(t1->arity(), t2->arity())) return false;
+
+        auto a = t1->num_ops();
         for (size_t i = 0; i != a; ++i) {
-            if (!check(s1->op(i), proj(t2, a, i))) return false;
+            if (!check(sig->op(i), proj(t2, a, i))) return false;
         }
 
         return true;
+    } else if (auto arr = t1->isa<Arr>()) {
+        if (!check(t1->arity(), t2->arity())) return false;
+
+        if (auto a = isa_lit(arr->shape())) {
+            for (size_t i = 0; i != a; ++i) {
+                if (!check(arr->apply(world.lit_int(*a, i)).back(), proj(t2, *a, i))) return false;
+            }
+
+            return true;
+        }
     }
 
     if (t1->node() == t2->node() && t1->num_ops() == t2->num_ops()) {
@@ -50,10 +63,11 @@ static bool check(const Def* t1, const Def* t2) {
 
 static bool assignable(const Def* type, const Def* val) {
     if (type == val->type()) return true;
-    if (!check(type->arity(), val->type()->arity())) return false;
     auto& world = type->world();
 
     if (auto sigma = type->isa<Sigma>()) {
+        if (!check(type->arity(), val->type()->arity())) return false;
+
         auto red = sigma->apply(val);
         for (size_t i = 0, e = red.size(); i != e; ++i) {
             if (!assignable(red[i], val->out(i))) return false;
@@ -61,9 +75,14 @@ static bool assignable(const Def* type, const Def* val) {
 
         return true;
     } else if (auto arr = type->isa<Arr>()) {
-        auto n = arr->lit_arity();
-        for (size_t i = 0; i != n; ++i) {
-            if (!assignable(arr->apply(world.lit_int(n, i)).back(), val->out(i))) return false;
+        if (!check(type->arity(), val->type()->arity())) return false;
+
+        if (auto n = isa_lit(arr->arity())) {;
+            for (size_t i = 0; i != *n; ++i) {
+                if (!assignable(arr->apply(world.lit_int(*n, i)).back(), val->out(i))) return false;
+            }
+        } else {
+            return check(arr, val->type());
         }
 
         return true;

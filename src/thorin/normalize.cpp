@@ -350,7 +350,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
         }
 
         if (op == WOp::sub)
-            return world.op(WOp::add, *m, a, world.lit_int(*w, ~lb->get() + 1_u64)); // a - lb -> a + (~lb + 1)
+            return world.op(WOp::add, *m, a, world.lit_int(*w, (~lb->get() + 1_u64) & ~(u64(-1) << *w))); // a - lb -> a + (~lb + 1)
         else if (op == WOp::shl && lb->get() > *w)
             return world.bot(type, dbg);
     }

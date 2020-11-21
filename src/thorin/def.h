@@ -88,8 +88,8 @@ template<bool no_extract = false> const Def* proj(const Def* def, u64 arity, u64
  * It's always a good idea to pass an appropriate arity along. }
  */
 template<bool = false> const Def* proj(const Def* def, u64 i);
-
 template<class T = u64> std::optional<T> isa_lit(const Def*);
+template<class T = u64> T as_lit(const Def* def);
 
 //------------------------------------------------------------------------------
 
@@ -162,8 +162,6 @@ public:
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     const Def* tuple_arity() const;
-    u64 lit_arity() const;
-    u64 lit_tuple_arity() const;
     //@}
     /// @name ops
     //@{
@@ -209,7 +207,7 @@ public:
             auto lit = a ? *a : 1;
             return Array<R>(lit, [&](size_t i) { return f(proj(this, lit, i)); });
         } else {
-            auto a = lit_tuple_arity();
+            auto a = as_lit(tuple_arity());
             assert(a == N);
             std::array<R, N> array;
             for (size_t i = 0; i != N; ++i)
@@ -221,7 +219,10 @@ public:
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
-    size_t num_outs() const { return lit_arity(); }
+    size_t num_outs() const { 
+        if (auto a = isa_lit(arity())) return *a; 
+        return 1;
+    }
     //@}
     /// @name external handling
     //@{
@@ -307,7 +308,7 @@ public:
     //@{
     virtual const Def* rebuild(World&, const Def*, Defs, const Def*) const { THORIN_UNREACHABLE; }
     virtual Def* stub(World&, const Def*, const Def*) { THORIN_UNREACHABLE; }
-    virtual const Def* resolve() { return nullptr; }
+    virtual const Def* restructure() { return nullptr; }
     virtual bool is_value() const { return type()->is_type();                } ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
     virtual bool is_type()  const { return type()->is_kind();                } ///< Anything that can be the @p type of a value (see @p is_value).
     virtual bool is_kind()  const { return type()->node() == Node::Universe; } ///< Anything that can be the @p type of a type (see @p is_type).
@@ -575,7 +576,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Pi* stub(World&, const Def*, const Def*) override;
-    const Pi* resolve();
+    const Pi* restructure();
     bool is_value() const override;
     bool is_type()  const override;
     //@}
@@ -914,7 +915,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Arr* stub(World&, const Def*, const Def*) override;
-    const Def* resolve();
+    const Def* restructure();
     bool is_value() const override;
     bool is_type()  const override;
     //@}

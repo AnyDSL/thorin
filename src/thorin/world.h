@@ -205,14 +205,14 @@ public:
     /// During a rebuild we cannot infer the type if it is not set yet; in this case we rely on @p ex_type.
     const Def* extract(const Def* ex_type, const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(nullptr, agg, i, dbg); }
-    const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_int(agg->type()->reduce()->lit_arity(), i), dbg); }
+    const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_int(as_lit(agg->type()->reduce()->arity()), i), dbg); }
     /**
      * This infers the arity from @p Def.
      * @attention { Think twice whether this is sound due to 1-tuples being folded.
      * It's always a good idea to pass an appropriate arity along. }
      */
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_int(a, i), dbg); }
-    const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(type_int(agg->type()->reduce()->lit_arity()), i, dbg), dbg); }
+    const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(type_int(as_lit(agg->type()->reduce()->arity())), i, dbg), dbg); }
     const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_int(0, i), dbg); }
     //@}
     /// @name Bool operations - extracts on truth tables (tuples)
@@ -228,8 +228,8 @@ public:
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_int(agg->type()->reduce()->lit_arity(), i), value, dbg); }
-    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(type_int(agg->type()->reduce()->lit_arity()), i), value, dbg); }
+    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_int(as_lit(agg->type()->reduce()->arity()), i), value, dbg); }
+    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(type_int(as_lit(agg->type()->reduce()->arity())), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(0, i), value, dbg); }
     //@}
     /// @name Match/Ptrn/Case

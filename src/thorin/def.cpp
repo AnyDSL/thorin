@@ -35,7 +35,7 @@ Defs Def::extended_ops() const {
     return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset);
 }
 
-size_t Def::num_params() { return param()->type()->lit_arity(); }
+size_t Def::num_params() { return param()->num_outs(); }
 
 const Def* Def::tuple_arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
@@ -53,9 +53,6 @@ const Def* Def::arity() const {
     assert(is_type());
     return world().lit_nat(1);
 }
-
-nat_t Def::lit_arity() const { return as_lit(arity()); }
-nat_t Def::lit_tuple_arity() const { return as_lit(tuple_arity()); }
 
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
@@ -262,7 +259,7 @@ void Lam::match(const Def* val, Defs cases, const Def* mem, Debug dbg) {
 
 Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
 
-size_t Pi::num_domains() const { return domain()->lit_arity(); }
+size_t Pi::num_domains() const { return domain()->num_outs(); }
 const Def* Pi::  domain(size_t i) const { return proj(  domain(), i); }
 const Def* Pi::codomain(size_t i) const { return proj(codomain(), i); }
 
@@ -462,15 +459,15 @@ Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.union_(t, 
 Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.arr_nom(t, shape(), dbg); }
 
 /*
- * resolve
+ * restructure
  */
 
-const Pi* Pi::resolve() {
+const Pi* Pi::restructure() {
     if (!is_free(param(), codomain())) return world().pi(domain(), codomain(), debug());
     return nullptr;
 }
 
-const Def* Arr::resolve() {
+const Def* Arr::restructure() {
     auto& w = world();
     if (auto n = isa_lit(shape()))
         return w.sigma(type(), Array<const Def*>(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));

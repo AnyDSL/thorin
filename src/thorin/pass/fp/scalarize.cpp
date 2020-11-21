@@ -18,7 +18,7 @@ const Def* Scalerize::rewrite(Def*, const Def* def) {
         std::vector<const Def*> new_doms;
 
         for (size_t i = 0, e = app->num_args(); i != e; ++i) {
-            auto a = tup_lam->lit_arity();
+            auto a = tup_lam->num_outs();
             if (a == 0) continue; // remove empty tuples
             if (a == 1) continue; // keep
             if (keep_.contains(tup_lam->param(i))) {

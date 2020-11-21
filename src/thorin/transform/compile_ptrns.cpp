@@ -116,7 +116,7 @@ public:
     const Def* compile(const Match* match, const Def* arg, std::vector<Ptrn*>& ptrns, const Def* dbg) {
         assert(!ptrns.empty());
         // If the first pattern of the list matches everything, then no need for a match
-        if (arg->type()->reduce()->lit_arity() == 0 || ptrns[0]->is_trivial()) {
+        if (as_lit(arg->type()->reduce()->arity()) == 0 || ptrns[0]->is_trivial()) {
             redundant_[parent_[ptrns[0]]] = false;
             return ptrns[0]->apply(arg).back();
         }

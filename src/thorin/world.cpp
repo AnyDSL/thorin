@@ -463,7 +463,7 @@ static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug
 
 const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, Debug dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
-        Array<const Def*> ops(index->lit_arity(), [&](size_t) { return extract(tup, index->ops().back()); });
+        Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
         auto n = index->num_ops();
@@ -540,7 +540,7 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
         auto a = inner->index();
         auto b = index;
         auto inner_type = inner->tuple()->type()->reduce();
-        auto arity = inner_type->lit_arity();
+        auto arity = as_lit(inner_type->arity());
 
         if (inner->tuple()->is_const()) {
             if (auto res = merge_cmps<Tag::ICmp>(inner->tuple(), a, b, dbg)) return res;

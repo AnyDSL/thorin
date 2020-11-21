@@ -870,8 +870,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (lit->type()->isa<Nat>()) {
             return irbuilder_.getInt64(lit->get<u64>());
         } else if (isa<Tag::Int>(lit->type())) {
-            auto size = as_lit(isa_sized_type(lit->type()));
-            if (auto bound = bound2width(size)) {
+            auto size = isa_sized_type(lit->type());
+            if (size->isa<Top>()) return irbuilder_.getInt64(lit->get<u64>());
+            if (auto bound = bound2width(as_lit(size))) {
                 switch (*bound) {
                     case  1: return irbuilder_. getInt1(lit->get< u1>());
                     case  8: return irbuilder_. getInt8(lit->get< u8>());

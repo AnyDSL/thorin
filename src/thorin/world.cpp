@@ -332,9 +332,12 @@ static const Def* infer_sigma(World& world, Defs ops) {
 
 const Def* World::tuple(Defs ops, Debug dbg) {
     auto sigma = infer_sigma(*this, ops);
-    assert(sigma->lit_arity() == ops.size());
+    auto t = tuple(sigma, ops, dbg);
+    if (err() && !assignable(sigma, t)) {
+        assert(false && "TODO: error msg");
+    }
 
-    return tuple(sigma, ops, dbg);
+    return t;
 }
 
 const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {

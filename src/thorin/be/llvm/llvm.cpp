@@ -887,6 +887,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (auto bound = bound2width(as_lit(size))) {
                 switch (*bound) {
                     case  1: return irbuilder_. getInt1(lit->get< u1>());
+                    case  2:
+                    case  4:
                     case  8: return irbuilder_. getInt8(lit->get< u8>());
                     case 16: return irbuilder_.getInt16(lit->get<u16>());
                     case 32: return irbuilder_.getInt32(lit->get<u32>());
@@ -999,6 +1001,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
         if (auto width = bound2width(as_lit(size))) {
             switch (*width) {
                 case  1: return types_[type] = irbuilder_. getInt1Ty();
+                case  2:
+                case  4:
                 case  8: return types_[type] = irbuilder_. getInt8Ty();
                 case 16: return types_[type] = irbuilder_.getInt16Ty();
                 case 32: return types_[type] = irbuilder_.getInt32Ty();

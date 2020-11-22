@@ -16,7 +16,7 @@ template<>        constexpr bool is_int<RCmp>() { return false; }
 static const Def* is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp>(IOp::ixor, def)) {
         auto [x, y] = ixor->args<2>();
-        if (auto lit = x->isa<Lit>(); lit && lit == def->world().lit_int(*get_width(lit->type()), mask(*w))) return y;
+        if (auto lit = x->isa<Lit>(); lit && lit == def->world().lit_int(*get_width(lit->type()), *w-1_u64)) return y;
     }
     return nullptr;
 }
@@ -572,8 +572,6 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
     return world.raw_app(callee, arg, dbg);
 }
 
-u64 mask(u64 w) { return w - 1_u64; };
-
 const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
@@ -583,7 +581,7 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     if (!tbl->is_const() || !w) return world.raw_app(callee, arg, dbg);
 
     if (tbl == world.table(Bit::    f)) return world.lit_int(*w,      0);
-    if (tbl == world.table(Bit::    t)) return world.lit_int(*w, mask(*w));
+    if (tbl == world.table(Bit::    t)) return world.lit_int(*w, *w-1_u64);
     if (tbl == world.table(Bit::    a)) return a;
     if (tbl == world.table(Bit::    b)) return b;
     if (tbl == world.table(Bit::   na)) return world.op_bit_not(a, dbg);
@@ -632,10 +630,10 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     }
 
     auto make_lit = [&](const Def* def) {
-        return as_lit<bool>(def) ? world.lit_int(*w, mask(*w)) : world.lit_int(*w, 0);
+        return as_lit<bool>(def) ? world.lit_int(*w, *w-1_u64) : world.lit_int(*w, 0);
     };
 
-    if (a == world.lit_int(*w, 0) || a == world.lit_int(*w, mask(*w))) {
+    if (a == world.lit_int(*w, 0) || a == world.lit_int(*w, *w-1_u64)) {
         auto row = proj(tbl, 2, as_lit<u64>(a) ? 1 : 0);
         if (auto pack = row->isa<Pack>()) return make_lit(pack->body());
         if (row == world.table_id())      return b;
@@ -675,7 +673,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        if (la == world.lit_int(*w, mask(*w))) {
+        if (la == world.lit_int(*w, *w-1_u64)) {
             switch (op) {
                 case IOp::iand: return b;
                 case IOp::ior : return la;
@@ -700,8 +698,8 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto bb = is_not(b); bb && a == bb) {
         switch (op) {
             case IOp::iand: return world.lit_int(*w,       0);
-            case IOp::ior : return world.lit_int(*w, mask(*w));
-            case IOp::ixor: return world.lit_int(*w, mask(*w));
+            case IOp::ior : return world.lit_int(*w, *w-1_u64);
+            case IOp::ixor: return world.lit_int(*w, *w-1_u64);
             default: THORIN_UNREACHABLE;
         }
     }

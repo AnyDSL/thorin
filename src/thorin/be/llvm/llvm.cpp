@@ -722,26 +722,18 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto src = lookup(conv->arg());
         auto name = def->name();
         auto type = convert(def->type());
-        auto [num_dst, num_src] = conv->decurry()->args<2>();
-        nat_t s_dst, s_src;
 
-        if (isa<Tag::Int>(def->type())) {
-            if (num_src->isa<Top>())
-                s_src = 64;
-            else
-                s_src = *bound2width(as_lit(num_src));
-        } else {
-            s_src = as_lit(num_src);
-        }
+        auto size2width = [&](const Def* type) {
+            if (auto int_ = isa<Tag::Int>(type)) {
+                if (int_->arg()->isa<Top>()) return 64_u64;
+                if (auto width = bound2width(as_lit(int_->arg()))) return *width;
+                return 64_u64;
+            }
+            return as_lit(as<Tag::Real>(type)->arg());
+        };
 
-        if (isa<Tag::Int>(conv->type())) {
-            if (num_dst->isa<Top>())
-                s_dst = 64;
-            else
-                s_dst = *bound2width(as_lit(num_dst));
-        } else {
-            s_dst = as_lit(num_dst);
-        }
+        nat_t s_src = size2width(conv->arg()->type());
+        nat_t s_dst = size2width(conv->type());
 
         switch (conv.flags()) {
             case Conv::s2s: return s_src < s_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);

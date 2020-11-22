@@ -215,16 +215,6 @@ public:
     const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op(Conv::u2u, type_int(as_lit(agg->type()->reduce()->arity())), i, dbg), dbg); }
     const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_int(0, i), dbg); }
     //@}
-    /// @name Bool operations - extracts on truth tables (tuples)
-    //@{
-    const Def* table(Bit o)  const { return data_.Bit_[size_t(o)]; }
-    const Def* table_id () const { return data_.table_id;  }
-    const Def* table_not() const { return data_.table_not; }
-    const Def* extract(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return extract(extract(table(o), a), b, dbg); }
-    const Def* extract_eq (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::nxor, a, b, dbg); }
-    const Def* extract_ne (const Def* a, const Def* b, Debug dbg = {}) { return extract(Bit::_xor, a, b, dbg); }
-    const Def* extract_not(const Def* a, Debug dbg = {}) { return extract(Bit::_xor, lit_true(), a, dbg); }
-    //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
@@ -310,10 +300,9 @@ public:
     //@}
     /// @name Bit
     //@{
-    const Axiom* op_bit() const { return data_.op_bit_; }
-    const Def* op_bit(const Def* tbl, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_size(a); return app(app(op_bit(), w), {tbl, a, b}, dbg); }
-    const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { return op_bit(table(o), a, b, dbg); }
-    const Def* op_bit_not(const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(Bit::_xor, lit_int(w, w-1_u64 ), a, dbg); }
+    const Axiom* op(Bit o) const { return data_.Bit_[size_t(o)]; }
+    const Def* op(Bit o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_size(a); return app(app(op(o), w), {a, b}, dbg); }
+    const Def* op_neg(const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(Bit::_xor, lit_int(w, w-1_u64 ), a, dbg); }
     //@}
     /// @name Shr
     //@{
@@ -328,7 +317,7 @@ public:
         return app(app(op(o), {wmode, w}), {a, b}, dbg);
     }
     const Def* op(WOp o, nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(wmode), a, b, dbg); }
-    const Def* op_WOp_minus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(WOp::sub, wmode, lit_int(w, 0), a, dbg); }
+    const Def* op_wminus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(WOp::sub, wmode, lit_int(w, 0), a, dbg); }
     //@}
     /// @name ZOp
     //@{
@@ -344,8 +333,8 @@ public:
     const Axiom* op(ROp o) { return data_.ROp_[size_t(o)]; }
     const Def* op(ROp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(ROp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_size(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
-    const Def* op_ROp_minus(const Def* rmode, const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(ROp::sub, rmode, lit_real(w, -0.0), a, dbg); }
-    const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op_ROp_minus(lit_nat(rmode), a, dbg); }
+    const Def* op_rminus(const Def* rmode, const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(ROp::sub, rmode, lit_real(w, -0.0), a, dbg); }
+    const Def* op_rminus(nat_t rmode, const Def* a, Debug dbg = {}) { return op_rminus(lit_nat(rmode), a, dbg); }
     //@}
     /// @name Cmp
     //@{
@@ -660,7 +649,7 @@ private:
         const Def* table_id;
         const Def* table_not;
         std::array<const Lit*, 2> lit_bool_;
-        std::array<const Def*,   Num<Bit>>  Bit_;
+        std::array<const Axiom*, Num<Bit>>  Bit_;
         std::array<const Axiom*, Num<Shr>>  Shr_;
         std::array<const Axiom*, Num<WOp>>  WOp_;
         std::array<const Axiom*, Num<ZOp>>  ZOp_;
@@ -674,7 +663,6 @@ private:
         const Axiom* type_real_;
         const Axiom* type_ptr_;
         const Axiom* op_bitcast_;
-        const Axiom* op_bit_;
         const Axiom* op_lea_;
         const Axiom* op_sizeof_;
         const Axiom* op_alloc_;

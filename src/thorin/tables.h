@@ -28,12 +28,11 @@ using nat_t    = u64;
     m(Param, param)                                                                     \
     m(Global, global)
 
-#define THORIN_TAG(m)                                                                                   \
-    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)                                                   \
-    m(Shr, shr) m(WOp, wop) m(ZOp, zop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
-    m(Bit, bit)                                                                                         \
-    m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                   \
-    m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)                                         \
+#define THORIN_TAG(m)                                                                                               \
+    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)                                                               \
+    m(Bit, bit) m(Shr, shr) m(WOp, wop) m(ZOp, zop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
+    m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                               \
+    m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)                                                     \
     m(Grad, grad) m(TangentVector, tangent_vector)
 
 namespace WMode {
@@ -154,23 +153,23 @@ enum RMode : nat_t {
  * Table for all binary boolean operations.
  * See https://en.wikipedia.org/wiki/Truth_table#Binary_operations
  *                                   x o x o                                */
-#define THORIN_B_OP(m)            /* B B A A -                              */ \
-                    m(Bit,     f) /* o o o o - always false                 */ \
-                    m(Bit,   nor) /* o o o x -                              */ \
-                    m(Bit, nciff) /* o o x o - not converse implication     */ \
-                    m(Bit,    na) /* o o x x - not first argument           */ \
-                    m(Bit,  niff) /* o x o o - not implication              */ \
-                    m(Bit,    nb) /* o x o x - not second argument          */ \
-                    m(Bit,  _xor) /* o x x o -                              */ \
-                    m(Bit,  nand) /* o x x x -                              */ \
-                    m(Bit,  _and) /* x o o o -                              */ \
-                    m(Bit,  nxor) /* x o o x -                              */ \
-                    m(Bit,     b) /* x o x o - second argument              */ \
-                    m(Bit,   iff) /* x o x x - implication (if and only if) */ \
-                    m(Bit,     a) /* x x o o - first argment                */ \
-                    m(Bit,  ciff) /* x x o x - converse implication         */ \
-                    m(Bit,   _or) /* x x x o -                              */ \
-                    m(Bit,     t) /* x x x x - always true                  */
+#define THORIN_BIT(m)            /* B B A A -                              */ \
+                   m(Bit,     f) /* o o o o - always false                 */ \
+                   m(Bit,   nor) /* o o o x -                              */ \
+                   m(Bit, nciff) /* o o x o - not converse implication     */ \
+                   m(Bit,    na) /* o o x x - not first argument           */ \
+                   m(Bit,  niff) /* o x o o - not implication              */ \
+                   m(Bit,    nb) /* o x o x - not second argument          */ \
+                   m(Bit,  _xor) /* o x x o -                              */ \
+                   m(Bit,  nand) /* o x x x -                              */ \
+                   m(Bit,  _and) /* x o o o -                              */ \
+                   m(Bit,  nxor) /* x o o x -                              */ \
+                   m(Bit,     b) /* x o x o - second argument              */ \
+                   m(Bit,   iff) /* x o x x - implication (if and only if) */ \
+                   m(Bit,     a) /* x x o o - first argment                */ \
+                   m(Bit,  ciff) /* x x o x - converse implication         */ \
+                   m(Bit,   _or) /* x x x o -                              */ \
+                   m(Bit,     t) /* x x x x - always true                  */
 
 namespace Node {
 #define CODE(node, name) node,
@@ -185,15 +184,15 @@ enum : tag_t { THORIN_TAG(CODE) Max };
 }
 
 #define CODE(T, o) o,
-enum class Bit    : tag_t { THORIN_B_OP  (CODE) };
-enum class Shr    : tag_t { THORIN_SHR   (CODE) };
-enum class WOp    : tag_t { THORIN_W_OP  (CODE) };
-enum class ZOp    : tag_t { THORIN_Z_OP  (CODE) };
-enum class ROp    : tag_t { THORIN_R_OP  (CODE) };
-enum class ICmp   : tag_t { THORIN_I_CMP (CODE) };
-enum class RCmp   : tag_t { THORIN_R_CMP (CODE) };
-enum class Conv   : tag_t { THORIN_CONV  (CODE) };
-enum class PE     : tag_t { THORIN_PE    (CODE) };
+enum class Bit    : tag_t { THORIN_BIT  (CODE) };
+enum class Shr    : tag_t { THORIN_SHR  (CODE) };
+enum class WOp    : tag_t { THORIN_W_OP (CODE) };
+enum class ZOp    : tag_t { THORIN_Z_OP (CODE) };
+enum class ROp    : tag_t { THORIN_R_OP (CODE) };
+enum class ICmp   : tag_t { THORIN_I_CMP(CODE) };
+enum class RCmp   : tag_t { THORIN_R_CMP(CODE) };
+enum class Conv   : tag_t { THORIN_CONV (CODE) };
+enum class PE     : tag_t { THORIN_PE   (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -205,7 +204,7 @@ constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b));
 constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
 #define CODE(T, o) case T::o: return #T "_" #o;
-constexpr const char* op2str(Bit  o) { switch (o) { THORIN_B_OP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Bit  o) { switch (o) { THORIN_BIT  (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(Shr  o) { switch (o) { THORIN_SHR  (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP (CODE) default: THORIN_UNREACHABLE; } }
@@ -232,7 +231,7 @@ template<class T> constexpr auto Num = size_t(-1);
 #define CODE(T, o) + 1_s
 constexpr auto Num_Nodes = 0_s THORIN_NODE(CODE);
 constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
-template<> constexpr auto Num<Bit > = 0_s THORIN_B_OP (CODE);
+template<> constexpr auto Num<Bit > = 0_s THORIN_BIT  (CODE);
 template<> constexpr auto Num<Shr > = 0_s THORIN_SHR  (CODE);
 template<> constexpr auto Num<WOp > = 0_s THORIN_W_OP (CODE);
 template<> constexpr auto Num<ZOp > = 0_s THORIN_Z_OP (CODE);
@@ -244,6 +243,7 @@ template<> constexpr auto Num<PE  > = 0_s THORIN_PE   (CODE);
 #undef CODE
 
 template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
+template<> struct Tag2Enum_<Tag::Bit > { using type = Bit;   };
 template<> struct Tag2Enum_<Tag::Shr > { using type = Shr;   };
 template<> struct Tag2Enum_<Tag::WOp > { using type = WOp;   };
 template<> struct Tag2Enum_<Tag::ZOp > { using type = ZOp;   };

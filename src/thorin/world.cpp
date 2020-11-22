@@ -119,24 +119,20 @@ World::World(const std::string& name) {
         data_.type_bool_    = type_int(2);
         data_.lit_bool_[0]  = lit_int(2, 0_u64);
         data_.lit_bool_[1]  = lit_int(2, 1_u64);
-
-        data_.table_not = tuple({lit_false(), lit_true ()}, {  "id"});
-        data_.table_not = tuple({lit_true (), lit_false()}, { "not"});
-
-        // fill truth tables
-        for (size_t i = 0; i != Num<Bit>; ++i) {
-            data_.Bit_[i] = tuple({tuple({lit_bool(i & 0b0001), lit_bool(i & 0b0010)}),
-                                   tuple({lit_bool(i & 0b0100), lit_bool(i & 0b1000)})});
-        }
     }
 
     auto mem = data_.type_mem_ = axiom(kind(), Tag::Mem, 0, {"mem"});
 
     { // ptr: Π[T: *, as: nat]. *
         data_.type_ptr_ = axiom(nullptr, pi({kind(), nat}, kind()), Tag::Ptr, 0, {"ptr"});
-    }
+    } {
 #define CODE(T, o) data_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
-    {   // Shr: Πw: nat. Π[int w, int w]. int w
+    } { // bit: Πw: nat. Π[int w, int w]. int w
+        auto type = pi(kind())->set_domain(nat);
+        auto int_w = type_int(type->param({"w"}));
+        type->set_codomain(pi({int_w, int_w}, int_w));
+        THORIN_BIT(CODE)
+    } {   // Shr: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind())->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
@@ -195,11 +191,6 @@ World::World(const std::string& name) {
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
         data_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
-    } { // bit: Πw: nat. Π[«bool; bool», int w, int w]. int w
-        auto type = pi(kind())->set_domain(nat);
-        auto int_w = type_int(type->param({"w"}));
-        type->set_codomain(pi({arr({2, 2}, type_bool()), int_w, int_w}, int_w));
-        data_.op_bit_ = axiom(normalize_bit, type, Tag::Bit, 0, {"bit"});
     } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(kind())->set_domain({kind(), kind()});
         auto D = type->param(0, {"D"});
@@ -436,31 +427,6 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
     return match;
 }
 
-template<tag_t tag>
-static const Def* merge_cmps(const Def* tuple, const Def* a, const Def* b, Debug dbg) {
-    static_assert(sizeof(flags_t) == 4, "if this ever changes, please adjust the logic below");
-    static constexpr size_t num_bits = log2(Num<Tag2Enum<tag>>);
-    auto a_cmp = isa<tag>(a);
-    auto b_cmp = isa<tag>(b);
-
-    if (a_cmp && b_cmp && a_cmp->args() == b_cmp->args()) {
-        // push flags of a_cmp and b_cmp through truth table
-        flags_t res = 0;
-        flags_t a_flags = a_cmp.axiom()->flags();
-        flags_t b_flags = b_cmp.axiom()->flags();
-        for (size_t i = 0; i != num_bits; ++i, res >>= 1, a_flags >>= 1, b_flags >>= 1)
-            res |= as_lit(proj(proj(tuple, 2, a_flags & 1), 2, b_flags & 1)) << 31_u32;
-        res >>= (31_u32 - u32(num_bits));
-
-        auto& world = tuple->world();
-        if constexpr (tag == Tag::RCmp)
-            return world.op(RCmp(res), /*rmode*/ a_cmp->decurry()->arg(0), a_cmp->arg(0), a_cmp->arg(1), dbg);
-        else
-            return world.op(ICmp(res), a_cmp->arg(0), a_cmp->arg(1), dbg);
-    }
-    return nullptr;
-}
-
 const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, Debug dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
         Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
@@ -498,75 +464,6 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
         if (type->isa<Sigma>() || type->isa<Union>())
             return unify<Extract>(2, ex_type ? ex_type : type->op(*i), tup, index, debug(dbg));
     }
-
-    if (auto arr = type->isa<Arr>()) {
-        if (auto tuple = tup->isa<Tuple>()) {
-            // TODO we could even deal with an offset
-            // extract((0, 1, 2, ...), i) -> i
-            bool ascending = true;
-            for (size_t i = 0, e = tuple->num_ops(); i != e && ascending; ++i) {
-                if (auto lit = isa_lit(tuple->op(i)))
-                    ascending &= *lit == i;
-                else
-                    ascending = false;
-            }
-
-            if (ascending)
-                return op_bitcast(arr->body(), index, dbg);
-
-            // extract((a, b, c, ...), extract((..., 2, 1, 0), i)) -> extract(..., c, b, a), i
-            // this also deals with NOT
-            if (auto i_ex = index->isa<Extract>()) {
-                if (auto i_tup = i_ex->tuple()->isa<Tuple>()) {
-                    bool descending = true;
-                    for (size_t i = 0, e = i_tup->num_ops(); i != e && descending; ++i) {
-                        if (auto lit = isa_lit(i_tup->op(i)))
-                            descending &= *lit == e - i - 1;
-                        else
-                            descending = false;
-                    }
-
-                    if (descending) {
-                        auto ops = tuple->split();
-                        std::reverse(ops.begin(), ops.end());
-                        return extract(this->tuple(type, ops, tuple->debug()), i_ex->index(), dbg);
-                    }
-                }
-            }
-        }
-    }
-
-    if (auto inner = tup->isa<Extract>()) {
-        auto a = inner->index();
-        auto b = index;
-        auto inner_type = inner->tuple()->type()->reduce();
-        auto arity = as_lit(inner_type->arity());
-
-        if (inner->tuple()->is_const()) {
-            if (auto res = merge_cmps<Tag::ICmp>(inner->tuple(), a, b, dbg)) return res;
-            if (auto res = merge_cmps<Tag::RCmp>(inner->tuple(), a, b, dbg)) return res;
-        }
-
-        if (is_symmetric(inner->tuple())) {
-            if (a == b) {
-                // extract(extract(sym, a), a) -> extract(diag(sym), a)
-                auto ops = Array<const Def*>(arity, [&](size_t i) { return proj(proj(inner->tuple(), i), i); });
-                return extract(tuple(ops), a, dbg);
-            } else if (a->gid() > b->gid()) {
-                // extract(extract(sym, b), a) -> extract(extract(sym, a), b)
-                return extract(extract(inner->tuple(), b, inner->debug()), a, dbg);
-            }
-        }
-    }
-
-#if 0
-    if (tup == table_not()) {
-        if (auto icmp = isa<Tag::ICmp>(index)) { auto [x, y] = icmp->args<2>(); return op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x, dbg); }
-        if (auto rcmp = isa<Tag::RCmp>(index)) { auto [x, y] = rcmp->args<2>(); return op(RCmp(~flags_t(rcmp.flags()) & 0b01111), /*rmode*/ rcmp->decurry()->arg(0), y, x, dbg); }
-    }
-#endif
-
-    // TODO absorption
 
     type = type->as<Arr>()->body();
     return unify<Extract>(2, type, tup, index, debug(dbg));

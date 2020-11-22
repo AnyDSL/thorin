@@ -608,24 +608,20 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    auto emit_bit = [&](const Def* tbl, const Def* a, const Def* b) -> llvm::Value* {
-        auto x = lookup(a);
-        auto y = lookup(b);
-
-        if (tbl == world().table(Bit:: _and)) return irbuilder_.CreateAnd(x, y);
-        if (tbl == world().table(Bit::  _or)) return irbuilder_.CreateOr (x, y);
-        if (tbl == world().table(Bit:: _xor)) return irbuilder_.CreateXor(x, y);
-        if (tbl == world().table(Bit:: nand)) return irbuilder_.CreateNeg(irbuilder_.CreateAnd(x, y));
-        if (tbl == world().table(Bit::  nor)) return irbuilder_.CreateNeg(irbuilder_.CreateOr (x, y));
-        if (tbl == world().table(Bit:: nxor)) return irbuilder_.CreateNeg(irbuilder_.CreateXor(x, y));
-        if (tbl == world().table(Bit::  iff)) return irbuilder_.CreateAnd(irbuilder_.CreateNeg(x), y);
-        if (tbl == world().table(Bit:: niff)) return irbuilder_.CreateOr (x, irbuilder_.CreateNeg(y));
-        return nullptr;
-    };
-
     if (auto bit = isa<Tag::Bit>(def)) {
-        auto [tbl, a, b] = bit->args<3>();
-        return emit_bit(tbl, a, b);
+        auto [a, b] = bit->args<2>([&](auto def) { return lookup(def); });
+
+        switch (bit.flags()) {
+            case Bit:: _and: return irbuilder_.CreateAnd(a, b);
+            case Bit::  _or: return irbuilder_.CreateOr (a, b);
+            case Bit:: _xor: return irbuilder_.CreateXor(a, b);
+            case Bit:: nand: return irbuilder_.CreateNeg(irbuilder_.CreateAnd(a, b));
+            case Bit::  nor: return irbuilder_.CreateNeg(irbuilder_.CreateOr (a, b));
+            case Bit:: nxor: return irbuilder_.CreateNeg(irbuilder_.CreateXor(a, b));
+            case Bit::  iff: return irbuilder_.CreateAnd(irbuilder_.CreateNeg(a), b);
+            case Bit:: niff: return irbuilder_.CreateOr (a, irbuilder_.CreateNeg(b));
+            default: THORIN_UNREACHABLE;
+        }
     } else if (auto shr = isa<Tag::Shr>(def)) {
         auto [a, b] = shr->args<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
@@ -835,13 +831,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = def->isa<Extract>()) {
-            if (extract->tuple() == world().table_not()) return irbuilder_.CreateNeg(llvm_idx);
-            if (auto inner = extract->tuple()->isa<Extract>()) {
-                if (extract->tuple()->type() == world().arr(2, world().type_bool())) {
-                    if (auto res = emit_bit(inner->tuple(), inner->index(), extract->index())) return res;
-                }
-            }
-
             if (is_memop(extract->tuple())) return lookup(extract->tuple());
             if (extract->tuple()->type()->isa<Arr>()) return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 

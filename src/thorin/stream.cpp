@@ -65,11 +65,6 @@ Stream& stream(Stream& s, const Def* def) {
     } else if (auto sigma = def->isa<Sigma>()) {
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
-        auto& world = def->world();
-        for (size_t i = 0; i != 16; ++i) {
-            if (tuple == world.table(Bit(i)))
-                return s.fmt("{}", op2str(Bit(i)));
-        }
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto arr = def->isa<Arr>()) {

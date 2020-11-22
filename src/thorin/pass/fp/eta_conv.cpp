@@ -4,18 +4,6 @@
 
 namespace thorin {
 
-static bool is_free(const Param* param, const Def* def) {
-    auto lam = param->nominal()->as<Lam>();
-
-    // optimize common cases
-    if (def == param) return true;
-    for (auto p : lam->params())
-        if (p == param) return true;
-
-    Scope scope(lam);
-    return scope.contains(def);
-}
-
 const Def* EtaConv::rewrite(Def*, const Def* def) {
     if (def->isa<Param>() || def->isa<Proxy>()) return def;
 

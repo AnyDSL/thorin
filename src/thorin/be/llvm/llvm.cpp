@@ -144,7 +144,7 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     auto l = lam->body()->as<App>()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Arr>()->codomain();
+    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Arr>()->body();
     auto smem_type = this->convert(lam->world().arr(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -592,11 +592,11 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
     if (auto arr = type->isa<Arr>()) {
-        auto num = lookup(arr->domain());
+        auto num = lookup(arr->shape());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(arr->codomain())))));
+                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(arr->body())))));
         llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
         void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
     } else {
@@ -722,11 +722,23 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto src = lookup(conv->arg());
         auto name = def->name();
         auto type = convert(def->type());
-        auto [num_dst, num_src] = conv->decurry()->args<2>(as_lit<nat_t>);
+
+        auto size2width = [&](const Def* type) {
+            if (auto int_ = isa<Tag::Int>(type)) {
+                if (int_->arg()->isa<Top>()) return 64_u64;
+                if (auto width = bound2width(as_lit(int_->arg()))) return *width;
+                return 64_u64;
+            }
+            return as_lit(as<Tag::Real>(type)->arg());
+        };
+
+        nat_t s_src = size2width(conv->arg()->type());
+        nat_t s_dst = size2width(conv->type());
+
         switch (conv.flags()) {
-            case Conv::s2s: return num_src < num_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
-            case Conv::u2u: return num_src < num_dst ? irbuilder_.CreateZExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
-            case Conv::r2r: return num_src < num_dst ? irbuilder_.CreateFPExt(src, type, name) : irbuilder_.CreateFPTrunc(src, type, name);
+            case Conv::s2s: return s_src < s_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
+            case Conv::u2u: return s_src < s_dst ? irbuilder_.CreateZExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
+            case Conv::r2r: return s_src < s_dst ? irbuilder_.CreateFPExt(src, type, name) : irbuilder_.CreateFPTrunc(src, type, name);
             case Conv::s2r: return irbuilder_.CreateSIToFP(src, type, name);
             case Conv::u2r: return irbuilder_.CreateUIToFP(src, type, name);
             case Conv::r2s: return irbuilder_.CreateFPToSI(src, type, name);
@@ -734,9 +746,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
-        if (isa<Kind>(Kind::Arity, bitcast->type()))          return lookup(bitcast->arg());
-        if (isa<Kind>(Kind::Arity, bitcast->type()->type()))  return lookup(bitcast->arg());
-        if (isa<Kind>(Kind::Arity, bitcast->arg()->type()))   return lookup(bitcast->arg());
         auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
         auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
         if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
@@ -800,7 +809,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (pack->body()->isa<Bot>()) return llvm_agg;
 
         auto elem = lookup(pack->body());
-        for (size_t i = 0, e = as_lit<u64>(pack->domain()); i != e; ++i)
+        for (size_t i = 0, e = as_lit<u64>(pack->shape()); i != e; ++i)
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });
 
         return llvm_agg;
@@ -869,20 +878,25 @@ llvm::Value* CodeGen::emit(const Def* def) {
 #endif
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        if (isa<Kind>(Kind::Arity, lit->type()->type())) {
-            if (auto a = isa_lit<u64>(lit->type()); a && *a == 2)
-                return irbuilder_.getInt1(lit->get());
-            return irbuilder_.getInt64(lit->get());
-        }
 
-        if (isa<Tag::Int>(lit->type()) || isa<Tag::SInt>(lit->type())) {
-            switch (*get_width(lit->type())) {
-                case  1: return irbuilder_. getInt1(lit->get< u1>());
-                case  8: return irbuilder_. getInt8(lit->get< u8>());
-                case 16: return irbuilder_.getInt16(lit->get<u16>());
-                case 32: return irbuilder_.getInt32(lit->get<u32>());
-                case 64: return irbuilder_.getInt64(lit->get<u64>());
-                default: THORIN_UNREACHABLE;
+        if (lit->type()->isa<Nat>()) {
+            return irbuilder_.getInt64(lit->get<u64>());
+        } else if (isa<Tag::Int>(lit->type())) {
+            auto size = isa_sized_type(lit->type());
+            if (size->isa<Top>()) return irbuilder_.getInt64(lit->get<u64>());
+            if (auto bound = bound2width(as_lit(size))) {
+                switch (*bound) {
+                    case  1: return irbuilder_. getInt1(lit->get< u1>());
+                    case  2:
+                    case  4:
+                    case  8: return irbuilder_. getInt8(lit->get< u8>());
+                    case 16: return irbuilder_.getInt16(lit->get<u16>());
+                    case 32: return irbuilder_.getInt32(lit->get<u32>());
+                    case 64: return irbuilder_.getInt64(lit->get<u64>());
+                    default: THORIN_UNREACHABLE;
+                }
+            } else {
+                return irbuilder_.getInt64(lit->get<u64>());
             }
         }
 
@@ -979,18 +993,24 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!isa<Tag::Mem>(type));
 
-    if (isa<Kind>(Kind::Arity, type->type())) {
-        if (auto a = isa_lit<u64>(type); a && *a == 2)
-            return types_[type] = irbuilder_.getInt1Ty();
+    if (type->isa<Nat>()) {
         return types_[type] = irbuilder_.getInt64Ty();
-    } else if (isa<Tag::Int>(type) || isa<Tag::SInt>(type)) {
-        switch (*get_width(type)) {
-            case  1: return types_[type] = irbuilder_. getInt1Ty();
-            case  8: return types_[type] = irbuilder_. getInt8Ty();
-            case 16: return types_[type] = irbuilder_.getInt16Ty();
-            case 32: return types_[type] = irbuilder_.getInt32Ty();
-            case 64: return types_[type] = irbuilder_.getInt64Ty();
-            default: THORIN_UNREACHABLE;
+    } else if (isa<Tag::Int>(type)) {
+        auto size = isa_sized_type(type);
+        if (size->isa<Top>()) return types_[type] = irbuilder_.getInt64Ty();
+        if (auto width = bound2width(as_lit(size))) {
+            switch (*width) {
+                case  1: return types_[type] = irbuilder_. getInt1Ty();
+                case  2:
+                case  4:
+                case  8: return types_[type] = irbuilder_. getInt8Ty();
+                case 16: return types_[type] = irbuilder_.getInt16Ty();
+                case 32: return types_[type] = irbuilder_.getInt32Ty();
+                case 64: return types_[type] = irbuilder_.getInt64Ty();
+                default: THORIN_UNREACHABLE;
+            }
+        } else {
+            return types_[type] = irbuilder_.getInt64Ty();
         }
     } else if (auto real = isa<Tag::Real>(type)) {
         switch (as_lit<nat_t>(real->arg())) {
@@ -1004,8 +1024,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
         auto llvm_type = llvm::PointerType::get(convert(pointee), convert_addr_space(as_lit<nat_t>(addr_space)));
         return types_[type] = llvm_type;
     } else if (auto arr = type->isa<Arr>()) {
-        auto elem_type = convert(arr->codomain());
-        if (auto arity = isa_lit<u64>(arr->domain()))
+        auto elem_type = convert(arr->body());
+        if (auto arity = isa_lit<u64>(arr->shape()))
             return types_[type] = llvm::ArrayType::get(elem_type, *arity);
         else
             return types_[type] = llvm::ArrayType::get(elem_type, 0);

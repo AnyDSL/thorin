@@ -15,7 +15,7 @@ using nat_t    = u64;
     m(Universe, universe) m(Kind, kind)                                                 \
     m(Pi, pi)             m(Lam, lam)           m(App, app)                             \
     m(Sigma, sigma)       m(Tuple, tuple)       m(Extract, extract) m(Insert, insert)   \
-    m(Arr, arr)           m(Pack, pack)         m(Succ, succ)                           \
+    m(Arr, arr)           m(Pack, pack)                                                 \
     m(Union, union_)      m(Which, which)                                               \
     m(Case, case_)        m(Ptrn, ptrn)                                                 \
     m(Match, match)                                                                     \
@@ -29,7 +29,7 @@ using nat_t    = u64;
     m(Global, global)
 
 #define THORIN_TAG(m)                                                                                   \
-    m(Mem, mem) m(Int, int) m(SInt, sint) m(Real, real) m(Ptr, ptr)                                     \
+    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)                                                   \
     m(Shr, shr) m(WOp, wop) m(ZOp, zop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
     m(Bit, bit)                                                                                         \
     m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                   \

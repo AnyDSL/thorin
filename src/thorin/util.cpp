@@ -17,9 +17,9 @@ std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
 }
 
 bool is_symmetric(const Def* def) {
-    if (auto a = isa_lit_arity(def->type()->arity())) {
+    if (auto a = isa_lit<nat_t>(def->type()->arity())) {
         if (auto z = proj<true>(def, *a, 0)) {
-            if (auto b = isa_lit_arity(z->type()->arity())) {
+            if (auto b = isa_lit<nat_t>(z->type()->arity())) {
                 if (*a == *b) {
                     for (size_t i = 0; i != *a; ++i) {
                         for (size_t j = i+1; j != *a; ++j) {
@@ -36,19 +36,22 @@ bool is_symmetric(const Def* def) {
     return false;
 }
 
+// TODO nominal sigma
 template<bool no_extract>
 const Def* proj(const Def* def, u64 a, u64 i) {
+    auto& world = def->world();
+
     if (a == 1) return def;
     if (def == nullptr) return nullptr; // pass through nullptr for nested proj calls
     if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
-    if (auto pack = def->isa<Pack>()) { assert(i < pack->type()->lit_arity()); return pack->body();     }
-    if (auto arr  = def->isa<Arr >()) { assert(i < arr         ->lit_arity()); return arr ->codomain(); }
     if (!no_extract && def->is_value()) { return def->world().extract(def, a, i); }
+    if (auto arr  = def->isa<Arr >()) return arr ->apply(world.lit_int(as_lit(arr ->arity()), i)).back();
+    if (auto pack = def->isa<Pack>()) return pack->apply(world.lit_int(as_lit(pack->arity()), i)).back();
     return nullptr;
 }
 
 template<bool no_extract>
-const Def* proj(const Def* def, u64 i) { return proj(def, def->lit_tuple_arity(), i); }
+const Def* proj(const Def* def, u64 i) { return proj(def, as_lit(def->tuple_arity()), i); }
 
 template const Def* proj<true >(const Def*, u64);
 template const Def* proj<false>(const Def*, u64);

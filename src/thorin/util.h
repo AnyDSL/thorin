@@ -7,6 +7,17 @@
 
 namespace thorin {
 
+constexpr uint64_t width2bound(uint64_t n) {
+    assert(n != 0);
+    return n == 64 ? 0 : (1_u64 << n);
+}
+
+constexpr std::optional<uint64_t> bound2width(uint64_t n) {
+    if (n == 0) return 64;
+    if (is_power_of_2(n)) return log2(n);
+    return {};
+}
+
 bool is_unit(const Def*);
 bool is_tuple_arg_of_app(const Def*);
 bool is_memop(const Def* def);
@@ -63,21 +74,14 @@ Query<Tag2Enum<tag>, Tag2Def<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
     return {};
 }
 
-inline const Def* get_width_as_def(const Def* type) {
-    if (false) {}
-    else if (auto int_ = isa<Tag:: Int>(type)) return int_->arg();
-    else if (auto sint = isa<Tag::SInt>(type)) return sint->arg();
-    else if (auto real = isa<Tag::Real>(type)) return real->arg();
+/// Checks whether @p type is an @p Int or a @p Real and returns its bound or width, respectively.
+inline const Def* isa_sized_type(const Def* type) {
+    if (auto int_ = isa<Tag:: Int>(type)) return int_->arg();
+    if (auto real = isa<Tag::Real>(type)) return real->arg();
     return nullptr;
 }
 
-inline std::optional<nat_t> get_width(const Def* type) {
-    if (auto def = get_width_as_def(type))
-        return isa_lit<nat_t>(def);
-    return std::nullopt;
-}
-
-inline const Def* infer_width(const Def* def) { return get_width_as_def(def->type()); }
+inline const Def* infer_size(const Def* def) { return isa_sized_type(def->type()); }
 
 template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }

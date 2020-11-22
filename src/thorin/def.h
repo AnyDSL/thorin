@@ -88,8 +88,8 @@ template<bool no_extract = false> const Def* proj(const Def* def, u64 arity, u64
  * It's always a good idea to pass an appropriate arity along. }
  */
 template<bool = false> const Def* proj(const Def* def, u64 i);
-
-template<class T> std::optional<T> isa_lit(const Def*);
+template<class T = u64> std::optional<T> isa_lit(const Def*);
+template<class T = u64> T as_lit(const Def* def);
 
 //------------------------------------------------------------------------------
 
@@ -162,8 +162,6 @@ public:
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     const Def* tuple_arity() const;
-    u64 lit_arity() const;
-    u64 lit_tuple_arity() const;
     //@}
     /// @name ops
     //@{
@@ -205,11 +203,11 @@ public:
         using R = decltype(f(this));
 
         if constexpr (N == size_t(-1)) {
-            auto a = isa_lit<nat_t>(tuple_arity());
+            auto a = isa_lit(tuple_arity());
             auto lit = a ? *a : 1;
             return Array<R>(lit, [&](size_t i) { return f(proj(this, lit, i)); });
         } else {
-            auto a = lit_tuple_arity();
+            auto a = as_lit(tuple_arity());
             assert(a == N);
             std::array<R, N> array;
             for (size_t i = 0; i != N; ++i)
@@ -221,7 +219,10 @@ public:
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
-    size_t num_outs() const { return lit_arity(); }
+    size_t num_outs() const { 
+        if (auto a = isa_lit(arity())) return *a; 
+        return 1;
+    }
     //@}
     /// @name external handling
     //@{
@@ -282,7 +283,6 @@ public:
     /// @name reduce/subst
     //@{
     const Def* reduce() const;
-    //Def* subst(Def* from, const Def* replacer, const Def* replacee, Debug dbg = {});
     /// @p rebuild%s this @p Def while using @p new_op as substitute for its @p i'th @p op
     const Def* refine(size_t i, const Def* new_op) const;
     //@}
@@ -292,12 +292,10 @@ public:
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
-        if (node()                                         == Node::Universe) return *world_;
-        if (type()->node()                                 == Node::Universe) return *type()->world_;
-        if (type()->type()->node()                         == Node::Universe) return *type()->type()->world_;
-        if (type()->type()->type()->node()                 == Node::Universe) return *type()->type()->type()->world_;
-        if (type()->type()->type()->type()->node()         == Node::Universe) return *type()->type()->type()->type()->world_;
-        if (type()->type()->type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->type()->type()->world_;
+        if (node()                         == Node::Universe) return *world_;
+        if (type()->node()                 == Node::Universe) return *type()->world_;
+        if (type()->type()->node()         == Node::Universe) return *type()->type()->world_;
+        if (type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->world_;
         THORIN_UNREACHABLE;
     }
     //@}
@@ -310,6 +308,7 @@ public:
     //@{
     virtual const Def* rebuild(World&, const Def*, Defs, const Def*) const { THORIN_UNREACHABLE; }
     virtual Def* stub(World&, const Def*, const Def*) { THORIN_UNREACHABLE; }
+    virtual const Def* restructure() { return nullptr; }
     virtual bool is_value() const { return type()->is_type();                } ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
     virtual bool is_type()  const { return type()->is_kind();                } ///< Anything that can be the @p type of a value (see @p is_value).
     virtual bool is_kind()  const { return type()->node() == Node::Universe; } ///< Anything that can be the @p type of a type (see @p is_type).
@@ -447,14 +446,10 @@ public:
 };
 
 class Kind : public Def {
-public:
-    enum Tag { Arity, Multi, Star };
-
 private:
-    Kind(World&, Tag);
+    Kind(World&);
 
 public:
-    Tag tag() const { return Tag(fields()); }
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
@@ -538,16 +533,13 @@ public:
     friend class World;
 };
 
-template<class T> std::optional<T> isa_lit(const Def* def) {
+template<class T = u64> std::optional<T> isa_lit(const Def* def) {
+    if (def == nullptr) return {};
     if (auto lit = def->isa<Lit>()) return lit->get<T>();
     return {};
 }
 
-template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
-
-inline nat_t as_arity(const Def* def) { assert(def->type()->as<Kind>()->tag() == Kind::Tag::Arity); return  as_lit<nat_t>(def); }
-inline std::optional<nat_t> isa_lit_arity(const Def* def) { return def->type()->as<Kind>()->tag() == Kind::Tag::Arity ? isa_lit<nat_t>(def) : std::nullopt; }
-inline bool isa_lit_arity(const Def* def, nat_t arity) { if (auto a = isa_lit_arity(def)) return *a == arity; return false; }
+template<class T = u64> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
 /// A function type AKA Pi type.
 class Pi : public Def {
@@ -584,6 +576,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Pi* stub(World&, const Def*, const Def*) override;
+    const Pi* restructure();
     bool is_value() const override;
     bool is_type()  const override;
     //@}
@@ -897,19 +890,32 @@ public:
 
 class Arr : public Def {
 private:
-    Arr(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node, type, {domain, codomain}, 0, dbg)
+    /// Constructor for a @em structural Arr.
+    Arr(const Def* type, const Def* shape, const Def* body, const Def* dbg)
+        : Def(Node, type, {shape, body}, 0, dbg)
     {}
+    /// Constructor for a @em nominal Arr.
+    Arr(const Def* type, const Def* shape, const Def* dbg)
+        : Def(Node, type, 2, 0, dbg)
+    {
+        Def::set(0, shape);
+    }
 
 public:
     /// @name ops
     //@{
-    const Def* domain() const { return op(0); }
-    const Def* codomain() const { return op(1); }
+    const Def* shape() const { return op(0); }
+    const Def* body() const { return op(1); }
+    //@}
+    /// @name methods for nominals
+    //@{
+    Arr* set(const Def* body) { return Def::set(1, body)->as<Arr>(); }
     //@}
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    Arr* stub(World&, const Def*, const Def*) override;
+    const Def* restructure();
     bool is_value() const override;
     bool is_type()  const override;
     //@}
@@ -925,15 +931,11 @@ private:
     {}
 
 public:
-    /// @name ops
+    /// @name getters
     //@{
     const Def* body() const { return op(0); }
-    //@}
-    /// @name type
-    //@{
     const Arr* type() const { return Def::type()->as<Arr>(); }
-    const Def* domain() const { return type()->domain(); }
-    const Def* codomain() const { return type()->codomain(); }
+    const Def* shape() const { return type()->shape(); }
     //@}
     /// @name virtual methods
     //@{
@@ -995,29 +997,6 @@ public:
     //@}
 
     static constexpr auto Node = Node::Insert;
-    friend class World;
-};
-
-class Succ : public Def {
-private:
-    Succ(const Def* type, bool tuplefy, const Def* dbg)
-        : Def(Node, type, Defs{}, tuplefy, dbg)
-    {}
-
-public:
-    /// @name Does this thing collapse into a tuple or a sigma?
-    //@{
-    bool tuplefy() const { return fields(); }
-    bool sigmafy() const { return !tuplefy(); }
-    //@}
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
-    //@}
-
-    static constexpr auto Node = Node::Succ;
     friend class World;
 };
 

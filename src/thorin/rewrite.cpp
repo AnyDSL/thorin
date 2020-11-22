@@ -20,6 +20,8 @@ const Def* Rewriter::rewrite(const Def* old_def) {
             if (auto old_op = old_nom->op(i)) new_nom->set(i, rewrite(old_op));
         }
 
+        if (auto new_def = new_nom->restructure()) return old2new[old_nom] = new_def;
+
         return new_nom;
     }
 

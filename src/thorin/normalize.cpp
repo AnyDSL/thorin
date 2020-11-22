@@ -4,6 +4,10 @@
 
 namespace thorin {
 
+template<class O> constexpr bool is_int      () { return true;  }
+template<>        constexpr bool is_int<ROp >() { return false; }
+template<>        constexpr bool is_int<RCmp>() { return false; }
+
 /*
  * small helpers
  */
@@ -12,7 +16,7 @@ namespace thorin {
 static const Def* is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp>(IOp::ixor, def)) {
         auto [x, y] = ixor->args<2>();
-        if (auto lit = x->isa<Lit>(); lit && lit == def->world().lit_int(*get_width(lit->type()), u64(-1))) return y;
+        if (auto lit = x->isa<Lit>(); lit && lit == def->world().lit_int(*get_width(lit->type()), *w-1_u64)) return y;
     }
     return nullptr;
 }
@@ -92,7 +96,7 @@ template<nat_t w> struct Fold<WOp, WOp::shl, w> {
     static Res run(u64 a, u64 b, bool nsw, bool nuw) {
         using T = w2u<w>;
         auto x = get<T>(a), y = get<T>(b);
-        if (u64(y) > w) return {};
+        if (u64(y) >= w) return {};
         decltype(x) res;
         if constexpr (std::is_same_v<T, bool>)
             res = bool(u64(x) << u64(y));
@@ -177,8 +181,10 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
             nuw = mode & WMode::nuw;
             width = w;
         } else {
-            width = as_lit<nat_t>(a->type()->as<App>()->arg());
+            width = as_lit(a->type()->as<App>()->arg());
         }
+
+        if (is_int<Op>()) width = *bound2width(width);
 
         Res res;
         switch (width) {
@@ -238,7 +244,7 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, [[maybe_unused]] c
         // build rmode for all new ops by using the least upper bound of all involved apps
         nat_t rmode = RMode::bot;
         auto check_mode = [&](const App* app) {
-            auto app_m = isa_lit<nat_t>(app->arg(0));
+            auto app_m = isa_lit(app->arg(0));
             if (!app_m || !has(*app_m, RMode::reassoc)) return false;
             rmode &= *app_m; // least upper bound
             return true;
@@ -273,7 +279,7 @@ const Def* normalize_Shr(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
-    auto w = isa_lit<nat_t>(callee->arg());
+    auto w = isa_lit(callee->arg());
 
     if (auto result = fold<Shr, op>(world, type, callee, a, b, dbg)) return result;
 
@@ -344,7 +350,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
         }
 
         if (op == WOp::sub)
-            return world.op(WOp::add, *m, a, world.lit_int(*w, ~lb->get() + 1_u64)); // a - lb -> a + (~lb + 1)
+            return world.op(WOp::add, *m, a, world.lit_int(*w, (~lb->get() + 1_u64) % *w)); // a - lb -> a + (~lb + 1)
         else if (op == WOp::shl && lb->get() > *w)
             return world.bot(type, dbg);
     }
@@ -369,7 +375,7 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [mem, a, b] = arg->split<3>();
-    auto w = isa_lit<nat_t>(callee->arg());
+    auto w = isa_lit(callee->arg());
     type = type->as<Sigma>()->op(1); // peel of actual type
     auto make_res = [&](const Def* res) { return world.tuple({mem, res}, dbg); };
 
@@ -510,6 +516,14 @@ static const Def* fold_Conv(const Def* dst_type, const App* callee, const Def* s
     auto [lit_dw, lit_sw] = callee->args<2>(isa_lit<nat_t>);
     auto lit_src = src->isa<Lit>();
     if (lit_src && lit_dw && lit_sw) {
+        if (op == Conv::u2u) {
+            if (*lit_dw == 0) return world.lit(dst_type, as_lit(lit_src));
+            return world.lit(dst_type, as_lit(lit_src) % *lit_dw);
+        }
+
+        if (isa<Tag::Int>(src->type())) *lit_sw = *bound2width(*lit_sw);
+        if (isa<Tag::Int>( dst_type  )) *lit_dw = *bound2width(*lit_dw);
+
         Res res;
 #define CODE(sw, dw)                                             \
         else if (*lit_dw == dw && *lit_sw == sw) {               \
@@ -562,12 +576,12 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [tbl, a, b] = arg->split<3>();
-    auto w = isa_lit<nat_t>(callee->arg());
+    auto w = isa_lit(callee->arg());
 
     if (!tbl->is_const() || !w) return world.raw_app(callee, arg, dbg);
 
     if (tbl == world.table(Bit::    f)) return world.lit_int(*w,      0);
-    if (tbl == world.table(Bit::    t)) return world.lit_int(*w, u64(-1));
+    if (tbl == world.table(Bit::    t)) return world.lit_int(*w, *w-1_u64);
     if (tbl == world.table(Bit::    a)) return a;
     if (tbl == world.table(Bit::    b)) return b;
     if (tbl == world.table(Bit::   na)) return world.op_bit_not(a, dbg);
@@ -616,10 +630,10 @@ const Def* normalize_bit(const Def* type, const Def* c, const Def* arg, const De
     }
 
     auto make_lit = [&](const Def* def) {
-        return as_lit<bool>(def) ? world.lit_int(*w, u64(-1)) : world.lit_int(*w, 0);
+        return as_lit<bool>(def) ? world.lit_int(*w, *w-1_u64) : world.lit_int(*w, 0);
     };
 
-    if (a == world.lit_int(*w, 0) || a == world.lit_int(*w, u64(-1))) {
+    if (a == world.lit_int(*w, 0) || a == world.lit_int(*w, *w-1_u64)) {
         auto row = proj(tbl, 2, as_lit<u64>(a) ? 1 : 0);
         if (auto pack = row->isa<Pack>()) return make_lit(pack->body());
         if (row == world.table_id())      return b;
@@ -645,7 +659,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
-    auto w = isa_lit<nat_t>(callee->arg());
+    auto w = isa_lit(callee->arg());
 
     if (auto result = fold<IOp, op>(world, type, callee, a, b, dbg)) return result;
 
@@ -659,7 +673,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        if (la == world.lit_int(*w, u64(-1))) {
+        if (la == world.lit_int(*w, *w-1_u64)) {
             switch (op) {
                 case IOp::iand: return b;
                 case IOp::ior : return la;
@@ -684,8 +698,8 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto bb = is_not(b); bb && a == bb) {
         switch (op) {
             case IOp::iand: return world.lit_int(*w,       0);
-            case IOp::ior : return world.lit_int(*w, u64(-1));
-            case IOp::ixor: return world.lit_int(*w, u64(-1));
+            case IOp::ior : return world.lit_int(*w, *w-1_u64);
+            case IOp::ixor: return world.lit_int(*w, *w-1_u64);
             default: THORIN_UNREACHABLE;
         }
     }
@@ -760,12 +774,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
 
     if (auto lit = src->isa<Lit>()) {
         if (dst_type->isa<Nat>()) return world.lit(dst_type, lit->get(), dbg);
-        if (get_width(dst_type))  return world.lit(dst_type, lit->get(), dbg);
-
-        if (auto a = isa_lit_arity(dst_type)) {
-            if (lit->get() < *a) return world.lit_index(dst_type, lit->get(), dbg);
-            return world.bot(dst_type, dbg); // this was an unsound cast - so return bottom
-        }
+        if (isa_sized_type(dst_type)) return world.lit(dst_type, lit->get(), dbg);
     }
 
     return world.raw_app(callee, src, dbg);
@@ -776,7 +785,8 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     auto [ptr, index] = arg->split<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
-    if (isa_lit_arity(pointee->arity(), 1)) return ptr;
+    if (auto a = isa_lit(pointee->arity()); a && *a ==  1) return ptr;
+    //TODO
 
     return world.raw_app(callee, {ptr, index}, dbg);
 }
@@ -784,7 +794,16 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
 const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = t->world();
 
-    if (auto w = get_width(arg)) return world.lit_nat(*w / 8, dbg);
+    if (auto int_ = isa<Tag::Int>(arg)) {
+        if (int_->arg()->isa<Top>()) return world.lit_nat(8);
+        if (auto w = isa_lit(int_->arg())) return world.lit_nat(log2(*w) / 8_u64, dbg);
+        return int_->arg();
+    }
+
+    if (auto real = isa<Tag::Real>(arg)) {
+        if (auto w = isa_lit(real->arg())) return world.lit_nat(*w / 8, dbg);
+        return real->arg();
+    }
 
     return world.raw_app(callee, arg, dbg);
 }

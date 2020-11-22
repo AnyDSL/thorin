@@ -6,6 +6,7 @@
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -34,27 +35,23 @@ Defs Def::extended_ops() const {
     return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset);
 }
 
-size_t Def::num_params() { return param()->type()->lit_arity(); }
+size_t Def::num_params() { return param()->num_outs(); }
 
 const Def* Def::tuple_arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
-    if (auto arr    = isa<Arr  >()) return arr->domain();
+    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
+    if (auto arr    = isa<Arr  >()) return arr->shape();
     if (is_value())                 return type()->tuple_arity();
     assert(is_type());
-    return world().lit_arity(1);
+    return world().lit_nat(1);
 }
 
 const Def* Def::arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_arity(sigma->num_ops());
-    if (auto union_ = isa<Union>()) return world().lit_arity(union_->num_ops());
-    if (auto arr    = isa<Arr  >()) return arr->domain();
+    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
+    if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
+    if (auto arr    = isa<Arr  >()) return arr->shape();
     if (is_value())                 return type()->arity();
-    assert(is_type());
-    return world().lit_arity(1);
+    return world().lit_nat(1);
 }
-
-nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
-nat_t Def::lit_tuple_arity() const { return as_lit<nat_t>(tuple_arity()); }
 
 bool Def::equal(const Def* other) const {
     if (isa<Universe>() || this->isa_nominal() || other->isa_nominal())
@@ -77,10 +74,10 @@ const Def* Def::debug_history() const {
 
 std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_line() const { return debug() ? as_lit(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_col()  const { return debug() ? as_lit(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_line()  const { return debug() ? as_lit(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_col()   const { return debug() ? as_lit(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
 const Def* Def::meta() const { return debug() ? debug()->out(3) : nullptr; }
 
 std::string Def::loc() const {
@@ -261,7 +258,7 @@ void Lam::match(const Def* val, Defs cases, const Def* mem, Debug dbg) {
 
 Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
 
-size_t Pi::num_domains() const { return domain()->lit_arity(); }
+size_t Pi::num_domains() const { return domain()->num_outs(); }
 const Def* Pi::  domain(size_t i) const { return proj(  domain(), i); }
 const Def* Pi::codomain(size_t i) const { return proj(codomain(), i); }
 
@@ -356,14 +353,12 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const 
     normalizer_depth_.set(normalizer, currying_depth);
 }
 
-Kind::Kind(World& world, Tag tag)
-    : Def(Node, tag == Star  ? (const Def*) world.universe() :
-                tag == Multi ? (const Def*) world.kind(Star) :
-                               (const Def*) world.kind(Multi), Defs{}, fields_t(tag), nullptr)
+Kind::Kind(World& world)
+    : Def(Node, (const Def*) world.universe(), Defs{}, 0, nullptr)
 {}
 
 Nat::Nat(World& world)
-    : Def(Node, world.kind(Kind::Star), Defs{}, 0, nullptr)
+    : Def(Node, world.kind(), Defs{}, 0, nullptr)
 {}
 
 /*
@@ -371,11 +366,14 @@ Nat::Nat(World& world)
  */
 
 const Param* Def::param(Debug dbg) {
-    if (auto lam    = isa<Lam  >()) return world().param(lam ->domain(), lam,    dbg);
-    if (auto ptrn   = isa<Ptrn >()) return world().param(ptrn->domain(), ptrn,   dbg);
-    if (auto pi     = isa<Pi   >()) return world().param(pi  ->domain(), pi,     dbg);
-    if (auto sigma  = isa<Sigma>()) return world().param(sigma,          sigma,  dbg);
-    if (auto union_ = isa<Union>()) return world().param(union_,         union_, dbg);
+    auto& w = world();
+    if (auto lam    = isa<Lam  >()) return w.param(lam ->domain(), lam,    dbg);
+    if (auto ptrn   = isa<Ptrn >()) return w.param(ptrn->domain(), ptrn,   dbg);
+    if (auto pi     = isa<Pi   >()) return w.param(pi  ->domain(), pi,     dbg);
+    if (auto sigma  = isa<Sigma>()) return w.param(sigma,          sigma,  dbg);
+    if (auto union_ = isa<Union>()) return w.param(union_,         union_, dbg);
+    if (auto arr    = isa<Arr  >()) return w.param(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
+    if (auto pack   = isa<Pack >()) return w.param(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
     THORIN_UNREACHABLE;
 }
 
@@ -432,7 +430,7 @@ const Def* DS2CPS  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) con
 const Def* Extract ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.extract(t, o[0], o[1], dbg); }
 const Def* Global  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.global(o[0], o[1], is_mutable(), dbg); }
 const Def* Insert  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(as<Kind>()->tag()); }
+const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(); }
 const Def* Lam     ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Lit     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
 const Def* Match   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.match(o[0], o.skip_front(), dbg); }
@@ -442,7 +440,6 @@ const Def* Param   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) con
 const Def* Pi      ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
 const Def* Proxy   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, as<Proxy>()->index(), as<Proxy>()->flags(), dbg); }
 const Def* Sigma   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
-const Def* Succ    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.succ(t, tuplefy(), dbg); }
 const Def* Top     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }
 const Def* Tuple   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }
 const Def* Union   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.union_(t, o, dbg); }
@@ -458,6 +455,23 @@ Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.pi(t, Debu
 Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
 Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.sigma(t, num_ops(), dbg); }
 Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.union_(t, num_ops(), dbg); }
+Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.arr_nom(t, shape(), dbg); }
+
+/*
+ * restructure
+ */
+
+const Pi* Pi::restructure() {
+    if (!is_free(param(), codomain())) return world().pi(domain(), codomain(), debug());
+    return nullptr;
+}
+
+const Def* Arr::restructure() {
+    auto& w = world();
+    if (auto n = isa_lit(shape()))
+        return w.sigma(type(), Array<const Def*>(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));
+    return nullptr;
+}
 
 /*
  * is_value
@@ -478,7 +492,6 @@ bool Pack    ::is_value() const { return true; }
 bool Ptrn    ::is_value() const { return true; }
 bool Tuple   ::is_value() const { return true; }
 bool Which   ::is_value() const { return true; }
-bool Succ    ::is_value() const { return as<Succ>()->tuplefy(); }
 
 /*
  * is_type
@@ -499,7 +512,6 @@ bool Pack    ::is_type() const { return false; }
 bool Ptrn    ::is_type() const { return false; }
 bool Tuple   ::is_type() const { return false; }
 bool Which   ::is_type() const { return false; }
-bool Succ    ::is_type() const { return as<Succ>()->sigmafy(); }
 
 /*
  * is_kind

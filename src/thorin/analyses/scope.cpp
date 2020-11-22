@@ -14,7 +14,7 @@ namespace thorin {
 Scope::Scope(Def* entry)
     : world_(entry->world())
     , entry_(entry)
-    , exit_(world().lam(world().cn(world().bot_star()), {"exit"}))
+    , exit_(world().lam(world().cn(world().bot_kind()), {"exit"}))
 {
     run();
 }
@@ -195,5 +195,15 @@ Stream& Scope::stream(Stream& s) const { return schedule(*this).stream(s); }
 
 template void Streamable<Scope>::dump() const;
 template void Streamable<Scope>::write() const;
+
+bool is_free(const Param* param, const Def* def) {
+    // optimize common cases
+    if (def == param) return true;
+    for (auto p : param->nominal()->params())
+        if (p == param) return true;
+
+    Scope scope(param->nominal());
+    return scope.contains(def);
+}
 
 }

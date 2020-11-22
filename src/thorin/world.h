@@ -212,7 +212,7 @@ public:
      * It's always a good idea to pass an appropriate arity along. }
      */
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_int(a, i), dbg); }
-    const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(type_int(as_lit(agg->type()->reduce()->arity())), i, dbg), dbg); }
+    const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op(Conv::u2u, type_int(as_lit(agg->type()->reduce()->arity())), i, dbg), dbg); }
     const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_int(0, i), dbg); }
     //@}
     /// @name Bool operations - extracts on truth tables (tuples)
@@ -229,7 +229,7 @@ public:
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_int(as_lit(agg->type()->reduce()->arity()), i), value, dbg); }
-    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(type_int(as_lit(agg->type()->reduce()->arity())), i), value, dbg); }
+    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op(Conv::u2u, type_int(as_lit(agg->type()->reduce()->arity())), i), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(0, i), value, dbg); }
     //@}
     /// @name Match/Ptrn/Case
@@ -398,7 +398,7 @@ public:
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) {
         auto safe_int = type_int(as<Tag::Ptr>(ptr->type())->arg(0)->arity());
-        return op_lea(ptr, op_bitcast(safe_int, i), dbg);
+        return op_lea(ptr, op(Conv::u2u, safe_int, i), dbg);
     }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }

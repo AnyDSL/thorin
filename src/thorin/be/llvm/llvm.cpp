@@ -722,11 +722,31 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto src = lookup(conv->arg());
         auto name = def->name();
         auto type = convert(def->type());
-        auto [num_dst, num_src] = conv->decurry()->args<2>(as_lit<nat_t>);
+        auto [num_dst, num_src] = conv->decurry()->args<2>();
+        nat_t s_dst, s_src;
+
+        if (isa<Tag::Int>(def->type())) {
+            if (num_src->isa<Top>())
+                s_src = 64;
+            else
+                s_src = *bound2width(as_lit(num_src));
+        } else {
+            s_src = as_lit(num_src);
+        }
+
+        if (isa<Tag::Int>(conv->type())) {
+            if (num_dst->isa<Top>())
+                s_dst = 64;
+            else
+                s_dst = *bound2width(as_lit(num_dst));
+        } else {
+            s_dst = as_lit(num_dst);
+        }
+
         switch (conv.flags()) {
-            case Conv::s2s: return num_src < num_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
-            case Conv::u2u: return num_src < num_dst ? irbuilder_.CreateZExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
-            case Conv::r2r: return num_src < num_dst ? irbuilder_.CreateFPExt(src, type, name) : irbuilder_.CreateFPTrunc(src, type, name);
+            case Conv::s2s: return s_src < s_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
+            case Conv::u2u: return s_src < s_dst ? irbuilder_.CreateZExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
+            case Conv::r2r: return s_src < s_dst ? irbuilder_.CreateFPExt(src, type, name) : irbuilder_.CreateFPTrunc(src, type, name);
             case Conv::s2r: return irbuilder_.CreateSIToFP(src, type, name);
             case Conv::u2r: return irbuilder_.CreateUIToFP(src, type, name);
             case Conv::r2s: return irbuilder_.CreateFPToSI(src, type, name);

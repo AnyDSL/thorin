@@ -796,7 +796,16 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
 const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = t->world();
 
-    if (auto w = isa_lit(isa_sized_type(arg))) return world.lit_nat(*w / 8, dbg);
+    if (auto int_ = isa<Tag::Int>(arg)) {
+        if (int_->arg()->isa<Top>()) return world.lit_nat(8);
+        if (auto w = isa_lit(int_->arg())) return world.lit_nat(log2(*w) / 8_u64, dbg);
+        return int_->arg();
+    }
+
+    if (auto real = isa<Tag::Real>(arg)) {
+        if (auto w = isa_lit(real->arg())) return world.lit_nat(*w / 8, dbg);
+        return real->arg();
+    }
 
     return world.raw_app(callee, arg, dbg);
 }

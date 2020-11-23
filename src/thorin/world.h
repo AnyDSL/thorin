@@ -20,9 +20,6 @@ class DepNode;
 class ErrorHandler;
 class RecStreamer;
 class Scope;
-using VisitFn   = std::function<void(const Scope&)>;
-using EnterFn   = std::function<bool(const Scope&)>;
-using RewriteFn = std::function<const Def*(const Def*)>;
 
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).
@@ -436,23 +433,15 @@ public:
     bool is_external(const Def* def) { return data_.externals_.contains(def->name()); }
     Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
-    /// @name visit and rewrite
+    /// @name visit
     //@{
     /**
      * Transitively visits all @em reachable Scope%s in this @p World that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
      * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
      */
+    using VisitFn = std::function<void(const Scope&)>;
     template<bool elide_empty = true> void visit(VisitFn) const;
-    /**
-     * Rewrites the whole world by @p visit%ing each @p Def with all @em top-level @p Scope%s.
-     * Every time, we enter a new scope @p enter_fn will be invoked.
-     * Return @c false, if you want to skip this @p Scope.
-     * If you return @c true, the @p Scope will be rewritten via @p rewrite_fn and @p Scope::rewrite.
-     * For each @p Def in the current @p Scope, @p rewrite_fn will be invoked.
-     */
-    void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn);
-    //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{

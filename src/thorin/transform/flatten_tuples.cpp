@@ -2,7 +2,6 @@
 #include "thorin/util.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/analyses/verify.h"
 
 #include <limits>
 
@@ -217,7 +216,6 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         inline_calls(unwrap_pair.second->as_nominal<Lam>());
 
     cleanup_world(world);
-    debug_verify(world);
 }
 
 void flatten_tuples(World& world) {

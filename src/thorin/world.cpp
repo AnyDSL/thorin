@@ -639,8 +639,24 @@ const Def* World::gid2def(u32 gid) {
 
 #endif
 
+const Def* World::op_grad(const Def* fn, Debug dbg) {
+    if (fn->type()->isa<Pi>()) {
+        auto ds_fn = cps2ds(fn);
+        auto ds_pi = ds_fn->type()->as<Pi>();
+        auto to_grad = app(data_.op_grad_, {ds_pi->domain(), ds_pi->codomain()}, dbg);
+        auto grad = app(to_grad, ds_fn, dbg);
+        return ds2cps(grad);
+    }
+
+    THORIN_UNREACHABLE;
+}
+
+const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
+    return app(data_.type_tangent_vector_, primal_type, dbg);
+}
+
 /*
- * visit & rewrite
+ * misc
  */
 
 template<bool elide_empty>
@@ -674,41 +690,6 @@ void World::visit(VisitFn f) const {
         }
     }
 }
-
-void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
-    ILOG("{}: start,", info);
-
-    visit([&](const Scope& scope) {
-        if (enter_fn(scope)) {
-            auto& s = const_cast<Scope&>(scope); // yes, we know what we are doing
-            if (s.rewrite(info, rewrite_fn)) s.update();
-        } else {
-            VLOG("{}: skipping scope {}", info, scope.entry());
-        }
-    });
-
-    ILOG("{}: done,", info);
-}
-
-const Def* World::op_grad(const Def* fn, Debug dbg) {
-    if (fn->type()->isa<Pi>()) {
-        auto ds_fn = cps2ds(fn);
-        auto ds_pi = ds_fn->type()->as<Pi>();
-        auto to_grad = app(data_.op_grad_, {ds_pi->domain(), ds_pi->codomain()}, dbg);
-        auto grad = app(to_grad, ds_fn, dbg);
-        return ds2cps(grad);
-    }
-
-    THORIN_UNREACHABLE;
-}
-
-const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
-    return app(data_.type_tangent_vector_, primal_type, dbg);
-}
-
-/*
- * misc
- */
 
 const char* World::level2string(LogLevel level) {
     switch (level) {

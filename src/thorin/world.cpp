@@ -683,10 +683,12 @@ void World::visit(VisitFn f) const {
         if (elide_empty && !nom->is_set()) continue;
         Scope scope(nom);
         f(scope);
-        scope.visit({}, {}, {}, {}, [&](const Def* def) { push(def); });
+        for (auto def : scope.free())
+            push(def);
 
         while (!defs.empty()) {
-            for (auto op : defs.pop()->extended_ops()) push(op);
+            for (auto op : defs.pop()->extended_ops())
+                push(op);
         }
     }
 }

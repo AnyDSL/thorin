@@ -240,6 +240,7 @@ public:
     //@{
     const Lit* lit_int(const Def* type, u64 val, Debug dbg);
     const Lit* lit_int(nat_t bound, u64 val, Debug dbg = {}) { return lit_int(type_int(bound), val, dbg); }
+    const Lit* lit_int_mod(nat_t bound, u64 val, Debug dbg = {}) { return lit_int(type_int(bound), bound == 0 ? val : (val % bound), dbg); }
     template<class I> const Lit* lit_int(I val, Debug dbg = {}) {
         static_assert(std::is_integral<I>());
         return lit_int(type_int(width2bound(sizeof(I)*8)), val, dbg);

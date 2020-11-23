@@ -310,20 +310,20 @@ public:
     const Axiom* op(Shr o) { return data_.Shr_[size_t(o)]; }
     const Def* op(Shr o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_size(a); return app(app(op(o), w), {a, b}, dbg); }
     //@}
-    /// @name WOp
+    /// @name Wrap
     //@{
-    const Axiom* op(WOp o) { return data_.WOp_[size_t(o)]; }
-    const Def* op(WOp o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) {
+    const Axiom* op(Wrap o) { return data_.Wrap_[size_t(o)]; }
+    const Def* op(Wrap o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) {
         auto w = infer_size(a);
         return app(app(op(o), {wmode, w}), {a, b}, dbg);
     }
-    const Def* op(WOp o, nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(wmode), a, b, dbg); }
-    const Def* op_wminus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(WOp::sub, wmode, lit_int(w, 0), a, dbg); }
+    const Def* op(Wrap o, nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(wmode), a, b, dbg); }
+    const Def* op_wminus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = as_lit(isa_sized_type(a->type())); return op(Wrap::sub, wmode, lit_int(w, 0), a, dbg); }
     //@}
-    /// @name ZOp
+    /// @name Div
     //@{
-    const Axiom* op(ZOp o) { return data_.ZOp_[size_t(o)]; }
-    const Def* op(ZOp o, const Def* mem, const Def* a, const Def* b, Debug dbg = {}) {
+    const Axiom* op(Div o) { return data_.Div_[size_t(o)]; }
+    const Def* op(Div o, const Def* mem, const Def* a, const Def* b, Debug dbg = {}) {
         auto w = infer_size(a);
         auto [m, x] = app(app(op(o), w), {mem, a, b}, dbg)->split<2>();
         return tuple({m, x});
@@ -650,15 +650,15 @@ private:
         const Def* table_id;
         const Def* table_not;
         std::array<const Lit*, 2> lit_bool_;
-        std::array<const Axiom*, Num<Bit>>  Bit_;
-        std::array<const Axiom*, Num<Shr>>  Shr_;
-        std::array<const Axiom*, Num<WOp>>  WOp_;
-        std::array<const Axiom*, Num<ZOp>>  ZOp_;
-        std::array<const Axiom*, Num<ROp>>  ROp_;
+        std::array<const Axiom*, Num<Bit >> Bit_;
+        std::array<const Axiom*, Num<Shr >> Shr_;
+        std::array<const Axiom*, Num<Wrap>> Wrap_;
+        std::array<const Axiom*, Num<Div >> Div_;
+        std::array<const Axiom*, Num<ROp >> ROp_;
         std::array<const Axiom*, Num<ICmp>> ICmp_;
         std::array<const Axiom*, Num<RCmp>> RCmp_;
         std::array<const Axiom*, Num<Conv>> Conv_;
-        std::array<const Axiom*, Num<PE>>   PE_;
+        std::array<const Axiom*, Num<PE  >> PE_;
         const Axiom* type_mem_;
         const Axiom* type_int_;
         const Axiom* type_real_;

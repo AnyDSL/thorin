@@ -28,11 +28,11 @@ using nat_t    = u64;
     m(Param, param)                                                                     \
     m(Global, global)
 
-#define THORIN_TAG(m)                                                                                               \
-    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)                                                               \
-    m(Bit, bit) m(Shr, shr) m(WOp, wop) m(ZOp, zop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
-    m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                               \
-    m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)                                                     \
+#define THORIN_TAG(m)                                                                                                 \
+    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)                                                                 \
+    m(Bit, bit) m(Shr, shr) m(Wrap, wrap) m(Div, div) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
+    m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                                 \
+    m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)                                                       \
     m(Grad, grad) m(TangentVector, tangent_vector)
 
 namespace WMode {
@@ -62,11 +62,11 @@ enum RMode : nat_t {
 }
 
 /// Integer operations that neither take a @p WMode nor do produce a side effect - arithmetic or logical shift right.
-#define THORIN_SHR(m) m(Shr, a) m(Shr, l)
+#define THORIN_SHR(m) m(Shr, ashr) m(Shr, lshr)
 /// Integer operations that might wrap and, hence, take @p WMode.
-#define THORIN_W_OP(m) m(WOp, add) m(WOp, sub) m(WOp, mul) m(WOp, shl)
+#define THORIN_WRAP(m) m(Wrap, add) m(Wrap, sub) m(Wrap, mul) m(Wrap, shl)
 /// Integer operations that might produce a "division by zero" side effect.
-#define THORIN_Z_OP(m) m(ZOp, sdiv) m(ZOp, udiv) m(ZOp, smod) m(ZOp, umod)
+#define THORIN_DIV(m) m(Div, sdiv) m(Div, udiv) m(Div, smod) m(Div, umod)
 /// Floating point (real) operations that take @p RMode.
 #define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, mod)
 /// Conversions
@@ -186,8 +186,8 @@ enum : tag_t { THORIN_TAG(CODE) Max };
 #define CODE(T, o) o,
 enum class Bit    : tag_t { THORIN_BIT  (CODE) };
 enum class Shr    : tag_t { THORIN_SHR  (CODE) };
-enum class WOp    : tag_t { THORIN_W_OP (CODE) };
-enum class ZOp    : tag_t { THORIN_Z_OP (CODE) };
+enum class Wrap   : tag_t { THORIN_WRAP (CODE) };
+enum class Div    : tag_t { THORIN_DIV  (CODE) };
 enum class ROp    : tag_t { THORIN_R_OP (CODE) };
 enum class ICmp   : tag_t { THORIN_I_CMP(CODE) };
 enum class RCmp   : tag_t { THORIN_R_CMP(CODE) };
@@ -206,8 +206,8 @@ constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b));
 #define CODE(T, o) case T::o: return #T "_" #o;
 constexpr const char* op2str(Bit  o) { switch (o) { THORIN_BIT  (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(Shr  o) { switch (o) { THORIN_SHR  (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Wrap o) { switch (o) { THORIN_WRAP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Div  o) { switch (o) { THORIN_DIV  (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(ICmp o) { switch (o) { THORIN_I_CMP(CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
@@ -233,8 +233,8 @@ constexpr auto Num_Nodes = 0_s THORIN_NODE(CODE);
 constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
 template<> constexpr auto Num<Bit > = 0_s THORIN_BIT  (CODE);
 template<> constexpr auto Num<Shr > = 0_s THORIN_SHR  (CODE);
-template<> constexpr auto Num<WOp > = 0_s THORIN_W_OP (CODE);
-template<> constexpr auto Num<ZOp > = 0_s THORIN_Z_OP (CODE);
+template<> constexpr auto Num<Wrap> = 0_s THORIN_WRAP (CODE);
+template<> constexpr auto Num<Div > = 0_s THORIN_DIV  (CODE);
 template<> constexpr auto Num<ROp > = 0_s THORIN_R_OP (CODE);
 template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
 template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
@@ -245,8 +245,8 @@ template<> constexpr auto Num<PE  > = 0_s THORIN_PE   (CODE);
 template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
 template<> struct Tag2Enum_<Tag::Bit > { using type = Bit;   };
 template<> struct Tag2Enum_<Tag::Shr > { using type = Shr;   };
-template<> struct Tag2Enum_<Tag::WOp > { using type = WOp;   };
-template<> struct Tag2Enum_<Tag::ZOp > { using type = ZOp;   };
+template<> struct Tag2Enum_<Tag::Wrap> { using type = Wrap;  };
+template<> struct Tag2Enum_<Tag::Div > { using type = Div;   };
 template<> struct Tag2Enum_<Tag::ROp > { using type = ROp;   };
 template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp;  };
 template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp;  };

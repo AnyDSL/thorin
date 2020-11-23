@@ -15,8 +15,8 @@ const Def* normalize_tangent(const Def*, const Def*, const Def*, const Def*);
 
 template<Bit > const Def* normalize_Bit (const Def*, const Def*, const Def*, const Def*);
 template<Shr > const Def* normalize_Shr (const Def*, const Def*, const Def*, const Def*);
-template<WOp > const Def* normalize_WOp (const Def*, const Def*, const Def*, const Def*);
-template<ZOp > const Def* normalize_ZOp (const Def*, const Def*, const Def*, const Def*);
+template<Wrap> const Def* normalize_Wrap(const Def*, const Def*, const Def*, const Def*);
+template<Div > const Def* normalize_Div (const Def*, const Def*, const Def*, const Def*);
 template<ROp > const Def* normalize_ROp (const Def*, const Def*, const Def*, const Def*);
 template<ICmp> const Def* normalize_ICmp(const Def*, const Def*, const Def*, const Def*);
 template<RCmp> const Def* normalize_RCmp(const Def*, const Def*, const Def*, const Def*);

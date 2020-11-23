@@ -610,49 +610,48 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bit = isa<Tag::Bit>(def)) {
         auto [a, b] = bit->args<2>([&](auto def) { return lookup(def); });
-
         switch (bit.flags()) {
-            case Bit:: _and: return irbuilder_.CreateAnd(a, b);
-            case Bit::  _or: return irbuilder_.CreateOr (a, b);
-            case Bit:: _xor: return irbuilder_.CreateXor(a, b);
-            case Bit:: nand: return irbuilder_.CreateNeg(irbuilder_.CreateAnd(a, b));
-            case Bit::  nor: return irbuilder_.CreateNeg(irbuilder_.CreateOr (a, b));
-            case Bit:: nxor: return irbuilder_.CreateNeg(irbuilder_.CreateXor(a, b));
-            case Bit::  iff: return irbuilder_.CreateAnd(irbuilder_.CreateNeg(a), b);
-            case Bit:: niff: return irbuilder_.CreateOr (a, irbuilder_.CreateNeg(b));
+            case Bit::_and: return irbuilder_.CreateAnd(a, b);
+            case Bit:: _or: return irbuilder_.CreateOr (a, b);
+            case Bit::_xor: return irbuilder_.CreateXor(a, b);
+            case Bit::nand: return irbuilder_.CreateNeg(irbuilder_.CreateAnd(a, b));
+            case Bit:: nor: return irbuilder_.CreateNeg(irbuilder_.CreateOr (a, b));
+            case Bit::nxor: return irbuilder_.CreateNeg(irbuilder_.CreateXor(a, b));
+            case Bit:: iff: return irbuilder_.CreateAnd(irbuilder_.CreateNeg(a), b);
+            case Bit::niff: return irbuilder_.CreateOr (a, irbuilder_.CreateNeg(b));
             default: THORIN_UNREACHABLE;
         }
     } else if (auto shr = isa<Tag::Shr>(def)) {
         auto [a, b] = shr->args<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         switch (shr.flags()) {
-            case Shr::a: return irbuilder_.CreateAShr(a, b, name);
-            case Shr::l: return irbuilder_.CreateLShr(a, b, name);
+            case Shr::ashr: return irbuilder_.CreateAShr(a, b, name);
+            case Shr::lshr: return irbuilder_.CreateLShr(a, b, name);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto wop = isa<Tag::WOp>(def)) {
-        auto [a, b] = wop->args<2>([&](auto def) { return lookup(def); });
+    } else if (auto wrap = isa<Tag::Wrap>(def)) {
+        auto [a, b] = wrap->args<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
-        auto [mode, width] = wop->decurry()->args<2>(as_lit<nat_t>);
+        auto [mode, width] = wrap->decurry()->args<2>(as_lit<nat_t>);
         bool nuw = mode & WMode::nuw;
         bool nsw = mode & WMode::nsw;
-        switch (wop.flags()) {
-            case WOp::add: return irbuilder_.CreateAdd(a, b, name, nuw, nsw);
-            case WOp::sub: return irbuilder_.CreateSub(a, b, name, nuw, nsw);
-            case WOp::mul: return irbuilder_.CreateMul(a, b, name, nuw, nsw);
-            case WOp::shl: return irbuilder_.CreateShl(a, b, name, nuw, nsw);
+        switch (wrap.flags()) {
+            case Wrap::add: return irbuilder_.CreateAdd(a, b, name, nuw, nsw);
+            case Wrap::sub: return irbuilder_.CreateSub(a, b, name, nuw, nsw);
+            case Wrap::mul: return irbuilder_.CreateMul(a, b, name, nuw, nsw);
+            case Wrap::shl: return irbuilder_.CreateShl(a, b, name, nuw, nsw);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto zop = isa<Tag::ZOp>(def)) {
-        auto [m, aa, bb] = zop->args<3>();
+    } else if (auto div = isa<Tag::Div>(def)) {
+        auto [m, aa, bb] = div->args<3>();
         auto a = lookup(aa);
         auto b = lookup(bb);
         auto name = def->name();
-        switch (zop.flags()) {
-            case ZOp::sdiv: return irbuilder_.CreateSDiv(a, b, name);
-            case ZOp::udiv: return irbuilder_.CreateUDiv(a, b, name);
-            case ZOp::smod: return irbuilder_.CreateSRem(a, b, name);
-            case ZOp::umod: return irbuilder_.CreateURem(a, b, name);
+        switch (div.flags()) {
+            case Div::sdiv: return irbuilder_.CreateSDiv(a, b, name);
+            case Div::udiv: return irbuilder_.CreateUDiv(a, b, name);
+            case Div::smod: return irbuilder_.CreateSRem(a, b, name);
+            case Div::umod: return irbuilder_.CreateURem(a, b, name);
             default: THORIN_UNREACHABLE;
         }
     } else if (auto rop = isa<Tag::ROp>(def)) {

@@ -137,18 +137,18 @@ World::World(const std::string& name) {
         auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
         THORIN_SHR(CODE)
-    } { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
-        // WOp: Π[m: nat, w: nat]. Π[r: nat, s: «r; nat»]. Π[«s; int w, «s; int w»]. «s; int w»
+    } { // Wrap: Π[m: nat, w: nat]. Π[int w, int w]. int w
+        // Wrap: Π[m: nat, w: nat]. Π[r: nat, s: «r; nat»]. Π[«s; int w, «s; int w»]. «s; int w»
         auto type = pi(kind())->set_domain({nat, nat});
         type->param(0, {"m"});
         auto int_w = type_int(type->param(1, {"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
-        THORIN_W_OP(CODE)
-    } { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
+        THORIN_WRAP(CODE)
+    } { // Div: Πw: nat. Π[mem, int w, int w]. [mem, int w]
         auto type = pi(kind())->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({mem, int_w, int_w}, sigma({mem, int_w})));
-        THORIN_Z_OP(CODE)
+        THORIN_DIV(CODE)
     } { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
         auto type = pi(kind())->set_domain({nat, nat});
         type->param(0, {"m"});

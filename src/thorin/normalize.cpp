@@ -32,7 +32,7 @@ constexpr std::array<std::array<uint64_t, 2>, 2> make_truth_table(Bit op) {
 }
 
 template<class T> constexpr bool is_commutative(T) { return false; }
-constexpr bool is_commutative(WOp  op) { return op == WOp :: add || op == WOp ::mul; }
+constexpr bool is_commutative(Wrap op) { return op == Wrap:: add || op == Wrap::mul; }
 constexpr bool is_commutative(ROp  op) { return op == ROp :: add || op == ROp ::mul; }
 constexpr bool is_commutative(ICmp op) { return op == ICmp::   e || op == ICmp:: ne; }
 constexpr bool is_commutative(RCmp op) { return op == RCmp::   e || op == RCmp:: ne; }
@@ -83,7 +83,7 @@ private:
 
 template<class T, T, nat_t> struct Fold {};
 
-template<nat_t w> struct Fold<WOp, WOp::add, w> {
+template<nat_t w> struct Fold<Wrap, Wrap::add, w> {
     static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
         auto x = get<w2u<w>>(a), y = get<w2u<w>>(b);
         decltype(x) res = x + y;
@@ -93,7 +93,7 @@ template<nat_t w> struct Fold<WOp, WOp::add, w> {
     }
 };
 
-template<nat_t w> struct Fold<WOp, WOp::sub, w> {
+template<nat_t w> struct Fold<Wrap, Wrap::sub, w> {
     static Res run(u64 a, u64 b, bool /*nsw*/, bool /*nuw*/) {
         using UT = w2u<w>;
         auto x = get<UT>(a), y = get<UT>(b);
@@ -104,7 +104,7 @@ template<nat_t w> struct Fold<WOp, WOp::sub, w> {
     }
 };
 
-template<nat_t w> struct Fold<WOp, WOp::mul, w> {
+template<nat_t w> struct Fold<Wrap, Wrap::mul, w> {
     static Res run(u64 a, u64 b, bool /*nsw*/, bool /*nuw*/) {
         using UT = w2u<w>;
         auto x = get<UT>(a), y = get<UT>(b);
@@ -116,7 +116,7 @@ template<nat_t w> struct Fold<WOp, WOp::mul, w> {
     }
 };
 
-template<nat_t w> struct Fold<WOp, WOp::shl, w> {
+template<nat_t w> struct Fold<Wrap, Wrap::shl, w> {
     static Res run(u64 a, u64 b, bool nsw, bool nuw) {
         using T = w2u<w>;
         auto x = get<T>(a), y = get<T>(b);
@@ -132,13 +132,13 @@ template<nat_t w> struct Fold<WOp, WOp::shl, w> {
     }
 };
 
-template<nat_t w> struct Fold<ZOp, ZOp::sdiv, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
-template<nat_t w> struct Fold<ZOp, ZOp::udiv, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
-template<nat_t w> struct Fold<ZOp, ZOp::smod, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
-template<nat_t w> struct Fold<ZOp, ZOp::umod, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
+template<nat_t w> struct Fold<Div, Div::sdiv, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
+template<nat_t w> struct Fold<Div, Div::udiv, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
+template<nat_t w> struct Fold<Div, Div::smod, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
+template<nat_t w> struct Fold<Div, Div::umod, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
 
-template<nat_t w> struct Fold<Shr, Shr::   a, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
-template<nat_t w> struct Fold<Shr, Shr::   l, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
+template<nat_t w> struct Fold<Shr, Shr::ashr, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
+template<nat_t w> struct Fold<Shr, Shr::lshr, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
 
 template<nat_t w> struct Fold<ROp, ROp:: add, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) + get<T>(b)); } };
 template<nat_t w> struct Fold<ROp, ROp:: sub, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) - get<T>(b)); } };
@@ -238,8 +238,8 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, [[maybe_unused]] c
         if (lz && !check_mode(zw->decurry())) return nullptr;
 
         make_op = [&](const Def* a, const Def* b) { return world.op(op, rmode, a, b, dbg); };
-    } else if constexpr (tag == Tag::WOp) {
-        // if we reassociate WOps, we have to forget about nsw/nuw
+    } else if constexpr (tag == Tag::Wrap) {
+        // if we reassociate Wraps, we have to forget about nsw/nuw
         make_op = [&](const Def* a, const Def* b) { return world.op(op, WMode::none, a, b, dbg); };
     } else {
         make_op = [&](const Def* a, const Def* b) { return world.op(op, a, b, dbg); };
@@ -264,7 +264,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
     if (la && lb) {
         nat_t width;
         [[maybe_unused]] bool nsw = false, nuw = false;
-        if constexpr (std::is_same_v<Op, WOp>) {
+        if constexpr (std::is_same_v<Op, Wrap>) {
             auto [mode, w] = callee->args<2>(as_lit<nat_t>);
             nsw = mode & WMode::nsw;
             nuw = mode & WMode::nuw;
@@ -280,7 +280,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
 #define CODE(i)                                                                     \
             case i:                                                                 \
                 if constexpr (i >= min_w) {                                         \
-                    if constexpr (std::is_same_v<Op, WOp>)                          \
+                    if constexpr (std::is_same_v<Op, Wrap>)                         \
                         res = Fold<Op, op, i>::run(la->get(), lb->get(), nsw, nuw); \
                     else                                                            \
                         res = Fold<Op, op, i>::run(la->get(), lb->get());           \
@@ -483,8 +483,8 @@ const Def* normalize_Shr(const Def* type, const Def* c, const Def* arg, const De
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) {
             switch (op) {
-                case Shr::a: return la;
-                case Shr::l: return la;
+                case Shr::ashr: return la;
+                case Shr::lshr: return la;
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -493,8 +493,8 @@ const Def* normalize_Shr(const Def* type, const Def* c, const Def* arg, const De
     if (auto lb = b->isa<Lit>()) {
         if (lb == world.lit_int(*w, 0)) {
             switch (op) {
-                case Shr::a: return a;
-                case Shr::l: return a;
+                case Shr::ashr: return a;
+                case Shr::lshr: return a;
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -505,32 +505,32 @@ const Def* normalize_Shr(const Def* type, const Def* c, const Def* arg, const De
     return world.raw_app(callee, {a, b}, dbg);
 }
 
-template<WOp op>
-const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
+template<Wrap op>
+const Def* normalize_Wrap(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
     auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
 
-    if (auto result = fold<WOp, op>(world, type, callee, a, b, dbg)) return result;
+    if (auto result = fold<Wrap, op>(world, type, callee, a, b, dbg)) return result;
 
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) {
             switch (op) {
-                case WOp::add: return b;    // 0  + b -> b
-                case WOp::sub: break;
-                case WOp::mul: return la;   // 0  * b -> 0
-                case WOp::shl: return la;   // 0 << b -> 0
+                case Wrap::add: return b;    // 0  + b -> b
+                case Wrap::sub: break;
+                case Wrap::mul: return la;   // 0  * b -> 0
+                case Wrap::shl: return la;   // 0 << b -> 0
                 default: THORIN_UNREACHABLE;
             }
         }
 
         if (la == world.lit_int(*w, 1)) {
             switch (op) {
-                case WOp::add: break;
-                case WOp::sub: break;
-                case WOp::mul: return b;    // 1  * b -> b
-                case WOp::shl: break;
+                case Wrap::add: break;
+                case Wrap::sub: break;
+                case Wrap::mul: return b;    // 1  * b -> b
+                case Wrap::shl: break;
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -539,36 +539,36 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto lb = b->isa<Lit>()) {
         if (lb == world.lit_int(*w, 0)) {
             switch (op) {
-                case WOp::sub: return a;    // a  - 0 -> a
-                case WOp::shl: return a;    // a >> 0 -> a
+                case Wrap::sub: return a;    // a  - 0 -> a
+                case Wrap::shl: return a;    // a >> 0 -> a
                 default: THORIN_UNREACHABLE;
                 // add, mul are commutative, the literal has been normalized to the left
             }
         }
 
-        if (op == WOp::sub)
-            return world.op(WOp::add, *m, a, world.lit_int_mod(*w, ~lb->get() + 1_u64)); // a - lb -> a + (~lb + 1)
-        else if (op == WOp::shl && lb->get() > *w)
+        if (op == Wrap::sub)
+            return world.op(Wrap::add, *m, a, world.lit_int_mod(*w, ~lb->get() + 1_u64)); // a - lb -> a + (~lb + 1)
+        else if (op == Wrap::shl && lb->get() > *w)
             return world.bot(type, dbg);
     }
 
     if (a == b) {
         switch (op) {
-            case WOp::add: return world.op(WOp::mul, *m, world.lit_int(*w, 2), a, dbg); // a + a -> 2 * a
-            case WOp::sub: return world.lit_int(*w, 0);                                 // a - a -> 0
-            case WOp::mul: break;
-            case WOp::shl: break;
+            case Wrap::add: return world.op(Wrap::mul, *m, world.lit_int(*w, 2), a, dbg); // a + a -> 2 * a
+            case Wrap::sub: return world.lit_int(*w, 0);                                 // a - a -> 0
+            case Wrap::mul: break;
+            case Wrap::shl: break;
             default: THORIN_UNREACHABLE;
         }
     }
 
-    if (auto res = reassociate<Tag::WOp>(op, world, callee, a, b, dbg)) return res;
+    if (auto res = reassociate<Tag::Wrap>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);
 }
 
-template<ZOp op>
-const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
+template<Div op>
+const Def* normalize_Div(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [mem, a, b] = arg->split<3>();
@@ -576,7 +576,7 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
     type = type->as<Sigma>()->op(1); // peel of actual type
     auto make_res = [&](const Def* res) { return world.tuple({mem, res}, dbg); };
 
-    if (auto result = fold<ZOp, op>(world, type, callee, a, b, dbg)) return make_res(result);
+    if (auto result = fold<Div, op>(world, type, callee, a, b, dbg)) return make_res(result);
 
     if (auto la = a->isa<Lit>()) {
         if (la == world.lit_int(*w, 0)) return make_res(la); // 0 / b -> 0 and 0 % b -> 0
@@ -587,10 +587,10 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
 
         if (lb == world.lit_int(*w, 1)) {
             switch (op) {
-                case ZOp::sdiv: return make_res(a);                    // a / 1 -> a
-                case ZOp::udiv: return make_res(a);                    // a / 1 -> a
-                case ZOp::smod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
-                case ZOp::umod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
+                case Div::sdiv: return make_res(a);                    // a / 1 -> a
+                case Div::udiv: return make_res(a);                    // a / 1 -> a
+                case Div::smod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
+                case Div::umod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -598,10 +598,10 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (a == b) {
         switch (op) {
-            case ZOp::sdiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
-            case ZOp::udiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
-            case ZOp::smod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
-            case ZOp::umod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
+            case Div::sdiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
+            case Div::udiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
+            case Div::smod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
+            case Div::umod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
             default: THORIN_UNREACHABLE;
         }
     }
@@ -896,8 +896,8 @@ const Def* normalize_tangent(const Def*, const Def* callee, const Def* arg, cons
 #define CODE(T, o) template const Def* normalize_ ## T<T::o>(const Def*, const Def*, const Def*, const Def*);
 THORIN_BIT  (CODE)
 THORIN_SHR  (CODE)
-THORIN_W_OP (CODE)
-THORIN_Z_OP (CODE)
+THORIN_WRAP (CODE)
+THORIN_DIV  (CODE)
 THORIN_R_OP (CODE)
 THORIN_I_CMP(CODE)
 THORIN_R_CMP(CODE)

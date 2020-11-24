@@ -170,7 +170,7 @@ const Def* GradEmitter::pullback_for_add(const Def* op) {
     // TODO same below
 
     auto pi = world_.pi(op->type(), world_.sigma({ fst_op->type(), snd_op->type() }));
-    auto B = world_.lam(pi, {"B⁺"});
+    auto B = world_.nom_lam(pi, {"B⁺"});
     auto param = B->param({"∂f"});
 
     B->set_filter(world_.lit_false());
@@ -184,7 +184,7 @@ const Def* GradEmitter::pullback_for_sub(const Def* op) {
     auto snd_op = world_.extract(op->op(1), u64(1), {"op₁"});
 
     auto pi = world_.pi(op->type(), world_.sigma({ fst_op->type(), snd_op->type() }));
-    auto B = world_.lam(pi, {"B⁻"});
+    auto B = world_.nom_lam(pi, {"B⁻"});
     auto param = B->param({"∂f"});
     auto param_w = as_lit(isa_sized_type(param->type()));
     auto mul = world_.app(world_.op(ROp::mul), { world_.lit_nat(param_w), world_.lit_nat(param_w) });
@@ -203,7 +203,7 @@ const Def* GradEmitter::pullback_for_mul(const Def* op) {
     auto snd_w = world_.lit_nat(as_lit(isa_sized_type(snd_op->type())));
 
     auto pi = world_.pi(op->type(), world_.sigma({ fst_op->type(), snd_op->type() }));
-    auto B = world_.lam(pi, {"B×"});
+    auto B = world_.nom_lam(pi, {"B×"});
     auto param = B->param({"∂f"});
     auto param_w = world_.lit_nat(as_lit(isa_sized_type(param->type())));
 
@@ -225,7 +225,7 @@ const Def* GradEmitter::pullback_for_div(const Def* op) {
     auto snd_w = world_.lit_nat(as_lit(isa_sized_type(snd_op->type())));
 
     auto pi = world_.pi(op->type(), world_.sigma({ fst_op->type(), snd_op->type() }));
-    auto B = world_.lam(pi, {"B÷"});
+    auto B = world_.nom_lam(pi, {"B÷"});
     auto param = B->param({"∂f"});
     auto param_w = as_lit(isa_sized_type(param->type()));
     auto neg_mul = world_.app(world_.op(ROp::mul), { world_.lit_nat(param_w), world_.lit_nat(param_w) });
@@ -281,7 +281,7 @@ const Def* GradGen::rewrite(Def*, const Def* def) {
     if (auto lam = has_lam_to_rewrite(def)) {
 
         auto grad_type = def->type()->as<Pi>();
-        auto grad_lam = world().lam(grad_type, {"∇" + lam->name()});
+        auto grad_lam = world().nom_lam(grad_type, {"∇" + lam->name()});
 
         GradEmitter emitter(lam, grad_lam);
         return emitter.emit_grad_lam();

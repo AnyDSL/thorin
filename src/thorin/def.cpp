@@ -458,12 +458,12 @@ const Def* Which   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) con
  * stub
  */
 
-Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.lam(t->as<Pi>(), cc(), intrinsic(), dbg); }
-Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.pi(t, Debug{dbg}); }
-Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.ptrn(t->as<Case>(), dbg); }
-Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.sigma(t, num_ops(), dbg); }
-Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.union_(t, num_ops(), dbg); }
-Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.arr_nom(t, shape(), dbg); }
+Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_lam  (t->as<Pi>(), cc(), intrinsic(), dbg); }
+Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_pi   (t, Debug{dbg}); }
+Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_ptrn (t->as<Case>(), dbg); }
+Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.nom_sigma(t, num_ops(), dbg); }
+Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.nom_union(t, num_ops(), dbg); }
+Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_arr  (t, shape(), dbg); }
 
 /*
  * restructure

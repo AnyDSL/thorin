@@ -80,30 +80,30 @@ const Def* Def::debug_history() const {
     return debug();
 }
 
-std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
-std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-nat_t Def::front_line() const { return debug() ? as_lit(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::front_col()  const { return debug() ? as_lit(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_line()  const { return debug() ? as_lit(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_col()   const { return debug() ? as_lit(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
-const Def* Def::meta() const { return debug() ? debug()->out(3) : nullptr; }
+std::string Def::name() const { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
+std::string Def::file() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
+nat_t Def::begin_row() const  { return debug() ? as_lit(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::begin_col() const  { return debug() ? as_lit(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::finis_row() const  { return debug() ? as_lit(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::finis_col() const  { return debug() ? as_lit(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
+const Def* Def::meta() const  { return debug() ? debug()->out(3) : nullptr; }
 
 std::string Def::loc() const {
     std::ostringstream oss;
     Stream s(oss);
-    s.fmt("{}:", filename());
+    s.fmt("{}:", file());
 
-    if (front_col() == nat_t(-1) || back_col() == nat_t(-1)) {
-        if (front_line() != back_line())
-            s.fmt("{} - {}", front_line(), back_line());
+    if (begin_col() == nat_t(-1) || finis_col() == nat_t(-1)) {
+        if (begin_row() != finis_row())
+            s.fmt("{} - {}", begin_row(), finis_row());
         else
-            s.fmt("{}", front_line());
-    } else if (front_line() != back_line()) {
-        s.fmt("{} col {} - {} col {}", front_line(), front_col(), back_line(), back_col());
-    } else if (front_col() != back_col()) {
-        s.fmt("{} col {} - {}", front_line(), front_col(), back_col());
+            s.fmt("{}", begin_row());
+    } else if (begin_row() != finis_row()) {
+        s.fmt("{} col {} - {} col {}", begin_row(), begin_col(), finis_row(), finis_col());
+    } else if (begin_col() != finis_col()) {
+        s.fmt("{} col {} - {}", begin_row(), begin_col(), finis_col());
     } else {
-        s.fmt("{} col {}", front_line(), front_col());
+        s.fmt("{} col {}", begin_row(), begin_col());
     }
 
     return oss.str();

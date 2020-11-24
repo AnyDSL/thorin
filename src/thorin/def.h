@@ -50,16 +50,16 @@ using Name = std::variant<const char*, std::string, const Def*>;
 
 struct Debug {
     Debug(Name name,
-          Name filename = "",
-          nat_t front_line = nat_t(-1),
-          nat_t front_col  = nat_t(-1),
-          nat_t back_line  = nat_t(-1),
-          nat_t back_col   = nat_t(-1),
-          const Def* meta  = nullptr)
-        : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col, meta))
+          Name file = "",
+          nat_t begin_row = nat_t(-1),
+          nat_t begin_col = nat_t(-1),
+          nat_t finis_row = nat_t(-1),
+          nat_t finis_col = nat_t(-1),
+          const Def* meta = nullptr)
+        : data(std::make_tuple(name, file, begin_row, begin_col, finis_row, finis_col, meta))
     {}
-    Debug(Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
-        : Debug("", filename, front_line, front_col, back_line, back_col)
+    Debug(Name file, nat_t begin_row, nat_t begin_col, nat_t finis_row, nat_t finis_col)
+        : Debug("", file, begin_row, begin_col, finis_row, finis_col)
     {}
     Debug(const Def* def = nullptr)
         : data(def)
@@ -239,11 +239,11 @@ public:
     const Def* debug_history() const; ///< In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     std::string name() const;
     std::string unique_name() const;  ///< name + "_" + gid
-    std::string filename() const;
-    nat_t front_line() const;
-    nat_t front_col() const;
-    nat_t back_line() const;
-    nat_t back_col() const;
+    std::string file() const;
+    nat_t begin_row() const;
+    nat_t begin_col() const;
+    nat_t finis_row() const;
+    nat_t finis_col() const;
     std::string loc() const;
     const Def* meta() const;
     //@}

@@ -3,6 +3,7 @@
 #include "thorin/pass/fp/eta_conv.h"
 #include "thorin/pass/fp/scalarize.h"
 #include "thorin/pass/fp/ssa_constr.h"
+#include "thorin/pass/rw/closure_conv.h"
 #include "thorin/pass/rw/grad_gen.h"
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
@@ -40,12 +41,13 @@ void optimize(World& world) {
 void optimize_old(World& world) {
     optimize(world);
 #if 1
-    cleanup_world(world);
-    while (partial_evaluation(world, true)); // lower2cff
-    flatten_tuples(world);
-    cleanup_world(world);
-    PassMan(world).add<RetWrap>().run();
+    //cleanup_world(world);
+    //while (partial_evaluation(world, true)); // lower2cff
+    //flatten_tuples(world);
+    //cleanup_world(world);
 #endif
+    PassMan(world).add<ClosureConv>().run();
+    PassMan(world).add<RetWrap>().run();
 }
 
 }

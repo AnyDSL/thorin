@@ -438,13 +438,14 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
+    // nominal sigmas can be 1-tuples
+    if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1 && !tup->type()->isa_nominal<Sigma>()) return tup;
+
     auto type = tup->type()->reduce();
     assertf(alpha_equiv(type->arity(), isa_sized_type(index->type())),
             "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
 
-    // nominal sigmas can be 1-tuples
-    if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1 && !tup->type()->isa_nominal<Sigma>()) return tup;
-    if (auto pack = tup->isa<Pack>()) return pack->body();
+    if (auto pack = tup->isa_structural<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val
     if (auto insert = tup->isa<Insert>()) {

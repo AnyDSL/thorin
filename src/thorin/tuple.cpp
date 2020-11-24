@@ -6,12 +6,8 @@
 
 namespace thorin {
 
-namespace detail {
-    const Def* world_extract(World& world, const Def* def, u64 i, Dbg dbg) { return world.extract(def, i, dbg); }
-}
-
 // TODO nominal sigma
-const Def* proj(const Def* def, u64 a, u64 i) {
+const Def* proj(const Def* def, u64 a, u64 i, Dbg dbg) {
     auto& world = def->world();
 
     if (a == 1) return def;
@@ -27,7 +23,7 @@ const Def* proj(const Def* def, u64 a, u64 i) {
         return pack->apply(world.lit_int(as_lit(pack->arity()), i)).back();
     }
 
-    if (def->is_value()) { return def->world().extract(def, a, i); }
+    if (def->is_value()) { return def->world().extract(def, a, i, dbg); }
 
     return nullptr;
 }

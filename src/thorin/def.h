@@ -44,15 +44,11 @@ typedef ArrayRef<const Def*> Defs;
 
 //------------------------------------------------------------------------------
 
-namespace detail {
-    const Def* world_extract(World&, const Def*, u64, Dbg dbg = {});
-}
-
 /**
  * Similar to @p World::extract but also works on @p Sigma%s and @p Arr%s and considers @p Union%s as scalars.
  * If @p def is a value (see @p Def::is_value), proj resorts to @p World::extract.
  */
-const Def* proj(const Def* def, u64 arity, u64 i);
+const Def* proj(const Def* def, u64 arity, u64 i, Dbg dbg = {});
 
 template<class T = u64> std::optional<T> isa_lit(const Def*);
 template<class T = u64> T as_lit(const Def* def);
@@ -184,7 +180,7 @@ public:
     }
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
-    const Def* out(size_t i, Dbg dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
+    const Def* out(size_t i, Dbg dbg = {}) const { return proj(this, num_outs(), i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
     size_t num_outs() const {
         if (auto a = isa_lit(arity())) return *a;
@@ -229,7 +225,7 @@ public:
     /// @name retrieve @p Param for @em nominals.
     //@{
     const Param* param(Dbg dbg);
-    const Def* param(size_t i, Dbg dbg) { return detail::world_extract(world(), (const Def*) param(), i, dbg); }
+    const Def* param(size_t i, Dbg dbg) { return proj((const Def*) param(), num_params(), i, dbg); }
     const Param* param();       ///< Wrapper instead of default argument for easy access in @c gdb.
     const Def* param(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
     Array<const Def*> params() { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }

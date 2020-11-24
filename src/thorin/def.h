@@ -329,7 +329,12 @@ using Def2Def = DefMap<const Def*>;
 using DefDef = std::tuple<const Def*, const Def*>;
 
 struct DefDefHash {
-    static hash_t hash(DefDef pair) { return hash_combine(hash_begin(std::get<0>(pair)->gid()), std::get<1>(pair)->gid()); }
+    static hash_t hash(DefDef pair) {
+        hash_t hash = std::get<0>(pair)->gid();
+        hash = murmur3(hash, std::get<1>(pair)->gid());
+        hash = murmur3_finalize(hash, 8);
+        return hash;
+    }
     static bool eq(DefDef p1, DefDef p2) { return p1 == p2; }
     static DefDef sentinel() { return {nullptr, nullptr}; }
 };

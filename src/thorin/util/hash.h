@@ -25,6 +25,64 @@ using hash_t = u32;
 
 void debug_hash();
 
+// port from https://en.wikipedia.org/wiki/MurmurHash
+
+inline hash_t murmur_32_scramble(hash_t k) {
+    k *= 0xcc9e2d51;
+    k = (k << 15) | (k >> 17);
+    k *= 0x1b873593;
+    return k;
+}
+
+inline hash_t murmur3(hash_t h, uint32_t key) {
+    h ^= murmur_32_scramble(key);
+    h = (h << 13) | (h >> 19);
+    h = h * 5 + 0xe6546b64;
+    return h;
+}
+
+inline hash_t murmur3(hash_t h, uint64_t key) {
+    hash_t k = hash_t(key);
+    h ^= murmur_32_scramble(k);
+    h = (h << 13) | (h >> 19);
+    h = h * 5 + 0xe6546b64;
+    k = hash_t(key >> 32);
+    h ^= murmur_32_scramble(k);
+    h = (h << 13) | (h >> 19);
+    h = h * 5 + 0xe6546b64;
+    return h;
+}
+
+inline hash_t murmur3_rest(hash_t h, uint8_t key) {
+    h ^= murmur_32_scramble(key);
+    return h;
+}
+
+inline hash_t murmur3_rest(hash_t h, uint16_t key) {
+    h ^= murmur_32_scramble(key);
+    return h;
+}
+
+inline hash_t murmur3_finalize(hash_t h, hash_t len) {
+    h ^= len;
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+	return h;
+}
+
+/// use for a single value to hash
+inline hash_t murmur3(hash_t h) {
+    h ^= h >> 16;
+    h *= 0x85ebca6b;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >> 16;
+    return h;
+}
+
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
     static const hash_t offset = 2166136261_u32;
@@ -58,15 +116,6 @@ hash_t hash_combine(hash_t seed, T val, Args&&... args) {
 template<class T>
 hash_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
 inline hash_t hash_begin() { return FNV1::offset; }
-
-inline hash_t murmur3(hash_t h) {
-    h ^= h >> 16_u32;
-    h *= 0x85ebca6b_u32;
-    h ^= h >> 13_u32;
-    h *= 0xc2b2ae35_u32;
-    h ^= h >> 16_u32;
-    return h;
-}
 
 hash_t hash(const char* s);
 

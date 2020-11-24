@@ -30,9 +30,12 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
     if (node == Node::Universe) {
         hash_ = murmur3(gid());
     } else {
-        hash_ = hash_combine(hash_begin(node), type->gid(), fields_);
+        hash_ = type->gid();
         for (auto op : ops)
-            hash_ = hash_combine(hash_, op->gid());
+            hash_ = murmur3(hash_, u32(op->gid()));
+        hash_ = murmur3(hash_, fields_);
+        hash_ = murmur3_rest(hash_, u8(node));
+        hash_ = murmur3_finalize(hash_, (num_ops() + 1) * sizeof(u32) + 1);
     }
 }
 

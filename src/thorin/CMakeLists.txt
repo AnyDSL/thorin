@@ -25,8 +25,6 @@ set(THORIN_SOURCES
     analyses/domfrontier.h
     analyses/domtree.cpp
     analyses/domtree.h
-    analyses/free_defs.cpp
-    analyses/free_defs.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp

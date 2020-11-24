@@ -15,7 +15,7 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
     auto [i, inserted] = equiv_.emplace(d1, d2);
     if (!inserted) return true;
 
-    //if (!equiv(d1->type(), d2->type())) return false;
+    if (!equiv(d1->type(), d2->type())) return false;
 
     if (d1->isa<Top>() || d2->isa<Top>()) return equiv(d1->type(), d2->type());
 
@@ -37,8 +37,10 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
         return true;
     }
 
-    //if (auto n1 = d1->isa_nominal())
-        //params_.emplace_back(n1->param(), d2->as_nominal()->param());
+    if (auto n1 = d1->isa_nominal()) {
+        if (auto n2 = d2->isa_nominal())
+            params_.emplace_back(n1->param(), n2->param());
+    }
 
     if (       d1->node   () != d2->node   ()
             || d1->fields () != d2->fields ()
@@ -55,28 +57,24 @@ bool Checker::assignable(const Def* type, const Def* val) {
         if (!equiv(type->arity(), val->type()->arity())) return false;
 
         auto red = sigma->apply(val);
-        for (size_t i = 0, e = red.size(); i != e; ++i) {
-            if (!assignable(red[i], val->out(i))) return false;
+        for (size_t i = 0, a = red.size(); i != a; ++i) {
+            if (!assignable(red[i], proj(val, a, i))) return false;
         }
 
         return true;
     } else if (auto arr = type->isa<Arr>()) {
         if (!equiv(type->arity(), val->type()->arity())) return false;
 
-        if (auto n = isa_lit(arr->arity())) {;
-            for (size_t i = 0; i != *n; ++i) {
-                if (!assignable(arr->apply(world_.lit_int(*n, i)).back(), val->out(i))) return false;
+        if (auto a = isa_lit(arr->arity())) {;
+            for (size_t i = 0; i != *a; ++i) {
+                if (!assignable(proj(arr, *a, i), proj(val, *a, i))) return false;
             }
-        } else {
-            return equiv(arr, val->type());
-        }
 
-        return true;
-    } else {
-        return equiv(type, val->type());
+            return true;
+        }
     }
 
-    return false;
+    return equiv(type, val->type());
 }
 
 }

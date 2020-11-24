@@ -53,6 +53,8 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
 }
 
 bool Checker::assignable(const Def* type, const Def* val) {
+    if (type == val->type()) return true;
+
     if (auto sigma = type->isa<Sigma>()) {
         if (!equiv(type->arity(), val->type()->arity())) return false;
 

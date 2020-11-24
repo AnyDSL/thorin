@@ -16,19 +16,6 @@ public:
     bool run();
 
 private:
-    World& world_;
-    size_t boundary_;
-    ContinuationSet done_;
-    ContinuationMap<bool> top_level_;
-
-    std::queue<Continuation*> queue_;
-    void enqueue(Continuation* continuation) {
-        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
-            queue_.push(continuation);
-    }
-
-    void divergence_analysis(Continuation *continuation);
-
     class DivergenceAnalysis {
     public:
         enum State {
@@ -58,6 +45,25 @@ private:
         void run();
         State getUniform(Def * def);
     };
+
+    World& world_;
+    size_t boundary_;
+    ContinuationSet done_;
+    ContinuationMap<bool> top_level_;
+    Def2Def def2def_;
+    DivergenceAnalysis * div_analysis_;
+
+    std::queue<Continuation*> queue_;
+    void enqueue(Continuation* continuation) {
+        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
+            queue_.push(continuation);
+    }
+
+    const Type *widen(const Type *);
+    const Def *widen(const Def *);
+    Continuation *widen(Continuation *);
+
+    void widen_body(Continuation *, Continuation *);
 };
 
 Vectorizer::DivergenceAnalysis::State
@@ -207,7 +213,7 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
         }
     }
 
-#if 0
+#ifdef DUMP_LOOP_ANALYSIS
     base->dump();
     for (auto elem : reachableBy) {
         std::cerr << "reachable by\n";
@@ -236,17 +242,23 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
     while (!queue.empty()) {
         Continuation *cont = pop(queue);
 
-        //std::cerr << "\n";
-        //cont->dump();
+#ifdef DUMP_LOOP_ANALYSIS
+        std::cerr << "\n";
+        cont->dump();
+#endif
 
         auto mydom = dominatedBy[cont];
 
         for (auto succ : cont->succs()) {
             if (succ->is_intrinsic())
                 continue;
-            //succ->dump();
+#ifdef DUMP_LOOP_ANALYSIS
+            succ->dump();
+#endif
             if (mydom.contains(succ)) {
-                //std::cerr << "Loop registered\n";
+#ifdef DUMP_LOOP_ANALYSIS
+                std::cerr << "Loop registered\n";
+#endif
                 loopLatches[succ].emplace(cont);
             }
             if (done.emplace(succ).second)
@@ -290,6 +302,7 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
 void Vectorizer::DivergenceAnalysis::run() {
     computeLoops();
 
+#ifdef DUMP_DIV_ANALYSIS
     base->dump();
     std::cerr << "Loops are\n";
     for (auto elem : loopLatches) {
@@ -306,6 +319,7 @@ void Vectorizer::DivergenceAnalysis::run() {
             elem->dump();
     }
     std::cerr << "End Loops\n";
+#endif
 
     std::queue <Continuation*> queue;
     ContinuationSet done;
@@ -323,7 +337,9 @@ void Vectorizer::DivergenceAnalysis::run() {
 
         if (cont->succs().size() > 1) {
             splitNodes.emplace(cont);
-            //cont->dump();
+#ifdef DUMP_DIV_ANALYSIS
+            cont->dump();
+#endif
         }
 
         for (auto succ : cont->succs())
@@ -331,7 +347,9 @@ void Vectorizer::DivergenceAnalysis::run() {
                 queue.push(succ);
     }
 
-    //std::cerr << "Chapter 5\n";
+#ifdef DUMP_DIV_ANALYSIS
+    std::cerr << "Chapter 5\n";
+#endif
 
     //Step 2.2: Chapter 5, alg. 1: Construct labelmaps.
     for (auto *split : splitNodes) {
@@ -339,11 +357,13 @@ void Vectorizer::DivergenceAnalysis::run() {
 
         GIDMap<Continuation*, Continuation*> LabelMap;
 
-        //std::cerr << "\nSplit analysis\n";
-        //split->dump();
+#ifdef DUMP_DIV_ANALYSIS
+        std::cerr << "\nSplit analysis\n";
+        split->dump();
+#endif
 
         ContinuationSet Joins;
-        
+
         for (auto succ : split->succs()) {
             if (succ->is_intrinsic())
                 continue;
@@ -355,9 +375,11 @@ void Vectorizer::DivergenceAnalysis::run() {
             Continuation *cont = pop(queue);
 
             auto keys = predecessors(cont);
-            //std::cerr << "Predecessors\n";
-            //cont->dump();
-            //keys.dump();
+#ifdef DUMP_DIV_ANALYSIS
+            std::cerr << "Predecessors\n";
+            cont->dump();
+            keys.dump();
+#endif
 
             ContinuationSet toDelete;
             for (auto key : keys) {
@@ -378,7 +400,7 @@ void Vectorizer::DivergenceAnalysis::run() {
                 //At this point, we need to distinguish direct successors of split from the rest.
                 //We know that nodes that are already labeled with themselves should not be updated,
                 //but should be put into the set of relevant joins instead.
-                
+
                 Continuation* oldlabel = LabelMap[cont];
                 if (oldlabel == cont) {
                     //This node was either already marked as a join or, more importantly, it was a start node.
@@ -395,9 +417,11 @@ void Vectorizer::DivergenceAnalysis::run() {
             }
 
             if (done.emplace(cont).second || oldkey != LabelMap[cont]) {
-                //std::cerr << "Successors\n";
-                //cont->dump();
-                //successors(cont).dump();
+#ifdef DUMP_DIV_ANALYSIS
+                std::cerr << "Successors\n";
+                cont->dump();
+                successors(cont).dump();
+#endif
                 for (auto succ : successors(cont))
                     queue.push(succ);
             }
@@ -405,13 +429,15 @@ void Vectorizer::DivergenceAnalysis::run() {
 
         relJoins[split] = Joins;
 
-        //std::cerr << "Split node\n";
-        //split->dump();
-        //std::cerr << "Labelmap:\n";
-        //LabelMap.dump();
-        //std::cerr << "Joins:\n";
-        //Joins.dump();
-        //std::cerr << "End\n";
+#ifdef DUMP_DIV_ANALYSIS
+        std::cerr << "Split node\n";
+        split->dump();
+        std::cerr << "Labelmap:\n";
+        LabelMap.dump();
+        std::cerr << "Joins:\n";
+        Joins.dump();
+        std::cerr << "End\n";
+#endif
     }
 
     //TODO: Heavy caching is of the essence.
@@ -451,8 +477,10 @@ void Vectorizer::DivergenceAnalysis::run() {
         ContinuationSet joins = it.second;
         for (auto join : joins) {
             Scope scope(join);
+#ifdef DUMP_DIV_ANALYSIS
             std::cerr << "Varying values in\n";
             scope.dump();
+#endif
             for (auto def : scope.defs()) {
                 uniform[def] = Varying;
                 def_queue.push(def);
@@ -460,19 +488,22 @@ void Vectorizer::DivergenceAnalysis::run() {
         }
     }
 
+#ifdef DUMP_DIV_ANALYSIS
     for (auto it : relJoins) {
         it.first->dump();
         it.second.dump();
     }
 
     std::cerr << "\n";
+#endif
 
     //Step 4.3: Profit?
     while (!def_queue.empty()) {
         const Def *def = pop(def_queue);
-
+#ifdef DUMP_DIV_ANALYSIS
         std::cerr << "Will analyze ";
         def->dump();
+#endif
 
         if (uniform[def] == Uniform)
             continue;
@@ -484,7 +515,9 @@ void Vectorizer::DivergenceAnalysis::run() {
                 //Communicate Uniformity over continuation parameters
                 Continuation *cont = use.def()->isa_continuation();
                 if (cont) {
+#ifdef DUMP_DIV_ANALYSIS
                     cont->dump();
+#endif
                     bool is_op = false; //TODO: this is not a good filter for finding continuation calls!
                     int opnum = 0;
                     for (auto param : cont->ops()) {
@@ -494,18 +527,25 @@ void Vectorizer::DivergenceAnalysis::run() {
                         }
                         opnum++;
                     }
+#ifdef DUMP_DIV_ANALYSIS
+                    cont->dump();
                     std::cerr << is_op << "\n";
                     std::cerr << opnum << "\n";
+#endif
                     auto target = cont->ops()[0]->isa_continuation();
                     if (is_op && target && target->is_intrinsic() && opnum == 1 && relJoins.find(cont) != relJoins.end()) {
                         ContinuationSet joins = relJoins[cont];
                         for (auto join : joins) {
                             Scope scope(join);
+#ifdef DUMP_DIV_ANALYSIS
                             std::cerr << "Varying values in\n";
                             scope.dump();
+#endif
                             for (auto def : scope.defs()) { //TODO: only parameters are verying, not the entire continuation!
+#ifdef DUMP_DIV_ANALYSIS
                                 std::cerr << "Push def ";
                                 def->dump();
+#endif
                                 uniform[def] = Varying;
                                 def_queue.push(def);
                             }
@@ -521,10 +561,13 @@ void Vectorizer::DivergenceAnalysis::run() {
                             if (uniform[source_param] == Varying && uniform[target_param] == Uniform) {
                                 uniform[target_param] = Varying;
                                 def_queue.push(target_param);
+#ifdef DUMP_DIV_ANALYSIS
                                 std::cerr << "Push param ";
                                 target_param->dump();
+#endif
                             }
                         }
+#ifdef DUMP_DIV_ANALYSIS
                     } else {
                         std::cerr << "\nNot Found\n";
                         cont->dump();
@@ -533,17 +576,19 @@ void Vectorizer::DivergenceAnalysis::run() {
                             it.second.dump();
                         }
                         std::cerr << "\n";
+#endif
                     }
                 } else {
                     uniform[use] = Varying;
                     def_queue.push(use);
-                    std::cerr << "Push ";
-                    use->dump();
+                    //std::cerr << "Push ";
+                    //use->dump();
                 }
             }
         }
     }
 
+#ifdef DUMP_DIV_ANALYSIS
     std::cerr << "\n";
 
     for (auto uni : uniform) {
@@ -553,7 +598,199 @@ void Vectorizer::DivergenceAnalysis::run() {
             std::cerr << "Uniform ";
         uni.first->dump();
     }
+#endif
 
+}
+
+const Type *Vectorizer::widen(const Type *old_type) {
+    if (old_type->isa<PtrType>()) {
+        return world_.ptr_type(old_type->as<PtrType>()->pointee(), 8);
+    } else if (old_type->isa<PrimType>()) {
+        return world_.type(old_type->as<PrimType>()->primtype_tag(), 8);
+    } else {
+        return old_type;
+    }
+}
+
+/*const Def *Vectorizer::widen(const Def *op) {
+    if (!op->isa<PrimOp>())
+        return nullptr;
+
+    auto primop = op->as<PrimOp>();
+    auto defs = primop->ops();
+
+    auto old_type = primop->type();
+    const Type* new_type = widen(old_type);
+    new_type->dump();
+
+    //return op;
+    return primop->rebuild(defs, new_type);
+}*/
+
+const Def* Vectorizer::widen(const Def* old_def) {
+    if (auto new_def = find(def2def_, old_def))
+        return new_def;
+    else if (auto old_continuation = old_def->isa_continuation()) {
+        auto new_continuation = widen(old_continuation);
+        widen_body(old_continuation, new_continuation);
+        return new_continuation;
+    } else if (auto param = old_def->isa<Param>()) {
+        widen(param->continuation());
+        assert(def2def_.contains(param));
+        return def2def_[param];
+    } else {
+        auto old_primop = old_def->as<PrimOp>();
+        Array<const Def*> nops(old_primop->num_ops());
+        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
+            nops[i] = widen(old_primop->op(i));
+
+        auto type = old_primop->type();
+        return def2def_[old_primop] = old_primop->rebuild(nops, type);
+    }
+}
+
+void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_continuation) {
+    assert(!old_continuation->empty());
+
+    // fold branch and match
+    // TODO find a way to factor this out in continuation.cpp
+    if (auto callee = old_continuation->callee()->isa_continuation()) {
+        switch (callee->intrinsic()) {
+            case Intrinsic::Branch: {
+                if (auto lit = widen(old_continuation->arg(0))->isa<PrimLit>()) {
+                    auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
+                    return new_continuation->jump(widen(cont), {}, old_continuation->jump_debug());
+                }
+                break;
+            }
+            case Intrinsic::Match:
+                if (old_continuation->num_args() == 2)
+                    return new_continuation->jump(widen(old_continuation->arg(1)), {}, old_continuation->jump_debug());
+
+                if (auto lit = widen(old_continuation->arg(0))->isa<PrimLit>()) {
+                    for (size_t i = 2; i < old_continuation->num_args(); i++) {
+                        auto new_arg = widen(old_continuation->arg(i));
+                        if (world_.extract(new_arg, 0_s)->as<PrimLit>() == lit)
+                            return new_continuation->jump(world_.extract(new_arg, 1), {}, old_continuation->jump_debug());
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    Array<const Def*> nops(old_continuation->num_ops());
+    for (size_t i = 0, e = nops.size(); i != e; ++i)
+        nops[i] = widen(old_continuation->op(i));
+
+    Defs nargs(nops.skip_front()); // new args of new_continuation
+    auto ntarget = nops.front();   // new target of new_continuation
+
+    new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
+}
+
+Continuation *Vectorizer::widen(Continuation *kernel) {
+    //Step 1: Dump info.
+    //kernel->dump();
+    //std::cerr << "\n";
+
+    //Step 2: Create a faithful copy.
+    //Continuation *vectorize_start = world_.continuation(kernel->type(), kernel->attributes(), kernel->debug_history());
+
+    Scope scope(kernel);
+    auto defs = Defs();
+
+    Continuation *ncontinuation;
+
+    // create new_entry - but first collect and specialize all param types
+    std::vector<const Type*> param_types;
+    for (size_t i = 0, e = scope.entry()->num_params(); i != e; ++i) {
+        if (i == 1000) {
+            param_types.emplace_back(widen(scope.entry()->param(i)->type()));
+        } else {
+            param_types.emplace_back(scope.entry()->param(i)->type());
+        }
+    }
+
+    auto fn_type = world_.fn_type(param_types);
+    ncontinuation = world_.continuation(fn_type, scope.entry()->debug_history());
+
+    // map value params
+    def2def_[scope.entry()] = scope.entry();
+    for (size_t i = 0, j = 0, e = scope.entry()->num_params(); i != e; ++i) {
+        auto old_param = scope.entry()->param(i);
+        auto new_param = ncontinuation->param(j++);
+        def2def_[old_param] = new_param;
+        new_param->debug().set(old_param->name());
+    }
+
+    for (auto def : defs)
+        def2def_[def] = ncontinuation->append_param(def->type()); // TODO reduce
+
+    // mangle filter
+    if (!scope.entry()->filter().empty()) {
+        Array<const Def*> new_filter(ncontinuation->num_params());
+        size_t j = 0;
+        for (size_t i = 0, e = scope.entry()->num_params(); i != e; ++i) {
+            new_filter[j++] = widen(scope.entry()->filter(i));
+        }
+
+        for (size_t e = ncontinuation->num_params(); j != e; ++j)
+            new_filter[j] = world_.literal_bool(false, Debug{});
+
+        ncontinuation->set_filter(new_filter);
+    }
+
+    widen_body(scope.entry(), ncontinuation);
+
+    std::queue<const Def*> queue;
+    GIDSet<const Def*> done;
+
+#if 0
+    std::cerr << "Widening\n";
+    Rewriter vectorizer;
+    for (size_t i = 0; i < ncontinuation->num_ops(); i++) {
+        queue.push(ncontinuation->op(i));
+        done.emplace(ncontinuation->op(i));
+    }
+    while (!queue.empty()) {
+        const Def* element = pop(queue);
+        element->dump();
+
+        //if div_analysis_->get_result(element_vectorized) == divergent:
+        const Def* element_vectorized = widen(element);
+        const Def* element_vectorized = nullptr;
+        if (element_vectorized) {
+          vectorizer.old2new[element] = element_vectorized;
+          element_vectorized->dump();
+        } else {
+          std::cerr << "Not vectorized\n";
+        }
+
+        for (auto op : element->ops())
+            if (done.emplace(op).second)
+                queue.push(op);
+    }
+    std::cerr << "Widening End\n\n";
+
+    //TODO: This should only find temporary use. We should be able to directly call the vectorized function.
+    for (auto use : kernel->copy_uses()) {
+        if (auto ucontinuation = use->isa_continuation())
+            ucontinuation->update_op(use.index(), ncontinuation);
+        else {
+            auto primop = use->as<PrimOp>();
+            Array<const Def*> nops(primop->num_ops());
+            std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
+            nops[use.index()] = ncontinuation;
+            auto newprimop = primop->rebuild(nops);
+            primop->replace(newprimop);
+        }
+    }
+#endif
+
+    //Scope(ncontinuation).dump();
+    return ncontinuation;
 }
 
 bool Vectorizer::run() {
@@ -571,7 +808,8 @@ bool Vectorizer::run() {
 
         if (cont->intrinsic() == Intrinsic::Vectorize) {
             std::cerr << "Continuation\n";
-            cont->dump_head();
+            //cont->dump_head();
+            //std::cerr << "\n";
 
             for (auto pred : cont->preds()) {
                 auto *kernarg = dynamic_cast<const Global *>(pred->arg(2));
@@ -582,28 +820,72 @@ bool Vectorizer::run() {
 
     //Task 1.2: Divergence Analysis for each vectorize block
     //Warning: Will fail to produce meaningful results or rightout break the program if kerndef does not dominate its subprogram
-                DivergenceAnalysis(kerndef).run();
+                div_analysis_ = new DivergenceAnalysis(kerndef);
+                div_analysis_->run();
 
+    //Task 2: Widening
+    //TODO: Uniform branches might still need masking. => Predicate generation relevant!
+                auto *vectorized = widen(kerndef);
+
+                delete div_analysis_;
+
+                if (vectorized) {
+                    cont->dump();
+                    for (auto caller : cont->preds()) {
+                        caller->dump();
+
+                        Array<const Def*> args(vectorized->num_params());
+
+                        args[0] = caller->arg(0); //mem
+                        args[1] = caller->arg(1); //width
+
+                        for (size_t p = 2; p < vectorized->num_params(); p++) {
+                            args[p] = caller->arg(p + 1);
+                        }
+
+                        caller->jump(vectorized, args, caller->jump_debug());
+                    }
+                    //const FnType* type = dynamic_cast<const FnType*>(cont->type());
+                    //Array<const Type*> args(type->num_ops() - 2);
+                    //args[0] = type->op(0);
+                    //for (size_t k = 3; k < type->num_ops(); k++)
+                    //    args[k - 2] = type->op(k);
+                    //const FnType *newtype = world_.fn_type(args);
+
+                    //Continuation::Attributes attributes = cont->attributes();
+                    //attributes.intrinsic = Intrinsic::None;
+
+                    //auto *header = world_.continuation(type, attributes, cont->debug_history());
+                    //Array<const Def*> params(vectorized->num_params());
+                    //params[0] = header->param(0); //mem
+
+                    //params[1] = header->param(1); //width
+                    //params[1] = world_.literal_qs32(42, header->debug_history()); //width
+
+                    //params[2] = header->param(1); //return
+                    //for (size_t p = 2; p < header->num_params(); p++) {
+                    //    params[p + 1] = header->param(p);
+                    //}
+                    //header->jump(vectorized, params, cont->jump_debug());
+                    //
+                    //cont->replace(header); //TODO: replace Calls to cont!
+                }
             }
             std::cerr << "Continuation end\n\n";
         }
         //if cont is vectorize:
         //find all calls, repeat the rest of this for all of them with the respective set of continuations being used.
-        
-        
+
+
         for (auto succ : cont->succs())
             enqueue(succ);
     }
 
 
-    return false;
-
-    //Task 2: Communicate, annotate the IR, or transform it alltogether
-
-    //Task 3: Widening (during CodeGen)
-    //TODO: Uniform branches might still need masking. => Predicate generation relevant!
-
     //world.cleanup();
+    world_.dump();
+
+    return false;
 }
 
 bool vectorize(World& world) {

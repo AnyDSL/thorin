@@ -1,6 +1,6 @@
 set(THORIN_SOURCES
-    alpha_equiv.cpp
-    alpha_equiv.h
+    check.cpp
+    check.h
     def.cpp
     def.h
     error.cpp
@@ -25,16 +25,12 @@ set(THORIN_SOURCES
     analyses/domfrontier.h
     analyses/domtree.cpp
     analyses/domtree.h
-    analyses/free_defs.cpp
-    analyses/free_defs.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp
     analyses/schedule.h
     analyses/scope.cpp
     analyses/scope.h
-    analyses/verify.cpp
-    analyses/verify.h
     be/c.cpp
     be/c.h
     pass/optimize.cpp
@@ -57,18 +53,16 @@ set(THORIN_SOURCES
     pass/rw/grad_gen.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
+    pass/rw/ptrn_compiler.h
+    pass/rw/ptrn_compiler.cpp
     pass/rw/ret_wrap.cpp
     pass/rw/ret_wrap.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/compile_ptrns.h
-    transform/compile_ptrns.cpp
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
     transform/mangle.cpp
     transform/mangle.h
-    transform/resolve_loads.cpp
-    transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
     util/args.h

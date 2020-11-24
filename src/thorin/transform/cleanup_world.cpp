@@ -5,9 +5,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
 
 namespace thorin {
@@ -20,7 +18,6 @@ public:
 
     World& world() { return world_; }
     void run();
-    void eliminate_tail_rec();
     void eta_conversion();
     void eliminate_params();
     void verify_closedness();
@@ -32,69 +29,6 @@ private:
     World& world_;
     bool todo_ = true;
 };
-
-void Cleaner::eliminate_tail_rec() {
-    world_.visit([&](const Scope& scope) {
-        auto entry = scope.entry()->isa<Lam>();
-        if (entry == nullptr) return;
-
-        bool only_tail_calls = true;
-        bool recursive = false;
-        for (auto use : entry->uses()) {
-            if (use->isa<Param>()) continue;
-            if (scope.contains(use)) {
-                if (use.index() != 0 || !use->isa<App>()) {
-                    only_tail_calls = false;
-                    break;
-                } else {
-                    recursive = true;
-                }
-            }
-        }
-
-        if (recursive && only_tail_calls) {
-            auto n = entry->num_params();
-            Array<const Def*> args(n);
-
-            for (size_t i = 0; i != n; ++i) {
-                args[i] = entry->param(i);
-
-                for (auto use : entry->uses()) {
-                    if (use->isa<Param>()) continue;
-                    if (scope.contains(use)) {
-                        auto arg = use->as<App>()->arg(i);
-                        if (!arg->isa<Bot>() && arg != args[i]) {
-                            args[i] = world().top(arg->type());
-                            break;
-                        }
-                    }
-                }
-            }
-
-            std::vector<const Def*> new_args;
-
-            for (size_t i = 0; i != n; ++i) {
-                if (args[i]->isa<Top>()) {
-                    new_args.emplace_back(entry->param(i));
-                    if (entry->param(i)->type()->order() != 0) {
-                        // the resulting function wouldn't be of first order so examine next scope
-                        return;
-                    }
-                }
-            }
-
-            if (new_args.size() != n) {
-                world_.DLOG("tail recursive: {}", entry);
-                auto dropped = drop(scope, args);
-
-                entry->app(dropped, new_args);
-                todo_ = true;
-                const_cast<Scope&>(scope).update();
-                // this pass will be rewritten, so don't mind the const_cast for now
-            }
-        }
-    });
-}
 
 // TODO remove
 bool is_param(const Def* def) {
@@ -230,7 +164,7 @@ void Cleaner::eliminate_params() {
             }
 
             auto cn = world().cn(new_domain);
-            auto new_lam = world().lam(cn, old_lam->cc(), old_lam->intrinsic(), old_lam->debug_history());
+            auto new_lam = world().nom_lam(cn, old_lam->cc(), old_lam->intrinsic(), old_lam->debug_history());
             size_t j = 0;
             for (auto i : param_idx) {
                 old_lam->param(i)->replace(new_lam->param(j));
@@ -276,6 +210,7 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::clean_pe_infos() {
+#if 0
     world().rewrite("cleaning remaining pe_infos",
         [&](const Scope& scope) {
             return scope.entry()->isa<Lam>();
@@ -293,6 +228,7 @@ void Cleaner::clean_pe_infos() {
             }
             return nullptr;
         });
+#endif
 }
 
 void Cleaner::cleanup_fix_point() {
@@ -300,13 +236,9 @@ void Cleaner::cleanup_fix_point() {
     for (; todo_; ++i) {
         world().VLOG("iteration: {}", i);
         todo_ = false;
-        if (world_.is_pe_done())
-            eliminate_tail_rec();
         eta_conversion();
         eliminate_params();
         cleanup(world_); // resolve replaced defs before going to resolve_loads
-        todo_ |= resolve_loads(world());
-        cleanup(world_);
         if (!world().is_pe_done())
             todo_ |= partial_evaluation(world_);
         else
@@ -329,7 +261,6 @@ void Cleaner::run() {
     world().VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
-    debug_verify(world());
 #endif
 }
 

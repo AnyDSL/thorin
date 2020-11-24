@@ -50,16 +50,16 @@ using Name = std::variant<const char*, std::string, const Def*>;
 
 struct Debug {
     Debug(Name name,
-          Name filename = "",
-          nat_t front_line = nat_t(-1),
-          nat_t front_col  = nat_t(-1),
-          nat_t back_line  = nat_t(-1),
-          nat_t back_col   = nat_t(-1),
-          const Def* meta  = nullptr)
-        : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col, meta))
+          Name file = "",
+          nat_t begin_row = nat_t(-1),
+          nat_t begin_col = nat_t(-1),
+          nat_t finis_row = nat_t(-1),
+          nat_t finis_col = nat_t(-1),
+          const Def* meta = nullptr)
+        : data(std::make_tuple(name, file, begin_row, begin_col, finis_row, finis_col, meta))
     {}
-    Debug(Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
-        : Debug("", filename, front_line, front_col, back_line, back_col)
+    Debug(Name file, nat_t begin_row, nat_t begin_col, nat_t finis_row, nat_t finis_col)
+        : Debug("", file, begin_row, begin_col, finis_row, finis_col)
     {}
     Debug(const Def* def = nullptr)
         : data(def)
@@ -159,6 +159,7 @@ public:
     /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Universe); return type_; }
+    int sort() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     const Def* tuple_arity() const;
@@ -219,8 +220,8 @@ public:
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
-    size_t num_outs() const { 
-        if (auto a = isa_lit(arity())) return *a; 
+    size_t num_outs() const {
+        if (auto a = isa_lit(arity())) return *a;
         return 1;
     }
     //@}
@@ -238,11 +239,11 @@ public:
     const Def* debug_history() const; ///< In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     std::string name() const;
     std::string unique_name() const;  ///< name + "_" + gid
-    std::string filename() const;
-    nat_t front_line() const;
-    nat_t front_col() const;
-    nat_t back_line() const;
-    nat_t back_col() const;
+    std::string file() const;
+    nat_t begin_row() const;
+    nat_t begin_col() const;
+    nat_t finis_row() const;
+    nat_t finis_col() const;
     std::string loc() const;
     const Def* meta() const;
     //@}
@@ -947,6 +948,9 @@ public:
     static constexpr auto Node = Node::Pack;
     friend class World;
 };
+
+inline bool is_sigma_or_arr (const Def* def) { return def->isa<Sigma>() || def->isa<Arr >(); }
+inline bool is_tuple_or_pack(const Def* def) { return def->isa<Tuple>() || def->isa<Pack>(); }
 
 /// Extracts from a @p Sigma or @p Variadic typed @p Def the element at position @p index.
 class Extract : public Def {

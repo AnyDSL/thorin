@@ -102,7 +102,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
 
     if (phi_lam == nullptr) {
         auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
-        phi_lam = world().lam(new_type, mem_lam->debug());
+        phi_lam = world().nom_lam(new_type, mem_lam->debug());
         world().DLOG("new phi_lam '{}'", phi_lam);
         world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
         auto [_, ins] = preds_n_.emplace(phi_lam);

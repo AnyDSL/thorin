@@ -14,7 +14,7 @@ namespace thorin {
 Scope::Scope(Def* entry)
     : world_(entry->world())
     , entry_(entry)
-    , exit_(world().lam(world().cn(world().bot_kind()), {"exit"}))
+    , exit_(world().nom_lam(world().cn(world().bot_kind()), {"exit"}))
 {
     run();
 }
@@ -105,86 +105,6 @@ const NomSet& Scope::free_noms() const {
     }
 
     return *free_noms_;
-}
-
-void Scope::visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, VisitNomFn post_nom, VisitDefFn free) {
-    unique_queue<NomSet> noms;
-    unique_stack<DefSet> defs;
-
-    noms.push(entry());
-
-    auto push = [&](const Def* def) {
-        auto push = [&](const Def* def) {
-            if (!def->is_const()) {
-                if (contains(def)) {
-                    if (auto nom = def->isa_nominal())
-                        noms.push(nom);
-                    else
-                        return defs.push(def);
-                } else {
-                    if (free) free(def);
-                }
-            }
-            return false;
-        };
-
-        bool todo = false;
-        for (auto op : def->extended_ops()) todo |= push(op);
-        return todo;
-    };
-
-    while (!noms.empty()) {
-        auto nom = noms.pop();
-        if (pre_nom) pre_nom(nom);
-        push(nom);
-
-        while (!defs.empty()) {
-            auto def = defs.top();
-
-            if (pre_def) pre_def(def);
-
-            if (!push(def)) {
-                if (post_def) post_def(def);
-                defs.pop();
-            }
-        }
-
-        if (post_nom) post_nom(nom);
-    }
-}
-
-bool Scope::rewrite(const std::string& info, RewriteFn fn) {
-    world().VLOG("{}: rewriting scope {} - start", info, entry());
-
-    Def2Def old2new;
-    bool dirty = false;
-
-    auto make_new_ops = [&](const Def* old_def) {
-        return Array<const Def*>(old_def->num_ops(), [&](size_t i) {
-            if (auto new_def = old2new.lookup(old_def->op(i))) return *new_def;
-            return old_def->op(i);
-        });
-    };
-
-    visit({}, {},
-        [&](const Def* old_def) {
-            if (auto new_def = fn(old_def)) {
-                old2new[old_def] = new_def;
-            } else {
-                old2new[old_def] = old_def->rebuild(world(), old_def->type(), make_new_ops(old_def), old_def->debug());
-            }
-        },
-        [&](Def* old_nom) {         // post-order nominmals
-            auto new_ops = make_new_ops(old_nom);
-
-            if (!std::equal(new_ops.begin(), new_ops.end(), old_nom->ops().begin())) {
-                old_nom->set(new_ops);
-                dirty = true;
-            }
-        });
-
-    world().VLOG("{}: rewriting scope {} - done,", info, entry());
-    return dirty;
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }

@@ -235,7 +235,6 @@ Schedule::Schedule(const Scope& scope, Mode mode)
 {
     block_schedule();
     Scheduler(scope, *this);
-    verify();
 }
 
 void Schedule::block_schedule() {
@@ -248,40 +247,6 @@ void Schedule::block_schedule() {
         indices_[n] = i++;
     }
     assert(blocks_.size() == i);
-}
-
-void Schedule::verify() {
-#if 0
-#if THORIN_ENABLE_CHECKS
-    bool ok = true;
-    auto& domtree = cfg().domtree();
-    Schedule::Map<const Def*> block2mem(*this);
-
-    for (auto& block : *this) {
-        const Def* mem = block.nominal()->mem_param();
-        auto idom = block.nominal() != scope().entry() ? domtree.idom(block.node()) : block.node();
-        mem = mem ? mem : block2mem[(*this)[idom]];
-        for (auto def : block) {
-            if (is_memop(def)) {
-                const Def* m;
-                if (auto app = def->isa<App>())
-                    m = app->arg(0);
-                else
-                    m = def->op(0);
-                if (m != mem) {
-                    def->dump();
-                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", def, def->loc(), mem, mem->loc(), scope_.entry());
-                    ok = false;
-                }
-                mem = def->out(0);
-            }
-        }
-        block2mem[block] = mem;
-    }
-
-    assert(ok && "incorrectly wired or scheduled memory operations");
-#endif
-#endif
 }
 
 Stream& Schedule::stream(Stream& s) const {
@@ -307,9 +272,5 @@ template void Streamable<Schedule>::dump() const;
 template void Streamable<Schedule>::write() const;
 
 //------------------------------------------------------------------------------
-
-void verify_mem(World& world) {
-    world.visit([&](const Scope& scope) { schedule(scope); });
-}
 
 }

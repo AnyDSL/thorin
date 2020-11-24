@@ -13,9 +13,6 @@ class CFA;
 template<bool> class CFG;
 using F_CFG = CFG<true >;
 using B_CFG = CFG<false>;
-using VisitNomFn = std::function<void(Def*)>;
-using VisitDefFn = std::function<void(const Def*)>;
-using RewriteFn = std::function<const Def*(const Def*)>;
 
 /**
  * A @p Scope represents a region of @em nominals which are live from the view of an @p entry @em nominal.
@@ -58,9 +55,6 @@ public:
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     //@}
-    void visit(VisitNomFn pre_nom, VisitDefFn pre_def, VisitDefFn post_def, VisitNomFn post_nom, VisitDefFn free = {});
-    bool rewrite(const std::string& info, RewriteFn fn);
-
     Stream& stream(Stream&) const;
 
 private:

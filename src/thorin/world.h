@@ -16,13 +16,11 @@ namespace thorin {
 
 enum class LogLevel { Debug, Verbose, Info, Warn, Error };
 
+class Checker;
 class DepNode;
 class ErrorHandler;
 class RecStreamer;
 class Scope;
-using VisitFn   = std::function<void(const Scope&)>;
-using EnterFn   = std::function<bool(const Scope&)>;
-using RewriteFn = std::function<const Def*(const Def*)>;
 
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).
@@ -111,7 +109,7 @@ public:
     //@{
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
     const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
-    Pi* pi(const Def* type, Debug dbg = {}) { return insert<Pi>(2, type, debug(dbg)); } ///< @em nominal Pi.
+    Pi* nom_pi(const Def* type, Debug dbg = {}) { return insert<Pi>(2, type, debug(dbg)); } ///< @em nominal Pi.
     //@}
     /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
     //@{
@@ -123,16 +121,13 @@ public:
     const Pi* pi_mem(const Def* domain, const Def* codomain, Debug dbg = {}) { auto d = sigma({type_mem(), domain}); return pi(d, sigma({type_mem(), codomain}), dbg); }
     const Pi* fn_mem(const Def* domain, const Def* codomain, Debug dbg = {}) { return cn({type_mem(), domain, cn_mem(codomain)}, dbg); }
     //@}
-    /// @name Lambda: nominal
+    /// @name Lam%bda
     //@{
-    Lam* lam(const Pi* cn, Lam::CC cc = Lam::CC::C, Lam::Intrinsic intrinsic = Lam::Intrinsic::None, Debug dbg = {}) {
+    Lam* nom_lam(const Pi* cn, Lam::CC cc = Lam::CC::C, Lam::Intrinsic intrinsic = Lam::Intrinsic::None, Debug dbg = {}) {
         auto lam = insert<Lam>(2, cn, cc, intrinsic, debug(dbg));
         return lam;
     }
-    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, Lam::CC::C, Lam::Intrinsic::None, dbg); }
-    //@}
-    /// @name Lambda: structural
-    //@{
+    Lam* nom_lam(const Pi* cn, Debug dbg = {}) { return nom_lam(cn, Lam::CC::C, Lam::Intrinsic::None, dbg); }
     const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
     const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_true(), body, dbg); }
     //@}
@@ -143,33 +138,27 @@ public:
     const Def* raw_app(const Def* callee, const Def* arg, Debug dbg = {});                                         /// Same as @p app but does @em not apply @p NormalizeFn.
     const Def* raw_app(const Def* callee, Defs args, Debug dbg = {}) { return raw_app(callee, tuple(args), dbg); } /// Same as @p app but does @em not apply @p NormalizeFn.
     //@}
-    /// @name Sigma: structural
+    /// @name Sigma
     //@{
+    Sigma* nom_sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
+    Sigma* nom_sigma(size_t size, Debug dbg = {}) { return nom_sigma(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p kind
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind(), ops, dbg); }
     const Sigma* sigma() { return data_.sigma_; } ///< the unit type within @p kind()
     //@}
-    /// @name Sigma: nominal
+    /// @name Union
     //@{
-    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
-    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
-    //@}
-    /// @name Union: structural
-    //@{
+    Union* nom_union(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
+    Union* nom_union(size_t size, Debug dbg = {}) { return nom_union(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
     const Def* union_(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Union of type @p kind
     const Def* union_(Defs ops, Debug dbg = {}) { return union_(kind(), ops, dbg); }
     //@}
-    /// @name Union: nominal
-    //@{
-    Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
-    Union* union_(size_t size, Debug dbg = {}) { return union_(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
-    //@}
     /// @name Arr
     //@{
-    Arr* arr_nom(const Def* type, const Def* shape, Debug dbg = {}) { return insert<Arr>(2, type, shape, debug(dbg)); }
-    Arr* arr_nom(const Def* shape, Debug dbg = {}) { return arr_nom(kind(), shape, dbg); }
+    Arr* nom_arr(const Def* type, const Def* shape, Debug dbg = {}) { return insert<Arr>(2, type, shape, debug(dbg)); }
+    Arr* nom_arr(const Def* shape, Debug dbg = {}) { return nom_arr(kind(), shape, dbg); }
     const Def* arr(const Def* shape, const Def* body, Debug dbg = {});
     const Def* arr(Defs shape, const Def* body, Debug dbg = {});
     const Def* arr(u64 n, const Def* body, Debug dbg = {}) { return arr(lit_nat(n), body, dbg); }
@@ -226,7 +215,7 @@ public:
     //@{
     const Def* match(const Def* val, Defs ptrns, Debug dbg = {});
     const Case* case_(const Def* domain, const Def* codomain, Debug dbg = {}) { return unify<Case>(2, kind(), domain, codomain, debug(dbg)); }
-    Ptrn* ptrn(const Case* type, Debug dbg = {}) { return insert<Ptrn>(2, type, debug(dbg)); }
+    Ptrn* nom_ptrn(const Case* type, Debug dbg = {}) { return insert<Ptrn>(2, type, debug(dbg)); }
     //@}
     /// @name Lit
     //@{
@@ -436,23 +425,15 @@ public:
     bool is_external(const Def* def) { return data_.externals_.contains(def->name()); }
     Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
-    /// @name visit and rewrite
+    /// @name visit
     //@{
     /**
      * Transitively visits all @em reachable Scope%s in this @p World that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
      * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
      */
+    using VisitFn = std::function<void(const Scope&)>;
     template<bool elide_empty = true> void visit(VisitFn) const;
-    /**
-     * Rewrites the whole world by @p visit%ing each @p Def with all @em top-level @p Scope%s.
-     * Every time, we enter a new scope @p enter_fn will be invoked.
-     * Return @c false, if you want to skip this @p Scope.
-     * If you return @c true, the @p Scope will be rewritten via @p rewrite_fn and @p Scope::rewrite.
-     * For each @p Def in the current @p Scope, @p rewrite_fn will be invoked.
-     */
-    void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn);
-    //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
@@ -679,6 +660,7 @@ private:
     } data_;
 
     std::unique_ptr<ErrorHandler> err_;
+    std::unique_ptr<Checker> checker_;
 
     friend class Cleaner;
     friend Array<const Def*> Def::apply(const Def*);

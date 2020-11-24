@@ -62,7 +62,6 @@ public:
     size_t size() const { return blocks_.size(); }
     const Block& operator[](const CFNode* n) const { return blocks_[indices_[n]]; }
     static size_t index(const Block& block) { return block.index(); }
-    void verify();
     typedef ArrayRef<const Block>::const_iterator const_iterator;
     const_iterator begin() const { return blocks().begin(); }
     const_iterator end() const { return blocks().end(); }
@@ -81,7 +80,6 @@ private:
 };
 
 inline Schedule schedule(const Scope& scope, Schedule::Mode mode = Schedule::Smart) { return Schedule(scope, mode); }
-void verify_mem(World& );
 
 }
 

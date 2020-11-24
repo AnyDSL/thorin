@@ -159,6 +159,7 @@ public:
     /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Universe); return type_; }
+    int sort() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     const Def* tuple_arity() const;

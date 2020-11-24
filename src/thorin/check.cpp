@@ -6,16 +6,18 @@ namespace thorin {
 
 bool Checker::equiv(const Def* d1, const Def* d2) {
     if (d1 == d2 || (!d1->is_set() && !d2->is_set()) || (d1->isa<Universe>() && d2->isa<Universe>())) return true;
-    //if (!equiv(d1->type(), d2->type())) return false;
+    if (d1->sort() != d2->sort()) return false;
 
     // normalize: always put smaller gid to the left
     if (d1->gid() > d2->gid()) std::swap(d1, d2);
 
-    if (d1->isa<Top>() || d2->isa<Top>()) return equiv(d1->type(), d2->type());
-
     // this assumption will either hold true - or we will bail out with false anyway
     auto [i, inserted] = equiv_.emplace(d1, d2);
     if (!inserted) return true;
+
+    //if (!equiv(d1->type(), d2->type())) return false;
+
+    if (d1->isa<Top>() || d2->isa<Top>()) return equiv(d1->type(), d2->type());
 
     if (is_sigma_or_arr(d1)) {
         if (!equiv(d1->arity(), d2->arity())) return false;

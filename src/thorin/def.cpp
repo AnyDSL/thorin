@@ -37,6 +37,14 @@ Defs Def::extended_ops() const {
 
 size_t Def::num_params() { return param()->num_outs(); }
 
+int Def::sort() const {
+    if (                        isa<Universe>()) return 3;
+    if (                type()->isa<Universe>()) return 2;
+    if (        type()->type()->isa<Universe>()) return 1;
+    if (type()->type()->type()->isa<Universe>()) return 0;
+    THORIN_UNREACHABLE;
+}
+
 const Def* Def::tuple_arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->shape();

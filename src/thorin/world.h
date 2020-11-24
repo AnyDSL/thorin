@@ -16,6 +16,7 @@ namespace thorin {
 
 enum class LogLevel { Debug, Verbose, Info, Warn, Error };
 
+class Checker;
 class DepNode;
 class ErrorHandler;
 class RecStreamer;
@@ -668,6 +669,7 @@ private:
     } data_;
 
     std::unique_ptr<ErrorHandler> err_;
+    std::unique_ptr<Checker> checker_;
 
     friend class Cleaner;
     friend Array<const Def*> Def::apply(const Def*);

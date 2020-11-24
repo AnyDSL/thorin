@@ -1,6 +1,6 @@
 set(THORIN_SOURCES
-    alpha_equiv.cpp
-    alpha_equiv.h
+    check.cpp
+    check.h
     def.cpp
     def.h
     error.cpp

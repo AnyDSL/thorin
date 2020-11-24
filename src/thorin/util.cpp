@@ -45,8 +45,17 @@ const Def* proj(const Def* def, u64 a, u64 i) {
     if (def == nullptr) return nullptr; // pass through nullptr for nested proj calls
     if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
     if (!no_extract && def->is_value()) { return def->world().extract(def, a, i); }
-    if (auto arr  = def->isa<Arr >()) return arr ->apply(world.lit_int(as_lit(arr ->arity()), i)).back();
-    if (auto pack = def->isa<Pack>()) return pack->apply(world.lit_int(as_lit(pack->arity()), i)).back();
+
+    if (auto arr = def->isa<Arr>()) {
+        if (arr->arity()->isa<Top>()) return arr->body();
+        return arr->apply(world.lit_int(as_lit(arr->arity()), i)).back();
+    }
+
+    if (auto pack = def->isa<Pack>()) {
+        if (pack->arity()->isa<Top>()) return pack->body();
+        return pack->apply(world.lit_int(as_lit(pack->arity()), i)).back();
+    }
+
     return nullptr;
 }
 

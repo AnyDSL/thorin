@@ -8,8 +8,8 @@ namespace thorin {
 
 template<class... Args> void err(const char* fmt, Args&&... args) { errf(fmt, std::forward<Args&&>(args)...); std::abort(); }
 
-void ErrorHandler::index_out_of_range(uint64_t arity, uint64_t index) {
-    err("index literal '{}' does not fit within arity '{}'", index, arity);
+void ErrorHandler::index_out_of_range(const Def* arity, const Def* index) {
+    err("index '{}' does not fit within arity '{}'", index, arity);
 }
 
 void ErrorHandler::ill_typed_app(const Def* callee, const Def* arg) {

@@ -9,7 +9,7 @@
 #include <unistd.h>
 #endif
 
-#include "thorin/alpha_equiv.h"
+#include "thorin/check.h"
 #include "thorin/def.h"
 #include "thorin/error.h"
 #include "thorin/normalize.h"
@@ -20,79 +20,6 @@
 
 namespace thorin {
 
-// TODO not all cases implemented
-// TODO move somewhere else and polish
-
-static bool check(const Def* t1, const Def* t2) {
-    if (t1 == t2) return true;
-    auto& world = t1->world();
-
-    if (t1->isa<Top>() || t2->isa<Top>()) return check(t1->type(), t2->type());
-    if (auto sig = t1->isa<Sigma>()) {
-        if (!check(t1->arity(), t2->arity())) return false;
-
-        auto a = t1->num_ops();
-        for (size_t i = 0; i != a; ++i) {
-            if (!check(sig->op(i), proj(t2, a, i))) return false;
-        }
-
-        return true;
-    } else if (auto arr = t1->isa<Arr>()) {
-        if (!check(t1->arity(), t2->arity())) return false;
-
-        if (auto a = isa_lit(arr->shape())) {
-            for (size_t i = 0; i != a; ++i) {
-                if (!check(arr->apply(world.lit_int(*a, i)).back(), proj(t2, *a, i))) return false;
-            }
-
-            return true;
-        }
-    }
-
-    if (t1->node() == t2->node() && t1->num_ops() == t2->num_ops()) {
-        size_t n = t1->num_ops();
-        for (size_t i = 0; i != n; ++i) {
-            if (!check(t1->op(i), t2->op(i))) return false;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-static bool assignable(const Def* type, const Def* val) {
-    if (type == val->type()) return true;
-    auto& world = type->world();
-
-    if (auto sigma = type->isa<Sigma>()) {
-        if (!check(type->arity(), val->type()->arity())) return false;
-
-        auto red = sigma->apply(val);
-        for (size_t i = 0, e = red.size(); i != e; ++i) {
-            if (!assignable(red[i], val->out(i))) return false;
-        }
-
-        return true;
-    } else if (auto arr = type->isa<Arr>()) {
-        if (!check(type->arity(), val->type()->arity())) return false;
-
-        if (auto n = isa_lit(arr->arity())) {;
-            for (size_t i = 0; i != *n; ++i) {
-                if (!assignable(arr->apply(world.lit_int(*n, i)).back(), val->out(i))) return false;
-            }
-        } else {
-            return check(arr, val->type());
-        }
-
-        return true;
-    } else {
-        return check(type, val->type());
-    }
-
-    return false;
-}
-
 /*
  * constructor & destructor
  */
@@ -101,7 +28,9 @@ static bool assignable(const Def* type, const Def* val) {
 bool World::Arena::Lock::guard_ = false;
 #endif
 
-World::World(const std::string& name) {
+World::World(const std::string& name)
+    : checker_(std::make_unique<Checker>(*this))
+{
     data_.name_          = name.empty() ? "module" : name;
     data_.universe_      = insert<Universe >(0, *this);
     data_.kind_          = insert<Kind>(0, *this);
@@ -285,7 +214,8 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
 
     if (err()) {
-        if (!assignable(pi->domain(), arg)) err()->ill_typed_app(callee, arg);
+        if (!checker_->assignable(pi->domain(), arg))
+            err()->ill_typed_app(callee, arg);
     }
 
     auto type = pi->apply(arg).back();
@@ -324,7 +254,7 @@ static const Def* infer_sigma(World& world, Defs ops) {
 const Def* World::tuple(Defs ops, Debug dbg) {
     auto sigma = infer_sigma(*this, ops);
     auto t = tuple(sigma, ops, dbg);
-    if (err() && !assignable(sigma, t)) {
+    if (err() && !checker_->assignable(sigma, t)) {
         assert(false && "TODO: error msg");
     }
 
@@ -439,8 +369,10 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
     }
 
     auto type = tup->type()->reduce();
-    assertf(alpha_equiv(type->arity(), isa_sized_type(index->type())),
-            "extracting from tuple '{}' of arity '{}' with index '{}' of type '{}'", tup, type->arity(), index, index->type());
+    if (err()) {
+        if (!checker_->equiv(type->arity(), isa_sized_type(index->type())))
+            err()->index_out_of_range(type->arity(), index);
+    }
 
     // nominal sigmas can be 1-tuples
     if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1 && !tup->type()->isa_nominal<Sigma>()) return tup;
@@ -471,8 +403,9 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
 
 const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug dbg) {
     auto type = tup->type()->reduce();
-    assertf(alpha_equiv(type->arity(), isa_sized_type(index->type())),
-            "inserting into tuple {} of arity {} with index {} of type {}", tup, type->arity(), index, index->type());
+
+    if (err() && !checker_->equiv(type->arity(), isa_sized_type(index->type())))
+        err()->index_out_of_range(type->arity(), index);
 
     if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1)
         return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
@@ -546,11 +479,13 @@ const Lit* World::lit_int(const Def* type, u64 i, Debug dbg) {
     auto size = isa_sized_type(type);
     if (size->isa<Top>()) return lit(size, i, dbg);
 
+    auto l = lit(type, i, dbg);
+
     if (auto a = isa_lit(size)) {
-        if (err() && *a != 0 && i >= *a) err()->index_out_of_range(*a, i);
+        if (err() && *a != 0 && i >= *a) err()->index_out_of_range(size, l);
     }
 
-    return lit(type, i, dbg);
+    return l;
 }
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {

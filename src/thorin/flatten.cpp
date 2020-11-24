@@ -5,10 +5,6 @@
 
 namespace thorin {
 
-static bool is_sigma_or_arr(const Def* def) {
-    return def->isa<Sigma>() || def->isa<Arr>();
-}
-
 static bool should_flatten(const Def* def) {
     return is_sigma_or_arr(def->is_value() ? def->type() : def);
 }

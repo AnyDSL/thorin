@@ -219,8 +219,8 @@ public:
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
-    size_t num_outs() const { 
-        if (auto a = isa_lit(arity())) return *a; 
+    size_t num_outs() const {
+        if (auto a = isa_lit(arity())) return *a;
         return 1;
     }
     //@}
@@ -947,6 +947,9 @@ public:
     static constexpr auto Node = Node::Pack;
     friend class World;
 };
+
+inline bool is_sigma_or_arr (const Def* def) { return def->isa<Sigma>() || def->isa<Arr >(); }
+inline bool is_tuple_or_pack(const Def* def) { return def->isa<Tuple>() || def->isa<Pack>(); }
 
 /// Extracts from a @p Sigma or @p Variadic typed @p Def the element at position @p index.
 class Extract : public Def {

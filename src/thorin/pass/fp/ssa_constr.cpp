@@ -1,7 +1,5 @@
 #include "thorin/pass/fp/ssa_constr.h"
 
-#include "thorin/util.h"
-
 namespace thorin {
 
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
@@ -67,7 +65,7 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
         return get_val(info.pred, sloxy);
     } else {
         auto phixy = proxy(get_sloxy_type(sloxy), {sloxy, lam}, Phixy, sloxy->debug());
-        phixy->set_name(std::string("phi_") + phixy->name());
+        phixy->set_name(std::string("phi_") + phixy->dbg().name());
         world().DLOG("get_val phixy: '{}' '{}'", sloxy, lam);
         return set_val(lam, sloxy, phixy);
     }

@@ -1,7 +1,5 @@
 #include "thorin/pass/fp/copy_prop.h"
 
-#include "thorin/util.h"
-
 namespace thorin {
 
 const Def* CopyProp::rewrite(Def*, const Def* def) {

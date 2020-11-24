@@ -1,5 +1,4 @@
 #include "thorin/def.h"
-#include "thorin/util.h"
 #include "thorin/world.h"
 
 namespace thorin {
@@ -303,7 +302,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
  */
 
 template<tag_t tag>
-static const Def* merge_cmps(std::array<std::array<uint64_t, 2>, 2> tab, const Def* a, const Def* b, Debug dbg) {
+static const Def* merge_cmps(std::array<std::array<uint64_t, 2>, 2> tab, const Def* a, const Def* b, Dbg dbg) {
     static_assert(sizeof(flags_t) == 4, "if this ever changes, please adjust the logic below");
     static constexpr size_t num_bits = log2(Num<Tag2Enum<tag>>);
     auto a_cmp = isa<tag>(a);

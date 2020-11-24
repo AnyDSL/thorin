@@ -1,7 +1,7 @@
 #include "thorin/pass/rw/ptrn_compiler.h"
 
 #include "thorin/rewrite.h"
-#include "thorin/flatten.h"
+#include "thorin/tuple.h"
 #include "thorin/error.h"
 
 namespace thorin {

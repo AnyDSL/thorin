@@ -1,5 +1,4 @@
 #include "thorin/world.h"
-#include "thorin/util.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 

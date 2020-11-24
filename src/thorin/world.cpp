@@ -14,7 +14,6 @@
 #include "thorin/error.h"
 #include "thorin/normalize.h"
 #include "thorin/rewrite.h"
-#include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 
@@ -201,16 +200,16 @@ static const Def* lub(const Def* t1, const Def* t2) {
 }
 #endif
 
-const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
-    return unify<Pi>(2, codomain->type(), domain, codomain, debug(dbg));
+const Pi* World::pi(const Def* domain, const Def* codomain, Dbg dbg) {
+    return unify<Pi>(2, codomain->type(), domain, codomain, dbg.convert(*this));
 }
 
-const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
+const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Dbg dbg) {
     auto p = pi(domain, body->type());
-    return unify<Lam>(2, p, filter, body, debug(dbg));
+    return unify<Lam>(2, p, filter, body, dbg.convert(*this));
 }
 
-const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
+const Def* World::app(const Def* callee, const Def* arg, Dbg dbg) {
     auto pi = callee->type()->as<Pi>();
 
     if (err()) {
@@ -222,25 +221,25 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto [axiom, currying_depth] = get_axiom(callee); // TODO move down again
     if (axiom && currying_depth == 1) {
         if (auto normalize = axiom->normalizer())
-            return normalize(type, callee, arg, debug(dbg));
+            return normalize(type, callee, arg, dbg.convert(*this));
     }
 
-    return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
+    return unify<App>(2, axiom, currying_depth-1, type, callee, arg, dbg.convert(*this));
 }
 
-const Def* World::raw_app(const Def* callee, const Def* arg, Debug dbg) {
+const Def* World::raw_app(const Def* callee, const Def* arg, Dbg dbg) {
     auto pi = callee->type()->as<Pi>();
     auto type = pi->apply(arg).back();
     auto [axiom, currying_depth] = get_axiom(callee);
-    return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
+    return unify<App>(2, axiom, currying_depth-1, type, callee, arg, dbg.convert(*this));
 }
 
-const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
+const Def* World::sigma(const Def* type, Defs ops, Dbg dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
-    return unify<Sigma>(ops.size(), type, ops, debug(dbg));
+    return unify<Sigma>(ops.size(), type, ops, dbg.convert(*this));
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {
@@ -251,7 +250,7 @@ static const Def* infer_sigma(World& world, Defs ops) {
     return world.sigma(elems);
 }
 
-const Def* World::tuple(Defs ops, Debug dbg) {
+const Def* World::tuple(Defs ops, Dbg dbg) {
     auto sigma = infer_sigma(*this, ops);
     auto t = tuple(sigma, ops, dbg);
     if (err() && !checker_->assignable(sigma, t)) {
@@ -261,7 +260,7 @@ const Def* World::tuple(Defs ops, Debug dbg) {
     return t;
 }
 
-const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
+const Def* World::tuple(const Def* type, Defs ops, Dbg dbg) {
     if (err()) {
     // TODO type-check type vs inferred type
     }
@@ -293,33 +292,33 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         if (eta) return tup;
     }
 
-    return unify<Tuple>(ops.size(), type, ops, debug(dbg));
+    return unify<Tuple>(ops.size(), type, ops, dbg.convert(*this));
 }
 
-const Def* World::tuple_str(const char* s, Debug dbg) {
+const Def* World::tuple_str(const char* s, Dbg dbg) {
     std::vector<const Def*> ops;
     for (; *s != '\0'; ++s)
         ops.emplace_back(lit_nat(*s));
     return tuple(ops, dbg);
 }
 
-const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
+const Def* World::union_(const Def* type, Defs ops, Dbg dbg) {
     assertf(ops.size() > 0, "unions must have at least one operand");
     if (ops.size() == 1) return ops[0];
     // Remove duplicate operands
     Array<const Def*> ops_copy(ops);
     std::sort(ops_copy.begin(), ops_copy.end());
     ops.skip_back(ops_copy.end() - std::unique(ops_copy.begin(), ops_copy.end()));
-    return unify<Union>(ops_copy.size(), type, ops_copy, debug(dbg));
+    return unify<Union>(ops_copy.size(), type, ops_copy, dbg.convert(*this));
 }
 
-const Def* World::which(const Def* value, Debug dbg) {
+const Def* World::which(const Def* value, Dbg dbg) {
     if (auto insert = value->isa<Insert>())
         return insert->index();
-    return unify<Which>(1, value->type()->arity(), value, debug(dbg));
+    return unify<Which>(1, value->type()->arity(), value, dbg.convert(*this));
 }
 
-const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
+const Def* World::match(const Def* arg, Defs ptrns, Dbg dbg) {
 #if THORIN_ENABLE_CHECKS
     assertf(ptrns.size() > 0, "match must take at least one pattern");
 #endif
@@ -336,7 +335,7 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
     ops[0] = arg;
     std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
     // We need to build a match to have something to give to the error handler
-    auto match = unify<Match>(ptrns.size() + 1, type, ops, debug(dbg));
+    auto match = unify<Match>(ptrns.size() + 1, type, ops, dbg.convert(*this));
 
     bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
     if (trivial)
@@ -357,7 +356,7 @@ const Def* World::match(const Def* arg, Defs ptrns, Debug dbg) {
     return match;
 }
 
-const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, Debug dbg) {
+const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, Dbg dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
         Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
@@ -394,14 +393,14 @@ const Def* World::extract(const Def* ex_type, const Def* tup, const Def* index, 
         }
 
         if (type->isa<Sigma>() || type->isa<Union>())
-            return unify<Extract>(2, ex_type ? ex_type : type->op(*i), tup, index, debug(dbg));
+            return unify<Extract>(2, ex_type ? ex_type : type->op(*i), tup, index, dbg.convert(*this));
     }
 
     type = type->as<Arr>()->body();
-    return unify<Extract>(2, type, tup, index, debug(dbg));
+    return unify<Extract>(2, type, tup, index, dbg.convert(*this));
 }
 
-const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug dbg) {
+const Def* World::insert(const Def* tup, const Def* index, const Def* val, Dbg dbg) {
     auto type = tup->type()->reduce();
 
     if (err() && !checker_->equiv(type->arity(), isa_sized_type(index->type())))
@@ -431,7 +430,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, Debug
     // insert(x : U, index, y) -> insert(bot : U, index, y)
     if (tup->type()->isa<Union>())
         tup = bot(tup->type());
-    return unify<Insert>(3, tup, index, val, debug(dbg));
+    return unify<Insert>(3, tup, index, val, dbg.convert(*this));
 }
 
 bool is_shape(const Def* s) {
@@ -442,7 +441,7 @@ bool is_shape(const Def* s) {
     return false;
 }
 
-const Def* World::arr(const Def* shape, const Def* body, Debug dbg) {
+const Def* World::arr(const Def* shape, const Def* body, Dbg dbg) {
     assert(is_shape(shape));
 
     if (auto a = isa_lit<u64>(shape)) {
@@ -450,10 +449,10 @@ const Def* World::arr(const Def* shape, const Def* body, Debug dbg) {
         if (*a == 1) return body;
     }
 
-    return unify<Arr>(2, kind(), shape, body, debug(dbg));
+    return unify<Arr>(2, kind(), shape, body, dbg.convert(*this));
 }
 
-const Def* World::pack(const Def* shape, const Def* body, Debug dbg) {
+const Def* World::pack(const Def* shape, const Def* body, Dbg dbg) {
     assert(is_shape(shape));
 
     if (auto a = isa_lit<u64>(shape)) {
@@ -462,20 +461,20 @@ const Def* World::pack(const Def* shape, const Def* body, Debug dbg) {
     }
 
     auto type = arr(shape, body->type());
-    return unify<Pack>(1, type, body, debug(dbg));
+    return unify<Pack>(1, type, body, dbg.convert(*this));
 }
 
-const Def* World::arr(Defs shape, const Def* body, Debug dbg) {
+const Def* World::arr(Defs shape, const Def* body, Dbg dbg) {
     if (shape.empty()) return body;
     return arr(shape.skip_back(), arr(shape.back(), body, dbg), dbg);
 }
 
-const Def* World::pack(Defs shape, const Def* body, Debug dbg) {
+const Def* World::pack(Defs shape, const Def* body, Dbg dbg) {
     if (shape.empty()) return body;
     return pack(shape.skip_back(), pack(shape.back(), body, dbg), dbg);
 }
 
-const Lit* World::lit_int(const Def* type, u64 i, Debug dbg) {
+const Lit* World::lit_int(const Def* type, u64 i, Dbg dbg) {
     auto size = isa_sized_type(type);
     if (size->isa<Top>()) return lit(size, i, dbg);
 
@@ -488,40 +487,19 @@ const Lit* World::lit_int(const Def* type, u64 i, Debug dbg) {
     return l;
 }
 
-const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
+const Def* World::bot_top(bool is_top, const Def* type, Dbg dbg) {
     if (auto arr = type->isa<Arr>()) return pack(arr->shape(), bot_top(is_top, arr->body()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
-    auto d = debug(dbg);
+    auto d = dbg.convert(*this);
     return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
 }
 
-const Def* World::cps2ds(const Def* cps, Debug dbg) {
-    if (auto ds = cps->isa<DS2CPS>())
-        return ds->ds();
-    auto cn  = cps->type()->as<Pi>();
-    auto ret = cn->domain()->as<Sigma>()->op(cn->num_domains() - 1)->as<Pi>();
-    auto type = pi(sigma(cn->domains().skip_back()), ret->domain());
-    return unify<CPS2DS>(1, type, cps, debug(dbg));
+const Def* World::global(const Def* id, const Def* init, bool is_mutable, Dbg dbg) {
+    return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, dbg.convert(*this));
 }
 
-const Def* World::ds2cps(const Def* ds, Debug dbg) {
-    if (auto cps = ds->isa<CPS2DS>())
-        return cps->cps();
-    auto fn  = ds->type()->as<Pi>();
-    Array<const Def*> domains(fn->num_domains() + 1);
-    for (size_t i = 0, n = fn->num_domains(); i < n; ++i)
-        domains[i] = fn->domain(i);
-    domains.back() = cn(fn->codomain());
-    auto type = cn(domains);
-    return unify<DS2CPS>(1, type, ds, debug(dbg));
-}
-
-const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {
-    return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, debug(dbg));
-}
-
-const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
+const Def* World::global_immutable_string(const std::string& str, Dbg dbg) {
     size_t size = str.size() + 1;
 
     Array<const Def*> str_array(size);
@@ -543,10 +521,10 @@ static const Def* tuple_of_types(const Def* t) {
     return t;
 }
 
-const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
+const Def* World::op_lea(const Def* ptr, const Def* index, Dbg dbg) {
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
     auto Ts = tuple_of_types(pointee);
-    return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, debug(dbg));
+    return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, dbg.convert(*this));
 }
 
 /*
@@ -574,7 +552,8 @@ const Def* World::gid2def(u32 gid) {
 
 #endif
 
-const Def* World::op_grad(const Def* fn, Debug dbg) {
+const Def* World::op_grad(const Def* /*fn*/, Dbg /*dbg*/) {
+#if 0
     if (fn->type()->isa<Pi>()) {
         auto ds_fn = cps2ds(fn);
         auto ds_pi = ds_fn->type()->as<Pi>();
@@ -582,11 +561,11 @@ const Def* World::op_grad(const Def* fn, Debug dbg) {
         auto grad = app(to_grad, ds_fn, dbg);
         return ds2cps(grad);
     }
-
+#endif
     THORIN_UNREACHABLE;
 }
 
-const Def* World::type_tangent_vector(const Def* primal_type, Debug dbg) {
+const Def* World::type_tangent_vector(const Def* primal_type, Dbg dbg) {
     return app(data_.type_tangent_vector_, primal_type, dbg);
 }
 

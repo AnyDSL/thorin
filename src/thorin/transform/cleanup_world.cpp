@@ -1,5 +1,4 @@
 #include "thorin/config.h"
-#include "thorin/util.h"
 #include "thorin/world.h"
 #include "thorin/rewrite.h"
 #include "thorin/analyses/cfg.h"

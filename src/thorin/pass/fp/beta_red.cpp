@@ -11,7 +11,7 @@ const Def* BetaRed::rewrite(Def*, const Def* def) {
                 world().DLOG("beta-reduction {}", lam);
                 return lam->apply(app->arg()).back();
             } else {
-                return proxy(app->type(), {lam, app->arg()});
+                return proxy(app->type(), {lam, app->arg()}, 0);
             }
         }
     }

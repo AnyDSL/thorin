@@ -7,7 +7,7 @@
 namespace thorin {
 
 // TODO nominal sigma
-const Def* proj(const Def* def, u64 a, u64 i, Dbg dbg) {
+const Def* proj(const Def* def, u64 a, u64 i, const Def* dbg) {
     auto& world = def->world();
 
     if (a == 1) return def;
@@ -45,7 +45,7 @@ const Def* flatten(const Def* def) {
     if (!should_flatten(def)) return def;
     std::vector<const Def*> ops;
     flatten(ops, def);
-    return def->is_value() ? def->world().tuple(def->type(), ops, def->debug()) : def->world().sigma(ops, def->debug());
+    return def->is_value() ? def->world().tuple(def->type(), ops, def->dbg()) : def->world().sigma(ops, def->dbg());
 }
 
 static const Def* unflatten(Defs defs, const Def* type, size_t& j) {
@@ -104,7 +104,8 @@ const Def* merge_sigma(const Def* def, Defs defs) {
 const Def* merge_tuple(const Def* def, Defs defs) {
     auto& w = def->world();
     if (auto sigma = def->type()->isa<Sigma>(); sigma && !sigma->isa_nominal()) {
-        Array<const Def*> tuple(sigma->num_ops(), [&](auto i) { return w.extract(def, i); });
+        auto a = sigma->num_ops();
+        Array<const Def*> tuple(a, [&](auto i) { return w.extract(def, a, i); });
         return w.tuple(merge(tuple, defs));
     }
 

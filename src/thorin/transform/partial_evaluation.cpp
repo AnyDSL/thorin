@@ -14,7 +14,7 @@ void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
             nargs.push_back(src_app->arg(i));
     }
 
-    src->app(dst, nargs, src_app->debug());
+    src->app(dst, nargs, src_app->dbg());
 }
 
 std::vector<Lam*> succs(Lam* lam) {
@@ -96,7 +96,7 @@ public:
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
-            auto ndef = odef->rebuild(world(), odef->type(), nops, odef->debug());
+            auto ndef = odef->rebuild(world(), odef->type(), nops, odef->dbg());
             return old2new_[odef] = ndef;
         }
 
@@ -170,7 +170,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
     if (cur->body()->as<App>()->arg(2)->is_const()) {
         //auto msg = cur->body()->as<App>()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
         world().idef(cur->body()->as<App>()->callee(), "pe_info: {}: {}", "TODO", cur->body()->as<App>()->arg(2));
-        cur->app(next, {cur->body()->as<App>()->arg(0)}, cur->body()->as<App>()->debug());
+        cur->app(next, {cur->body()->as<App>()->arg(0)}, cur->body()->as<App>()->dbg());
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);

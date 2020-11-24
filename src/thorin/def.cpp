@@ -21,7 +21,7 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
     , const_(true)
     , order_(0)
     , num_ops_(ops.size())
-    , debug_(dbg)
+    , dbg_(dbg)
     , type_(type)
 {
     gid_ = world().next_gid();
@@ -43,7 +43,7 @@ Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const De
     , const_(false)
     , order_(0)
     , num_ops_(num_ops)
-    , debug_(dbg)
+    , dbg_(dbg)
     , type_(type)
 {
     gid_ = world().next_gid();
@@ -69,7 +69,7 @@ const Def* Arr     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) con
 const Def* Axiom   ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.axiom(normalizer(), t, tag(), flags(), dbg); }
 const Def* Bot     ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.bot(t, dbg); }
 const Def* Case    ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.case_(o[0], o[1], dbg); }
-const Def* Extract ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.extract(t, o[0], o[1], dbg); }
+const Def* Extract ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.extract_(t, o[0], o[1], dbg); }
 const Def* Global  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.global(o[0], o[1], is_mutable(), dbg); }
 const Def* Insert  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* Kind    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.kind(); }
@@ -93,7 +93,7 @@ const Def* Which   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) con
  */
 
 Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_lam  (t->as<Pi>(), cc(), intrinsic(), dbg); }
-Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_pi   (t, Dbg{dbg}); }
+Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_pi   (t, dbg); }
 Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_ptrn (t->as<Case>(), dbg); }
 Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.nom_sigma(t, num_ops(), dbg); }
 Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.nom_union(t, num_ops(), dbg); }
@@ -104,7 +104,7 @@ Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_arr  (
  */
 
 const Pi* Pi::restructure() {
-    if (!is_free(param(), codomain())) return world().pi(domain(), codomain(), debug());
+    if (!is_free(param(), codomain())) return world().pi(domain(), codomain(), dbg());
     return nullptr;
 }
 
@@ -178,11 +178,11 @@ THORIN_NODE(CODE)
 Defs Def::extended_ops() const {
     if (isa<Universe>()) return Defs();
 
-    size_t offset = debug() ? 2 : 1;
+    size_t offset = dbg() ? 2 : 1;
     return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset);
 }
 
-const Param* Def::param(Dbg dbg) {
+const Param* Def::param(const Def* dbg) {
     auto& w = world();
     if (auto lam    = isa<Lam  >()) return w.param(lam ->domain(), lam,    dbg);
     if (auto ptrn   = isa<Ptrn >()) return w.param(ptrn->domain(), ptrn,   dbg);
@@ -194,8 +194,8 @@ const Param* Def::param(Dbg dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Param* Def::param() { return param(Dbg()); }
-const Def*   Def::param(size_t i) { return param(i, Dbg()); }
+const Param* Def::param() { return param(nullptr); }
+const Def*   Def::param(size_t i) { return param(i, nullptr); }
 size_t       Def::num_params() { return param()->num_outs(); }
 
 int Def::sort() const {
@@ -236,17 +236,26 @@ const Def* Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
     auto& w = world();
     if (w.track_history())
-        return debug() ? w.insert(debug(), 0_s, w.tuple_str(unique_name())) : w.tuple_str(unique_name());
+        return dbg() ? w.insert(dbg(), 3_s, 0_s, w.tuple_str(unique_name())) : w.tuple_str(unique_name());
 #endif
-    return debug();
+    return dbg();
 }
 
-void Def::set_debug(Dbg dbg) const { debug_ = dbg.convert(world()); }
-
-void Def::set_name(const std::string& name) const {
+void Def::set_name(const std::string& n) const {
     auto& w = world();
-    debug_ = debug_ ? w.insert(debug_, 0_s, w.tuple_str(name)) : w.tuple_str(name);
+    auto name = w.tuple_str(n);
+
+    if (dbg_ == nullptr) {
+        auto file = w.tuple_str("");
+        auto begin = w.lit_nat(nat_t(-1));
+        auto finis = w.lit_nat(nat_t(-1));
+        auto meta = w.bot(w.bot_kind());
+        dbg_ = w.tuple({name, w.tuple({file, begin, finis}), meta});
+    } else {
+        dbg_ = w.insert(dbg_, 3_s, 0_s, name);
+    }
 }
+
 void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
         if (!op(i)->is_const()) {
@@ -265,7 +274,7 @@ void Def::finalize() {
         }
     }
 
-    if (debug()) const_ &= debug()->is_const();
+    if (dbg()) const_ &= dbg()->is_const();
     if (isa<Pi>()) ++order_;
     if (isa<Axiom>()) const_ = true;
 }
@@ -310,7 +319,7 @@ void Def::make_external() { return world().make_external(this); }
 void Def::make_internal() { return world().make_internal(this); }
 bool Def::is_external() const { return world().is_external(this); }
 
-std::string Def::unique_name() const { return (isa_nominal() ? std::string{} : std::string{"%"}) + dbg().name() + "_" + std::to_string(gid()); }
+std::string Def::unique_name() const { return (isa_nominal() ? std::string{} : std::string{"%"}) + debug().name + "_" + std::to_string(gid()); }
 
 void Def::replace(Tracker with) const {
     world().DLOG("replace: {} -> {}", this, with);
@@ -348,7 +357,7 @@ const Def* Def::reduce() const {
         if (callee->isa_nominal()) {
             def = callee->apply(app->arg()).back();
         } else {
-            def = callee != app->callee() ? world().app(callee, app->arg(), app->debug()) : app;
+            def = callee != app->callee() ? world().app(callee, app->arg(), app->dbg()) : app;
             break;
         }
     }
@@ -358,7 +367,7 @@ const Def* Def::reduce() const {
 const Def* Def::refine(size_t i, const Def* new_op) const {
     Array<const Def*> new_ops(ops());
     new_ops[i] = new_op;
-    return rebuild(world(), type(), new_ops, debug());
+    return rebuild(world(), type(), new_ops, dbg());
 }
 
 /*

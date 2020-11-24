@@ -132,7 +132,7 @@ Lam* CodeGen::emit_cmpxchg(Lam* lam) {
 }
 
 Lam* CodeGen::emit_reserve(Lam* lam) {
-    world().edef(lam->body()->as<App>()->debug(), "reserve_shared: only allowed in device code");
+    world().edef(lam->body()->as<App>(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
@@ -173,7 +173,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Lam* lam) {
 llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
     if (auto f = fcts_.lookup(lam)) return *f;
 
-    std::string name = (lam->is_external() || !lam->is_set()) ? lam->dbg().name() : lam->unique_name();
+    std::string name = (lam->is_external() || !lam->is_set()) ? lam->debug().name : lam->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
@@ -227,12 +227,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         llvm::DISubprogram* disub_program;
         llvm::DIScope* discope = dicompile_unit;
         if (debug) {
-            auto src_file = llvm::sys::path::filename(entry_->dbg().loc().file);
-            auto src_dir = llvm::sys::path::parent_path(entry_->dbg().loc().file);
+            auto src_file = llvm::sys::path::filename(entry_->debug().loc.file);
+            auto src_dir = llvm::sys::path::parent_path(entry_->debug().loc.file);
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->dbg().loc().begin.row,
+            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->debug().loc.begin.row,
                                                       dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      entry_->dbg().loc().begin.row,
+                                                      entry_->debug().loc.begin.row,
                                                       llvm::DINode::FlagPrototyped,
                                                       llvm::DISubprogram::SPFlagDefinition | (opt > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
             fct->setSubprogram(disub_program);
@@ -271,14 +271,14 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // map all bb-like lams to llvm bb stubs
             auto lam = nom->as<Lam>();
-            auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->dbg().name(), fct);
+            auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->debug().name, fct);
 
             // create phi node stubs (for all lams different from entry)
             if (entry_ != lam) {
                 for (auto param : lam->params()) {
                     auto phi = (isa<Tag::Mem>(param->type()) || is_unit(param))
                                 ? nullptr
-                                : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->dbg().name(), bb);
+                                : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->debug().name, bb);
                     phis_[param] = phi;
                 }
             }
@@ -288,7 +288,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->dbg().loc().begin.row, entry_->dbg().loc().begin.col, discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->debug().loc.begin.row, entry_->debug().loc.begin.col, discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
@@ -302,7 +302,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             for (auto def : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->dbg().loc().begin.row, def->dbg().loc().begin.col, discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->debug().loc.begin.row, def->debug().loc.begin.col, discope));
 
                 if (def->isa<Param>())        continue;
                 if (def->type()->isa<Bot>())  continue;
@@ -336,8 +336,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug) {
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->body()->as<App>()->dbg().loc().begin.row,
-                                                                       lam->body()->as<App>()->dbg().loc().begin.col, discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->body()->as<App>()->debug().loc.begin.row,
+                                                                       lam->body()->as<App>()->debug().loc.begin.col, discope));
             }
 
             if (lam->body()->as<App>()->callee() == ret_param) { // return
@@ -626,7 +626,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto shr = isa<Tag::Shr>(def)) {
         auto [a, b] = shr->args<2>([&](auto def) { return lookup(def); });
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         switch (shr.flags()) {
             case Shr::ashr: return irbuilder_.CreateAShr(a, b, name);
             case Shr::lshr: return irbuilder_.CreateLShr(a, b, name);
@@ -634,7 +634,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto wrap = isa<Tag::Wrap>(def)) {
         auto [a, b] = wrap->args<2>([&](auto def) { return lookup(def); });
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         auto [mode, width] = wrap->decurry()->args<2>(as_lit<nat_t>);
         bool nuw = mode & WMode::nuw;
         bool nsw = mode & WMode::nsw;
@@ -649,7 +649,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto [m, aa, bb] = div->args<3>();
         auto a = lookup(aa);
         auto b = lookup(bb);
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         switch (div.flags()) {
             case Div::sdiv: return irbuilder_.CreateSDiv(a, b, name);
             case Div::udiv: return irbuilder_.CreateUDiv(a, b, name);
@@ -658,7 +658,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto rop = isa<Tag::ROp>(def)) {
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         auto [a, b] = rop->args<2>([&](auto def) { return lookup(def); });
         auto [mode, width] = rop->decurry()->args<2>(as_lit<nat_t>);
 
@@ -682,7 +682,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto icmp = isa<Tag::ICmp>(def)) {
         auto [a, b] = icmp->args<2>([&](auto def) { return lookup(def); });
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         switch (icmp.flags()) {
             case ICmp::e:   return irbuilder_.CreateICmpEQ (a, b, name);
             case ICmp::ne:  return irbuilder_.CreateICmpNE (a, b, name);
@@ -698,7 +698,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto rcmp = isa<Tag::RCmp>(def)) {
         auto [a, b] = rcmp->args<2>([&](auto def) { return lookup(def); });
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         switch (rcmp.flags()) {
             case RCmp::  e: return irbuilder_.CreateFCmpOEQ(a, b, name);
             case RCmp::  l: return irbuilder_.CreateFCmpOLT(a, b, name);
@@ -718,7 +718,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto conv = isa<Tag::Conv>(def)) {
         auto src = lookup(conv->arg());
-        auto name = def->dbg().name();
+        auto name = def->debug().name;
         auto type = convert(def->type());
 
         auto size2width = [&](const Def* type) {
@@ -746,9 +746,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
         auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
         auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
-        if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->dbg().name());
-        if (src_type_ptr)                 return irbuilder_.CreatePtrToInt   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->dbg().name());
-        if (dst_type_ptr)                 return irbuilder_.CreateIntToPtr   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->dbg().name());
+        if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->debug().name);
+        if (src_type_ptr)                 return irbuilder_.CreatePtrToInt   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->debug().name);
+        if (dst_type_ptr)                 return irbuilder_.CreateIntToPtr   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->debug().name);
         return emit_bitcast(bitcast->arg(), bitcast->type());
     } else if (auto lea = isa<Tag::LEA>(def)) {
         return emit_lea(lea);
@@ -816,7 +816,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_idx = lookup(def->op(1));
         auto copy_to_alloca = [&] () {
             world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), def->dbg().name());
+            auto alloca = emit_alloca(llvm_agg->getType(), def->debug().name);
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), i1toi32(llvm_idx) };
@@ -1142,7 +1142,7 @@ static void get_kernel_configs(Rewriter& rewriter,
         Lam* imported = nullptr;
         for (auto external : externals) {
             if (auto ex_lam = external->isa<Lam>()) {
-                if (ex_lam->dbg().name() == lam->dbg().name())
+                if (ex_lam->debug().name == lam->debug().name)
                     imported = ex_lam;
             }
         }
@@ -1177,7 +1177,7 @@ static Lam* get_alloc_call(const Def* def) {
     if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->body()->as<App>()->callee();
-    if (callee->dbg().name() != "anydsl_alloc") return nullptr;
+    if (callee->debug().name != "anydsl_alloc") return nullptr;
 
     return call;
 }

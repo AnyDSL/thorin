@@ -71,7 +71,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
 
     const auto emit_texture_kernel_arg = [&](const Def* param) {
         assert(as_lit<nat_t>(as<Tag::Ptr>(param->type())->arg(1)) == AddrSpace::Texture);
-        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->dbg().name(), 1);
+        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->debug().name, 1);
         metadata_[param] = append_metadata(global, "texture", 1);
     };
 
@@ -242,7 +242,7 @@ Lam* NVVMCodeGen::emit_reserve(Lam* lam) { return emit_reserve_shared(lam); }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Def* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)
-        return module_->getGlobalVariable(param->dbg().name(), true);
+        return module_->getGlobalVariable(param->debug().name, true);
     return nullptr;
 }
 

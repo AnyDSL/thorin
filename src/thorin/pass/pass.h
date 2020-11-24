@@ -57,8 +57,7 @@ public:
 
     /// @name create Proxy
     //@{
-    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, Dbg dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
-    const Proxy* proxy(const Def* type, Defs ops, Dbg dbg = {}) { return proxy(type, ops, 0, dbg); }
+    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, const Def* dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
     /// @name check whether given @c def is a Proxy whose index matches this Pass's index
     const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
         if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;

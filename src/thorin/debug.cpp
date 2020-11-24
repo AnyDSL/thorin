@@ -4,6 +4,17 @@
 
 namespace thorin {
 
+Loc::Loc(const Def* dbg) {
+    if (dbg != nullptr) {
+        auto [d_file, d_begin, d_finis] = dbg->out(1)->split<3>();
+        const_cast<std::string&>(file) = tuple2str(d_file);
+        const_cast<u32&>(begin.row) = as_lit(d_begin) >> 32_u64;
+        const_cast<u32&>(begin.col) = as_lit(d_begin);
+        const_cast<u32&>(finis.row) = as_lit(d_finis) >> 32_u64;
+        const_cast<u32&>(finis.col) = as_lit(d_finis);
+    }
+}
+
 Stream& Loc::stream(Stream& s) const {
     s.fmt("{}:", file);
 
@@ -23,47 +34,10 @@ Stream& Loc::stream(Stream& s) const {
     return s;
 }
 
-std::string Dbg::name() const {
-    if (const auto& d = std::get_if<Data>(&data_)) return d->name;
-    if (auto data = std::get<const Def*>(data_)) return tuple2str(data->out(0));
-    return {};
-}
-
-Loc Dbg::loc() const {
-    if (const auto& d = std::get_if<Data>(&data_)) return d->loc;
-
-    if (auto data = std::get<const Def*>(data_)) {
-        auto [f, begin, finis] = data->out(1)->split<3>();
-        auto file = tuple2str(f);
-        u32 begin_row = as_lit(begin) >> 32_u64;
-        u32 begin_col = as_lit(begin);
-        u32 finis_row = as_lit(finis) >> 32_u64;
-        u32 finis_col = as_lit(finis);
-        return Loc{file, {begin_row, begin_col}, {finis_row, finis_col}};
-    }
-
-    return {};
-}
-
-const Def* Dbg::meta() const {
-    if (const auto& d = std::get_if<Data>(&data_)) return d->meta;
-    if (auto data = std::get<const Def*>(data_)) return data->out(2);
-    return nullptr;
-}
-
-const Def* Dbg::convert(World& w) const {
-    auto pos2def = [&](Pos pos) { return w.lit_nat((u64(pos.row) << 32_u64) | (u64(pos.col))); };
-
-    if (const auto& d = std::get_if<Data>(&data_)) {
-        auto name = w.tuple_str(d->name);
-        auto file = w.tuple_str(d->loc.file);
-        auto begin = pos2def(d->loc.begin);
-        auto finis = pos2def(d->loc.finis);
-        auto loc = w.tuple({file, begin, finis});
-        return w.tuple({name, loc, d->meta ? d->meta : w.bot(w.bot_kind()) });
-    }
-
-    return std::get<const Def*>(data_);
-}
+Debug::Debug(const Def* dbg)
+    : name(dbg ? tuple2str(dbg->out(0)) : std::string{})
+    , loc(dbg)
+    , meta(dbg ? dbg->out(2) : nullptr)
+{}
 
 }

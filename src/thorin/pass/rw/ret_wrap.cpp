@@ -6,8 +6,8 @@ void RetWrap::enter(Def* cur_nom) {
     if (auto cur_lam = cur_nom->isa<Lam>()) {
         if (auto ret_param = cur_lam->ret_param()) {
             // new wrapper that calls the return continuation
-            auto ret_cont = world().nom_lam(ret_param->type()->as<Pi>(), ret_param->debug());
-            ret_cont->app(ret_param, ret_cont->param(), ret_param->debug());
+            auto ret_cont = world().nom_lam(ret_param->type()->as<Pi>(), ret_param->dbg());
+            ret_cont->app(ret_param, ret_cont->param(), ret_param->dbg());
 
             // rebuild a new "param" that substitutes the actual ret_param with ret_cont
             auto new_params = cur_lam->param()->split();

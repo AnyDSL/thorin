@@ -171,14 +171,14 @@ void Cleaner::eliminate_params() {
             }
 
             new_lam->set_filter(old_lam->filter());
-            new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
+            new_lam->app(old_app->callee(), old_app->args(), old_app->dbg());
             old_lam->unset();
 
             for (auto use : old_lam->copy_uses()) {
                 if (use->isa<Param>()) continue; // ignore old_lam's Param
                 auto use_app = use->as<App>();
                 assert(use.index() == 0);
-                use_app->replace(world().app(new_lam, use_app->args().cut(proxy_idx), use_app->debug()));
+                use_app->replace(world().app(new_lam, use_app->args().cut(proxy_idx), use_app->dbg()));
             }
 
             todo_ = true;

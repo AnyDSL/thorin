@@ -34,7 +34,7 @@ public:
     World& world() const { return world_; }
     Def* entry() const { return entry_; }
     Def* exit() const { return exit_; }
-    std::string name() const { return entry_->dbg().name(); }
+    std::string name() const { return entry_->debug().name; }
     //@}
     /// @name get Def%s contained in this Scope
     //@{

@@ -111,8 +111,8 @@ public:
     //@}
     /// @name params
     //@{
-    const Def* mem_param(thorin::Dbg dbg = {});
-    const Def* ret_param(thorin::Dbg dbg = {});
+    const Def* mem_param(const Def* dbg = {});
+    const Def* ret_param(const Def* dbg = {});
     //@}
     /// @name setters
     //@{
@@ -124,10 +124,10 @@ public:
     //@}
     /// @name setters: sets filter to @c false and sets the body by @p App -ing
     //@{
-    void app(const Def* callee, const Def* arg, Dbg dbg = {});
-    void app(const Def* callee, Defs args, Dbg dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {});
-    void match(const Def* val, Defs cases, const Def* mem, Dbg dbg = {});
+    void app(const Def* callee, const Def* arg, const Def* dbg = {});
+    void app(const Def* callee, Defs args, const Def* dbg = {});
+    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, const Def* dbg = {});
+    void match(const Def* val, Defs cases, const Def* mem, const Def* dbg = {});
     //@}
     /// @name virtual methods
     //@{
@@ -174,7 +174,7 @@ public:
     const App* decurry() const { return callee()->as<App>(); } ///< Returns the @p callee again as @p App.
     const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
-    const Def* arg(size_t i, Dbg dbg = {}) const { return arg()->out(i, dbg); }
+    const Def* arg(size_t i, const Def* dbg = {}) const { return arg()->out(i, dbg); }
     Array<const Def*> args() const { return arg()->outs(); }
     size_t num_args() const { return arg()->num_outs(); }
     //@}

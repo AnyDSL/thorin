@@ -3,7 +3,6 @@
 
 #include <string>
 #include <tuple>
-#include <variant>
 
 #include "thorin/util/stream.h"
 
@@ -24,6 +23,7 @@ struct Loc : public Streamable<Loc> {
         , begin(begin)
         , finis(finis)
     {}
+    Loc(const Def* dbg);
 
     const std::string file;
     const Pos begin = {uint32_t(-1), uint32_t(-1)};
@@ -32,36 +32,24 @@ struct Loc : public Streamable<Loc> {
     Stream& stream(Stream&) const;
 };
 
-class Dbg {
-private:
-    struct Data {
-        const std::string name;
-        const Loc loc;
-        const Def* meta = nullptr;
-    };
-
+class Debug {
 public:
-    Dbg(std::string name, Loc loc = {}, const Def* meta = nullptr)
-        : data_((Data){name, loc, meta})
+    Debug(std::string name, Loc loc = {}, const Def* meta = nullptr)
+        : name(name)
+        , loc(loc)
+        , meta(meta)
     {}
-    Dbg(Loc loc)
-        : Dbg("", loc)
+    Debug(const char* name, Loc loc = {}, const Def* meta = nullptr)
+        : Debug(std::string(name), loc, meta)
     {}
-    Dbg(const Def* def = nullptr)
-        : data_(def)
+    Debug(Loc loc)
+        : Debug("", loc)
     {}
+    Debug(const Def*);
 
-    /// @name getters
-    //@{
-    std::string name() const;
-    Loc loc() const;
-    const Def* meta() const;
-    //@}
-
-    const Def* convert(World&) const;
-
-private:
-    std::variant<Data, const Def*> data_;
+    const std::string name;
+    const Loc loc;
+    const Def* meta = nullptr;
 };
 
 }

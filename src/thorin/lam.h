@@ -45,8 +45,6 @@ public:
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Pi* stub(World&, const Def*, const Def*) override;
     const Pi* restructure();
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Pi;
@@ -133,8 +131,6 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Lam* stub(World&, const Def*, const Def*) override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
     /// @name get/set fields - Intrinsic and CC
     //@{

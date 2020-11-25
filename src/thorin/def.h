@@ -85,6 +85,8 @@ struct UseHash {
 
 typedef HashSet<Use, UseHash> Uses;
 
+enum class Sort { Term, Type, Kind, Space };
+
 //------------------------------------------------------------------------------
 
 /**
@@ -120,8 +122,9 @@ public:
     //@}
     /// @name type
     //@{
-    const Def* type() const { assert(node() != Node::Universe); return type_; }
-    int sort() const;
+    const Def* type() const { assert(node() != Node::Space); return type_; }
+    Sort level() const;
+    Sort sort() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     const Def* tuple_arity() const;
@@ -138,7 +141,7 @@ public:
     }
     const Def* op(size_t i) const { return ops()[i]; }
     size_t num_ops() const { return num_ops_; }
-    /// Includes @p debug (if not @c nullptr), @p type() (if not @p Universe), and then the other @p ops() (if @p is_set) in this order.
+    /// Includes @p debug (if not @c nullptr), @p type() (if not @p Space), and then the other @p ops() (if @p is_set) in this order.
     Defs extended_ops() const;
     const Def* extended_op(size_t i) const { return extended_ops()[i]; }
     size_t num_extended_ops() const { return extended_ops().size(); }
@@ -248,11 +251,10 @@ public:
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
-        if (node()                         == Node::Universe) return *world_;
-        if (type()->node()                 == Node::Universe) return *type()->world_;
-        if (type()->type()->node()         == Node::Universe) return *type()->type()->world_;
-        if (type()->type()->type()->node() == Node::Universe) return *type()->type()->type()->world_;
-        THORIN_UNREACHABLE;
+        if (node()                 == Node::Space) return *world_;
+        if (type()->node()         == Node::Space) return *type()->world_;
+        if (type()->type()->node() == Node::Space) return *type()->type()->world_;
+        return *type()->type()->type()->world_;
     }
     //@}
     /// @name replace
@@ -265,9 +267,6 @@ public:
     virtual const Def* rebuild(World&, const Def*, Defs, const Def*) const { THORIN_UNREACHABLE; }
     virtual Def* stub(World&, const Def*, const Def*) { THORIN_UNREACHABLE; }
     virtual const Def* restructure() { return nullptr; }
-    virtual bool is_value() const { return type()->is_type();                } ///< Anything that cannot appear as a type such as @c 23 or @c (int, bool).
-    virtual bool is_type()  const { return type()->is_kind();                } ///< Anything that can be the @p type of a value (see @p is_value).
-    virtual bool is_kind()  const { return type()->node() == Node::Universe; } ///< Anything that can be the @p type of a type (see @p is_type).
     //@}
     ///@{ @name stream
     Stream& stream(Stream& s) const;
@@ -387,9 +386,9 @@ using ParamMap    = GIDMap<const Param*, To>;
 using ParamSet    = GIDSet<const Param*>;
 using Param2Param = ParamMap<const Param*>;
 
-class Universe : public Def {
+class Space : public Def {
 private:
-    Universe(World& world)
+    Space(World& world)
         : Def(Node, reinterpret_cast<const Def*>(&world), Defs{}, 0, nullptr)
     {}
 
@@ -397,12 +396,9 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
-    bool is_kind()  const override;
     //@}
 
-    static constexpr auto Node = Node::Universe;
+    static constexpr auto Node = Node::Space;
     friend class World;
 };
 
@@ -414,9 +410,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
-    bool is_kind()  const override;
     //@}
 
     static constexpr auto Node = Node::Kind;
@@ -514,8 +507,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Nat;
@@ -573,8 +564,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World& to, const Def* type, Defs ops, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Global;

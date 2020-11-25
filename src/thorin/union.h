@@ -21,8 +21,6 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Union* stub(World&, const Def*, const Def*) override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Union;
@@ -43,8 +41,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Which;
@@ -91,8 +87,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Case;
@@ -126,8 +120,6 @@ public:
     /// @name virtual methods
     //@{
     Ptrn* stub(World&, const Def*, const Def*) override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Ptrn;

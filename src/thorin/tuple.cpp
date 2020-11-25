@@ -23,13 +23,13 @@ const Def* proj(const Def* def, u64 a, u64 i, const Def* dbg) {
         return pack->apply(world.lit_int(as_lit(pack->arity()), i)).back();
     }
 
-    if (def->is_value()) { return def->world().extract(def, a, i, dbg); }
+    if (def->sort() == Sort::Term) { return def->world().extract(def, a, i, dbg); }
 
     return nullptr;
 }
 
 static bool should_flatten(const Def* def) {
-    return is_sigma_or_arr(def->is_value() ? def->type() : def);
+    return is_sigma_or_arr(def->sort() == Sort::Term ? def->type() : def);
 }
 
 static void flatten(std::vector<const Def*>& ops, const Def* def) {
@@ -45,7 +45,7 @@ const Def* flatten(const Def* def) {
     if (!should_flatten(def)) return def;
     std::vector<const Def*> ops;
     flatten(ops, def);
-    return def->is_value() ? def->world().tuple(def->type(), ops, def->dbg()) : def->world().sigma(ops, def->dbg());
+    return def->sort() == Sort::Term ? def->world().tuple(def->type(), ops, def->dbg()) : def->world().sigma(ops, def->dbg());
 }
 
 static const Def* unflatten(Defs defs, const Def* type, size_t& j) {

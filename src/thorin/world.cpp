@@ -30,15 +30,15 @@ bool World::Arena::Lock::guard_ = false;
 World::World(const std::string& name)
     : checker_(std::make_unique<Checker>(*this))
 {
-    data_.name_          = name.empty() ? "module" : name;
-    data_.universe_      = insert<Universe >(0, *this);
-    data_.kind_          = insert<Kind>(0, *this);
-    data_.bot_kind_      = insert<Bot>(0, kind(), nullptr);
-    data_.top_kind_      = insert<Top>(0, kind(), nullptr);
-    data_.sigma_         = insert<Sigma>(0, kind(), Defs{}, nullptr)->as<Sigma>();
-    data_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
+    data_.name_     = name.empty() ? "module" : name;
+    data_.space_    = insert<Space>(0, *this);
+    data_.kind_     = insert<Kind>(0, *this);
+    data_.bot_kind_ = insert<Bot>(0, kind(), nullptr);
+    data_.top_kind_ = insert<Top>(0, kind(), nullptr);
+    data_.sigma_    = insert<Sigma>(0, kind(), Defs{}, nullptr)->as<Sigma>();
+    data_.tuple_    = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     auto nat = data_.type_nat_ = insert<Nat>(0, *this);
-    data_.top_nat_       = insert<Top>(0, type_nat(), nullptr);
+    data_.top_nat_  = insert<Top>(0, type_nat(), nullptr);
 
     {   // int/real: Πw: Nat. *
         auto p = pi(nat, kind());
@@ -129,7 +129,7 @@ World::World(const std::string& name)
         type->set_codomain(pi(S, D));
         data_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, dbg("bitcast"));
     } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
-        auto domain = nom_sigma(universe(), 3);
+        auto domain = nom_sigma(space(), 3);
         domain->set(0, nat);
         domain->set(1, arr(domain->param(0, dbg("n")), kind()));
         domain->set(2, nat);
@@ -194,8 +194,8 @@ World::~World() {
 #if 0
 // TODO use for sigma
 static const Def* lub(const Def* t1, const Def* t2) {
-    if (t1->isa<Universe>()) return t1;
-    if (t2->isa<Universe>()) return t2;
+    if (t1->isa<Space>()) return t1;
+    if (t2->isa<Space>()) return t2;
     assert(t1->isa<Kind>() && t2->isa<Kind>());
     return t1;
 }

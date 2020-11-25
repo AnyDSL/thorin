@@ -92,9 +92,9 @@ public:
     u32 cur_gid() const { return state_.cur_gid; }
     u32 next_gid() { return ++state_.cur_gid; }
     //@}
-    /// @name Universe and Kind
+    /// @name Space and Kind
     //@{
-    const Universe*  universe()   { return data_.universe_;   }
+    const Space* space() { return data_.space_;   }
     const Kind* kind() { return data_.kind_; }
     //@}
     /// @name Param
@@ -216,7 +216,7 @@ public:
     //@}
     /// @name Lit
     //@{
-    const Lit* lit(const Def* type, u64 val, const Def* dbg = {}) { assert(type->is_type()); return unify<Lit>(0, type, val, dbg); }
+    const Lit* lit(const Def* type, u64 val, const Def* dbg = {}) { assert(type->level() == Sort::Type); return unify<Lit>(0, type, val, dbg); }
     //@}
     /// @name Lit: Nat
     //@{
@@ -470,9 +470,9 @@ public:
         swap(w1.data_,   w2.data_);
         swap(w1.err_,    w2.err_);
 
-        swap(w1.data_.universe_->world_, w2.data_.universe_->world_);
-        assert(&w1.universe()->world() == &w1);
-        assert(&w2.universe()->world() == &w2);
+        swap(w1.data_.space_->world_, w2.data_.space_->world_);
+        assert(&w1.space()->world() == &w1);
+        assert(&w2.space()->world() == &w2);
     }
 
 private:
@@ -593,7 +593,7 @@ private:
     } state_;
 
     struct Data {
-        Universe* universe_;
+        Space* space_;
         const Kind* kind_;
         const Bot* bot_kind_;
         const Top* top_kind_;

@@ -26,8 +26,6 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Sigma* stub(World&, const Def*, const Def*) override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Sigma;
@@ -45,8 +43,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Tuple;
@@ -81,8 +77,6 @@ public:
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Arr* stub(World&, const Def*, const Def*) override;
     const Def* restructure();
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Arr;
@@ -105,8 +99,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Pack;
@@ -160,8 +152,6 @@ public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    bool is_value() const override;
-    bool is_type()  const override;
     //@}
 
     static constexpr auto Node = Node::Insert;

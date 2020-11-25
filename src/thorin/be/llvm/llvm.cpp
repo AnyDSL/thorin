@@ -752,10 +752,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return emit_bitcast(bitcast->arg(), bitcast->type());
     } else if (auto lea = isa<Tag::LEA>(def)) {
         return emit_lea(lea);
-    } else if (auto size_of = isa<Tag::Sizeof>(def)) {
-        auto type = convert(size_of->arg());
+    } else if (auto trait = isa<Tag::Trait>(def)) {
+        auto type = convert(trait->arg());
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+        switch (trait.flags()) {
+            case Trait::size:  return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+            case Trait::align: return irbuilder_.getInt32(module_->getDataLayout().getABITypeAlignment(type));
+        }
     } else if (auto alloc = isa<Tag::Alloc>(def)) {
         auto alloced_type = alloc->decurry()->arg(0);
         return emit_alloc(alloced_type);

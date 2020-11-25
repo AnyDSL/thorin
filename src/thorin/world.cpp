@@ -60,7 +60,7 @@ World::World(const std::string& name)
         auto int_w = type_int(type->param(dbg("w")));
         type->set_codomain(pi({int_w, int_w}, int_w));
         THORIN_BIT(CODE)
-    } {   // Shr: Πw: nat. Π[int w, int w]. int w
+    } { // Shr: Πw: nat. Π[int w, int w]. int w
         auto type = nom_pi(kind())->set_domain(nat);
         auto int_w = type_int(type->param(dbg("w")));
         type->set_codomain(pi({int_w, int_w}, int_w));
@@ -94,6 +94,9 @@ World::World(const std::string& name)
         auto real_w = type_real(type->param(1, dbg("w")));
         type->set_codomain(pi({real_w, real_w}, type_bool()));
         THORIN_R_CMP(CODE)
+    } { // trait: ΠT: *. nat
+        auto type = pi(kind(), nat);
+        THORIN_TRAIT(CODE)
     }
 #undef CODE
     {   // Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw
@@ -140,8 +143,6 @@ World::World(const std::string& name)
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, dbg("i"))), as));
         pi1->set_codomain(pi2);
         data_.op_lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, dbg("lea"));
-    } { // sizeof: ΠT: *. nat
-        data_.op_sizeof_ = axiom(normalize_sizeof, pi(kind(), nat), Tag::Sizeof, 0, dbg("sizeof"));
     } { // load:  Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
         auto type = nom_pi(kind())->set_domain({kind(), nat});
         auto T  = type->param(0, dbg("T"));

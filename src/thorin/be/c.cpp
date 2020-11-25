@@ -444,8 +444,23 @@ std::ostream& CCodeGen::emit_temporaries(const Def* def) {
     return emit(def) << endl;
 }
 
-            HlsInterface interface, gmem_config;
-            auto interface_status = get_interface(interface, gmem_config);
+template <typename ScopeFn>
+void for_each_scope_except_hls_top(World& world, const ScopeFn& scope_fn) {
+    Continuation* hls_top = nullptr;
+    Scope::for_each(world, [&] (const Scope& scope) {
+        // Skip hls_top so that it only appears at the end of the file
+        if (scope.entry()->name() == "hls_top") {
+            hls_top = scope.entry();
+            return;
+        }
+        scope_fn(scope);
+    });
+    if (hls_top)
+        scope_fn(Scope(hls_top));
+}
+
+HlsInterface interface, gmem_config;
+auto interface_status = get_interface(interface, gmem_config);
 void CCodeGen::emit() {
     if (lang_ == Lang::CUDA) {
         func_decls_ <<
@@ -483,7 +498,7 @@ void CCodeGen::emit() {
     if (lang_ == Lang::HLS)
         func_decls_ << "#ifndef __SYNTHESIS__\n";
 
-    Scope::for_each(world(), [&] (const Scope& scope) {
+    for_each_scope_except_hls_top(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;
 
@@ -767,7 +782,7 @@ void CCodeGen::emit() {
                 emit(primop) << endl;
 
                 if (name =="hls_top" && primop->isa<Slot>())
-                    func_impl_ << "#pragma HLS STREAM variable = "<< var_name(primop) << " depth = 4" << endl;
+                    func_impl_ << "#pragma HLS STREAM variable = "<< var_name(primop) << " depth = 5" << endl;
             }
 
             // emit definitions for temporaries

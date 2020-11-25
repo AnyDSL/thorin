@@ -67,17 +67,29 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 {
     auto& world = index->world();
     auto type = ptr_type();
+    const Type* inner_type;
+
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
+        inner_type = get(tuple->ops(), index);
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
+        inner_type = array->elem_type();
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->ops(), index)));
+        inner_type = get(struct_type->ops(), index);
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
         assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.type(prim_type->primtype_tag())));
+        inner_type = world.type(prim_type->primtype_tag());
     } else {
         THORIN_UNREACHABLE;
+    }
+
+    auto index_vector = index->type()->isa<VectorType>();
+    if (index_vector && index_vector->is_vector()) {
+        //auto element_type = world.ptr_type(inner_type, type->length(), type->device(), type->addr_space());
+        //auto result_type = world.ptr_type(element_type, index_vector->length(), type->device(), type->addr_space());
+        assert(type->length() == 1);
+        set_type(world.ptr_type(inner_type, index_vector->length(), type->device(), type->addr_space()));
+    } else {
+        set_type(world.ptr_type(inner_type, type->length(), type->device(), type->addr_space()));
     }
 }
 
@@ -117,7 +129,12 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     : Access(Node_Load, nullptr, {mem, ptr}, dbg)
 {
     World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
+    auto return_type = ptr->type()->as<PtrType>()->pointee();
+    if (auto prim_return_type = return_type->isa<PrimType>())
+        if (auto vector_ptr = ptr->type()->isa<VectorType>())
+            if (vector_ptr->is_vector())
+                return_type = w.type(prim_return_type->primtype_tag(), 8);
+    set_type(w.tuple_type({w.mem_type(), return_type}));
 }
 
 Enter::Enter(const Def* mem, Debug dbg)
@@ -340,9 +357,9 @@ const Def* PrimOp::out(size_t i) const {
 }
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
-    if (auto tuple = agg->type()->isa<TupleType>())
+    if (auto tuple = agg->type()->isa<TupleType>()) {
         return get(tuple->ops(), index);
-    else if (auto array = agg->type()->isa<ArrayType>())
+    } else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();

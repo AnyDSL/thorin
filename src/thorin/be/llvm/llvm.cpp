@@ -1244,17 +1244,35 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
     auto ptr = lookup(load->ptr());
-    auto result = irbuilder_.CreateLoad(ptr);
-    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    result->setAlignment(llvm::MaybeAlign(align).getValue());
+    llvm::Value* result;
+    if (ptr->getType()->isVectorTy()) {
+        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
+        auto gather = irbuilder_.CreateMaskedGather(ptr, llvm::MaybeAlign(align).getValue());
+        result = gather;
+    } else {
+        auto loadval = irbuilder_.CreateLoad(ptr);
+        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+        loadval->setAlignment(llvm::MaybeAlign(align).getValue());
+        result = loadval;
+    }
     return result;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
     auto ptr = lookup(store->ptr());
-    auto result = irbuilder_.CreateStore(lookup(store->val()), ptr);
-    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    result->setAlignment(llvm::MaybeAlign(align).getValue());
+    //ptr->dump();
+    //ptr->getType()->dump();
+    llvm::Value* result;
+    if (ptr->getType()->isVectorTy()) {
+        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
+        auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue());
+        result = scatter;
+    } else {
+        auto storeval = irbuilder_.CreateStore(lookup(store->val()), ptr);
+        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+        storeval->setAlignment(llvm::MaybeAlign(align).getValue());
+        result = storeval;
+    }
     return result;
 }
 
@@ -1434,7 +1452,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                         else
                             THORIN_UNREACHABLE;
                     }
-                    size_t align_new = layout.getABITypeAlignment(op_type);
+                    //size_t align_new = layout.getABITypeAlignment(op_type);
                     max_align_type = op_type;
                     max_align = align;
                 }

@@ -638,14 +638,85 @@ const Def* Vectorizer::widen(const Def* old_def) {
         widen(param->continuation());
         assert(def2def_.contains(param));
         return def2def_[param];
+    } else if (auto param = old_def->isa<Extract>()) {
+        auto old_primop = old_def->as<PrimOp>();
+        Array<const Def*> nops(old_primop->num_ops());
+
+        //TODO: this is hard coded for extracts after loads.
+        //At some point I should distinguish between should- and should-not-vectorize, based on
+        //  (a) the types needed to be syntacticly correct
+        //  (b) the divergence analysis.
+
+        nops[0] = widen(old_primop->op(0));
+        nops[1] = old_primop->op(1);
+
+        auto type = widen(old_primop->type());
+        const Def* new_primop;
+        if (old_primop->isa<PrimLit>()) {
+            Array<const Def*> elements(8);
+            for (int i = 0; i < 8; i++) {
+                elements[i] = old_primop;
+            }
+            new_primop = world_.vector(elements, old_primop->debug_history());
+        } else {
+            new_primop = old_primop->rebuild(nops, type);
+        }
+        return def2def_[old_primop] = new_primop;
+    } else if (auto param = old_def->isa<ArithOp>()) {
+        auto old_primop = old_def->as<PrimOp>();
+        Array<const Def*> nops(old_primop->num_ops());
+        bool any_vector = false;
+        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
+            nops[i] = widen(old_primop->op(i));
+            if (auto vector = nops[i]->type()->isa<VectorType>())
+                any_vector |= vector->is_vector();
+        }
+
+        if (any_vector) {
+            for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
+                if (auto vector = nops[i]->type()->isa<VectorType>())
+                    if (vector->is_vector())
+                        continue;
+
+                //non-vector element in a vector setting needs to be extended to a vector.
+                Array<const Def*> elements(8);
+                for (int j = 0; j < 8; j++) {
+                    elements[j] = nops[i];
+                }
+                nops[i] = world_.vector(elements, nops[i]->debug_history());
+            }
+        }
+
+        auto type = widen(old_primop->type());
+        const Def* new_primop;
+        if (old_primop->isa<PrimLit>()) {
+            Array<const Def*> elements(8);
+            for (int i = 0; i < 8; i++) {
+                elements[i] = old_primop;
+            }
+            new_primop = world_.vector(elements, old_primop->debug_history());
+        } else {
+            new_primop = old_primop->rebuild(nops, type);
+        }
+        return def2def_[old_primop] = new_primop;
     } else {
         auto old_primop = old_def->as<PrimOp>();
         Array<const Def*> nops(old_primop->num_ops());
         for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
             nops[i] = widen(old_primop->op(i));
 
-        auto type = old_primop->type();
-        return def2def_[old_primop] = old_primop->rebuild(nops, type);
+        auto type = widen(old_primop->type());
+        const Def* new_primop;
+        if (old_primop->isa<PrimLit>()) {
+            Array<const Def*> elements(8);
+            for (int i = 0; i < 8; i++) {
+                elements[i] = old_primop;
+            }
+            new_primop = world_.vector(elements, old_primop->debug_history());
+        } else {
+            new_primop = old_primop->rebuild(nops, type);
+        }
+        return def2def_[old_primop] = new_primop;
     }
 }
 
@@ -706,7 +777,7 @@ Continuation *Vectorizer::widen(Continuation *kernel) {
     // create new_entry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = scope.entry()->num_params(); i != e; ++i) {
-        if (i == 1000) {
+        if (i == 1) {
             param_types.emplace_back(widen(scope.entry()->param(i)->type()));
         } else {
             param_types.emplace_back(scope.entry()->param(i)->type());
@@ -830,14 +901,16 @@ bool Vectorizer::run() {
                 delete div_analysis_;
 
                 if (vectorized) {
-                    cont->dump();
                     for (auto caller : cont->preds()) {
-                        caller->dump();
-
                         Array<const Def*> args(vectorized->num_params());
 
                         args[0] = caller->arg(0); //mem
-                        args[1] = caller->arg(1); //width
+                        //args[1] = caller->arg(1); //width
+                        Array<const Def*> defs(8);
+                        for (int i = 0; i < 8; i++) {
+                            defs[i] = world_.literal_qs32(i, caller->arg(1)->debug_history());
+                        }
+                        args[1] = world_.vector(defs, caller->arg(1)->debug_history());
 
                         for (size_t p = 2; p < vectorized->num_params(); p++) {
                             args[p] = caller->arg(p + 1);

@@ -157,6 +157,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
+    assert(false && "Deactivated");
     bool broken = llvm::verifyModule(*module_.get(), &llvm::errs());
     if (broken) {
       module_->print(llvm::errs(), nullptr, false, true);

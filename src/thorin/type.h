@@ -213,7 +213,7 @@ public:
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
     /// Rebuilds the type with vector length 1.
-    const VectorType* scalarize() const;
+    const Type* scalarize() const;
 
 private:
     size_t length_;
@@ -227,7 +227,9 @@ class PrimType : public VectorType {
 private:
     PrimType(TypeTable& table, PrimTypeTag tag, size_t length)
         : VectorType(table, (int) tag, {}, length)
-    {}
+    {
+        //TODO: lenght should be 1, vectors are implemented by a seperate type in the future.
+    }
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
@@ -271,7 +273,9 @@ private:
         : VectorType(table, Node_PtrType, {pointee}, length)
         , addr_space_(addr_space)
         , device_(device)
-    {}
+    {
+        //TODO: lenght should be 1, vectors are implemented by a seperate type in the future.
+    }
 
 public:
     const Type* pointee() const { return op(0); }
@@ -289,6 +293,24 @@ private:
 
     AddrSpace addr_space_;
     int32_t device_;
+
+    friend class TypeTable;
+};
+
+/// Vector extended type.
+class VectorExtendedType : public VectorType {
+private:
+    VectorExtendedType(TypeTable& table, const Type* element, size_t length)
+        : VectorType(table, Node_PtrType, {element}, length)
+    {}
+
+public:
+    const Type* element() const { return op(0); }
+
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -419,6 +441,9 @@ public:
     const PtrType* ptr_type(const Type* pointee,
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
         return unify(new PtrType(*this, pointee, length, device, addr_space));
+    }
+    const VectorExtendedType* vec_type(const Type* element, size_t length) {
+        return unify(new VectorExtendedType(*this, element, length));
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }

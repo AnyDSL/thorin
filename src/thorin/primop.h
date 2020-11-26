@@ -340,8 +340,8 @@ private:
     VariantIndex(const Type* int_type, const Def* value, Debug dbg)
         : PrimOp(Node_VariantIndex, int_type, {value}, dbg)
     {
-        assert(value->type()->isa<VariantType>());
-        assert(is_type_s(int_type) || is_type_u(int_type));
+        //assert(value->type()->isa<VariantType>());
+        //assert(is_type_s(int_type) || is_type_u(int_type));
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;

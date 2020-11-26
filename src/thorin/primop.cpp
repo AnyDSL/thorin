@@ -55,10 +55,12 @@ Vector::Vector(World& world, Defs args, Debug dbg)
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
         set_type(world.type(primtype->primtype_tag(), args.size()));
-    } else {
-        auto ptr = args.front()->type()->as<PtrType>();
+    } else if (auto ptr = args.front()->type()->as<PtrType>()) {
         assert(ptr->length() == 1);
         set_type(world.ptr_type(ptr->pointee(), args.size()));
+    } else {
+        auto inner_type = args.front()->type();
+        set_type(world.vec_type(inner_type, args.size()));
     }
 }
 
@@ -84,10 +86,13 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 
     auto index_vector = index->type()->isa<VectorType>();
     if (index_vector && index_vector->is_vector()) {
-        //auto element_type = world.ptr_type(inner_type, type->length(), type->device(), type->addr_space());
-        //auto result_type = world.ptr_type(element_type, index_vector->length(), type->device(), type->addr_space());
-        assert(type->length() == 1);
-        set_type(world.ptr_type(inner_type, index_vector->length(), type->device(), type->addr_space()));
+        if(type->length() == 1) {
+            set_type(world.ptr_type(inner_type, index_vector->length(), type->device(), type->addr_space()));
+        } else { //TODO: this distinction is broken. Maybe distinguish based on the actual type? It seems I am widening parameters multiple times.
+            inner_type = world.ptr_type(inner_type, type->length(), type->device(), type->addr_space());
+            set_type(inner_type);
+            //set_type(world.vec_type(inner_type, index_vector->length()));
+        }
     } else {
         set_type(world.ptr_type(inner_type, type->length(), type->device(), type->addr_space()));
     }
@@ -130,10 +135,12 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
 {
     World& w = mem->world();
     auto return_type = ptr->type()->as<PtrType>()->pointee();
-    if (auto prim_return_type = return_type->isa<PrimType>())
-        if (auto vector_ptr = ptr->type()->isa<VectorType>())
-            if (vector_ptr->is_vector())
-                return_type = w.type(prim_return_type->primtype_tag(), 8);
+    if (auto vector_ptr = ptr->type()->isa<VectorType>())
+        if (vector_ptr->is_vector())
+            if (auto prim_return_type = return_type->isa<PrimType>())
+                return_type = w.type(prim_return_type->primtype_tag(), vector_ptr->length());
+            else
+                return_type = w.vec_type(return_type, vector_ptr->length());
     set_type(w.tuple_type({w.mem_type(), return_type}));
 }
 

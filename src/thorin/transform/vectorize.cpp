@@ -61,9 +61,14 @@ private:
 
     const Type *widen(const Type *);
     const Def *widen(const Def *);
-    Continuation *widen(Continuation *);
+    Continuation *widen();
+
+    void widen_setup(Continuation *);
+    Continuation *kernel;
+    bool widen_within(const Def *);
 
     void widen_body(Continuation *, Continuation *);
+    Continuation* widen_head(Continuation* old_continuation);
 };
 
 Vectorizer::DivergenceAnalysis::State
@@ -603,12 +608,12 @@ void Vectorizer::DivergenceAnalysis::run() {
 }
 
 const Type *Vectorizer::widen(const Type *old_type) {
-    if (old_type->isa<PtrType>()) {
+    if (old_type->isa<PtrType>()) { //TODO: these types might have a length of their own, in this case, I need to extend.
         return world_.ptr_type(old_type->as<PtrType>()->pointee(), 8);
     } else if (old_type->isa<PrimType>()) {
         return world_.type(old_type->as<PrimType>()->primtype_tag(), 8);
     } else {
-        return old_type;
+        return world_.vec_type(old_type, 8);
     }
 }
 
@@ -627,11 +632,25 @@ const Type *Vectorizer::widen(const Type *old_type) {
     return primop->rebuild(defs, new_type);
 }*/
 
+Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
+    assert(!def2def_.contains(old_continuation));
+    assert(!old_continuation->empty());
+    Continuation* new_continuation = old_continuation->stub();
+    def2def_[old_continuation] = new_continuation;
+
+    for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
+        def2def_[old_continuation->param(i)] = new_continuation->param(i);
+
+    return new_continuation;
+}
+
 const Def* Vectorizer::widen(const Def* old_def) {
     if (auto new_def = find(def2def_, old_def))
         return new_def;
+    else if (!widen_within(old_def))
+        return old_def;
     else if (auto old_continuation = old_def->isa_continuation()) {
-        auto new_continuation = widen(old_continuation);
+        auto new_continuation = widen_head(old_continuation);
         widen_body(old_continuation, new_continuation);
         return new_continuation;
     } else if (auto param = old_def->isa<Param>()) {
@@ -761,7 +780,7 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
 }
 
-Continuation *Vectorizer::widen(Continuation *kernel) {
+Continuation *Vectorizer::widen() {
     //Step 1: Dump info.
     //kernel->dump();
     //std::cerr << "\n";
@@ -864,6 +883,15 @@ Continuation *Vectorizer::widen(Continuation *kernel) {
     return ncontinuation;
 }
 
+void Vectorizer::widen_setup(Continuation* kern) {
+    kernel = kern;
+}
+
+bool Vectorizer::widen_within(const Def* def) {
+    Scope scope(kernel);
+    return scope.contains(def);
+}
+
 bool Vectorizer::run() {
     world_.dump();
 
@@ -896,7 +924,9 @@ bool Vectorizer::run() {
 
     //Task 2: Widening
     //TODO: Uniform branches might still need masking. => Predicate generation relevant!
-                auto *vectorized = widen(kerndef);
+                widen_setup(kerndef);
+                auto *vectorized = widen();
+                //auto *vectorized = clone(Scope(kerndef));
 
                 delete div_analysis_;
 

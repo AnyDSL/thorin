@@ -38,6 +38,10 @@ const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
 }
 
+const Type* VectorExtendedType::vrebuild(TypeTable& to, Types ops) const {
+    return to.vec_type(ops.front(), length());
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -83,9 +87,11 @@ const NominalType* VariantType::stub(TypeTable& to) const {
 
 //------------------------------------------------------------------------------
 
-const VectorType* VectorType::scalarize() const {
+const Type* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
         return table().ptr_type(ptr->pointee());
+    if (auto vec = isa<VectorExtendedType>())
+        return vec->element();
     return table().type(as<PrimType>()->primtype_tag());
 }
 
@@ -176,6 +182,15 @@ std::ostream& PtrType::stream(std::ostream& os) const {
         case AddrSpace::Constant: os << "[Constant]"; break;
         default: /* ignore unknown address space */      break;
     }
+    return os;
+}
+
+std::ostream& VectorExtendedType::stream(std::ostream& os) const {
+    if (is_vector())
+        os << '<' << length() << " x ";
+    os << element();
+    if (is_vector())
+        os << '>';
     return os;
 }
 

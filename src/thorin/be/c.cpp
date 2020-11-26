@@ -1091,9 +1091,9 @@ void CCodeGen::emit() {
             func_decls_ << "static inline half   intBitsToHalf(unsigned short i)  { return as_half(i);  }\n";
         func_decls_ <<
             "static inline float  intBitsToFloat(unsigned int i)  { return as_float(i);  }\n"
-            "#ifndef __XILINX__\n"
+            "#ifndef __xilinx__\n"
             "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n"
-            "#endif /* __XILINX__ */";
+            "#endif /* __xilinx__ */";
     } else {
         // Use memcpy instead
         const char* types[] = { "half", "float", "double" };

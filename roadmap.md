@@ -32,7 +32,6 @@
 - [x] redesign standard operations to work similar to LLVM
 - [ ] remove `Lamm::Intrinsics` in favor of axioms (wip)
 - [ ] rewrite normalizations (wip)
-- [ ] add frontend types `sint m w`, `uint m w`, `float m w` that automatically convert to `int w`/`real w`; the mode `m` is glued to the op. (wip)
 - [ ] make operations polymorphic in rank and dimensions
 
 ## Optimizations
@@ -41,17 +40,17 @@
     - [x] passes with no fixed point needed
     - [x] passes with fixed point
 - [ ] rewrite all optimizations to work with new optimizer
-    - [x] inliner      (wip)
-    - [x] partial eval (wip)
+    - [x] inliner
+    - [x] partial eval
     - [x] mem2reg
-    - [ ] scalarize (destroys slots)
-    - [ ] flatten   (nukes tuple params)
-    - [ ] eta conv
-    - [x] copy prop
+    - [ ] scalarize
+    - [ ] flatten       (wip)
+    - [x] eta conv      (wip)
+    - [x] copy prop     (wip)
     - [ ] tail rec elim (maybe can be merged with copy prop)
-    - [ ] closure elim
-    - [ ] closure conv
-    - [ ] compile ptrn (wip)
+    - [ ] closure elim  (wip)
+    - [ ] closure conv  (wip)
+    - [ ] compile ptrn  (wip)
     - [x] ret_wrap
     - [ ] reg2mem (for aggregates)
     - [ ] acc prepare (phase that prepares special `vectorize`/`cuda` and friends for code generation)
@@ -59,8 +58,8 @@
 
 ## Type Checking
 
-- [ ] type checking (wip)
-- [ ] `ErrorHandler` (wip)
+- [x] type checking (wip)
+- [x] `ErrorHandler` (wip)
 
 ## Debugging
 
@@ -72,7 +71,7 @@
 
 ## Module support
 
-- [ ] polish output (wip)
+- [ ] polish output     (wip)
 - [ ] frontend to read it again
 - [ ] integrate with debugging infrastructure
 

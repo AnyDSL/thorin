@@ -625,8 +625,10 @@ void CCodeGen::emit() {
                         emit_type(func_decls_, elem_type) << "[" << array_size << "]";
                         emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
                     }
-                    if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
+                    if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) {
                         hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+                    }
+
                 } else {
                     std::string qualifier;
                     // add restrict qualifier when possible
@@ -892,7 +894,8 @@ void CCodeGen::emit() {
                             if (lang_ == Lang::HLS)
                                 func_impl_ << endl
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
-                                           << "#pragma HLS data_pack  variable=" << name;
+                                           << "#pragma HLS data_pack  variable=" << name << endl
+                                           << "#if defined( __VITIS_HLS__ )\n   __attribute__((packed))\n  #endif" << endl;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
                             assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
                             // cast to continuation to get unique name of "for index"

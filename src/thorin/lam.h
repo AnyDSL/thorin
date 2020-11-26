@@ -118,6 +118,7 @@ public:
     Lam* set(Defs ops) { return Def::set(ops)->as<Lam>(); }
     Lam* set(const Def* filter, const Def* body) { return set({filter, body}); }
     Lam* set_filter(const Def* filter) { return set(0_s, filter); }
+    Lam* set_filter(bool filter);
     Lam* set_body(const Def* body) { return set(1, body); }
     //@}
     /// @name setters: sets filter to @c false and sets the body by @p App -ing

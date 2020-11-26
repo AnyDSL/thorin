@@ -4,6 +4,8 @@
 
 namespace thorin {
 
+Lam* Lam::set_filter(bool filter) { return set(0_s, world().lit_bool(filter)); }
+
 const Def* Lam::mem_param(const Def* dbg) {
     return thorin::isa<Tag::Mem>(param(0_s)->type()) ? param(0, dbg) : nullptr;
 }

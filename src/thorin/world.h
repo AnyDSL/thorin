@@ -173,6 +173,8 @@ public:
         return continuation(fn_type, Continuation::Attributes(), dbg);
     }
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
+    template <typename Pred>
+    Continuation* find_continuation(const Pred& pred) const;
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }

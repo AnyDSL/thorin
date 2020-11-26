@@ -919,6 +919,15 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
+template <typename Pred>
+Continuation* World::find_continuation(const Pred& pred) const {
+    for (auto continuation : continuations()) {
+        if (pred(continuation))
+            return continuation;
+    }
+    return nullptr;
+}
+
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
     THORIN_CHECK_BREAK(param->gid());

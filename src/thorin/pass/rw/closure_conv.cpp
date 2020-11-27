@@ -24,9 +24,9 @@ const Sigma* ClosureConv::convert(const Pi* pi) {
     if (!ins) return i->second;
 
     // [Env: *, env: Env, [...., Env] -> codomain]
-    auto closure = world().sigma(3);
+    auto closure = world().nom_sigma(3);
     closure->set(0, world().kind());
-    auto Env = closure->param(0, {"Env"});
+    auto Env = closure->param(0_s, world().dbg("Env"));
     closure->set(1, Env);
     closure->set(2, world().pi(merge_sigma(pi->domain(), {Env}), pi->codomain()));
 
@@ -57,7 +57,7 @@ const Tuple* ClosureConv::convert(Lam* lam) {
     auto pi = lam->type();
     auto new_domain = world().pi(merge_sigma(pi->domain(), {world().sigma(Env)}), pi->codomain());
     new_domain->dump(1);
-    auto new_lam = world().lam(new_domain, lam->debug());
+    auto new_lam = world().nom_lam(new_domain, lam->dbg());
 
     Rewriter rewriter(world(), &scope);
     i = 0;

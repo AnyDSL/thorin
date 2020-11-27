@@ -51,7 +51,7 @@
     - [ ] closure elim  (wip)
     - [ ] closure conv  (wip)
     - [ ] compile ptrn  (wip)
-    - [x] ret_wrap
+    - [x] ret\_wrap
     - [ ] reg2mem (for aggregates)
     - [ ] acc prepare (phase that prepares special `vectorize`/`cuda` and friends for code generation)
 - [ ] remove old optimizations/passes and `replace` infrastructure (wip)

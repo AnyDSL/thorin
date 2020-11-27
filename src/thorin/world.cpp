@@ -97,6 +97,12 @@ World::World(const std::string& name)
     } { // trait: ΠT: *. nat
         auto type = pi(kind(), nat);
         THORIN_TRAIT(CODE)
+    } { // acc: Πn: nat. cn[M, cn[M, type_int n, cn[M, []]]]
+        // TODO this is more a proof of concept
+        auto type = nom_pi(kind())->set_domain(nat);
+        auto n = type->param(0, dbg("n"));
+        type->set_codomain(fn_mem(type_int(n), sigma()));
+        THORIN_ACC(CODE)
     }
 #undef CODE
     {   // Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw
@@ -173,7 +179,13 @@ World::World(const std::string& name)
         data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, dbg("slot"));
     } { // type_tangent_vector: Π*. *
         data_.type_tangent_vector_ = axiom(normalize_tangent, pi(kind(), kind()), Tag::TangentVector, 0, dbg("tangent"));
-    }  { // op_grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
+    } { // atomic: Π[T: *, R: *]. ΠT. R
+        auto type = nom_pi(kind())->set_domain({kind(), kind()});
+        auto T = type->param(0, dbg("T"));
+        auto R = type->param(1, dbg("R"));
+        type->set_codomain(pi(T, R));
+        data_.op_atomic_ = axiom(nullptr, type, Tag::Atomic, 0, dbg("atomic"));
+    } { // grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
         auto type = nom_pi(kind())->set_domain({kind(), kind()});
         auto T = type->param(0, dbg("T"));
         auto R = type->param(1, dbg("R"));

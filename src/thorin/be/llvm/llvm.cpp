@@ -57,7 +57,8 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
 {}
 
-Lam* CodeGen::emit_intrinsic(Lam* lam) {
+Lam* CodeGen::emit_intrinsic(Lam*) {
+    /*
     auto callee = lam->body()->as<App>()->callee()->as_nominal<Lam>();
     switch (callee->intrinsic()) {
         case Lam::Intrinsic::Atomic:    return emit_atomic(lam);
@@ -78,6 +79,8 @@ Lam* CodeGen::emit_intrinsic(Lam* lam) {
 #endif
         default: THORIN_UNREACHABLE;
     }
+    */
+    return nullptr;
 }
 
 Lam* CodeGen::emit_hls(Lam* lam) {
@@ -398,11 +401,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     if (callee_lam->is_basicblock()) {
                         // ordinary jump
                         irbuilder_.CreateBr(bb2lam[callee_lam]);
-                        terminated = true;
-                    } else if (callee_lam->is_intrinsic()) {
-                        // intrinsic call
-                        auto ret_lam = emit_intrinsic(lam);
-                        irbuilder_.CreateBr(bb2lam[ret_lam]);
                         terminated = true;
                     }
                 }

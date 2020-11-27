@@ -53,31 +53,6 @@ public:
 
 class Lam : public Def {
 public:
-    // TODO make these thigns axioms
-    enum class Intrinsic : u8 {
-        None,                       ///< Not an intrinsic.
-        _Accelerator_Begin,
-        CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
-        NVVM,                       ///< Internal NNVM-Backend.
-        OpenCL,                     ///< Internal OpenCL-Backend.
-        AMDGPU,                     ///< Internal AMDGPU-Backend.
-        HLS,                        ///< Internal HLS-Backend.
-        Parallel,                   ///< Internal Parallel-CPU-Backend.
-        Spawn,                      ///< Internal Parallel-CPU-Backend.
-        Sync,                       ///< Internal Parallel-CPU-Backend.
-        CreateGraph,                ///< Internal Flow-Graph-Backend.
-        CreateTask,                 ///< Internal Flow-Graph-Backend.
-        CreateEdge,                 ///< Internal Flow-Graph-Backend.
-        ExecuteGraph,               ///< Internal Flow-Graph-Backend.
-        Vectorize,                  ///< External vectorizer.
-        _Accelerator_End,
-        Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
-        Atomic,                     ///< Intrinsic atomic function
-        CmpXchg,                    ///< Intrinsic cmpxchg function
-        Undef,                      ///< Intrinsic undef function
-        PeInfo,                     ///< Partial evaluation debug info.
-    };
-
     /// calling convention
     enum class CC : u8 {
         C,          ///< C calling convention.
@@ -88,8 +63,8 @@ private:
     Lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg)
         : Def(Node, pi, {filter, body}, 0, dbg)
     {}
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
-        : Def(Node, pi, 2, u64(cc) << 8_u64 | u64(intrinsic), dbg)
+    Lam(const Pi* pi, CC cc, const Def* dbg)
+        : Def(Node, pi, 2, u64(cc), dbg)
     {}
 
 public:
@@ -133,19 +108,14 @@ public:
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Lam* stub(World&, const Def*, const Def*) override;
     //@}
-    /// @name get/set fields - Intrinsic and CC
+    /// @name get/set fields - CC
     //@{
-    Intrinsic intrinsic() const { return Intrinsic(fields() & 0x00ff_u64); }
-    void set_intrinsic(Intrinsic intrin) { fields_ = (fields_ & 0xff00_u64) | u64(intrin); }
-    void set_intrinsic(); ///< Sets Intrinsic derived on this @p Lam's @p name.
-    CC cc() const { return CC(fields() >> 8_u64); }
-    void set_cc(CC cc) { fields_ = (fields_ & 0x00ff_u64) | u64(cc) << 8_u64; }
+    CC cc() const { return CC(fields()); }
+    void set_cc(CC cc) { fields_ = u64(cc); }
     //@}
 
     bool is_basicblock() const;
     bool is_returning() const;
-    bool is_intrinsic() const;
-    bool is_accelerator() const;
 
     static constexpr auto Node = Node::Lam;
     friend class World;
@@ -217,6 +187,8 @@ private:
 size_t get_param_index(const Def* def);
 Lam* get_param_lam(const Def* def);
 std::vector<Peek> peek(const Def*);
+
+inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || !lam->is_set(); }
 
 }
 

@@ -57,8 +57,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = lam->body()->as<App>()->callee()->as_nominal<Lam>();
-    assert_unused(target->is_intrinsic());
+    //auto target = lam->body()->as<App>()->callee()->as_nominal<Lam>();
     assert(lam->body()->as<App>()->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
     // arguments

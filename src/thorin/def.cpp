@@ -95,7 +95,7 @@ const Def* Which  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) cons
  * stub
  */
 
-Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_lam  (t->as<Pi>(), cc(), intrinsic(), dbg); }
+Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_lam  (t->as<Pi>(), cc(), dbg); }
 Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_pi   (t, dbg); }
 Ptrn*  Ptrn ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_ptrn (t->as<Case>(), dbg); }
 Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.nom_sigma(t, num_ops(), dbg); }

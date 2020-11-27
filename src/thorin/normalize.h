@@ -22,6 +22,7 @@ template<RCmp > const Def* normalize_RCmp (const Def*, const Def*, const Def*, c
 template<Trait> const Def* normalize_Trait(const Def*, const Def*, const Def*, const Def*);
 template<Conv > const Def* normalize_Conv (const Def*, const Def*, const Def*, const Def*);
 template<PE   > const Def* normalize_PE   (const Def*, const Def*, const Def*, const Def*);
+template<Acc  > const Def* normalize_Acc  (const Def*, const Def*, const Def*, const Def*);
 
 }
 

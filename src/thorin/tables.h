@@ -31,9 +31,10 @@ using nat_t    = u64;
     m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)               \
     m(Bit, bit) m(Shr, shr) m(Wrap, wrap) m(Div, div) m(ROp, rop)   \
     m(ICmp, icmp) m(RCmp, rcmp)                                     \
-    m(Trait, trait) m(Conv, conv) m(PE, pe)                         \
+    m(Trait, trait) m(Conv, conv) m(PE, pe) m(Acc, acc)             \
     m(Bitcast, bitcast) m(LEA, lea)                                 \
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)     \
+    m(Atomic, atomic)                                               \
     m(Grad, grad) m(TangentVector, tangent_vector)
 
 namespace WMode {
@@ -76,6 +77,8 @@ enum RMode : nat_t {
 #define THORIN_CONV(m) m(Conv, s2s) m(Conv, u2u) m(Conv, s2r) m(Conv, u2r) m(Conv, r2s) m(Conv, r2u) m(Conv, r2r)
 /// Partial Evaluation related operations
 #define THORIN_PE(m) m(PE, hlt) m(PE, known) m(PE, run)
+/// Accelerators
+#define THORIN_ACC(m) m(Acc, vecotrize) m(Acc, parallel) m(Acc, opencl) m(Acc, cuda) m(Acc, nvvm) m (Acc, amdgpu)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -197,6 +200,7 @@ enum class RCmp   : tag_t { THORIN_R_CMP(CODE) };
 enum class Trait  : tag_t { THORIN_TRAIT(CODE) };
 enum class Conv   : tag_t { THORIN_CONV (CODE) };
 enum class PE     : tag_t { THORIN_PE   (CODE) };
+enum class Acc    : tag_t { THORIN_ACC  (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -218,6 +222,7 @@ constexpr const char* op2str(RCmp  o) { switch (o) { THORIN_R_CMP(CODE) default:
 constexpr const char* op2str(Trait o) { switch (o) { THORIN_TRAIT(CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(Conv  o) { switch (o) { THORIN_CONV (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(PE    o) { switch (o) { THORIN_PE   (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Acc   o) { switch (o) { THORIN_ACC  (CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 namespace AddrSpace {
@@ -246,9 +251,10 @@ template<> constexpr auto Num<RCmp > = 0_s THORIN_R_CMP(CODE);
 template<> constexpr auto Num<Trait> = 0_s THORIN_TRAIT(CODE);
 template<> constexpr auto Num<Conv > = 0_s THORIN_CONV (CODE);
 template<> constexpr auto Num<PE   > = 0_s THORIN_PE   (CODE);
+template<> constexpr auto Num<Acc  > = 0_s THORIN_ACC  (CODE);
 #undef CODE
 
-template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
+template<tag_t tag> struct Tag2Enum_    { using type = tag_t; };
 template<> struct Tag2Enum_<Tag::Bit  > { using type = Bit;   };
 template<> struct Tag2Enum_<Tag::Shr  > { using type = Shr;   };
 template<> struct Tag2Enum_<Tag::Wrap > { using type = Wrap;  };
@@ -259,6 +265,7 @@ template<> struct Tag2Enum_<Tag::RCmp > { using type = RCmp;  };
 template<> struct Tag2Enum_<Tag::Trait> { using type = Trait; };
 template<> struct Tag2Enum_<Tag::Conv > { using type = Conv;  };
 template<> struct Tag2Enum_<Tag::PE   > { using type = PE;    };
+template<> struct Tag2Enum_<Tag::Acc  > { using type = Acc;   };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }

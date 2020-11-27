@@ -205,10 +205,11 @@ bool PartialEvaluator::run() {
         }
 
         if (auto callee = callee_def->isa_nominal<Lam>()) {
-            if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
-                eat_pe_info(lam);
-                continue;
-            }
+            // TODO
+            //if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
+                //eat_pe_info(lam);
+                //continue;
+            //}
 
             if (callee->is_set()) {
                 size_t num_args = app->num_args();

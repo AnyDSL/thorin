@@ -788,6 +788,11 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
     return world.raw_app(callee, arg, dbg);
 }
 
+template<Acc op>
+const Def* normalize_Acc(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    return type->world().raw_app(callee, arg, dbg);
+}
+
 const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
 
@@ -906,6 +911,7 @@ THORIN_R_CMP(CODE)
 THORIN_TRAIT(CODE)
 THORIN_CONV (CODE)
 THORIN_PE   (CODE)
+THORIN_ACC  (CODE)
 #undef CODE
 
 }

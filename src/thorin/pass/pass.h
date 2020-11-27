@@ -278,7 +278,6 @@ private:
 };
 
 inline World& RWPass::world() { return man().world(); }
-inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || lam->is_intrinsic() || !lam->is_set(); }
 inline const App* is_callee(const Def* def, size_t i) { return i == 0 ? def->isa<App>() : nullptr; }
 
 }

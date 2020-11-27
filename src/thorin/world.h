@@ -126,11 +126,11 @@ public:
     //@}
     /// @name Lam%bda
     //@{
-    Lam* nom_lam(const Pi* cn, Lam::CC cc = Lam::CC::C, Lam::Intrinsic intrinsic = Lam::Intrinsic::None, const Def* dbg = {}) {
-        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg);
+    Lam* nom_lam(const Pi* cn, Lam::CC cc = Lam::CC::C, const Def* dbg = {}) {
+        auto lam = insert<Lam>(2, cn, cc, dbg);
         return lam;
     }
-    Lam* nom_lam(const Pi* cn, const Def* dbg = {}) { return nom_lam(cn, Lam::CC::C, Lam::Intrinsic::None, dbg); }
+    Lam* nom_lam(const Pi* cn, const Def* dbg = {}) { return nom_lam(cn, Lam::CC::C, dbg); }
     const Lam* lam(const Def* domain, const Def* filter, const Def* body, const Def* dbg);
     const Lam* lam(const Def* domain, const Def* body, const Def* dbg) { return lam(domain, lit_true(), body, dbg); }
     //@}
@@ -346,6 +346,11 @@ public:
     const Def* op(PE o) { return data_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, const Def* dbg = {}) { return app(app(op(o), def->type()), def, dbg); }
     //@}
+    /// @name Acc
+    //@{
+    const Axiom* op(Acc o) { return data_.Acc_[size_t(o)]; }
+    const Def* op(Acc o, const Def* a, const Def* b, const Def* body, const Def* dbg = {}) { return app(op(o), {a, b, body}, dbg); }
+    //@}
     /// @name bitcasts
     //@{
     const Axiom* op_bitcast() const { return data_.op_bitcast_; }
@@ -364,6 +369,12 @@ public:
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, const Def* dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, const Def* dbg = {}) { return global(lit_nat(state_.cur_gid), init, is_mutable, dbg); }
     const Def* global_immutable_string(const std::string& str, const Def* dbg = {});
+    //@}
+    /// @name make atomic operations
+    //@{
+    const Def* op_atomic() { return data_.op_atomic_; }
+    const Def* op_atomic(const Def* fn, const Def* dbg = {}) { return app(op_atomic(), fn, dbg); }
+    const Def* op_atomic(const Def* fn, Defs args, const Def* dbg = {}) { return app(op_atomic(fn), args, dbg); }
     //@}
     /// @name Proxy - used internally for Pass%es
     //@{
@@ -615,18 +626,20 @@ private:
         std::array<const Axiom*, Num<Trait>> Trait_;
         std::array<const Axiom*, Num<Conv >> Conv_;
         std::array<const Axiom*, Num<PE   >> PE_;
-        const Axiom* type_mem_;
-        const Axiom* type_int_;
-        const Axiom* type_real_;
-        const Axiom* type_ptr_;
-        const Axiom* op_bitcast_;
-        const Axiom* op_lea_;
+        std::array<const Axiom*, Num<Acc  >> Acc_;
         const Axiom* op_alloc_;
-        const Axiom* op_slot_;
-        const Axiom* op_load_;
-        const Axiom* op_store_;
-        const Axiom* type_tangent_vector_;
+        const Axiom* op_atomic_;
+        const Axiom* op_bitcast_;
         const Axiom* op_grad_;
+        const Axiom* op_lea_;
+        const Axiom* op_load_;
+        const Axiom* op_slot_;
+        const Axiom* op_store_;
+        const Axiom* type_int_;
+        const Axiom* type_mem_;
+        const Axiom* type_ptr_;
+        const Axiom* type_real_;
+        const Axiom* type_tangent_vector_;
         std::string name_;
         Externals externals_;
         Sea defs_;

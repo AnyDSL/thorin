@@ -1,5 +1,4 @@
 #include "thorin/def.h"
-#include "thorin/util.h"
 #include "thorin/world.h"
 #include "thorin/analyses/deptree.h"
 
@@ -15,12 +14,12 @@ namespace thorin {
 
 Stream& stream(Stream& s, const Def* def) {
     if (false) {}
-    else if (def->isa<Universe>()) return s.fmt("□");
-    else if (def->isa<Nat>())      return s.fmt("nat");
-    else if (def->isa<Kind>())     return s.fmt("★");
+    else if (def->isa<Space>()) return s.fmt("□");
+    else if (def->isa<Kind>())  return s.fmt("★");
+    else if (def->isa<Nat>())   return s.fmt("nat");
     else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
     else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());
-    else if (auto axiom = def->isa<Axiom>()) return s.fmt(":{}", axiom->name());
+    else if (auto axiom = def->isa<Axiom>()) return s.fmt(":{}", axiom->debug().name);
     else if (auto lit = def->isa<Lit>()) {
         if (auto real = thorin::isa<Tag::Real>(lit->type())) {
             switch (as_lit(real->arg())) {

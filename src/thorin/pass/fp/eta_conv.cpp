@@ -13,9 +13,9 @@ const Def* EtaConv::rewrite(Def*, const Def* def) {
                 if (expand_.contains(lam)) {
                     auto [j, ins] = def2exp_.emplace(def, nullptr);
                     if (ins) {
-                        auto wrap = lam->stub(world(), lam->type(), lam->debug());
+                        auto wrap = lam->stub(world(), lam->type(), lam->dbg());
                         wrappers_.emplace(wrap);
-                        wrap->set_name(std::string("eta_wrap_") + lam->name());
+                        wrap->set_name(std::string("eta_wrap_") + lam->debug().name);
                         wrap->app(lam, wrap->param());
                         j->second = def->refine(i, wrap);
                         world().DLOG("eta-expansion '{}' -> '{}' using '{}'", def, j->second, wrap);

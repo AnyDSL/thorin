@@ -1,7 +1,7 @@
 #include "thorin/pass/rw/ptrn_compiler.h"
 
 #include "thorin/rewrite.h"
-#include "thorin/flatten.h"
+#include "thorin/tuple.h"
 #include "thorin/error.h"
 
 namespace thorin {
@@ -12,7 +12,7 @@ const Def* PtrnCompiler::rewrite(Def*, const Def* def) {
 }
 
 Ptrn* PtrnCompiler::flatten(Ptrn* ptrn) {
-    auto f_ptrn = world().nom_ptrn(world().case_(thorin::flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->debug());
+    auto f_ptrn = world().nom_ptrn(world().case_(thorin::flatten(ptrn->type()->domain()), ptrn->type()->codomain()), ptrn->dbg());
     auto new_ops = thorin::rewrite(ptrn, unflatten(f_ptrn->param(), ptrn->type()->domain()));
     f_ptrn->set(thorin::flatten(new_ops[0]), new_ops[1]);
     parent_[f_ptrn] = parent_[ptrn];
@@ -53,7 +53,7 @@ const Def* PtrnCompiler::introduce(const Def* def, size_t col, const Def* val) {
 
 Ptrn* PtrnCompiler::specialize(Ptrn* ptrn, size_t col, const Def* ctor, const Def* arg_col, const Def* s_arg, bool d_arg_was_empty) {
     // Create a pattern with the specialized signature
-    auto s_ptrn = world().nom_ptrn(world().case_(s_arg->type(), ptrn->body()->type()), ptrn->debug());
+    auto s_ptrn = world().nom_ptrn(world().case_(s_arg->type(), ptrn->body()->type()), ptrn->dbg());
     const Def* param = ptrn->param(), *s_param = s_ptrn->param();
     if (arg_col) {
         // HACK: Handle the case where we have T and we want E::A(T)
@@ -176,7 +176,7 @@ const Def* PtrnCompiler::compile(const Match* match) {
         parent_[ptrn] = ptrn;
         redundant_[ptrn] = true;
     }
-    auto result = compile(match, match->arg(), ptrns, match->debug());
+    auto result = compile(match, match->arg(), ptrns, match->dbg());
     // Report redundant patterns
     if (world().err()) {
         for (auto ptrn : match->ptrns()) {

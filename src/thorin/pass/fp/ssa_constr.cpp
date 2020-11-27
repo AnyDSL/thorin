@@ -1,7 +1,5 @@
 #include "thorin/pass/fp/ssa_constr.h"
 
-#include "thorin/util.h"
-
 namespace thorin {
 
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
@@ -27,7 +25,7 @@ const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
     } else if (auto slot = isa<Tag::Slot>(def)) {
         auto [mem, id] = slot->args<2>();
         auto [_, ptr] = slot->split<2>();
-        auto sloxy = proxy(ptr->type(), {cur_lam, id}, Sloxy, slot->debug());
+        auto sloxy = proxy(ptr->type(), {cur_lam, id}, Sloxy, slot->dbg());
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
             set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
@@ -66,8 +64,8 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
         world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, info.pred, lam);
         return get_val(info.pred, sloxy);
     } else {
-        auto phixy = proxy(get_sloxy_type(sloxy), {sloxy, lam}, Phixy, sloxy->debug());
-        phixy->set_name(std::string("phi_") + phixy->name());
+        auto phixy = proxy(get_sloxy_type(sloxy), {sloxy, lam}, Phixy, sloxy->dbg());
+        phixy->set_name(std::string("phi_") + phixy->debug().name);
         world().DLOG("get_val phixy: '{}' '{}'", sloxy, lam);
         return set_val(lam, sloxy, phixy);
     }
@@ -102,7 +100,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
 
     if (phi_lam == nullptr) {
         auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
-        phi_lam = world().nom_lam(new_type, mem_lam->debug());
+        phi_lam = world().nom_lam(new_type, mem_lam->dbg());
         world().DLOG("new phi_lam '{}'", phi_lam);
         world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
         auto [_, ins] = preds_n_.emplace(phi_lam);

@@ -1,6 +1,5 @@
 #include "thorin/transform/mangle.h"
 
-#include "thorin/util.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
@@ -76,11 +75,11 @@ const Def* Mangler::mangle(const Def* old_def) {
     if (!within(old_def)) return old_def;
 
     auto new_type = mangle(old_def->type());
-    auto new_debug = old_def->debug() ? mangle(old_def->debug()) : nullptr;
+    auto new_dbg  = old_def->dbg() ? mangle(old_def->dbg()) : nullptr;
 
     const Def* new_def = nullptr;
     if (auto old_nom = old_def->isa_nominal()) {
-        new_def = old_nom->stub(world(), new_type, new_debug);
+        new_def = old_nom->stub(world(), new_type, new_dbg );
         old2new_[old_def] = new_def;
     }
 
@@ -101,7 +100,7 @@ const Def* Mangler::mangle(const Def* old_def) {
 
             if (app->callee() == old_entry()) {
                 if (args_.size() == 1 && args_[0] == new_ops[1])
-                    return world().app(new_entry(), thorin::Defs {}, app->debug());
+                    return world().app(new_entry(), thorin::Defs {}, app->dbg ());
 
                 if (auto tuple = new_ops[1]->isa<Tuple>()) {
                     assert(tuple->num_ops() == args_.size());
@@ -119,13 +118,13 @@ const Def* Mangler::mangle(const Def* old_def) {
                         // TODO lifting
                         //const auto& args = concat(new_args.cut(cut), new_entry()->params().get_back(lift_.size()));
                         auto args = tuple->ops().cut(cut);
-                        return world().app(new_entry(), args, app->debug());
+                        return world().app(new_entry(), args, app->dbg ());
                     }
                 }
             }
         }
 
-        new_def = old_def->rebuild(world(), new_type, new_ops, new_debug);
+        new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg );
         old2new_[old_def] = new_def;
     }
 

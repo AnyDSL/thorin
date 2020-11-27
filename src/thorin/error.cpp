@@ -1,7 +1,6 @@
 #include "thorin/error.h"
 
-#include "thorin/def.h"
-
+#include "thorin/lam.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {

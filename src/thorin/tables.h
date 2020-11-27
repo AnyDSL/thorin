@@ -11,28 +11,30 @@ using flags_t  = u32;
 using fields_t = u64;
 using nat_t    = u64;
 
-#define THORIN_NODE(m)                                                                  \
-    m(Universe, universe) m(Kind, kind)                                                 \
-    m(Pi, pi)             m(Lam, lam)           m(App, app)                             \
-    m(Sigma, sigma)       m(Tuple, tuple)       m(Extract, extract) m(Insert, insert)   \
-    m(Arr, arr)           m(Pack, pack)                                                 \
-    m(Union, union_)      m(Which, which)                                               \
-    m(Case, case_)        m(Ptrn, ptrn)                                                 \
-    m(Match, match)                                                                     \
-    m(Bot, bot) m(Top, top)                                                             \
-    m(CPS2DS, cps2ds) m(DS2CPS, ds2cps)                                                 \
-    m(Proxy, proxy)                                                                     \
-    m(Axiom, axiom)                                                                     \
-    m(Lit, lit)                                                                         \
-    m(Nat, nat)                                                                         \
-    m(Param, param)                                                                     \
+#define THORIN_NODE(m)                                                              \
+    m(Space, space)       m(Kind, kind)                                             \
+    m(Pi, pi)             m(Lam, lam)       m(App, app)                             \
+    m(Sigma, sigma)       m(Tuple, tuple)   m(Extract, extract) m(Insert, insert)   \
+    m(Arr, arr)           m(Pack, pack)                                             \
+    m(Union, union_)      m(Which, which)                                           \
+    m(Case, case_)        m(Ptrn, ptrn)                                             \
+    m(Match, match)                                                                 \
+    m(Bot, bot) m(Top, top)                                                         \
+    m(Proxy, proxy)                                                                 \
+    m(Axiom, axiom)                                                                 \
+    m(Lit, lit)                                                                     \
+    m(Nat, nat)                                                                     \
+    m(Param, param)                                                                 \
     m(Global, global)
 
-#define THORIN_TAG(m)                                                                                                 \
-    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)                                                                 \
-    m(Bit, bit) m(Shr, shr) m(Wrap, wrap) m(Div, div) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
-    m(Bitcast, bitcast) m(LEA, lea) m(Sizeof, sizeof)                                                                 \
-    m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)                                                       \
+#define THORIN_TAG(m)                                               \
+    m(Mem, mem) m(Int, int) m(Real, real) m(Ptr, ptr)               \
+    m(Bit, bit) m(Shr, shr) m(Wrap, wrap) m(Div, div) m(ROp, rop)   \
+    m(ICmp, icmp) m(RCmp, rcmp)                                     \
+    m(Trait, trait) m(Conv, conv) m(PE, pe) m(Acc, acc)             \
+    m(Bitcast, bitcast) m(LEA, lea)                                 \
+    m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)     \
+    m(Atomic, atomic)                                               \
     m(Grad, grad) m(TangentVector, tangent_vector)
 
 namespace WMode {
@@ -69,10 +71,14 @@ enum RMode : nat_t {
 #define THORIN_DIV(m) m(Div, sdiv) m(Div, udiv) m(Div, smod) m(Div, umod)
 /// Floating point (real) operations that take @p RMode.
 #define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, mod)
+/// Type traits
+#define THORIN_TRAIT(m) m(Trait, size) m(Trait, align)
 /// Conversions
 #define THORIN_CONV(m) m(Conv, s2s) m(Conv, u2u) m(Conv, s2r) m(Conv, u2r) m(Conv, r2s) m(Conv, r2u) m(Conv, r2r)
 /// Partial Evaluation related operations
 #define THORIN_PE(m) m(PE, hlt) m(PE, known) m(PE, run)
+/// Accelerators
+#define THORIN_ACC(m) m(Acc, vecotrize) m(Acc, parallel) m(Acc, opencl) m(Acc, cuda) m(Acc, nvvm) m (Acc, amdgpu)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -191,8 +197,10 @@ enum class Div    : tag_t { THORIN_DIV  (CODE) };
 enum class ROp    : tag_t { THORIN_R_OP (CODE) };
 enum class ICmp   : tag_t { THORIN_I_CMP(CODE) };
 enum class RCmp   : tag_t { THORIN_R_CMP(CODE) };
+enum class Trait  : tag_t { THORIN_TRAIT(CODE) };
 enum class Conv   : tag_t { THORIN_CONV (CODE) };
 enum class PE     : tag_t { THORIN_PE   (CODE) };
+enum class Acc    : tag_t { THORIN_ACC  (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -204,15 +212,17 @@ constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b));
 constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
 #define CODE(T, o) case T::o: return #T "_" #o;
-constexpr const char* op2str(Bit  o) { switch (o) { THORIN_BIT  (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Shr  o) { switch (o) { THORIN_SHR  (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Wrap o) { switch (o) { THORIN_WRAP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Div  o) { switch (o) { THORIN_DIV  (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ICmp o) { switch (o) { THORIN_I_CMP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Conv o) { switch (o) { THORIN_CONV (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(PE   o) { switch (o) { THORIN_PE   (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Bit   o) { switch (o) { THORIN_BIT  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Shr   o) { switch (o) { THORIN_SHR  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Wrap  o) { switch (o) { THORIN_WRAP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Div   o) { switch (o) { THORIN_DIV  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ROp   o) { switch (o) { THORIN_R_OP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ICmp  o) { switch (o) { THORIN_I_CMP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(RCmp  o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Trait o) { switch (o) { THORIN_TRAIT(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Conv  o) { switch (o) { THORIN_CONV (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(PE    o) { switch (o) { THORIN_PE   (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Acc   o) { switch (o) { THORIN_ACC  (CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 namespace AddrSpace {
@@ -231,27 +241,31 @@ template<class T> constexpr auto Num = size_t(-1);
 #define CODE(T, o) + 1_s
 constexpr auto Num_Nodes = 0_s THORIN_NODE(CODE);
 constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
-template<> constexpr auto Num<Bit > = 0_s THORIN_BIT  (CODE);
-template<> constexpr auto Num<Shr > = 0_s THORIN_SHR  (CODE);
-template<> constexpr auto Num<Wrap> = 0_s THORIN_WRAP (CODE);
-template<> constexpr auto Num<Div > = 0_s THORIN_DIV  (CODE);
-template<> constexpr auto Num<ROp > = 0_s THORIN_R_OP (CODE);
-template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
-template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
-template<> constexpr auto Num<Conv> = 0_s THORIN_CONV (CODE);
-template<> constexpr auto Num<PE  > = 0_s THORIN_PE   (CODE);
+template<> constexpr auto Num<Bit  > = 0_s THORIN_BIT  (CODE);
+template<> constexpr auto Num<Shr  > = 0_s THORIN_SHR  (CODE);
+template<> constexpr auto Num<Wrap > = 0_s THORIN_WRAP (CODE);
+template<> constexpr auto Num<Div  > = 0_s THORIN_DIV  (CODE);
+template<> constexpr auto Num<ROp  > = 0_s THORIN_R_OP (CODE);
+template<> constexpr auto Num<ICmp > = 0_s THORIN_I_CMP(CODE);
+template<> constexpr auto Num<RCmp > = 0_s THORIN_R_CMP(CODE);
+template<> constexpr auto Num<Trait> = 0_s THORIN_TRAIT(CODE);
+template<> constexpr auto Num<Conv > = 0_s THORIN_CONV (CODE);
+template<> constexpr auto Num<PE   > = 0_s THORIN_PE   (CODE);
+template<> constexpr auto Num<Acc  > = 0_s THORIN_ACC  (CODE);
 #undef CODE
 
-template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
-template<> struct Tag2Enum_<Tag::Bit > { using type = Bit;   };
-template<> struct Tag2Enum_<Tag::Shr > { using type = Shr;   };
-template<> struct Tag2Enum_<Tag::Wrap> { using type = Wrap;  };
-template<> struct Tag2Enum_<Tag::Div > { using type = Div;   };
-template<> struct Tag2Enum_<Tag::ROp > { using type = ROp;   };
-template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp;  };
-template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp;  };
-template<> struct Tag2Enum_<Tag::Conv> { using type = Conv;  };
-template<> struct Tag2Enum_<Tag::PE  > { using type = PE;    };
+template<tag_t tag> struct Tag2Enum_    { using type = tag_t; };
+template<> struct Tag2Enum_<Tag::Bit  > { using type = Bit;   };
+template<> struct Tag2Enum_<Tag::Shr  > { using type = Shr;   };
+template<> struct Tag2Enum_<Tag::Wrap > { using type = Wrap;  };
+template<> struct Tag2Enum_<Tag::Div  > { using type = Div;   };
+template<> struct Tag2Enum_<Tag::ROp  > { using type = ROp;   };
+template<> struct Tag2Enum_<Tag::ICmp > { using type = ICmp;  };
+template<> struct Tag2Enum_<Tag::RCmp > { using type = RCmp;  };
+template<> struct Tag2Enum_<Tag::Trait> { using type = Trait; };
+template<> struct Tag2Enum_<Tag::Conv > { using type = Conv;  };
+template<> struct Tag2Enum_<Tag::PE   > { using type = PE;    };
+template<> struct Tag2Enum_<Tag::Acc  > { using type = Acc;   };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }

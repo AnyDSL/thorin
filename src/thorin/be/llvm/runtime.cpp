@@ -57,8 +57,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = lam->body()->as<App>()->callee()->as_nominal<Lam>();
-    assert_unused(target->is_intrinsic());
+    //auto target = lam->body()->as<App>()->callee()->as_nominal<Lam>();
     assert(lam->body()->as<App>()->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
     // arguments
@@ -69,7 +68,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
     auto it_config = lam->body()->as<App>()->arg(LaunchArgs::Config)->as<Tuple>();
     auto kernel = lam->body()->as<App>()->arg(LaunchArgs::Body)->as<Global>()->init()->as<Lam>();
 
-    auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name());
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel->debug().name);
     auto file_name = builder_.CreateGlobalStringPtr(lam->world().name() + ext);
     const size_t num_kernel_args = lam->body()->as<App>()->num_args() - LaunchArgs::Num;
 
@@ -87,7 +86,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
         KernelArgType arg_type;
         llvm::Value*  void_ptr;
         if (target_arg->type()->isa<Arr>() || target_arg->type()->isa<Sigma>()) {
-            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
+            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->debug().name);
             builder_.CreateStore(target_val, alloca);
 
             // check if argument type contains pointers
@@ -102,14 +101,14 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
             if (!rtype->isa<Arr>())
                 world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
-            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name());
+            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->debug().name);
             auto target_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             builder_.CreateStore(target_ptr, alloca);
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
-            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
+            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->debug().name);
             builder_.CreateStore(target_val, alloca);
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());

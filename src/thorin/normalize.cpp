@@ -1,5 +1,4 @@
 #include "thorin/def.h"
-#include "thorin/util.h"
 #include "thorin/world.h"
 
 namespace thorin {
@@ -303,7 +302,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
  */
 
 template<tag_t tag>
-static const Def* merge_cmps(std::array<std::array<uint64_t, 2>, 2> tab, const Def* a, const Def* b, Debug dbg) {
+static const Def* merge_cmps(std::array<std::array<uint64_t, 2>, 2> tab, const Def* a, const Def* b, const Def* dbg) {
     static_assert(sizeof(flags_t) == 4, "if this ever changes, please adjust the logic below");
     static constexpr size_t num_bits = log2(Num<Tag2Enum<tag>>);
     auto a_cmp = isa<tag>(a);
@@ -699,6 +698,26 @@ const Def* normalize_RCmp(const Def* type, const Def* c, const Def* arg, const D
     return world.raw_app(callee, {a, b}, dbg);
 }
 
+template<Trait op>
+const Def* normalize_Trait(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = t->world();
+
+    //if constexpr (op == Trait::sizeof
+    if (auto int_ = isa<Tag::Int>(arg)) {
+        if (int_->arg()->isa<Top>()) return world.lit_nat(8);
+        if (auto w = isa_lit(int_->arg())) return world.lit_nat(log2(*w) / 8_u64, dbg);
+        return int_->arg();
+    }
+
+    if (auto real = isa<Tag::Real>(arg)) {
+        if (auto w = isa_lit(real->arg())) return world.lit_nat(*w / 8, dbg);
+        return real->arg();
+    }
+
+    return world.raw_app(callee, arg, dbg);
+}
+
+
 #define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
                  m( 8,  1) m( 8,  8) m( 8, 16) m( 8, 32) m( 8, 64) \
                  m(16,  1) m(16,  8) m(16, 16) m(16, 32) m(16, 64) \
@@ -769,6 +788,11 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
     return world.raw_app(callee, arg, dbg);
 }
 
+template<Acc op>
+const Def* normalize_Acc(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    return type->world().raw_app(callee, arg, dbg);
+}
+
 const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
 
@@ -795,23 +819,6 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
     //TODO
 
     return world.raw_app(callee, {ptr, index}, dbg);
-}
-
-const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
-    auto& world = t->world();
-
-    if (auto int_ = isa<Tag::Int>(arg)) {
-        if (int_->arg()->isa<Top>()) return world.lit_nat(8);
-        if (auto w = isa_lit(int_->arg())) return world.lit_nat(log2(*w) / 8_u64, dbg);
-        return int_->arg();
-    }
-
-    if (auto real = isa<Tag::Real>(arg)) {
-        if (auto w = isa_lit(real->arg())) return world.lit_nat(*w / 8, dbg);
-        return real->arg();
-    }
-
-    return world.raw_app(callee, arg, dbg);
 }
 
 const Def* normalize_load(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
@@ -901,8 +908,10 @@ THORIN_DIV  (CODE)
 THORIN_R_OP (CODE)
 THORIN_I_CMP(CODE)
 THORIN_R_CMP(CODE)
+THORIN_TRAIT(CODE)
 THORIN_CONV (CODE)
 THORIN_PE   (CODE)
+THORIN_ACC  (CODE)
 #undef CODE
 
 }

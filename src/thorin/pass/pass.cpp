@@ -96,7 +96,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     }
 
     auto new_type = rewrite(cur_nom, old_def->type());
-    auto new_dbg  = old_def->debug() ? rewrite(cur_nom, old_def->debug()) : nullptr;
+    auto new_dbg  = old_def->dbg() ? rewrite(cur_nom, old_def->dbg()) : nullptr;
 
     Array<const Def*> new_ops(old_def->num_ops());
     for (size_t i = 0, e = old_def->num_ops(); i != e; ++i) {

@@ -1,20 +1,26 @@
 set(THORIN_SOURCES
+    axiom.cpp
+    axiom.h
     check.cpp
     check.h
+    debug.cpp
+    debug.h
     def.cpp
     def.h
     error.cpp
     error.h
+    lam.cpp
+    lam.h
     normalize.cpp
     normalize.h
     rewrite.cpp
     rewrite.h
-    flatten.cpp
-    flatten.h
     stream.cpp
+    tuple.cpp
+    tuple.h
+    union.cpp
+    union.h
     tables.h
-    util.cpp
-    util.h
     world.cpp
     world.h
     analyses/cfg.cpp

@@ -1,5 +1,4 @@
 #include "thorin/world.h"
-#include "thorin/util.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/mangle.h"
 
@@ -30,7 +29,7 @@ static const Def* wrapped_type(const Pi* cn, size_t max_tuple_size) {
 }
 
 static Lam* app(Lam* lam, Array<const Def*>& args) {
-    lam->app(args[0], args.skip_front(), args[0]->debug());
+    lam->app(args[0], args.skip_front(), args[0]->dbg());
     return lam;
 }
 
@@ -38,7 +37,7 @@ static Lam* try_inline(Lam* lam, Array<const Def*>& args) {
     if (args[0]->isa_nominal<Lam>()) {
         auto app = lam->world().app(args.front(), lam->world().tuple(args.skip_front()))->as<App>();
         auto dropped = drop(app);
-        lam->app(dropped->body()->as<App>()->callee(), dropped->body()->as<App>()->args(), args[0]->debug());
+        lam->app(dropped->body()->as<App>()->callee(), dropped->body()->as<App>()->args(), args[0]->dbg());
     } else {
         app(lam, args);
     }
@@ -78,7 +77,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<Pi>();
-    auto new_lam = world.nom_lam(new_type, old_def->debug());
+    auto new_lam = world.nom_lam(new_type, old_def->dbg());
     Array<const Def*> call_args(old_type->num_domains() + 1);
 
     wrapped.emplace(old_def, new_lam);
@@ -131,7 +130,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<Pi>();
-    auto old_lam = world.nom_lam(old_type, new_def->debug());
+    auto old_lam = world.nom_lam(old_type, new_def->dbg());
     Array<const Def*> call_args(new_type->num_domains() + 1);
 
     unwrapped.emplace(new_def, old_lam);
@@ -141,7 +140,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
         if (auto sigma = param->type()->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
-                    call_args[j++] = world.extract(param, k);
+                    call_args[j++] = world.extract(param, e, k);
             } else
                 call_args[j++] = param;
         } else if (auto cn = param->type()->isa<Pi>()) {
@@ -173,12 +172,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         for (auto pair : unwrapped) unwrapped_codom.emplace(pair.second);
 
         for (auto lam : world.copy_lams()) {
-            // do not change the signature of intrinsic/external functions
-            if (!lam->is_set() ||
-                lam->is_intrinsic() ||
-                lam->is_external())
-                //|| is_passed_to_accelerator(lam))
-                continue;
+            if (ignore(lam)) continue;
 
             auto new_type = wrapped_type(lam->type(), max_tuple_size)->as<Pi>();
             if (new_type == lam->type()) continue;

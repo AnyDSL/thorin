@@ -57,8 +57,7 @@ public:
 
     /// @name create Proxy
     //@{
-    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, Debug dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
-    const Proxy* proxy(const Def* type, Defs ops, Debug dbg = {}) { return proxy(type, ops, 0, dbg); }
+    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, const Def* dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
     /// @name check whether given @c def is a Proxy whose index matches this Pass's index
     const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
         if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;
@@ -279,7 +278,6 @@ private:
 };
 
 inline World& RWPass::world() { return man().world(); }
-inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || lam->is_intrinsic() || !lam->is_set(); }
 inline const App* is_callee(const Def* def, size_t i) { return i == 0 ? def->isa<App>() : nullptr; }
 
 }

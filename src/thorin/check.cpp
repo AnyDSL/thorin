@@ -5,8 +5,8 @@
 namespace thorin {
 
 bool Checker::equiv(const Def* d1, const Def* d2) {
-    if (d1 == d2 || (!d1->is_set() && !d2->is_set()) || (d1->isa<Universe>() && d2->isa<Universe>())) return true;
-    if (d1->sort() != d2->sort()) return false;
+    if (d1 == d2 || (!d1->is_set() && !d2->is_set()) || (d1->isa<Space>() && d2->isa<Space>())) return true;
+    if (d1->level() != d2->level()) return false;
 
     // normalize: always put smaller gid to the left
     if (d1->gid() > d2->gid()) std::swap(d1, d2);
@@ -53,6 +53,8 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
 }
 
 bool Checker::assignable(const Def* type, const Def* val) {
+    if (type == val->type()) return true;
+
     if (auto sigma = type->isa<Sigma>()) {
         if (!equiv(type->arity(), val->type()->arity())) return false;
 

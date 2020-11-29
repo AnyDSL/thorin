@@ -147,8 +147,10 @@ public:
     //@}
     /// @name split arg
     //@{
-    template<size_t N = size_t(-1), class F> auto args(F f) const { return arg()->split<N, F>(f); }
-    template<size_t N = size_t(-1)> auto args() const { return arg()->split<N>(); }
+    template<size_t A, class F> auto args(          F f) const { return arg()->split<A, F>(   f); }
+    template<          class F> auto args(size_t a, F f) const { return arg()->split<   F>(a, f); }
+    template<size_t A> auto args(        ) const { return arg()->split<A>( ); }
+                       auto args(size_t a) const { return arg()->split   (a); }
     //@}
     /// @name get axiom and current currying depth
     //@{

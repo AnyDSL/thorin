@@ -182,17 +182,8 @@ Sort Def::sort() const {
     }
 }
 
-const Def* Def::tuple_arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
-    if (auto arr    = isa<Arr  >()) return arr->shape();
-    if (sort() == Sort::Term)       return type()->tuple_arity();
-    assert(sort() == Sort::Type);
-    return world().lit_nat(1);
-}
-
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
-    if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->shape();
     if (sort() == Sort::Term)       return type()->arity();
     return world().lit_nat(1);
@@ -223,8 +214,8 @@ void Def::set_name(const std::string& n) const {
 
     if (dbg_ == nullptr) {
         auto file = w.tuple_str("");
-        auto begin = w.lit_nat(nat_t(-1));
-        auto finis = w.lit_nat(nat_t(-1));
+        auto begin = w.lit_nat_max();
+        auto finis = w.lit_nat_max();
         auto meta = w.bot(w.bot_kind());
         dbg_ = w.tuple({name, w.tuple({file, begin, finis}), meta});
     } else {

@@ -10,7 +10,7 @@ void RetWrap::enter(Def* cur_nom) {
             ret_cont->app(ret_param, ret_cont->param(), ret_param->dbg());
 
             // rebuild a new "param" that substitutes the actual ret_param with ret_cont
-            auto new_params = cur_lam->param()->split();
+            auto new_params = cur_lam->param()->split(cur_lam->num_params());
             assert(new_params.back() == ret_param && "we assume that the last element is the ret_param");
             new_params.back() = ret_cont;
             auto new_param = world().tuple(cur_lam->domain(), new_params);

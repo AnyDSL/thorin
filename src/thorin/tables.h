@@ -35,6 +35,7 @@ using nat_t    = u64;
     m(Bitcast, bitcast) m(LEA, lea)                                 \
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)     \
     m(Atomic, atomic)                                               \
+    m(Lift, lift)                                                   \
     m(Grad, grad) m(TangentVector, tangent_vector)
 
 namespace WMode {

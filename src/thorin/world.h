@@ -26,24 +26,18 @@ class Scope;
 inline const Def* infer_size(const Def* def) { return isa_sized_type(def->type()); }
 
 /**
- * The World represents the whole program and manages creation of Thorin nodes (Def%s).
- * In particular, the following things are done by this class:
+ * The World represents the whole program and manages creation of Thorin nodes (@p Def%s).
+ * There exists only one unique @p Def.
+ * These @p Def%s are hashed into an internal @p HashSet (@p Sea/@p defs_).
+ * The getters just calculate a hash and lookup the @p Def, if it is already present, or create a new one otherwise.
+ * This corresponds to value numbering.
  *
- *  - @p Def unification: \n
- *      There exists only one unique @p Def.
- *      These @p Def%s are hashed into an internal map for fast access.
- *      The getters just calculate a hash and lookup the @p Def, if it is already present, or create a new one otherwise.
- *      This is corresponds to value numbering.
- *  - constant folding
- *  - canonicalization of expressions
- *  - several local optimizations like <code>x + 0 -> x</code>
+ * Use @p cleanup to remove dead and unreachable code.
  *
- *  Use @p cleanup to remove dead and unreachable code.
+ * You can create several worlds.
+ * All worlds are completely independent from each other.
  *
- *  You can create several worlds.
- *  All worlds are completely independent from each other.
- *
- *  Note that types are also just @p Def%s and will be hashed as well.
+ * Note that types are also just @p Def%s and will be hashed as well.
  */
 class World : public Streamable<World> {
 public:
@@ -112,7 +106,8 @@ public:
     //@{
     const Pi* pi(const Def* domain, const Def* codomain, const Def* dbg = {});
     const Pi* pi(Defs domain, const Def* codomain, const Def* dbg = {}) { return pi(sigma(domain), codomain, dbg); }
-    Pi* nom_pi(const Def* type, const Def* dbg = {}) { return insert<Pi>(2, type, dbg); } ///< @em nominal Pi.
+    Pi* nom_pi(const Def* type, const Def* domain, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_domain(domain); }
+    Pi* nom_pi(const Def* type, Defs domains, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_domain(domains); }
     //@}
     /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
     //@{
@@ -221,6 +216,9 @@ public:
     /// @name Lit: Nat
     //@{
     const Lit* lit_nat(nat_t a, const Def* dbg = {}) { return lit(type_nat(), a, dbg); }
+    const Lit* lit_nat_0  () { return data_.lit_nat_0_;   }
+    const Lit* lit_nat_1  () { return data_.lit_nat_1_;   }
+    const Lit* lit_nat_max() { return data_.lit_nat_max_; }
     //@}
     /// @name Lit: Int
     //@{
@@ -332,7 +330,7 @@ public:
     const Def* op(Trait o) { return data_.Trait_[size_t(o)]; }
     const Def* op(Trait o, const Def* type, const Def* dbg = {}) { return app(op(o), type, dbg); }
     //@}
-    /// @name Casts
+    /// @name Conv
     //@{
     const Axiom* op(Conv o) { return data_.Conv_[size_t(o)]; }
     const Def* op(Conv o, const Def* dst_type, const Def* src, const Def* dbg = {}) {
@@ -364,17 +362,20 @@ public:
     const Def* op_alloc() { return data_.op_alloc_; }
     const Def* op_load (const Def* mem, const Def* ptr, const Def* dbg = {})                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
-    const Def* op_alloc(const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
-    const Def* op_slot (const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(op_slot(), {type, lit_nat(0)}), {mem, lit_nat(cur_gid())}, dbg); }
+    const Def* op_alloc(const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(op_alloc(), {type, lit_nat_0()}), mem, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(op_slot(), {type, lit_nat_0()}), {mem, lit_nat(cur_gid())}, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, const Def* dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, const Def* dbg = {}) { return global(lit_nat(state_.cur_gid), init, is_mutable, dbg); }
     const Def* global_immutable_string(const std::string& str, const Def* dbg = {});
     //@}
-    /// @name make atomic operations
+    /// @name higher-order functions
     //@{
     const Def* op_atomic() { return data_.op_atomic_; }
     const Def* op_atomic(const Def* fn, const Def* dbg = {}) { return app(op_atomic(), fn, dbg); }
     const Def* op_atomic(const Def* fn, Defs args, const Def* dbg = {}) { return app(op_atomic(fn), args, dbg); }
+    const Def* op_lift() { return data_.op_lift_; }
+    const Def* op_lift(const Def* fn, const Def* dbg = {}) { return app(op_lift(), fn, dbg); }
+    const Def* op_lift(const Def* fn, Defs args, const Def* dbg = {}) { return app(op_lift(fn), args, dbg); }
     //@}
     /// @name Proxy - used internally for Pass%es
     //@{
@@ -391,12 +392,15 @@ public:
         return op_lea(ptr, op(Conv::u2u, safe_int, i), dbg);
     }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, const Def* dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
-    const Def* dbg(Debug);
     //@}
     /// @name AD
     //@{
     const Def* op_grad(const Def* fn, const Def* dbg = {});
     const Def* type_tangent_vector(const Def* primal_type, const Def* dbg = {});
+    //@}
+    /// @name helpers
+    //@{
+    const Def* dbg(Debug);
     //@}
     /// @name partial evaluation done?
     //@{
@@ -627,8 +631,12 @@ private:
         std::array<const Axiom*, Num<Conv >> Conv_;
         std::array<const Axiom*, Num<PE   >> PE_;
         std::array<const Axiom*, Num<Acc  >> Acc_;
+        const Lit* lit_nat_0_;
+        const Lit* lit_nat_1_;
+        const Lit* lit_nat_max_;
         const Axiom* op_alloc_;
         const Axiom* op_atomic_;
+        const Axiom* op_lift_;
         const Axiom* op_bitcast_;
         const Axiom* op_grad_;
         const Axiom* op_lea_;

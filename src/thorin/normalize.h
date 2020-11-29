@@ -11,6 +11,7 @@ const Def* normalize_lea    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_load   (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_store  (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_tangent(const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_lift   (const Def*, const Def*, const Def*, const Def*);
 
 template<Bit  > const Def* normalize_Bit  (const Def*, const Def*, const Def*, const Def*);
 template<Shr  > const Def* normalize_Shr  (const Def*, const Def*, const Def*, const Def*);

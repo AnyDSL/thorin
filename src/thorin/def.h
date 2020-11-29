@@ -127,7 +127,6 @@ public:
     Sort sort() const;
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
-    const Def* tuple_arity() const;
     //@}
     /// @name ops
     //@{
@@ -162,27 +161,27 @@ public:
     //@}
     /// @name split def via extracts
     //@{
-    /// Splits this @p Def into an array by using @p arity many @p Extract%s.
+    /// Splits this @p Def into an array.
     /// Applies @p f to each extracted element.
-    template<size_t N = size_t(-1), class F>
+    template<size_t A, class F>
     auto split(F f) const {
         using R = decltype(f(this));
 
-        if constexpr (N == size_t(-1)) {
-            auto a = isa_lit(tuple_arity());
-            auto lit = a ? *a : 1;
-            return Array<R>(lit, [&](size_t i) { return f(proj(this, lit, i)); });
-        } else {
-            auto a = as_lit(tuple_arity());
-            assert(a == N);
-            std::array<R, N> array;
-            for (size_t i = 0; i != N; ++i)
-                array[i] = f(proj(this, a, i));
-            return array;
-        }
+        auto a = as_lit(arity());
+        assert(a == A);
+        std::array<R, A> array;
+        for (size_t i = 0; i != A; ++i)
+            array[i] = f(proj(this, a, i));
+        return array;
     }
-    /// Splits this @p Def into an array by using @p arity many @p Extract%s.
-    template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
+    template<class F>
+    auto split(size_t a, F f) const {
+        using R = decltype(f(this));
+        return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
+    }
+    /// Splits this @p Def into an array.
+    template<size_t A> auto split(        ) const { return split<A>(   [](const Def* def) { return def; }); }
+                       auto split(size_t a) const { return split   (a, [](const Def* def) { return def; }); }
     const Def* out(size_t i, const Def* dbg = {}) const { return proj(this, num_outs(), i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
     size_t num_outs() const {

@@ -7,6 +7,10 @@ namespace thorin {
 
 template<class... Args> void err(const char* fmt, Args&&... args) { errf(fmt, std::forward<Args&&>(args)...); std::abort(); }
 
+void ErrorHandler::expected_shape(const Def* def) {
+    err("exptected shape but got '{}' of type '{}'", def, def->type());
+}
+
 void ErrorHandler::index_out_of_range(const Def* arity, const Def* index) {
     err("index '{}' does not fit within arity '{}'", index, arity);
 }

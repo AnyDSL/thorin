@@ -32,7 +32,7 @@
 - [x] redesign standard operations to work similar to LLVM
 - [ ] remove `Lamm::Intrinsics` in favor of axioms (wip)
 - [ ] rewrite normalizations (wip)
-- [ ] make operations polymorphic in rank and dimensions
+- [x] add function to apply operations polymorphic in rank and dimensions
 
 ## Optimizations
 
@@ -50,7 +50,7 @@
     - [ ] tail rec elim (maybe can be merged with copy prop)
     - [ ] closure elim  (wip)
     - [ ] closure conv  (wip)
-    - [ ] compile ptrn  (wip)
+x   - [ ] compile ptrn  (wip)
     - [x] ret\_wrap
     - [ ] reg2mem (for aggregates)
     - [ ] acc prepare (phase that prepares special `vectorize`/`cuda` and friends for code generation)

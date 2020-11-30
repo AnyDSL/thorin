@@ -104,7 +104,7 @@ World::World(const std::string& name)
         // TODO this is more a proof of concept
         auto type = nom_pi(kind(), nat);
         auto n = type->param(0, dbg("n"));
-        type->set_codomain(fn_mem(type_int(n), sigma()));
+        type->set_codomain(cn_mem_ret(type_int(n), sigma()));
         THORIN_ACC(CODE)
     }
 #undef CODE
@@ -136,7 +136,7 @@ World::World(const std::string& name)
         auto D = type->param(0, dbg("D"));
         auto S = type->param(1, dbg("S"));
         type->set_codomain(pi(S, D));
-        data_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, dbg("bitcast"));
+        data_.bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, dbg("bitcast"));
     } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
         auto domain = nom_sigma(space(), 3);
         domain->set(0, nat);
@@ -151,35 +151,35 @@ World::World(const std::string& name)
         auto pi2 = nom_pi(kind(), {type_ptr(in, as), type_int(n)});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, dbg("i"))), as));
         pi1->set_codomain(pi2);
-        data_.op_lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, dbg("lea"));
-    } { // load:  Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
+        data_.lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, dbg("lea"));
+    } { // load: Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr}, sigma({mem, T})));
-        data_.op_load_ = axiom(normalize_load, type, Tag::Load, 0, dbg("load"));
+        data_.load_ = axiom(normalize_load, type, Tag::Load, 0, dbg("load"));
     } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr, T}, mem));
-        data_.op_store_ = axiom(normalize_store, type, Tag::Store, 0, dbg("store"));
+        data_.store_ = axiom(normalize_store, type, Tag::Store, 0, dbg("store"));
     } { // alloc: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
-        data_.op_alloc_ = axiom(nullptr, type, Tag::Alloc, 0, dbg("alloc"));
+        data_.alloc_ = axiom(nullptr, type, Tag::Alloc, 0, dbg("alloc"));
     } { // slot: Π[T: *, as: nat]. Π[M, nat]. [M, ptr(T, as)]
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, nat}, sigma({mem, ptr})));
-        data_.op_slot_ = axiom(nullptr, type, Tag::Slot, 0, dbg("slot"));
+        data_.slot_ = axiom(nullptr, type, Tag::Slot, 0, dbg("slot"));
     } { // type_tangent_vector: Π*. *
         data_.type_tangent_vector_ = axiom(normalize_tangent, pi(kind(), kind()), Tag::TangentVector, 0, dbg("tangent"));
     } { // grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
@@ -188,13 +188,13 @@ World::World(const std::string& name)
         auto R = type->param(1, dbg("R"));
         auto tangent_T = type_tangent_vector(T);
         type->set_codomain(pi(pi(T, R), pi(T, tangent_T)));
-        data_.op_grad_ = axiom(nullptr, type, Tag::Grad, 0, dbg("∇"));
+        data_.grad_ = axiom(nullptr, type, Tag::Grad, 0, dbg("∇"));
     } { // atomic: Π[T: *, R: *]. ΠT. R
         auto type = nom_pi(kind(), {kind(), kind()});
         auto T = type->param(0, dbg("T"));
         auto R = type->param(1, dbg("R"));
         type->set_codomain(pi(T, R));
-        data_.op_atomic_ = axiom(nullptr, type, Tag::Atomic, 0, dbg("atomic"));
+        data_.atomic_ = axiom(nullptr, type, Tag::Atomic, 0, dbg("atomic"));
     } { // lift:, Π[r: nat, s: «r; nat»]. Π[in: nat, Is: «in; *», on: nat, Os: «on; *», f: Π«i: in; Is#i». «o: on; Os#i»]. Π«i: in; «s; Is#i»». «o: on; «s; Os#i»»
         // Π[r: nat, s: «r; nat»]
         auto rs = nom_sigma(kind(), 2);
@@ -209,23 +209,23 @@ World::World(const std::string& name)
         is_os->set(1, arr(is_os->param(0, dbg("in")), kind()));
         is_os->set(2, nat);
         is_os->set(3, arr(is_os->param(2, dbg("on")), kind()));
-        auto fi = nom_arr(is_os->param(0_s));
-        auto fo = nom_arr(is_os->param(2_s));
+        auto fi = nom_arr(is_os->param(0_u64));
+        auto fo = nom_arr(is_os->param(2_u64));
         fi->set(extract(is_os->param(1, dbg("Is")), fi->param()));
         fo->set(extract(is_os->param(3, dbg("Os")), fo->param()));
         is_os->set(4, pi(fi, fo));
         auto is_os_pi = nom_pi(kind(), is_os);
 
         // Π«i: in; «s; Is#i»». «o: on; «s; Os#i»»
-        auto gi = nom_arr(is_os_pi->param(0_s, dbg("in")));
-        auto go = nom_arr(is_os_pi->param(2_s, dbg("on")));
+        auto gi = nom_arr(is_os_pi->param(0_u64, dbg("in")));
+        auto go = nom_arr(is_os_pi->param(2_u64, dbg("on")));
         gi->set(arr(s, extract(is_os_pi->param(1, dbg("Is")), gi->param())));
         go->set(arr(s, extract(is_os_pi->param(3, dbg("Os")), go->param())));
 
         is_os_pi->set_codomain(pi(gi, go));
         rs_pi->set_codomain(is_os_pi);
 
-        data_.op_lift_ = axiom(normalize_lift, rs_pi, Tag::Lift, 0, dbg("lift"));
+        data_.lift_ = axiom(normalize_lift, rs_pi, Tag::Lift, 0, dbg("lift"));
     }
 }
 
@@ -596,7 +596,7 @@ static const Def* tuple_of_types(const Def* t) {
 const Def* World::op_lea(const Def* ptr, const Def* index, const Def* dbg) {
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
     auto Ts = tuple_of_types(pointee);
-    return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, dbg);
+    return app(app(ax_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, dbg);
 }
 
 /*

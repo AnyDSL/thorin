@@ -348,8 +348,8 @@ const Def* normalize_Bit(const Def* type, const Def* c, const Def* arg, const De
         case Bit::    t: return world.lit_int(*w, *w-1_u64);
         case Bit::    a: return a;
         case Bit::    b: return b;
-        case Bit::   na: return world.op_neg(a, dbg);
-        case Bit::   nb: return world.op_neg(b, dbg);
+        case Bit::   na: return world.op_negate(a, dbg);
+        case Bit::   nb: return world.op_negate(b, dbg);
         case Bit:: ciff: return world.op(Bit:: iff, b, a, dbg);
         case Bit::nciff: return world.op(Bit::niff, b, a, dbg);
         default:         break;
@@ -373,7 +373,7 @@ const Def* normalize_Bit(const Def* type, const Def* c, const Def* arg, const De
         if (!x && !y) return world.lit_int(*w, 0);
         if ( x &&  y) return world.lit_int(*w, *w-1_u64);
         if (!x &&  y) return a;
-        if ( x && !y && op != Bit::_xor) return world.op_neg(a, dbg);
+        if ( x && !y && op != Bit::_xor) return world.op_negate(a, dbg);
         return nullptr;
     };
 
@@ -920,7 +920,7 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
                     if (*lr == 1)
                         return w.app(f, inner_args);
                     else
-                        return w.app(w.app(w.app(w.op_lift(), {w.lit_nat(*lr - 1), w.tuple(shapes.skip_front())}), is_os), inner_args);
+                        return w.app(w.app(w.app(w.ax_lift(), {w.lit_nat(*lr - 1), w.tuple(shapes.skip_front())}), is_os), inner_args);
                 });
                 return w.tuple(elems);
             }

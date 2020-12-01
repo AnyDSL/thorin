@@ -18,8 +18,8 @@ set(THORIN_SOURCES
     stream.cpp
     tuple.cpp
     tuple.h
-    union.cpp
-    union.h
+    set.cpp
+    set.h
     tables.h
     world.cpp
     world.h
@@ -57,8 +57,6 @@ set(THORIN_SOURCES
     pass/rw/grad_gen.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
-    pass/rw/ptrn_compiler.h
-    pass/rw/ptrn_compiler.cpp
     pass/rw/ret_wrap.cpp
     pass/rw/ret_wrap.h
     transform/cleanup_world.cpp

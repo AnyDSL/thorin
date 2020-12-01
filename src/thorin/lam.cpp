@@ -31,10 +31,6 @@ void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, co
     return app(world().extract(world().tuple({f, t}), cond, dbg), mem, dbg);
 }
 
-void Lam::match(const Def* val, Defs cases, const Def* mem, const Def* dbg) {
-    return app(world().match(val, cases, dbg), mem, dbg);
-}
-
 /*
  * Pi
  */

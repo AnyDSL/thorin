@@ -365,44 +365,6 @@ const Def* World::which(const Def* value, const Def* dbg) {
     return unify<Which>(1, type_int(value->type()->arity()), value, dbg);
 }
 
-const Def* World::match(const Def* arg, Defs ptrns, const Def* dbg) {
-#if THORIN_ENABLE_CHECKS
-    assertf(ptrns.size() > 0, "match must take at least one pattern");
-#endif
-    const Def* type = ptrns[0]->type()->as<thorin::Case>()->codomain();
-#if THORIN_ENABLE_CHECKS
-    for (auto ptrn_ : ptrns) {
-        assertf(ptrn_->type()->isa<thorin::Case>(), "match patterns must have 'Case' type");
-        assertf(ptrn_->type()->as<thorin::Case>()->codomain() == type,
-            "match cases codomains are not consistent with each other, got {} and {}",
-            ptrn_->type()->as<thorin::Case>()->codomain(), type);
-    }
-#endif
-    Array<const Def*> ops(ptrns.size() + 1);
-    ops[0] = arg;
-    std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
-    // We need to build a match to have something to give to the error handler
-    auto match = unify<Match>(ptrns.size() + 1, type, ops, dbg);
-
-    bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
-    if (trivial)
-        return ptrns[0]->as<Ptrn>()->apply(arg).back();
-    if (ptrns.size() == 1 && !trivial) {
-        if (err()) err()->incomplete_match(match);
-        return bot(type);
-    }
-    // Constant folding
-    if (arg->is_const()) {
-        for (auto ptrn : ptrns) {
-            // If the pattern matches the argument
-            if (ptrn->as<Ptrn>()->matches(arg))
-                return ptrn->as<Ptrn>()->apply(arg).back();
-        }
-        return bot(type);
-    }
-    return match;
-}
-
 const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index, const Def* dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
         Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });

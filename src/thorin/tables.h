@@ -17,8 +17,6 @@ using nat_t    = u64;
     m(Sigma, sigma)       m(Tuple, tuple)   m(Extract, extract) m(Insert, insert)   \
     m(Arr, arr)           m(Pack, pack)                                             \
     m(Union, union_)      m(Which, which)                                           \
-    m(Case, case_)        m(Ptrn, ptrn)                                             \
-    m(Match, match)                                                                 \
     m(Bot, bot) m(Top, top)                                                         \
     m(Proxy, proxy)                                                                 \
     m(Axiom, axiom)                                                                 \

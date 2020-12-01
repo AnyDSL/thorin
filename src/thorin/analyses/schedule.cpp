@@ -157,8 +157,6 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
     if (false) {
         // Place allocas early for LLVM
         result = early;
-    } else if (def->isa<Match>()) {
-        result = late;
     } else {
         result = late;
         int depth = looptree_[late]->depth();

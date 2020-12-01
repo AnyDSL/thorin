@@ -8,8 +8,8 @@
 #include <string>
 
 #include "thorin/axiom.h"
+#include "thorin/set.h"
 #include "thorin/tuple.h"
-#include "thorin/union.h"
 #include "thorin/util/hash.h"
 #include "thorin/config.h"
 
@@ -206,7 +206,7 @@ public:
     }
     //@}
 
-    /// @name Union, Which, Match, Case, Ptrn
+    /// @name Union, Which
     //@{
     Union* nom_union(const Def* type, size_t size, const Def* dbg = {}) { return insert<Union>(size, type, size, dbg); }
     Union* nom_union(size_t size, const Def* dbg = {}) { return nom_union(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
@@ -214,9 +214,6 @@ public:
     /// a @em structural @p Union of type @p kind
     const Def* union_(Defs ops, const Def* dbg = {}) { return union_(kind(), ops, dbg); }
     const Def* which(const Def* value, const Def* dbg = {});
-    const Def* match(const Def* val, Defs ptrns, const Def* dbg = {});
-    const Case* case_(const Def* domain, const Def* codomain, const Def* dbg = {}) { return unify<Case>(2, kind(), domain, codomain, dbg); }
-    Ptrn* nom_ptrn(const Case* type, const Def* dbg = {}) { return insert<Ptrn>(2, type, dbg); }
     //@}
 
     /// @name Lit

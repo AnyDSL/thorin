@@ -348,8 +348,8 @@ const Def* normalize_Bit(const Def* type, const Def* c, const Def* arg, const De
         case Bit::    t: return world.lit_int(*w, *w-1_u64);
         case Bit::    a: return a;
         case Bit::    b: return b;
-        case Bit::   na: return world.op_neg(a, dbg);
-        case Bit::   nb: return world.op_neg(b, dbg);
+        case Bit::   na: return world.op_negate(a, dbg);
+        case Bit::   nb: return world.op_negate(b, dbg);
         case Bit:: ciff: return world.op(Bit:: iff, b, a, dbg);
         case Bit::nciff: return world.op(Bit::niff, b, a, dbg);
         default:         break;
@@ -373,7 +373,7 @@ const Def* normalize_Bit(const Def* type, const Def* c, const Def* arg, const De
         if (!x && !y) return world.lit_int(*w, 0);
         if ( x &&  y) return world.lit_int(*w, *w-1_u64);
         if (!x &&  y) return a;
-        if ( x && !y && op != Bit::_xor) return world.op_neg(a, dbg);
+        if ( x && !y && op != Bit::_xor) return world.op_negate(a, dbg);
         return nullptr;
     };
 
@@ -887,13 +887,47 @@ static const Def* tangent_vector_type(const Def* primal_type) {
     return nullptr;
 }
 
-const Def* normalize_tangent(const Def*, const Def* callee, const Def* arg, const Def*) {
+const Def* normalize_tangent(const Def*, const Def* callee, const Def* arg, const Def* dbg) {
     if (auto tangent_vector = tangent_vector_type(arg)) {
         return tangent_vector;
     }
 
     // Needs more inlining.
-    return arg->world().raw_app(callee, arg);
+    return arg->world().raw_app(callee, arg, dbg);
+}
+
+const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
+    auto& w = type->world();
+    auto callee = c->as<App>();
+    auto is_os = callee->arg();
+    auto [in, Is, on, Os, f] = is_os->split<5>();
+    auto [r, s] = callee->decurry()->args<2>();
+    auto lr = isa_lit(r);
+    auto ls = isa_lit(s);
+
+    if (lr && ls && *lr == 1 && *ls == 1) return w.app(f, arg, dbg);
+
+    if (auto l_in = isa_lit(in)) {
+        auto args = arg->split(*l_in);
+
+        if (lr && std::all_of(args.begin(), args.end(), [&](const Def* arg) { return is_tuple_or_pack(arg); })) {
+            auto shapes = s->split(*lr);
+            auto s_n = isa_lit(shapes.front());
+
+            if (s_n) {
+                Array<const Def*> elems(*s_n, [&](size_t s_i) {
+                    Array<const Def*> inner_args(args.size(), [&](size_t i) { return proj(args[i], *s_n, s_i); });
+                    if (*lr == 1)
+                        return w.app(f, inner_args);
+                    else
+                        return w.app(w.app(w.app(w.ax_lift(), {w.lit_nat(*lr - 1), w.tuple(shapes.skip_front())}), is_os), inner_args);
+                });
+                return w.tuple(elems);
+            }
+        }
+    }
+
+    return w.raw_app(callee, arg, dbg);
 }
 
 /*

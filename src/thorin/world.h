@@ -493,6 +493,7 @@ private:
         }
 
         arena_.deallocate<T>(def);
+        --state_.cur_gid;
         return static_cast<const T*>(*i);
     }
 

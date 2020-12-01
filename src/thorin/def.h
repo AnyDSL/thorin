@@ -226,6 +226,8 @@ public:
     //@}
     /// @name retrieve @p Param for @em nominals.
     //@{
+    /// Only returns a @p Param for this @em nominal if it has ever been created.
+    const Param* has_param() { return param_ ? param() : nullptr; }
     const Param* param(const Def* dbg);
     const Def* param(size_t i, const Def* dbg) { return proj((const Def*) param(), num_params(), i, dbg); }
     const Param* param();       ///< Wrapper instead of default argument for easy access in @c gdb.
@@ -289,8 +291,9 @@ protected:
     fields_t fields_;
     node_t node_;
     unsigned nominal_ :  1;
+    unsigned param_   :  1;
     unsigned const_   :  1;
-    unsigned order_   : 14;
+    unsigned order_   : 13;
     u32 gid_;
     u32 num_ops_;
     hash_t hash_;

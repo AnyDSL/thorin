@@ -18,6 +18,7 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
     : fields_(fields)
     , node_(unsigned(node))
     , nominal_(false)
+    , param_(false)
     , const_(true)
     , order_(0)
     , num_ops_(ops.size())
@@ -43,6 +44,7 @@ Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const De
     : fields_(fields)
     , node_(node)
     , nominal_(true)
+    , param_(false)
     , const_(false)
     , order_(0)
     , num_ops_(num_ops)
@@ -244,6 +246,7 @@ void Def::finalize() {
     if (dbg()) const_ &= dbg()->is_const();
     if (isa<Pi>()) ++order_;
     if (isa<Axiom>()) const_ = true;
+    if (auto param = isa<Param>()) param->nominal()->param_ = true;
 }
 
 Def* Def::set(size_t i, const Def* def) {

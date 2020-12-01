@@ -183,7 +183,8 @@ Sort Def::sort() const {
 }
 
 const Def* Def::arity() const {
-    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma->num_ops());
+    if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma ->num_ops());
+    if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->shape();
     if (sort() == Sort::Term)       return type()->arity();
     return world().lit_nat(1);

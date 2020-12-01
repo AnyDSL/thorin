@@ -362,7 +362,7 @@ const Def* World::union_(const Def* type, Defs ops, const Def* dbg) {
 const Def* World::which(const Def* value, const Def* dbg) {
     if (auto insert = value->isa<Insert>())
         return insert->index();
-    return unify<Which>(1, value->type()->arity(), value, dbg);
+    return unify<Which>(1, type_int(value->type()->arity()), value, dbg);
 }
 
 const Def* World::match(const Def* arg, Defs ptrns, const Def* dbg) {

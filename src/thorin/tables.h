@@ -11,18 +11,18 @@ using flags_t  = u32;
 using fields_t = u64;
 using nat_t    = u64;
 
-#define THORIN_NODE(m)                                                              \
-    m(Space, space)       m(Kind, kind)                                             \
-    m(Pi, pi)             m(Lam, lam)       m(App, app)                             \
-    m(Sigma, sigma)       m(Tuple, tuple)   m(Extract, extract) m(Insert, insert)   \
-    m(Arr, arr)           m(Pack, pack)                                             \
-    m(Union, union_)      m(Which, which)                                           \
-    m(Bot, bot) m(Top, top)                                                         \
-    m(Proxy, proxy)                                                                 \
-    m(Axiom, axiom)                                                                 \
-    m(Lit, lit)                                                                     \
-    m(Nat, nat)                                                                     \
-    m(Param, param)                                                                 \
+#define THORIN_NODE(m)                                                        \
+    m(Space, space)     m(Kind, kind)                                         \
+    m(Pi, pi)           m(Lam, lam)     m(App, app)                           \
+    m(Sigma, sigma)     m(Tuple, tuple) m(Extract, extract) m(Insert, insert) \
+    m(Arr, arr)         m(Pack, pack)                                         \
+    m(Join, join)       m(Vel, vel)     m(Pick, pick)       m(Bot, bot)       \
+    m(Meet, meet)       m(Et,  et )     m(Test, test)       m(Top, top)       \
+    m(Proxy, proxy)                                                           \
+    m(Axiom, axiom)                                                           \
+    m(Lit, lit)                                                               \
+    m(Nat, nat)                                                               \
+    m(Param, param)                                                           \
     m(Global, global)
 
 #define THORIN_TAG(m)                                               \

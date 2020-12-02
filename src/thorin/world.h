@@ -88,8 +88,8 @@ public:
 
     /// @name Space, Kind, Param, Proxy
     //@{
-    const Space* space() { return data_.space_;   }
-    const Kind* kind() { return data_.kind_; }
+    const Space* space() const { return data_.space_;   }
+    const Kind* kind() const { return data_.kind_; }
     const Param* param(const Def* type, Def* nominal, const Def* dbg = {}) { return unify<Param>(1, type, nominal, dbg); }
     const Proxy* proxy(const Def* type, Defs ops, tag_t index, flags_t flags, const Def* dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, flags, dbg); }
     //@}
@@ -143,9 +143,7 @@ public:
     //@{
     Sigma* nom_sigma(const Def* type, size_t size, const Def* dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
     Sigma* nom_sigma(size_t size, const Def* dbg = {}) { return nom_sigma(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
-    const Def* sigma(const Def* type, Defs ops, const Def* dbg = {});
-    /// a @em structural @p Sigma of type @p kind
-    const Def* sigma(Defs ops, const Def* dbg = {}) { return sigma(kind(), ops, dbg); }
+    const Def* sigma(Defs ops, const Def* dbg = {});
     const Sigma* sigma() { return data_.sigma_; } ///< the unit type within @p kind()
     //@}
 
@@ -206,16 +204,6 @@ public:
     }
     //@}
 
-    /// @name Union, Which
-    //@{
-    Union* nom_union(const Def* type, size_t size, const Def* dbg = {}) { return insert<Union>(size, type, size, dbg); }
-    Union* nom_union(size_t size, const Def* dbg = {}) { return nom_union(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
-    const Def* union_(const Def* type, Defs ops, const Def* dbg = {});
-    /// a @em structural @p Union of type @p kind
-    const Def* union_(Defs ops, const Def* dbg = {}) { return union_(kind(), ops, dbg); }
-    const Def* which(const Def* value, const Def* dbg = {});
-    //@}
-
     /// @name Lit
     //@{
     const Lit* lit(const Def* type, u64 val, const Def* dbg = {}) { assert(type->level() == Sort::Type); return unify<Lit>(0, type, val, dbg); }
@@ -252,14 +240,29 @@ public:
     }
     //@}
 
-    /// @name Top/Bot%tom
+    /// @name set operations
     //@{
-    const Def* bot_top(bool is_top, const Def* type, const Def* dbg = {});
-    const Def* bot(const Def* type, const Def* dbg = {}) { return bot_top(false, type, dbg); }
-    const Def* top(const Def* type, const Def* dbg = {}) { return bot_top(true,  type, dbg); }
+    template<bool up> const Def* ext(const Def* type, const Def* dbg = {});
+    const Def* bot(const Def* type, const Def* dbg = {}) { return ext<false>(type, dbg); }
+    const Def* top(const Def* type, const Def* dbg = {}) { return ext< true>(type, dbg); }
     const Def* bot_kind() { return data_.bot_kind_; }
-    const Def* top_kind() { return data_.top_kind_; }
     const Def* top_nat () { return data_.top_nat_; }
+    template<bool up> Bound<up>* nom_bound(const Def* type, size_t size, const Def* dbg = {}) { return insert<Bound<up>>(size, type, size, dbg); }
+    template<bool up> Bound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nominal @p Bound of type @p kind
+    template<bool up> const Def* bound(Defs ops, const Def* dbg = {});
+    Join* nom_join(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<true >(type, size, dbg); }
+    Meet* nom_meet(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<false>(type, size, dbg); }
+    Join* nom_join(size_t size, const Def* dbg = {}) { return nom_join(kind(), size, dbg); }
+    Meet* nom_meet(size_t size, const Def* dbg = {}) { return nom_meet(kind(), size, dbg); }
+    const Def* join(Defs ops, const Def* dbg = {}) { return bound<true >(ops, dbg); }
+    const Def* meet(Defs ops, const Def* dbg = {}) { return bound<false>(ops, dbg); }
+    const Def* et(const Def* type, Defs ops, const Def* dbg = {}) { return unify<Et>(ops.size(), type, ops, dbg); }
+    const Def* et(Defs ops, const Def* dbg = {});                                                                           ///< Infers the type using a @em structural @p Meet.
+    const Def* vel(const Def* type, const Def* value, const Def* dbg = {});
+    const Def* pick(const Def* type, const Def* value, const Def* dbg = {});
+    const Def* test(const Def* value, const Def* index, const Lam* match, const Lam* clash, const Def* dbg = {});
+    //@}
+
     //@}
 
     /// @name globals -- depdrecated; will be removed
@@ -299,7 +302,7 @@ public:
     const Axiom* ax(ROp   o)  const { return data_.ROp_  [size_t(o)]; }
     const Axiom* ax(Shr   o)  const { return data_.Shr_  [size_t(o)]; }
     const Axiom* ax(Trait o)  const { return data_.Trait_[size_t(o)]; }
-    const Axiom* ax(Wrap o)   const { return data_.Wrap_ [size_t(o)]; }
+    const Axiom* ax(Wrap  o)  const { return data_.Wrap_ [size_t(o)]; }
     const Axiom* ax_alloc()   const { return data_.alloc_;   }
     const Axiom* ax_atomic()  const { return data_.atomic_;  }
     const Axiom* ax_bitcast() const { return data_.bitcast_; }
@@ -370,6 +373,7 @@ public:
     //@{
     const Def* dbg(Debug);
     const Def* infer(const Def* def) { return isa_sized_type(def->type()); }
+    const Def* lub(Defs) const;
     //@}
 
     /// @name partial evaluation done?
@@ -590,7 +594,6 @@ private:
         Space* space_;
         const Kind* kind_;
         const Bot* bot_kind_;
-        const Top* top_kind_;
         const App* type_bool_;
         const Top* top_nat_;
         const Sigma* sigma_;

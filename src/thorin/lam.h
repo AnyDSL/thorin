@@ -30,7 +30,7 @@ public:
     Array<const Def*> codomains() const { return Array<const Def*>(num_codomains(), [&](size_t i) { return codomain(i); }); }
     size_t num_codomains() const { return codomain()->num_outs(); }
 
-    bool is_cn() const { return codomain()->isa<Bot>(); }
+    bool is_cn() const;
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
     //@}
@@ -101,7 +101,7 @@ public:
     void app(const Def* callee, const Def* arg, const Def* dbg = {});
     void app(const Def* callee, Defs args, const Def* dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, const Def* dbg = {});
-    void match(const Def* val, Defs cases, const Def* mem, const Def* dbg = {});
+    void test(const Def* value, const Def* index, const Lam* match, const Lam* clash, const Def* mem, const Def* dbg = {});
     //@}
     /// @name virtual methods
     //@{

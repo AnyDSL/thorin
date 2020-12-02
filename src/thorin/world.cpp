@@ -138,11 +138,11 @@ World::World(const std::string& name)
         type->set_codomain(pi(S, D));
         data_.bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, dbg("bitcast"));
     } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
-        auto domain = nom_sigma(space(), 3);
-        domain->set(0, nat);
-        domain->set(1, arr(domain->param(0, dbg("n")), kind()));
-        domain->set(2, nat);
-        auto pi1 = nom_pi(kind(), domain);
+        auto dom = nom_sigma(space(), 3);
+        dom->set(0, nat);
+        dom->set(1, arr(dom->param(0, dbg("n")), kind()));
+        dom->set(2, nat);
+        auto pi1 = nom_pi(kind(), dom);
         auto n  = pi1->param(0, dbg("n"));
         auto Ts = pi1->param(1, dbg("Ts"));
         auto as = pi1->param(2, dbg("as"));
@@ -195,34 +195,34 @@ World::World(const std::string& name)
         auto R = type->param(1, dbg("R"));
         type->set_codomain(pi(T, R));
         data_.atomic_ = axiom(nullptr, type, Tag::Atomic, 0, dbg("atomic"));
-    } { // lift:, Π[r: nat, s: «r; nat»]. Π[in: nat, Is: «in; *», on: nat, Os: «on; *», f: Π«i: in; Is#i». «o: on; Os#i»]. Π«i: in; «s; Is#i»». «o: on; «s; Os#i»»
-        // Π[r: nat, s: «r; nat»]
+    } { // lift:, Π[r: nat, s: «r; nat»]. Π[n_i: nat, Is: «n_i; *», n_o: nat, Os: «n_o; *», f: Π«i: n_i; Is#i». «o: n_o; Os#i»]. Π«i: n_i; «s; Is#i»». «o: n_o; «s; Os#i»»
+        // TODO select which Is/Os to lift
         auto rs = nom_sigma(kind(), 2);
         rs->set(0, nat);
         rs->set(1, arr(rs->param(0, dbg("r")), nat));
         auto rs_pi = nom_pi(kind(), rs);
         auto s = rs_pi->param(1, dbg("s"));
 
-        // Π[in: nat, Is: «in; *», on: nat, Os: «on; *», f: Π«i: in; Is#i». «o: on; Os#i»,]
+        // Π[n_i: nat, Is: «n_i; *», n_o: nat, Os: «n_o; *», f: Π«i: n_i; Is#i». «o: n_o; Os#i»,]
         auto is_os = nom_sigma(space(), 5);
         is_os->set(0, nat);
-        is_os->set(1, arr(is_os->param(0, dbg("in")), kind()));
+        is_os->set(1, arr(is_os->param(0, dbg("n_i")), kind()));
         is_os->set(2, nat);
-        is_os->set(3, arr(is_os->param(2, dbg("on")), kind()));
-        auto fi = nom_arr(is_os->param(0_u64));
-        auto fo = nom_arr(is_os->param(2_u64));
-        fi->set(extract(is_os->param(1, dbg("Is")), fi->param()));
-        fo->set(extract(is_os->param(3, dbg("Os")), fo->param()));
-        is_os->set(4, pi(fi, fo));
+        is_os->set(3, arr(is_os->param(2, dbg("n_o")), kind()));
+        auto f_i = nom_arr(is_os->param(0_u64));
+        auto f_o = nom_arr(is_os->param(2_u64));
+        f_i->set(extract(is_os->param(1, dbg("Is")), f_i->param()));
+        f_o->set(extract(is_os->param(3, dbg("Os")), f_o->param()));
+        is_os->set(4, pi(f_i, f_o));
         auto is_os_pi = nom_pi(kind(), is_os);
 
-        // Π«i: in; «s; Is#i»». «o: on; «s; Os#i»»
-        auto gi = nom_arr(is_os_pi->param(0_u64, dbg("in")));
-        auto go = nom_arr(is_os_pi->param(2_u64, dbg("on")));
-        gi->set(arr(s, extract(is_os_pi->param(1, dbg("Is")), gi->param())));
-        go->set(arr(s, extract(is_os_pi->param(3, dbg("Os")), go->param())));
+        // Π«i: n_i; «s; Is#i»». «o: n_o; «s; Os#i»»
+        auto dom = nom_arr(is_os_pi->param(0_u64, dbg("n_i")));
+        auto cod = nom_arr(is_os_pi->param(2_u64, dbg("n_o")));
+        dom->set(arr(s, extract(is_os_pi->param(1, dbg("Is")), dom->param())));
+        cod->set(arr(s, extract(is_os_pi->param(3, dbg("Os")), cod->param())));
 
-        is_os_pi->set_codomain(pi(gi, go));
+        is_os_pi->set_codomain(pi(dom, cod));
         rs_pi->set_codomain(is_os_pi);
 
         data_.lift_ = axiom(normalize_lift, rs_pi, Tag::Lift, 0, dbg("lift"));

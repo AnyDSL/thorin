@@ -900,14 +900,19 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
     auto& w = type->world();
     auto callee = c->as<App>();
     auto is_os = callee->arg();
-    auto [in, Is, on, Os, f] = is_os->split<5>();
+    auto [n_i, Is, n_o, Os, f] = is_os->split<5>();
     auto [r, s] = callee->decurry()->args<2>();
     auto lr = isa_lit(r);
     auto ls = isa_lit(s);
 
+    // TODO commute
+    // TODO reassociate
+    // TODO more than one Os
+    // TODO select which Is/Os to lift
+
     if (lr && ls && *lr == 1 && *ls == 1) return w.app(f, arg, dbg);
 
-    if (auto l_in = isa_lit(in)) {
+    if (auto l_in = isa_lit(n_i)) {
         auto args = arg->split(*l_in);
 
         if (lr && std::all_of(args.begin(), args.end(), [&](const Def* arg) { return is_tuple_or_pack(arg); })) {

@@ -7,7 +7,7 @@ namespace thorin {
 
 class Lam;
 
-/// Ext%tremum. Either @p Top (@p up) or @p Bot%tom.
+/// Ext%remum. Either @p Top (@p up) or @p Bot%tom.
 template<bool up_>
 class Ext : public Def {
 private:
@@ -130,7 +130,10 @@ public:
     friend class World;
 };
 
-/// Retuns the @p type held by @p value to index using @p Pick.
+/// Tests the @p value of type @p Join whehter it is of type @p index.
+/// Yields @p match if @c true and @p clash otherwise.
+/// This operation is usually known as @c case.
+/// But @c case is a keyword in C++.
 class Test : public Def {
 private:
     Test(const Def* type, const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg)

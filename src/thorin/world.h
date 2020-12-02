@@ -373,7 +373,7 @@ public:
     //@{
     const Def* dbg(Debug);
     const Def* infer(const Def* def) { return isa_sized_type(def->type()); }
-    const Def* lub(Defs) const;
+    const Def* infer_kind(Defs) const;
     //@}
 
     /// @name partial evaluation done?

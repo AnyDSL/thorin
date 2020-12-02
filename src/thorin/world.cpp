@@ -275,7 +275,7 @@ const Def* World::sigma(Defs ops, const Def* dbg) {
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
-    return unify<Sigma>(ops.size(), lub(ops), ops, dbg);
+    return unify<Sigma>(ops.size(), infer_kind(ops), ops, dbg);
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {
@@ -523,15 +523,15 @@ const Def* World::bound(Defs ops, const Def* dbg) {
     if (ops.size() == 0) return ext<up>(kind(), dbg);
 
     // remove duplicate operands
-    Array<const Def*> ops_copy(ops);
-    std::sort(ops_copy.begin(), ops_copy.end(), GIDLt<const Def*>());
-    ops_copy.shrink(ops_copy.end() - std::unique(ops_copy.begin(), ops_copy.end()));
+    Array<const Def*> cpy(ops);
+    std::sort(cpy.begin(), cpy.end(), GIDLt<const Def*>());
+    cpy.shrink(cpy.end() - std::unique(cpy.begin(), cpy.end()));
 
-    if (ops_copy.size() == 1) return ops_copy[0];
+    if (cpy.size() == 1) return cpy[0];
 
     // TODO simplify mixed terms with joins and meets
 
-    return unify<Bound<up>>(ops_copy.size(), lub(ops_copy), ops_copy, dbg);
+    return unify<Bound<up>>(cpy.size(), infer_kind(cpy), cpy, dbg);
 }
 
 const Def* World::et(Defs ops, const Def* dbg) {
@@ -549,7 +549,7 @@ const Def* World::pick(const Def* type, const Def* value, const Def* dbg) {
 
 const Def* World::test(const Def* value, const Def* index, const Lam* match, const Lam* clash, const Def* dbg) {
     if (err()) {
-        if (!checker_->equiv(match->type()->domain(), clash->type()->domain()))
+        if (!checker_->equiv(match->type()->  domain(), clash->type()->  domain()))
             assert(false && "error msg");
         if (!checker_->equiv(match->type()->codomain(), clash->type()->codomain()))
             assert(false && "error msg");
@@ -634,7 +634,7 @@ const Def* World::dbg(Debug d) {
     return tuple({name, loc, d.meta ? d.meta : bot(bot_kind()) });
 }
 
-const Def* World::lub(Defs defs) const {
+const Def* World::infer_kind(Defs defs) const {
     for (auto def : defs) {
         if (def->type()->isa<Space>()) return def;
     }

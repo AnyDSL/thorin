@@ -4,9 +4,6 @@
 
 namespace thorin {
 
-const Lam* Test::match() const { return op(2)->as<Lam>(); }
-const Lam* Test::clash() const { return op(3)->as<Lam>(); }
-
 template<bool up>
 size_t Bound<up>::find(const Def* type) const {
     auto i = isa_nominal()

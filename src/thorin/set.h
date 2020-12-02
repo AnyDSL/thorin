@@ -93,10 +93,14 @@ public:
     friend class World;
 };
 
-/// Tests the @p value of type @p Join whehter it is of type @p index.
-/// Yields @p match if @c true and @p clash otherwise.
-/// This operation is usually known as @c case.
-/// But @c case is a keyword in C++.
+/**
+ * Tests the @p value of type @p Join whehter it is of type @p index.
+ * Yields @p match if @c true and @p clash otherwise.
+ * @p match must be of type <tt> A -> B </tt>.
+ * @p clash must be of type <tt> [A, index] -> C </tt>.
+ * This operation is usually known as @c case.
+ * But @c case is a keyword in C++.
+ */
 class Test : public Def {
 private:
     Test(const Def* type, const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg)
@@ -108,8 +112,8 @@ public:
     //@{
     const Def* value() const { return op(0); }
     const Def* index() const { return op(1); }
-    const Lam* match() const;
-    const Lam* clash() const;
+    const Def* match() const { return op(2); }
+    const Def* clash() const { return op(3); }
     //@}
     /// @name virtual methods
     //@{

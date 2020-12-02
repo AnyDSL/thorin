@@ -523,7 +523,7 @@ const Def* World::bound(Defs ops, const Def* dbg) {
     auto kind = infer_kind(ops);
 
     // has ext<up> value?
-    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { auto ext = isa_ext(op); return ext && *ext; }))
+    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { auto ext = isa_ext(op); return ext && (*ext == up); }))
         return ext<up>(kind);
 
     // ignore: ext<!up>
@@ -533,9 +533,9 @@ const Def* World::bound(Defs ops, const Def* dbg) {
     // sort and remove duplicates
     std::sort(cpy.begin(), end, GIDLt<const Def*>());
     end = std::unique(cpy.begin(), end);
-    cpy.shrink(cpy.end() - end);
+    cpy.shrink(cpy.begin() - end);
 
-    if (ops.size() == 0) return ext<!up>(kind, dbg);
+    if (cpy.size() == 0) return ext<!up>(kind, dbg);
     if (cpy.size() == 1) return cpy[0];
 
     // TODO simplify mixed terms with joins and meets
@@ -562,16 +562,20 @@ const Def* World::pick(const Def* type, const Def* value, const Def* dbg) {
     return unify<Pick>(1, type, value, dbg);
 }
 
-const Def* World::test(const Def* value, const Def* index, const Lam* match, const Lam* clash, const Def* dbg) {
+const Def* World::test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg) {
+    auto m_pi = match->type()->isa<Pi>();
+    auto c_pi = clash->type()->isa<Pi>();
+
     if (err()) {
-        if (!checker_->equiv(match->type()->  domain(), clash->type()->  domain()))
-            assert(false && "error msg");
-        if (!checker_->equiv(match->type()->codomain(), clash->type()->codomain()))
-            assert(false && "error msg");
+        // TODO proper error msg
+        assert(m_pi && c_pi);
+        auto a = isa_lit(m_pi->domain()->arity());
+        assert(a && *a == 2);
+        assert(checker_->equiv(proj(m_pi->domain(), 2, 0), c_pi->domain()));
     }
 
-    auto type = pi(match->type()->domain(), match->type()->codomain());
-    return unify<Test>(4, type, value, index, match, clash, dbg);
+    auto codom = join({m_pi->codomain(), c_pi->codomain()});
+    return unify<Test>(4, pi(c_pi->domain(), codom), value, index, match, clash, dbg);
 }
 
 /*

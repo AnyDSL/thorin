@@ -260,7 +260,7 @@ public:
     const Def* et(Defs ops, const Def* dbg = {}) { return et(infer_kind(ops), ops, dbg); }                                  ///< Infers the type using a @em structural @p Meet.
     const Def* vel(const Def* type, const Def* value, const Def* dbg = {});
     const Def* pick(const Def* type, const Def* value, const Def* dbg = {});
-    const Def* test(const Def* value, const Def* index, const Lam* match, const Lam* clash, const Def* dbg = {});
+    const Def* test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg = {});
     //@}
 
     //@}

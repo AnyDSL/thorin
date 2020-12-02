@@ -16,8 +16,8 @@ using nat_t    = u64;
     m(Pi, pi)           m(Lam, lam)     m(App, app)                           \
     m(Sigma, sigma)     m(Tuple, tuple) m(Extract, extract) m(Insert, insert) \
     m(Arr, arr)         m(Pack, pack)                                         \
-    m(Join, join)       m(Vel, vel)     m(Pick, pick)       m(Bot, bot)       \
-    m(Meet, meet)       m(Et,  et )     m(Test, test)       m(Top, top)       \
+    m(Join, join)       m(Vel, vel)     m(Test, test)       m(Top, top)       \
+    m(Meet, meet)       m(Et,  et )     m(Pick, pick)       m(Bot, bot)       \
     m(Proxy, proxy)                                                           \
     m(Axiom, axiom)                                                           \
     m(Lit, lit)                                                               \

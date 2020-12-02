@@ -256,8 +256,8 @@ public:
     Meet* nom_meet(size_t size, const Def* dbg = {}) { return nom_meet(kind(), size, dbg); }
     const Def* join(Defs ops, const Def* dbg = {}) { return bound<true >(ops, dbg); }
     const Def* meet(Defs ops, const Def* dbg = {}) { return bound<false>(ops, dbg); }
-    const Def* et(const Def* type, Defs ops, const Def* dbg = {}) { return unify<Et>(ops.size(), type, ops, dbg); }
-    const Def* et(Defs ops, const Def* dbg = {});                                                                           ///< Infers the type using a @em structural @p Meet.
+    const Def* et(const Def* type, Defs ops, const Def* dbg = {});
+    const Def* et(Defs ops, const Def* dbg = {}) { return et(infer_kind(ops), ops, dbg); }                                  ///< Infers the type using a @em structural @p Meet.
     const Def* vel(const Def* type, const Def* value, const Def* dbg = {});
     const Def* pick(const Def* type, const Def* value, const Def* dbg = {});
     const Def* test(const Def* value, const Def* index, const Lam* match, const Lam* clash, const Def* dbg = {});

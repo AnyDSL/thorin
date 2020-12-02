@@ -1,5 +1,5 @@
-#ifndef THORIN_UNION_H
-#define THORIN_UNION_H
+#ifndef THORIN_SET_H
+#define THORIN_SET_H
 
 #include "thorin/def.h"
 
@@ -7,26 +7,7 @@ namespace thorin {
 
 class Lam;
 
-/// Ext%remum. Either @p Top (@p up) or @p Bot%tom.
-template<bool up_>
-class Ext : public Def {
-private:
-    Ext(const Def* type, const Def* dbg)
-        : Def(Node, type, Defs{}, 0, dbg)
-    {}
-
-public:
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    //@}
-
-    static constexpr bool up = up_;
-    static constexpr auto Node = up_ ? Node::Top : Node::Bot;
-    friend class World;
-};
-
-template<bool up_>
+template<bool up>
 class Bound : public Def {
 private:
     /// Constructor for a @em structural Bound.
@@ -39,7 +20,7 @@ private:
     {}
 
 public:
-    bool contains(const Def* type) const;
+    size_t find(const Def* type) const;
 
     /// @name virtual methods
     //@{
@@ -47,27 +28,9 @@ public:
     Bound* stub(World&, const Def*, const Def*) override;
     //@}
 
-    static constexpr bool up = up_;
     static constexpr auto Node = up ? Node::Join : Node::Meet;
     friend class World;
 };
-
-using Bot  = Ext<false>;
-using Top  = Ext<true >;
-using Meet = Bound<false>;
-using Join = Bound<true >;
-
-inline std::optional<bool> isa_ext(const Def* def) {
-    if (def->isa<Bot>()) return false;
-    if (def->isa<Top>()) return true;
-    return {};
-}
-
-inline std::optional<bool> isa_bound(const Def* def) {
-    if (def->isa<Meet>()) return false;
-    if (def->isa<Join>()) return true;
-    return {};
-}
 
 /// Constructs a @p Meet value.
 class Et : public Def {
@@ -156,6 +119,41 @@ public:
     static constexpr auto Node = Node::Test;
     friend class World;
 };
+
+/// Ext%remum. Either @p Top (@p up) or @p Bot%tom.
+template<bool up>
+class Ext : public Def {
+private:
+    Ext(const Def* type, const Def* dbg)
+        : Def(Node, type, Defs{}, 0, dbg)
+    {}
+
+public:
+    /// @name virtual methods
+    //@{
+    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
+    //@}
+
+    static constexpr auto Node = up ? Node::Top : Node::Bot;
+    friend class World;
+};
+
+using Bot  = Ext<false>;
+using Top  = Ext<true >;
+using Meet = Bound<false>;
+using Join = Bound<true >;
+
+inline std::optional<bool> isa_ext(const Def* def) {
+    if (def->isa<Bot>()) return false;
+    if (def->isa<Top>()) return true;
+    return {};
+}
+
+inline std::optional<bool> isa_bound(const Def* def) {
+    if (def->isa<Meet>()) return false;
+    if (def->isa<Join>()) return true;
+    return {};
+}
 
 }
 

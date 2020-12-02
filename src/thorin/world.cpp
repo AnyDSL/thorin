@@ -520,27 +520,42 @@ const Def* World::ext(const Def* type, const Def* dbg) {
 
 template<bool up>
 const Def* World::bound(Defs ops, const Def* dbg) {
-    if (ops.size() == 0) return ext<up>(kind(), dbg);
+    auto kind = infer_kind(ops);
 
-    // remove duplicate operands
+    // has ext<up> value?
+    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { auto ext = isa_ext(op); return ext && *ext; }))
+        return ext<up>(kind);
+
+    // ignore: ext<!up>
     Array<const Def*> cpy(ops);
-    std::sort(cpy.begin(), cpy.end(), GIDLt<const Def*>());
-    cpy.shrink(cpy.end() - std::unique(cpy.begin(), cpy.end()));
+    auto end = std::copy_if(ops.begin(), ops.end(), cpy.begin(), [&](const Def* op) { return !isa_ext(op); });
 
+    // sort and remove duplicates
+    std::sort(cpy.begin(), end, GIDLt<const Def*>());
+    end = std::unique(cpy.begin(), end);
+    cpy.shrink(cpy.end() - end);
+
+    if (ops.size() == 0) return ext<!up>(kind, dbg);
     if (cpy.size() == 1) return cpy[0];
 
     // TODO simplify mixed terms with joins and meets
 
-    return unify<Bound<up>>(cpy.size(), infer_kind(cpy), cpy, dbg);
+    return unify<Bound<up>>(cpy.size(), kind, cpy, dbg);
 }
 
-const Def* World::et(Defs ops, const Def* dbg) {
-    Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
-    return unify<Et>(ops.size(), meet(types), ops, dbg);
+const Def* World::et(const Def* type, Defs ops, const Def* dbg) {
+    if (type->isa<Meet>()) {
+        Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
+        return unify<Et>(ops.size(), meet(types), ops, dbg);
+    }
+
+    assert(ops.size() == 1);
+    return ops[0];
 }
 
 const Def* World::vel(const Def* type, const Def* value, const Def* dbg) {
-    return unify<Vel>(1, type, value, dbg);
+    if (type->isa<Join>()) return unify<Vel>(1, type, value, dbg);
+    return value;
 }
 
 const Def* World::pick(const Def* type, const Def* value, const Def* dbg) {

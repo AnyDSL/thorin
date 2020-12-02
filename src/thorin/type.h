@@ -2,87 +2,68 @@
 #define THORIN_TYPE_H
 
 #include "thorin/enums.h"
-#include "thorin/util/type_table.h"
+#include "thorin/util/hash.h"
+#include "thorin/util/cast.h"
+#include "thorin/util/stream.h"
+#include "thorin/util/array.h"
 #include "thorin/util/symbol.h"
 
 namespace thorin {
 
-//------------------------------------------------------------------------------
-
 class TypeTable;
-using Type = TypeBase<TypeTable>;
+class Type;
 
-template<class T>
-using TypeMap   = GIDMap<const Type*, T>;
-using TypeSet   = GIDSet<const Type*>;
+template<class To>
+using TypeMap   = GIDMap<const Type*, To>;
 using Type2Type = TypeMap<const Type*>;
+using TypeSet   = GIDSet<const Type*>;
 using Types     = ArrayRef<const Type*>;
 
-//------------------------------------------------------------------------------
+/// Base class for all \p Type%s.
+class Type : public RuntimeCast<Type>, public Streamable {
+protected:
+    Type(TypeTable& table, int tag, Types ops);
 
-/// Type abstraction.
-class Lambda : public Type {
-private:
-    Lambda(TypeTable& table, const Type* body, const char* name)
-        : Type(table, Node_Lambda, {body})
-        , name_(name)
-    {}
-
-public:
-    const char* name() const { return name_; }
-    const Type* body() const { return op(0); }
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
-
-    const char* name_;
-
-    friend class TypeTable;
-};
-
-/// Type variable.
-class Var : public Type {
-private:
-    Var(TypeTable& table, int depth)
-        : Type(table, Node_Var, {})
-        , depth_(depth)
-    {
-        monomorphic_ = false;
+    void set(size_t i, const Type* type) {
+        ops_[i] = type;
+        order_ = std::max(order_, type->order());
     }
 
 public:
-    int depth() const { return depth_; }
-    virtual std::ostream& stream(std::ostream&) const override;
+    int tag() const { return tag_; }
+    TypeTable& table() const { return *table_; }
+
+    Types ops() const { return ops_; }
+    const Type* op(size_t i) const { return ops()[i]; }
+    size_t num_ops() const { return ops_.size(); }
+    bool empty() const { return ops_.empty(); }
+
+    bool is_nominal() const { return nominal_; } ///< A nominal @p Type is always different from each other @p Type.
+    int order() const { return order_; }
+    size_t gid() const { return gid_; }
+    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    virtual bool equal(const Type*) const;
+
+    const Type* rebuild(TypeTable& to, Types ops) const;
+    const Type* rebuild(Types ops) const { return rebuild(table(), ops); }
+
+protected:
+    virtual uint64_t vhash() const;
+
+    mutable uint64_t hash_ = 0;
+    mutable bool nominal_  = false;
+    int order_ = 0;
 
 private:
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Type*) const override;
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types ops) const = 0;
 
-    int depth_;
+    mutable TypeTable* table_;
 
-    friend class TypeTable;
-};
+    int tag_;
+    size_t gid_;
+    thorin::Array<const Type*> ops_;
 
-/// Type application.
-class App : public Type {
-private:
-    App(TypeTable& table, const Type* callee, const Type* arg)
-        : Type(table, Node_App, {callee, arg})
-    {}
-
-public:
-    const Type* callee() const { return Type::op(0); }
-    const Type* arg() const { return Type::op(1); }
-    virtual std::ostream& stream(std::ostream&) const override;
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-
-private:
-    mutable const Type* cache_ = nullptr;
-    friend class TypeTable;
+    friend TypeTable;
 };
 
 /// Type of a tuple (structurally typed).
@@ -116,7 +97,6 @@ protected:
 
 private:
     virtual const Type* vrebuild(TypeTable&, Types) const override;
-    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
 public:
     Symbol name() const { return name_; }
@@ -393,15 +373,11 @@ bool use_lea(const Type*);
 //------------------------------------------------------------------------------
 
 /// Container for all types. Types are hashed and can be compared using pointer equality.
-class TypeTable : public TypeTableBase<Type> {
+class TypeTable {
 public:
     TypeTable();
 
-    const Var* var(int depth) { return unify(new Var(*this, depth)); }
-    const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(*this, body, name)); }
-    const Type* app(const Type* callee, const Type* arg);
-
-    const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
+    const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : insert<TupleType>(*this, ops); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const VariantType* variant_type(Symbol name, size_t size);
     const StructType* struct_type(Symbol name, size_t size);
@@ -412,19 +388,21 @@ public:
     const PrimType* type(PrimTypeTag tag, size_t length = 1) {
         size_t i = tag - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length));
+        return length == 1 ? primtypes_[i] : insert<PrimType>(*this, tag, length);
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
     const PtrType* ptr_type(const Type* pointee,
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
-        return unify(new PtrType(*this, pointee, length, device, addr_space));
+        return insert<PtrType>(*this, pointee, length, device, addr_space);
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
-    const ClosureType* closure_type(Types args) { return unify(new ClosureType(*this, args)); }
-    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
-    const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
+    const FnType* fn_type(Types args) { return insert<FnType>(*this, args); }
+    const ClosureType* closure_type(Types args) { return insert<ClosureType>(*this, args); }
+    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return insert<DefiniteArrayType>(*this, elem, dim); }
+    const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return insert<IndefiniteArrayType>(*this, elem); }
+
+    const TypeSet& types() const { return types_; }
 
     friend void swap(TypeTable& t1, TypeTable& t2) {
         using std::swap;
@@ -447,6 +425,18 @@ private:
             type->table_ = this;
     }
 
+    template <typename T, typename... Args>
+    const T* insert(Args&&... args) {
+        T t(std::forward<Args&&>(args)...);
+        auto it = types_.find(&t);
+        if (it != types_.end())
+            return (*it)->template as<T>();
+        auto new_t = new T(std::move(t));
+        new_t->gid_ = gid_counter_++;
+        types_.emplace(new_t);
+        return new_t;
+    }
+
 private:
     const TupleType* unit_; ///< tuple().
     const FnType* fn0_;
@@ -461,7 +451,8 @@ private:
         const PrimType* primtypes_[Num_PrimTypes];
     };
 
-    friend class Lambda;
+    size_t gid_counter_;
+    TypeSet types_;
 };
 
 //------------------------------------------------------------------------------

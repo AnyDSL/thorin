@@ -186,8 +186,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         if (struct_type->name().str().find("channel_") != std::string::npos)
             use_channels_ = true;
         return os;
-    } else if (type->isa<Var>()) {
-        THORIN_UNREACHABLE;
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         emit_type(os, array->elem_type());
         return os;

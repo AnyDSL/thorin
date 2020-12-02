@@ -11,6 +11,17 @@
 
 namespace thorin {
 
+Type::Type(TypeTable& table, int tag, Types ops)
+    : table_(&table)
+    , tag_(tag)
+    , ops_(ops.size())
+{
+    for (size_t i = 0, e = num_ops(); i != e; ++i) {
+        if (auto op = ops[i])
+            set(i, op);
+    }
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -22,10 +33,7 @@ const Type* NominalType::vrebuild(TypeTable&, Types) const {
     return this;
 }
 
-const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
 const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
-const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
 const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
 const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
@@ -36,33 +44,6 @@ const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { retu
 
 const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
-}
-
-//------------------------------------------------------------------------------
-
-/*
- * reduce
- */
-
-const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return table().lambda(body()->reduce(depth+1, type, map), name());
-}
-
-const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
-    if (this->depth() == depth)
-        return type;
-    else if (this->depth() > depth)
-        return table().var(this->depth()-1);  // this is a free variable - shift by one
-    else
-        return this;                          // this variable is not free - don't adjust
-}
-
-const Type* NominalType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto nominal_type = stub(table());
-    map[this] = nominal_type;
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        nominal_type->set(i, op(i)->reduce(depth, type, map));
-    return nominal_type;
 }
 
 /*
@@ -117,19 +98,11 @@ uint64_t PtrType::vhash() const {
     return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space());
 }
 
-uint64_t Var::vhash() const {
-    return murmur3(uint64_t(tag()) << uint64_t(56) | uint8_t(depth()));
-}
-
 //------------------------------------------------------------------------------
 
 /*
  * equal
  */
-
-bool Var::equal(const Type* other) const {
-    return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
-}
 
 bool PtrType::equal(const Type* other) const {
     if (!VectorType::equal(other))
@@ -148,14 +121,11 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
    return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
-std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
 std::ostream& ClosureType        ::stream(std::ostream& os) const { return stream_type_ops(os << "closure", this); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
-std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << "struct " << name(); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return os << "variant " << name(); }
@@ -198,12 +168,12 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 //------------------------------------------------------------------------------
 
 TypeTable::TypeTable()
-    : unit_ (unify(new TupleType(*this, Types())))
-    , fn0_  (unify(new FnType   (*this, {})))
-    , mem_  (unify(new MemType  (*this)))
-    , frame_(unify(new FrameType(*this)))
+    : unit_ (insert<TupleType>(*this, Types()))
+    , fn0_  (insert<FnType   >(*this, Types()))
+    , mem_  (insert<MemType  >(*this))
+    , frame_(insert<FrameType>(*this))
 #define THORIN_ALL_TYPE(T, M) \
-    , T##_(unify(new PrimType(*this, PrimType_##T, 1)))
+    , T##_(insert<PrimType>(*this, PrimType_##T, 1))
 #include "thorin/tables/primtypetable.h"
 {}
 
@@ -219,21 +189,6 @@ const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;
-}
-
-const Type* TypeTable::app(const Type* callee, const Type* op) {
-    auto app = unify(new App(*this, callee, op));
-
-    if (auto cache = app->cache_)
-        return cache;
-    if (auto lambda = app->callee()->template isa<Lambda>()) {
-        Type2Type map;
-        return app->cache_ = lambda->body()->reduce(1, op, map);
-    } else {
-        return app->cache_ = app;
-    }
-
-    return app;
 }
 
 //------------------------------------------------------------------------------

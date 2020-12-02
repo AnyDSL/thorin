@@ -40,7 +40,7 @@ const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { retu
 const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
-const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.type(primtype_tag(), length()); }
+const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.prim_type(primtype_tag(), length()); }
 
 const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
@@ -67,7 +67,7 @@ const NominalType* VariantType::stub(TypeTable& to) const {
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
         return table().ptr_type(ptr->pointee());
-    return table().type(as<PrimType>()->primtype_tag());
+    return table().prim_type(as<PrimType>()->primtype_tag());
 }
 
 bool FnType::is_returning() const {
@@ -94,6 +94,15 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
  * hash
  */
 
+uint64_t Type::vhash() const {
+    if (is_nominal())
+        return thorin::murmur3(uint64_t(tag()) << uint64_t(56) | uint64_t(gid()));
+    uint64_t seed = thorin::hash_begin(uint8_t(tag()));
+    for (auto op : ops_)
+        seed = thorin::hash_combine(seed, uint32_t(op->gid()));
+    return seed;
+}
+
 uint64_t PtrType::vhash() const {
     return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space());
 }
@@ -103,6 +112,14 @@ uint64_t PtrType::vhash() const {
 /*
  * equal
  */
+
+bool Type::equal(const Type* other) const {
+    if (is_nominal())
+        return this == other;
+    if (tag() == other->tag() && num_ops() == other->num_ops())
+        return std::equal(ops().begin(), ops().end(), other->ops().begin());
+    return false;
+}
 
 bool PtrType::equal(const Type* other) const {
     if (!VectorType::equal(other))
@@ -177,6 +194,10 @@ TypeTable::TypeTable()
 #include "thorin/tables/primtypetable.h"
 {}
 
+const Type* TypeTable::tuple_type(Types ops) {
+    return ops.size() == 1 ? ops.front() : insert<TupleType>(*this, ops);
+}
+
 const StructType* TypeTable::struct_type(Symbol name, size_t size) {
     auto type = new StructType(*this, name, size);
     const auto& p = types_.insert(type);
@@ -189,6 +210,33 @@ const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;
+}
+
+const PrimType* TypeTable::prim_type(PrimTypeTag tag, size_t length) {
+    size_t i = tag - Begin_PrimType;
+    assert(i < (size_t) Num_PrimTypes);
+    return length == 1 ? primtypes_[i] : insert<PrimType>(*this, tag, length);
+}
+
+const PtrType* TypeTable::ptr_type(const Type* pointee, size_t length, int32_t device, AddrSpace addr_space) {
+    return insert<PtrType>(*this, pointee, length, device, addr_space);
+}
+
+const FnType*              TypeTable::fn_type(Types args) { return insert<FnType>(*this, args); }
+const ClosureType*         TypeTable::closure_type(Types args) { return insert<ClosureType>(*this, args); }
+const DefiniteArrayType*   TypeTable::definite_array_type(const Type* elem, u64 dim) { return insert<DefiniteArrayType>(*this, elem, dim); }
+const IndefiniteArrayType* TypeTable::indefinite_array_type(const Type* elem) { return insert<IndefiniteArrayType>(*this, elem); }
+
+template <typename T, typename... Args>
+const T* TypeTable::insert(Args&&... args) {
+    T t(std::forward<Args&&>(args)...);
+    auto it = types_.find(&t);
+    if (it != types_.end())
+        return (*it)->template as<T>();
+    auto new_t = new T(std::move(t));
+    new_t->gid_ = types_.size();
+    types_.emplace(new_t);
+    return new_t;
 }
 
 //------------------------------------------------------------------------------

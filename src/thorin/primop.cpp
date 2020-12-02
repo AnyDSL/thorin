@@ -15,7 +15,7 @@ namespace thorin {
  */
 
 PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
-    : Literal((NodeTag) tag, world.type(tag), dbg)
+    : Literal((NodeTag) tag, world.prim_type(tag), dbg)
     , box_(box)
 {}
 
@@ -54,7 +54,7 @@ Vector::Vector(World& world, Defs args, Debug dbg)
 {
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
-        set_type(world.type(primtype->primtype_tag(), args.size()));
+        set_type(world.prim_type(primtype->primtype_tag(), args.size()));
     } else {
         auto ptr = args.front()->type()->as<PtrType>();
         assert(ptr->length() == 1);
@@ -75,7 +75,7 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
         set_type(world.ptr_type(get(struct_type->ops(), index)));
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
         assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.type(prim_type->primtype_tag())));
+        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag())));
     } else {
         THORIN_UNREACHABLE;
     }

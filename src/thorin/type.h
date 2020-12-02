@@ -44,7 +44,12 @@ public:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     virtual bool equal(const Type*) const;
 
-    const Type* rebuild(TypeTable& to, Types ops) const;
+    const Type* rebuild(TypeTable& to, Types ops) const {
+        assert(num_ops() == ops.size());
+        if (ops.empty() && &table() == &to)
+            return this;
+        return vrebuild(to, ops);
+    }
     const Type* rebuild(Types ops) const { return rebuild(table(), ops); }
 
 protected:
@@ -374,33 +379,35 @@ bool use_lea(const Type*);
 
 /// Container for all types. Types are hashed and can be compared using pointer equality.
 class TypeTable {
+private:
+    struct TypeHash {
+        static uint64_t hash(const Type* t) { return t->hash(); }
+        static bool eq(const Type* t1, const Type* t2) { return t2->equal(t1); }
+        static const Type* sentinel() { return (const Type*)(1); }
+    };
+
+    typedef thorin::HashSet<const Type*, TypeHash> TypeSet;
+
 public:
     TypeTable();
 
-    const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : insert<TupleType>(*this, ops); }
+    const Type* tuple_type(Types ops);
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const VariantType* variant_type(Symbol name, size_t size);
     const StructType* struct_type(Symbol name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
+    const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }
 #include "thorin/tables/primtypetable.h"
-    const PrimType* type(PrimTypeTag tag, size_t length = 1) {
-        size_t i = tag - Begin_PrimType;
-        assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : insert<PrimType>(*this, tag, length);
-    }
+    const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Type* pointee,
-                            size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
-        return insert<PtrType>(*this, pointee, length, device, addr_space);
-    }
+    const PtrType* ptr_type(const Type* pointee, size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic);
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args) { return insert<FnType>(*this, args); }
-    const ClosureType* closure_type(Types args) { return insert<ClosureType>(*this, args); }
-    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return insert<DefiniteArrayType>(*this, elem, dim); }
-    const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return insert<IndefiniteArrayType>(*this, elem); }
+    const FnType* fn_type(Types args);
+    const ClosureType* closure_type(Types args);
+    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
+    const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 
     const TypeSet& types() const { return types_; }
 
@@ -426,18 +433,11 @@ private:
     }
 
     template <typename T, typename... Args>
-    const T* insert(Args&&... args) {
-        T t(std::forward<Args&&>(args)...);
-        auto it = types_.find(&t);
-        if (it != types_.end())
-            return (*it)->template as<T>();
-        auto new_t = new T(std::move(t));
-        new_t->gid_ = gid_counter_++;
-        types_.emplace(new_t);
-        return new_t;
-    }
+    const T* insert(Args&&... args);
 
 private:
+    TypeSet types_;
+
     const TupleType* unit_; ///< tuple().
     const FnType* fn0_;
     const MemType* mem_;
@@ -450,9 +450,6 @@ private:
 
         const PrimType* primtypes_[Num_PrimTypes];
     };
-
-    size_t gid_counter_;
-    TypeSet types_;
 };
 
 //------------------------------------------------------------------------------

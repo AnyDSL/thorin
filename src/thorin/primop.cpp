@@ -136,11 +136,12 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     World& w = mem->world();
     auto return_type = ptr->type()->as<PtrType>()->pointee();
     if (auto vector_ptr = ptr->type()->isa<VectorType>())
-        if (vector_ptr->is_vector())
+        if (vector_ptr->is_vector()) {
             if (auto prim_return_type = return_type->isa<PrimType>())
                 return_type = w.type(prim_return_type->primtype_tag(), vector_ptr->length());
             else
                 return_type = w.vec_type(return_type, vector_ptr->length());
+        }
     set_type(w.tuple_type({w.mem_type(), return_type}));
 }
 

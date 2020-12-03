@@ -617,21 +617,6 @@ const Type *Vectorizer::widen(const Type *old_type) {
     }
 }
 
-/*const Def *Vectorizer::widen(const Def *op) {
-    if (!op->isa<PrimOp>())
-        return nullptr;
-
-    auto primop = op->as<PrimOp>();
-    auto defs = primop->ops();
-
-    auto old_type = primop->type();
-    const Type* new_type = widen(old_type);
-    new_type->dump();
-
-    //return op;
-    return primop->rebuild(defs, new_type);
-}*/
-
 Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(!old_continuation->empty());

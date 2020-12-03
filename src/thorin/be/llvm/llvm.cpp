@@ -709,9 +709,9 @@ llvm::Value *CodeGen::createComplexCast(llvm::Value *source, llvm::Type *target_
             return source;
         } else { //Contained in second element.
             source = irbuilder_.CreateExtractValue(source, { 1 });
-            size_t offset_back = offset - max_align;
+            unsigned int offset_back = offset - max_align;
             auto element_type = source->getType()->getArrayElementType();
-            size_t element_type_size = layout.getTypeAllocSize(element_type);
+            unsigned int element_type_size = layout.getTypeAllocSize(element_type);
 
             assert(offset_back % element_type_size == 0 && "Smaller types not supported as of now");
             assert(target_type_size % element_type_size == 0 && "Smaller types not supported as of now");
@@ -722,7 +722,7 @@ llvm::Value *CodeGen::createComplexCast(llvm::Value *source, llvm::Type *target_
 
                 build = irbuilder_.CreateZExt(build, equal_sized_int);
 
-                for (size_t k = element_type_size; k < target_type_size; k += element_type_size) {
+                for (unsigned int k = element_type_size; k < target_type_size; k += element_type_size) {
                     auto nextelem = irbuilder_.CreateExtractValue(source, { (offset_back + k) / element_type_size });
                     nextelem = irbuilder_.CreateZExt(nextelem, equal_sized_int);
                     nextelem = irbuilder_.CreateShl(nextelem, k * 8);
@@ -791,11 +791,11 @@ llvm::Value *CodeGen::createComplexBackCast(llvm::Value *source, llvm::Value *ta
             target = irbuilder_.CreateInsertValue(target, source, { 0 });
             return target;
         } else { //Contained in second element.
-            size_t offset_back = offset - max_align;
+            unsigned int offset_back = offset - max_align;
 
             auto build = irbuilder_.CreateExtractValue(target, { 1 });
             auto element_type = build->getType()->getArrayElementType();
-            auto element_type_size = layout.getTypeAllocSize(element_type);
+            unsigned int element_type_size = layout.getTypeAllocSize(element_type);
 
             assert(offset_back % element_type_size == 0 && "Smaller types not supported as of now");
             assert(source_type_size % element_type_size == 0 && "Smaller types not supported as of now");
@@ -810,7 +810,7 @@ llvm::Value *CodeGen::createComplexBackCast(llvm::Value *source, llvm::Value *ta
                 if (equal_sized_int_source < equal_sized_int_target)
                     source = irbuilder_.CreateZExt(source, equal_sized_int_target);
 
-                for (size_t k = 0; k < source_type_size; k += element_type_size) {
+                for (unsigned int k = 0; k < source_type_size; k += element_type_size) {
                     auto nextelem = irbuilder_.CreateLShr(source, k * 8);
                     if (nextelem->getType() != element_type)
                         nextelem = irbuilder_.CreateTrunc(nextelem, element_type);
@@ -1260,8 +1260,6 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
     auto ptr = lookup(store->ptr());
-    //ptr->dump();
-    //ptr->getType()->dump();
     llvm::Value* result;
     if (ptr->getType()->isVectorTy()) {
         auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());

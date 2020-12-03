@@ -977,8 +977,21 @@ llvm::Value* CodeGen::emit(const Def* def) {
             assert(false && "unsupported cast");
         }
 
-        if (conv->isa<Bitcast>())
-            return emit_bitcast(conv->from(), dst_type);
+        if (conv->isa<Bitcast>()) {
+            if (dst_type->isa<PtrType>() && dst_type->as<PtrType>()->is_vector()) {
+                return emit_bitcast(conv->from(), dst_type->as<PtrType>()->scalarize());
+                auto to = convert(dst_type);
+                auto payload_value = lookup(conv->from());
+                return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
+                    irbuilder_.CreateStore(payload_value, alloca);
+                    auto addr_space = alloca->getType()->getPointerAddressSpace();
+                    auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(to, addr_space));
+                    return irbuilder_.CreateLoad(payload_addr);
+                });
+            } else {
+              return emit_bitcast(conv->from(), dst_type);
+            }
+        }
     }
 
     if (auto select = def->isa<Select>()) {
@@ -1069,7 +1082,17 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto aggop = def->isa<AggOp>()) {
         auto llvm_agg = lookup(aggop->agg());
-        auto llvm_idx = lookup(aggop->index());
+        const Def *thorin_idx;
+        bool complex_vector;
+        if (auto index_tuple = aggop->index()->isa<Tuple>()) {
+            thorin_idx = index_tuple->op(1); //TODO: This should work fine with the way loads are generated right now.
+            complex_vector = true;
+        } else {
+            thorin_idx = aggop->index();
+            complex_vector = false;
+        }
+        auto llvm_idx = lookup(thorin_idx);
+
         auto copy_to_alloca = [&] () {
             WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name().str());
@@ -1093,8 +1116,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
             // Assemblys with more than two outputs are MemOps and have tuple type
             // and thus need their own rule here because the standard MemOp rule does not work
             if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
-                    return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
+                if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(thorin_idx) != 0)
+                    return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(thorin_idx) - 1});
             }
 
             if (auto memop = extract->agg()->isa<MemOp>())
@@ -1103,10 +1126,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (aggop->agg()->type()->isa<ArrayType>())
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
-            if (extract->agg()->type()->isa<VectorType>())
+            if (!complex_vector && extract->agg()->type()->isa<VectorType>())
                 return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
             // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
+            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(thorin_idx)});
         }
 
         auto insert = def->as<Insert>();
@@ -1120,7 +1143,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (insert->agg()->type()->isa<VectorType>())
             return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
+        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(thorin_idx)});
     }
 
     if (auto variant_index = def->isa<VariantIndex>()) {
@@ -1247,8 +1270,46 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
     llvm::Value* result;
     if (ptr->getType()->isVectorTy()) {
         auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-        auto gather = irbuilder_.CreateMaskedGather(ptr, llvm::MaybeAlign(align).getValue());
-        result = gather;
+        auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(ptr->getType());
+        assert(llvm_vector_type && "Scalable vector?");
+        auto llvm_element_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_vector_type->getElementType());
+        auto llvm_element_type = llvm_element_pointer_type->getElementType();
+        size_t vector_width = llvm_vector_type->getNumElements();
+        if (!llvm::VectorType::isValidElementType(llvm_element_type)) {
+            //don't generate a vector of structs, but a struct of vectors in this case.
+            auto structtype = llvm::dyn_cast<llvm::StructType>(llvm_element_type);
+            assert(structtype && "other types currently unsupported");
+            llvm::Type *newelements[structtype->getNumElements()];
+            llvm::Value *newgeps[structtype->getNumElements()];
+            for (size_t i = 0; i < structtype->getNumElements(); i++) {
+                newelements[i] = llvm::FixedVectorType::get(structtype->getElementType(i), vector_width); // <8 x i32>
+
+                auto innerpointertype = llvm::PointerType::get(structtype->getElementType(i), llvm_element_pointer_type->getAddressSpace()); // i32*
+
+                llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width)); // undef : <8 x i32*>
+                for (size_t j = 0; j < vector_width; j++) {
+                    auto element = irbuilder_.CreateExtractElement(ptr, j);
+                    llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
+
+                    auto gep = irbuilder_.CreateInBoundsGEP(structtype, element, args);
+
+                    innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
+                }
+                newgeps[i] = innergep;
+            }
+
+            auto newresulttype = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, structtype->getNumElements()));
+
+            result = llvm::UndefValue::get(newresulttype);
+            for (size_t i = 0; i < structtype->getNumElements(); i++) {
+                auto gep = newgeps[i];
+                auto gather = irbuilder_.CreateMaskedGather(gep, llvm::MaybeAlign(align).getValue());
+                result = irbuilder_.CreateInsertValue(result, gather, i);
+            }
+        } else {
+            auto gather = irbuilder_.CreateMaskedGather(ptr, llvm::MaybeAlign(align).getValue());
+            result = gather;
+        }
     } else {
         auto loadval = irbuilder_.CreateLoad(ptr);
         auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());

@@ -53,6 +53,8 @@ private:
     Def2Def def2def_;
     DivergenceAnalysis * div_analysis_;
 
+    size_t vector_width = 8;
+
     std::queue<Continuation*> queue_;
     void enqueue(Continuation* continuation) {
         if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
@@ -609,11 +611,11 @@ void Vectorizer::DivergenceAnalysis::run() {
 
 const Type *Vectorizer::widen(const Type *old_type) {
     if (old_type->isa<PtrType>()) { //TODO: these types might have a length of their own, in this case, I need to extend.
-        return world_.ptr_type(old_type->as<PtrType>()->pointee(), 8);
+        return world_.ptr_type(old_type->as<PtrType>()->pointee(), vector_width);
     } else if (old_type->isa<PrimType>()) {
-        return world_.type(old_type->as<PrimType>()->primtype_tag(), 8);
+        return world_.type(old_type->as<PrimType>()->primtype_tag(), vector_width);
     } else {
-        return world_.vec_type(old_type, 8);
+        return world_.vec_type(old_type, vector_width);
     }
 }
 
@@ -643,66 +645,68 @@ const Def* Vectorizer::widen(const Def* old_def) {
         assert(def2def_.contains(param));
         return def2def_[param];
     } else if (auto param = old_def->isa<Extract>()) {
-        auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->num_ops());
+        Array<const Def*> nops(param->num_ops());
 
         //TODO: this is hard coded for extracts after loads.
         //At some point I should distinguish between should- and should-not-vectorize, based on
         //  (a) the types needed to be syntacticly correct
         //  (b) the divergence analysis.
 
-        nops[0] = widen(old_primop->op(0));
-        nops[1] = old_primop->op(1);
+        nops[0] = widen(param->op(0));
+        if (nops[0]->type()->isa<VectorExtendedType>())
+            nops[1] = world_.tuple({world_.top(param->op(1)->type()), param->op(1)});
+        else
+            nops[1] = param->op(1);
 
-        auto type = widen(old_primop->type());
+        auto type = widen(param->type());
         const Def* new_primop;
-        if (old_primop->isa<PrimLit>()) {
-            Array<const Def*> elements(8);
-            for (int i = 0; i < 8; i++) {
-                elements[i] = old_primop;
+        if (param->isa<PrimLit>()) {
+            assert(false); // This should not be reachable!
+            Array<const Def*> elements(vector_width);
+            for (size_t i = 0; i < vector_width; i++) {
+                elements[i] = param;
             }
-            new_primop = world_.vector(elements, old_primop->debug_history());
+            new_primop = world_.vector(elements, param->debug_history());
         } else {
-            new_primop = old_primop->rebuild(nops, type);
+            new_primop = param->rebuild(nops, type);
         }
-        return def2def_[old_primop] = new_primop;
+        return def2def_[param] = new_primop;
     } else if (auto param = old_def->isa<ArithOp>()) {
-        auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->num_ops());
+        Array<const Def*> nops(param->num_ops());
         bool any_vector = false;
-        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
-            nops[i] = widen(old_primop->op(i));
+        for (size_t i = 0, e = param->num_ops(); i != e; ++i) {
+            nops[i] = widen(param->op(i));
             if (auto vector = nops[i]->type()->isa<VectorType>())
                 any_vector |= vector->is_vector();
         }
 
         if (any_vector) {
-            for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
+            for (size_t i = 0, e = param->num_ops(); i != e; ++i) {
                 if (auto vector = nops[i]->type()->isa<VectorType>())
                     if (vector->is_vector())
                         continue;
 
                 //non-vector element in a vector setting needs to be extended to a vector.
-                Array<const Def*> elements(8);
-                for (int j = 0; j < 8; j++) {
+                Array<const Def*> elements(vector_width);
+                for (size_t j = 0; j < vector_width; j++) {
                     elements[j] = nops[i];
                 }
                 nops[i] = world_.vector(elements, nops[i]->debug_history());
             }
         }
 
-        auto type = widen(old_primop->type());
+        auto type = widen(param->type());
         const Def* new_primop;
-        if (old_primop->isa<PrimLit>()) {
-            Array<const Def*> elements(8);
-            for (int i = 0; i < 8; i++) {
-                elements[i] = old_primop;
+        if (param->isa<PrimLit>()) {
+            Array<const Def*> elements(vector_width);
+            for (size_t i = 0; i < vector_width; i++) {
+                elements[i] = param;
             }
-            new_primop = world_.vector(elements, old_primop->debug_history());
+            new_primop = world_.vector(elements, param->debug_history());
         } else {
-            new_primop = old_primop->rebuild(nops, type);
+            new_primop = param->rebuild(nops, type);
         }
-        return def2def_[old_primop] = new_primop;
+        return def2def_[param] = new_primop;
     } else {
         auto old_primop = old_def->as<PrimOp>();
         Array<const Def*> nops(old_primop->num_ops());
@@ -712,8 +716,8 @@ const Def* Vectorizer::widen(const Def* old_def) {
         auto type = widen(old_primop->type());
         const Def* new_primop;
         if (old_primop->isa<PrimLit>()) {
-            Array<const Def*> elements(8);
-            for (int i = 0; i < 8; i++) {
+            Array<const Def*> elements(vector_width);
+            for (size_t i = 0; i < vector_width; i++) {
                 elements[i] = old_primop;
             }
             new_primop = world_.vector(elements, old_primop->debug_history());
@@ -921,8 +925,8 @@ bool Vectorizer::run() {
 
                         args[0] = caller->arg(0); //mem
                         //args[1] = caller->arg(1); //width
-                        Array<const Def*> defs(8);
-                        for (int i = 0; i < 8; i++) {
+                        Array<const Def*> defs(vector_width);
+                        for (size_t i = 0; i < vector_width; i++) {
                             defs[i] = world_.literal_qs32(i, caller->arg(1)->debug_history());
                         }
                         args[1] = world_.vector(defs, caller->arg(1)->debug_history());

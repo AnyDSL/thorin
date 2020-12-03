@@ -669,6 +669,7 @@ static bool fold_1_tuple(const Type* type, const Def* index) {
         if (primlit_value<u64>(lit) == 0
                 && !type->isa<ArrayType>()
                 && !type->isa<StructType>()
+                && !type->isa<VectorExtendedType>()
                 && !type->isa<TupleType>()) {
             if (auto prim_type = type->isa<PrimType>())
                 return prim_type->length() == 1;
@@ -680,9 +681,9 @@ static bool fold_1_tuple(const Type* type, const Def* index) {
 
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (agg->isa<Bottom>())
-        return bottom(Extract::extracted_type(agg, index), dbg);
+        return bottom(Extract::extracted_type(agg->type(), index), dbg);
     if (agg->isa<Top>())
-        return top(Extract::extracted_type(agg, index), dbg);
+        return top(Extract::extracted_type(agg->type(), index), dbg);
 
     if (fold_1_tuple(agg->type(), index))
         return agg;
@@ -693,7 +694,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
                 if (primlit_value<u64>(lit) < aggregate->num_ops())
                     return get(aggregate->ops(), lit);
                 else
-                    return bottom(Extract::extracted_type(agg, index), dbg);
+                    return bottom(Extract::extracted_type(agg->type(), index), dbg);
             }
         }
     }

@@ -364,14 +364,30 @@ const Def* PrimOp::out(size_t i) const {
     return world().extract(this, i, debug());
 }
 
-const Type* Extract::extracted_type(const Def* agg, const Def* index) {
-    if (auto tuple = agg->type()->isa<TupleType>()) {
+const Type* Extract::extracted_type(const Type* agg_type, const Def* index) {
+    if (auto tupleindex = index->isa<Tuple>()) {
+        assert(tupleindex->op(0)->isa<Top>());
+        auto vector = agg_type->isa<VectorType>();
+        assert(vector);
+        auto inner_type = vector->scalarize();
+
+        auto element_type = extracted_type(inner_type, tupleindex->op(1));
+
+        if (auto primelem = element_type->isa<PrimType>()) {
+            return index->world().type(primelem->primtype_tag(), 8); //TODO: element_type might already be a vector
+        } else if (auto ptrelem = element_type->isa<PtrType>()) {
+            return index->world().ptr_type(ptrelem->pointee(), 8, ptrelem->device(), ptrelem->addr_space()); //TODO: element_type might already be a vector
+        } else {
+            return index->world().vec_type(element_type, 8);
+        }
+    }
+    if (auto tuple = agg_type->isa<TupleType>()) {
         return get(tuple->ops(), index);
-    } else if (auto array = agg->type()->isa<ArrayType>())
+    } else if (auto array = agg_type->isa<ArrayType>())
         return array->elem_type();
-    else if (auto vector = agg->type()->isa<VectorType>())
+    else if (auto vector = agg_type->isa<VectorType>())
         return vector->scalarize();
-    else if (auto struct_type = agg->type()->isa<StructType>())
+    else if (auto struct_type = agg_type->isa<StructType>())
         return get(struct_type->ops(), index);
 
     THORIN_UNREACHABLE;

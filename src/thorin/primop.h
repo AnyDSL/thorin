@@ -438,13 +438,13 @@ public:
 class Extract : public AggOp {
 private:
     Extract(const Def* agg, const Def* index, Debug dbg)
-        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, dbg)
+        : AggOp(Node_Extract, extracted_type(agg->type(), index), {agg, index}, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    static const Type* extracted_type(const Def* agg, const Def* index);
+    static const Type* extracted_type(const Type* agg_type, const Def* index);
 
     friend class World;
 };

@@ -664,7 +664,7 @@ void CCodeGen::emit() {
                                         hls_gmem_index++;
                                     func_impl_ << "\n#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
                                         << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n"
-                                        << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name() <<  " bundle = control";
+                                        << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name();
                                 } else if (interface == HlsInterface::HPC_STREAM) {
                                     func_impl_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
                                 }
@@ -680,7 +680,7 @@ void CCodeGen::emit() {
                         if (interface == HlsInterface::SOC || interface == HlsInterface::HPC_STREAM)
                             hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
                         else if (interface == HlsInterface::HPC)
-                            hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_chain port = return        bundle = control";
+                            hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_chain port = return";
                     }
                 } else {
                     interface = HlsInterface::None;

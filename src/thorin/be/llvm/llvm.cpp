@@ -216,6 +216,23 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
         EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder_.CreatePointerCast(from, to);
+
+    if (auto dst_vector = dst_type->isa<VectorExtendedType>()) {
+        if (!src_type->isa<VectorExtendedType>()) {
+            auto inner_type = convert(dst_vector->element());
+            auto first_element = irbuilder_.CreateBitCast(from, inner_type);
+
+            llvm::Constant* args[dst_vector->length()];
+            for (size_t i = 0; i < dst_vector->length(); i++) {
+                args[i] = irbuilder_.getInt32(i);
+            }
+            auto seq_vector = llvm::ConstantVector::get(llvm::makeArrayRef<llvm::Constant*>(args, dst_vector->length()));
+
+            auto ptr = irbuilder_.CreateInBoundsGEP(first_element, seq_vector);
+            return ptr;
+        }
+    }
+
     return irbuilder_.CreateBitCast(from, to);
 }
 
@@ -877,7 +894,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
-            auto type = arithop->type();
+            const Type* type = arithop->type();
+            if (auto typevec = type->isa<VectorExtendedType>())
+                type = typevec->element(); // TODO: this should only be a quickfix, I guess?
             bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
 
             if (is_type_f(type)) {
@@ -1415,6 +1434,10 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
             llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
+            break;
+        }
+        case Node_VecType: {
+            llvm_type = convert(type->as<VectorExtendedType>()->element());
             break;
         }
         case Node_IndefiniteArrayType: {

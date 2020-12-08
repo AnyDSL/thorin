@@ -610,6 +610,8 @@ void Vectorizer::DivergenceAnalysis::run() {
 }
 
 const Type *Vectorizer::widen(const Type *old_type) {
+    return world_.vec_type(old_type, vector_width);
+#if 0
     if (old_type->isa<PtrType>()) { //TODO: these types might have a length of their own, in this case, I need to extend.
         return world_.ptr_type(old_type->as<PtrType>()->pointee(), vector_width);
     } else if (old_type->isa<PrimType>()) {
@@ -617,6 +619,7 @@ const Type *Vectorizer::widen(const Type *old_type) {
     } else {
         return world_.vec_type(old_type, vector_width);
     }
+#endif
 }
 
 Continuation* Vectorizer::widen_head(Continuation* old_continuation) {

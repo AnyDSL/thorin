@@ -105,8 +105,16 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
 
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
-    assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
-    PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
+    PrimTypeTag type;
+    if (auto avec = a->type()->isa<VectorExtendedType>()) {
+        auto bvec = b->type()->as<VectorExtendedType>();
+        assert(avec->element()->isa<PrimType>());
+        assert(avec->length() == bvec->length());
+        type = avec->element()->as<PrimType>()->primtype_tag();
+    } else {
+        assert(a->type()->isa<PrimType>());
+        type = a->type()->as<PrimType>()->primtype_tag();
+    }
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
@@ -767,7 +775,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
 }
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
-    if (fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
+    if (ptr->type()->isa<PtrType>() && fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
         return ptr;
 
     return cse(new LEA(ptr, index, dbg));
@@ -810,12 +818,13 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
-        // loading an empty tuple can only result in an empty tuple
-        if (tuple_type->num_ops() == 0) {
-            return tuple({mem, tuple({}, dbg)});
+    if (ptr->type()->isa<PtrType>())
+        if(auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
+            // loading an empty tuple can only result in an empty tuple
+            if (tuple_type->num_ops() == 0) {
+                return tuple({mem, tuple({}, dbg)});
+            }
         }
-    }
     return cse(new Load(mem, ptr, dbg));
 }
 

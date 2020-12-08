@@ -228,6 +228,7 @@ private:
     PrimType(TypeTable& table, PrimTypeTag tag, size_t length)
         : VectorType(table, (int) tag, {}, length)
     {
+        assert(length <= 1 && "use vectorextendedtype!");
         //TODO: lenght should be 1, vectors are implemented by a seperate type in the future.
     }
 
@@ -274,6 +275,7 @@ private:
         , addr_space_(addr_space)
         , device_(device)
     {
+        assert(length <= 1 && "use vectorextendedtype!");
         //TODO: lenght should be 1, vectors are implemented by a seperate type in the future.
     }
 
@@ -301,7 +303,7 @@ private:
 class VectorExtendedType : public VectorType {
 private:
     VectorExtendedType(TypeTable& table, const Type* element, size_t length)
-        : VectorType(table, Node_PtrType, {element}, length)
+        : VectorType(table, Node_VecType, {element}, length)
     {}
 
 public:

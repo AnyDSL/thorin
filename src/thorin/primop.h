@@ -204,7 +204,7 @@ private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
+    const VectorType* type() const { return BinOp::type()->as<VectorType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
     virtual const char* op_name() const override;
 
@@ -484,9 +484,14 @@ private:
 public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
-    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
-    const Type* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
+    const VectorType* type() const { return PrimOp::type()->as<VectorType>(); }
+    const VectorType* ptr_type() const { return ptr()->type()->as<VectorType>(); } ///< Returns the PtrType from @p ptr().
+    const Type* ptr_pointee() const {
+        if (auto ptr_vector = ptr_type()->isa<VectorExtendedType>())
+            return ptr_vector->element()->as<PtrType>()->pointee();
+        else
+            return ptr_type()->as<PtrType>()->pointee();
+    }        ///< Returns the type referenced by @p ptr().
 
     friend class World;
 };

@@ -52,6 +52,9 @@ Tuple::Tuple(World& world, Defs args, Debug dbg)
 Vector::Vector(World& world, Defs args, Debug dbg)
     : Aggregate(Node_Vector, args, dbg)
 {
+    auto inner_type = args.front()->type();
+    set_type(world.vec_type(inner_type, args.size()));
+#if 0
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
         set_type(world.type(primtype->primtype_tag(), args.size()));
@@ -62,6 +65,7 @@ Vector::Vector(World& world, Defs args, Debug dbg)
         auto inner_type = args.front()->type();
         set_type(world.vec_type(inner_type, args.size()));
     }
+#endif
 }
 
 LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
@@ -70,6 +74,16 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
     auto& world = index->world();
     auto type = ptr_type();
     const Type* inner_type;
+    const PtrType* ptrtype;
+    auto index_vector = index->type()->isa<VectorType>();
+
+    if (auto typevec = type->isa<VectorExtendedType>()) {
+        if (index_vector && index_vector->is_vector())
+            assert(typevec->length() == index_vector->length());
+        ptrtype = typevec->element()->as<PtrType>();
+    } else {
+        ptrtype = type->as<PtrType>();
+    }
 
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
         inner_type = get(tuple->ops(), index);
@@ -84,17 +98,17 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
         THORIN_UNREACHABLE;
     }
 
-    auto index_vector = index->type()->isa<VectorType>();
     if (index_vector && index_vector->is_vector()) {
-        if(type->length() == 1) {
-            set_type(world.ptr_type(inner_type, index_vector->length(), type->device(), type->addr_space()));
-        } else { //TODO: this distinction is broken. Maybe distinguish based on the actual type? It seems I am widening parameters multiple times.
-            inner_type = world.ptr_type(inner_type, type->length(), type->device(), type->addr_space());
-            set_type(inner_type);
-            //set_type(world.vec_type(inner_type, index_vector->length()));
-        }
+        inner_type = world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space());
+        auto result_type = world.vec_type(inner_type, index_vector->length());
+        set_type(result_type);
     } else {
-        set_type(world.ptr_type(inner_type, type->length(), type->device(), type->addr_space()));
+        if (auto typevec = type->isa<VectorExtendedType>()) {
+            inner_type = world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space());
+            set_type(world.vec_type(inner_type, typevec->length()));
+        } else {
+            set_type(world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space()));
+        }
     }
 }
 
@@ -134,14 +148,13 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     : Access(Node_Load, nullptr, {mem, ptr}, dbg)
 {
     World& w = mem->world();
-    auto return_type = ptr->type()->as<PtrType>()->pointee();
-    if (auto vector_ptr = ptr->type()->isa<VectorType>())
-        if (vector_ptr->is_vector()) {
-            if (auto prim_return_type = return_type->isa<PrimType>())
-                return_type = w.type(prim_return_type->primtype_tag(), vector_ptr->length());
-            else
-                return_type = w.vec_type(return_type, vector_ptr->length());
-        }
+    const Type* return_type;
+    if (auto ptrvec = ptr->type()->isa<VectorExtendedType>()) {
+        auto inner_type = ptrvec->element()->as<PtrType>()->pointee();
+        return_type = w.vec_type(inner_type, ptrvec->length());
+    } else {
+        return_type = ptr->type()->as<PtrType>()->pointee();
+    }
     set_type(w.tuple_type({w.mem_type(), return_type}));
 }
 
@@ -367,19 +380,12 @@ const Def* PrimOp::out(size_t i) const {
 const Type* Extract::extracted_type(const Type* agg_type, const Def* index) {
     if (auto tupleindex = index->isa<Tuple>()) {
         assert(tupleindex->op(0)->isa<Top>());
-        auto vector = agg_type->isa<VectorType>();
-        assert(vector);
+        auto vector = agg_type->as<VectorType>();
         auto inner_type = vector->scalarize();
 
         auto element_type = extracted_type(inner_type, tupleindex->op(1));
 
-        if (auto primelem = element_type->isa<PrimType>()) {
-            return index->world().type(primelem->primtype_tag(), 8); //TODO: element_type might already be a vector
-        } else if (auto ptrelem = element_type->isa<PtrType>()) {
-            return index->world().ptr_type(ptrelem->pointee(), 8, ptrelem->device(), ptrelem->addr_space()); //TODO: element_type might already be a vector
-        } else {
-            return index->world().vec_type(element_type, 8);
-        }
+        return index->world().vec_type(element_type, 8);
     }
     if (auto tuple = agg_type->isa<TupleType>()) {
         return get(tuple->ops(), index);

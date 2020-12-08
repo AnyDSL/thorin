@@ -211,15 +211,15 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
             // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
             auto ptr_ty = lea->type();
-            auto llvm_ptr_ty = convert(ptr_ty->pointee());
+            auto llvm_ptr_ty = convert(ptr_ty->as<PtrType>()->pointee()); //TODO: This is not correct! There might be a vector type in there as well!
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);
             llvm::Type* args[] = {
                 irbuilder_.getInt64Ty(),
                 irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
             auto type = llvm::FunctionType::get(ret_type, args, false);
-            auto fetch_command = get_texture_fetch_command(ptr_ty->pointee());
-            auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->pointee());
+            auto fetch_command = get_texture_fetch_command(ptr_ty->as<PtrType>()->pointee());
+            auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->as<PtrType>()->pointee());
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
                 lookup(lea->ptr()), lookup(lea->index()),

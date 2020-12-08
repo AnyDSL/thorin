@@ -57,6 +57,7 @@
         THORIN_NODE(PtrType, ptr)
         THORIN_NODE(StructType, struct_type)
         THORIN_NODE(VariantType, variant_type)
+        THORIN_NODE(VecType, vector_extended_type)
         THORIN_NODE(TupleType, tuple_type)
         THORIN_NODE(Var, var)
 

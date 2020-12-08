@@ -179,6 +179,8 @@ inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
                 interface = HlsInterface::HPC_STREAM;
                 set_interface = true;
                 continue;
+            } else {
+                continue;
             }
         }
         return (set_interface ? true : false);

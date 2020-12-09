@@ -1,5 +1,5 @@
-#ifndef THORIN_SET_H
-#define THORIN_SET_H
+#ifndef THORIN_LATTICE_H
+#define THORIN_LATTICE_H
 
 #include "thorin/def.h"
 

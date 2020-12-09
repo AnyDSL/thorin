@@ -11,6 +11,8 @@ set(THORIN_SOURCES
     error.h
     lam.cpp
     lam.h
+    lattice.cpp
+    lattice.h
     normalize.cpp
     normalize.h
     rewrite.cpp
@@ -18,8 +20,6 @@ set(THORIN_SOURCES
     stream.cpp
     tuple.cpp
     tuple.h
-    set.cpp
-    set.h
     tables.h
     world.cpp
     world.h

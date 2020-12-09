@@ -1,4 +1,4 @@
-#include "thorin/set.h"
+#include "thorin/lattice.h"
 
 #include "thorin/lam.h"
 

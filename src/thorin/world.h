@@ -8,7 +8,7 @@
 #include <string>
 
 #include "thorin/axiom.h"
-#include "thorin/set.h"
+#include "thorin/lattice.h"
 #include "thorin/tuple.h"
 #include "thorin/util/hash.h"
 #include "thorin/config.h"

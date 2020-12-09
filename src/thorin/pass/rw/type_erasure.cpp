@@ -2,16 +2,20 @@
 
 namespace thorin {
 
-const Def* TypeErasure::rewrite(Def*, const Def* def) {
-    if (auto vel = def->isa<Vel>()) {
+const Def* TypeErasure::rewrite(Def*, const Def* old_def, const Def* new_type, Defs new_ops, const Def* new_dbg) {
+    if (auto vel = old_def->isa<Vel>()) {
         auto join = vel->type()->as<Join>();
-        auto sigma = convert(join);
-        auto val = world().op_bitcast(sigma->op(1), vel->value());
+        auto sigma = new_type->as<Sigma>();
+        auto val = world().op_bitcast(sigma->op(1), new_ops[0], new_dbg);
         return world().tuple(sigma, {world().lit_int(join->num_ops(), join->find(vel->value()->type())), val});
-    } else if (auto test = def->isa<Test>()) {
+    } else if (auto test = old_def->isa<Test>()) {
         test->value();
     }
 
+    return old_def;
+}
+
+const Def* TypeErasure::rewrite(Def*, const Def* def) {
     return def;
 }
 

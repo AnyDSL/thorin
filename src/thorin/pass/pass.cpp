@@ -86,7 +86,7 @@ void PassMan::run() {
 }
 
 const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
-    if (old_def->is_const() || old_def->isa_nominal()) return old_def;
+    if (old_def->is_const()) return old_def;
 
     if (auto new_def = lookup(old_def)) {
         if (old_def == *new_def)
@@ -98,13 +98,27 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
     auto new_type = rewrite(cur_nom, old_def->type());
     auto new_dbg  = old_def->dbg() ? rewrite(cur_nom, old_def->dbg()) : nullptr;
 
-    Array<const Def*> new_ops(old_def->num_ops());
-    for (size_t i = 0, e = old_def->num_ops(); i != e; ++i) {
-        auto new_def = rewrite(cur_nom, old_def->op(i));
-        new_ops[i] = new_def;
+    // rewrite nominal
+    if (auto old_nom = old_def->isa_nominal()) {
+        for (auto pass : passes_) {
+            if (auto rw = pass->rewrite(cur_nom, old_nom, new_type, new_dbg))
+                return map(old_nom, rewrite(cur_nom, rw));
+        }
+
+        return map(old_nom, old_nom);
     }
+
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i)); });
+
+    // rewrite structural before rebuild
+    for (auto pass : passes_) {
+        if (auto rw = pass->rewrite(cur_nom, old_def, new_type, new_ops, new_dbg))
+            return map(old_def, rw);
+    }
+
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
+    // rewrite structural after rebuild
     for (auto pass : passes_) {
         if (auto rw = pass->rewrite(cur_nom, new_def); rw != new_def)
             return map(old_def, rewrite(cur_nom, rw));

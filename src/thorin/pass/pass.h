@@ -33,6 +33,12 @@ public:
     /// Invoked just before @p rewrite%ing @p cur_nom's body.
     virtual void enter([[maybe_unused]] Def* cur_nom) {}
 
+    /// Rewrites a @p nom%inal within @p cur_nom. Returns the replacement or @c nullptr if nothing has been done.
+    virtual Def* rewrite([[maybe_unused]] Def* cur_nom, [[maybe_unused]] Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nullptr; }
+
+    /// Rewrites a @em structural @p def within @p cur_nom @em before it has been @p rebuild. Returns the replacement or @c nullptr if nothing has been done.
+    virtual const Def* rewrite([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def, [[maybe_unused]] const Def* type, [[maybe_unused]] Defs, [[maybe_unused]] const Def* dbg) { return nullptr; }
+
     /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
     virtual const Def* rewrite([[maybe_unused]] Def* cur_nom, const Def* def) { return def; }
 

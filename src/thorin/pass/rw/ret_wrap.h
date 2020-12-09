@@ -12,7 +12,7 @@ public:
     {}
 
     void enter(Def*) override;
-    const Def* rewrite(Def*, const Def*) override;
+    const Def* rewrite(Def*, const Def*, const Def*, Defs, const Def*) override;
 
 private:
     Def2Def old2new_;

@@ -19,12 +19,4 @@ void ErrorHandler::ill_typed_app(const Def* callee, const Def* arg) {
     err("cannot pass argument '{} of type '{}' to '{}' of domain '{}'", arg, arg->type(), callee, callee->type()->as<Pi>()->domain());
 }
 
-void ErrorHandler::incomplete_match(const Match* match) {
-    err("match {} is incomplete", match);
-}
-
-void ErrorHandler::redundant_match_case(const Match* match, const Ptrn* first) {
-    err("match {} has a redundant case: {}", match, first);
-}
-
 }

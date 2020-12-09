@@ -34,7 +34,6 @@ World::World(const std::string& name)
     data_.space_    = insert<Space>(0, *this);
     data_.kind_     = insert<Kind>(0, *this);
     data_.bot_kind_ = insert<Bot>(0, kind(), nullptr);
-    data_.top_kind_ = insert<Top>(0, kind(), nullptr);
     data_.sigma_    = insert<Sigma>(0, kind(), Defs{}, nullptr)->as<Sigma>();
     data_.tuple_    = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     data_.type_nat_ = insert<Nat>(0, *this);
@@ -237,16 +236,6 @@ World::~World() {
  * core calculus
  */
 
-#if 0
-// TODO use for sigma
-static const Def* lub(const Def* t1, const Def* t2) {
-    if (t1->isa<Space>()) return t1;
-    if (t2->isa<Space>()) return t2;
-    assert(t1->isa<Kind>() && t2->isa<Kind>());
-    return t1;
-}
-#endif
-
 const Pi* World::pi(const Def* domain, const Def* codomain, const Def* dbg) {
     return unify<Pi>(2, codomain->type(), domain, codomain, dbg);
 }
@@ -281,12 +270,12 @@ const Def* World::raw_app(const Def* callee, const Def* arg, const Def* dbg) {
     return unify<App>(2, axiom, currying_depth-1, type, callee, arg, dbg);
 }
 
-const Def* World::sigma(const Def* type, Defs ops, const Def* dbg) {
+const Def* World::sigma(Defs ops, const Def* dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
-    return unify<Sigma>(ops.size(), type, ops, dbg);
+    return unify<Sigma>(ops.size(), infer_kind(ops), ops, dbg);
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {
@@ -349,22 +338,6 @@ const Def* World::tuple_str(const char* s, const Def* dbg) {
     return tuple(ops, dbg);
 }
 
-const Def* World::union_(const Def* type, Defs ops, const Def* dbg) {
-    assertf(ops.size() > 0, "unions must have at least one operand");
-    if (ops.size() == 1) return ops[0];
-    // Remove duplicate operands
-    Array<const Def*> ops_copy(ops);
-    std::sort(ops_copy.begin(), ops_copy.end());
-    ops.skip_back(ops_copy.end() - std::unique(ops_copy.begin(), ops_copy.end()));
-    return unify<Union>(ops_copy.size(), type, ops_copy, dbg);
-}
-
-const Def* World::which(const Def* value, const Def* dbg) {
-    if (auto insert = value->isa<Insert>())
-        return insert->index();
-    return unify<Which>(1, type_int(value->type()->arity()), value, dbg);
-}
-
 const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index, const Def* dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
         Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
@@ -401,7 +374,7 @@ const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index,
                 return extract(insert->tuple(), index, dbg);
         }
 
-        if (type->isa<Sigma>() || type->isa<Union>())
+        if (type->isa<Sigma>())
             return unify<Extract>(2, ex_type ? ex_type : type->op(*i), tup, index, dbg);
     }
 
@@ -436,9 +409,6 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, const
             tup = insert->tuple();
     }
 
-    // insert(x : U, index, y) -> insert(bot : U, index, y)
-    if (tup->type()->isa<Union>())
-        tup = bot(tup->type());
     return unify<Insert>(3, tup, index, val, dbg);
 }
 
@@ -521,14 +491,6 @@ const Lit* World::lit_int(const Def* type, u64 i, const Def* dbg) {
     return l;
 }
 
-const Def* World::bot_top(bool is_top, const Def* type, const Def* dbg) {
-    if (auto arr = type->isa<Arr>()) return pack(arr->shape(), bot_top(is_top, arr->body()), dbg);
-    if (auto sigma = type->isa<Sigma>())
-        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
-    auto d = dbg;
-    return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
-}
-
 const Def* World::global(const Def* id, const Def* init, bool is_mutable, const Def* dbg) {
     return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, dbg);
 }
@@ -542,6 +504,78 @@ const Def* World::global_immutable_string(const std::string& str, const Def* dbg
     str_array.back() = lit_nat('\0', dbg);
 
     return global(tuple(str_array, dbg), false, dbg);
+}
+
+/*
+ * set
+ */
+
+template<bool up>
+const Def* World::ext(const Def* type, const Def* dbg) {
+    if (auto arr = type->isa<Arr>()) return pack(arr->shape(), ext<up>(arr->body()), dbg);
+    if (auto sigma = type->isa<Sigma>())
+        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return ext<up>(sigma->op(i), dbg); }), dbg);
+    return unify<Ext<up>>(0, type, dbg);
+}
+
+template<bool up>
+const Def* World::bound(Defs ops, const Def* dbg) {
+    auto kind = infer_kind(ops);
+
+    // has ext<up> value?
+    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { return is_ext(up, op); }))
+        return ext<up>(kind);
+
+    // ignore: ext<!up>
+    Array<const Def*> cpy(ops);
+    auto end = std::copy_if(ops.begin(), ops.end(), cpy.begin(), [&](const Def* op) { return !isa_ext(op); });
+
+    // sort and remove duplicates
+    std::sort(cpy.begin(), end, GIDLt<const Def*>());
+    end = std::unique(cpy.begin(), end);
+    cpy.shrink(cpy.begin() - end);
+
+    if (cpy.size() == 0) return ext<!up>(kind, dbg);
+    if (cpy.size() == 1) return cpy[0];
+
+    // TODO simplify mixed terms with joins and meets
+
+    return unify<Bound<up>>(cpy.size(), kind, cpy, dbg);
+}
+
+const Def* World::et(const Def* type, Defs ops, const Def* dbg) {
+    if (type->isa<Meet>()) {
+        Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
+        return unify<Et>(ops.size(), meet(types), ops, dbg);
+    }
+
+    assert(ops.size() == 1);
+    return ops[0];
+}
+
+const Def* World::vel(const Def* type, const Def* value, const Def* dbg) {
+    if (type->isa<Join>()) return unify<Vel>(1, type, value, dbg);
+    return value;
+}
+
+const Def* World::pick(const Def* type, const Def* value, const Def* dbg) {
+    return unify<Pick>(1, type, value, dbg);
+}
+
+const Def* World::test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg) {
+    auto m_pi = match->type()->isa<Pi>();
+    auto c_pi = clash->type()->isa<Pi>();
+
+    if (err()) {
+        // TODO proper error msg
+        assert(m_pi && c_pi);
+        auto a = isa_lit(m_pi->domain()->arity());
+        assert(a && *a == 2);
+        assert(checker_->equiv(proj(m_pi->domain(), 2, 0), c_pi->domain()));
+    }
+
+    auto codom = join({m_pi->codomain(), c_pi->codomain()});
+    return unify<Test>(4, pi(c_pi->domain(), codom), value, index, match, clash, dbg);
 }
 
 /*
@@ -603,6 +637,10 @@ const Def* World::type_tangent_vector(const Def* primal_type, const Def* dbg) {
     return app(data_.type_tangent_vector_, primal_type, dbg);
 }
 
+/*
+ * helpers
+ */
+
 const Def* World::dbg(Debug d) {
     auto pos2def = [&](Pos pos) { return lit_nat((u64(pos.row) << 32_u64) | (u64(pos.col))); };
 
@@ -611,7 +649,15 @@ const Def* World::dbg(Debug d) {
     auto begin = pos2def(d.loc.begin);
     auto finis = pos2def(d.loc.finis);
     auto loc = tuple({file, begin, finis});
+
     return tuple({name, loc, d.meta ? d.meta : bot(bot_kind()) });
+}
+
+const Def* World::infer_kind(Defs defs) const {
+    for (auto def : defs) {
+        if (def->type()->isa<Space>()) return def;
+    }
+    return kind();
 }
 
 /*
@@ -688,10 +734,18 @@ std::string World::colorize(const std::string& str, int) {
 
 void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
 
+/*
+ * instantiate templates
+ */
+
 template void Streamable<World>::write(const std::string& filename) const;
 template void Streamable<World>::write() const;
 template void Streamable<World>::dump() const;
-template void World::visit<true> (VisitFn) const;
+template void World::visit<true >(VisitFn) const;
 template void World::visit<false>(VisitFn) const;
+template const Def* World::ext<true >(const Def*, const Def*);
+template const Def* World::ext<false>(const Def*, const Def*);
+template const Def* World::bound<true >(Defs, const Def*);
+template const Def* World::bound<false>(Defs, const Def*);
 
 }

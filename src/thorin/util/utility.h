@@ -49,6 +49,12 @@ auto pop(Q& q) -> decltype(q.front(), typename Q::value_type()) {
     return val;
 }
 
+template<class I, class T, class Cmp>
+I binary_find(I begin, I end, T val, Cmp cmp) {
+    auto i = std::lower_bound(begin, end, val, cmp);
+    return (i != end && !(cmp(val, *i))) ? i : end;
+}
+
 template<class Set>
 class unique_stack {
 public:
@@ -100,30 +106,6 @@ private:
     Set done_;
     std::queue<T> queue_;
 };
-
-template<class T>
-struct Push {
-    Push(T& t, T new_val)
-        : old_(t)
-        , ref_(t)
-    {
-        t = new_val;
-    }
-    ~Push() { ref_ = old_; }
-
-private:
-    T old_;
-    T& ref_;
-};
-
-template<class T, class U>
-inline Push<T> push(T& t, U new_val) { return Push<T>(t, new_val); }
-
-#define THORIN_LNAME__(name, line) name##__##line
-#define THORIN_LNAME_(name, line)  THORIN_LNAME__(name, line)
-#define THORIN_LNAME(name)         THORIN_LNAME_(name, __LINE__)
-
-#define THORIN_PUSH(what, with) auto THORIN_LNAME(thorin_push) = thorin::push((what), (with))
 
 /**
  * A tagged pointer: first 16 bits is tag (index), remaining 48 bits is the actual pointer.

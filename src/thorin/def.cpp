@@ -72,7 +72,7 @@ Nat::Nat(World& world)
 const Def* App    ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.app(o[0], o[1], dbg); }
 const Def* Arr    ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.arr(o[0], o[1], dbg); }
 const Def* Axiom  ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.axiom(normalizer(), t, tag(), flags(), dbg); }
-const Def* Bot    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.bot(t, dbg); }
+const Def* Et     ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.et(t, o, dbg); }
 const Def* Extract::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.extract_(t, o[0], o[1], dbg); }
 const Def* Global ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.global(o[0], o[1], is_mutable(), dbg); }
 const Def* Insert ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.insert(o[0], o[1], o[2], dbg); }
@@ -83,14 +83,16 @@ const Def* Nat    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) cons
 const Def* Pack   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
+const Def* Pick   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pick(t, o[0], dbg); }
 const Def* Proxy  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, as<Proxy>()->index(), as<Proxy>()->flags(), dbg); }
-const Def* Sigma  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.sigma(t, o, dbg); }
+const Def* Sigma  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.sigma(o, dbg); }
 const Def* Space  ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.space(); }
-const Def* Top    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.top(t, dbg); }
+const Def* Test   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.test(o[0], o[1], o[2], o[3], dbg); }
 const Def* Tuple  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }
-const Def* Union  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.union_(t, o, dbg); }
-const Def* Which  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.which(o[0], dbg); }
+const Def* Vel    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.vel(t, o[0], dbg); }
 
+template<bool up> const Def* Ext  <up>::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.ext  <up>(t,    dbg); }
+template<bool up> const Def* Bound<up>::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.bound<up>(   o, dbg); }
 /*
  * stub
  */
@@ -98,8 +100,9 @@ const Def* Which  ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) cons
 Lam*   Lam  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_lam  (t->as<Pi>(), cc(), dbg); }
 Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_pi   (t, dbg); }
 Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.nom_sigma(t, num_ops(), dbg); }
-Union* Union::stub(World& w, const Def* t, const Def* dbg) { return w.nom_union(t, num_ops(), dbg); }
 Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_arr  (t, shape(), dbg); }
+
+template<bool up> Bound<up>* Bound<up>::stub(World& w, const Def* t, const Def* dbg) { return w.nom_bound<up>(t, num_ops(), dbg); }
 
 /*
  * restructure
@@ -113,7 +116,7 @@ const Pi* Pi::restructure() {
 const Def* Arr::restructure() {
     auto& w = world();
     if (auto n = isa_lit(shape()))
-        return w.sigma(type(), Array<const Def*>(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));
+        return w.sigma(Array<const Def*>(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));
     return nullptr;
 }
 
@@ -139,12 +142,12 @@ Defs Def::extended_ops() const {
 
 const Param* Def::param(const Def* dbg) {
     auto& w = world();
-    if (auto lam    = isa<Lam  >()) return w.param(lam ->domain(), lam,    dbg);
-    if (auto pi     = isa<Pi   >()) return w.param(pi  ->domain(), pi,     dbg);
-    if (auto sigma  = isa<Sigma>()) return w.param(sigma,          sigma,  dbg);
-    if (auto union_ = isa<Union>()) return w.param(union_,         union_, dbg);
+    if (auto lam    = isa<Lam  >()) return w.param(lam ->domain(), lam,   dbg);
+    if (auto pi     = isa<Pi   >()) return w.param(pi  ->domain(), pi,    dbg);
+    if (auto sigma  = isa<Sigma>()) return w.param(sigma,          sigma, dbg);
     if (auto arr    = isa<Arr  >()) return w.param(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
     if (auto pack   = isa<Pack >()) return w.param(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
+    if (isa_bound(this)) return w.param(this, this,  dbg);
     THORIN_UNREACHABLE;
 }
 
@@ -153,9 +156,9 @@ const Def*   Def::param(size_t i) { return param(i, nullptr); }
 size_t       Def::num_params() { return param()->num_outs(); }
 
 Sort Def::level() const {
-    if (                        isa<Space>()) return Sort::Space;
-    if (                type()->isa<Space>()) return Sort::Kind;
-    if (        type()->type()->isa<Space>()) return Sort::Type;
+    if (                isa<Space>()) return Sort::Space;
+    if (        type()->isa<Space>()) return Sort::Kind;
+    if (type()->type()->isa<Space>()) return Sort::Type;
     return Sort::Term;
 }
 
@@ -167,20 +170,20 @@ Sort Def::sort() const {
         case Node::Nat:
         case Node::Pi:
         case Node::Sigma:
-        case Node::Union: return Sort::Type;
+        case Node::Join:
+        case Node::Meet: return Sort::Type;
         case Node::Global:
         case Node::Insert:
         case Node::Lam:
         case Node::Pack:
-        case Node::Tuple:
-        case Node::Which: return Sort::Term;
+        case Node::Test:
+        case Node::Tuple: return Sort::Term;
         default:          return Sort(int(type()->sort()) - 1);
     }
 }
 
 const Def* Def::arity() const {
     if (auto sigma  = isa<Sigma>()) return world().lit_nat(sigma ->num_ops());
-    if (auto union_ = isa<Union>()) return world().lit_nat(union_->num_ops());
     if (auto arr    = isa<Arr  >()) return arr->shape();
     if (sort() == Sort::Term)       return type()->arity();
     return world().lit_nat(1);
@@ -341,5 +344,16 @@ const Def* Def::refine(size_t i, const Def* new_op) const {
 
 const App* Global::type() const { return thorin::as<Tag::Ptr>(Def::type()); }
 const Def* Global::alloced_type() const { return type()->arg(0); }
+
+/*
+ * instantiate templates
+ */
+
+template const Def*    Ext  <false>::rebuild(World&, const Def*, Defs, const Def*) const;
+template const Def*    Ext  <true >::rebuild(World&, const Def*, Defs, const Def*) const;
+template const Def*    Bound<false>::rebuild(World&, const Def*, Defs, const Def*) const;
+template const Def*    Bound<true >::rebuild(World&, const Def*, Defs, const Def*) const;
+template Bound<false>* Bound<false>::stub(World&, const Def*, const Def*);
+template Bound<true >* Bound<true >::stub(World&, const Def*, const Def*);
 
 }

@@ -45,7 +45,7 @@ typedef ArrayRef<const Def*> Defs;
 //------------------------------------------------------------------------------
 
 /**
- * Similar to @p World::extract but also works on @p Sigma%s and @p Arr%s and considers @p Union%s as scalars.
+ * Similar to @p World::extract but also works on @p Sigma%s, and @p Arr%s.
  * If @p def is a value (see @p Def::is_value), proj resorts to @p World::extract.
  */
 const Def* proj(const Def* def, u64 arity, u64 i, const Def* dbg = {});

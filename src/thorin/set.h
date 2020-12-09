@@ -21,6 +21,7 @@ private:
 
 public:
     size_t find(const Def* type) const;
+    const Def* get(const Def* type) const { return op(find(type)); }
 
     /// @name virtual methods
     //@{

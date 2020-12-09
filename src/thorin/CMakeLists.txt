@@ -59,6 +59,8 @@ set(THORIN_SOURCES
     pass/rw/partial_eval.h
     pass/rw/ret_wrap.cpp
     pass/rw/ret_wrap.h
+    pass/rw/type_erasure.cpp
+    pass/rw/type_erasure.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/flatten_tuples.cpp

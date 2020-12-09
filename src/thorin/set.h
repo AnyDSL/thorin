@@ -94,12 +94,12 @@ public:
 };
 
 /**
- * Tests the @p value of type @p Join whehter it is of type @p index.
+ * Tests the @p value of type @p Join whether it currently holds @em type @p index.
+ * Note, that @p index is a @em type!
  * Yields @p match if @c true and @p clash otherwise.
  * @p match must be of type <tt> A -> B </tt>.
  * @p clash must be of type <tt> [A, index] -> C </tt>.
- * This operation is usually known as @c case.
- * But @c case is a keyword in C++.
+ * This operation is usually known as @c case but @c case is a keyword in C++, so we call it @p Test.
  */
 class Test : public Def {
 private:
@@ -153,10 +153,20 @@ inline std::optional<bool> isa_ext(const Def* def) {
     return {};
 }
 
+inline bool is_ext(bool top, const Def* def) {
+    if (auto ext = isa_ext(def)) return *ext == top;
+    return false;
+}
+
 inline std::optional<bool> isa_bound(const Def* def) {
     if (def->isa<Meet>()) return false;
     if (def->isa<Join>()) return true;
     return {};
+}
+
+inline bool is_bound(bool join, const Def* def) {
+    if (auto ext = isa_bound(def)) return *ext == join;
+    return false;
 }
 
 }

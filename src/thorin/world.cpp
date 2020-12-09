@@ -523,7 +523,7 @@ const Def* World::bound(Defs ops, const Def* dbg) {
     auto kind = infer_kind(ops);
 
     // has ext<up> value?
-    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { auto ext = isa_ext(op); return ext && (*ext == up); }))
+    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { return is_ext(up, op); }))
         return ext<up>(kind);
 
     // ignore: ext<!up>

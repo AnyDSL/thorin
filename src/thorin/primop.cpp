@@ -268,7 +268,7 @@ const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
 }
 
 const Def* StructAgg::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.struct_agg(t->as<StructType>(), ops, debug());
+    return to.struct_agg(t, ops, debug());
 }
 
 const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

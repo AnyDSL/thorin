@@ -1339,17 +1339,57 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    auto ptr = lookup(store->ptr());
     llvm::Value* result;
-    if (ptr->getType()->isVectorTy()) {
-        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-        auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue());
-        result = scatter;
+
+    if (store->ptr()->type()->isa<VectorExtendedType>() &&
+            store->ptr()->type()->as<VectorExtendedType>()->element()->isa<PtrType>() &&
+            store->ptr()->type()->as<VectorExtendedType>()->element()->as<PtrType>()->pointee()->isa<StructType>()) { //TODO: There are other cases that require this handling.
+        auto struct_type = store->ptr()->type()->as<VectorExtendedType>()->element()->as<PtrType>()->pointee()->as<StructType>();
+
+        auto llvm_value = lookup(store->val());
+        auto llvm_ptr = lookup(store->ptr());
+
+        auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(llvm_ptr->getType());
+        auto llvm_element_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_vector_type->getElementType());
+
+        auto structtype = convert(struct_type);
+
+        unsigned vector_width = store->ptr()->type()->as<VectorExtendedType>()->length();
+
+        for (unsigned i = 0; i < struct_type->num_ops(); i++) {
+            //Extract element from value
+            auto llvm_element = irbuilder_.CreateExtractValue(llvm_value, { i });
+            auto llvm_element_inner_type = llvm::dyn_cast<llvm::VectorType>(llvm_element->getType())->getElementType();
+
+            auto innerpointertype = llvm::PointerType::get(llvm_element_inner_type, llvm_element_pointer_type->getAddressSpace());
+
+            //create gep to ith element.
+            llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width)); // undef : <8 x i32*>
+            for (unsigned j = 0; j < vector_width; j++) {
+                auto element = irbuilder_.CreateExtractElement(llvm_ptr, j);
+                llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
+                auto gep = irbuilder_.CreateInBoundsGEP(structtype, element, args);
+                innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
+            }
+
+            auto align = module_->getDataLayout().getABITypeAlignment(llvm_ptr->getType()->getScalarType()->getPointerElementType());
+            auto store = irbuilder_.CreateMaskedScatter(llvm_element, innergep, llvm::MaybeAlign(align).getValue());
+
+            result = store; //TODO: this is actually incorrect, but doesn't matter for a store, I guess?
+        }
     } else {
-        auto storeval = irbuilder_.CreateStore(lookup(store->val()), ptr);
-        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-        storeval->setAlignment(llvm::MaybeAlign(align).getValue());
-        result = storeval;
+        auto ptr = lookup(store->ptr());
+
+        if (ptr->getType()->isVectorTy()) {
+            auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
+            auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue());
+            result = scatter;
+        } else {
+            auto storeval = irbuilder_.CreateStore(lookup(store->val()), ptr);
+            auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+            storeval->setAlignment(llvm::MaybeAlign(align).getValue());
+            result = storeval;
+        }
     }
     return result;
 }
@@ -1437,6 +1477,17 @@ llvm::Type* CodeGen::convert(const Type* type) {
             break;
         }
         case Node_VecType: {
+            size_t vector_width = type->as<VectorExtendedType>()->length();
+            auto element_type = type->as<VectorExtendedType>()->element();
+            if (auto struct_type = element_type->isa<StructType>()) { //TODO: other aggregates cannot be an element of llvm vectors either.
+                llvm::Type *newelements[struct_type->num_ops()];
+                for (size_t i = 0; i < struct_type->num_ops(); i++) {
+                    auto element = convert(struct_type->op(i));
+
+                    newelements[i] = llvm::FixedVectorType::get(element, vector_width);
+                }
+                return llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, struct_type->num_ops()));
+            }
             llvm_type = convert(type->as<VectorExtendedType>()->element());
             break;
         }

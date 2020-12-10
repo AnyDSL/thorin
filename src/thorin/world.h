@@ -115,8 +115,14 @@ public:
     const Def* indefinite_array(const Type* elem, const Def* dim, Debug dbg = {}) {
         return cse(new IndefiniteArray(*this, elem, dim, dbg));
     }
-    const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
+    const Def* struct_agg(const Type* type, Defs args, Debug dbg = {}) {
+        if (auto struct_type = type->isa<StructType>()) {
+            return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
+        } else if (auto vector_type = type->isa<VectorExtendedType>()) {
+            return cse(new StructAgg(vector_type, args, dbg));
+        } else {
+            THORIN_UNREACHABLE;
+        }
     }
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
 

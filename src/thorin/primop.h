@@ -391,21 +391,30 @@ public:
 /// Data constructor for a @p StructType.
 class StructAgg : public Aggregate {
 private:
-    StructAgg(const StructType* struct_type, Defs args, Debug dbg)
+    StructAgg(const Type* type, Defs args, Debug dbg)
         : Aggregate(Node_StructAgg, args, dbg)
     {
 #if THORIN_ENABLE_CHECKS
-        assert(struct_type->num_ops() == args.size());
-        for (size_t i = 0, e = args.size(); i != e; ++i)
-            assert(struct_type->op(i) == args[i]->type());
+        if (auto struct_type = type->isa<StructType>()) {
+            assert(struct_type->num_ops() == args.size());
+            for (size_t i = 0, e = args.size(); i != e; ++i)
+                assert(struct_type->op(i) == args[i]->type());
+        } else if (auto vector_type = type->isa<VectorExtendedType>()){
+            auto struct_type = vector_type->element()->as<StructType>();
+            assert(struct_type->num_ops() == args.size());
+            for (size_t i = 0, e = args.size(); i != e; ++i)
+                assert(struct_type->op(i) == args[i]->type()->as<VectorExtendedType>()->element());
+        } else {
+            THORIN_UNREACHABLE;
+        }
 #endif
-        set_type(struct_type);
+        set_type(type);
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const StructType* type() const { return Aggregate::type()->as<StructType>(); }
+    const Type* type() const { return Aggregate::type()->as<StructType>(); }
 
     friend class World;
 };

@@ -964,8 +964,17 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreateIntToPtr(from, to);
             }
 
-            auto src = src_type->as<PrimType>();
-            auto dst = dst_type->as<PrimType>();
+            const PrimType *src, *dst;
+
+            if (auto src_vector = src_type->isa<VectorExtendedType>()) {
+                auto dst_vector = dst_type->as<VectorExtendedType>();
+
+                src = src_vector->element()->as<PrimType>(); //TODO: These might also be pointers!
+                dst = dst_vector->element()->as<PrimType>();
+            } else {
+                src = src_type->as<PrimType>();
+                dst = dst_type->as<PrimType>();
+            }
 
             if (is_type_f(src) && is_type_f(dst)) {
                 assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));

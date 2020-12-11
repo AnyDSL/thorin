@@ -89,6 +89,20 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     }
 }
 
+static Array<llvm::Type*> flatten (llvm::Type* orig_type) {
+    if (orig_type->isStructTy()) {
+        std::vector<llvm::Type*> new_elements;
+        for (unsigned i = 0; i < orig_type->getStructNumElements(); i++) {
+            auto struct_element = orig_type->getStructElementType(i);
+            for (auto felem : flatten(struct_element)) {
+                new_elements.push_back(felem);
+            }
+        }
+        return Array<llvm::Type*>(new_elements);
+    }
+    return Array<llvm::Type*> {orig_type};
+}
+
 Continuation* CodeGen::emit_hls(Continuation* continuation) {
     std::vector<llvm::Value*> args(continuation->num_args()-3);
     Continuation* ret = nullptr;
@@ -1302,34 +1316,42 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
         assert(llvm_vector_type && "Scalable vector?");
         auto llvm_element_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_vector_type->getElementType());
         auto llvm_element_type = llvm_element_pointer_type->getElementType();
-        size_t vector_width = llvm_vector_type->getNumElements();
+
         if (!llvm::VectorType::isValidElementType(llvm_element_type)) {
             //don't generate a vector of structs, but a struct of vectors in this case.
-            auto structtype = llvm::dyn_cast<llvm::StructType>(llvm_element_type);
-            assert(structtype && "other types currently unsupported");
-            llvm::Type *newelements[structtype->getNumElements()];
-            llvm::Value *newgeps[structtype->getNumElements()];
-            for (size_t i = 0; i < structtype->getNumElements(); i++) {
-                newelements[i] = llvm::FixedVectorType::get(structtype->getElementType(i), vector_width); // <8 x i32>
 
-                auto innerpointertype = llvm::PointerType::get(structtype->getElementType(i), llvm_element_pointer_type->getAddressSpace()); // i32*
+            auto target_type = convert(load->type()->op(1));
+            size_t vector_width = llvm_vector_type->getNumElements();
 
-                llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width)); // undef : <8 x i32*>
+            auto flatten_type = flatten(llvm_element_type);
+            llvm::Type *newelements[flatten_type.size()];
+            for (unsigned i = 0; i < flatten_type.size(); i++)
+                newelements[i] = flatten_type[i];
+            auto castet_element_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
+
+            auto castet_pointer_type = llvm::PointerType::get(castet_element_type, llvm_element_pointer_type->getAddressSpace());
+            auto castet_pointer_type_vector = llvm::FixedVectorType::get(castet_pointer_type, vector_width);
+
+            auto castet_pointer = irbuilder_.CreatePointerCast(ptr, castet_pointer_type_vector);
+
+            llvm::Value *newgeps[flatten_type.size()];
+
+            for (unsigned i = 0; i < flatten_type.size(); i++) {
+                auto innerpointertype = llvm::PointerType::get(flatten_type[i], llvm_element_pointer_type->getAddressSpace());
+
+                llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width));
                 for (size_t j = 0; j < vector_width; j++) {
-                    auto element = irbuilder_.CreateExtractElement(ptr, j);
+                    auto element = irbuilder_.CreateExtractElement(castet_pointer, j);
                     llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
-
-                    auto gep = irbuilder_.CreateInBoundsGEP(structtype, element, args);
-
+                    auto gep = irbuilder_.CreateInBoundsGEP(castet_element_type, element, args);
                     innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
                 }
+
                 newgeps[i] = innergep;
             }
 
-            auto newresulttype = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, structtype->getNumElements()));
-
-            result = llvm::UndefValue::get(newresulttype);
-            for (size_t i = 0; i < structtype->getNumElements(); i++) {
+            result = llvm::UndefValue::get(target_type);
+            for (unsigned i = 0; i < flatten_type.size(); i++) {
                 auto gep = newgeps[i];
                 auto gather = irbuilder_.CreateMaskedGather(gep, llvm::MaybeAlign(align).getValue());
                 result = irbuilder_.CreateInsertValue(result, gather, i);
@@ -1488,16 +1510,18 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_VecType: {
             size_t vector_width = type->as<VectorExtendedType>()->length();
             auto element_type = type->as<VectorExtendedType>()->element();
-            if (auto struct_type = element_type->isa<StructType>()) { //TODO: other aggregates cannot be an element of llvm vectors either.
-                llvm::Type *newelements[struct_type->num_ops()];
-                for (size_t i = 0; i < struct_type->num_ops(); i++) {
-                    auto element = convert(struct_type->op(i));
-
+            llvm_type = convert(element_type);
+            if (!llvm::VectorType::isValidElementType(llvm_type)) {
+                auto flatten_type = flatten(llvm_type);
+                llvm::Type *newelements[flatten_type.size()];
+                for (unsigned i = 0; i < flatten_type.size(); i++) {
+                    auto element = flatten_type[i];
                     newelements[i] = llvm::FixedVectorType::get(element, vector_width);
                 }
-                return llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, struct_type->num_ops()));
+
+                llvm_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
+                return types_[type] = llvm_type;
             }
-            llvm_type = convert(type->as<VectorExtendedType>()->element());
             break;
         }
         case Node_IndefiniteArrayType: {

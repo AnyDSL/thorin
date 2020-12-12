@@ -49,11 +49,8 @@ void PassMan::run() {
         world().ILOG(" + {}", pass->name());
     world().debug_stream();
 
-    for (const auto& [_, nom] : world().externals()) {
-        map(nom, nom);
-        enqueued(nom);
-        cur_state().stack.push(nom);
-    }
+    for (const auto& [_, nom] : world().externals())
+        enqueue(rewrite(nom));
 
     while (!cur_state().stack.empty()) {
         push_state();
@@ -139,10 +136,13 @@ void PassMan::enqueue(const Def* def) {
     if (def->is_const() || enqueued(def)) return;
     assert(!def->isa<Proxy>() && "proxies must not occur anymore after finishing a nominal with No_Undo");
 
+    enqueue(def->type());
+    if (auto dbg = def->dbg()) enqueue(dbg);
+
     if (auto nom = def->isa_nominal()) {
         cur_state().stack.push(nom);
     } else {
-        for (auto op : def->extended_ops())
+        for (auto op : def->ops())
             enqueue(op);
     }
 }

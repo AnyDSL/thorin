@@ -2,7 +2,7 @@
 
 namespace thorin {
 
-Def* TypeErasure::rewrite(Def*, const Def*, const Def*) {
+const Def* TypeErasure::rewrite(Def*, const Def*, const Def*) {
     return nullptr;
 }
 

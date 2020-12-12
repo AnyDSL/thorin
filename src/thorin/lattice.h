@@ -8,16 +8,15 @@ namespace thorin {
 class Lam;
 class Sigma;
 
-template<bool up>
 class Bound : public Def {
-private:
+protected:
     /// Constructor for a @em structural Bound.
-    Bound(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, type, ops, 0, dbg)
+    Bound(node_t node, const Def* type, Defs ops, const Def* dbg)
+        : Def(node, type, ops, 0, dbg)
     {}
     /// Constructor for a @em nominal Bound.
-    Bound(const Def* type, size_t size, const Def* dbg)
-        : Def(Node, type, size, 0, dbg)
+    Bound(node_t node, const Def* type, size_t size, const Def* dbg)
+        : Def(node, type, size, 0, dbg)
     {}
 
 public:
@@ -25,12 +24,28 @@ public:
     const Lit* index(const Def* type) const;
     const Def* get(const Def* type) const { return op(find(type)); }
     const Sigma* convert() const;
+};
 
+template<bool up>
+class TBound : public Bound {
+private:
+    /// Constructor for a @em structural Bound.
+    TBound(const Def* type, Defs ops, const Def* dbg)
+        : Bound(Node, type, ops, dbg)
+    {}
+    /// Constructor for a @em nominal Bound.
+    TBound(const Def* type, size_t size, const Def* dbg)
+        : Bound(Node, type, size, dbg)
+    {}
+
+public:
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    Bound* stub(World&, const Def*, const Def*) override;
+    TBound* stub(World&, const Def*, const Def*) override;
     //@}
+
+    const Sigma* convert() const;
 
     static constexpr auto Node = up ? Node::Join : Node::Meet;
     friend class World;
@@ -128,12 +143,20 @@ public:
     friend class World;
 };
 
+/// Common base for @p Ext%remum.
+class Ext : public Def {
+protected:
+    Ext(node_t node, const Def* type, const Def* dbg)
+        : Def(node, type, Defs{}, 0, dbg)
+    {}
+};
+
 /// Ext%remum. Either @p Top (@p up) or @p Bot%tom.
 template<bool up>
-class Ext : public Def {
+class TExt : public Ext {
 private:
-    Ext(const Def* type, const Def* dbg)
-        : Def(Node, type, Defs{}, 0, dbg)
+    TExt(const Def* type, const Def* dbg)
+        : Ext(Node, type, dbg)
     {}
 
 public:
@@ -146,31 +169,17 @@ public:
     friend class World;
 };
 
-using Bot  = Ext<false>;
-using Top  = Ext<true >;
-using Meet = Bound<false>;
-using Join = Bound<true >;
+using Bot  = TExt<false>;
+using Top  = TExt<true >;
+using Meet = TBound<false>;
+using Join = TBound<true >;
 
-inline std::optional<bool> isa_ext(const Def* def) {
-    if (def->isa<Bot>()) return false;
-    if (def->isa<Top>()) return true;
-    return {};
+inline const Ext* isa_ext(const Def* def) {
+    return def->isa<Bot>() || def->isa<Top>() ? static_cast<const Ext*>(def) : nullptr;
 }
 
-inline bool is_ext(bool top, const Def* def) {
-    if (auto ext = isa_ext(def)) return *ext == top;
-    return false;
-}
-
-inline std::optional<bool> isa_bound(const Def* def) {
-    if (def->isa<Meet>()) return false;
-    if (def->isa<Join>()) return true;
-    return {};
-}
-
-inline bool is_bound(bool join, const Def* def) {
-    if (auto ext = isa_bound(def)) return *ext == join;
-    return false;
+inline const Bound* isa_bound(const Def* def) {
+    return def->isa<Meet>() || def->isa<Join>() ? static_cast<const Bound*>(def) : nullptr;
 }
 
 }

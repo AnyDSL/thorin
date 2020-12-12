@@ -72,8 +72,8 @@ Stream& stream(Stream& s, const Def* def) {
         return s.fmt("‹{}; {}›", pack->shape(), pack->body());
     } else if (auto proxy = def->isa<Proxy>()) {
         return s.fmt(".proxy#{}#{} {, }", proxy->index(), proxy->flags(), proxy->ops());
-    } else if (auto up = isa_bound(def)) {
-        const char* op = up ? "∪" : "∪";
+    } else if (auto bound = isa_bound(def)) {
+        const char* op = bound->isa<Join>() ? "∪" : "∩";
         if (def->isa_nominal()) s.fmt("{}{}: {}", op, def->unique_name(), def->type());
         return s.fmt("{}({, })", op, def->ops());
     }

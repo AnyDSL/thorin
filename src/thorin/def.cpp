@@ -91,8 +91,8 @@ const Def* Test   ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) cons
 const Def* Tuple  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.tuple(t, o, dbg); }
 const Def* Vel    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.vel(t, o[0], dbg); }
 
-template<bool up> const Def* Ext  <up>::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.ext  <up>(t,    dbg); }
-template<bool up> const Def* Bound<up>::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.bound<up>(   o, dbg); }
+template<bool up> const Def* TExt  <up>::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.ext  <up>(t,    dbg); }
+template<bool up> const Def* TBound<up>::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.bound<up>(   o, dbg); }
 /*
  * stub
  */
@@ -102,7 +102,7 @@ Pi*    Pi   ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_pi   (
 Sigma* Sigma::stub(World& w, const Def* t, const Def* dbg) { return w.nom_sigma(t, num_ops(), dbg); }
 Arr*   Arr  ::stub(World& w, const Def* t, const Def* dbg) { return w.nom_arr  (t, shape(), dbg); }
 
-template<bool up> Bound<up>* Bound<up>::stub(World& w, const Def* t, const Def* dbg) { return w.nom_bound<up>(t, num_ops(), dbg); }
+template<bool up> TBound<up>* TBound<up>::stub(World& w, const Def* t, const Def* dbg) { return w.nom_bound<up>(t, num_ops(), dbg); }
 
 /*
  * restructure
@@ -349,11 +349,11 @@ const Def* Global::alloced_type() const { return type()->arg(0); }
  * instantiate templates
  */
 
-template const Def*    Ext  <false>::rebuild(World&, const Def*, Defs, const Def*) const;
-template const Def*    Ext  <true >::rebuild(World&, const Def*, Defs, const Def*) const;
-template const Def*    Bound<false>::rebuild(World&, const Def*, Defs, const Def*) const;
-template const Def*    Bound<true >::rebuild(World&, const Def*, Defs, const Def*) const;
-template Bound<false>* Bound<false>::stub(World&, const Def*, const Def*);
-template Bound<true >* Bound<true >::stub(World&, const Def*, const Def*);
+template const Def*     TExt  <false>::rebuild(World&, const Def*, Defs, const Def*) const;
+template const Def*     TExt  <true >::rebuild(World&, const Def*, Defs, const Def*) const;
+template const Def*     TBound<false>::rebuild(World&, const Def*, Defs, const Def*) const;
+template const Def*     TBound<true >::rebuild(World&, const Def*, Defs, const Def*) const;
+template TBound<false>* TBound<false>::stub(World&, const Def*, const Def*);
+template TBound<true >* TBound<true >::stub(World&, const Def*, const Def*);
 
 }

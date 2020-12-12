@@ -515,7 +515,7 @@ const Def* World::ext(const Def* type, const Def* dbg) {
     if (auto arr = type->isa<Arr>()) return pack(arr->shape(), ext<up>(arr->body()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return ext<up>(sigma->op(i), dbg); }), dbg);
-    return unify<Ext<up>>(0, type, dbg);
+    return unify<TExt<up>>(0, type, dbg);
 }
 
 template<bool up>
@@ -523,7 +523,7 @@ const Def* World::bound(Defs ops, const Def* dbg) {
     auto kind = infer_kind(ops);
 
     // has ext<up> value?
-    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { return is_ext(up, op); }))
+    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { return up ? bool(op->isa<Top>()) : bool(op->isa<Bot>()); }))
         return ext<up>(kind);
 
     // ignore: ext<!up>
@@ -540,7 +540,7 @@ const Def* World::bound(Defs ops, const Def* dbg) {
 
     // TODO simplify mixed terms with joins and meets
 
-    return unify<Bound<up>>(cpy.size(), kind, cpy, dbg);
+    return unify<TBound<up>>(cpy.size(), kind, cpy, dbg);
 }
 
 const Def* World::et(const Def* type, Defs ops, const Def* dbg) {

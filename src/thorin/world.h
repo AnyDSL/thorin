@@ -249,8 +249,8 @@ public:
     const Def* top(const Def* type, const Def* dbg = {}) { return ext< true>(type, dbg); }
     const Def* bot_kind() { return data_.bot_kind_; }
     const Def* top_nat () { return data_.top_nat_; }
-    template<bool up> Bound<up>* nom_bound(const Def* type, size_t size, const Def* dbg = {}) { return insert<Bound<up>>(size, type, size, dbg); }
-    template<bool up> Bound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nominal @p Bound of type @p kind
+    template<bool up> TBound<up>* nom_bound(const Def* type, size_t size, const Def* dbg = {}) { return insert<TBound<up>>(size, type, size, dbg); }
+    template<bool up> TBound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nominal @p Bound of type @p kind
     template<bool up> const Def* bound(Defs ops, const Def* dbg = {});
     Join* nom_join(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<true >(type, size, dbg); }
     Meet* nom_meet(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<false>(type, size, dbg); }

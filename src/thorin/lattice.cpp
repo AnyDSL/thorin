@@ -5,19 +5,18 @@
 
 namespace thorin {
 
-template<bool up>
-size_t Bound<up>::find(const Def* type) const {
+size_t Bound::find(const Def* type) const {
     auto i = isa_nominal()
         ? std::  find(ops().begin(), ops().end(), type)
         : binary_find(ops().begin(), ops().end(), type, GIDLt<const Def*>());
     return i == ops().end() ? size_t(-1) : i - ops().begin();
 }
 
-template<bool up>
-const Lit* Bound<up>::index(const Def* type) const { return world().lit_int(num_ops(), find(type)); }
+const Lit* Bound::index(const Def* type) const { return world().lit_int(num_ops(), find(type)); }
+const Sigma* Bound::convert() const { return isa<Join>() ? as<Join>()->convert() : as<Meet>()->convert(); }
 
 template<bool up>
-const Sigma* Bound<up>::convert() const {
+const Sigma* TBound<up>::convert() const {
     auto& w = world();
 
     if constexpr (up) {
@@ -42,11 +41,7 @@ const Sigma* Bound<up>::convert() const {
     }
 }
 
-template size_t Bound<false>::find(const Def*) const;
-template size_t Bound<true >::find(const Def*) const;
-template const Lit* Bound<false>::index(const Def*) const;
-template const Lit* Bound<true >::index(const Def*) const;
-template const Sigma* Bound<false>::convert() const;
-template const Sigma* Bound<true >::convert() const;
+template const Sigma* TBound<false>::convert() const;
+template const Sigma* TBound<true >::convert() const;
 
 }

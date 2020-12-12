@@ -38,10 +38,8 @@ const Def* TypeErasure::rewrite(const Def* old_def, const Def*, Defs new_ops, co
 }
 
 const Def* TypeErasure::rewrite(const Def* def) {
-    if (auto join = def->isa<Join>()) {
-        if (auto sigma = join->convert()) return sigma;
-    } else if (auto meet = def->isa<Meet>()) {
-        if (auto sigma = meet->convert()) return sigma;
+    if (auto bound = isa_bound(def)) {
+        if (auto sigma = bound->convert()) return sigma;
     }
 
     return def;

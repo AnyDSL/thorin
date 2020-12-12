@@ -4,6 +4,13 @@
 
 namespace thorin {
 
+undo_t FPPassBase::analyze() {
+    undo_t undo = No_Undo;
+    for (auto op : man().cur_nom()->extended_ops())
+        undo = std::min(undo, analyze(op));
+    return undo;
+}
+
 void PassMan::init_state() {
     auto num = fp_passes_.size();
     states_.emplace_back(num);
@@ -50,26 +57,26 @@ void PassMan::run() {
 
     while (!cur_state().stack.empty()) {
         push_state();
-        auto cur_nom = pop(cur_state().stack);
-        world().VLOG("=== state/cur_nom {}/{} ===", states_.size() - 1, cur_nom);
+        cur_nom_ = pop(cur_state().stack);
+        world().VLOG("=== state/cur_nom {}/{} ===", states_.size() - 1, cur_nom());
 
-        if (!cur_nom->is_set()) continue;
-
-        for (auto pass : passes_)
-            pass->enter(cur_nom);
-
-        for (size_t i = 0, e = cur_nom->num_ops(); i != e; ++i)
-            cur_nom->set(i, rewrite(cur_nom, cur_nom->op(i)));
+        if (!cur_nom()->is_set()) continue;
 
         for (auto pass : passes_)
-            pass->finish(cur_nom);
+            pass->enter();
+
+        for (size_t i = 0, e = cur_nom()->num_ops(); i != e; ++i)
+            cur_nom()->set(i, rewrite(cur_nom()->op(i)));
+
+        for (auto pass : passes_)
+            pass->finish();
 
         undo_t undo = No_Undo;
         for (auto&& pass : fp_passes_)
-            undo = std::min(undo, pass->analyze(cur_nom));
+            undo = std::min(undo, pass->analyze());
 
         if (undo == No_Undo) {
-            for (auto op : cur_nom->extended_ops())
+            for (auto op : cur_nom()->extended_ops())
                 enqueue(op);
             world().DLOG("=== done ===");
         } else {
@@ -85,35 +92,35 @@ void PassMan::run() {
     cleanup(world());
 }
 
-const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
+const Def* PassMan::rewrite(const Def* old_def) {
     if (old_def->is_const()) return old_def;
 
     if (auto new_def = lookup(old_def)) {
         if (old_def == *new_def)
             return old_def;
         else
-            return map(old_def, rewrite(cur_nom, *new_def));
+            return map(old_def, rewrite(*new_def));
     }
 
-    auto new_type = rewrite(cur_nom, old_def->type());
-    auto new_dbg  = old_def->dbg() ? rewrite(cur_nom, old_def->dbg()) : nullptr;
+    auto new_type = rewrite(old_def->type());
+    auto new_dbg  = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
     // rewrite nominal
     if (auto old_nom = old_def->isa_nominal()) {
         for (auto pass : passes_) {
-            if (auto rw = pass->rewrite(cur_nom, old_nom, new_type, new_dbg))
-                return map(old_nom, rewrite(cur_nom, rw));
+            if (auto rw = pass->rewrite(old_nom, new_type, new_dbg))
+                return map(old_nom, rewrite(rw));
         }
 
         assert(old_nom->type() == new_type);
         return map(old_nom, old_nom);
     }
 
-    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(cur_nom, old_def->op(i)); });
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
 
     // rewrite structural before rebuild
     for (auto pass : passes_) {
-        if (auto rw = pass->rewrite(cur_nom, old_def, new_type, new_ops, new_dbg))
+        if (auto rw = pass->rewrite(old_def, new_type, new_ops, new_dbg))
             return map(old_def, rw);
     }
 
@@ -121,8 +128,8 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
 
     // rewrite structural after rebuild
     for (auto pass : passes_) {
-        if (auto rw = pass->rewrite(cur_nom, new_def); rw != new_def)
-            return map(old_def, rewrite(cur_nom, rw));
+        if (auto rw = pass->rewrite(new_def); rw != new_def)
+            return map(old_def, rewrite(rw));
     }
 
     return map(old_def, new_def);

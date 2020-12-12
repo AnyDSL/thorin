@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-const Def* EtaConv::rewrite(Def*, const Def* def) {
+const Def* EtaConv::rewrite(const Def* def) {
     if (def->isa<Param>() || def->isa<Proxy>()) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
@@ -40,13 +40,13 @@ const Def* EtaConv::rewrite(Def*, const Def* def) {
     return def;
 }
 
-undo_t EtaConv::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = descend(cur_nom, def);
+undo_t EtaConv::analyze(const Def* def) {
+    auto cur_lam = descend<Lam>(def);
     if (cur_lam == nullptr) return No_Undo;
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        undo = std::min(undo, analyze(cur_nom, def->op(i)));
+        undo = std::min(undo, analyze(def->op(i)));
 
         if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
             if (is_callee(def, i)) {

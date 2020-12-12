@@ -2,8 +2,8 @@
 
 namespace thorin {
 
-void RetWrap::enter(Def* cur_nom) {
-    if (auto cur_lam = cur_nom->isa<Lam>()) {
+void RetWrap::enter() {
+    if (auto cur_lam = cur_nom<Lam>()) {
         if (auto ret_param = cur_lam->ret_param()) {
             // new wrapper that calls the return continuation
             auto ret_cont = world().nom_lam(ret_param->type()->as<Pi>(), ret_param->dbg());
@@ -20,8 +20,8 @@ void RetWrap::enter(Def* cur_nom) {
     }
 }
 
-const Def* RetWrap::rewrite(Def* cur_nom, const Def* old_def, const Def*, Defs, const Def*) {
-    if (auto cur_lam = cur_nom->isa<Lam>()) {
+const Def* RetWrap::rewrite(const Def* old_def, const Def*, Defs, const Def*) {
+    if (auto cur_lam = cur_nom<Lam>()) {
         if (auto param = old_def->isa<Param>()) {
             if (auto new_param = old2new_.lookup(param)) return *new_param;
         } else if (ret_conts_.contains(cur_lam)) {

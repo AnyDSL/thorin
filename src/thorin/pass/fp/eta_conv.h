@@ -28,8 +28,8 @@ public:
         : FPPass(man, "eta_conv", index)
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     enum Lattice { Callee, Once_Non_Callee };
     using Data = std::tuple<LamMap<Lattice>>;

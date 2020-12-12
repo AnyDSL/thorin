@@ -417,16 +417,15 @@ public:
 
     /// @name logging
     //@{
-    Stream& stream() { assert(state_.stream); return *state_.stream; }
+    Stream& stream() { return *stream_; }
     LogLevel min_level() const { return state_.min_level; }
 
     void set(LogLevel min_level) { state_.min_level = min_level; }
-    void set(Stream& stream) { state_.stream = &stream; }
-    void set(LogLevel min_level, Stream& stream) { set(min_level); set(stream); }
+    void set(std::unique_ptr<Stream>&& stream) { stream_ = std::move(stream); }
 
     template<class... Args>
     void log(LogLevel level, Loc loc, const char* fmt, Args&&... args) {
-        if (state_.stream != nullptr && int(min_level()) <= int(level)) {
+        if (stream_ && int(min_level()) <= int(level)) {
             stream().fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(loc.to_string(), 7));
             stream().fmt(fmt, std::forward<Args&&>(args)...).endl().flush();
         }
@@ -465,6 +464,7 @@ public:
         swap(w1.arena_,   w2.arena_);
         swap(w1.data_,    w2.data_);
         swap(w1.state_,   w2.state_);
+        swap(w1.stream_,  w2.stream_);
         swap(w1.checker_, w2.checker_);
         swap(w1.err_,     w2.err_);
 
@@ -580,7 +580,6 @@ private:
     } arena_;
 
     struct State {
-        Stream* stream = nullptr;
         LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
@@ -637,6 +636,7 @@ private:
         DefDefMap<Array<const Def*>> cache_;
     } data_;
 
+    std::unique_ptr<Stream> stream_;
     std::unique_ptr<ErrorHandler> err_;
     std::unique_ptr<Checker> checker_;
 

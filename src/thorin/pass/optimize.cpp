@@ -6,6 +6,7 @@
 #include "thorin/pass/rw/grad_gen.h"
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
+#include "thorin/pass/rw/type_erasure.h"
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"
@@ -44,6 +45,7 @@ void optimize_old(World& world) {
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
+    //PassMan(world).add<TypeErasure>().run();
     PassMan(world).add<RetWrap>().run();
 #endif
 }

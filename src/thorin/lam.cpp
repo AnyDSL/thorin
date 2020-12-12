@@ -30,7 +30,7 @@ void Lam::app(const Def* callee, const Def* arg, const Def* dbg) {
 void Lam::app(const Def* callee, Defs args, const Def* dbg) { app(callee, world().tuple(args), dbg); }
 
 void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, const Def* dbg) {
-    return app(world().extract(world().tuple({f, t}), cond, dbg), mem, dbg);
+    return app(world().select(t, f, cond), mem, dbg);
 }
 
 void Lam::test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* mem, const Def* dbg) {

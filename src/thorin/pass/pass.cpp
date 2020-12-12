@@ -105,6 +105,7 @@ const Def* PassMan::rewrite(Def* cur_nom, const Def* old_def) {
                 return map(old_nom, rewrite(cur_nom, rw));
         }
 
+        assert(old_nom->type() == new_type);
         return map(old_nom, old_nom);
     }
 

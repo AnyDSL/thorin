@@ -6,6 +6,7 @@
 namespace thorin {
 
 class Lam;
+class Sigma;
 
 template<bool up>
 class Bound : public Def {
@@ -21,7 +22,9 @@ private:
 
 public:
     size_t find(const Def* type) const;
+    const Lit* index(const Def* type) const;
     const Def* get(const Def* type) const { return op(find(type)); }
+    const Sigma* convert() const;
 
     /// @name virtual methods
     //@{
@@ -95,24 +98,24 @@ public:
 };
 
 /**
- * Tests the @p value of type @p Join whether it currently holds @em type @p index.
- * Note, that @p index is a @em type!
+ * Tests the @p value of type @p Join whether it currently holds @em type @p probe.
+ * Note, that @p probe is a @em type!
  * Yields @p match if @c true and @p clash otherwise.
  * @p match must be of type <tt> A -> B </tt>.
- * @p clash must be of type <tt> [A, index] -> C </tt>.
+ * @p clash must be of type <tt> [A, probe] -> C </tt>.
  * This operation is usually known as @c case but @c case is a keyword in C++, so we call it @p Test.
  */
 class Test : public Def {
 private:
-    Test(const Def* type, const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg)
-        : Def(Node, type, {value, index, match, clash}, 0, dbg)
+    Test(const Def* type, const Def* value, const Def* probe, const Def* match, const Def* clash, const Def* dbg)
+        : Def(Node, type, {value, probe, match, clash}, 0, dbg)
     {}
 
 public:
     /// @name ops
     //@{
     const Def* value() const { return op(0); }
-    const Def* index() const { return op(1); }
+    const Def* probe() const { return op(1); }
     const Def* match() const { return op(2); }
     const Def* clash() const { return op(3); }
     //@}

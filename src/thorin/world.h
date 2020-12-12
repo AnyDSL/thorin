@@ -191,6 +191,7 @@ public:
     const Def* extract_unsafe(const Def* tup, const Def* i, const Def* dbg = {}) {
         return extract(tup, op(Conv::u2u, type_int(as_lit(tup->type()->reduce()->arity())), i, dbg), dbg);
     }
+    const Def* select(const Def* t, const Def* f, const Def* cond, const Def* dbg = {}) { return extract(tuple({f, t}), cond, dbg); }
     //@}
 
     /// @name Insert
@@ -260,7 +261,7 @@ public:
     const Def* et(Defs ops, const Def* dbg = {}) { return et(infer_kind(ops), ops, dbg); }                                  ///< Infers the type using a @em structural @p Meet.
     const Def* vel(const Def* type, const Def* value, const Def* dbg = {});
     const Def* pick(const Def* type, const Def* value, const Def* dbg = {});
-    const Def* test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* dbg = {});
+    const Def* test(const Def* value, const Def* probe, const Def* match, const Def* clash, const Def* dbg = {});
     //@}
 
     //@}

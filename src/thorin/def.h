@@ -159,10 +159,10 @@ public:
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     //@}
-    /// @name split def via extracts
+    /// @name split def via proj%s
     //@{
     /// Splits this @p Def into an array.
-    /// Applies @p f to each extracted element.
+    /// Applies @p f to each @p proj%ected element.
     template<size_t A, class F>
     auto split(F f) const {
         using R = decltype(f(this));

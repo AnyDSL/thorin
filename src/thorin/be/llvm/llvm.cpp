@@ -755,7 +755,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto layout = llvm::DataLayout(module_->getDataLayout());
         switch (trait.flags()) {
             case Trait::size:  return irbuilder_.getInt32(layout.getTypeAllocSize(type));
-            case Trait::align: return irbuilder_.getInt32(module_->getDataLayout().getABITypeAlignment(type));
+            case Trait::align: return irbuilder_.getInt32(layout.getABITypeAlignment(type));
         }
     } else if (auto alloc = isa<Tag::Alloc>(def)) {
         auto alloced_type = alloc->decurry()->arg(0);

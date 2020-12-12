@@ -645,12 +645,12 @@ private:
     friend void Def::replace(Tracker) const;
 };
 
-#define ELOG(...) log(thorin::LogLevel::Error,   Loc(__FILE__, {__LINE__, u32(-1)}, {__LINE__, u32(-1)}), __VA_ARGS__)
-#define WLOG(...) log(thorin::LogLevel::Warn,    Loc(__FILE__, {__LINE__, u32(-1)}, {__LINE__, u32(-1)}), __VA_ARGS__)
-#define ILOG(...) log(thorin::LogLevel::Info,    Loc(__FILE__, {__LINE__, u32(-1)}, {__LINE__, u32(-1)}), __VA_ARGS__)
-#define VLOG(...) log(thorin::LogLevel::Verbose, Loc(__FILE__, {__LINE__, u32(-1)}, {__LINE__, u32(-1)}), __VA_ARGS__)
+#define ELOG(...) log(thorin::LogLevel::Error,   thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#define WLOG(...) log(thorin::LogLevel::Warn,    thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#define ILOG(...) log(thorin::LogLevel::Info,    thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#define VLOG(...) log(thorin::LogLevel::Verbose, thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
 #ifndef NDEBUG
-#define DLOG(...) log(thorin::LogLevel::Debug,   Loc(__FILE__, {__LINE__, u32(-1)}, {__LINE__, u32(-1)}), __VA_ARGS__)
+#define DLOG(...) log(thorin::LogLevel::Debug,   thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
 #else
 #define DLOG(...) do {} while (false)
 #endif

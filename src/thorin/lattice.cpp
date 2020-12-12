@@ -34,7 +34,7 @@ const Sigma* Bound<up>::convert() const {
         }
 
         assert(size % align == 0);
-        auto arr = w.arr(size / align, w.type_int_width(align));
+        auto arr = w.arr(size / align, w.type_int_width(align * 8_u64));
 
         return w.sigma({w.type_int(num_ops()), arr})->as<Sigma>();
     } else {

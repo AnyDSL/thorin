@@ -6,11 +6,11 @@ Def* TypeErasure::rewrite(Def*, Def*, const Def*, const Def*) {
     return nullptr;
 }
 
-const Def* TypeErasure::rewrite(Def*, const Def* old_def, const Def* new_type, Defs new_ops, const Def* new_dbg) {
+const Def* TypeErasure::rewrite(Def*, const Def* old_def, const Def*, Defs new_ops, const Def* new_dbg) {
     if (auto vel = old_def->isa<Vel>()) {
         auto join  = vel->type()->as<Join>();
         auto value = new_ops[0];
-        auto sigma = new_type->as<Sigma>();
+        auto sigma = join->convert();
         auto val   = world().op_bitcast(sigma->op(1), value, new_dbg);
         return world().tuple(sigma, {world().lit_int(join->num_ops(), join->find(vel->value()->type())), val});
     } else if (auto test = old_def->isa<Test>()) {
@@ -26,8 +26,8 @@ const Def* TypeErasure::rewrite(Def*, const Def* old_def, const Def* new_type, D
         wrap->app(match, {wrap->param(), world().op_bitcast(probe, box)});
         auto cmp = world().op(ICmp::e, index, probe_i);
         return world().select(wrap, clash, cmp, new_dbg);
-    } else if (old_def->isa<Et>()) {
-        return world().tuple(new_type, new_ops, new_dbg);
+    } else if (auto et = old_def->isa<Et>()) {
+        return world().tuple(et->type()->as<Meet>()->convert(), new_ops, new_dbg);
     } else if (auto pick = old_def->isa<Pick>()) {
         auto meet = pick->value()->type()->as<Meet>();
         auto index = meet->index(pick->type());

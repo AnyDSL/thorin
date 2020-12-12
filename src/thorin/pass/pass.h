@@ -35,7 +35,7 @@ public:
     virtual void enter() {}
 
     /// Rewrites a @p nom%inal within @p PassMan::cur_nom. Returns the replacement or @c nullptr if nothing has been done.
-    virtual Def* rewrite([[maybe_unused]] Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nullptr; }
+    virtual const Def* rewrite([[maybe_unused]] Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nullptr; }
 
     /// Rewrites a @em structural @p def within @p PassMan::cur_nom @em before it has been @p rebuild. Returns the replacement or @c nullptr if nothing has been done.
     virtual const Def* rewrite([[maybe_unused]] const Def* def, [[maybe_unused]] const Def* type, [[maybe_unused]] Defs, [[maybe_unused]] const Def* dbg) { return nullptr; }

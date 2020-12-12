@@ -69,7 +69,8 @@ public:
     explicit World(const World& other)
         : World(other.name())
     {
-        state_ = other.state_;
+        stream_ = other.stream_;
+        state_  = other.state_;
     }
     ~World();
 
@@ -421,7 +422,7 @@ public:
     LogLevel min_level() const { return state_.min_level; }
 
     void set(LogLevel min_level) { state_.min_level = min_level; }
-    void set(std::unique_ptr<Stream>&& stream) { stream_ = std::move(stream); }
+    void set(std::shared_ptr<Stream> stream) { stream_ = stream; }
 
     template<class... Args>
     void log(LogLevel level, Loc loc, const char* fmt, Args&&... args) {
@@ -636,7 +637,7 @@ private:
         DefDefMap<Array<const Def*>> cache_;
     } data_;
 
-    std::unique_ptr<Stream> stream_;
+    std::shared_ptr<Stream> stream_;
     std::unique_ptr<ErrorHandler> err_;
     std::unique_ptr<Checker> checker_;
 

@@ -26,24 +26,25 @@ public:
     const PassMan& man() const { return man_; }
     const std::string& name() const { return name_; }
     World& world();
+    template<class T = Def> T* cur_nom() const;
     //@}
 
     /// @name hooks for the PassMan
     //@{
-    /// Invoked just before @p rewrite%ing @p cur_nom's body.
-    virtual void enter([[maybe_unused]] Def* cur_nom) {}
+    /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
+    virtual void enter() {}
 
-    /// Rewrites a @p nom%inal within @p cur_nom. Returns the replacement or @c nullptr if nothing has been done.
-    virtual Def* rewrite([[maybe_unused]] Def* cur_nom, [[maybe_unused]] Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nullptr; }
+    /// Rewrites a @p nom%inal within @p PassMan::cur_nom. Returns the replacement or @c nullptr if nothing has been done.
+    virtual Def* rewrite([[maybe_unused]] Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nullptr; }
 
-    /// Rewrites a @em structural @p def within @p cur_nom @em before it has been @p rebuild. Returns the replacement or @c nullptr if nothing has been done.
-    virtual const Def* rewrite([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def, [[maybe_unused]] const Def* type, [[maybe_unused]] Defs, [[maybe_unused]] const Def* dbg) { return nullptr; }
+    /// Rewrites a @em structural @p def within @p PassMan::cur_nom @em before it has been @p rebuild. Returns the replacement or @c nullptr if nothing has been done.
+    virtual const Def* rewrite([[maybe_unused]] const Def* def, [[maybe_unused]] const Def* type, [[maybe_unused]] Defs, [[maybe_unused]] const Def* dbg) { return nullptr; }
 
-    /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
-    virtual const Def* rewrite([[maybe_unused]] Def* cur_nom, const Def* def) { return def; }
+    /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
+    virtual const Def* rewrite(const Def* def) { return def; }
 
-    /// Invoked just after @p rewrite%ing and before @p analyze%ing @p cur_nom's body.
-    virtual void finish([[maybe_unused]] Def* cur_nom) {}
+    /// Invoked just after @p rewrite%ing and before @p analyze%ing @p PassMan::cur_nom's body.
+    virtual void finish() {}
     //@}
 
 private:
@@ -81,13 +82,8 @@ public:
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Default implementation invokes the other @p analyze method for all @p extended_ops of @p cur_nom.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze(Def* cur_nom) {
-        undo_t undo = No_Undo;
-        for (auto op : cur_nom->extended_ops())
-            undo = std::min(undo, analyze(cur_nom, op));
-        return undo;
-    }
-    virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
+    virtual undo_t analyze();
+    virtual undo_t analyze([[maybe_unused]] const Def* def) { return No_Undo; }
     //@}
 
     /// @name mangage state - dummy implementations here
@@ -149,6 +145,13 @@ public:
     }
     //@}
 
+    template<class T = Def> T* cur_nom() const {
+        if constexpr(std::is_same<T, Def>::value)
+            return cur_nom_ ;
+        else
+            return cur_nom_ ? cur_nom_->template isa<T>() : nullptr;
+    }
+
 private:
     struct State {
         State() = default;
@@ -173,8 +176,7 @@ private:
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    void enter(Def*);
-    const Def* rewrite(Def*, const Def*);
+    const Def* rewrite(const Def*);
     void enqueue(const Def*);
 
     bool enqueued(const Def* def) {
@@ -190,6 +192,7 @@ private:
     std::vector<std::unique_ptr<RWPass    >> rw_passes_;
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
+    Def* cur_nom_ = nullptr;
 
     template<class P> friend class FPPass;
 };
@@ -263,10 +266,10 @@ protected:
     }
     //@}
 
-    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p nom&inal.
-    template<class T = Lam>
-    T* descend(Def* nom, const Def* def) {
-        auto cur_nom = nom->template isa<T>();
+    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p PasMMan::cur_nom.
+    template<class T = Def>
+    T* descend(const Def* def) {
+        auto cur_nom = man().template cur_nom<T>();
         if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || analyzed(def)) return nullptr;
         if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return nullptr;
         return cur_nom;
@@ -285,6 +288,8 @@ private:
 
 inline World& RWPass::world() { return man().world(); }
 inline const App* is_callee(const Def* def, size_t i) { return i == 0 ? def->isa<App>() : nullptr; }
+
+template<class T = Def> T* RWPass::cur_nom() const { return man().template cur_nom<T>(); }
 
 }
 

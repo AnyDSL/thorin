@@ -2,7 +2,7 @@
 
 namespace thorin {
 
-const Def* Scalerize::rewrite(Def*, const Def* def) {
+const Def* Scalerize::rewrite(const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 
@@ -36,8 +36,8 @@ const Def* Scalerize::rewrite(Def*, const Def* def) {
     return def;
 }
 
-undo_t Scalerize::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = descend(cur_nom, def);
+undo_t Scalerize::analyze(const Def* def) {
+    auto cur_lam = descend<Lam>(def);
     if (cur_lam == nullptr) return No_Undo;
 
     return No_Undo;
@@ -51,7 +51,7 @@ undo_t Scalerize::analyze(Def* cur_nom, const Def* def) {
     } else {
         auto undo = No_Undo;
         for (auto op : def->ops()) {
-            undo = std::min(undo, analyze(cur_nom, op));
+            undo = std::min(undo, analyze(op));
 
             if (auto lam = op->isa_nominal<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
             }

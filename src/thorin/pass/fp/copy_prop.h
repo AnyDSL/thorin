@@ -21,8 +21,8 @@ public:
     using Data = std::tuple<LamMap<Args>>;
 
 private:
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     Lam2Lam param2prop_;
     DefSet keep_;

@@ -73,7 +73,7 @@ public:
     GradGen(PassMan& man)
         : RWPass(man, "GradGen")
     {}
-    const Def* rewrite(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
 
 private:
     Lam* has_lam_to_rewrite(const Def* def) const;

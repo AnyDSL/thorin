@@ -15,8 +15,8 @@ public:
         : FPPass(man, "beta_red", index)
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     using Data = std::tuple<LamSet>;
 

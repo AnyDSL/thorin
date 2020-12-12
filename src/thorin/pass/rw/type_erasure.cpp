@@ -2,11 +2,11 @@
 
 namespace thorin {
 
-Def* TypeErasure::rewrite(Def*, Def*, const Def*, const Def*) {
+Def* TypeErasure::rewrite(Def*, const Def*, const Def*) {
     return nullptr;
 }
 
-const Def* TypeErasure::rewrite(Def*, const Def* old_def, const Def*, Defs new_ops, const Def* new_dbg) {
+const Def* TypeErasure::rewrite(const Def* old_def, const Def*, Defs new_ops, const Def* new_dbg) {
     if (auto vel = old_def->isa<Vel>()) {
         auto join  = vel->type()->as<Join>();
         auto value = new_ops[0];
@@ -37,7 +37,7 @@ const Def* TypeErasure::rewrite(Def*, const Def* old_def, const Def*, Defs new_o
     return nullptr;
 }
 
-const Def* TypeErasure::rewrite(Def*, const Def* def) {
+const Def* TypeErasure::rewrite(const Def* def) {
     if (auto join = def->isa<Join>()) {
         if (auto sigma = join->convert()) return sigma;
     } else if (auto meet = def->isa<Meet>()) {

@@ -11,7 +11,7 @@ public:
         : RWPass(man, "partial_eval")
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
 };
 
 }

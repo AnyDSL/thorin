@@ -1,20 +1,22 @@
-#ifndef THORIN_PASS_TYPE_ERASURE_H
-#define THORIN_PASS_TYPE_ERASURE_H
+#ifndef THORIN_PASS_BOUND_ELIM_H
+#define THORIN_PASS_BOUND_ELIM_H
 
 #include "thorin/pass/pass.h"
 
 namespace thorin {
 
-class TypeErasure : public RWPass {
+class BoundElim : public RWPass {
 public:
-    TypeErasure(PassMan& man)
-        : RWPass(man, "type_erasure")
+    BoundElim(PassMan& man)
+        : RWPass(man, "bound_elim")
     {}
 
 private:
     const Def* rewrite(Def*, const Def*, const Def*) override;
     const Def* rewrite(const Def*, const Def*, Defs, const Def*) override;
     const Def* rewrite(const Def*) override;
+
+    Param2Param old2new_;
 };
 
 }

@@ -49,7 +49,8 @@ void PassMan::run() {
         world().ILOG(" + {}", pass->name());
     world().debug_stream();
 
-    for (const auto& [_, nom] : world().externals())
+    auto externals = std::vector(world().externals().begin(), world().externals().end());
+    for (const auto& [_, nom] : externals)
         enqueue(rewrite(nom));
 
     while (!cur_state().stack.empty()) {

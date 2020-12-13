@@ -1,12 +1,29 @@
-#include "thorin/pass/rw/type_erasure.h"
+#include "thorin/pass/rw/bound_elim.h"
 
 namespace thorin {
 
-const Def* TypeErasure::rewrite(Def*, const Def*, const Def*) {
+const Def* BoundElim::rewrite(Def* old_nom, const Def* new_type, const Def* new_dbg) {
+    if (auto bound = isa_bound(old_nom)) {
+        if (auto sigma = bound->convert()) return sigma;
+    }
+
+    if (old_nom->type() != new_type) {
+        auto new_nom = old_nom->stub(world(), new_type, new_dbg);
+        new_nom->set(old_nom->ops());
+        old2new_[old_nom->param()] = new_nom->param();
+
+        if (old_nom->is_external()) {
+            old_nom->make_internal();
+            new_nom->make_external();
+        }
+
+        return new_nom;
+    }
+
     return nullptr;
 }
 
-const Def* TypeErasure::rewrite(const Def* old_def, const Def*, Defs new_ops, const Def* new_dbg) {
+const Def* BoundElim::rewrite(const Def* old_def, const Def*, Defs new_ops, const Def* new_dbg) {
     if (auto vel = old_def->isa<Vel>()) {
         auto join  = vel->type()->as<Join>();
         auto value = new_ops[0];
@@ -37,8 +54,10 @@ const Def* TypeErasure::rewrite(const Def* old_def, const Def*, Defs new_ops, co
     return nullptr;
 }
 
-const Def* TypeErasure::rewrite(const Def* def) {
-    if (auto bound = isa_bound(def)) {
+const Def* BoundElim::rewrite(const Def* def) {
+    if (auto old_param = def->isa<Param>()) {
+        if (auto new_param = old2new_.lookup(old_param)) return *new_param;
+    } else if (auto bound = isa_bound(def)) {
         if (auto sigma = bound->convert()) return sigma;
     }
 

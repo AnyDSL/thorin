@@ -16,7 +16,6 @@
 namespace thorin {
 
 void optimize(World& world) {
-#if 1
     PassMan(world)
     .add<PartialEval>()
     .add<EtaConv>()
@@ -25,29 +24,16 @@ void optimize(World& world) {
     .add<CopyProp>()
     //.add<Scalerize>()
     .run();
-#else
-    PassMan(world)
-    .add<PartialEval>()
-    .add<BetaEtaConv>()
-    .run();
 
-    PassMan(world)
-    .add<SSAConstr>()
-    .add<CopyProp>()
-    .run();
-#endif
-}
-
-void optimize_old(World& world) {
-    optimize(world);
-#if 1
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
-    PassMan(world).add<BoundElim>().run();
-    PassMan(world).add<RetWrap>().run();
-#endif
+
+    PassMan(world)
+    .add<BoundElim>()
+    .add<RetWrap>()
+    .run();
 }
 
 }

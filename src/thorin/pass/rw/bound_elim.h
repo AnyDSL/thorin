@@ -15,8 +15,6 @@ private:
     const Def* rewrite(Def*, const Def*, const Def*) override;
     const Def* rewrite(const Def*, const Def*, Defs, const Def*) override;
     const Def* rewrite(const Def*) override;
-
-    Param2Param old2new_;
 };
 
 }

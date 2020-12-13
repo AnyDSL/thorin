@@ -4,6 +4,17 @@
 
 namespace thorin {
 
+RWPass::RWPass(PassMan& man, const std::string& name)
+    : man_(man)
+    , name_(name)
+    , proxy_id_(man.passes().size())
+{}
+
+FPPassBase::FPPassBase(PassMan& man, const std::string& name)
+    : RWPass(man, name)
+    , index_(man.fp_passes().size())
+{}
+
 undo_t FPPassBase::analyze() {
     undo_t undo = No_Undo;
     for (auto op : man().cur_nom()->extended_ops())
@@ -106,7 +117,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
     // rewrite nominal
     if (auto old_nom = old_def->isa_nominal()) {
         for (auto pass : passes_) {
-            if (auto rw = pass->rewrite(old_nom, new_type, new_dbg))
+            if (auto rw = pass->rewrite(old_nom, new_type, new_dbg); rw != old_nom)
                 return map(old_nom, rewrite(rw));
         }
 
@@ -118,8 +129,8 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
     // rewrite structural before rebuild
     for (auto pass : passes_) {
-        if (auto rw = pass->rewrite(old_def, new_type, new_ops, new_dbg))
-            return map(old_def, rw);
+        if (auto rw = pass->rewrite(old_def, new_type, new_ops, new_dbg); rw != old_def)
+            return map(old_def, rewrite(rw));
     }
 
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);

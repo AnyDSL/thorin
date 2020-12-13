@@ -9,8 +9,7 @@ const Def* BoundElim::rewrite(Def* old_nom, const Def* new_type, const Def* new_
 
     if (old_nom->type() != new_type) {
         auto new_nom = old_nom->stub(world(), new_type, new_dbg);
-        new_nom->set(old_nom->ops());
-        old2new_[old_nom->param()] = new_nom->param();
+        new_nom->set(old_nom->apply(proxy(old_nom->param()->type(), {new_nom->param()}, 0)));
 
         if (old_nom->is_external()) {
             old_nom->make_internal();
@@ -20,7 +19,7 @@ const Def* BoundElim::rewrite(Def* old_nom, const Def* new_type, const Def* new_
         return new_nom;
     }
 
-    return nullptr;
+    return old_nom;
 }
 
 const Def* BoundElim::rewrite(const Def* old_def, const Def*, Defs new_ops, const Def* new_dbg) {
@@ -51,12 +50,12 @@ const Def* BoundElim::rewrite(const Def* old_def, const Def*, Defs new_ops, cons
         return world().extract(new_ops[0], index, new_dbg);
     }
 
-    return nullptr;
+    return old_def;
 }
 
 const Def* BoundElim::rewrite(const Def* def) {
-    if (auto old_param = def->isa<Param>()) {
-        if (auto new_param = old2new_.lookup(old_param)) return *new_param;
+    if (auto proxy = isa_proxy(def)) {
+        return proxy->op(0);
     } else if (auto bound = isa_bound(def)) {
         if (auto sigma = bound->convert()) return sigma;
     }

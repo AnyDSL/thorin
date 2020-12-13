@@ -18,8 +18,8 @@ namespace thorin {
  */
 class SSAConstr : public FPPass<SSAConstr> {
 public:
-    SSAConstr(PassMan& man, size_t index)
-        : FPPass(man, "ssa_constr", index)
+    SSAConstr(PassMan& man)
+        : FPPass(man, "ssa_constr")
     {}
 
     enum : flags_t { Sloxy, Phixy, Traxy };

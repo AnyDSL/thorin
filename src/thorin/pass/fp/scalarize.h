@@ -7,8 +7,8 @@ namespace thorin {
 
 class Scalerize : public FPPass<Scalerize> {
 public:
-    Scalerize(PassMan& man, size_t index)
-        : FPPass(man, "scalerize", index)
+    Scalerize(PassMan& man)
+        : FPPass(man, "scalerize")
     {}
 
     const Def* rewrite(const Def*) override;

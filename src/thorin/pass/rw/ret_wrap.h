@@ -12,11 +12,6 @@ public:
     {}
 
     void enter() override;
-    const Def* rewrite(const Def*, const Def*, Defs, const Def*) override;
-
-private:
-    Def2Def old2new_;
-    LamSet ret_conts_;
 };
 
 }

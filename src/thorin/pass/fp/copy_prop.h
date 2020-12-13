@@ -13,8 +13,8 @@ namespace thorin {
  */
 class CopyProp : public FPPass<CopyProp> {
 public:
-    CopyProp(PassMan& man, size_t index)
-        : FPPass(man, "copy_prop", index)
+    CopyProp(PassMan& man)
+        : FPPass(man, "copy_prop")
     {}
 
     using Args = std::vector<const Def*>;

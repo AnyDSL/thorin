@@ -24,8 +24,8 @@ namespace thorin {
  */
 class EtaConv : public FPPass<EtaConv> {
 public:
-    EtaConv(PassMan& man, size_t index)
-        : FPPass(man, "eta_conv", index)
+    EtaConv(PassMan& man)
+        : FPPass(man, "eta_conv")
     {}
 
     const Def* rewrite(const Def*) override;

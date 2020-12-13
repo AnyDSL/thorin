@@ -492,7 +492,7 @@ private:
 public:
     /// @name misc getters
     //@{
-    tag_t index() const { return fields() >> 32_u64; }
+    tag_t id() const { return fields() >> 32_u64; }
     flags_t flags() const { return fields(); }
     //@}
     /// @name virtual methods

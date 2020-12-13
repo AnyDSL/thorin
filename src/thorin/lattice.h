@@ -8,6 +8,7 @@ namespace thorin {
 class Lam;
 class Sigma;
 
+/// Common base for @p TBound.
 class Bound : public Def {
 protected:
     /// Constructor for a @em structural Bound.
@@ -26,6 +27,7 @@ public:
     const Sigma* convert() const;
 };
 
+/// Either @p Join (union - @p up = @c true) or @p Meet (intersection - @p up = @c false).
 template<bool up>
 class TBound : public Bound {
 private:
@@ -91,7 +93,7 @@ public:
     friend class World;
 };
 
-/// Picks the aspect of @p type of a @p Meet or @p Join @p value.
+/// Picks the aspect of a @p Meet @p value by its @p type.
 class Pick : public Def {
 private:
     Pick(const Def* type, const Def* value, const Def* dbg)
@@ -143,7 +145,7 @@ public:
     friend class World;
 };
 
-/// Common base for @p Ext%remum.
+/// Common base for @p TExt%remum.
 class Ext : public Def {
 protected:
     Ext(node_t node, const Def* type, const Def* dbg)

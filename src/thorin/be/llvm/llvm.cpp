@@ -755,7 +755,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto layout = llvm::DataLayout(module_->getDataLayout());
         switch (trait.flags()) {
             case Trait::size:  return irbuilder_.getInt32(layout.getTypeAllocSize(type));
-            case Trait::align: return irbuilder_.getInt32(module_->getDataLayout().getABITypeAlignment(type));
+            case Trait::align: return irbuilder_.getInt32(layout.getABITypeAlignment(type));
         }
     } else if (auto alloc = isa<Tag::Alloc>(def)) {
         auto alloced_type = alloc->decurry()->arg(0);
@@ -768,31 +768,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
     } else if (auto store = isa<Tag::Store>(def)) {
         return emit_store(store);
     }
-
-#if 0
-    if (auto cast = def->isa<Cast>()) {
-        auto from = lookup(cast->from());
-        auto src = cast->from()->type();
-        auto dst = cast->type();
-        auto to = convert(dst);
-
-        if (auto variant_type = src->isa<VariantType>()) {
-            auto bits = compute_variant_bits(variant_type);
-            if (bits != 0) {
-                auto value_bits = compute_variant_op_bits(dst);
-                auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
-                return irbuilder_.CreateBitOrPointerCast(trunc, to);
-            } else {
-                world().wdef(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
-                auto ptr_type = llvm::PointerType::get(to, 0);
-                return create_tmp_alloca(from->getType(), [&] (auto alloca) {
-                    auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                    irbuilder_.CreateStore(from, alloca);
-                    return irbuilder_.CreateLoad(casted_ptr);
-                });
-            }
-        }
-#endif
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(tuple->type()));
@@ -851,23 +826,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
         // tuple/struct
         return irbuilder_.CreateInsertValue(llvm_agg, val, {as_lit<u32>(insert->index())});
-#if 0
-    } else if (auto variant = def->isa<Variant>()) {
-        auto bits = compute_variant_bits(variant->type());
-        auto value = lookup(variant->op(0));
-        if (bits != 0) {
-            auto value_bits = compute_variant_op_bits(variant->op(0)->type());
-            auto bitcast = irbuilder_.CreateBitOrPointerCast(value, irbuilder_.getIntNTy(value_bits));
-            return irbuilder_.CreateZExt(bitcast, irbuilder_.getIntNTy(bits));
-        } else {
-            auto ptr_type = llvm::PointerType::get(value->getType(), 0);
-            return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
-                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                irbuilder_.CreateStore(value, casted_ptr);
-                return irbuilder_.CreateLoad(alloca);
-            });
-        }
-#endif
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
 
@@ -958,28 +916,6 @@ unsigned CodeGen::convert_addr_space(u64 addr_space) {
     }
 }
 
-#if 0
-unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
-    unsigned total_bits = 0;
-    for (auto op : variant->ops()) {
-        auto type_bits = compute_variant_op_bits(op);
-        if (type_bits == 0) return 0;
-        total_bits = std::max(total_bits, type_bits);
-    }
-    return total_bits;
-}
-
-unsigned CodeGen::compute_variant_op_bits(const Def* type) {
-    auto llvm_type = convert(type);
-    auto layout = module_->getDataLayout();
-    if (llvm_type->isPointerTy()       ||
-        llvm_type->isFloatingPointTy() ||
-        llvm_type->isIntegerTy())
-        return layout.getTypeSizeInBits(llvm_type);
-    return 0;
-}
-#endif
-
 llvm::Type* CodeGen::convert(const Def* type) {
     if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
@@ -1062,19 +998,6 @@ llvm::Type* CodeGen::convert(const Def* type) {
             llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
 
         return llvm_struct;
-#if 0
-    } else if (auto variant_type = type->isa<VariantType>()) {
-        auto bits = compute_variant_bits(variant_type);
-        if (bits != 0) {
-            return types_[type] = irbuilder_.getIntNTy(bits);
-        } else {
-            auto layout = module_->getDataLayout();
-            uint64_t max_size = 0;
-            for (auto op : type->ops())
-                max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
-            return types_[type] = llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
-        }
-#endif
     }
 
     THORIN_UNREACHABLE;

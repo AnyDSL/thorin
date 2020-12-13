@@ -4,8 +4,24 @@
 
 namespace thorin {
 
-const Def* ClosureConv::rewrite(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
+const Def* ClosureConv::rewrite(Def* old_nom, const Def* new_type, const Def* new_dbg) {
+    if (old_nom->type() != new_type) {
+        auto new_nom = old_nom->stub(world(), new_type, new_dbg);
+        new_nom->set(old_nom->apply(proxy(old_nom->param()->type(), {new_nom->param()}, 0)));
+
+        if (old_nom->is_external()) {
+            old_nom->make_internal();
+            new_nom->make_external();
+        }
+
+        return new_nom;
+    }
+
+    return old_nom;
+}
+
+const Def* ClosureConv::rewrite(const Def* def) {
+    auto cur_lam = cur_nom<Lam>();
     if (cur_lam == nullptr) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {

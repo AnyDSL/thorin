@@ -45,7 +45,7 @@ typedef ArrayRef<const Def*> Defs;
 //------------------------------------------------------------------------------
 
 /**
- * Similar to @p World::extract but also works on @p Sigma%s and @p Arr%s and considers @p Union%s as scalars.
+ * Similar to @p World::extract but also works on @p Sigma%s, and @p Arr%s.
  * If @p def is a value (see @p Def::is_value), proj resorts to @p World::extract.
  */
 const Def* proj(const Def* def, u64 arity, u64 i, const Def* dbg = {});
@@ -159,10 +159,10 @@ public:
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     //@}
-    /// @name split def via extracts
+    /// @name split def via proj%s
     //@{
     /// Splits this @p Def into an array.
-    /// Applies @p f to each extracted element.
+    /// Applies @p f to each @p proj%ected element.
     template<size_t A, class F>
     auto split(F f) const {
         using R = decltype(f(this));
@@ -226,6 +226,8 @@ public:
     //@}
     /// @name retrieve @p Param for @em nominals.
     //@{
+    /// Only returns a @p Param for this @em nominal if it has ever been created.
+    const Param* has_param() { return param_ ? param() : nullptr; }
     const Param* param(const Def* dbg);
     const Def* param(size_t i, const Def* dbg) { return proj((const Def*) param(), num_params(), i, dbg); }
     const Param* param();       ///< Wrapper instead of default argument for easy access in @c gdb.
@@ -289,8 +291,9 @@ protected:
     fields_t fields_;
     node_t node_;
     unsigned nominal_ :  1;
+    unsigned param_   :  1;
     unsigned const_   :  1;
-    unsigned order_   : 14;
+    unsigned order_   : 13;
     u32 gid_;
     u32 num_ops_;
     hash_t hash_;
@@ -415,38 +418,6 @@ public:
     friend class World;
 };
 
-class Bot : public Def {
-private:
-    Bot(const Def* type, const Def* dbg)
-        : Def(Node, type, Defs{}, 0, dbg)
-    {}
-
-public:
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    //@}
-
-    static constexpr auto Node = Node::Bot;
-    friend class World;
-};
-
-class Top : public Def {
-private:
-    Top(const Def* type, const Def* dbg)
-        : Def(Node, type, Defs{}, 0, dbg)
-    {}
-
-public:
-    /// @name virtual methods
-    //@{
-    const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
-    //@}
-
-    static constexpr auto Node = Node::Top;
-    friend class World;
-};
-
 class Lit : public Def {
 private:
     Lit(const Def* type, fields_t val, const Def* dbg)
@@ -521,7 +492,7 @@ private:
 public:
     /// @name misc getters
     //@{
-    tag_t index() const { return fields() >> 32_u64; }
+    tag_t id() const { return fields() >> 32_u64; }
     flags_t flags() const { return fields(); }
     //@}
     /// @name virtual methods

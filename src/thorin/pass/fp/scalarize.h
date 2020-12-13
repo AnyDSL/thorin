@@ -7,12 +7,12 @@ namespace thorin {
 
 class Scalerize : public FPPass<Scalerize> {
 public:
-    Scalerize(PassMan& man, size_t index)
-        : FPPass(man, "scalerize", index)
+    Scalerize(PassMan& man)
+        : FPPass(man, "scalerize")
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     using Data = std::tuple<LamSet>;
 

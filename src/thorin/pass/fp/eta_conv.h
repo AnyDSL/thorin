@@ -24,12 +24,12 @@ namespace thorin {
  */
 class EtaConv : public FPPass<EtaConv> {
 public:
-    EtaConv(PassMan& man, size_t index)
-        : FPPass(man, "eta_conv", index)
+    EtaConv(PassMan& man)
+        : FPPass(man, "eta_conv")
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     enum Lattice { Callee, Once_Non_Callee };
     using Data = std::tuple<LamMap<Lattice>>;

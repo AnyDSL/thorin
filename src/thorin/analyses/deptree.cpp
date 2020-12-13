@@ -50,7 +50,9 @@ ParamSet DepTree::run(Def* cur_nom, const Def* def) {
         for (auto op : def->extended_ops())
             merge(result, run(cur_nom, op));
 
-        if (cur_nom == def) result.erase(cur_nom->param());
+        if (auto param = cur_nom->has_param()) {
+            if (cur_nom == def) result.erase(param);
+        }
     }
 
     return def2params_[def] = result;

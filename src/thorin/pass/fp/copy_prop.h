@@ -13,16 +13,16 @@ namespace thorin {
  */
 class CopyProp : public FPPass<CopyProp> {
 public:
-    CopyProp(PassMan& man, size_t index)
-        : FPPass(man, "copy_prop", index)
+    CopyProp(PassMan& man)
+        : FPPass(man, "copy_prop")
     {}
 
     using Args = std::vector<const Def*>;
     using Data = std::tuple<LamMap<Args>>;
 
 private:
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     Lam2Lam param2prop_;
     DefSet keep_;

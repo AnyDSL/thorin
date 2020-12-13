@@ -70,11 +70,12 @@ Stream& stream(Stream& s, const Def* def) {
         return s.fmt("«{}; {}»", arr->shape(), arr->body());
     } else if (auto pack = def->isa<Pack>()) {
         return s.fmt("‹{}; {}›", pack->shape(), pack->body());
-    } else if (auto union_ = def->isa<Union>()) {
-        if (union_->isa_nominal()) s.fmt("{}: {}", union_->unique_name(), union_->type());
-        return s.fmt("⋃({, })", union_->ops());
     } else if (auto proxy = def->isa<Proxy>()) {
-        return s.fmt(".proxy#{}#{} {, }", proxy->index(), proxy->flags(), proxy->ops());
+        return s.fmt(".proxy#{}#{} {, }", proxy->id(), proxy->flags(), proxy->ops());
+    } else if (auto bound = isa_bound(def)) {
+        const char* op = bound->isa<Join>() ? "∪" : "∩";
+        if (def->isa_nominal()) s.fmt("{}{}: {}", op, def->unique_name(), def->type());
+        return s.fmt("{}({, })", op, def->ops());
     }
 
     // other
@@ -177,13 +178,16 @@ void Def::dump(size_t max) const {
 
 // TODO polish this
 Stream& World::stream(Stream& s) const {
+    auto old_gid = cur_gid();
 #if 1
     DepTree dep(*this);
 
     RecStreamer rec(s, 0);
     s << "module '" << name();
 
-    return stream(rec, dep.root()).endl();
+    stream(rec, dep.root()).endl();
+    assert_unused(old_gid == cur_gid());
+    return s;
 #else
     RecStreamer rec(s, std::numeric_limits<size_t>::max());
     s << "module '" << name();

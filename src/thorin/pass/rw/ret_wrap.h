@@ -11,12 +11,7 @@ public:
         : RWPass(man, "ret_wrap")
     {}
 
-    void enter(Def*) override;
-    const Def* rewrite(Def*, const Def*) override;
-
-private:
-    Def2Def old2new_;
-    LamSet ret_conts_;
+    void enter() override;
 };
 
 }

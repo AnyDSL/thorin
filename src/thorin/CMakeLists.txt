@@ -11,6 +11,8 @@ set(THORIN_SOURCES
     error.h
     lam.cpp
     lam.h
+    lattice.cpp
+    lattice.h
     normalize.cpp
     normalize.h
     rewrite.cpp
@@ -18,8 +20,6 @@ set(THORIN_SOURCES
     stream.cpp
     tuple.cpp
     tuple.h
-    union.cpp
-    union.h
     tables.h
     world.cpp
     world.h
@@ -59,10 +59,10 @@ set(THORIN_SOURCES
     pass/rw/grad_gen.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
-    pass/rw/ptrn_compiler.h
-    pass/rw/ptrn_compiler.cpp
     pass/rw/ret_wrap.cpp
     pass/rw/ret_wrap.h
+    pass/rw/bound_elim.cpp
+    pass/rw/bound_elim.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/flatten_tuples.cpp

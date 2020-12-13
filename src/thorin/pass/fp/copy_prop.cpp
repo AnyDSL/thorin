@@ -2,7 +2,7 @@
 
 namespace thorin {
 
-const Def* CopyProp::rewrite(Def*, const Def* def) {
+const Def* CopyProp::rewrite(const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 
@@ -56,8 +56,8 @@ const Def* CopyProp::rewrite(Def*, const Def* def) {
     return app->world().app(prop_lam, new_args, app->dbg());
 }
 
-undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = descend(cur_nom, def);
+undo_t CopyProp::analyze(const Def* def) {
+    auto cur_lam = descend<Lam>(def);
     if (cur_lam == nullptr) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
@@ -69,7 +69,7 @@ undo_t CopyProp::analyze(Def* cur_nom, const Def* def) {
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        undo = std::min(undo, analyze(cur_nom, def->op(i)));
+        undo = std::min(undo, analyze(def->op(i)));
 
         if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
             auto&& [_, u,ins] = insert<LamMap<Args>>(lam);

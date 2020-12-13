@@ -18,8 +18,8 @@ namespace thorin {
  */
 class SSAConstr : public FPPass<SSAConstr> {
 public:
-    SSAConstr(PassMan& man, size_t index)
-        : FPPass(man, "ssa_constr", index)
+    SSAConstr(PassMan& man)
+        : FPPass(man, "ssa_constr")
     {}
 
     enum : flags_t { Sloxy, Phixy, Traxy };
@@ -33,10 +33,10 @@ public:
     using Data = std::tuple<Lam2Info>;
 
 private:
-    void enter(Def*) override;
-    const Def* rewrite(Def*, const Def*) override;
-    virtual undo_t analyze(Def* cur_nom) override;
-    undo_t analyze(Def*, const Def*) override;
+    void enter() override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze() override;
+    undo_t analyze(const Def*) override;
 
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);

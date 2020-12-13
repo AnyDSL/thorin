@@ -6,13 +6,12 @@
 
 namespace thorin {
 
-// TODO nominal sigma
 const Def* proj(const Def* def, u64 a, u64 i, const Def* dbg) {
     auto& world = def->world();
 
-    if (a == 1) return def;
-    if (def == nullptr) return nullptr; // pass through nullptr for nested proj calls
+    if (a == 1 && (!def->isa_nominal<Sigma>() && !def->type()->isa_nominal<Sigma>())) return def;
     if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
+
     if (auto arr = def->isa<Arr>()) {
         if (arr->arity()->isa<Top>()) return arr->body();
         return arr->apply(world.lit_int(as_lit(arr->arity()), i)).back();

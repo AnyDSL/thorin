@@ -34,7 +34,6 @@ World::World(const std::string& name)
     data_.space_    = insert<Space>(0, *this);
     data_.kind_     = insert<Kind>(0, *this);
     data_.bot_kind_ = insert<Bot>(0, kind(), nullptr);
-    data_.top_kind_ = insert<Top>(0, kind(), nullptr);
     data_.sigma_    = insert<Sigma>(0, kind(), Defs{}, nullptr)->as<Sigma>();
     data_.tuple_    = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     data_.type_nat_ = insert<Nat>(0, *this);
@@ -44,7 +43,7 @@ World::World(const std::string& name)
     data_.lit_nat_max_ = lit_nat(nat_t(-1));
     auto nat = type_nat();
 
-    {   // int/real: Πw: Nat. *
+    {   // int/real: w: Nat -> *
         auto p = pi(nat, kind());
         data_.type_int_     = axiom(p, Tag:: Int, 0);
         data_.type_real_    = axiom(p, Tag::Real, 0);
@@ -55,52 +54,52 @@ World::World(const std::string& name)
 
     auto mem = data_.type_mem_ = axiom(kind(), Tag::Mem, 0, dbg("mem"));
 
-    { // ptr: Π[T: *, as: nat]. *
+    { // ptr: [T: *, as: nat] -> *
         data_.type_ptr_ = axiom(nullptr, pi({kind(), nat}, kind()), Tag::Ptr, 0, dbg("ptr"));
     } {
 #define CODE(T, o) data_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), dbg(op2str(T::o)));
-    } { // bit: Πw: nat. Π[int w, int w]. int w
+    } { // bit: w: nat -> [int w, int w] -> int w
         auto type = nom_pi(kind(), nat);
         auto int_w = type_int(type->param(dbg("w")));
         type->set_codomain(pi({int_w, int_w}, int_w));
         THORIN_BIT(CODE)
-    } { // Shr: Πw: nat. Π[int w, int w]. int w
+    } { // Shr: w: nat -> [int w, int w] -> int w
         auto type = nom_pi(kind(), nat);
         auto int_w = type_int(type->param(dbg("w")));
         type->set_codomain(pi({int_w, int_w}, int_w));
         THORIN_SHR(CODE)
-    } { // Wrap: Π[m: nat, w: nat]. Π[int w, int w]. int w
+    } { // Wrap: [m: nat, w: nat] -> [int w, int w] -> int w
         auto type = nom_pi(kind(), {nat, nat});
         type->param(0, dbg("m"));
         auto int_w = type_int(type->param(1, dbg("w")));
         type->set_codomain(pi({int_w, int_w}, int_w));
         THORIN_WRAP(CODE)
-    } { // Div: Πw: nat. Π[mem, int w, int w]. [mem, int w]
+    } { // Div: w: nat -> [mem, int w, int w] -> [mem, int w]
         auto type = nom_pi(kind(), nat);
         auto int_w = type_int(type->param(dbg("w")));
         type->set_codomain(pi({mem, int_w, int_w}, sigma({mem, int_w})));
         THORIN_DIV(CODE)
-    } { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
+    } { // ROp: [m: nat, w: nat] -> [real w, real w] -> real w
         auto type = nom_pi(kind(), {nat, nat});
         type->param(0, dbg("m"));
         auto real_w = type_real(type->param(1, dbg("w")));
         type->set_codomain(pi({real_w, real_w}, real_w));
         THORIN_R_OP(CODE)
-    } { // ICmp: Πw: nat. Π[int w, int w]. bool
+    } { // ICmp: w: nat -> [int w, int w] -> bool
         auto type = nom_pi(kind(), nat);
         auto int_w = type_int(type->param(dbg("w")));
         type->set_codomain(pi({int_w, int_w}, type_bool()));
         THORIN_I_CMP(CODE)
-    } { // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
+    } { // RCmp: [m: nat, w: nat] -> [real w, real w] -> bool
         auto type = nom_pi(kind(), {nat, nat});
         type->param(0, dbg("m"));
         auto real_w = type_real(type->param(1, dbg("w")));
         type->set_codomain(pi({real_w, real_w}, type_bool()));
         THORIN_R_CMP(CODE)
-    } { // trait: ΠT: *. nat
+    } { // trait: T: * -> nat
         auto type = pi(kind(), nat);
         THORIN_TRAIT(CODE)
-    } { // acc: Πn: nat. cn[M, cn[M, int w n, cn[M, []]]]
+    } { // acc: n: nat -> cn[M, cn[M, int w n, cn[M, []]]]
         // TODO this is more a proof of concept
         auto type = nom_pi(kind(), nat);
         auto n = type->param(0, dbg("n"));
@@ -108,7 +107,7 @@ World::World(const std::string& name)
         THORIN_ACC(CODE)
     }
 #undef CODE
-    {   // Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw
+    {   // Conv: [dw: nat, sw: nat] -> i/r sw -> i/r dw
         auto make_type = [&](Conv o) {
             auto type = nom_pi(kind(), {nat, nat});
             auto dw = type->param(0, dbg("dw"));
@@ -120,29 +119,29 @@ World::World(const std::string& name)
 #define CODE(T, o) data_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), Tag::Conv, flags_t(T::o), dbg(op2str(T::o)));
         THORIN_CONV(CODE)
 #undef Code
-    } { // hlt/run: ΠT: *. ΠT. T
+    } { // hlt/run: T: * -> T -> T
         auto type = nom_pi(kind(), kind());
         auto T = type->param(dbg("T"));
         type->set_codomain(pi(T, T));
         data_.PE_[size_t(PE::hlt)] = axiom(normalize_PE<PE::hlt>, type, Tag::PE, flags_t(PE::hlt), dbg(op2str(PE::hlt)));
         data_.PE_[size_t(PE::run)] = axiom(normalize_PE<PE::run>, type, Tag::PE, flags_t(PE::run), dbg(op2str(PE::run)));
-    } { // known: ΠT: *. ΠT. bool
+    } { // known: T: * -> T -> bool
         auto type = nom_pi(kind(), kind());
         auto T = type->param(dbg("T"));
         type->set_codomain(pi(T, type_bool()));
         data_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), dbg(op2str(PE::known)));
-    } { // bitcast: Π[D: *, S: *]. ΠS. D
+    } { // bitcast: [D: *, S: *] -> S -> D
         auto type = nom_pi(kind(), {kind(), kind()});
         auto D = type->param(0, dbg("D"));
         auto S = type->param(1, dbg("S"));
         type->set_codomain(pi(S, D));
         data_.bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, dbg("bitcast"));
-    } { // lea:, Π[n: nat, Ts: «n; *», as: nat]. Π[ptr(«j: n; Ts#j», as), i: int n]. ptr(Ts#i, as)
-        auto domain = nom_sigma(space(), 3);
-        domain->set(0, nat);
-        domain->set(1, arr(domain->param(0, dbg("n")), kind()));
-        domain->set(2, nat);
-        auto pi1 = nom_pi(kind(), domain);
+    } { // lea:, [n: nat, Ts: «n; *», as: nat] -> [ptr(«j: n; Ts#j», as), i: int n] -> ptr(Ts#i, as)
+        auto dom = nom_sigma(space(), 3);
+        dom->set(0, nat);
+        dom->set(1, arr(dom->param(0, dbg("n")), kind()));
+        dom->set(2, nat);
+        auto pi1 = nom_pi(kind(), dom);
         auto n  = pi1->param(0, dbg("n"));
         auto Ts = pi1->param(1, dbg("Ts"));
         auto as = pi1->param(2, dbg("as"));
@@ -152,77 +151,77 @@ World::World(const std::string& name)
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, dbg("i"))), as));
         pi1->set_codomain(pi2);
         data_.lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, dbg("lea"));
-    } { // load: Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
+    } { // load: [T: *, as: nat] -> [M, ptr(T, as)] -> [M, T]
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr}, sigma({mem, T})));
         data_.load_ = axiom(normalize_load, type, Tag::Load, 0, dbg("load"));
-    } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
+    } { // store: [T: *, as: nat] -> [M, ptr(T, as), T] -> M
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, ptr, T}, mem));
         data_.store_ = axiom(normalize_store, type, Tag::Store, 0, dbg("store"));
-    } { // alloc: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
+    } { // alloc: [T: *, as: nat] -> M -> [M, ptr(T, as)]
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         data_.alloc_ = axiom(nullptr, type, Tag::Alloc, 0, dbg("alloc"));
-    } { // slot: Π[T: *, as: nat]. Π[M, nat]. [M, ptr(T, as)]
+    } { // slot: [T: *, as: nat] -> [M, nat] -> [M, ptr(T, as)]
         auto type = nom_pi(kind(), {kind(), nat});
         auto T  = type->param(0, dbg("T"));
         auto as = type->param(1, dbg("as"));
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi({mem, nat}, sigma({mem, ptr})));
         data_.slot_ = axiom(nullptr, type, Tag::Slot, 0, dbg("slot"));
-    } { // type_tangent_vector: Π*. *
+    } { // type_tangent_vector: * -> *
         data_.type_tangent_vector_ = axiom(normalize_tangent, pi(kind(), kind()), Tag::TangentVector, 0, dbg("tangent"));
-    } { // grad: Π[T: *, R: *]. Π(ΠT. R). ΠT. tangent T
+    } { // grad: [T: *, R: *] -> (T -> R) -> T -> tangent T
         auto type = nom_pi(kind(), {kind(), kind()});
         auto T = type->param(0, dbg("T"));
         auto R = type->param(1, dbg("R"));
         auto tangent_T = type_tangent_vector(T);
         type->set_codomain(pi(pi(T, R), pi(T, tangent_T)));
         data_.grad_ = axiom(nullptr, type, Tag::Grad, 0, dbg("∇"));
-    } { // atomic: Π[T: *, R: *]. ΠT. R
+    } { // atomic: [T: *, R: *] -> T -> R
         auto type = nom_pi(kind(), {kind(), kind()});
         auto T = type->param(0, dbg("T"));
         auto R = type->param(1, dbg("R"));
         type->set_codomain(pi(T, R));
         data_.atomic_ = axiom(nullptr, type, Tag::Atomic, 0, dbg("atomic"));
-    } { // lift:, Π[r: nat, s: «r; nat»]. Π[in: nat, Is: «in; *», on: nat, Os: «on; *», f: Π«i: in; Is#i». «o: on; Os#i»]. Π«i: in; «s; Is#i»». «o: on; «s; Os#i»»
-        // Π[r: nat, s: «r; nat»]
+    } { // lift:, [r: nat, s: «r; nat»] -> [n_i: nat, Is: «n_i; *», n_o: nat, Os: «n_o; *», f: «i: n_i; Is#i» -> «o: n_o; Os#i»] -> «i: n_i; «s; Is#i»» -> «o: n_o; «s; Os#i»»
+        // TODO select which Is/Os to lift
         auto rs = nom_sigma(kind(), 2);
         rs->set(0, nat);
         rs->set(1, arr(rs->param(0, dbg("r")), nat));
         auto rs_pi = nom_pi(kind(), rs);
         auto s = rs_pi->param(1, dbg("s"));
 
-        // Π[in: nat, Is: «in; *», on: nat, Os: «on; *», f: Π«i: in; Is#i». «o: on; Os#i»,]
+        // [n_i: nat, Is: «n_i; *», n_o: nat, Os: «n_o; *», f: «i: n_i; Is#i» -> «o: n_o; Os#i»,]
         auto is_os = nom_sigma(space(), 5);
         is_os->set(0, nat);
-        is_os->set(1, arr(is_os->param(0, dbg("in")), kind()));
+        is_os->set(1, arr(is_os->param(0, dbg("n_i")), kind()));
         is_os->set(2, nat);
-        is_os->set(3, arr(is_os->param(2, dbg("on")), kind()));
-        auto fi = nom_arr(is_os->param(0_u64));
-        auto fo = nom_arr(is_os->param(2_u64));
-        fi->set(extract(is_os->param(1, dbg("Is")), fi->param()));
-        fo->set(extract(is_os->param(3, dbg("Os")), fo->param()));
-        is_os->set(4, pi(fi, fo));
+        is_os->set(3, arr(is_os->param(2, dbg("n_o")), kind()));
+        auto f_i = nom_arr(is_os->param(0_u64));
+        auto f_o = nom_arr(is_os->param(2_u64));
+        f_i->set(extract(is_os->param(1, dbg("Is")), f_i->param()));
+        f_o->set(extract(is_os->param(3, dbg("Os")), f_o->param()));
+        is_os->set(4, pi(f_i, f_o));
         auto is_os_pi = nom_pi(kind(), is_os);
 
-        // Π«i: in; «s; Is#i»». «o: on; «s; Os#i»»
-        auto gi = nom_arr(is_os_pi->param(0_u64, dbg("in")));
-        auto go = nom_arr(is_os_pi->param(2_u64, dbg("on")));
-        gi->set(arr(s, extract(is_os_pi->param(1, dbg("Is")), gi->param())));
-        go->set(arr(s, extract(is_os_pi->param(3, dbg("Os")), go->param())));
+        // «i: n_i; «s; Is#i»» -> «o: n_o; «s; Os#i»»
+        auto dom = nom_arr(is_os_pi->param(0_u64, dbg("n_i")));
+        auto cod = nom_arr(is_os_pi->param(2_u64, dbg("n_o")));
+        dom->set(arr(s, extract(is_os_pi->param(1, dbg("Is")), dom->param())));
+        cod->set(arr(s, extract(is_os_pi->param(3, dbg("Os")), cod->param())));
 
-        is_os_pi->set_codomain(pi(gi, go));
+        is_os_pi->set_codomain(pi(dom, cod));
         rs_pi->set_codomain(is_os_pi);
 
         data_.lift_ = axiom(normalize_lift, rs_pi, Tag::Lift, 0, dbg("lift"));
@@ -236,16 +235,6 @@ World::~World() {
 /*
  * core calculus
  */
-
-#if 0
-// TODO use for sigma
-static const Def* lub(const Def* t1, const Def* t2) {
-    if (t1->isa<Space>()) return t1;
-    if (t2->isa<Space>()) return t2;
-    assert(t1->isa<Kind>() && t2->isa<Kind>());
-    return t1;
-}
-#endif
 
 const Pi* World::pi(const Def* domain, const Def* codomain, const Def* dbg) {
     return unify<Pi>(2, codomain->type(), domain, codomain, dbg);
@@ -281,12 +270,12 @@ const Def* World::raw_app(const Def* callee, const Def* arg, const Def* dbg) {
     return unify<App>(2, axiom, currying_depth-1, type, callee, arg, dbg);
 }
 
-const Def* World::sigma(const Def* type, Defs ops, const Def* dbg) {
+const Def* World::sigma(Defs ops, const Def* dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return arr(n, ops[0]);
-    return unify<Sigma>(ops.size(), type, ops, dbg);
+    return unify<Sigma>(ops.size(), infer_kind(ops), ops, dbg);
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {
@@ -349,60 +338,6 @@ const Def* World::tuple_str(const char* s, const Def* dbg) {
     return tuple(ops, dbg);
 }
 
-const Def* World::union_(const Def* type, Defs ops, const Def* dbg) {
-    assertf(ops.size() > 0, "unions must have at least one operand");
-    if (ops.size() == 1) return ops[0];
-    // Remove duplicate operands
-    Array<const Def*> ops_copy(ops);
-    std::sort(ops_copy.begin(), ops_copy.end());
-    ops.skip_back(ops_copy.end() - std::unique(ops_copy.begin(), ops_copy.end()));
-    return unify<Union>(ops_copy.size(), type, ops_copy, dbg);
-}
-
-const Def* World::which(const Def* value, const Def* dbg) {
-    if (auto insert = value->isa<Insert>())
-        return insert->index();
-    return unify<Which>(1, value->type()->arity(), value, dbg);
-}
-
-const Def* World::match(const Def* arg, Defs ptrns, const Def* dbg) {
-#if THORIN_ENABLE_CHECKS
-    assertf(ptrns.size() > 0, "match must take at least one pattern");
-#endif
-    const Def* type = ptrns[0]->type()->as<thorin::Case>()->codomain();
-#if THORIN_ENABLE_CHECKS
-    for (auto ptrn_ : ptrns) {
-        assertf(ptrn_->type()->isa<thorin::Case>(), "match patterns must have 'Case' type");
-        assertf(ptrn_->type()->as<thorin::Case>()->codomain() == type,
-            "match cases codomains are not consistent with each other, got {} and {}",
-            ptrn_->type()->as<thorin::Case>()->codomain(), type);
-    }
-#endif
-    Array<const Def*> ops(ptrns.size() + 1);
-    ops[0] = arg;
-    std::copy(ptrns.begin(), ptrns.end(), ops.begin() + 1);
-    // We need to build a match to have something to give to the error handler
-    auto match = unify<Match>(ptrns.size() + 1, type, ops, dbg);
-
-    bool trivial = ptrns[0]->as<Ptrn>()->is_trivial();
-    if (trivial)
-        return ptrns[0]->as<Ptrn>()->apply(arg).back();
-    if (ptrns.size() == 1 && !trivial) {
-        if (err()) err()->incomplete_match(match);
-        return bot(type);
-    }
-    // Constant folding
-    if (arg->is_const()) {
-        for (auto ptrn : ptrns) {
-            // If the pattern matches the argument
-            if (ptrn->as<Ptrn>()->matches(arg))
-                return ptrn->as<Ptrn>()->apply(arg).back();
-        }
-        return bot(type);
-    }
-    return match;
-}
-
 const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index, const Def* dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
         Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
@@ -440,7 +375,7 @@ const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index,
                 return extract(insert->tuple(), index, dbg);
         }
 
-        if (type->isa<Sigma>() || type->isa<Union>())
+        if (type->isa<Sigma>())
             return unify<Extract>(2, ex_type ? ex_type : type->op(*i), tup, index, dbg);
     }
 
@@ -475,9 +410,6 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, const
             tup = insert->tuple();
     }
 
-    // insert(x : U, index, y) -> insert(bot : U, index, y)
-    if (tup->type()->isa<Union>())
-        tup = bot(tup->type());
     return unify<Insert>(3, tup, index, val, dbg);
 }
 
@@ -560,14 +492,6 @@ const Lit* World::lit_int(const Def* type, u64 i, const Def* dbg) {
     return l;
 }
 
-const Def* World::bot_top(bool is_top, const Def* type, const Def* dbg) {
-    if (auto arr = type->isa<Arr>()) return pack(arr->shape(), bot_top(is_top, arr->body()), dbg);
-    if (auto sigma = type->isa<Sigma>())
-        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
-    auto d = dbg;
-    return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
-}
-
 const Def* World::global(const Def* id, const Def* init, bool is_mutable, const Def* dbg) {
     return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, dbg);
 }
@@ -581,6 +505,78 @@ const Def* World::global_immutable_string(const std::string& str, const Def* dbg
     str_array.back() = lit_nat('\0', dbg);
 
     return global(tuple(str_array, dbg), false, dbg);
+}
+
+/*
+ * set
+ */
+
+template<bool up>
+const Def* World::ext(const Def* type, const Def* dbg) {
+    if (auto arr = type->isa<Arr>()) return pack(arr->shape(), ext<up>(arr->body()), dbg);
+    if (auto sigma = type->isa<Sigma>())
+        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return ext<up>(sigma->op(i), dbg); }), dbg);
+    return unify<TExt<up>>(0, type, dbg);
+}
+
+template<bool up>
+const Def* World::bound(Defs ops, const Def* dbg) {
+    auto kind = infer_kind(ops);
+
+    // has ext<up> value?
+    if (std::any_of(ops.begin(), ops.end(), [&](const Def* op) { return up ? bool(op->isa<Top>()) : bool(op->isa<Bot>()); }))
+        return ext<up>(kind);
+
+    // ignore: ext<!up>
+    Array<const Def*> cpy(ops);
+    auto end = std::copy_if(ops.begin(), ops.end(), cpy.begin(), [&](const Def* op) { return !isa_ext(op); });
+
+    // sort and remove duplicates
+    std::sort(cpy.begin(), end, GIDLt<const Def*>());
+    end = std::unique(cpy.begin(), end);
+    cpy.shrink(cpy.begin() - end);
+
+    if (cpy.size() == 0) return ext<!up>(kind, dbg);
+    if (cpy.size() == 1) return cpy[0];
+
+    // TODO simplify mixed terms with joins and meets
+
+    return unify<TBound<up>>(cpy.size(), kind, cpy, dbg);
+}
+
+const Def* World::et(const Def* type, Defs ops, const Def* dbg) {
+    if (type->isa<Meet>()) {
+        Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
+        return unify<Et>(ops.size(), meet(types), ops, dbg);
+    }
+
+    assert(ops.size() == 1);
+    return ops[0];
+}
+
+const Def* World::vel(const Def* type, const Def* value, const Def* dbg) {
+    if (type->isa<Join>()) return unify<Vel>(1, type, value, dbg);
+    return value;
+}
+
+const Def* World::pick(const Def* type, const Def* value, const Def* dbg) {
+    return unify<Pick>(1, type, value, dbg);
+}
+
+const Def* World::test(const Def* value, const Def* probe, const Def* match, const Def* clash, const Def* dbg) {
+    auto m_pi = match->type()->isa<Pi>();
+    auto c_pi = clash->type()->isa<Pi>();
+
+    if (err()) {
+        // TODO proper error msg
+        assert(m_pi && c_pi);
+        auto a = isa_lit(m_pi->domain()->arity());
+        assert(a && *a == 2);
+        assert(checker_->equiv(proj(m_pi->domain(), 2, 0), c_pi->domain()));
+    }
+
+    auto codom = join({m_pi->codomain(), c_pi->codomain()});
+    return unify<Test>(4, pi(c_pi->domain(), codom), value, probe, match, clash, dbg);
 }
 
 /*
@@ -617,6 +613,11 @@ std::vector<Lam*> World::copy_lams() const {
 
 #if THORIN_ENABLE_CHECKS
 
+void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
+void World::use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
+void World::enable_history(bool flag)     { state_.track_history = flag; }
+bool World::track_history() const         { return state_.track_history; }
+
 const Def* World::gid2def(u32 gid) {
     auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
     if (i == data_.defs_.end()) return nullptr;
@@ -642,6 +643,10 @@ const Def* World::type_tangent_vector(const Def* primal_type, const Def* dbg) {
     return app(data_.type_tangent_vector_, primal_type, dbg);
 }
 
+/*
+ * helpers
+ */
+
 const Def* World::dbg(Debug d) {
     auto pos2def = [&](Pos pos) { return lit_nat((u64(pos.row) << 32_u64) | (u64(pos.col))); };
 
@@ -650,7 +655,15 @@ const Def* World::dbg(Debug d) {
     auto begin = pos2def(d.loc.begin);
     auto finis = pos2def(d.loc.finis);
     auto loc = tuple({file, begin, finis});
+
     return tuple({name, loc, d.meta ? d.meta : bot(bot_kind()) });
+}
+
+const Def* World::infer_kind(Defs defs) const {
+    for (auto def : defs) {
+        if (def->type()->isa<Space>()) return def;
+    }
+    return kind();
 }
 
 /*
@@ -727,10 +740,18 @@ std::string World::colorize(const std::string& str, int) {
 
 void World::set(std::unique_ptr<ErrorHandler>&& err) { err_ = std::move(err); }
 
+/*
+ * instantiate templates
+ */
+
 template void Streamable<World>::write(const std::string& filename) const;
 template void Streamable<World>::write() const;
 template void Streamable<World>::dump() const;
-template void World::visit<true> (VisitFn) const;
+template void World::visit<true >(VisitFn) const;
 template void World::visit<false>(VisitFn) const;
+template const Def* World::ext<true >(const Def*, const Def*);
+template const Def* World::ext<false>(const Def*, const Def*);
+template const Def* World::bound<true >(Defs, const Def*);
+template const Def* World::bound<false>(Defs, const Def*);
 
 }

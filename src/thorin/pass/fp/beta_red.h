@@ -11,12 +11,12 @@ namespace thorin {
  */
 class BetaRed : public FPPass<BetaRed> {
 public:
-    BetaRed(PassMan& man, size_t index)
-        : FPPass(man, "beta_red", index)
+    BetaRed(PassMan& man)
+        : FPPass(man, "beta_red")
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
-    undo_t analyze(Def*, const Def*) override;
+    const Def* rewrite(const Def*) override;
+    undo_t analyze(const Def*) override;
 
     using Data = std::tuple<LamSet>;
 

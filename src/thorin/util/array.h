@@ -91,6 +91,12 @@ public:
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
     ArrayRef& operator=(ArrayRef other) { swap(*this, other); return *this; }
+    template<size_t N> std::array<T, N> to_array() const {
+        assert(size() == N);
+        std::array<T, N> result;
+        std::copy(begin(), end(), result.begin());
+        return result;
+    }
 
     friend void swap(ArrayRef<T>& a1, ArrayRef<T>& a2) {
         using std::swap;
@@ -286,12 +292,7 @@ public:
     T const& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return data()[i]; }
     bool operator==(const Array other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     Array& operator=(Array other) { swap(*this, other); return *this; }
-    template<size_t N = size_t(-1)> std::array<T, N> to_array() const {
-        assert(size() == N);
-        std::array<T, N> result;
-        std::copy(begin(), end(), result.begin());
-        return result;
-    }
+    template<size_t N> std::array<T, N> to_array() const { return ref().template to_array<N>(); }
 
     friend void swap(Array& a, Array& b) {
         swap(a.storage_, b.storage_);

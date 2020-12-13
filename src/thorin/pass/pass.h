@@ -14,10 +14,7 @@ static constexpr undo_t No_Undo = std::numeric_limits<undo_t>::max();
 /// * Inherit from @p FPPass using CRTP if you do need state.
 class RWPass {
 public:
-    RWPass(PassMan& man, const std::string& name)
-        : man_(man)
-        , name_(name)
-    {}
+    RWPass(PassMan& man, const std::string& name);
     virtual ~RWPass() {}
 
     /// @name getters
@@ -25,63 +22,66 @@ public:
     PassMan& man() { return man_; }
     const PassMan& man() const { return man_; }
     const std::string& name() const { return name_; }
+    size_t proxy_id() const { return proxy_id_; }
     World& world();
+    template<class T = Def> T* cur_nom() const;
     //@}
 
     /// @name hooks for the PassMan
     //@{
-    /// Invoked just before @p rewrite%ing @p cur_nom's body.
-    virtual void enter([[maybe_unused]] Def* cur_nom) {}
+    /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
+    virtual void enter() {}
 
-    /// Rewrites a @em structural @p def within @p cur_nom. Returns the replacement.
-    virtual const Def* rewrite([[maybe_unused]] Def* cur_nom, const Def* def) { return def; }
+    /// Rewrites a @p nom%inal within @p PassMan::cur_nom. Returns the replacement.
+    virtual const Def* rewrite(Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nom; }
 
-    /// Invoked just after @p rewrite%ing and before @p analyze%ing @p cur_nom's body.
-    virtual void finish([[maybe_unused]] Def* cur_nom) {}
+    /// Rewrites a @em structural @p def within @p PassMan::cur_nom @em before it has been @p rebuild. Returns the replacement.
+    virtual const Def* rewrite(const Def* def, [[maybe_unused]] const Def* type, [[maybe_unused]] Defs, [[maybe_unused]] const Def* dbg) { return def; }
+
+    /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
+    virtual const Def* rewrite(const Def* def) { return def; }
+
+    /// Invoked just after @p rewrite%ing and before @p analyze%ing @p PassMan::cur_nom's body.
+    virtual void finish() {}
+    //@}
+
+    /// @name Proxy
+    //@{
+    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, const Def* dbg = {}) { return world().proxy(type, ops, proxy_id(), flags, dbg); }
+    /// @name Check whether given @c def is a Proxy whose index matches this @p Pass's @p index.
+    const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
+        if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->id() == proxy_id() && proxy->flags() == flags) return proxy;
+        return nullptr;
+    }
+    const Proxy* as_proxy(const Def* def, flags_t flags = 0) {
+        auto proxy = def->as<Proxy>();
+        assert(proxy->id() == proxy_id() && proxy->flags() == flags);
+        return proxy;
+    }
     //@}
 
 private:
     PassMan& man_;
     std::string name_;
+    size_t proxy_id_;
+
+    friend class PassMan;
 };
 
 /// Base class for all FPPass%es.
 class FPPassBase : public RWPass {
 public:
-    FPPassBase(PassMan& man, const std::string& name, size_t index)
-        : RWPass(man, name)
-        , index_(index)
-    {}
+    FPPassBase(PassMan& man, const std::string& name);
 
     size_t index() const { return index_; }
-
-    /// @name create Proxy
-    //@{
-    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, const Def* dbg = {}) { return world().proxy(type, ops, index(), flags, dbg); }
-    /// @name check whether given @c def is a Proxy whose index matches this Pass's index
-    const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
-        if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->index() == index() && proxy->flags() == flags) return proxy;
-        return nullptr;
-    }
-    const Proxy* as_proxy(const Def* def, flags_t flags = 0) {
-        auto proxy = def->as<Proxy>();
-        assert(proxy->index() == index() && proxy->flags() == flags);
-        return proxy;
-    }
-    //@}
 
     /// @name hooks for the PassMan
     //@{
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Default implementation invokes the other @p analyze method for all @p extended_ops of @p cur_nom.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze(Def* cur_nom) {
-        undo_t undo = No_Undo;
-        for (auto op : cur_nom->extended_ops())
-            undo = std::min(undo, analyze(cur_nom, op));
-        return undo;
-    }
-    virtual undo_t analyze([[maybe_unused]] Def* cur_nom, [[maybe_unused]] const Def* def) { return No_Undo; }
+    virtual undo_t analyze();
+    virtual undo_t analyze([[maybe_unused]] const Def* def) { return No_Undo; }
     //@}
 
     /// @name mangage state - dummy implementations here
@@ -92,6 +92,8 @@ public:
 
 private:
     size_t index_;
+
+    friend class PassMan;
 };
 
 /// An optimizer that combines several optimizations in an optimal way.
@@ -110,17 +112,22 @@ public:
     /// Add a pass to this @p PassMan.
     template<class P, class... Args>
     PassMan& add(Args... args) {
+        auto p = std::make_unique<P>(*this, std::forward<Args>(args)...);
+        passes_.emplace_back(p.get());
+
         if constexpr (std::is_base_of<FPPassBase, P>::value) {
-            auto p = std::make_unique<P>(*this, fp_passes_.size(), std::forward<Args>(args)...);
-            passes_.emplace_back(p.get());
             fp_passes_.emplace_back(std::move(p));
         } else {
-            auto p = std::make_unique<P>(*this, std::forward<Args>(args)...);
-            passes_.emplace_back(p.get());
             rw_passes_.emplace_back(std::move(p));
         }
+
         return *this;
     }
+
+    const auto& passes() const { return passes_; }
+    const auto& rw_passes() const { return rw_passes_; }
+    const auto& fp_passes() const { return fp_passes_; }
+
     /// Run all registered passes on the whole @p world.
     void run();
     //@}
@@ -142,6 +149,13 @@ public:
         return {};
     }
     //@}
+
+    template<class T = Def> T* cur_nom() const {
+        if constexpr(std::is_same<T, Def>::value)
+            return cur_nom_ ;
+        else
+            return cur_nom_ ? cur_nom_->template isa<T>() : nullptr;
+    }
 
 private:
     struct State {
@@ -167,8 +181,7 @@ private:
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    void enter(Def*);
-    const Def* rewrite(Def*, const Def*);
+    const Def* rewrite(const Def*);
     void enqueue(const Def*);
 
     bool enqueued(const Def* def) {
@@ -184,6 +197,7 @@ private:
     std::vector<std::unique_ptr<RWPass    >> rw_passes_;
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
+    Def* cur_nom_ = nullptr;
 
     template<class P> friend class FPPass;
 };
@@ -192,11 +206,10 @@ private:
 template<class P>
 class FPPass : public FPPassBase {
 public:
-    FPPass(PassMan& man, const std::string& name, size_t index)
-        : FPPassBase(man, name, index)
+    FPPass(PassMan& man, const std::string& name)
+        : FPPassBase(man, name)
     {}
 
-    //@}
     /// @name alloc/dealloc state
     //@{
     void* alloc() override { return new typename P::Data(); }
@@ -257,12 +270,12 @@ protected:
     }
     //@}
 
-    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p nom&inal.
-    template<class T = Lam>
-    T* descend(Def* nom, const Def* def) {
-        auto cur_nom = nom->template isa<T>();
+    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p PasMMan::cur_nom.
+    template<class T = Def>
+    T* descend(const Def* def) {
+        auto cur_nom = man().template cur_nom<T>();
         if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || analyzed(def)) return nullptr;
-        if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return nullptr;
+        if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return nullptr;
         return cur_nom;
     }
 
@@ -279,6 +292,8 @@ private:
 
 inline World& RWPass::world() { return man().world(); }
 inline const App* is_callee(const Def* def, size_t i) { return i == 0 ? def->isa<App>() : nullptr; }
+
+template<class T = Def> T* RWPass::cur_nom() const { return man().template cur_nom<T>(); }
 
 }
 

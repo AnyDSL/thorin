@@ -698,25 +698,77 @@ const Def* normalize_RCmp(const Def* type, const Def* c, const Def* arg, const D
     return world.raw_app(callee, {a, b}, dbg);
 }
 
+// TODO this currently hard-codes x86_64 ABI
+// TODO in contrast to C, we might want to give singleton types like 'int 1' or '[]' a size of 0 and simply nuke each and every occurance of these types in a later phase
+// TODO Pi and others
 template<Trait op>
-const Def* normalize_Trait(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
-    auto& world = t->world();
+const Def* normalize_Trait(const Def*, const Def* callee, const Def* type, const Def* dbg) {
+    auto& world = type->world();
 
-    //if constexpr (op == Trait::sizeof
-    if (auto int_ = isa<Tag::Int>(arg)) {
-        if (int_->arg()->isa<Top>()) return world.lit_nat(8);
-        if (auto w = isa_lit(int_->arg())) return world.lit_nat(log2(*w) / 8_u64, dbg);
-        return int_->arg();
+    if (auto ptr = isa<Tag::Ptr>(type)) {
+        return world.lit_nat(8);
+    } else if (auto int_ = isa<Tag::Int>(type)) {
+        if (int_->type()->isa<Top>()) return world.lit_nat(8);
+        if (auto w = isa_lit(int_->arg())) {
+            if (*w == 0) return world.lit_nat(8);
+            if (*w <= 0x0000'0000'0000'0100_u64) return world.lit_nat(1);
+            if (*w <= 0x0000'0000'0001'0000_u64) return world.lit_nat(2);
+            if (*w <= 0x0000'0001'0000'0000_u64) return world.lit_nat(4);
+            return world.lit_nat(8);
+        }
+    } else if (auto real = isa<Tag::Real>(type)) {
+        if (auto w = isa_lit(real->arg())) {
+            switch (*w) {
+                case 16: return world.lit_nat(2);
+                case 32: return world.lit_nat(4);
+                case 64: return world.lit_nat(8);
+                default: THORIN_UNREACHABLE;
+            }
+        }
+    } else if (type->isa<Sigma>() || type->isa<Meet>()) {
+        auto adjust_offset = [&](u64 offset, u64 align) {
+            auto mod = offset % align;
+            if (mod != 0) offset += align - mod;
+            return offset;
+        };
+
+        u64 offset = 0;
+        u64 align = 1;
+        for (auto t : type->ops()) {
+            auto a = isa_lit(world.op(Trait::align, t));
+            auto s = isa_lit(world.op(Trait::size , t));
+            if (!a || !s) goto out;
+
+            align = std::max(align, *a);
+            offset = adjust_offset(offset, *a) + *s;
+        }
+
+        offset = adjust_offset(offset, align);
+        u64 size = std::max(1_u64, offset);
+
+        switch (op) {
+            case Trait::align: return world.lit_nat(align);
+            case Trait::size:  return world.lit_nat(size );
+        }
+    } else if (auto arr = type->isa_structural<Arr>()) {
+        auto align = world.op(Trait::align, arr->body());
+
+        if constexpr (op == Trait::align) return align;
+
+        auto a = isa_lit(align);
+        auto s = isa_lit(world.op(Trait::size , arr->body()));
+
+        if (auto shape = isa_lit(arr->shape()); shape && a && s) {
+            u64 factor = std::max(*a, *s);
+            return world.lit_nat(factor * *shape);
+        }
+    } else if (auto join = type->isa<Join>()) {
+        if (auto sigma = join->convert()) return world.op(op, sigma, dbg);
     }
 
-    if (auto real = isa<Tag::Real>(arg)) {
-        if (auto w = isa_lit(real->arg())) return world.lit_nat(*w / 8, dbg);
-        return real->arg();
-    }
-
-    return world.raw_app(callee, arg, dbg);
+out:
+    return world.raw_app(callee, type, dbg);
 }
-
 
 #define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
                  m( 8,  1) m( 8,  8) m( 8, 16) m( 8, 32) m( 8, 64) \
@@ -900,14 +952,19 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
     auto& w = type->world();
     auto callee = c->as<App>();
     auto is_os = callee->arg();
-    auto [in, Is, on, Os, f] = is_os->split<5>();
+    auto [n_i, Is, n_o, Os, f] = is_os->split<5>();
     auto [r, s] = callee->decurry()->args<2>();
     auto lr = isa_lit(r);
     auto ls = isa_lit(s);
 
+    // TODO commute
+    // TODO reassociate
+    // TODO more than one Os
+    // TODO select which Is/Os to lift
+
     if (lr && ls && *lr == 1 && *ls == 1) return w.app(f, arg, dbg);
 
-    if (auto l_in = isa_lit(in)) {
+    if (auto l_in = isa_lit(n_i)) {
         auto args = arg->split(*l_in);
 
         if (lr && std::all_of(args.begin(), args.end(), [&](const Def* arg) { return is_tuple_or_pack(arg); })) {

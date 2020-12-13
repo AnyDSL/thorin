@@ -6,15 +6,15 @@ static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy
 static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
 
-void SSAConstr::enter(Def* nom) {
-    if (auto lam = nom->isa<Lam>()) {
+void SSAConstr::enter() {
+    if (auto lam = cur_nom<Lam>()) {
         insert<Lam2Info>(lam); // create undo point
         lam2sloxy2val_[lam].clear();
     }
 }
 
-const Def* SSAConstr::rewrite(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
+const Def* SSAConstr::rewrite(const Def* def) {
+    auto cur_lam = cur_nom<Lam>();
     if (cur_lam == nullptr) return def;
 
     if (auto traxy = isa_proxy(def, Traxy)) {
@@ -128,18 +128,18 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
-undo_t SSAConstr::analyze(Def* cur_nom) {
+undo_t SSAConstr::analyze() {
     analyzed_.clear();
     undo_t undo = No_Undo;
-    for (auto op : cur_nom->extended_ops())
-        undo = std::min(undo, analyze(cur_nom, op));
+    for (auto op : cur_nom()->extended_ops())
+        undo = std::min(undo, analyze(op));
     return undo;
 }
 
-undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
-    auto cur_lam = cur_nom->isa<Lam>();
-    if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || !analyzed_.emplace(def).second) return No_Undo;
-    if (auto proxy = def->isa<Proxy>(); proxy && proxy->index() != index()) return No_Undo;
+undo_t SSAConstr::analyze(const Def* def) {
+    auto cur_lam = cur_nom<Lam>();
+    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || !analyzed_.emplace(def).second) return No_Undo;
+    if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);
@@ -161,7 +161,7 @@ undo_t SSAConstr::analyze(Def* cur_nom, const Def* def) {
     } else {
         auto undo = No_Undo;
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            undo = std::min(undo, analyze(cur_nom, def->op(i)));
+            undo = std::min(undo, analyze(def->op(i)));
 
             if (auto suc_lam = def->op(i)->isa_nominal<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
                 auto&& [suc_info, u, ins] = insert<Lam2Info>(suc_lam);

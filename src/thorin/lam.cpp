@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-Lam* Lam::set_filter(bool filter) { return set(0_s, world().lit_bool(filter)); }
+Lam* Lam::set_filter(bool filter) { return set_filter(world().lit_bool(filter)); }
 
 const Def* Lam::mem_param(const Def* dbg) {
     return thorin::isa<Tag::Mem>(param(0_s)->type()) ? param(0, dbg) : nullptr;
@@ -26,13 +26,15 @@ void Lam::app(const Def* callee, const Def* arg, const Def* dbg) {
     auto filter = world().lit_false();
     set(filter, world().app(callee, arg, dbg));
 }
+
 void Lam::app(const Def* callee, Defs args, const Def* dbg) { app(callee, world().tuple(args), dbg); }
+
 void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, const Def* dbg) {
-    return app(world().extract(world().tuple({f, t}), cond, dbg), mem, dbg);
+    return app(world().select(t, f, cond), mem, dbg);
 }
 
-void Lam::match(const Def* val, Defs cases, const Def* mem, const Def* dbg) {
-    return app(world().match(val, cases, dbg), mem, dbg);
+void Lam::test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* mem, const Def* dbg) {
+    return app(world().test(value, index, match, clash), {mem}, dbg);
 }
 
 /*
@@ -40,6 +42,8 @@ void Lam::match(const Def* val, Defs cases, const Def* mem, const Def* dbg) {
  */
 
 Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
+
+bool Pi::is_cn() const { return codomain()->isa<Bot>(); }
 
 bool Pi::is_returning() const {
     bool ret = false;

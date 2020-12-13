@@ -17,8 +17,6 @@ public:
     virtual void expected_shape(const Def* def);
     virtual void index_out_of_range(const Def* arity, const Def* index);
     virtual void ill_typed_app(const Def* callee, const Def* arg);
-    virtual void incomplete_match(const Match*);
-    virtual void redundant_match_case(const Match*, const Ptrn*);
 };
 
 }

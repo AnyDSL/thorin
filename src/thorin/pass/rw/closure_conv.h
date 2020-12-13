@@ -11,9 +11,10 @@ public:
         : RWPass(man, "closure_conv")
     {}
 
-    const Def* rewrite(Def*, const Def*) override;
-
 private:
+    const Def* rewrite(Def*, const Def* type, const Def*) override;
+    const Def* rewrite(const Def*) override;
+
     const Tuple* convert(Lam*);
     const Sigma* convert(const Pi*);
 

@@ -612,6 +612,11 @@ std::vector<Lam*> World::copy_lams() const {
 
 #if THORIN_ENABLE_CHECKS
 
+void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
+void World::use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
+void World::enable_history(bool flag)     { state_.track_history = flag; }
+bool World::track_history() const         { return state_.track_history; }
+
 const Def* World::gid2def(u32 gid) {
     auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
     if (i == data_.defs_.end()) return nullptr;

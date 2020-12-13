@@ -192,6 +192,7 @@ public:
     const Def* extract_unsafe(const Def* tup, const Def* i, const Def* dbg = {}) {
         return extract(tup, op(Conv::u2u, type_int(as_lit(tup->type()->reduce()->arity())), i, dbg), dbg);
     }
+    /// Builds <tt>(f, t)#cond</tt>.
     const Def* select(const Def* t, const Def* f, const Def* cond, const Def* dbg = {}) { return extract(tuple({f, t}), cond, dbg); }
     //@}
 
@@ -408,10 +409,10 @@ public:
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
-    void     breakpoint(size_t number) { state_.    breakpoints.insert(number); }
-    void use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
-    bool track_history() const { return state_.track_history; }
-    void enable_history(bool flag = true) { state_.track_history = flag; }
+    void     breakpoint(size_t number);
+    void use_breakpoint(size_t number);
+    void enable_history(bool flag = true);
+    bool track_history() const;
     const Def* gid2def(u32 gid);
     //@}
 #endif

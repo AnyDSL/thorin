@@ -1335,7 +1335,6 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
             auto castet_pointer = irbuilder_.CreatePointerCast(ptr, castet_pointer_type_vector);
 
             llvm::Value *newgeps[flatten_type.size()];
-
             for (unsigned i = 0; i < flatten_type.size(); i++) {
                 auto innerpointertype = llvm::PointerType::get(flatten_type[i], llvm_element_pointer_type->getAddressSpace());
 
@@ -1370,57 +1369,63 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
+    auto ptr = lookup(store->ptr());
     llvm::Value* result;
-
-    if (store->ptr()->type()->isa<VectorExtendedType>() &&
-            store->ptr()->type()->as<VectorExtendedType>()->element()->isa<PtrType>() &&
-            store->ptr()->type()->as<VectorExtendedType>()->element()->as<PtrType>()->pointee()->isa<StructType>()) { //TODO: There are other cases that require this handling.
-        auto struct_type = store->ptr()->type()->as<VectorExtendedType>()->element()->as<PtrType>()->pointee()->as<StructType>();
-
-        auto llvm_value = lookup(store->val());
-        auto llvm_ptr = lookup(store->ptr());
-
-        auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(llvm_ptr->getType());
+    if (ptr->getType()->isVectorTy()) {
+        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
+        auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(ptr->getType());
+        assert(llvm_vector_type && "Scalable vector?");
         auto llvm_element_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_vector_type->getElementType());
+        auto llvm_element_type = llvm_element_pointer_type->getElementType();
 
-        auto structtype = convert(struct_type);
+        if (!llvm::VectorType::isValidElementType(llvm_element_type)) {
+            unsigned vector_width = store->ptr()->type()->as<VectorExtendedType>()->length();
+            auto llvm_value = lookup(store->val());
 
-        unsigned vector_width = store->ptr()->type()->as<VectorExtendedType>()->length();
+            auto flatten_type = flatten(llvm_element_type);
+            llvm::Type *newelements[flatten_type.size()];
+            for (unsigned i = 0; i < flatten_type.size(); i++)
+                newelements[i] = flatten_type[i];
+            auto castet_element_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
 
-        for (unsigned i = 0; i < struct_type->num_ops(); i++) {
-            //Extract element from value
-            auto llvm_element = irbuilder_.CreateExtractValue(llvm_value, { i });
-            auto llvm_element_inner_type = llvm::dyn_cast<llvm::VectorType>(llvm_element->getType())->getElementType();
+            auto castet_pointer_type = llvm::PointerType::get(castet_element_type, llvm_element_pointer_type->getAddressSpace());
+            auto castet_pointer_type_vector = llvm::FixedVectorType::get(castet_pointer_type, vector_width);
 
-            auto innerpointertype = llvm::PointerType::get(llvm_element_inner_type, llvm_element_pointer_type->getAddressSpace());
+            auto castet_pointer = irbuilder_.CreatePointerCast(ptr, castet_pointer_type_vector);
 
-            //create gep to ith element.
-            llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width)); // undef : <8 x i32*>
-            for (unsigned j = 0; j < vector_width; j++) {
-                auto element = irbuilder_.CreateExtractElement(llvm_ptr, j);
-                llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
-                auto gep = irbuilder_.CreateInBoundsGEP(structtype, element, args);
-                innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
+            llvm::Value *newgeps[flatten_type.size()];
+            for (unsigned i = 0; i < flatten_type.size(); i++) {
+                auto innerpointertype = llvm::PointerType::get(flatten_type[i], llvm_element_pointer_type->getAddressSpace());
+
+                llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width));
+                for (size_t j = 0; j < vector_width; j++) {
+                    auto element = irbuilder_.CreateExtractElement(castet_pointer, j);
+                    llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
+                    auto gep = irbuilder_.CreateInBoundsGEP(castet_element_type, element, args);
+                    innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
+                }
+
+                newgeps[i] = innergep;
             }
 
-            auto align = module_->getDataLayout().getABITypeAlignment(llvm_ptr->getType()->getScalarType()->getPointerElementType());
-            auto store = irbuilder_.CreateMaskedScatter(llvm_element, innergep, llvm::MaybeAlign(align).getValue());
+            for (unsigned i = 0; i < flatten_type.size(); i++) {
+                auto llvm_element = irbuilder_.CreateExtractValue(llvm_value, { i });
 
-            result = store; //TODO: this is actually incorrect, but doesn't matter for a store, I guess?
-        }
-    } else {
-        auto ptr = lookup(store->ptr());
-
-        if (ptr->getType()->isVectorTy()) {
+                auto gep = newgeps[i];
+                auto scatter = irbuilder_.CreateMaskedScatter(llvm_element, gep, llvm::MaybeAlign(align).getValue());
+                result = scatter;
+            }
+            //By this point, result only contains the last scatter that was generated, but this shoult be fine.
+        } else {
             auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
             auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue());
             result = scatter;
-        } else {
-            auto storeval = irbuilder_.CreateStore(lookup(store->val()), ptr);
-            auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-            storeval->setAlignment(llvm::MaybeAlign(align).getValue());
-            result = storeval;
         }
+    } else {
+        auto storeval = irbuilder_.CreateStore(lookup(store->val()), ptr);
+        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+        storeval->setAlignment(llvm::MaybeAlign(align).getValue());
+        result = storeval;
     }
     return result;
 }

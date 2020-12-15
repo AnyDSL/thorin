@@ -274,7 +274,7 @@ protected:
     template<class T = Def>
     T* descend(const Def* def) {
         auto cur_nom = man().template cur_nom<T>();
-        if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || analyzed(def)) return nullptr;
+        if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Var>() || analyzed(def)) return nullptr;
         if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return nullptr;
         return cur_nom;
     }

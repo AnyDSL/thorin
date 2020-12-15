@@ -56,7 +56,7 @@ static void inline_calls(Lam* lam) {
     }
 }
 
-// Wraps around a def, flattening tuples passed as parameters (dual of unwrap)
+// Wraps around a def, flattening tuples passed as vars (dual of unwrap)
 static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const Pi* new_type, size_t max_tuple_size) {
     // Transform:
     //
@@ -88,19 +88,19 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
             if (sigma->num_ops() <= max_tuple_size) {
                 Array<const Def*> tuple_args(sigma->num_ops());
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
-                    tuple_args[k] = new_lam->param(j++);
+                    tuple_args[k] = new_lam->var(j++);
                 call_args[i + 1] = world.tuple(sigma, tuple_args);
             } else
-                call_args[i + 1] = new_lam->param(j++);
+                call_args[i + 1] = new_lam->var(j++);
         } else if (auto cn = op->isa<Pi>()) {
-            auto fn_param = new_lam->param(j++);
+            auto fn_var = new_lam->var(j++);
             // no need to unwrap if the types are identical
-            if (fn_param->type() != op)
-                call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_param, cn, max_tuple_size);
+            if (fn_var->type() != op)
+                call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_var, cn, max_tuple_size);
             else
-                call_args[i + 1] = fn_param;
+                call_args[i + 1] = fn_var;
         } else {
-            call_args[i + 1] = new_lam->param(j++);
+            call_args[i + 1] = new_lam->var(j++);
         }
     }
 
@@ -135,23 +135,23 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
 
     unwrapped.emplace(new_def, old_lam);
 
-    for (size_t i = 0, j = 1, e = old_lam->num_params(); i != e; ++i) {
-        auto param = old_lam->param(i);
-        if (auto sigma = param->type()->isa<Sigma>()) {
+    for (size_t i = 0, j = 1, e = old_lam->num_vars(); i != e; ++i) {
+        auto var = old_lam->var(i);
+        if (auto sigma = var->type()->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
-                    call_args[j++] = world.extract(param, e, k);
+                    call_args[j++] = world.extract(var, e, k);
             } else
-                call_args[j++] = param;
-        } else if (auto cn = param->type()->isa<Pi>()) {
+                call_args[j++] = var;
+        } else if (auto cn = var->type()->isa<Pi>()) {
             auto new_cn = new_type->dom(j - 1)->as<Pi>();
             // no need to wrap if the types are identical
             if (cn != new_cn)
-                call_args[j++] = wrap_def(wrapped, unwrapped, param, new_cn, max_tuple_size);
+                call_args[j++] = wrap_def(wrapped, unwrapped, var, new_cn, max_tuple_size);
             else
-                call_args[j++] = param;
+                call_args[j++] = var;
         } else {
-            call_args[j++] = param;
+            call_args[j++] = var;
         }
     }
 

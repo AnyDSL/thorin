@@ -17,7 +17,7 @@ public:
 private:
     World& world_;
     HashSet<DefDef, DefDefHash> equiv_;
-    std::deque<DefDef> params_;
+    std::deque<DefDef> vars_;
 };
 
 }

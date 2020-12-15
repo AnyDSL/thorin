@@ -18,7 +18,7 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
     : fields_(fields)
     , node_(unsigned(node))
     , nominal_(false)
-    , param_(false)
+    , var_(false)
     , const_(true)
     , order_(0)
     , num_ops_(ops.size())
@@ -44,7 +44,7 @@ Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const De
     : fields_(fields)
     , node_(node)
     , nominal_(true)
-    , param_(false)
+    , var_(false)
     , const_(false)
     , order_(0)
     , num_ops_(num_ops)
@@ -81,7 +81,7 @@ const Def* Lam    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) cons
 const Def* Lit    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
 const Def* Nat    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_nat(); }
 const Def* Pack   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
-const Def* Param  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.param(t, o[0]->as_nominal(), dbg); }
+const Def* Var  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.var(t, o[0]->as_nominal(), dbg); }
 const Def* Pi     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
 const Def* Pick   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pick(t, o[0], dbg); }
 const Def* Proxy  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, as<Proxy>()->id(), as<Proxy>()->flags(), dbg); }
@@ -109,7 +109,7 @@ template<bool up> TBound<up>* TBound<up>::stub(World& w, const Def* t, const Def
  */
 
 const Pi* Pi::restructure() {
-    if (!is_free(param(), codom())) return world().pi(dom(), codom(), dbg());
+    if (!is_free(var(), codom())) return world().pi(dom(), codom(), dbg());
     return nullptr;
 }
 
@@ -140,20 +140,20 @@ Defs Def::extended_ops() const {
     return Defs((is_set() ? num_ops_ : 0) + offset, ops_ptr() - offset);
 }
 
-const Param* Def::param(const Def* dbg) {
+const Var* Def::var(const Def* dbg) {
     auto& w = world();
-    if (auto lam    = isa<Lam  >()) return w.param(lam ->dom(), lam,   dbg);
-    if (auto pi     = isa<Pi   >()) return w.param(pi  ->dom(), pi,    dbg);
-    if (auto sigma  = isa<Sigma>()) return w.param(sigma,          sigma, dbg);
-    if (auto arr    = isa<Arr  >()) return w.param(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
-    if (auto pack   = isa<Pack >()) return w.param(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
-    if (isa_bound(this)) return w.param(this, this,  dbg);
+    if (auto lam    = isa<Lam  >()) return w.var(lam ->dom(), lam,   dbg);
+    if (auto pi     = isa<Pi   >()) return w.var(pi  ->dom(), pi,    dbg);
+    if (auto sigma  = isa<Sigma>()) return w.var(sigma,          sigma, dbg);
+    if (auto arr    = isa<Arr  >()) return w.var(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
+    if (auto pack   = isa<Pack >()) return w.var(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)
+    if (isa_bound(this)) return w.var(this, this,  dbg);
     THORIN_UNREACHABLE;
 }
 
-const Param* Def::param() { return param(nullptr); }
-const Def*   Def::param(size_t i) { return param(i, nullptr); }
-size_t       Def::num_params() { return param()->num_outs(); }
+const Var* Def::var() { return var(nullptr); }
+const Def* Def::var(size_t i) { return var(i, nullptr); }
+size_t     Def::num_vars() { return var()->num_outs(); }
 
 Sort Def::level() const {
     if (                isa<Space>()) return Sort::Space;
@@ -244,7 +244,7 @@ void Def::finalize() {
     if (dbg()) const_ &= dbg()->is_const();
     if (isa<Pi>()) ++order_;
     if (isa<Axiom>()) const_ = true;
-    if (auto param = isa<Param>()) param->nominal()->param_ = true;
+    if (auto var = isa<Var>()) var->nominal()->var_ = true;
 }
 
 Def* Def::set(size_t i, const Def* def) {

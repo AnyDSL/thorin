@@ -148,9 +148,9 @@ Lam* CodeGen::emit_spawn(Lam* lam) {
     // restore old insert point
     irbuilder_.SetInsertPoint(old_bb);
 
-    // bind parameter of lam to received handle
+    // bind var of lam to received handle
     auto l = lam->body()->as<App>()->arg(SPAWN_ARG_RETURN)->as_nominal<Lam>();
-    emit_result_phi(l->param(1), call);
+    emit_result_phi(l->var(1), call);
     return l;
 }
 

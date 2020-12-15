@@ -34,7 +34,7 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 class App;
 class Axiom;
-class Param;
+class Var;
 class Def;
 class Stream;
 class Tracker;
@@ -150,7 +150,7 @@ public:
     void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
     /// @c true if all operands are set or @p num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
     bool is_set() const;
-    /// @p Param%s and @em nominals are @em not const; @p Axiom%s are always const; everything else const iff their @p extended_ops are const.
+    /// @p Var%s and @em nominals are @em not const; @p Axiom%s are always const; everything else const iff their @p extended_ops are const.
     bool is_const() const { return const_; }
     //@}
     /// @name uses
@@ -224,18 +224,18 @@ public:
     }
     template<class T = Def> const T* as_structural() const { return as_nominal<T, true>(); }
     //@}
-    /// @name retrieve @p Param for @em nominals.
+    /// @name retrieve @p Var for @em nominals.
     //@{
-    /// Only returns a @p Param for this @em nominal if it has ever been created.
-    const Param* has_param() { return param_ ? param() : nullptr; }
-    const Param* param(const Def* dbg);
-    const Def* param(size_t i, const Def* dbg) { return proj((const Def*) param(), num_params(), i, dbg); }
-    const Param* param();       ///< Wrapper instead of default argument for easy access in @c gdb.
-    const Def* param(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
-    Array<const Def*> params() { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
-    size_t num_params();
+    /// Only returns a @p Var for this @em nominal if it has ever been created.
+    const Var* has_var() { return var_ ? var() : nullptr; }
+    const Var* var(const Def* dbg);
+    const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
+    const Var* var();       ///< Wrapper instead of default argument for easy access in @c gdb.
+    const Def* var(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
+    Array<const Def*> vars() { return Array<const Def*>(num_vars(), [&](auto i) { return var(i); }); }
+    size_t num_vars();
     //@}
-    /// @name rewrites last op by substituting @p param with @p arg.
+    /// @name rewrites last op by substituting @p var with @p arg.
     //@{
     Array<const Def*> apply(const Def* arg) const;
     Array<const Def*> apply(const Def* arg);
@@ -291,7 +291,7 @@ protected:
     fields_t fields_;
     node_t node_;
     unsigned nominal_ :  1;
-    unsigned param_   :  1;
+    unsigned var_   :  1;
     unsigned const_   :  1;
     unsigned order_   : 13;
     u32 gid_;
@@ -363,9 +363,9 @@ using Nom2Nom = NomMap<Def*>;
 
 //------------------------------------------------------------------------------
 
-class Param : public Def {
+class Var : public Def {
 private:
-    Param(const Def* type, Def* nominal, const Def* dbg)
+    Var(const Def* type, Def* nominal, const Def* dbg)
         : Def(Node, type, Defs{nominal}, 0, dbg)
     {}
 
@@ -379,14 +379,14 @@ public:
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     //@}
 
-    static constexpr auto Node = Node::Param;
+    static constexpr auto Node = Node::Var;
     friend class World;
 };
 
 template<class To>
-using ParamMap    = GIDMap<const Param*, To>;
-using ParamSet    = GIDSet<const Param*>;
-using Param2Param = ParamMap<const Param*>;
+using VarMap  = GIDMap<const Var*, To>;
+using VarSet  = GIDSet<const Var*>;
+using Var2Var = VarMap<const Var*>;
 
 class Space : public Def {
 private:

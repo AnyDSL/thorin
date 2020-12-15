@@ -6,10 +6,10 @@ const Def* CopyProp::rewrite(const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 
-    auto param_lam = app->callee()->isa_nominal<Lam>();
-    if (ignore(param_lam) || param_lam->num_params() == 0 || keep_.contains(param_lam)) return app;
+    auto var_lam = app->callee()->isa_nominal<Lam>();
+    if (ignore(var_lam) || var_lam->num_vars() == 0 || keep_.contains(var_lam)) return app;
 
-    auto&& [args, _, __] = insert<LamMap<Args>>(param_lam);
+    auto&& [args, _, __] = insert<LamMap<Args>>(var_lam);
     args.resize(app->num_args());
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
@@ -17,20 +17,20 @@ const Def* CopyProp::rewrite(const Def* def) {
     bool update = false;
     bool changed = false;
     for (size_t i = 0, e = app->num_args(); i != e; ++i) {
-        if (keep_.contains(param_lam->param(i))) {
-            types.emplace_back(param_lam->param(i)->type());
+        if (keep_.contains(var_lam->var(i))) {
+            types.emplace_back(var_lam->var(i)->type());
             new_args.emplace_back(app->arg(i));
         } else if (args[i] == nullptr) {
             args[i] = app->arg(i);
             changed = true;
         } else if (args[i] != app->arg(i)) {
-            keep_.emplace(param_lam->param(i));
+            keep_.emplace(var_lam->var(i));
             update = true;
         }
     }
 
     if (update) {
-        if (new_args.size() == app->num_args()) keep_.emplace(param_lam);
+        if (new_args.size() == app->num_args()) keep_.emplace(var_lam);
         auto p = proxy(app->type(), app->ops(), 0);
         world().DLOG("proxy: '{}'", p);
         return p;
@@ -38,19 +38,19 @@ const Def* CopyProp::rewrite(const Def* def) {
 
     if (!changed) return def;
 
-    auto& prop_lam = param2prop_[param_lam];
-    if (prop_lam == nullptr || prop_lam->num_params() != types.size()) {
+    auto& prop_lam = var2prop_[var_lam];
+    if (prop_lam == nullptr || prop_lam->num_vars() != types.size()) {
         auto prop_dom = world().sigma(types);
-        auto new_type = world().pi(prop_dom, param_lam->codom());
-        prop_lam = param_lam->stub(world(), new_type, param_lam->dbg());
+        auto new_type = world().pi(prop_dom, var_lam->codom());
+        prop_lam = var_lam->stub(world(), new_type, var_lam->dbg());
         keep_.emplace(prop_lam); // don't try to propagate again
-        world().DLOG("param_lam => prop_lam: {}: {} => {}: {}", param_lam, param_lam->type()->dom(), prop_lam, prop_dom);
+        world().DLOG("var_lam => prop_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), prop_lam, prop_dom);
 
         size_t j = 0;
-        Array<const Def*> new_params(app->num_args(), [&](size_t i) {
-            return keep_.contains(param_lam->param(i)) ? prop_lam->param(j++) : args[i];
+        Array<const Def*> new_vars(app->num_args(), [&](size_t i) {
+            return keep_.contains(var_lam->var(i)) ? prop_lam->var(j++) : args[i];
         });
-        prop_lam->set(param_lam->apply(world().tuple(new_params)));
+        prop_lam->set(var_lam->apply(world().tuple(new_vars)));
     }
 
     return app->world().app(prop_lam, new_args, app->dbg());

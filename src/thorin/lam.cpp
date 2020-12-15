@@ -6,13 +6,13 @@ namespace thorin {
 
 Lam* Lam::set_filter(bool filter) { return set_filter(world().lit_bool(filter)); }
 
-const Def* Lam::mem_param(const Def* dbg) {
-    return thorin::isa<Tag::Mem>(param(0_s)->type()) ? param(0, dbg) : nullptr;
+const Def* Lam::mem_var(const Def* dbg) {
+    return thorin::isa<Tag::Mem>(var(0_s)->type()) ? var(0, dbg) : nullptr;
 }
 
-const Def* Lam::ret_param(const Def* dbg) {
-    if (num_params() > 0) {
-        auto p = param(num_params() - 1, dbg);
+const Def* Lam::ret_var(const Def* dbg) {
+    if (num_vars() > 0) {
+        auto p = var(num_vars() - 1, dbg);
         if (auto pi = p->type()->isa<thorin::Pi>(); pi != nullptr && pi->is_cn()) return p;
     }
     return nullptr;
@@ -62,24 +62,24 @@ bool Pi::is_returning() const {
 }
 
 // TODO remove
-Lam* get_param_lam(const Def* def) {
+Lam* get_var_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return extract->tuple()->as<Param>()->nominal()->as<Lam>();
-    return def->as<Param>()->nominal()->as<Lam>();
+        return extract->tuple()->as<Var>()->nominal()->as<Lam>();
+    return def->as<Var>()->nominal()->as<Lam>();
 }
 
 // TODO remove
-size_t get_param_index(const Def* def) {
+size_t get_var_index(const Def* def) {
     if (auto extract = def->isa<Extract>())
         return as_lit<size_t>(extract->index());
-    assert(def->isa<Param>());
+    assert(def->isa<Var>());
     return 0;
 }
 
-std::vector<Peek> peek(const Def* param) {
+std::vector<Peek> peek(const Def* var) {
     std::vector<Peek> peeks;
-    size_t index = get_param_index(param);
-    for (auto use : get_param_lam(param)->uses()) {
+    size_t index = get_var_index(var);
+    for (auto use : get_var_lam(var)->uses()) {
         if (auto app = use->isa<App>()) {
             for (auto use : app->uses()) {
                 if (auto pred = use->isa_nominal<Lam>()) {

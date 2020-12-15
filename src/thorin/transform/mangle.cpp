@@ -13,7 +13,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     , old2new_(scope.defs().capacity())
 {
     assert(old_entry()->is_set());
-    assert(args.size() == old_entry()->num_params());
+    assert(args.size() == old_entry()->num_vars());
 
     // TODO correctly deal with lams here
     std::queue<const Def*> queue;
@@ -34,33 +34,33 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
 }
 
 Lam* Mangler::mangle() {
-    // create new_entry - but first collect and specialize all param types
-    std::vector<const Def*> param_types;
-    for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
+    // create new_entry - but first collect and specialize all var types
+    std::vector<const Def*> var_types;
+    for (size_t i = 0, e = old_entry()->num_vars(); i != e; ++i) {
         if (args_[i]->isa<Top>())
-            param_types.emplace_back(old_entry()->param(i)->type());
+            var_types.emplace_back(old_entry()->var(i)->type());
     }
 
-    auto cn = world().cn(param_types);
+    auto cn = world().cn(var_types);
     new_entry_ = world().nom_lam(cn, old_entry()->debug_history());
 
     // HACK we wil remove this code anyway
     bool all = true;
-    // map params
+    // map vars
     //old2new_[old_entry()] = old_entry();
-    for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
-        auto old_param = old_entry()->param(i);
+    for (size_t i = 0, j = 0, e = old_entry()->num_vars(); i != e; ++i) {
+        auto old_var = old_entry()->var(i);
         if (!args_[i]->isa<Top>())
-            old2new_[old_param] = args_[i];
+            old2new_[old_var] = args_[i];
         else {
             all = false;
-            auto new_param = new_entry()->param(j++, old_param->debug_history());
-            old2new_[old_param] = new_param;
+            auto new_var = new_entry()->var(j++, old_var->debug_history());
+            old2new_[old_var] = new_var;
         }
     }
 
     if (all)
-        old2new_[old_entry()->param()] = world().tuple(args_);
+        old2new_[old_entry()->var()] = world().tuple(args_);
 
     auto new_filter = mangle(old_entry()->filter());
     auto new_body   = mangle(old_entry()->body());
@@ -116,7 +116,7 @@ const Def* Mangler::mangle(const Def* old_def) {
 
                     if (substitute) {
                         // TODO lifting
-                        //const auto& args = concat(new_args.cut(cut), new_entry()->params().get_back(lift_.size()));
+                        //const auto& args = concat(new_args.cut(cut), new_entry()->vars().get_back(lift_.size()));
                         auto args = tuple->ops().cut(cut);
                         return world().app(new_entry(), args, app->dbg ());
                     }

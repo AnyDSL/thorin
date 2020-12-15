@@ -87,11 +87,11 @@ public:
     u32 next_gid() { return ++state_.cur_gid; }
     //@}
 
-    /// @name Space, Kind, Param, Proxy
+    /// @name Space, Kind, Var, Proxy
     //@{
     const Space* space() const { return data_.space_;   }
     const Kind* kind() const { return data_.kind_; }
-    const Param* param(const Def* type, Def* nominal, const Def* dbg = {}) { return unify<Param>(1, type, nominal, dbg); }
+    const Var* var(const Def* type, Def* nominal, const Def* dbg = {}) { return unify<Var>(1, type, nominal, dbg); }
     const Proxy* proxy(const Def* type, Defs ops, tag_t index, flags_t flags, const Def* dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, flags, dbg); }
     //@}
 
@@ -111,12 +111,12 @@ public:
     Pi* nom_pi(const Def* type, Defs doms, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(doms); }
     //@}
 
-    /// @name Pi: continuation type, i.e., Pi type with codom Bottom
+    /// @name Pi: continuation type (cn), i.e., @p Pi type with codom @p Bot%tom
     //@{
     const Pi* cn() { return cn(sigma()); }
     const Pi* cn(const Def* dom, const Def* dbg = {}) { return pi(dom, bot_kind(), dbg); }
     const Pi* cn(Defs doms, const Def* dbg = {}) { return cn(sigma(doms), dbg); }
-    /// Same as cn/pi but adds a mem parameter to each pi
+    /// Same as @p cn/@p pi but adds a @p mem @p Var to each @p Pi
     const Pi* cn_mem(const Def* dom, const Def* dbg = {}) { return cn({ type_mem(), dom }, dbg); }
     const Pi* cn_mem_ret(const Def* dom, const Def* ret_dom, const Def* dbg = {}) { return cn({type_mem(), dom, cn_mem(ret_dom)}, dbg); }
     //@}

@@ -32,22 +32,22 @@ class BasicOption {
 public:
     typedef ArgsIterator iterator;
 
-    BasicOption(std::string param, std::string domain, std::string help, T* target)
+    BasicOption(std::string var, std::string domain, std::string help, T* target)
         : target_(target)
-        , param_(param)
+        , var_(var)
         , domain_(domain)
         , help_(help)
     {}
     virtual ~BasicOption() {}
 
     T* target() const { return target_; }
-    const std::string& param() const { return param_; }
+    const std::string& var() const { return var_; }
     const std::string& domain() const { return domain_; }
     const std::string& help() const { return help_; }
 
 protected:
     T* target_;
-    std::string param_;
+    std::string var_;
     std::string domain_;
     std::string help_;
 };
@@ -58,14 +58,14 @@ struct Option;
 template<typename Data, typename T, typename Class>
 class OptionBase : public BasicOption<Data> {
 public:
-    OptionBase(const T& previous, std::string param, std::string domain, std::string help, Data* target, const Data& init)
-        : BasicOption<Data>(param, domain, help, target)
+    OptionBase(const T& previous, std::string var, std::string domain, std::string help, Data* target, const Data& init)
+        : BasicOption<Data>(var, domain, help, target)
         , previous_(previous)
     {
         *target = init;
     }
 
-    bool is_param(const char* value) const {
+    bool is_var(const char* value) const {
         // TODO: nicer
         if (value[0] != '-')
             return false;
@@ -74,14 +74,14 @@ public:
         int offset = 1;
         if (value[1] == '-') offset++;
 
-        return strcmp(BasicOption<Data>::param().c_str(), value + offset) == 0;
+        return strcmp(BasicOption<Data>::var().c_str(), value + offset) == 0;
     }
 
     typename BasicOption<Data>::iterator handle(typename BasicOption<Data>::iterator it) const {
         const Class* c = as_class();
         if (!*it)
             return it;
-        if (c->is_param(*it))
+        if (c->is_var(*it))
             return c->handle_option(it);
         return previous_.handle(it);
     }
@@ -89,8 +89,8 @@ public:
     const Class* as_class() const { return static_cast<const Class*>(this); }
 
     template<typename NData>
-    Option<NData, Class> add_option(std::string param, std::string domain, std::string help, NData& target, const NData& init = {}) const {
-        return Option<NData, Class>(*as_class(), param, domain, help, &target, init);
+    Option<NData, Class> add_option(std::string var, std::string domain, std::string help, NData& target, const NData& init = {}) const {
+        return Option<NData, Class>(*as_class(), var, domain, help, &target, init);
     }
 
     void parse(int argc, char** argv) const {
@@ -105,7 +105,7 @@ public:
     void print_help() {
         const Class* c = as_class();
         previous_.print_help();
-        std::cout << "  " << '-' << std::left << std::setw(36) << (c->param() + std::string(" ") + c->domain()) << c->help() << std::endl;
+        std::cout << "  " << '-' << std::left << std::setw(36) << (c->var() + std::string(" ") + c->domain()) << c->help() << std::endl;
     }
 
 protected:
@@ -114,8 +114,8 @@ protected:
 
 template<typename Data, typename T>
 struct Option : public OptionBase<Data, T, Option<Data, T>> {
-    Option(const T& previous, std::string param, std::string domain, std::string help, Data* target, const Data& init = Data())
-        : OptionBase<Data, T, Option<T, Data>>(previous, param, domain, help, target, init)
+    Option(const T& previous, std::string var, std::string domain, std::string help, Data* target, const Data& init = Data())
+        : OptionBase<Data, T, Option<T, Data>>(previous, var, domain, help, target, init)
     {}
 
     typename OptionBase<Data, T, Option<T, Data>>::iterator handle_option(typename OptionBase<Data, T, Option<T, Data>>::iterator) const {
@@ -127,8 +127,8 @@ template<typename T>
 struct Option<int, T> : public OptionBase<int, T, Option<int, T>> {
     typedef Option<int, T> self;
 
-    Option(const T& previous, std::string param, std::string domain, std::string help, int* target, int init)
-        : OptionBase<int, T, self>(previous, param, domain, help, target, init)
+    Option(const T& previous, std::string var, std::string domain, std::string help, int* target, int init)
+        : OptionBase<int, T, self>(previous, var, domain, help, target, init)
     {}
 
     typename OptionBase<int, T, self>::iterator handle_option(typename OptionBase<int, T, self>::iterator it) const {
@@ -141,8 +141,8 @@ template<typename T>
 struct Option<bool, T> : public OptionBase<bool, T, Option<bool, T>> {
     typedef Option<bool, T> self;
 
-    Option(const T& previous, std::string param, std::string domain, std::string help, bool* target, bool init)
-        : OptionBase<bool, T, self>(previous, param, domain, help, target, init)
+    Option(const T& previous, std::string var, std::string domain, std::string help, bool* target, bool init)
+        : OptionBase<bool, T, self>(previous, var, domain, help, target, init)
     {}
 
     typename OptionBase<bool, T, self>::iterator handle_option(typename OptionBase<bool, T, self>::iterator it) const {
@@ -156,8 +156,8 @@ template<typename T>
 struct Option<std::string, T> : public OptionBase<std::string, T, Option<std::string, T>> {
     typedef Option<std::string, T> self;
 
-    Option(const T& previous, std::string param, std::string domain, std::string help, std::string* target, std::string init)
-        : OptionBase<std::string, T, self>(previous, param, domain, help, target, init)
+    Option(const T& previous, std::string var, std::string domain, std::string help, std::string* target, std::string init)
+        : OptionBase<std::string, T, self>(previous, var, domain, help, target, init)
     {}
 
     typename OptionBase<std::string, T, self>::iterator handle_option(typename OptionBase<std::string, T, self>::iterator it) const {
@@ -172,8 +172,8 @@ template<typename T>
 struct Option<OptionStringVector, T> : public OptionBase<OptionStringVector, T, Option<OptionStringVector, T>> {
     typedef Option<OptionStringVector, T> self;
 
-    Option(const T& previous, std::string param, std::string domain, std::string help, OptionStringVector* target, const OptionStringVector& init)
-        : OptionBase<OptionStringVector, T, self>(previous, param, domain, help, target, init)
+    Option(const T& previous, std::string var, std::string domain, std::string help, OptionStringVector* target, const OptionStringVector& init)
+        : OptionBase<OptionStringVector, T, self>(previous, var, domain, help, target, init)
     {}
 
     typename OptionBase<OptionStringVector, T, self>::iterator handle_option(typename OptionBase<OptionStringVector, T, self>::iterator it) const {
@@ -200,11 +200,11 @@ struct Option<void, void> : public BasicOption<void> {
     }
 
     template<typename NData>
-    Option<NData, Option<void, void>> add_option(std::string param, std::string domain, std::string help, NData& target, const NData& init = {}) const {
-        return Option<NData, Option<void, void>>(*this, param, domain, help, &target, init);
+    Option<NData, Option<void, void>> add_option(std::string var, std::string domain, std::string help, NData& target, const NData& init = {}) const {
+        return Option<NData, Option<void, void>>(*this, var, domain, help, &target, init);
     }
 
-    bool is_param(const char*) const { return true; }
+    bool is_var(const char*) const { return true; }
     void print_help() {}
 };
 
@@ -216,15 +216,15 @@ struct ImplicitOption : BasicOption<std::vector<std::string>> {
     {}
 
     template<typename NData>
-    Option<NData, ImplicitOption> add_option(std::string param, std::string domain, std::string help, NData& target, const NData& init = {}) const {
-        return Option<NData, ImplicitOption>(*this, param, domain, help, &target, init); }
+    Option<NData, ImplicitOption> add_option(std::string var, std::string domain, std::string help, NData& target, const NData& init = {}) const {
+        return Option<NData, ImplicitOption>(*this, var, domain, help, &target, init); }
 
     BasicOption<target_type>::iterator handle(BasicOption<target_type>::iterator it) const {
         target()->push_back(*it++);
         return it;
     }
 
-    bool is_param(const char*) const { return true; }
+    bool is_var(const char*) const { return true; }
     void print_help() { std::cout << "implicit arguments: " << help() << std::endl; }
 };
 

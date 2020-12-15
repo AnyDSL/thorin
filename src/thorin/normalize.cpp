@@ -922,10 +922,10 @@ static const Def* tangent_vector_type(const Def* primal_type) {
     if (auto sigma = primal_type->isa<Sigma>()) {
         auto num_ops = sigma->num_ops();
 
-        // Σs with a mem are function parameters.
+        // Σs with a mem are function vars.
         if (auto mem = isa<Tag::Mem>(sigma->op(0))) {
-            auto params = (num_ops > 2) ? world.sigma(sigma->ops().skip_front()) : sigma->op(1);
-            return world.sigma({mem, world.type_tangent_vector(params)});
+            auto vars = (num_ops > 2) ? world.sigma(sigma->ops().skip_front()) : sigma->op(1);
+            return world.sigma({mem, world.type_tangent_vector(vars)});
         }
 
         Array<const Def*> tangent_vectors(num_ops);

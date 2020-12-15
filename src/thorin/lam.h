@@ -82,10 +82,10 @@ public:
     const Def* filter() const { return op(0); }
     const Def* body() const { return op(1); }
     //@}
-    /// @name params
+    /// @name vars
     //@{
-    const Def* mem_param(const Def* dbg = {});
-    const Def* ret_param(const Def* dbg = {});
+    const Def* mem_var(const Def* dbg = {});
+    const Def* ret_var(const Def* dbg = {});
     //@}
     /// @name setters
     //@{
@@ -186,8 +186,8 @@ private:
 };
 
 // TODO remove - deprecated
-size_t get_param_index(const Def* def);
-Lam* get_param_lam(const Def* def);
+size_t get_var_index(const Def* def);
+Lam* get_var_lam(const Def* def);
 std::vector<Peek> peek(const Def*);
 
 inline bool ignore(Lam* lam) { return lam == nullptr || lam->is_external() || !lam->is_set(); }

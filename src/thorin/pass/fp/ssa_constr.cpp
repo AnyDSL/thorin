@@ -106,19 +106,19 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         auto [_, ins] = preds_n_.emplace(phi_lam);
         assert(ins);
 
-        auto num_mem_params = mem_lam->num_params();
+        auto num_mem_vars = mem_lam->num_vars();
         size_t i = 0;
         Array<const Def*> traxy_ops(2*num_phixys + 1);
-        traxy_ops[0] = phi_lam->param();
+        traxy_ops[0] = phi_lam->var();
         for (auto phixy : lam2phixys) {
             traxy_ops[2*i + 1] = phixy;
-            traxy_ops[2*i + 2] = phi_lam->param(num_mem_params + i);
+            traxy_ops[2*i + 2] = phi_lam->var(num_mem_vars + i);
             ++i;
         }
-        auto traxy = proxy(phi_lam->param()->type(), traxy_ops, Traxy);
+        auto traxy = proxy(phi_lam->var()->type(), traxy_ops, Traxy);
 
-        Array<const Def*> new_params(num_mem_params, [&](size_t i) { return traxy->out(i); });
-        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->dom(), new_params)));
+        Array<const Def*> new_vars(num_mem_vars, [&](size_t i) { return traxy->out(i); });
+        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->dom(), new_vars)));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }
@@ -138,7 +138,7 @@ undo_t SSAConstr::analyze() {
 
 undo_t SSAConstr::analyze(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || !analyzed_.emplace(def).second) return No_Undo;
+    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {

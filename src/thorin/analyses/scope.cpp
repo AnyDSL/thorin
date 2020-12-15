@@ -23,16 +23,16 @@ Scope::~Scope() {}
 
 Scope& Scope::update() {
     defs_.clear();
-    free_        = nullptr;
-    free_params_ = nullptr;
-    cfa_         = nullptr;
+    free_      = nullptr;
+    free_vars_ = nullptr;
+    cfa_       = nullptr;
     run();
     return *this;
 }
 
 void Scope::run() {
     unique_queue<DefSet&> queue(defs_);
-    queue.push(entry_->param());
+    queue.push(entry_->var());
 
     while (!queue.empty()) {
         for (auto use : queue.pop()->uses()) {
@@ -57,14 +57,14 @@ const DefSet& Scope::free() const {
     return *free_;
 }
 
-const ParamSet& Scope::free_params() const {
-    if (!free_params_) {
-        free_params_ = std::make_unique<ParamSet>();
+const VarSet& Scope::free_vars() const {
+    if (!free_vars_) {
+        free_vars_ = std::make_unique<VarSet>();
         unique_queue<DefSet> queue;
 
         auto enqueue = [&](const Def* def) {
-            if (auto param = def->isa<Param>())
-                free_params_->emplace(param);
+            if (auto var = def->isa<Var>())
+                free_vars_->emplace(var);
             else if (def->isa_nominal())
                 return;
             else
@@ -80,7 +80,7 @@ const ParamSet& Scope::free_params() const {
         }
     }
 
-    return *free_params_;
+    return *free_vars_;
 }
 
 const NomSet& Scope::free_noms() const {
@@ -116,13 +116,13 @@ Stream& Scope::stream(Stream& s) const { return schedule(*this).stream(s); }
 template void Streamable<Scope>::dump() const;
 template void Streamable<Scope>::write() const;
 
-bool is_free(const Param* param, const Def* def) {
+bool is_free(const Var* var, const Def* def) {
     // optimize common cases
-    if (def == param) return true;
-    for (auto p : param->nominal()->params())
-        if (p == param) return true;
+    if (def == var) return true;
+    for (auto p : var->nominal()->vars())
+        if (p == var) return true;
 
-    Scope scope(param->nominal());
+    Scope scope(var->nominal());
     return scope.contains(def);
 }
 

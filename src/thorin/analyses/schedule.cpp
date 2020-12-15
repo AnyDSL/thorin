@@ -106,8 +106,8 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
 
     if (auto nom = def->isa_nominal()) {
         result = cfg_[nom];
-    } else if (auto param = def->isa<Param>()) {
-        result = schedule_early(param->nominal());
+    } else if (auto var = def->isa<Var>()) {
+        result = schedule_early(var->nominal());
     } else {
         result = cfg_.entry();
         for (auto op : def->ops()) {
@@ -131,8 +131,8 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
 
     if (auto nom = def->isa_nominal()) {
         result = cfg_[nom];
-    } else if (auto param = def->isa<Param>()) {
-        result = schedule_late(param->nominal());
+    } else if (auto var = def->isa<Var>()) {
+        result = schedule_late(var->nominal());
     } else {
         for (auto use : uses(def)) {
             auto n = schedule_late(use);

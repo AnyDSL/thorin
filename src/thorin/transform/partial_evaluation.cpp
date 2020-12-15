@@ -80,10 +80,10 @@ public:
         , top_level_(top_level)
     {
         //assert(callee->filter().empty() || callee->filter().size() == args.size());
-        assert(callee->num_params() == args.size());
+        assert(callee->num_vars() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            old2new_[callee->param(i)] = args[i];
+            old2new_[callee->var(i)] = args[i];
     }
 
     World& world() { return callee_->world(); }
@@ -104,14 +104,14 @@ public:
     }
 
     bool eval(size_t i, bool lower2cff) {
-        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level lam
-        // all other parameters need specialization (lower2cff)
-        auto order = callee_->param(i)->type()->order();
+        // the only higher order var that is allowed is a single 1st-order fn-var of a top-level lam
+        // all other vars need specialization (lower2cff)
+        auto order = callee_->var(i)->type()->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<Pi>()
+                        && (!callee_->var(i)->type()->isa<Pi>()
                         || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
+            world().DLOG("bad var({}) {} of lam {}", i, callee_->var(i), callee_);
             return true;
         }
 
@@ -124,9 +124,9 @@ public:
 
     const Def* filter(size_t /*i*/) { return callee_->filter(); }
 
-    bool has_free_params(Lam* lam) {
+    bool has_free_vars(Lam* lam) {
         Scope scope(lam);
-        return scope.has_free_params();
+        return scope.has_free_vars();
     }
 
     bool is_top_level(Lam* lam) {
@@ -143,7 +143,7 @@ public:
         while (!queue.empty()) {
             auto def = queue.pop();
 
-            if (def->isa<Param>())
+            if (def->isa<Var>())
                 return top_level_[lam] = false;
             if (auto free_cn = def->isa_nominal<Lam>()) {
                 if (!is_top_level(free_cn))
@@ -223,7 +223,7 @@ bool PartialEvaluator::run() {
                         args[i] = app->arg(i);
                         fold = true;
                     } else {
-                        args[i] = world().top(callee->param(i)->type());
+                        args[i] = world().top(callee->var(i)->type());
                     }
                 }
 

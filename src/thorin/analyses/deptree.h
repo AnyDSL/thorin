@@ -49,14 +49,14 @@ public:
 
 private:
     void run();
-    ParamSet run(Def*);
-    ParamSet run(Def*, const Def*);
+    VarSet run(Def*);
+    VarSet run(Def*, const Def*);
     static void adjust_depth(DepNode* node, size_t depth);
 
     const World& world_;
     std::unique_ptr<DepNode> root_;
     NomMap<std::unique_ptr<DepNode>> nom2node_;
-    DefMap<ParamSet> def2params_;
+    DefMap<VarSet> def2vars_;
     std::deque<DepNode*> stack_;
 };
 

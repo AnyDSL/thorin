@@ -13,7 +13,7 @@ namespace thorin {
  *          - <code>f</code> is a @p Lam that does not appear in callee position.
  *          - if it is <code>f</code>'s sole occurrence (optimistically), nothing will happen.
  *      This rule is a generalization of critical edge elimination.
- *      It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature (e.g. adding or removing @p Param%s).
+ *      It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature (e.g. adding or removing @p Var%s).
  * @code
  *      expand_
  *       /   \

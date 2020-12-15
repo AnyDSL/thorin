@@ -22,7 +22,7 @@ private:
     /// @}
     /// @name top-level steps
     /// @{
-    void fill_grads_for_orig_params();
+    void fill_grads_for_orig_vars();
     void set_grad_lam_body();
     /// @}
     /// @name lower-level generators
@@ -32,11 +32,11 @@ private:
     const Def* emit_partial_grad_for_ret_use(const Def* var, const Def* use);
     const Def* emit_pullback_for_rop(const Def* op);
     /// @}
-    /// @name parameters
+    /// @name vars
     /// @{
-    size_t num_params() const { return grad_lam_->dom()->num_ops() - 2; }
-    const Def* orig_param(size_t i) const;
-    const Def* grad_param(size_t i) const;
+    size_t num_vars() const { return grad_lam_->dom()->num_ops() - 2; }
+    const Def* orig_var(size_t i) const;
+    const Def* grad_var(size_t i) const;
     /// @}
     /// @name state-handling
     /// @{

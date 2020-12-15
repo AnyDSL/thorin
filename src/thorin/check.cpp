@@ -29,17 +29,17 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
 
             return true;
         }
-    } else if (auto p1 = d1->isa<Param>()) {
-        // params are equal if they appeared under the same binder
-        for (auto [q1, q2] : params_) {
-            if (p1 == q1) return d2->as<Param>() == q2;
+    } else if (auto p1 = d1->isa<Var>()) {
+        // vars are equal if they appeared under the same binder
+        for (auto [q1, q2] : vars_) {
+            if (p1 == q1) return d2->as<Var>() == q2;
         }
         return true;
     }
 
     if (auto n1 = d1->isa_nominal()) {
         if (auto n2 = d2->isa_nominal())
-            params_.emplace_back(n1->param(), n2->param());
+            vars_.emplace_back(n1->var(), n2->var());
     }
 
     if (       d1->node   () != d2->node   ()

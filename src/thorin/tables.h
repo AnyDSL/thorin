@@ -22,7 +22,7 @@ using nat_t    = u64;
     m(Axiom, axiom)                                                           \
     m(Lit, lit)                                                               \
     m(Nat, nat)                                                               \
-    m(Param, param)                                                           \
+    m(Var, var)                                                           \
     m(Global, global)
 
 #define THORIN_TAG(m)                                               \

@@ -4,8 +4,8 @@
 
 namespace thorin {
 
-static void merge(ParamSet& params, ParamSet&& other) {
-    params.insert(other.begin(), other.end());
+static void merge(VarSet& vars, VarSet&& other) {
+    vars.insert(other.begin(), other.end());
 }
 
 void DepTree::run() {
@@ -13,11 +13,11 @@ void DepTree::run() {
     adjust_depth(root_.get(), 0);
 }
 
-ParamSet DepTree::run(Def* nom) {
+VarSet DepTree::run(Def* nom) {
     auto [i, inserted] = nom2node_.emplace(nom, std::unique_ptr<DepNode>());
     if (!inserted) {
-        if (auto params = def2params_.lookup(nom))
-            return *params;
+        if (auto vars = def2vars_.lookup(nom))
+            return *vars;
         else
             return {};
     }
@@ -28,8 +28,8 @@ ParamSet DepTree::run(Def* nom) {
 
     auto result = run(nom, nom);
     auto parent = root_.get();
-    for (auto param : result) {
-        auto n = nom2node_[param->nominal()].get();
+    for (auto var : result) {
+        auto n = nom2node_[var->nominal()].get();
         parent = n->depth() > parent->depth() ? n : parent;
     }
     node->set_parent(parent);
@@ -38,24 +38,24 @@ ParamSet DepTree::run(Def* nom) {
     return result;
 }
 
-ParamSet DepTree::run(Def* cur_nom, const Def* def) {
+VarSet DepTree::run(Def* cur_nom, const Def* def) {
     if (def->is_const())                                         return {};
-    if (auto params = def2params_.lookup(def))                   return *params;
+    if (auto vars = def2vars_.lookup(def))                       return *vars;
     if (auto nom    = def->isa_nominal(); nom && cur_nom != nom) return run(nom);
 
-    ParamSet result;
-    if (auto param = def->isa<Param>()) {
-        result.emplace(param);
+    VarSet result;
+    if (auto var = def->isa<Var>()) {
+        result.emplace(var);
     } else {
         for (auto op : def->extended_ops())
             merge(result, run(cur_nom, op));
 
-        if (auto param = cur_nom->has_param()) {
-            if (cur_nom == def) result.erase(param);
+        if (auto var = cur_nom->has_var()) {
+            if (cur_nom == def) result.erase(var);
         }
     }
 
-    return def2params_[def] = result;
+    return def2vars_[def] = result;
 }
 
 void DepTree::adjust_depth(DepNode* node, size_t depth) {

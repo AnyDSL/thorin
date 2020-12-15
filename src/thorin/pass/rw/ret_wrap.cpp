@@ -4,17 +4,17 @@ namespace thorin {
 
 void RetWrap::enter() {
     if (auto cur_lam = cur_nom<Lam>()) {
-        if (auto ret_param = cur_lam->ret_param()) {
+        if (auto ret_var = cur_lam->ret_var()) {
             // new wrapper that calls the return continuation
-            auto ret_cont = world().nom_lam(ret_param->type()->as<Pi>(), ret_param->dbg());
-            ret_cont->app(ret_param, ret_cont->param(), ret_param->dbg());
+            auto ret_cont = world().nom_lam(ret_var->type()->as<Pi>(), ret_var->dbg());
+            ret_cont->app(ret_var, ret_cont->var(), ret_var->dbg());
 
-            // rebuild a new "param" that substitutes the actual ret_param with ret_cont
-            auto new_params = cur_lam->param()->split(cur_lam->num_params());
-            assert(new_params.back() == ret_param && "we assume that the last element is the ret_param");
-            new_params.back() = ret_cont;
-            auto new_param = world().tuple(cur_lam->dom(), new_params);
-            cur_lam->set(cur_lam->apply(new_param));
+            // rebuild a new "var" that substitutes the actual ret_var with ret_cont
+            auto new_vars = cur_lam->var()->split(cur_lam->num_vars());
+            assert(new_vars.back() == ret_var && "we assume that the last element is the ret_var");
+            new_vars.back() = ret_cont;
+            auto new_var = world().tuple(cur_lam->dom(), new_vars);
+            cur_lam->set(cur_lam->apply(new_var));
         }
     }
 }

@@ -48,7 +48,7 @@ CFA::CFA(const Scope& scope)
         DefSet done;
 
         auto enqueue = [&] (const Def* def) {
-            if (def->isa<Param>()) return;
+            if (def->isa<Var>()) return;
             // TODO maybe optimize a little bit by using the order
             if (scope.contains(def) && done.emplace(def).second) {
                 if (auto dst = def->isa_nominal()) {

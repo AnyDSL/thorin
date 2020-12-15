@@ -18,7 +18,7 @@ public:
     World& world() { return world_; }
     void run();
     void eta_conversion();
-    void eliminate_params();
+    void eliminate_vars();
     void verify_closedness();
     void within(const Def*);
     void clean_pe_infos();
@@ -30,9 +30,9 @@ private:
 };
 
 // TODO remove
-bool is_param(const Def* def) {
-    if (def->isa<Param>()) return true;
-    if (auto extract = def->isa<Extract>()) return extract->tuple()->isa<Param>();
+bool is_var(const Def* def) {
+    if (def->isa<Var>()) return true;
+    if (auto extract = def->isa<Extract>()) return extract->tuple()->isa<Var>();
     return false;
 }
 
@@ -50,12 +50,12 @@ void Cleaner::eta_conversion() {
                         if (!callee->is_set() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
                         for (auto use : callee->uses()) { // 2 iterations at max - see above
-                            if (!use->isa<App>() && !use->isa<Param>())
+                            if (!use->isa<App>() && !use->isa<Var>())
                                 ok = false;
                         }
                         if (!ok) break;
 
-                        callee->param()->replace(app->arg());
+                        callee->var()->replace(app->arg());
                         lam->set_body(callee->body());
                         callee->unset();
                         todo_ = todo = true;
@@ -68,14 +68,14 @@ void Cleaner::eta_conversion() {
             auto app = lam->body()->isa<App>();
             if (!app) continue;
 
-            // try to subsume lams which call a parameter
-            // (that is free within that lam) with that parameter
+            // try to subsume lams which call a var
+            // (that is free within that lam) with that var
             auto callee = app->callee();
-            if (is_param(callee)) {
-                if (get_param_lam(callee) == lam || lam->is_external())
+            if (is_var(callee)) {
+                if (get_var_lam(callee) == lam || lam->is_external())
                     continue;
 
-                if (app->arg() == lam->param()) {
+                if (app->arg() == lam->var()) {
                     lam->replace(callee);
                     lam->unset();
                     todo_ = todo = true;
@@ -86,22 +86,22 @@ void Cleaner::eta_conversion() {
                 // build the permutation of the arguments
                 Array<size_t> perm(app->num_args());
                 bool is_permutation = true;
-                auto params = lam->params();
+                auto vars = lam->vars();
                 for (size_t i = 0, e = app->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(params.begin(), params.end(), app->arg(i));
+                    auto var_it = std::find(vars.begin(), vars.end(), app->arg(i));
 
-                    if (param_it == params.end()) {
+                    if (var_it == vars.end()) {
                         is_permutation = false;
                         break;
                     }
 
-                    perm[i] = param_it - params.begin();
+                    perm[i] = var_it - vars.begin();
                 }
 
                 if (!is_permutation) continue;
 
                 // for every use of the lam at an pp,
-                // permute the arguments and call the parameter instead
+                // permute the arguments and call the var instead
                 for (auto use : lam->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
@@ -119,36 +119,36 @@ void Cleaner::eta_conversion() {
     }
 }
 
-void Cleaner::eliminate_params() {
+void Cleaner::eliminate_vars() {
     for (auto old_lam : world().copy_lams()) {
         if (!old_lam->is_set()) continue;
 
-        std::vector<size_t> proxy_idx; // indices of params we eliminate
-        std::vector<size_t> param_idx; // indices of params we keep
+        std::vector<size_t> proxy_idx; // indices of vars we eliminate
+        std::vector<size_t> var_idx; // indices of vars we keep
 
         auto old_app = old_lam->body()->isa<App>();
         if (old_app == nullptr || world().is_external(old_lam)) continue;
 
         for (auto use : old_lam->uses()) {
-            if (use->isa<Param>()) continue; // ignore old_lam's Param
+            if (use->isa<Var>()) continue; // ignore old_lam's Var
             if (use.index() != 0 || !use->isa<App>())
                 goto next_lam;
         }
 
-        // maybe the whole param tuple is passed somewhere?
-        if (old_lam->num_params() != 1) {
-            for (auto use : old_lam->param()->uses()) {
+        // maybe the whole var tuple is passed somewhere?
+        if (old_lam->num_vars() != 1) {
+            for (auto use : old_lam->var()->uses()) {
                 if (!use->isa<Extract>())
                     goto next_lam;
             }
         }
 
-        for (size_t i = 0, e = old_lam->num_params(); i != e; ++i) {
-            auto param = old_lam->param(i);
-            if (param->num_uses() == 0)
+        for (size_t i = 0, e = old_lam->num_vars(); i != e; ++i) {
+            auto var = old_lam->var(i);
+            if (var->num_uses() == 0)
                 proxy_idx.push_back(i);
             else
-                param_idx.push_back(i);
+                var_idx.push_back(i);
         }
 
         if (!proxy_idx.empty()) {
@@ -165,9 +165,9 @@ void Cleaner::eliminate_params() {
             auto cn = world().cn(new_dom);
             auto new_lam = world().nom_lam(cn, old_lam->cc(), old_lam->debug_history());
             size_t j = 0;
-            for (auto i : param_idx) {
-                old_lam->param(i)->replace(new_lam->param(j));
-                new_lam->param(j++, old_lam->param(i)->debug_history());
+            for (auto i : var_idx) {
+                old_lam->var(i)->replace(new_lam->var(j));
+                new_lam->var(j++, old_lam->var(i)->debug_history());
             }
 
             new_lam->set_filter(old_lam->filter());
@@ -175,7 +175,7 @@ void Cleaner::eliminate_params() {
             old_lam->unset();
 
             for (auto use : old_lam->copy_uses()) {
-                if (use->isa<Param>()) continue; // ignore old_lam's Param
+                if (use->isa<Var>()) continue; // ignore old_lam's Var
                 auto use_app = use->as<App>();
                 assert(use.index() == 0);
                 use_app->replace(world().app(new_lam, use_app->args().cut(proxy_idx), use_app->dbg()));
@@ -236,7 +236,7 @@ void Cleaner::cleanup_fix_point() {
         world().VLOG("iteration: {}", i);
         todo_ = false;
         eta_conversion();
-        eliminate_params();
+        eliminate_vars();
         cleanup(world_); // resolve replaced defs before going to resolve_loads
         if (!world().is_pe_done())
             todo_ |= partial_evaluation(world_);

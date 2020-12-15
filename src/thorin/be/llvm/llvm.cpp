@@ -100,8 +100,8 @@ Lam* CodeGen::emit_hls(Lam* lam) {
     return ret;
 }
 
-void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
-    phis_.lookup(param).value()->addIncoming(value, irbuilder_.GetInsertBlock());
+void CodeGen::emit_result_phi(const Def* var, llvm::Value* value) {
+    phis_.lookup(var).value()->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
 Lam* CodeGen::emit_atomic(Lam* lam) {
@@ -116,7 +116,7 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
     auto l = lam->body()->as<App>()->arg(4)->as_nominal<Lam>();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
-    emit_result_phi(l->param(1), call);
+    emit_result_phi(l->var(1), call);
     return l;
 }
 
@@ -129,8 +129,8 @@ Lam* CodeGen::emit_cmpxchg(Lam* lam) {
     auto val  = lookup(lam->body()->as<App>()->arg(3));
     auto l = lam->body()->as<App>()->arg(4)->as_nominal<Lam>();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
-    emit_result_phi(l->param(1), irbuilder_.CreateExtractValue(call, 0));
-    emit_result_phi(l->param(2), irbuilder_.CreateExtractValue(call, 1));
+    emit_result_phi(l->var(1), irbuilder_.CreateExtractValue(call, 0));
+    emit_result_phi(l->var(2), irbuilder_.CreateExtractValue(call, 1));
     return l;
 }
 
@@ -145,16 +145,16 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
         world().edef(lam->body()->as<App>()->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = as_lit<u32>(lam->body()->as<App>()->arg(1));
     auto l = lam->body()->as<App>()->arg(2)->as_nominal<Lam>();
-    auto type = convert(lam->param(1)->type());
+    auto type = convert(lam->var(1)->type());
     // construct array type
-    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Arr>()->body();
+    auto elem_type = as<Tag::Ptr>(l->var(1)->type())->arg(0)->as<Arr>()->body();
     auto smem_type = this->convert(lam->world().arr(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
     auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder_.CreatePointerCast(global, type);
-    emit_result_phi(l->param(1), call);
+    emit_result_phi(l->var(1), call);
     return l;
 }
 
@@ -242,28 +242,28 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             discope = disub_program;
         }
 
-        // map params
-        const Def* ret_param = nullptr;
+        // map vars
+        const Def* ret_var = nullptr;
         auto arg = fct->arg_begin();
-        for (auto param : entry_->params()) {
-            if (isa<Tag::Mem>(param->type()) || is_unit(param)) {
-                params_[param] = nullptr;
-            } else if (param->type()->order() == 0) {
+        for (auto var : entry_->vars()) {
+            if (isa<Tag::Mem>(var->type()) || is_unit(var)) {
+                vars_[var] = nullptr;
+            } else if (var->type()->order() == 0) {
                 auto argv = &*arg;
-                auto value = map_param(fct, argv, param);
+                auto value = map_var(fct, argv, var);
                 if (value == argv) {
-                    arg->setName(param->unique_name()); // use param
-                    params_[param] = &*arg++;
+                    arg->setName(var->unique_name()); // use var
+                    vars_[var] = &*arg++;
                 } else {
-                    params_[param] = value;             // use provided value
+                    vars_[var] = value;             // use provided value
                 }
             } else {
-                assert(!ret_param);
-                ret_param = param;
-                params_[param] = nullptr;
+                assert(!ret_var);
+                ret_var = var;
+                vars_[var] = nullptr;
             }
         }
-        assert(ret_param);
+        assert(ret_var);
 
         BBMap bb2lam;
         Schedule schedule(scope);
@@ -278,11 +278,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // create phi node stubs (for all lams different from entry)
             if (entry_ != lam) {
-                for (auto param : lam->params()) {
-                    auto phi = (isa<Tag::Mem>(param->type()) || is_unit(param))
+                for (auto var : lam->vars()) {
+                    auto phi = (isa<Tag::Mem>(var->type()) || is_unit(var))
                                 ? nullptr
-                                : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->debug().name, bb);
-                    phis_[param] = phi;
+                                : llvm::PHINode::Create(convert(var->type()), (unsigned) peek(var).size(), var->debug().name, bb);
+                    phis_[var] = phi;
                 }
             }
         }
@@ -307,11 +307,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->debug().loc.begin.row, def->debug().loc.begin.col, discope));
 
-                if (def->isa<Param>())        continue;
+                if (def->isa<Var>())        continue;
                 if (def->type()->isa<Bot>())  continue;
                 if (is_tuple_arg_of_app(def)) continue;
                 if (phis_.  contains(def))    continue;
-                if (params_.contains(def))    continue;
+                if (vars_.contains(def))    continue;
 #if 0
                 // ignore tuple arguments for lams
                 if (auto tuple = def->isa<Tuple>()) {
@@ -343,7 +343,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                                                                        lam->body()->as<App>()->debug().loc.begin.col, discope));
             }
 
-            if (lam->body()->as<App>()->callee() == ret_param) { // return
+            if (lam->body()->as<App>()->callee() == ret_var) { // return
                 size_t num_args = lam->body()->as<App>()->num_args();
                 if (num_args == 0) irbuilder_.CreateRetVoid();
                 else {
@@ -440,11 +440,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     auto succ = ret_arg->as_nominal<Lam>();
 
                     size_t n = 0;
-                    const Def* last_param = nullptr;
-                    for (auto param : succ->params()) {
-                        if (isa<Tag::Mem>(param->type()) || is_unit(param))
+                    const Def* last_var = nullptr;
+                    for (auto var : succ->vars()) {
+                        if (isa<Tag::Mem>(var->type()) || is_unit(var))
                             continue;
-                        last_param = param;
+                        last_var = var;
                         ++n;
                     }
 
@@ -452,12 +452,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         irbuilder_.CreateBr(bb2lam[succ]);
                     } else if (n == 1) {
                         irbuilder_.CreateBr(bb2lam[succ]);
-                        emit_result_phi(last_param, call);
+                        emit_result_phi(last_var, call);
                     } else {
                         Array<llvm::Value*> extracts(n);
-                        for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                            auto param = succ->param(i);
-                            if (isa<Tag::Mem>(param->type()) || is_unit(param))
+                        for (size_t i = 0, j = 0; i != succ->num_vars(); ++i) {
+                            auto var = succ->var(i);
+                            if (isa<Tag::Mem>(var->type()) || is_unit(var))
                                 continue;
                             extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
                             j++;
@@ -465,11 +465,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
                         irbuilder_.CreateBr(bb2lam[succ]);
 
-                        for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                            auto param = succ->param(i);
-                            if (isa<Tag::Mem>(param->type()) || is_unit(param))
+                        for (size_t i = 0, j = 0; i != succ->num_vars(); ++i) {
+                            auto var = succ->var(i);
+                            if (isa<Tag::Mem>(var->type()) || is_unit(var))
                                 continue;
-                            emit_result_phi(param, extracts[j]);
+                            emit_result_phi(var, extracts[j]);
                             j++;
                         }
                     }
@@ -480,13 +480,13 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         // add missing arguments to phis_
         for (const auto& p : phis_) {
             if (auto phi = p.second) {
-                auto param = p.first;
-                for (auto&& p : peek(param))
+                auto var = p.first;
+                for (auto&& p : peek(var))
                     phi->addIncoming(lookup(p.def()), bb2lam[p.from()]);
             }
         }
 
-        params_.clear();
+        vars_.clear();
         phis_.clear();
         defs_.clear();
     });
@@ -547,8 +547,8 @@ void CodeGen::optimize(int opt) {
 llvm::Value* CodeGen::lookup(const Def* def) {
     auto i = phis_.  find(def);
     if (i != phis_.  end()) return i->second;
-    auto j = params_.find(def);
-    if (j != params_.end()) return j->second;
+    auto j = vars_.find(def);
+    if (j != vars_.end()) return j->second;
 
     if (auto lam = def->isa_nominal<Lam>())
         return emit_function_decl(lam);
@@ -1090,10 +1090,10 @@ static Lam* get_alloc_call(const Def* def) {
     while (auto conv_op = def->isa<ConvOp>())
         def = conv_op->op(0);
 
-    auto param = def->isa<Param>();
-    if (!param) return nullptr;
+    auto var = def->isa<Var>();
+    if (!var) return nullptr;
 
-    auto ret = param->lam();
+    auto ret = var->lam();
     if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());
@@ -1145,8 +1145,8 @@ Backends::Backends(World& world)
         // TODO
         //lam->debug().set(lam->unique_name());
 
-        //for (size_t i = 0, e = lam->num_params(); i != e; ++i)
-            //imported->param(i)->debug().set(lam->param(i)->unique_name());
+        //for (size_t i = 0, e = lam->num_vars(); i != e; ++i)
+            //imported->var(i)->debug().set(lam->var(i)->unique_name());
 
         kernels.emplace_back(lam);
     });
@@ -1188,7 +1188,7 @@ Backends::Backends(World& world)
     // get the HLS kernel configurations
     if (!hls.world().empty()) {
         auto get_hls_config = [&] (Lam* use, Lam* imported) {
-            HLSKernelConfig::Param2Size param_sizes;
+            HLSKernelConfig::Var2Size var_sizes;
             for (size_t i = 3, e = use->body()->as<App>()->num_args(); i != e; ++i) {
                 auto arg = use->body()->as<App>()->arg(i);
                 auto ptr_type = arg->type()->isa<Ptr>();
@@ -1213,9 +1213,9 @@ Backends::Backends(World& world)
                     world().edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
-                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
+                var_sizes.emplace(imported->var(i - 3 + 2), num_elems);
             }
-            return std::make_unique<HLSKernelConfig>(param_sizes);
+            return std::make_unique<HLSKernelConfig>(var_sizes);
         };
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
     }

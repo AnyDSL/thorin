@@ -36,7 +36,7 @@ const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const
 }
 
 const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope) {
-    return rewrite(nom->op(i), nom->param(), arg, scope);
+    return rewrite(nom->op(i), nom->var(), arg, scope);
 }
 
 const Def* rewrite(Def* nom, const Def* arg, size_t i) {
@@ -46,7 +46,7 @@ const Def* rewrite(Def* nom, const Def* arg, size_t i) {
 
 Array<const Def*> rewrite(Def* nom, const Def* arg, const Scope& scope) {
     Rewriter rewriter(nom->world(), &scope);
-    rewriter.old2new[nom->param()] = arg;
+    rewriter.old2new[nom->var()] = arg;
     return Array<const Def*>(nom->num_ops(), [&](size_t i) { return rewriter.rewrite(nom->op(i)); });
 }
 

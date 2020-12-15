@@ -7,7 +7,7 @@ const Def* Scalerize::rewrite(const Def* def) {
     if (app == nullptr) return def;
 
     auto tup_lam = app->callee()->isa_nominal<Lam>();
-    if (ignore(tup_lam) || tup_lam->num_params() <= 1 || keep_.contains(tup_lam)) return app;
+    if (ignore(tup_lam) || tup_lam->num_vars() <= 1 || keep_.contains(tup_lam)) return app;
 
     auto& sca_lam = tup2sca_.emplace(tup_lam, nullptr).first->second;
 
@@ -21,12 +21,12 @@ const Def* Scalerize::rewrite(const Def* def) {
             auto a = tup_lam->num_outs();
             if (a == 0) continue; // remove empty tuples
             if (a == 1) continue; // keep
-            if (keep_.contains(tup_lam->param(i))) {
-                new_doms.emplace_back(tup_lam->param(i)->type());
+            if (keep_.contains(tup_lam->var(i))) {
+                new_doms.emplace_back(tup_lam->var(i)->type());
                 new_args .emplace_back(app->arg(i));
             } else {
                 for (size_t j = 0; j != a; ++j) {
-                    new_args.emplace_back(proj(tup_lam->param(i), a, j));
+                    new_args.emplace_back(proj(tup_lam->var(i), a, j));
                     new_doms.emplace_back(proj(tup_lam->dom  (i), a, j));
                 }
             }

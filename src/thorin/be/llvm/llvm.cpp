@@ -99,6 +99,12 @@ static Array<llvm::Type*> flatten (llvm::Type* orig_type) {
             }
         }
         return Array<llvm::Type*>(new_elements);
+    } else if (orig_type->isArrayTy()) {
+        std::vector<llvm::Type*> new_elements;
+        for (unsigned i = 0; i < orig_type->getArrayNumElements(); i++) {
+                new_elements.push_back(orig_type->getArrayElementType());
+        }
+        return Array<llvm::Type*>(new_elements);
     }
     return Array<llvm::Type*> {orig_type};
 }

@@ -61,6 +61,11 @@ const Def* World::variant_index(const Def* value, Debug dbg) {
 }
 
 const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
+    if (auto type = value->type()->isa<VectorExtendedType>()) {
+        auto newtype = vec_type(type->element()->as<VariantType>()->op(index), type->length());
+        return cse(new VariantExtract(newtype, value, index, dbg));
+    }
+
     auto type = value->type()->as<VariantType>()->op(index);
     if (auto variant = value->isa<Variant>())
         return variant->index() == index ? variant->value() : bottom(type);

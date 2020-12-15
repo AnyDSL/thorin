@@ -354,7 +354,12 @@ private:
     VariantExtract(const Type* type, const Def* value, size_t index, Debug dbg)
         : PrimOp(Node_VariantExtract, type, {value}, dbg), index_(index)
     {
-        assert(value->type()->as<VariantType>()->op(index) == type);
+        if (auto vector = value->type()->isa<VectorExtendedType>()) {
+            auto inner_type = type->as<VectorExtendedType>()->element();
+            assert(vector->element()->as<VariantType>()->op(index) == inner_type);
+        } else {
+            assert(value->type()->as<VariantType>()->op(index) == type);
+        }
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;

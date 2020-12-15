@@ -43,7 +43,7 @@ private:
     public:
         DivergenceAnalysis(Continuation* base) : base(base) {};
         void run();
-        State getUniform(Def * def);
+        State getUniform(const Def * def);
     };
 
     World& world_;
@@ -74,7 +74,7 @@ private:
 };
 
 Vectorizer::DivergenceAnalysis::State
-Vectorizer::DivergenceAnalysis::getUniform(Def * def) {
+Vectorizer::DivergenceAnalysis::getUniform(const Def * def) {
     return uniform[def];
 }
 
@@ -625,7 +625,19 @@ const Type *Vectorizer::widen(const Type *old_type) {
 Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(!old_continuation->empty());
-    Continuation* new_continuation = old_continuation->stub();
+    Continuation* new_continuation;
+
+    std::vector<const Type*> param_types;
+    for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i) {
+        if (i != 0 && div_analysis_->getUniform(old_continuation->param(i)) == DivergenceAnalysis::State::Varying) //TODO: the handling of mem should be improved.
+            param_types.emplace_back(widen(old_continuation->param(i)->type()));
+        else
+            param_types.emplace_back(old_continuation->param(i)->type());
+    }
+
+    auto fn_type = world_.fn_type(param_types);
+    new_continuation = world_.continuation(fn_type, old_continuation->debug_history());
+
     def2def_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
@@ -660,6 +672,29 @@ const Def* Vectorizer::widen(const Def* old_def) {
             nops[1] = world_.tuple({world_.top(param->op(1)->type()), param->op(1)});
         else
             nops[1] = param->op(1);
+
+        auto type = widen(param->type());
+        const Def* new_primop;
+        if (param->isa<PrimLit>()) {
+            assert(false); // This should not be reachable!
+            Array<const Def*> elements(vector_width);
+            for (size_t i = 0; i < vector_width; i++) {
+                elements[i] = param;
+            }
+            new_primop = world_.vector(elements, param->debug_history());
+        } else {
+            new_primop = param->rebuild(nops, type);
+        }
+        return def2def_[param] = new_primop;
+    } else if (auto param = old_def->isa<VariantExtract>()) {
+        Array<const Def*> nops(param->num_ops());
+
+        //TODO: this is hard coded for extracts after loads.
+        //At some point I should distinguish between should- and should-not-vectorize, based on
+        //  (a) the types needed to be syntacticly correct
+        //  (b) the divergence analysis.
+
+        nops[0] = widen(param->op(0));
 
         auto type = widen(param->type());
         const Def* new_primop;
@@ -766,8 +801,35 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = widen(old_continuation->op(i));
 
-    Defs nargs(nops.skip_front()); // new args of new_continuation
+    Array<const Def*> nargs(nops.size() - 1); //new args of new_continuation
     auto ntarget = nops.front();   // new target of new_continuation
+
+    Scope scope(kernel);
+
+    if (old_continuation->op(0)->isa<Continuation>() && scope.contains(old_continuation->op(0))) {
+        auto oldtarget = old_continuation->op(0)->as<Continuation>();
+        for (size_t i = 0; i < nops.size() - 1; i++) {
+            auto arg = nops[i + 1];
+            if (i != 0 &&
+                    !arg->type()->isa<VectorExtendedType>() && //TODO: use Divergenceanalysis to find out if the parameter was vectorized?
+                    div_analysis_->getUniform(oldtarget->param(i)) != DivergenceAnalysis::State::Uniform) {
+                Array<const Def*> elements(vector_width);
+                for (size_t i = 0; i < vector_width; i++) {
+                    elements[i] = arg;
+                }
+
+                auto new_param = world_.vector(elements, arg->debug_history());
+                nargs[i] = new_param;
+            } else {
+                nargs[i] = arg;
+            }
+        }
+    } else {
+        for (size_t i = 0; i < nops.size() - 1; i++) {
+            auto arg = nops[i + 1];
+            nargs[i] = arg;
+        }
+    }
 
     new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
 }

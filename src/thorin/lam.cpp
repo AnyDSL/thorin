@@ -41,9 +41,9 @@ void Lam::test(const Def* value, const Def* index, const Def* match, const Def* 
  * Pi
  */
 
-Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
+Pi* Pi::set_dom(Defs doms) { return Def::set(0, world().sigma(doms))->as<Pi>(); }
 
-bool Pi::is_cn() const { return codomain()->isa<Bot>(); }
+bool Pi::is_cn() const { return codom()->isa<Bot>(); }
 
 bool Pi::is_returning() const {
     bool ret = false;

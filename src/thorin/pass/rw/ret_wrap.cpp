@@ -13,7 +13,7 @@ void RetWrap::enter() {
             auto new_params = cur_lam->param()->split(cur_lam->num_params());
             assert(new_params.back() == ret_param && "we assume that the last element is the ret_param");
             new_params.back() = ret_cont;
-            auto new_param = world().tuple(cur_lam->domain(), new_params);
+            auto new_param = world().tuple(cur_lam->dom(), new_params);
             cur_lam->set(cur_lam->apply(new_param));
         }
     }

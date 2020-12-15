@@ -40,11 +40,11 @@ const Def* CopyProp::rewrite(const Def* def) {
 
     auto& prop_lam = param2prop_[param_lam];
     if (prop_lam == nullptr || prop_lam->num_params() != types.size()) {
-        auto prop_domain = world().sigma(types);
-        auto new_type = world().pi(prop_domain, param_lam->codomain());
+        auto prop_dom = world().sigma(types);
+        auto new_type = world().pi(prop_dom, param_lam->codom());
         prop_lam = param_lam->stub(world(), new_type, param_lam->dbg());
         keep_.emplace(prop_lam); // don't try to propagate again
-        world().DLOG("param_lam => prop_lam: {}: {} => {}: {}", param_lam, param_lam->type()->domain(), prop_lam, prop_domain);
+        world().DLOG("param_lam => prop_lam: {}: {} => {}: {}", param_lam, param_lam->type()->dom(), prop_lam, prop_dom);
 
         size_t j = 0;
         Array<const Def*> new_params(app->num_args(), [&](size_t i) {

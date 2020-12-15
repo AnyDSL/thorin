@@ -152,17 +152,17 @@ void Cleaner::eliminate_params() {
         }
 
         if (!proxy_idx.empty()) {
-            auto old_domain = old_lam->type()->domain();
+            auto old_dom = old_lam->type()->dom();
 
-            const Def* new_domain;
-            if (auto sigma = old_domain->isa<Sigma>())
-                new_domain = world().sigma(sigma->ops().cut(proxy_idx));
+            const Def* new_dom;
+            if (auto sigma = old_dom->isa<Sigma>())
+                new_dom = world().sigma(sigma->ops().cut(proxy_idx));
             else {
                 assert(proxy_idx.size() == 1 && proxy_idx[0] == 0);
-                new_domain = world().sigma();
+                new_dom = world().sigma();
             }
 
-            auto cn = world().cn(new_domain);
+            auto cn = world().cn(new_dom);
             auto new_lam = world().nom_lam(cn, old_lam->cc(), old_lam->debug_history());
             size_t j = 0;
             for (auto i : param_idx) {

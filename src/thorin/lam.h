@@ -9,8 +9,8 @@ namespace thorin {
 class Pi : public Def {
 protected:
     /// Constructor for a @em structural Pi.
-    Pi(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node, type, {domain, codomain}, 0, dbg)
+    Pi(const Def* type, const Def* dom, const Def* codom, const Def* dbg)
+        : Def(Node, type, {dom, codom}, 0, dbg)
     {}
     /// Constructor for a @em nominal Pi.
     Pi(const Def* type, const Def* dbg)
@@ -20,15 +20,15 @@ protected:
 public:
     /// @name ops
     //@{
-    const Def* domain() const { return op(0); }
-    const Def* domain(size_t i) const { return proj(domain(), num_domains(), i); }
-    Array<const Def*> domains() const { return Array<const Def*>(num_domains(), [&](size_t i) { return domain(i); }); }
-    size_t num_domains() const { return domain()->num_outs(); }
+    const Def* dom() const { return op(0); }
+    const Def* dom(size_t i) const { return proj(dom(), num_doms(), i); }
+    Array<const Def*> doms() const { return Array<const Def*>(num_doms(), [&](size_t i) { return dom(i); }); }
+    size_t num_doms() const { return dom()->num_outs(); }
 
-    const Def* codomain() const { return op(1); }
-    const Def* codomain(size_t i) const { return proj(codomain(), num_codomains(), i); }
-    Array<const Def*> codomains() const { return Array<const Def*>(num_codomains(), [&](size_t i) { return codomain(i); }); }
-    size_t num_codomains() const { return codomain()->num_outs(); }
+    const Def* codom() const { return op(1); }
+    const Def* codom(size_t i) const { return proj(codom(), num_codoms(), i); }
+    Array<const Def*> codoms() const { return Array<const Def*>(num_codoms(), [&](size_t i) { return codom(i); }); }
+    size_t num_codoms() const { return codom()->num_outs(); }
 
     bool is_cn() const;
     bool is_basicblock() const { return order() == 1; }
@@ -36,9 +36,9 @@ public:
     //@}
     /// @name setters for @em nominal @p Pi.
     //@{
-    Pi* set_domain(const Def* domain) { return Def::set(0, domain)->as<Pi>(); }
-    Pi* set_domain(Defs domains);
-    Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
+    Pi* set_dom(const Def* dom) { return Def::set(0, dom)->as<Pi>(); }
+    Pi* set_dom(Defs doms);
+    Pi* set_codom(const Def* codom) { return Def::set(1, codom)->as<Pi>(); }
     //@}
     /// @name virtual methods
     //@{
@@ -71,11 +71,11 @@ public:
     /// @name type
     //@{
     const Pi* type() const { return Def::type()->as<Pi>(); }
-    const Def* domain() const { return type()->domain(); }
-    const Def* domain(size_t i) const { return type()->domain(i); }
-    Array<const Def*> domains() const { return type()->domains(); }
-    size_t num_domains() const { return type()->num_domains(); }
-    const Def* codomain() const { return type()->codomain(); }
+    const Def* dom() const { return type()->dom(); }
+    const Def* dom(size_t i) const { return type()->dom(i); }
+    Array<const Def*> doms() const { return type()->doms(); }
+    size_t num_doms() const { return type()->num_doms(); }
+    const Def* codom() const { return type()->codom(); }
     //@}
     /// @name ops
     //@{

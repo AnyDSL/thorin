@@ -961,26 +961,26 @@ llvm::Type* CodeGen::convert(const Def* type) {
         // extract "return" type, collect all other types
         assert(cn->is_cn());
         llvm::Type* ret = nullptr;
-        std::vector<llvm::Type*> domains;
-        for (auto domain : cn->domains()) {
-            if (isa<Tag::Mem>(domain) || domain == world().sigma()) continue;
-            if (auto cn = domain->isa<Pi>()) {
+        std::vector<llvm::Type*> doms;
+        for (auto dom : cn->doms()) {
+            if (isa<Tag::Mem>(dom) || dom == world().sigma()) continue;
+            if (auto cn = dom->isa<Pi>()) {
                 assert(cn->is_cn());
                 assert(!ret && "only one 'return' supported");
                 std::vector<llvm::Type*> ret_types;
-                for (auto cn_domain : cn->domains()) {
-                    if (isa<Tag::Mem>(cn_domain) || cn_domain == world().sigma()) continue;
-                    ret_types.push_back(convert(cn_domain));
+                for (auto cn_dom : cn->doms()) {
+                    if (isa<Tag::Mem>(cn_dom) || cn_dom == world().sigma()) continue;
+                    ret_types.push_back(convert(cn_dom));
                 }
                 if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
                 else if (ret_types.size() == 1) ret = ret_types.back();
                 else                            ret = llvm::StructType::get(context_, ret_types);
             } else
-                domains.push_back(convert(domain));
+                doms.push_back(convert(dom));
         }
         assert(ret);
 
-        auto llvm_type = llvm::FunctionType::get(ret, domains, false);
+        auto llvm_type = llvm::FunctionType::get(ret, doms, false);
         return types_[type] = llvm_type;
     } else if (auto sigma = type->isa<Sigma>()) {
         llvm::StructType* llvm_struct = nullptr;
@@ -1200,12 +1200,12 @@ Backends::Backends(World& world)
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
                     if (auto arr = elem_type->isa<Arr>())
-                        elem_type = arr->codomain();
+                        elem_type = arr->codom();
                 }
                 if (!elem_type->isa<PrimType>()) {
-                    if (auto arr = elem_type->isa<Arr>(); arr && arr->domain()->isa<Lit>()) {
-                        elem_type = arr->codomain();
-                        multiplier = as_lit<u64>(arr->domain());
+                    if (auto arr = elem_type->isa<Arr>(); arr && arr->dom()->isa<Lit>()) {
+                        elem_type = arr->codom();
+                        multiplier = as_lit<u64>(arr->dom());
                     }
                 }
                 auto prim_type = elem_type->isa<PrimType>();

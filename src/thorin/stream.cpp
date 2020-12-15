@@ -33,9 +33,9 @@ Stream& stream(Stream& s, const Def* def) {
         return s.fmt("{}∷{}", lit->get(), lit->type());
     } else if (auto pi = def->isa<Pi>()) {
         if (pi->is_cn()) {
-            return s.fmt("cn {}", pi->domain());
+            return s.fmt("cn {}", pi->dom());
         } else {
-            return s.fmt("{} -> {}", pi->domain(), pi->codomain());
+            return s.fmt("{} -> {}", pi->dom(), pi->codom());
         }
     } else if (auto lam = def->isa<Lam>()) {
         return s.fmt("λ@({}) {}", lam->filter(), lam->body());

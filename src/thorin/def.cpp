@@ -109,7 +109,7 @@ template<bool up> TBound<up>* TBound<up>::stub(World& w, const Def* t, const Def
  */
 
 const Pi* Pi::restructure() {
-    if (!is_free(param(), codomain())) return world().pi(domain(), codomain(), dbg());
+    if (!is_free(param(), codom())) return world().pi(dom(), codom(), dbg());
     return nullptr;
 }
 
@@ -142,8 +142,8 @@ Defs Def::extended_ops() const {
 
 const Param* Def::param(const Def* dbg) {
     auto& w = world();
-    if (auto lam    = isa<Lam  >()) return w.param(lam ->domain(), lam,   dbg);
-    if (auto pi     = isa<Pi   >()) return w.param(pi  ->domain(), pi,    dbg);
+    if (auto lam    = isa<Lam  >()) return w.param(lam ->dom(), lam,   dbg);
+    if (auto pi     = isa<Pi   >()) return w.param(pi  ->dom(), pi,    dbg);
     if (auto sigma  = isa<Sigma>()) return w.param(sigma,          sigma, dbg);
     if (auto arr    = isa<Arr  >()) return w.param(w.type_int(arr ->shape()), arr,  dbg); // TODO shapes like (2, 3)
     if (auto pack   = isa<Pack >()) return w.param(w.type_int(pack->shape()), pack, dbg); // TODO shapes like (2, 3)

@@ -99,10 +99,10 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     if (num_phixys == 0) return app;
 
     if (phi_lam == nullptr) {
-        auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
+        auto new_type = world().pi(merge_sigma(mem_lam->dom(), types), mem_lam->codom());
         phi_lam = world().nom_lam(new_type, mem_lam->dbg());
         world().DLOG("new phi_lam '{}'", phi_lam);
-        world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
+        world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->dom(), phi_lam, phi_lam->dom());
         auto [_, ins] = preds_n_.emplace(phi_lam);
         assert(ins);
 
@@ -118,7 +118,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         auto traxy = proxy(phi_lam->param()->type(), traxy_ops, Traxy);
 
         Array<const Def*> new_params(num_mem_params, [&](size_t i) { return traxy->out(i); });
-        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->domain(), new_params)));
+        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->dom(), new_params)));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }

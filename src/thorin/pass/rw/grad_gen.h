@@ -34,7 +34,7 @@ private:
     /// @}
     /// @name parameters
     /// @{
-    size_t num_params() const { return grad_lam_->domain()->num_ops() - 2; }
+    size_t num_params() const { return grad_lam_->dom()->num_ops() - 2; }
     const Def* orig_param(size_t i) const;
     const Def* grad_param(size_t i) const;
     /// @}

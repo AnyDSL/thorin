@@ -35,8 +35,8 @@ const Def* BoundElim::rewrite(const Def* old_def, const Def*, Defs new_ops, cons
 
         auto join = test->value()->type()->as<Join>();
         auto mpi = match->type()->as<Pi>();
-        auto dom = mpi->domain()->out(0);
-        auto wpi = world().pi(dom, mpi->codomain());
+        auto dom = mpi->dom()->out(0);
+        auto wpi = world().pi(dom, mpi->codom());
         auto wrap = world().nom_lam(wpi, world().dbg("wrap_match"));
         auto probe_i = join->index(probe);
         wrap->app(match, {wrap->param(), world().op_bitcast(probe, box)});

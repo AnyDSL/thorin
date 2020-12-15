@@ -26,8 +26,8 @@ const Def* Scalerize::rewrite(const Def* def) {
                 new_args .emplace_back(app->arg(i));
             } else {
                 for (size_t j = 0; j != a; ++j) {
-                    new_args.emplace_back(proj(tup_lam-> param(i), a, j));
-                    new_doms.emplace_back(proj(tup_lam->domain(i), a, j));
+                    new_args.emplace_back(proj(tup_lam->param(i), a, j));
+                    new_doms.emplace_back(proj(tup_lam->dom  (i), a, j));
                 }
             }
         }

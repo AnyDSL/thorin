@@ -12,7 +12,7 @@ static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
 // Computes the type of the wrapped function
 static const Def* wrapped_type(const Pi* cn, size_t max_tuple_size) {
     std::vector<const Def*> nops;
-    for (auto op : cn->domains()) {
+    for (auto op : cn->doms()) {
         if (auto sigma = op->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (auto arg : sigma->ops())
@@ -25,7 +25,7 @@ static const Def* wrapped_type(const Pi* cn, size_t max_tuple_size) {
             nops.push_back(op);
         }
     }
-    return cn->world().pi(nops, cn->codomain());
+    return cn->world().pi(nops, cn->codom());
 }
 
 static Lam* app(Lam* lam, Array<const Def*>& args) {
@@ -78,12 +78,12 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<Pi>();
     auto new_lam = world.nom_lam(new_type, old_def->dbg());
-    Array<const Def*> call_args(old_type->num_domains() + 1);
+    Array<const Def*> call_args(old_type->num_doms() + 1);
 
     wrapped.emplace(old_def, new_lam);
 
-    for (size_t i = 0, j = 0, e = old_type->num_domains(); i != e; ++i) {
-        auto op = old_type->domain(i);
+    for (size_t i = 0, j = 0, e = old_type->num_doms(); i != e; ++i) {
+        auto op = old_type->dom(i);
         if (auto sigma = op->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 Array<const Def*> tuple_args(sigma->num_ops());
@@ -131,7 +131,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<Pi>();
     auto old_lam = world.nom_lam(old_type, new_def->dbg());
-    Array<const Def*> call_args(new_type->num_domains() + 1);
+    Array<const Def*> call_args(new_type->num_doms() + 1);
 
     unwrapped.emplace(new_def, old_lam);
 
@@ -144,7 +144,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
             } else
                 call_args[j++] = param;
         } else if (auto cn = param->type()->isa<Pi>()) {
-            auto new_cn = new_type->domain(j - 1)->as<Pi>();
+            auto new_cn = new_type->dom(j - 1)->as<Pi>();
             // no need to wrap if the types are identical
             if (cn != new_cn)
                 call_args[j++] = wrap_def(wrapped, unwrapped, param, new_cn, max_tuple_size);

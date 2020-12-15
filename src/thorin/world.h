@@ -105,20 +105,20 @@ public:
 
     /// @name Pi
     //@{
-    const Pi* pi(const Def* domain, const Def* codomain, const Def* dbg = {});
-    const Pi* pi(Defs domain, const Def* codomain, const Def* dbg = {}) { return pi(sigma(domain), codomain, dbg); }
-    Pi* nom_pi(const Def* type, const Def* domain, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_domain(domain); }
-    Pi* nom_pi(const Def* type, Defs domains, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_domain(domains); }
+    const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {});
+    const Pi* pi(Defs dom, const Def* codom, const Def* dbg = {}) { return pi(sigma(dom), codom, dbg); }
+    Pi* nom_pi(const Def* type, const Def* dom, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(dom); }
+    Pi* nom_pi(const Def* type, Defs doms, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(doms); }
     //@}
 
-    /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
+    /// @name Pi: continuation type, i.e., Pi type with codom Bottom
     //@{
     const Pi* cn() { return cn(sigma()); }
-    const Pi* cn(const Def* domain, const Def* dbg = {}) { return pi(domain, bot_kind(), dbg); }
-    const Pi* cn(Defs domains, const Def* dbg = {}) { return cn(sigma(domains), dbg); }
+    const Pi* cn(const Def* dom, const Def* dbg = {}) { return pi(dom, bot_kind(), dbg); }
+    const Pi* cn(Defs doms, const Def* dbg = {}) { return cn(sigma(doms), dbg); }
     /// Same as cn/pi but adds a mem parameter to each pi
-    const Pi* cn_mem(const Def* domain, const Def* dbg = {}) { return cn({ type_mem(), domain }, dbg); }
-    const Pi* cn_mem_ret(const Def* domain, const Def* ret_domain, const Def* dbg = {}) { return cn({type_mem(), domain, cn_mem(ret_domain)}, dbg); }
+    const Pi* cn_mem(const Def* dom, const Def* dbg = {}) { return cn({ type_mem(), dom }, dbg); }
+    const Pi* cn_mem_ret(const Def* dom, const Def* ret_dom, const Def* dbg = {}) { return cn({type_mem(), dom, cn_mem(ret_dom)}, dbg); }
     //@}
 
     /// @name Lam%bda
@@ -128,8 +128,8 @@ public:
         return lam;
     }
     Lam* nom_lam(const Pi* cn, const Def* dbg = {}) { return nom_lam(cn, Lam::CC::C, dbg); }
-    const Lam* lam(const Def* domain, const Def* filter, const Def* body, const Def* dbg);
-    const Lam* lam(const Def* domain, const Def* body, const Def* dbg) { return lam(domain, lit_true(), body, dbg); }
+    const Lam* lam(const Def* dom, const Def* filter, const Def* body, const Def* dbg);
+    const Lam* lam(const Def* dom, const Def* body, const Def* dbg) { return lam(dom, lit_true(), body, dbg); }
     //@}
 
     /// @name App

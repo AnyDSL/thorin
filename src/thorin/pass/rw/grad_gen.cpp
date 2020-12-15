@@ -17,7 +17,7 @@ GradEmitter::GradEmitter(Lam* orig_lam, Lam* grad_lam)
         [size_t(ROp::sub)] = [this](auto op){ return pullback_for_sub(op); },
         [size_t(ROp::mul)] = [this](auto op){ return pullback_for_mul(op); },
         [size_t(ROp::div)] = [this](auto op){ return pullback_for_div(op); },
-        [size_t(ROp::mod)] = nullptr,
+        [size_t(ROp::rem)] = nullptr,
     }}
 {
     check_initial_sanity();

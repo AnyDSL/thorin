@@ -43,12 +43,12 @@ Stream& stream(Stream& s, const Def* def) {
         if (auto size = isa_lit(isa_sized_type(app))) {
             if (auto real = thorin::isa<Tag::Real>(app)) return s.fmt("r{}", *size);
             if (auto _int = thorin::isa<Tag:: Int>(app)) {
-                if (auto width = bound2width(*size)) return s.fmt("i{}", *width);
+                if (auto width = mod2width(*size)) return s.fmt("i{}", *width);
 
                 // append utf-8 subscripts in reverse order
                 std::string str;
-                for (size_t bound = *size; bound > 0; bound /= 10)
-                    ((str += char(char(0x80) + char(bound % 10))) += char(0x82)) += char(0xe2);
+                for (size_t mod = *size; mod > 0; mod /= 10)
+                    ((str += char(char(0x80) + char(mod % 10))) += char(0x82)) += char(0xe2);
                 std::reverse(str.begin(), str.end());
 
                 return s.fmt("i{}", str);

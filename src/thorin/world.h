@@ -215,12 +215,12 @@ public:
     const Lit* lit_nat_1  () { return data_.lit_nat_1_;   }
     const Lit* lit_nat_max() { return data_.lit_nat_max_; }
     const Lit* lit_int      (const Def* type, u64 val, const Def* dbg = {});
-    const Lit* lit_int      (nat_t bound,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (bound),                              val, dbg); }
-    const Lit* lit_int_width(nat_t width,     u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                              val, dbg); }
-    const Lit* lit_int_mod  (nat_t bound,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (bound), bound == 0 ? val : (val % bound), dbg); }
+    const Lit* lit_int      (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod),                          val, dbg); }
+    const Lit* lit_int_width(nat_t width,     u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                          val, dbg); }
+    const Lit* lit_int_mod  (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod), mod == 0 ? val : (val % mod), dbg); }
     template<class I> const Lit* lit_int(I val, const Def* dbg = {}) {
         static_assert(std::is_integral<I>());
-        return lit_int(type_int(width2bound(sizeof(I)*8)), val, dbg);
+        return lit_int(type_int(width2mod(sizeof(I)*8)), val, dbg);
     }
     const Lit* lit_bool(bool val) { return data_.lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return data_.lit_bool_[0]; }
@@ -284,10 +284,10 @@ public:
     const Axiom* type_real() { return data_.type_real_; }
     const Axiom* type_ptr()  { return data_.type_ptr_; }
     const App* type_bool() { return data_.type_bool_; }
-    const App* type_int_width(nat_t width) { return type_int(lit_nat(width2bound(width))); }
-    const App* type_int (nat_t bound) { return type_int (lit_nat(bound)); }
+    const App* type_int_width(nat_t width) { return type_int(lit_nat(width2mod(width))); }
+    const App* type_int (nat_t   mod) { return type_int (lit_nat(  mod)); }
     const App* type_real(nat_t width) { return type_real(lit_nat(width)); }
-    const App* type_int (const Def* bound) { return app(type_int(),  bound)->as<App>(); }
+    const App* type_int (const Def* mod) { return app(type_int(),  mod)->as<App>(); }
     const App* type_real(const Def* width) { return app(type_real(), width)->as<App>(); }
     const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, const Def* dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     const App* type_ptr(const Def* pointee, const Def* addr_space, const Def* dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
@@ -318,14 +318,14 @@ public:
 
     /// @name fn - these guys @em yield the final function to be invoked for the various operations
     //@{
-    const Def* fn(Bit  o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound,  dbg); }
+    const Def* fn(Bit  o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod,  dbg); }
     const Def* fn(Conv o, const Def* dst_w, const Def* src_w, const Def* dbg = {}) { return app(ax(o), {dst_w, src_w}, dbg); }
-    const Def* fn(Div  o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound,  dbg); }
-    const Def* fn(ICmp o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound , dbg); }
+    const Def* fn(Div  o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod,  dbg); }
+    const Def* fn(ICmp o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod , dbg); }
     const Def* fn(RCmp o, const Def* rmode, const Def* width, const Def* dbg = {}) { return app(ax(o), {rmode, width}, dbg); }
     const Def* fn(ROp  o, const Def* rmode, const Def* width, const Def* dbg = {}) { return app(ax(o), {rmode, width}, dbg); }
-    const Def* fn(Shr  o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound,  dbg); }
-    const Def* fn(Wrap o, const Def* wmode, const Def* bound, const Def* dbg = {}) { return app(ax(o), {wmode, bound}, dbg); }
+    const Def* fn(Shr  o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod,  dbg); }
+    const Def* fn(Wrap o, const Def* wmode, const Def*   mod, const Def* dbg = {}) { return app(ax(o), {wmode,   mod}, dbg); }
     template<class O> const Def* fn(O o,                   nat_t      size, const Def* dbg = {}) { return fn(o,                 lit_nat(size), dbg); }
     template<class O> const Def* fn(O o, nat_t      other, nat_t      size, const Def* dbg = {}) { return fn(o, lit_nat(other), lit_nat(size), dbg); }
     const Def* fn_atomic(const Def* fn, const Def* dbg = {}) { return app(ax_atomic(), fn, dbg); }

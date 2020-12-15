@@ -651,8 +651,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         switch (div.flags()) {
             case Div::sdiv: return irbuilder_.CreateSDiv(a, b, name);
             case Div::udiv: return irbuilder_.CreateUDiv(a, b, name);
-            case Div::smod: return irbuilder_.CreateSRem(a, b, name);
-            case Div::umod: return irbuilder_.CreateURem(a, b, name);
+            case Div::srem: return irbuilder_.CreateSRem(a, b, name);
+            case Div::urem: return irbuilder_.CreateURem(a, b, name);
             default: THORIN_UNREACHABLE;
         }
     } else if (auto rop = isa<Tag::ROp>(def)) {
@@ -675,7 +675,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ROp::sub: return irbuilder_.CreateFSub(a, b, name);
             case ROp::mul: return irbuilder_.CreateFMul(a, b, name);
             case ROp::div: return irbuilder_.CreateFDiv(a, b, name);
-            case ROp::mod: return irbuilder_.CreateFRem(a, b, name);
+            case ROp::rem: return irbuilder_.CreateFRem(a, b, name);
             default: THORIN_UNREACHABLE;
         }
     } else if (auto icmp = isa<Tag::ICmp>(def)) {
@@ -722,7 +722,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto size2width = [&](const Def* type) {
             if (auto int_ = isa<Tag::Int>(type)) {
                 if (int_->arg()->isa<Top>()) return 64_u64;
-                if (auto width = bound2width(as_lit(int_->arg()))) return *width;
+                if (auto width = mod2width(as_lit(int_->arg()))) return *width;
                 return 64_u64;
             }
             return as_lit(as<Tag::Real>(type)->arg());
@@ -834,8 +834,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         } else if (isa<Tag::Int>(lit->type())) {
             auto size = isa_sized_type(lit->type());
             if (size->isa<Top>()) return irbuilder_.getInt64(lit->get<u64>());
-            if (auto bound = bound2width(as_lit(size))) {
-                switch (*bound) {
+            if (auto mod = mod2width(as_lit(size))) {
+                switch (*mod) {
                     case  1: return irbuilder_. getInt1(lit->get< u1>());
                     case  2:
                     case  4:
@@ -926,7 +926,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
     } else if (isa<Tag::Int>(type)) {
         auto size = isa_sized_type(type);
         if (size->isa<Top>()) return types_[type] = irbuilder_.getInt64Ty();
-        if (auto width = bound2width(as_lit(size))) {
+        if (auto width = mod2width(as_lit(size))) {
             switch (*width) {
                 case  1: return types_[type] = irbuilder_. getInt1Ty();
                 case  2:

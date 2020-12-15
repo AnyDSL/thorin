@@ -67,9 +67,9 @@ enum RMode : nat_t {
 /// Integer operations that might wrap and, hence, take @p WMode.
 #define THORIN_WRAP(m) m(Wrap, add) m(Wrap, sub) m(Wrap, mul) m(Wrap, shl)
 /// Integer operations that might produce a "division by zero" side effect.
-#define THORIN_DIV(m) m(Div, sdiv) m(Div, udiv) m(Div, smod) m(Div, umod)
-/// Floating point (real) operations that take @p RMode.
-#define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, mod)
+#define THORIN_DIV(m) m(Div, sdiv) m(Div, udiv) m(Div, srem) m(Div, urem)
+/// Floating point (real) operations that take @p Rreme.
+#define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, rem)
 /// Type traits
 #define THORIN_TRAIT(m) m(Trait, size) m(Trait, align)
 /// Conversions

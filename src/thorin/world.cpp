@@ -356,7 +356,7 @@ const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index,
     }
 
     // nom sigmas can be 1-tuples
-    if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1 && !tup->type()->isa_nom<Sigma>()) return tup;
+    if (auto mod = isa_lit(isa_sized_type(index->type())); mod && *mod == 1 && !tup->type()->isa_nom<Sigma>()) return tup;
     if (auto pack = tup->isa_structural<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val
@@ -388,7 +388,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, const
     if (err() && !checker_->equiv(type->arity(), isa_sized_type(index->type())))
         err()->index_out_of_range(type->arity(), index);
 
-    if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1)
+    if (auto mod = isa_lit(isa_sized_type(index->type())); mod && *mod == 1)
         return tuple(tup, {val}, dbg); // tup could be nom - that's why the tuple ctor is needed
 
     // insert((a, b, c, d), 2, x) -> (a, b, x, d)

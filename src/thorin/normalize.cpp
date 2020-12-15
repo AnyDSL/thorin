@@ -1,7 +1,7 @@
 #include "thorin/def.h"
 #include "thorin/world.h"
 
-// TODO rewrite int normalization to work on all bounds.
+// TODO rewrite int normalization to work on all int modulos.
 // This would also remove a lot of template magic.
 
 namespace thorin {
@@ -136,8 +136,8 @@ template<nat_t w> struct Fold<Wrap, Wrap::shl, w> {
 
 template<nat_t w> struct Fold<Div, Div::sdiv, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
 template<nat_t w> struct Fold<Div, Div::udiv, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
-template<nat_t w> struct Fold<Div, Div::smod, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
-template<nat_t w> struct Fold<Div, Div::umod, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
+template<nat_t w> struct Fold<Div, Div::srem, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
+template<nat_t w> struct Fold<Div, Div::urem, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
 
 template<nat_t w> struct Fold<Shr, Shr::ashr, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
 template<nat_t w> struct Fold<Shr, Shr::lshr, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
@@ -146,7 +146,7 @@ template<nat_t w> struct Fold<ROp, ROp:: add, w> { static Res run(u64 a, u64 b) 
 template<nat_t w> struct Fold<ROp, ROp:: sub, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) - get<T>(b)); } };
 template<nat_t w> struct Fold<ROp, ROp:: mul, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) * get<T>(b)); } };
 template<nat_t w> struct Fold<ROp, ROp:: div, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) / get<T>(b)); } };
-template<nat_t w> struct Fold<ROp, ROp:: mod, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(rem(get<T>(a), get<T>(b))); } };
+template<nat_t w> struct Fold<ROp, ROp:: rem, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(rem(get<T>(a), get<T>(b))); } };
 
 template<ICmp cmp, nat_t w> struct Fold<ICmp, cmp, w> {
     inline static Res run(u64 a, u64 b) {
@@ -275,7 +275,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
             width = as_lit(a->type()->as<App>()->arg());
         }
 
-        if (is_int<Op>()) width = *bound2width(width);
+        if (is_int<Op>()) width = *mod2width(width);
 
         Res res;
         switch (width) {
@@ -591,8 +591,8 @@ const Def* normalize_Div(const Def* type, const Def* c, const Def* arg, const De
             switch (op) {
                 case Div::sdiv: return make_res(a);                    // a / 1 -> a
                 case Div::udiv: return make_res(a);                    // a / 1 -> a
-                case Div::smod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
-                case Div::umod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
+                case Div::srem: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
+                case Div::urem: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -602,8 +602,8 @@ const Def* normalize_Div(const Def* type, const Def* c, const Def* arg, const De
         switch (op) {
             case Div::sdiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
             case Div::udiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
-            case Div::smod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
-            case Div::umod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
+            case Div::srem: return make_res(world.lit_int(*w, 0)); // a % a -> 0
+            case Div::urem: return make_res(world.lit_int(*w, 0)); // a % a -> 0
             default: THORIN_UNREACHABLE;
         }
     }
@@ -629,7 +629,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
                     case ROp::sub: break;
                     case ROp::mul: return la;   // 0 * b -> 0
                     case ROp::div: return la;   // 0 / b -> 0
-                    case ROp::mod: return la;   // 0 % b -> 0
+                    case ROp::rem: return la;   // 0 % b -> 0
                     default: THORIN_UNREACHABLE;
                 }
             }
@@ -640,7 +640,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
                     case ROp::sub: break;
                     case ROp::mul: return b;    // 1 * b -> b
                     case ROp::div: break;
-                    case ROp::mod: break;
+                    case ROp::rem: break;
                     default: THORIN_UNREACHABLE;
                 }
             }
@@ -651,7 +651,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
                 switch (op) {
                     case ROp::sub: return a;    // a - 0 -> a
                     case ROp::div: break;
-                    case ROp::mod: break;
+                    case ROp::rem: break;
                     default: THORIN_UNREACHABLE;
                     // add, mul are commutative, the literal has been normalized to the left
                 }
@@ -664,7 +664,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
                 case ROp::sub: return world.lit_real(*w, 0.0);                             // a - a -> 0
                 case ROp::mul: break;
                 case ROp::div: return world.lit_real(*w, 1.0);                             // a / a -> 1
-                case ROp::mod: break;
+                case ROp::rem: break;
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -792,8 +792,8 @@ static const Def* fold_Conv(const Def* dst_type, const App* callee, const Def* s
             return world.lit(dst_type, as_lit(lit_src) % *lit_dw);
         }
 
-        if (isa<Tag::Int>(src->type())) *lit_sw = *bound2width(*lit_sw);
-        if (isa<Tag::Int>( dst_type  )) *lit_dw = *bound2width(*lit_dw);
+        if (isa<Tag::Int>(src->type())) *lit_sw = *mod2width(*lit_sw);
+        if (isa<Tag::Int>( dst_type  )) *lit_dw = *mod2width(*lit_dw);
 
         Res res;
 #define CODE(sw, dw)                                             \

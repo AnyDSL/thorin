@@ -553,7 +553,7 @@ void CCodeGen::emit() {
                     emit(arg) << ";";
                 };
 
-                auto callee = lam->app()->callee()->as_nominal<Lam>();
+                auto callee = lam->app()->callee()->as_nom<Lam>();
                 emit_debug_info(callee);
 
                 if (callee->is_basicblock()) {   // ordinary jump
@@ -576,7 +576,7 @@ void CCodeGen::emit() {
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
-                            auto l = lam->app()->arg(2)->as_nominal<Lam>();
+                            auto l = lam->app()->arg(2)->as_nom<Lam>();
                             auto elem_type = lam->var(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
                             auto name = "reserver_" + lam->var(1)->unique_name();
                             emit_type(func_impl_, elem_type) << " " << name << "[";
@@ -621,7 +621,7 @@ void CCodeGen::emit() {
                         }
 
                         // must be call + lam --- call + return has been removed by codegen_prepare
-                        auto succ = ret_arg->as_nominal<Lam>();
+                        auto succ = ret_arg->as_nom<Lam>();
                         size_t num_vars = succ->num_vars();
 
                         size_t n = 0;
@@ -1103,7 +1103,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_nominal<Lam>() && "no global init lam supported");
+        assert(!global->init()->isa_nom<Lam>() && "no global init lam supported");
 
         // string handling
         if (auto str_array = global->init()->isa<DefiniteArray>()) {

@@ -34,7 +34,7 @@ std::vector<Lam*> succs(Lam* lam) {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto lam = def->isa_nominal<Lam>()) {
+        if (auto lam = def->isa_nom<Lam>()) {
             succs.push_back(lam);
             continue;
         }
@@ -91,7 +91,7 @@ public:
         if (auto ndef = old2new_.lookup(odef))
             return *ndef;
 
-        if (!odef->isa_nominal()) {
+        if (!odef->isa_nom()) {
             Array<const Def*> nops(odef->num_ops());
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
@@ -145,7 +145,7 @@ public:
 
             if (def->isa<Var>())
                 return top_level_[lam] = false;
-            if (auto free_cn = def->isa_nominal<Lam>()) {
+            if (auto free_cn = def->isa_nom<Lam>()) {
                 if (!is_top_level(free_cn))
                     return top_level_[lam] = false;
             } else {
@@ -174,7 +174,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto lam = next->isa_nominal<Lam>()) {
+    } else if (auto lam = next->isa_nom<Lam>()) {
         queue_.push(lam);
     }
 }
@@ -204,7 +204,7 @@ bool PartialEvaluator::run() {
             callee_def = run->arg();
         }
 
-        if (auto callee = callee_def->isa_nominal<Lam>()) {
+        if (auto callee = callee_def->isa_nom<Lam>()) {
             // TODO
             //if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                 //eat_pe_info(lam);

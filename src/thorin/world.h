@@ -91,7 +91,7 @@ public:
     //@{
     const Space* space() const { return data_.space_;   }
     const Kind* kind() const { return data_.kind_; }
-    const Var* var(const Def* type, Def* nominal, const Def* dbg = {}) { return unify<Var>(1, type, nominal, dbg); }
+    const Var* var(const Def* type, Def* nom, const Def* dbg = {}) { return unify<Var>(1, type, nom, dbg); }
     const Proxy* proxy(const Def* type, Defs ops, tag_t index, flags_t flags, const Def* dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, flags, dbg); }
     //@}
 
@@ -143,7 +143,7 @@ public:
     /// @name Sigma
     //@{
     Sigma* nom_sigma(const Def* type, size_t size, const Def* dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
-    Sigma* nom_sigma(size_t size, const Def* dbg = {}) { return nom_sigma(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
+    Sigma* nom_sigma(size_t size, const Def* dbg = {}) { return nom_sigma(kind(), size, dbg); } ///< a @em nom @p Sigma of type @p kind
     const Def* sigma(Defs ops, const Def* dbg = {});
     const Sigma* sigma() { return data_.sigma_; } ///< the unit type within @p kind()
     //@}
@@ -251,7 +251,7 @@ public:
     const Def* bot_kind() { return data_.bot_kind_; }
     const Def* top_nat () { return data_.top_nat_; }
     template<bool up> TBound<up>* nom_bound(const Def* type, size_t size, const Def* dbg = {}) { return insert<TBound<up>>(size, type, size, dbg); }
-    template<bool up> TBound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nominal @p Bound of type @p kind
+    template<bool up> TBound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nom @p Bound of type @p kind
     template<bool up> const Def* bound(Defs ops, const Def* dbg = {});
     Join* nom_join(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<true >(type, size, dbg); }
     Meet* nom_meet(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<false>(type, size, dbg); }
@@ -400,7 +400,7 @@ public:
     /**
      * Transitively visits all @em reachable Scope%s in this @p World that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
+     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em noms without body.
      */
     using VisitFn = std::function<void(const Scope&)>;
     template<bool elide_empty = true> void visit(VisitFn) const;
@@ -484,7 +484,7 @@ private:
 #ifndef NDEBUG
         if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
-        assert(!def->isa_nominal());
+        assert(!def->isa_nom());
         auto [i, inserted] = data_.defs_.emplace(def);
         if (inserted) {
 #ifndef NDEBUG

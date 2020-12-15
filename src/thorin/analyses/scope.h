@@ -15,7 +15,7 @@ using F_CFG = CFG<true >;
 using B_CFG = CFG<false>;
 
 /**
- * A @p Scope represents a region of @em nominals which are live from the view of an @p entry @em nominal.
+ * A @p Scope represents a region of @em noms which are live from the view of an @p entry @em nom.
  * Transitively, all user's of the @p entry's @p Var%s are pooled into this @p Scope.
  * Both @p entry() and @p exit() are @em NOT part of the @p Scope itself - but their @p Var%s.
  */
@@ -44,7 +44,7 @@ public:
     const DefSet& free() const;
     /// All @p Var%s that appear free in this @p Scope.
     const VarSet& free_vars() const;
-    /// All @em nominals that appear free in this @p Scope.
+    /// All @em noms that appear free in this @p Scope.
     const NomSet& free_noms() const;
     /// Are there any free @p Var%s within this @p Scope.
     bool has_free_vars() const { return !free_vars().empty(); }

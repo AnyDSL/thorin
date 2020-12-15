@@ -9,7 +9,7 @@ namespace thorin {
 const Def* proj(const Def* def, u64 a, u64 i, const Def* dbg) {
     auto& world = def->world();
 
-    if (a == 1 && (!def->isa_nominal<Sigma>() && !def->type()->isa_nominal<Sigma>())) return def;
+    if (a == 1 && (!def->isa_nom<Sigma>() && !def->type()->isa_nom<Sigma>())) return def;
     if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
 
     if (auto arr = def->isa<Arr>()) {
@@ -95,14 +95,14 @@ Array<const Def*> merge(Defs a, Defs b) {
 }
 
 const Def* merge_sigma(const Def* def, Defs defs) {
-    if (auto sigma = def->isa<Sigma>(); sigma && !sigma->isa_nominal())
+    if (auto sigma = def->isa<Sigma>(); sigma && !sigma->isa_nom())
         return def->world().sigma(merge(sigma->ops(), defs));
     return def->world().sigma(merge(def, defs));
 }
 
 const Def* merge_tuple(const Def* def, Defs defs) {
     auto& w = def->world();
-    if (auto sigma = def->type()->isa<Sigma>(); sigma && !sigma->isa_nominal()) {
+    if (auto sigma = def->type()->isa<Sigma>(); sigma && !sigma->isa_nom()) {
         auto a = sigma->num_ops();
         Array<const Def*> tuple(a, [&](auto i) { return w.extract(def, a, i); });
         return w.tuple(merge(tuple, defs));

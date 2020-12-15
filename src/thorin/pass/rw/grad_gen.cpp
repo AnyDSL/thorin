@@ -298,7 +298,7 @@ Lam* GradGen::has_lam_to_rewrite(const Def* /*def*/) const {
                 if (auto axiom = app_grad->callee()->isa<Axiom>();
                     axiom && axiom->tag() == Tag::Grad) {
                     if (auto cps2ds = app_to_grad->arg(0)->isa<CPS2DS>()) {
-                        return cps2ds->cps()->isa_nominal<Lam>();
+                        return cps2ds->cps()->isa_nom<Lam>();
                     }
                 }
             }

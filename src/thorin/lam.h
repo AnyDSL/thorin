@@ -12,7 +12,7 @@ protected:
     Pi(const Def* type, const Def* dom, const Def* codom, const Def* dbg)
         : Def(Node, type, {dom, codom}, 0, dbg)
     {}
-    /// Constructor for a @em nominal Pi.
+    /// Constructor for a @em nom Pi.
     Pi(const Def* type, const Def* dbg)
         : Def(Node, type, 2, 0, dbg)
     {}
@@ -34,7 +34,7 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
     //@}
-    /// @name setters for @em nominal @p Pi.
+    /// @name setters for @em nom @p Pi.
     //@{
     Pi* set_dom(const Def* dom) { return Def::set(0, dom)->as<Pi>(); }
     Pi* set_dom(Defs doms);

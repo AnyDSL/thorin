@@ -23,7 +23,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-Stream& CFNode::stream(Stream& s) const { return s << nominal(); }
+Stream& CFNode::stream(Stream& s) const { return s << nom(); }
 
 //------------------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ CFA::CFA(const Scope& scope)
             if (def->isa<Var>()) return;
             // TODO maybe optimize a little bit by using the order
             if (scope.contains(def) && done.emplace(def).second) {
-                if (auto dst = def->isa_nominal()) {
+                if (auto dst = def->isa_nom()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));
                 } else
@@ -152,7 +152,7 @@ void CFA::verify() {
     for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
-            world().VLOG("missing predecessors: {}", in->nominal());
+            world().VLOG("missing predecessors: {}", in->nom());
             error = true;
         }
     }

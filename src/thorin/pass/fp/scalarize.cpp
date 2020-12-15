@@ -6,7 +6,7 @@ const Def* Scalerize::rewrite(const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 
-    auto tup_lam = app->callee()->isa_nominal<Lam>();
+    auto tup_lam = app->callee()->isa_nom<Lam>();
     if (ignore(tup_lam) || tup_lam->num_vars() <= 1 || keep_.contains(tup_lam)) return app;
 
     auto& sca_lam = tup2sca_.emplace(tup_lam, nullptr).first->second;
@@ -42,7 +42,7 @@ undo_t Scalerize::analyze(const Def* def) {
 
     return No_Undo;
     if (auto proxy = isa_proxy(def)) {
-        auto lam = proxy->op(0)->as_nominal<Lam>();
+        auto lam = proxy->op(0)->as_nom<Lam>();
         if (keep_.emplace(lam).second) {
             world().DLOG("found proxy app of '{}'", lam);
             auto [undo, _] = put(lam);
@@ -53,7 +53,7 @@ undo_t Scalerize::analyze(const Def* def) {
         for (auto op : def->ops()) {
             undo = std::min(undo, analyze(op));
 
-            if (auto lam = op->isa_nominal<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
+            if (auto lam = op->isa_nom<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
             }
         }
 

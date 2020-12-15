@@ -59,7 +59,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 
 Lam* CodeGen::emit_intrinsic(Lam*) {
     /*
-    auto callee = lam->body()->as<App>()->callee()->as_nominal<Lam>();
+    auto callee = lam->body()->as<App>()->callee()->as_nom<Lam>();
     switch (callee->intrinsic()) {
         case Lam::Intrinsic::Atomic:    return emit_atomic(lam);
         case Lam::Intrinsic::CmpXchg:   return emit_cmpxchg(lam);
@@ -87,13 +87,13 @@ Lam* CodeGen::emit_hls(Lam* lam) {
     std::vector<llvm::Value*> args(lam->body()->as<App>()->num_args()-3);
     Lam* ret = nullptr;
     for (size_t i = 2, j = 0; i < lam->body()->as<App>()->num_args(); ++i) {
-        if (auto l = lam->body()->as<App>()->arg(i)->isa_nominal<Lam>()) {
+        if (auto l = lam->body()->as<App>()->arg(i)->isa_nom<Lam>()) {
             ret = l;
             continue;
         }
         args[j++] = emit(lam->body()->as<App>()->arg(i));
     }
-    auto callee = lam->body()->as<App>()->arg(1)->as<Global>()->init()->as_nominal<Lam>();
+    auto callee = lam->body()->as<App>()->arg(1)->as<Global>()->init()->as_nom<Lam>();
     callee->make_external();
     irbuilder_.CreateCall(emit_function_decl(callee), args);
     assert(ret);
@@ -114,7 +114,7 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
     auto val = lookup(lam->body()->as<App>()->arg(3));
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
-    auto l = lam->body()->as<App>()->arg(4)->as_nominal<Lam>();
+    auto l = lam->body()->as<App>()->arg(4)->as_nom<Lam>();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
     emit_result_phi(l->var(1), call);
     return l;
@@ -127,7 +127,7 @@ Lam* CodeGen::emit_cmpxchg(Lam* lam) {
     auto ptr  = lookup(lam->body()->as<App>()->arg(1));
     auto cmp  = lookup(lam->body()->as<App>()->arg(2));
     auto val  = lookup(lam->body()->as<App>()->arg(3));
-    auto l = lam->body()->as<App>()->arg(4)->as_nominal<Lam>();
+    auto l = lam->body()->as<App>()->arg(4)->as_nom<Lam>();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
     emit_result_phi(l->var(1), irbuilder_.CreateExtractValue(call, 0));
     emit_result_phi(l->var(2), irbuilder_.CreateExtractValue(call, 1));
@@ -144,7 +144,7 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     if (!lam->body()->as<App>()->arg(1)->isa<Lit>())
         world().edef(lam->body()->as<App>()->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = as_lit<u32>(lam->body()->as<App>()->arg(1));
-    auto l = lam->body()->as<App>()->arg(2)->as_nominal<Lam>();
+    auto l = lam->body()->as<App>()->arg(2)->as_nom<Lam>();
     auto type = convert(lam->var(1)->type());
     // construct array type
     auto elem_type = as<Tag::Ptr>(l->var(1)->type())->arg(0)->as<Arr>()->body();
@@ -269,7 +269,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         Schedule schedule(scope);
 
         for (const auto& block : schedule) {
-            auto nom = block.nominal();
+            auto nom = block.nom();
             if (nom == schedule.exit()) continue;
 
             // map all bb-like lams to llvm bb stubs
@@ -296,7 +296,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         irbuilder_.CreateBr(&*oldStartBB);
 
         for (auto& block : schedule) {
-            auto nom = block.nominal();
+            auto nom = block.nom();
             if (nom == schedule.exit()) continue;
 
             auto lam = nom->as<Lam>();
@@ -376,19 +376,19 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 // TODO support switch
                 auto [f, t] = extract->tuple()->split<2>();
                 auto cond = lookup(extract->index());
-                auto tbb = bb2lam[t->as_nominal<Lam>()];
-                auto fbb = bb2lam[f->as_nominal<Lam>()];
+                auto tbb = bb2lam[t->as_nom<Lam>()];
+                auto fbb = bb2lam[f->as_nom<Lam>()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
 #if 0
             } else if (lam->body()->as<App>()->callee()->isa<Lam>() &&
                        lam->body()->as<App>()->callee()->as<Lam>()->intrinsic() == Lam::Intrinsic::Match) {
                 auto val = lookup(lam->body()->as<App>()->arg(0));
-                auto otherwise_bb = bb2lam[lam->body()->as<App>()->arg(1)->as_nominal<Lam>()];
+                auto otherwise_bb = bb2lam[lam->body()->as<App>()->arg(1)->as_nom<Lam>()];
                 auto match = irbuilder_.CreateSwitch(val, otherwise_bb, lam->body()->as<App>()->num_args() - 2);
                 for (size_t i = 2; i < lam->body()->as<App>()->num_args(); i++) {
                     auto arg = lam->body()->as<App>()->arg(i)->as<Tuple>();
                     auto case_const = llvm::cast<llvm::ConstantInt>(lookup(arg->op(0)));
-                    auto case_bb    = bb2lam[arg->op(1)->as_nominal<Lam>()];
+                    auto case_bb    = bb2lam[arg->op(1)->as_nom<Lam>()];
                     match->addCase(case_const, case_bb);
                 }
 #endif
@@ -397,7 +397,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             } else {
                 auto callee = lam->body()->as<App>()->callee();
                 bool terminated = false;
-                if (auto callee_lam = callee->isa_nominal<Lam>()) {
+                if (auto callee_lam = callee->isa_nom<Lam>()) {
                     if (callee_lam->is_basicblock()) {
                         // ordinary jump
                         irbuilder_.CreateBr(bb2lam[callee_lam]);
@@ -421,7 +421,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
 
                     llvm::CallInst* call = nullptr;
-                    if (auto callee_lam = callee->isa_nominal<Lam>()) {
+                    if (auto callee_lam = callee->isa_nom<Lam>()) {
                         call = irbuilder_.CreateCall(emit_function_decl(callee_lam), args);
                         if (callee_lam->is_external())
                             call->setCallingConv(kernel_calling_convention_);
@@ -437,7 +437,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
 
                     // must be call + lam --- call + return has been removed by codegen_prepare
-                    auto succ = ret_arg->as_nominal<Lam>();
+                    auto succ = ret_arg->as_nom<Lam>();
 
                     size_t n = 0;
                     const Def* last_var = nullptr;
@@ -550,7 +550,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     auto j = vars_.find(def);
     if (j != vars_.end()) return j->second;
 
-    if (auto lam = def->isa_nominal<Lam>())
+    if (auto lam = def->isa_nom<Lam>())
         return emit_function_decl(lam);
 
     if (auto res = defs_.lookup(def))
@@ -870,7 +870,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
-    if (auto lam = global->init()->isa_nominal<Lam>())
+    if (auto lam = global->init()->isa_nom<Lam>())
         val = fcts_[lam];
     else {
         auto llvm_type = convert(global->alloced_type());
@@ -984,7 +984,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
         return types_[type] = llvm_type;
     } else if (auto sigma = type->isa<Sigma>()) {
         llvm::StructType* llvm_struct = nullptr;
-        if (sigma->isa_nominal()) {
+        if (sigma->isa_nom()) {
             llvm_struct = llvm::StructType::create(context_);
             assert(!types_.contains(sigma) && "type already converted");
             types_[sigma] = llvm_struct;
@@ -1097,7 +1097,7 @@ static Lam* get_alloc_call(const Def* def) {
     if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());
-    auto call = use.def()->isa_nominal<Lam>();
+    auto call = use.def()->isa_nom<Lam>();
     if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->body()->as<App>()->callee();
@@ -1127,15 +1127,15 @@ Backends::Backends(World& world)
         Lam* imported = nullptr;
 
         if (is_passed_to_intrinsic(lam, Intrinsic::CUDA))
-            imported = cuda.import(lam)->as_nominal<Lam>();
+            imported = cuda.import(lam)->as_nom<Lam>();
         else if (is_passed_to_intrinsic(lam, Intrinsic::NVVM))
-            imported = nvvm.import(lam)->as_nominal<Lam>();
+            imported = nvvm.import(lam)->as_nom<Lam>();
         else if (is_passed_to_intrinsic(lam, Intrinsic::OpenCL))
-            imported = opencl.import(lam)->as_nominal<Lam>();
+            imported = opencl.import(lam)->as_nom<Lam>();
         else if (is_passed_to_intrinsic(lam, Intrinsic::AMDGPU))
-            imported = amdgpu.import(lam)->as_nominal<Lam>();
+            imported = amdgpu.import(lam)->as_nom<Lam>();
         else if (is_passed_to_intrinsic(lam, Intrinsic::HLS))
-            imported = hls.import(lam)->as_nominal<Lam>();
+            imported = hls.import(lam)->as_nom<Lam>();
         else
             return;
 

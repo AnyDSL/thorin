@@ -12,7 +12,7 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     auto new_type = rewrite(old_def->type());
     auto new_dbg = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
-    if (auto old_nom = old_def->isa_nominal()) {
+    if (auto old_nom = old_def->isa_nom()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_dbg);
         old2new[old_nom] = new_nom;
 
@@ -62,7 +62,7 @@ void cleanup(World& old_world) {
     rewriter.old2new.rehash(old_world.defs().capacity());
 
     for (const auto& [name, nom] : old_world.externals())
-        rewriter.rewrite(nom)->as_nominal()->make_external();
+        rewriter.rewrite(nom)->as_nom()->make_external();
 
     swap(rewriter.old_world, rewriter.new_world);
 }

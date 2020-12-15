@@ -8,7 +8,7 @@ const Def* EtaConv::rewrite(const Def* def) {
     if (def->isa<Var>() || def->isa<Proxy>()) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (!is_callee(def, i)) {
                 if (expand_.contains(lam)) {
                     auto [j, ins] = def2exp_.emplace(def, nullptr);
@@ -48,7 +48,7 @@ undo_t EtaConv::analyze(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(def->op(i)));
 
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (is_callee(def, i)) {
                 if (expand_.contains(lam)) continue;
 

@@ -57,7 +57,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    //auto target = lam->body()->as<App>()->callee()->as_nominal<Lam>();
+    //auto target = lam->body()->as<App>()->callee()->as_nom<Lam>();
     assert(lam->body()->as<App>()->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
     // arguments
@@ -165,7 +165,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
                   args, sizes, aligns, types,
                   builder_.getInt32(num_kernel_args));
 
-    return lam->body()->as<App>()->arg(LaunchArgs::Return)->as_nominal<Lam>();
+    return lam->body()->as<App>()->arg(LaunchArgs::Return)->as_nom<Lam>();
 }
 
 llvm::Value* Runtime::launch_kernel(llvm::Value* device,

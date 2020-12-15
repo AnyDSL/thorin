@@ -17,7 +17,7 @@ namespace thorin {
 Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg)
     : fields_(fields)
     , node_(unsigned(node))
-    , nominal_(false)
+    , nom_(false)
     , var_(false)
     , const_(true)
     , order_(0)
@@ -43,7 +43,7 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
 Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
     : fields_(fields)
     , node_(node)
-    , nominal_(true)
+    , nom_(true)
     , var_(false)
     , const_(false)
     , order_(0)
@@ -81,7 +81,7 @@ const Def* Lam    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) cons
 const Def* Lit    ::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.lit(t, get(), dbg); }
 const Def* Nat    ::rebuild(World& w, const Def*  , Defs  , const Def*    ) const { return w.type_nat(); }
 const Def* Pack   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pack(t->arity(), o[0], dbg); }
-const Def* Var  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.var(t, o[0]->as_nominal(), dbg); }
+const Def* Var  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.var(t, o[0]->as_nom(), dbg); }
 const Def* Pi     ::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.pi(o[0], o[1], dbg); }
 const Def* Pick   ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.pick(t, o[0], dbg); }
 const Def* Proxy  ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) const { return w.proxy(t, o, as<Proxy>()->id(), as<Proxy>()->flags(), dbg); }
@@ -190,7 +190,7 @@ const Def* Def::arity() const {
 }
 
 bool Def::equal(const Def* other) const {
-    if (isa<Space>() || this->isa_nominal() || other->isa_nominal())
+    if (isa<Space>() || this->isa_nom() || other->isa_nom())
         return this == other;
 
     bool result = this->node() == other->node() && this->fields() == other->fields() && this->num_ops() == other->num_ops() && this->type() == other->type();
@@ -244,7 +244,7 @@ void Def::finalize() {
     if (dbg()) const_ &= dbg()->is_const();
     if (isa<Pi>()) ++order_;
     if (isa<Axiom>()) const_ = true;
-    if (auto var = isa<Var>()) var->nominal()->var_ = true;
+    if (auto var = isa<Var>()) var->nom()->var_ = true;
 }
 
 Def* Def::set(size_t i, const Def* def) {
@@ -271,7 +271,7 @@ void Def::unset(size_t i) {
 }
 
 bool Def::is_set() const {
-    if (!isa_nominal()) {
+    if (!isa_nom()) {
         assert(std::all_of(ops().begin(), ops().end(), [&](auto op) { return op != nullptr; }) && "structurals must be always set");
         return true;
     }
@@ -287,7 +287,7 @@ void Def::make_external() { return world().make_external(this); }
 void Def::make_internal() { return world().make_internal(this); }
 bool Def::is_external() const { return world().is_external(this); }
 
-std::string Def::unique_name() const { return (isa_nominal() ? std::string{} : std::string{"%"}) + debug().name + "_" + std::to_string(gid()); }
+std::string Def::unique_name() const { return (isa_nom() ? std::string{} : std::string{"%"}) + debug().name + "_" + std::to_string(gid()); }
 
 void Def::replace(Tracker with) const {
     world().DLOG("replace: {} -> {}", this, with);
@@ -307,7 +307,7 @@ void Def::replace(Tracker with) const {
 }
 
 Array<const Def*> Def::apply(const Def* arg) const {
-    if (auto nom = isa_nominal()) return nom->apply(arg);
+    if (auto nom = isa_nom()) return nom->apply(arg);
     return ops();
 }
 
@@ -322,7 +322,7 @@ const Def* Def::reduce() const {
     auto def = this;
     while (auto app = def->isa<App>()) {
         auto callee = app->callee()->reduce();
-        if (callee->isa_nominal()) {
+        if (callee->isa_nom()) {
             def = callee->apply(app->arg()).back();
         } else {
             def = callee != app->callee() ? world().app(callee, app->arg(), app->dbg()) : app;

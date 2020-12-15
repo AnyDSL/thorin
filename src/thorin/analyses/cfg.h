@@ -27,12 +27,12 @@ typedef GIDSet<const CFNode*> CFNodes;
 class CFNode : public Streamable<CFNode> {
 public:
     CFNode(Def* nom)
-        : nominal_(nom)
+        : nom_(nom)
         , gid_(gid_counter_++)
     {}
 
     uint64_t gid() const { return gid_; }
-    Def* nominal() const { return nominal_; }
+    Def* nom() const { return nom_; }
     Stream& stream(Stream&) const;
 
 private:
@@ -43,7 +43,7 @@ private:
     mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
 
-    Def* nominal_;
+    Def* nom_;
     size_t gid_;
     static uint64_t gid_counter_;
     mutable CFNodes preds_;

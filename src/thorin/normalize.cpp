@@ -1,6 +1,9 @@
 #include "thorin/def.h"
 #include "thorin/world.h"
 
+// TODO rewrite int normalization to work on all bounds.
+// This would also remove a lot of template magic.
+
 namespace thorin {
 
 template<class O> constexpr bool is_int      () { return true;  }

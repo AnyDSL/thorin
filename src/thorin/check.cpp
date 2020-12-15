@@ -37,8 +37,8 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
         return true;
     }
 
-    if (auto n1 = d1->isa_nominal()) {
-        if (auto n2 = d2->isa_nominal())
+    if (auto n1 = d1->isa_nom()) {
+        if (auto n2 = d2->isa_nom())
             vars_.emplace_back(n1->var(), n2->var());
     }
 

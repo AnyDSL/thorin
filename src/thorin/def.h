@@ -110,7 +110,7 @@ private:
 protected:
     /// Constructor for a @em structural Def.
     Def(node_t, const Def* type, Defs ops, fields_t fields, const Def* dbg);
-    /// Constructor for a @em nominal Def.
+    /// Constructor for a @em nom Def.
     Def(node_t, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
     virtual ~Def() {}
 
@@ -150,7 +150,7 @@ public:
     void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
     /// @c true if all operands are set or @p num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
     bool is_set() const;
-    /// @p Var%s and @em nominals are @em not const; @p Axiom%s are always const; everything else const iff their @p extended_ops are const.
+    /// @p Var%s and @em noms are @em not const; @p Axiom%s are always const; everything else const iff their @p extended_ops are const.
     bool is_const() const { return const_; }
     //@}
     /// @name uses
@@ -206,27 +206,27 @@ public:
     //@}
     /// @name casts
     //@{
-    /// If @c this is @em nominal, it will cast constness away and perform a dynamic cast to @p T.
-    template<class T = Def, bool invert = false> T* isa_nominal() const {
+    /// If @c this is @em nom, it will cast constness away and perform a dynamic cast to @p T.
+    template<class T = Def, bool invert = false> T* isa_nom() const {
         if constexpr(std::is_same<T, Def>::value)
-            return nominal_ ^ invert ? const_cast<Def*>(this) : nullptr;
+            return nom_ ^ invert ? const_cast<Def*>(this) : nullptr;
         else
-            return nominal_ ^ invert ? const_cast<Def*>(this)->template isa<T>() : nullptr;
+            return nom_ ^ invert ? const_cast<Def*>(this)->template isa<T>() : nullptr;
     }
-    template<class T = Def> const T* isa_structural() const { return isa_nominal<T, true>(); }
-    /// Asserts that @c this is a @em nominal, casts constness away and performs a static cast to @p T (checked in Debug build).
-    template<class T = Def, bool invert = false> T* as_nominal() const {
-        assert(nominal_ ^ invert);
+    template<class T = Def> const T* isa_structural() const { return isa_nom<T, true>(); }
+    /// Asserts that @c this is a @em nom, casts constness away and performs a static cast to @p T (checked in Debug build).
+    template<class T = Def, bool invert = false> T* as_nom() const {
+        assert(nom_ ^ invert);
         if constexpr(std::is_same<T, Def>::value)
             return const_cast<Def*>(this);
         else
             return const_cast<Def*>(this)->template as<T>();
     }
-    template<class T = Def> const T* as_structural() const { return as_nominal<T, true>(); }
+    template<class T = Def> const T* as_structural() const { return as_nom<T, true>(); }
     //@}
-    /// @name retrieve @p Var for @em nominals.
+    /// @name retrieve @p Var for @em noms.
     //@{
-    /// Only returns a @p Var for this @em nominal if it has ever been created.
+    /// Only returns a @p Var for this @em nom if it has ever been created.
     const Var* has_var() { return var_ ? var() : nullptr; }
     const Var* var(const Def* dbg);
     const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
@@ -290,7 +290,7 @@ protected:
     };
     fields_t fields_;
     node_t node_;
-    unsigned nominal_ :  1;
+    unsigned nom_ :  1;
     unsigned var_   :  1;
     unsigned const_   :  1;
     unsigned order_   : 13;
@@ -365,14 +365,14 @@ using Nom2Nom = NomMap<Def*>;
 
 class Var : public Def {
 private:
-    Var(const Def* type, Def* nominal, const Def* dbg)
-        : Def(Node, type, Defs{nominal}, 0, dbg)
+    Var(const Def* type, Def* nom, const Def* dbg)
+        : Def(Node, type, Defs{nom}, 0, dbg)
     {}
 
 public:
     /// @name ops
     //@{
-    Def* nominal() const { return op(0)->as_nominal(); }
+    Def* nom() const { return op(0)->as_nom(); }
     //@}
     /// @name virtual methods
     //@{

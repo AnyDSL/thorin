@@ -22,7 +22,7 @@ bool Lam::is_basicblock() const { return type()->is_basicblock(); }
 bool Lam::is_returning() const { return type()->is_returning(); }
 
 void Lam::app(const Def* callee, const Def* arg, const Def* dbg) {
-    assert(isa_nominal());
+    assert(isa_nom());
     auto filter = world().lit_false();
     set(filter, world().app(callee, arg, dbg));
 }
@@ -64,8 +64,8 @@ bool Pi::is_returning() const {
 // TODO remove
 Lam* get_var_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return extract->tuple()->as<Var>()->nominal()->as<Lam>();
-    return def->as<Var>()->nominal()->as<Lam>();
+        return extract->tuple()->as<Var>()->nom()->as<Lam>();
+    return def->as<Var>()->nom()->as<Lam>();
 }
 
 // TODO remove
@@ -82,7 +82,7 @@ std::vector<Peek> peek(const Def* var) {
     for (auto use : get_var_lam(var)->uses()) {
         if (auto app = use->isa<App>()) {
             for (auto use : app->uses()) {
-                if (auto pred = use->isa_nominal<Lam>()) {
+                if (auto pred = use->isa_nom<Lam>()) {
                     if (pred->body() == app)
                         peeks.emplace_back(app->arg(index), pred);
                 }

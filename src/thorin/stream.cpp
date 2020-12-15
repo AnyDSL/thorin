@@ -6,7 +6,7 @@ namespace thorin {
 
 /*
  * prefixes for identifiers:
- * foobar: nominal - no prefix
+ * foobar: nom - no prefix
  * .foobar: node
  * :foobar: axiom
  * %foobar: structural
@@ -65,7 +65,7 @@ Stream& stream(Stream& s, const Def* def) {
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
         s.fmt("({, })", tuple->ops());
-        return tuple->type()->isa_nominal() ? s.fmt("∷{}", tuple->type()) : s;
+        return tuple->type()->isa_nom() ? s.fmt("∷{}", tuple->type()) : s;
     } else if (auto arr = def->isa<Arr>()) {
         return s.fmt("«{}; {}»", arr->shape(), arr->body());
     } else if (auto pack = def->isa<Pack>()) {
@@ -74,7 +74,7 @@ Stream& stream(Stream& s, const Def* def) {
         return s.fmt(".proxy#{}#{} {, }", proxy->id(), proxy->flags(), proxy->ops());
     } else if (auto bound = isa_bound(def)) {
         const char* op = bound->isa<Join>() ? "∪" : "∩";
-        if (def->isa_nominal()) s.fmt("{}{}: {}", op, def->unique_name(), def->type());
+        if (def->isa_nom()) s.fmt("{}{}: {}", op, def->unique_name(), def->type());
         return s.fmt("{}({, })", op, def->ops());
     }
 
@@ -98,7 +98,7 @@ public:
 
     Stream& s;
     size_t max;
-    unique_queue<DefSet> nominals;
+    unique_queue<DefSet> noms;
     DefSet defs;
 };
 
@@ -106,24 +106,24 @@ void RecStreamer::run(const Def* def) {
     if (def->is_const() || !defs.emplace(def).second) return;
 
     for (auto op : def->ops()) { // for now, don't include debug info and type
-        if (auto nom = op->isa_nominal()) {
+        if (auto nom = op->isa_nom()) {
             if (max != 0) {
-                if (nominals.push(nom)) --max;
+                if (noms.push(nom)) --max;
             }
         } else {
             run(op);
         }
     }
 
-    if (auto nom = def->isa_nominal())
+    if (auto nom = def->isa_nom())
         thorin::stream(s.endl().fmt("-> "), nom).fmt(";");
     else
         def->stream_assignment(s.endl());
 }
 
 void RecStreamer::run() {
-    while (!nominals.empty()) {
-        auto nom = nominals.pop();
+    while (!noms.empty()) {
+        auto nom = noms.pop();
         s.endl().endl();
 
         if (nom->is_set()) {
@@ -154,8 +154,8 @@ Stream& Def::stream(Stream& s, size_t max) const {
     if (max == 0) return stream_assignment(s);
     RecStreamer rec(s, --max);
 
-    if (auto nom = isa_nominal()) {
-        rec.nominals.push(nom);
+    if (auto nom = isa_nom()) {
+        rec.noms.push(nom);
         rec.run();
     } else {
         rec.run(this);
@@ -193,7 +193,7 @@ Stream& World::stream(Stream& s) const {
     s << "module '" << name();
 
     for (const auto& [name, nom] : externals()) {
-        rec.nominals.push(nom);
+        rec.noms.push(nom);
         rec.run();
     }
 
@@ -204,8 +204,8 @@ Stream& World::stream(Stream& s) const {
 Stream& World::stream(RecStreamer& rec, const DepNode* n) const {
     rec.s.indent();
 
-    if (auto nom = n->nominal()) {
-        rec.nominals.push(nom);
+    if (auto nom = n->nom()) {
+        rec.noms.push(nom);
         rec.run();
     }
 

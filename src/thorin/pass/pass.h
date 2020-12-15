@@ -32,7 +32,7 @@ public:
     /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
     virtual void enter() {}
 
-    /// Rewrites a @p nom%inal within @p PassMan::cur_nom. Returns the replacement.
+    /// Rewrites a @p nom within @p PassMan::cur_nom. Returns the replacement.
     virtual const Def* rewrite(Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nom; }
 
     /// Rewrites a @em structural @p def within @p PassMan::cur_nom @em before it has been @p rebuild. Returns the replacement.
@@ -274,7 +274,7 @@ protected:
     template<class T = Def>
     T* descend(const Def* def) {
         auto cur_nom = man().template cur_nom<T>();
-        if (cur_nom == nullptr || def->is_const() || def->isa_nominal() || def->isa<Var>() || analyzed(def)) return nullptr;
+        if (cur_nom == nullptr || def->is_const() || def->isa_nom() || def->isa<Var>() || analyzed(def)) return nullptr;
         if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return nullptr;
         return cur_nom;
     }

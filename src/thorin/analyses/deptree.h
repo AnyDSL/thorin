@@ -7,12 +7,12 @@ namespace thorin {
 
 class DepNode {
 public:
-    DepNode(Def* nominal, size_t depth)
-        : nominal_(nominal)
+    DepNode(Def* nom, size_t depth)
+        : nom_(nom)
         , depth_(depth)
     {}
 
-    Def* nominal() const { return nominal_; }
+    Def* nom() const { return nom_; }
     size_t depth() const { return depth_; }
     DepNode* parent() const { return parent_; }
     const std::vector<DepNode*>& children() const { return children_; }
@@ -25,7 +25,7 @@ private:
         return this;
     }
 
-    Def* nominal_;
+    Def* nom_;
     size_t depth_;
     DepNode* parent_ = nullptr;
     std::vector<DepNode*> children_;

@@ -78,7 +78,7 @@ const Def* Mangler::mangle(const Def* old_def) {
     auto new_dbg  = old_def->dbg() ? mangle(old_def->dbg()) : nullptr;
 
     const Def* new_def = nullptr;
-    if (auto old_nom = old_def->isa_nominal()) {
+    if (auto old_nom = old_def->isa_nom()) {
         new_def = old_nom->stub(world(), new_type, new_dbg );
         old2new_[old_def] = new_def;
     }
@@ -138,7 +138,7 @@ Lam* mangle(const Scope& scope, Defs args, Defs lift) {
 }
 
 Lam* drop(const App* app) {
-    Scope scope(app->callee()->as_nominal<Lam>());
+    Scope scope(app->callee()->as_nom<Lam>());
     return drop(scope, app->args());
 }
 

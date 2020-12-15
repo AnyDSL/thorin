@@ -302,7 +302,7 @@ const Def* World::tuple(const Def* type, Defs ops, const Def* dbg) {
     }
 
     auto n = ops.size();
-    if (!type->isa_nominal<Sigma>()) {
+    if (!type->isa_nom<Sigma>()) {
         if (n == 0) return tuple();
         if (n == 1) return ops[0];
         if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; })) return pack(n, ops[0]);
@@ -355,8 +355,8 @@ const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index,
             err()->index_out_of_range(type->arity(), index);
     }
 
-    // nominal sigmas can be 1-tuples
-    if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1 && !tup->type()->isa_nominal<Sigma>()) return tup;
+    // nom sigmas can be 1-tuples
+    if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1 && !tup->type()->isa_nom<Sigma>()) return tup;
     if (auto pack = tup->isa_structural<Pack>()) return pack->body();
 
     // extract(insert(x, index, val), index) -> val
@@ -389,7 +389,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, const
         err()->index_out_of_range(type->arity(), index);
 
     if (auto bound = isa_lit(isa_sized_type(index->type())); bound && *bound == 1)
-        return tuple(tup, {val}, dbg); // tup could be nominal - that's why the tuple ctor is needed
+        return tuple(tup, {val}, dbg); // tup could be nom - that's why the tuple ctor is needed
 
     // insert((a, b, c, d), 2, x) -> (a, b, x, d)
     if (auto t = tup->isa<Tuple>()) return t->refine(as_lit(index), val);
@@ -603,7 +603,7 @@ std::vector<Lam*> World::copy_lams() const {
     std::vector<Lam*> result;
 
     for (auto def : data_.defs_) {
-        if (auto lam = def->isa_nominal<Lam>())
+        if (auto lam = def->isa_nom<Lam>())
             result.emplace_back(lam);
     }
 
@@ -676,7 +676,7 @@ void World::visit(VisitFn f) const {
 
     auto push = [&](const Def* def) {
         if (!def->is_const()) {
-            if (auto nom = def->isa_nominal())
+            if (auto nom = def->isa_nom())
                 noms.push(nom);
             else
                 defs.push(def);

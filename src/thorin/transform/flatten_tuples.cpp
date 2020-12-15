@@ -34,7 +34,7 @@ static Lam* app(Lam* lam, Array<const Def*>& args) {
 }
 
 static Lam* try_inline(Lam* lam, Array<const Def*>& args) {
-    if (args[0]->isa_nominal<Lam>()) {
+    if (args[0]->isa_nom<Lam>()) {
         auto app = lam->world().app(args.front(), lam->world().tuple(args.skip_front()))->as<App>();
         auto dropped = drop(app);
         lam->app(dropped->body()->as<App>()->callee(), dropped->body()->as<App>()->args(), args[0]->dbg());
@@ -46,7 +46,7 @@ static Lam* try_inline(Lam* lam, Array<const Def*>& args) {
 
 static void inline_calls(Lam* lam) {
     for (auto use : lam->copy_uses()) {
-        auto ulam = use->isa_nominal<Lam>();
+        auto ulam = use->isa_nom<Lam>();
         if (!ulam || use.index() != 0) continue;
 
         Array<const Def*> args(ulam->body()->as<App>()->num_args() + 1);
@@ -73,7 +73,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
     //         f = extract(b, 1)
     //         d(a, (e, f))
 
-    if (wrapped.contains(old_def)) return wrapped[old_def]->as_nominal<Lam>();
+    if (wrapped.contains(old_def)) return wrapped[old_def]->as_nom<Lam>();
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<Pi>();
@@ -126,7 +126,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
     //     wrap_d(a: W, b: X, c: Y):
     //         d(a, (b, c))
 
-    if (unwrapped.contains(new_def)) return unwrapped[new_def]->as_nominal<Lam>();
+    if (unwrapped.contains(new_def)) return unwrapped[new_def]->as_nom<Lam>();
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<Pi>();
@@ -197,17 +197,17 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
                 continue;
             }
 
-            auto new_lam = wrap_pair.second->as_nominal<Lam>();
+            auto new_lam = wrap_pair.second->as_nom<Lam>();
             auto old_lam = unwrap_def(wrapped, unwrapped, new_lam, def->type()->as<Pi>(), max_tuple_size);
 
             def->replace(old_lam);
-            if (auto lam = def->isa_nominal<Lam>())
+            if (auto lam = def->isa_nom<Lam>())
                 lam->unset();
         }
     }
 
     for (auto unwrap_pair : unwrapped)
-        inline_calls(unwrap_pair.second->as_nominal<Lam>());
+        inline_calls(unwrap_pair.second->as_nom<Lam>());
 
     cleanup_world(world);
 }

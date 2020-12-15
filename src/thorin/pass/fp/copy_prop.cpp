@@ -6,7 +6,7 @@ const Def* CopyProp::rewrite(const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
 
-    auto var_lam = app->callee()->isa_nominal<Lam>();
+    auto var_lam = app->callee()->isa_nom<Lam>();
     if (ignore(var_lam) || var_lam->num_vars() == 0 || keep_.contains(var_lam)) return app;
 
     auto&& [args, _, __] = insert<LamMap<Args>>(var_lam);
@@ -61,7 +61,7 @@ undo_t CopyProp::analyze(const Def* def) {
     if (cur_lam == nullptr) return No_Undo;
 
     if (auto proxy = isa_proxy(def)) {
-        auto lam = proxy->op(0)->as_nominal<Lam>();
+        auto lam = proxy->op(0)->as_nom<Lam>();
         auto&& [_, undo, __] = insert<LamMap<Args>>(lam);
         world().DLOG("found proxy : {}", lam);
         return undo;
@@ -71,7 +71,7 @@ undo_t CopyProp::analyze(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(def->op(i)));
 
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
             auto&& [_, u,ins] = insert<LamMap<Args>>(lam);
             if (!ins) {
                 undo = std::min(undo, u);

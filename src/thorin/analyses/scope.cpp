@@ -65,7 +65,7 @@ const VarSet& Scope::free_vars() const {
         auto enqueue = [&](const Def* def) {
             if (auto var = def->isa<Var>())
                 free_vars_->emplace(var);
-            else if (def->isa_nominal())
+            else if (def->isa_nom())
                 return;
             else
                 queue.push(def);
@@ -89,7 +89,7 @@ const NomSet& Scope::free_noms() const {
         unique_queue<DefSet> queue;
 
         auto enqueue = [&](const Def* def) {
-            if (auto nom = def->isa_nominal())
+            if (auto nom = def->isa_nom())
                 free_noms_->emplace(nom);
             else
                 queue.push(def);
@@ -119,10 +119,10 @@ template void Streamable<Scope>::write() const;
 bool is_free(const Var* var, const Def* def) {
     // optimize common cases
     if (def == var) return true;
-    for (auto p : var->nominal()->vars())
+    for (auto p : var->nom()->vars())
         if (p == var) return true;
 
-    Scope scope(var->nominal());
+    Scope scope(var->nom());
     return scope.contains(def);
 }
 

@@ -3,8 +3,8 @@
 namespace thorin {
 
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
-static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
-static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
+static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nom<Lam>(); }
+static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nom<Lam>()}; }
 
 void SSAConstr::enter() {
     if (auto lam = cur_nom<Lam>()) {
@@ -46,7 +46,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
             }
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); !ignore(mem_lam))
+        if (auto mem_lam = app->callee()->isa_nom<Lam>(); !ignore(mem_lam))
             return mem2phi(cur_lam, app, mem_lam);
     }
 
@@ -138,7 +138,7 @@ undo_t SSAConstr::analyze() {
 
 undo_t SSAConstr::analyze(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
+    if (cur_lam == nullptr || def->is_const() || def->isa_nom() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {
@@ -163,7 +163,7 @@ undo_t SSAConstr::analyze(const Def* def) {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             undo = std::min(undo, analyze(def->op(i)));
 
-            if (auto suc_lam = def->op(i)->isa_nominal<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
+            if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
                 auto&& [suc_info, u, ins] = insert<Lam2Info>(suc_lam);
 
                 if (suc_lam->is_basicblock() && suc_lam != cur_lam) {

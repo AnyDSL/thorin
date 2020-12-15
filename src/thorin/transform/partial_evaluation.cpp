@@ -124,11 +124,6 @@ public:
 
     const Def* filter(size_t /*i*/) { return callee_->filter(); }
 
-    bool has_free_vars(Lam* lam) {
-        Scope scope(lam);
-        return scope.has_free_vars();
-    }
-
     bool is_top_level(Lam* lam) {
         auto p = top_level_.emplace(lam, true);
         if (!p.second)
@@ -137,20 +132,13 @@ public:
         Scope scope(lam);
         unique_queue<DefSet> queue;
 
-        for (auto def : scope.free())
-            queue.push(def);
+        if (!scope.free().vars.empty())
+            return top_level_[lam] = false;
 
-        while (!queue.empty()) {
-            auto def = queue.pop();
-
-            if (def->isa<Var>())
-                return top_level_[lam] = false;
-            if (auto free_cn = def->isa_nom<Lam>()) {
+        for (auto nom : scope.free().noms) {
+            if (auto free_cn = nom->isa<Lam>()) {
                 if (!is_top_level(free_cn))
                     return top_level_[lam] = false;
-            } else {
-                for (auto op : def->ops())
-                    queue.push(op);
             }
         }
 

@@ -674,15 +674,6 @@ void World::visit(VisitFn f) const {
     unique_queue<NomSet> noms;
     unique_stack<DefSet> defs;
 
-    auto push = [&](const Def* def) {
-        if (!def->is_const()) {
-            if (auto nom = def->isa_nom())
-                noms.push(nom);
-            else
-                defs.push(def);
-        }
-    };
-
     for (const auto& [name, nom] : externals()) {
         assert(nom->is_set() && "external must not be empty");
         noms.push(nom);
@@ -691,15 +682,12 @@ void World::visit(VisitFn f) const {
     while (!noms.empty()) {
         auto nom = noms.pop();
         if (elide_empty && !nom->is_set()) continue;
+
         Scope scope(nom);
         f(scope);
-        for (auto def : scope.free())
-            push(def);
 
-        while (!defs.empty()) {
-            for (auto op : defs.pop()->extended_ops())
-                push(op);
-        }
+        for (auto nom : scope.free().noms)
+            noms.push(nom);
     }
 }
 

@@ -23,8 +23,8 @@ Scope::~Scope() {}
 
 Scope& Scope::update() {
     defs_.clear();
+    free_defs_ = nullptr;
     free_      = nullptr;
-    free_vars_ = nullptr;
     cfa_       = nullptr;
     run();
     return *this;
@@ -42,69 +42,59 @@ void Scope::run() {
     }
 }
 
-const DefSet& Scope::free() const {
-    if (!free_) {
-        free_ = std::make_unique<DefSet>();
+const DefSet& Scope::free_defs() const {
+    if (!free_defs_) {
+        free_defs_ = std::make_unique<DefSet>();
 
-        for (auto def : defs_) {
-            for (auto op : def->extended_ops()) {
-                if (!op->is_const() && !contains(op))
-                    free_->emplace(op);
-            }
+        unique_queue<DefSet> queue;
+        auto enqueue = [&](const Def* def) {
+            if (def->is_const()) return;
+
+            if (contains(def))
+                queue.push(def);
+            else
+                free_defs_->emplace(def);
+        };
+
+
+        for (auto op : entry()->extended_ops())
+            enqueue(op);
+
+        while (!queue.empty()) {
+            for (auto op : queue.pop()->extended_ops())
+                enqueue(op);
+        }
+    }
+
+    return *free_defs_;
+}
+
+const Scope::Free& Scope::free() const {
+    if (!free_) {
+        free_ = std::make_unique<Free>();
+        unique_queue<DefSet> queue;
+
+        auto enqueue = [&](const Def* def) {
+            if (def->is_const()) return;
+
+            if (auto var = def->isa<Var>())
+                free_->vars.emplace(var);
+            else if (auto nom = def->isa_nom())
+                free_->noms.emplace(nom);
+            else
+                queue.push(def);
+        };
+
+        for (auto def : free_defs())
+            enqueue(def);
+
+        while (!queue.empty()) {
+            for (auto op : queue.pop()->extended_ops())
+                enqueue(op);
         }
     }
 
     return *free_;
-}
-
-const VarSet& Scope::free_vars() const {
-    if (!free_vars_) {
-        free_vars_ = std::make_unique<VarSet>();
-        unique_queue<DefSet> queue;
-
-        auto enqueue = [&](const Def* def) {
-            if (auto var = def->isa<Var>())
-                free_vars_->emplace(var);
-            else if (def->isa_nom())
-                return;
-            else
-                queue.push(def);
-        };
-
-        for (auto def : free())
-            enqueue(def);
-
-        while (!queue.empty()) {
-            for (auto op : queue.pop()->extended_ops())
-                enqueue(op);
-        }
-    }
-
-    return *free_vars_;
-}
-
-const NomSet& Scope::free_noms() const {
-    if (!free_noms_) {
-        free_noms_ = std::make_unique<NomSet>();
-        unique_queue<DefSet> queue;
-
-        auto enqueue = [&](const Def* def) {
-            if (auto nom = def->isa_nom())
-                free_noms_->emplace(nom);
-            else
-                queue.push(def);
-        };
-
-        for (auto def : free())
-            enqueue(def);
-
-        while (!queue.empty()) {
-            for (auto op : queue.pop()->extended_ops())
-                enqueue(op);
-        }
-    }
-
-    return *free_noms_;
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }

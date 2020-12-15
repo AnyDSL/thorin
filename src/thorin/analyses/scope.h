@@ -15,12 +15,18 @@ using F_CFG = CFG<true >;
 using B_CFG = CFG<false>;
 
 /**
- * A @p Scope represents a region of @em noms which are live from the view of an @p entry @em nom.
- * Transitively, all user's of the @p entry's @p Var%s are pooled into this @p Scope.
- * Both @p entry() and @p exit() are @em NOT part of the @p Scope itself - but their @p Var%s.
+ * A @p Scope represents a region of @p Def%s that are live from the view of an @p entry's @p Var.
+ * Transitively, all user's of the @p entry's @p Var are pooled into this @p Scope (see @p defs()).
+ * Both @p entry() and @p exit() are @em NOT part of the @p Scope itself.
+ * The @p exit() is just a virtual dummy to have a unique exit dual to @p entry().
  */
 class Scope : public Streamable<Scope> {
 public:
+    struct Free {
+        VarSet vars;
+        NomSet noms;
+    };
+
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
@@ -29,6 +35,7 @@ public:
 
     /// Invoke if you have modified sth in this Scope.
     Scope& update();
+
     /// @name getters
     //@{
     World& world() const { return world_; }
@@ -36,18 +43,20 @@ public:
     Def* exit() const { return exit_; }
     std::string name() const { return entry_->debug().name; }
     //@}
-    /// @name get Def%s contained in this Scope
+
+    /// @name Def%s contained/free in this Scope
     //@{
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
+
     /// All @p Def%s referenced but @em not contained in this @p Scope.
-    const DefSet& free() const;
-    /// All @p Var%s that appear free in this @p Scope.
-    const VarSet& free_vars() const;
-    /// All @em noms that appear free in this @p Scope.
-    const NomSet& free_noms() const;
-    /// Are there any free @p Var%s within this @p Scope.
-    bool has_free_vars() const { return !free_vars().empty(); }
+    const DefSet& free_defs() const;
+
+    /// Contains:
+    /// * All @p Var%s that occurr free in this @p Scope.
+    ///   Does @em not transitively contains any free @p Var%s within @p Free::noms.
+    /// * All @em noms that occurr free in this @p Scope.
+    const Free& free() const;
     //@}
     /// @name simple CFA to construct a CFG
     //@{
@@ -64,9 +73,8 @@ private:
     DefSet defs_;
     Def* entry_ = nullptr;
     Def* exit_ = nullptr;
-    mutable std::unique_ptr<DefSet> free_;
-    mutable std::unique_ptr<VarSet> free_vars_;
-    mutable std::unique_ptr<NomSet> free_noms_;
+    mutable std::unique_ptr<DefSet> free_defs_;
+    mutable std::unique_ptr<Free> free_;
     mutable std::unique_ptr<const CFA> cfa_;
 };
 

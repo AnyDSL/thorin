@@ -21,15 +21,6 @@ Scope::Scope(Def* entry)
 
 Scope::~Scope() {}
 
-Scope& Scope::update() {
-    defs_.clear();
-    free_defs_ = nullptr;
-    free_      = nullptr;
-    cfa_       = nullptr;
-    run();
-    return *this;
-}
-
 void Scope::run() {
     unique_queue<DefSet&> queue(defs_);
     queue.push(entry_->var());
@@ -42,39 +33,13 @@ void Scope::run() {
     }
 }
 
-const DefSet& Scope::free_defs() const {
-    if (!free_defs_) {
-        free_defs_ = std::make_unique<DefSet>();
-
-        unique_queue<DefSet> queue;
-        auto enqueue = [&](const Def* def) {
-            if (def->is_const()) return;
-
-            if (contains(def))
-                queue.push(def);
-            else
-                free_defs_->emplace(def);
-        };
-
-
-        for (auto op : entry()->extended_ops())
-            enqueue(op);
-
-        while (!queue.empty()) {
-            for (auto op : queue.pop()->extended_ops())
-                enqueue(op);
-        }
-    }
-
-    return *free_defs_;
-}
-
 const Scope::Free& Scope::free() const {
     if (!free_) {
         free_ = std::make_unique<Free>();
-        unique_queue<DefSet> queue;
+        unique_queue<DefSet> q_in;
+        unique_queue<DefSet> q_out;
 
-        auto enqueue = [&](const Def* def) {
+        auto enq_out = [&](const Def* def) {
             if (def->is_const()) return;
 
             if (auto var = def->isa<Var>())
@@ -82,15 +47,31 @@ const Scope::Free& Scope::free() const {
             else if (auto nom = def->isa_nom())
                 free_->noms.emplace(nom);
             else
-                queue.push(def);
+                q_out.push(def);
         };
 
-        for (auto def : free_defs())
-            enqueue(def);
+        auto enq_in = [&](const Def* def) {
+            if (def->is_const()) return;
 
-        while (!queue.empty()) {
-            for (auto op : queue.pop()->extended_ops())
-                enqueue(op);
+            if (contains(def))
+                q_in.push(def);
+            else {
+                free_->defs.emplace(def);
+                enq_out(def);
+            }
+        };
+
+        for (auto op : entry()->extended_ops())
+            enq_in(op);
+
+        while (!q_in.empty()) {
+            for (auto op : q_in.pop()->extended_ops())
+                enq_in(op);
+        }
+
+        while (!q_out.empty()) {
+            for (auto op : q_out.pop()->extended_ops())
+                enq_out(op);
         }
     }
 

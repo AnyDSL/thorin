@@ -62,9 +62,9 @@ typedef half   r16;
 typedef float  r32;
 typedef double r64;
 
-inline half        rem(half a, half b)               { return      fmod(a, b); }
-inline float       rem(float a, float b)             { return std::fmod(a, b); }
-inline double      rem(double a, double b)           { return std::fmod(a, b); }
+inline half        rem(half        a, half        b) { return      fmod(a, b); }
+inline float       rem(float       a, float       b) { return std::fmod(a, b); }
+inline double      rem(double      a, double      b) { return std::fmod(a, b); }
 inline long double rem(long double a, long double b) { return std::fmod(a, b); }
 
 #define CODE(i) \

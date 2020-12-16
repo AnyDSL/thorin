@@ -729,12 +729,6 @@ const Def* normalize_Trait(const Def*, const Def* callee, const Def* type, const
             }
         }
     } else if (type->isa<Sigma>() || type->isa<Meet>()) {
-        auto adjust_offset = [&](u64 offset, u64 align) {
-            auto mod = offset % align;
-            if (mod != 0) offset += align - mod;
-            return offset;
-        };
-
         u64 offset = 0;
         u64 align = 1;
         for (auto t : type->ops()) {
@@ -743,10 +737,10 @@ const Def* normalize_Trait(const Def*, const Def* callee, const Def* type, const
             if (!a || !s) goto out;
 
             align = std::max(align, *a);
-            offset = adjust_offset(offset, *a) + *s;
+            offset = pad(offset, *a) + *s;
         }
 
-        offset = adjust_offset(offset, align);
+        offset = pad(offset, align);
         u64 size = std::max(1_u64, offset);
 
         switch (op) {

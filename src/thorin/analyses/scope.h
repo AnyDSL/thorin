@@ -1,10 +1,7 @@
 #ifndef THORIN_ANALYSES_SCOPE_H
 #define THORIN_ANALYSES_SCOPE_H
 
-#include <vector>
-
 #include "thorin/def.h"
-#include "thorin/util/array.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
@@ -23,8 +20,9 @@ using B_CFG = CFG<false>;
 class Scope : public Streamable<Scope> {
 public:
     struct Free {
-        VarSet vars;
-        NomSet noms;
+        DefSet defs; ///< All @p Def%s directly referenced but @em not contained in this @p Scope. May also include @p Var%s or @em nominals.
+        VarSet vars; ///< All @p Var%s that occurr free in this @p Scope. Does @em not transitively contain any free @p Var%s from @p noms.
+        NomSet noms; ///< All @em noms that occurr free in this @p Scope.
     };
 
     Scope(const Scope&) = delete;
@@ -32,9 +30,6 @@ public:
 
     explicit Scope(Def* entry);
     ~Scope();
-
-    /// Invoke if you have modified sth in this Scope.
-    Scope& update();
 
     /// @name getters
     //@{
@@ -48,22 +43,16 @@ public:
     //@{
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
-
-    /// All @p Def%s referenced but @em not contained in this @p Scope.
-    const DefSet& free_defs() const;
-
-    /// Contains:
-    /// * All @p Var%s that occurr free in this @p Scope.
-    ///   Does @em not transitively contains any free @p Var%s within @p Free::noms.
-    /// * All @em noms that occurr free in this @p Scope.
     const Free& free() const;
     //@}
+
     /// @name simple CFA to construct a CFG
     //@{
     const CFA& cfa() const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     //@}
+
     Stream& stream(Stream&) const;
 
 private:
@@ -73,11 +62,11 @@ private:
     DefSet defs_;
     Def* entry_ = nullptr;
     Def* exit_ = nullptr;
-    mutable std::unique_ptr<DefSet> free_defs_;
     mutable std::unique_ptr<Free> free_;
     mutable std::unique_ptr<const CFA> cfa_;
 };
 
+/// Does @p var occurr free in @p def?
 bool is_free(const Var* var, const Def* def);
 
 }

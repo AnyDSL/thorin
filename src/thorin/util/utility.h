@@ -192,6 +192,12 @@ inline size_t bitcount(uint64_t v) {
 #endif
 }
 
+inline u64 pad(u64 offset, u64 align) {
+    auto mod = offset % align;
+    if (mod != 0) offset += align - mod;
+    return offset;
+}
+
 //@}
 
 }

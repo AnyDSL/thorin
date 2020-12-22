@@ -104,6 +104,8 @@ protected:
     std::unique_ptr<Runtime> runtime_;
     Continuation* entry_ = nullptr;
 
+    llvm::Value* current_mask = nullptr;
+
     friend class Runtime;
 };
 

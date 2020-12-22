@@ -44,6 +44,8 @@ private:
         DivergenceAnalysis(Continuation* base) : base(base) {};
         void run();
         State getUniform(const Def * def);
+
+        friend class Vectorizer;
     };
 
     World& world_;
@@ -51,6 +53,7 @@ private:
     ContinuationSet done_;
     ContinuationMap<bool> top_level_;
     Def2Def def2def_;
+    DefMap <Def *> def2def_nonconst_;
     DivergenceAnalysis * div_analysis_;
 
     size_t vector_width = 8;
@@ -639,6 +642,7 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
     new_continuation = world_.continuation(fn_type, old_continuation->debug_history());
 
     def2def_[old_continuation] = new_continuation;
+    def2def_nonconst_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
         def2def_[old_continuation->param(i)] = new_continuation->param(i);
@@ -649,8 +653,15 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
 const Def* Vectorizer::widen(const Def* old_def) {
     if (auto new_def = find(def2def_, old_def))
         return new_def;
-    else if (!widen_within(old_def))
+    else if (!widen_within(old_def)) {
+        if (auto cont = old_def->isa_continuation())
+            if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
+                auto type = old_def->type();
+                auto match = world_.match(world_.vec_type(type->op(0), vector_width), type->num_ops() - 2);
+                return def2def_[old_def] = match;
+            }
         return old_def;
+    }
     else if (auto old_continuation = old_def->isa_continuation()) {
         auto new_continuation = widen_head(old_continuation);
         widen_body(old_continuation, new_continuation);
@@ -862,6 +873,7 @@ Continuation *Vectorizer::widen() {
 
     // map value params
     def2def_[scope.entry()] = scope.entry();
+    def2def_nonconst_[kernel] = kernel;
     for (size_t i = 0, j = 0, e = scope.entry()->num_params(); i != e; ++i) {
         auto old_param = scope.entry()->param(i);
         auto new_param = ncontinuation->param(j++);
@@ -888,10 +900,10 @@ Continuation *Vectorizer::widen() {
 
     widen_body(scope.entry(), ncontinuation);
 
+#if 0
     std::queue<const Def*> queue;
     GIDSet<const Def*> done;
 
-#if 0
     std::cerr << "Widening\n";
     Rewriter vectorizer;
     for (size_t i = 0; i < ncontinuation->num_ops(); i++) {
@@ -977,13 +989,140 @@ bool Vectorizer::run() {
                 div_analysis_->run();
 
     //Task 2: Widening
-    //TODO: Uniform branches might still need masking. => Predicate generation relevant!
+    //TODO: Uniform branches might still need masking. => Predicate generation relevant! (see Task 3)
                 widen_setup(kerndef);
                 auto *vectorized = widen();
                 //auto *vectorized = clone(Scope(kerndef));
+                def2def_[kerndef] = vectorized;
+                def2def_nonconst_[kerndef] = vectorized;
+
+    //Task 3: Linearize divergent controll flow
+                for (auto it : div_analysis_->relJoins) {
+                    auto latch_old = it.first;
+                    Continuation * latch = def2def_nonconst_[latch_old]->as<Continuation>();
+                    assert(latch);
+
+                    assert (it.second.size() <= 1 && "no complex controll flow");
+                    auto join_old = *it.second.begin();
+                    Continuation * join = def2def_nonconst_[join_old]->as<Continuation>();
+                    assert(join);
+
+                    //cases according to latch: match and branch.
+                    //match:
+                    auto cont = latch->op(0)->isa_continuation();
+                    if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
+                        const Def * otherwise_old = latch_old->op(2);
+                        Continuation * otherwise = def2def_nonconst_[otherwise_old]->as<Continuation>();
+                        assert(otherwise);
+
+                    //  rewire match to "otherwise" with acording predicat.
+                        auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
+                        auto new_jump = world_.predicated(vec_mask);
+
+                        const Def *mem = otherwise->arg(0);
+
+                        Array<const Def *> join_cache(otherwise->num_args() - 1); //TODO: otherwise might call some other continuation at first.
+
+                        for (size_t i = 0; i < otherwise->num_args() - 1; i++) {
+                            auto t = world_.alloc(otherwise->arg(i + 1)->type(), mem);
+                            mem = world_.extract(t, (int) 0);
+                            join_cache[i] = world_.extract(t, 1);
+                        }
+
+                        auto variant_index = latch->arg(0);
+
+                        Array<const Def*> predicates(latch->num_args() - 1);
+                        for (size_t i = 1; i < latch->num_args() - 1; i++) {
+                            auto elem = latch->arg(i + 1);
+                            auto val = elem->as<Tuple>()->op(0)->as<PrimLit>();
+                            Array<const Def *> elements(vector_width);
+                            for (size_t i = 0; i < vector_width; i++) {
+                                elements[i] = val;
+                            }
+                            auto val_vec = world_.vector(elements);
+                            auto pred = world_.cmp(Cmp_eq, variant_index, val_vec);
+                            predicates[i] = pred;
+                        }
+                        predicates[0] = predicates[1];
+                        for (size_t i = 2; i < latch->num_args() - 1; i++) {
+                            predicates[0] = world_.binop(ArithOp_or, predicates[0], predicates[i]);
+                        }
+                        predicates[0] = world_.arithop_not(predicates[0]);
+
+                        auto mem_back = mem;
+
+                        Continuation *last_case = otherwise;
+                    //  for each case of match:
+                        for (size_t i = 2; i < latch->num_args(); i++) {
+                            const Continuation* case_cont_old = latch_old->arg(i)->as<Tuple>()->op(1)->as<Continuation>();
+                            Continuation* case_cont = def2def_nonconst_[case_cont_old]->as<Continuation>();
+                            assert(case_cont);
+
+                            Scope case_scope (last_case);
+                    //      for calls to join in scope of last_case.
+                            for (auto pred : join->preds()) {
+                                if (!case_scope.contains(pred))
+                                    continue;
+
+                    //          rewire to case, build next predicat.
+                                auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
+                                auto new_jump = world_.predicated(vec_mask); //TODO: Will require the memory for ordering purposes in the near future.
+
+                                for (size_t j = 1; j < pred->num_args(); j++) {
+                                    mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                                }
+
+                                pred->jump(new_jump, { mem, predicates[i - 1], case_cont }, latch->jump_location());
+                            }
+
+                            last_case = case_cont;
+                        }
+
+                        Continuation * pre_join = world_.continuation(Debug(Symbol("match_merge")));
+                        {
+                            Scope case_scope (last_case);
+                    //      for calls to join in scope of last_case.
+                            for (auto pred : join->preds()) {
+                                if (!case_scope.contains(pred))
+                                    continue;
+                    //          rewire to join, discarding predicates.
+                                auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
+                                auto new_jump = world_.predicated(vec_mask);
+
+                                //TODO: Create bool vector for predicate.
+                                auto true_elem = world_.one(world_.type_bool());
+                                Array<const Def *> elements(vector_width);
+                                for (size_t i = 0; i < vector_width; i++) {
+                                    elements[i] = true_elem;
+                                }
+                                auto predicate = world_.vector(elements);
+
+                                for (size_t j = 1; j < pred->num_args(); j++) {
+                                    mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                                }
+
+                                //TODO: transform the parameters from jump.
+                                pred->jump(new_jump, { mem, predicate, pre_join }, latch->jump_location());
+                            }
+                        }
+
+                        Array<const Def*> join_params(join->num_params());
+                        for (size_t i = 1; i < join->num_params(); i++) {
+                            auto load = world_.load(mem, join_cache[i - 1]);
+                            auto value = world_.extract(load, (int) 1);
+                            mem = world_.extract(load, (int) 0);
+                            join_params[i] = value;
+                        }
+                        join_params[0] = mem;
+                        pre_join->jump(join, join_params, latch->jump_location());
+
+                        latch->jump(new_jump, { mem_back, predicates[0], otherwise }, latch->jump_location());
+                    }
+                }
 
                 delete div_analysis_;
 
+    //Task 4: Rewrite vectorize call
                 if (vectorized) {
                     for (auto caller : cont->preds()) {
                         Array<const Def*> args(vectorized->num_params());

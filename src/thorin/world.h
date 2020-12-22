@@ -69,7 +69,7 @@ public:
     const Def* one(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 1, dbg, length); }
     const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
-    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1);
     const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(type, dbg)), length); }
     const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
@@ -181,6 +181,7 @@ public:
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
+    Continuation* predicated(const Type* type);
     Continuation* end_scope() const { return end_scope_; }
 
     /// Performs dead code, unreachable code and unused type elimination.

@@ -55,6 +55,11 @@ World::~World() {
 }
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
+    if (auto type = value->type()->isa<VectorExtendedType>()) {
+        auto newtype = vec_type(type_qu64(), type->length());
+        return cse(new VariantIndex(newtype, value, dbg));
+    }
+
     if (auto variant = value->isa<Variant>())
         return literal_qu64(variant->index(), dbg);
     return cse(new VariantIndex(type_qu64(), value, dbg));
@@ -94,6 +99,20 @@ const Def* World::allset(PrimTypeTag tag, Debug dbg, size_t length) {
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
+}
+
+const Def* World::allset(const Type* type, Debug dbg, size_t length) {
+    if (auto prim = type->isa<PrimType>())
+        return allset(prim->primtype_tag(), dbg, length);
+    else if (auto vec = type->isa<VectorExtendedType>()) {
+        auto all = allset(vec->element(), dbg, 1);
+        Array<const Def*> elements(length);
+        for (size_t i = 0; i < length; i++) {
+            elements[i] = all;
+        }
+        return vector(elements);
+    }
+    THORIN_UNREACHABLE;
 }
 
 /*
@@ -928,11 +947,22 @@ Continuation* World::continuation(const FnType* fn, Continuation::Attributes att
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
+    const Type* index_type = type;
+    if (auto vec = type->isa<VectorExtendedType>())
+        index_type = vec->element();
     arg_types[0] = type;
     arg_types[1] = fn_type();
     for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = tuple_type({type, fn_type()});
+        arg_types[i + 2] = tuple_type({index_type, fn_type()});
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
+}
+
+Continuation* World::predicated(const Type* type) {
+    Array<const Type*> arg_types(3);
+    arg_types[0] = mem_type();
+    arg_types[1] = type;
+    arg_types[2] = fn_type();
+    return continuation(fn_type(arg_types), Intrinsic::Predicated, {"predicated"});
 }
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {

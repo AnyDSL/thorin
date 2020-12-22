@@ -20,7 +20,7 @@ PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
 {}
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp((NodeTag) tag, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+    : BinOp((NodeTag) tag, (vector_length(lhs->type()) != 1) ? (Type*)lhs->world().vec_type(lhs->world().type_bool(), vector_length(lhs->type())) : (Type*)lhs->world().type_bool(1), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)

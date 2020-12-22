@@ -434,6 +434,7 @@ public:
     const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
 #include "thorin/tables/primtypetable.h"
     const PrimType* type(PrimTypeTag tag, size_t length = 1) {
+        assert(length == 1);
         size_t i = tag - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
         return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length));

@@ -449,6 +449,16 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     auto case_bb    = bb2continuation[arg->op(1)->as_continuation()];
                     match->addCase(case_const, case_bb);
                 }
+            } else if (continuation->callee()->isa<Continuation>() &&
+                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated) {
+                auto llvm_mask = continuation->arg(1);
+                if (llvm_mask->isa<Vector>()) { //TODO: check for other constants than <n x true>!
+                    current_mask = nullptr;
+                } else {
+                    current_mask = lookup(continuation->arg(1));
+                }
+                auto target_bb = bb2continuation[continuation->arg(2)->as_continuation()];
+                irbuilder_.CreateBr(target_bb);
             } else if (continuation->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {
@@ -877,6 +887,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
+            if (auto vec_type = type->isa<VectorExtendedType>())
+                type = vec_type->element();
             if (is_type_s(type)) {
                 switch (cmp->cmp_tag()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
@@ -1204,6 +1216,24 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_value    = lookup(variant_value);
         auto payload_value = irbuilder_.CreateExtractValue(llvm_value, { 0 });
 
+        if (auto vec_type = variant_value->type()->isa<VectorExtendedType>()) { //TODO: the included type might be more complex then what's currently implemented.
+            auto vector_width = vec_type->length();
+
+            auto target_type_thorin = world_.vec_type(vec_type->element()->op(variant_extract->index()), vector_width);
+            auto target_type = convert(target_type_thorin);
+
+            //auto inner_target_type = convert(vec_type->element()->op(variant_extract->index()));
+            llvm::Value* target = llvm::UndefValue::get(target_type);
+            for (size_t lane = 0; lane < vector_width; lane++) {
+                auto inner_value = irbuilder_.CreateExtractElement(payload_value, lane);
+
+                //auto target_value = createComplexCast(inner_value, inner_target_type, 0);
+                //target = irbuilder_.CreateInsertValue(target, target_value, lane);
+
+                target = irbuilder_.CreateInsertElement(target, inner_value, lane);
+            }
+            return target;
+        } else {
         auto target_type = convert(variant_value->type()->op(variant_extract->index()));
 #if 1
         auto target_value = createComplexCast(payload_value, target_type, 0);
@@ -1216,6 +1246,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return irbuilder_.CreateLoad(payload_addr);
         });
 #endif
+        }
     }
     if (auto variant_ctor = def->isa<Variant>()) {
         auto layout = module_->getDataLayout();
@@ -1418,19 +1449,26 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
                 auto llvm_element = irbuilder_.CreateExtractValue(llvm_value, { i });
 
                 auto gep = newgeps[i];
-                auto scatter = irbuilder_.CreateMaskedScatter(llvm_element, gep, llvm::MaybeAlign(align).getValue());
+                auto scatter = irbuilder_.CreateMaskedScatter(llvm_element, gep, llvm::MaybeAlign(align).getValue(), current_mask);
                 result = scatter;
             }
             //By this point, result only contains the last scatter that was generated, but this shoult be fine.
         } else {
             auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-            auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue());
+            auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue(), current_mask);
             result = scatter;
         }
     } else {
-        auto storeval = irbuilder_.CreateStore(lookup(store->val()), ptr);
-        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-        storeval->setAlignment(llvm::MaybeAlign(align).getValue());
+        llvm::Value *storeval;
+        llvm::Value *value = lookup(store->val());
+        auto align = llvm::MaybeAlign(module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType())).getValue();
+        if (current_mask && value->getType()->isVectorTy()) {
+            storeval = irbuilder_.CreateMaskedStore(value, ptr, align, current_mask);
+        } else {
+            auto storeval_align = irbuilder_.CreateStore(value, ptr);
+            storeval_align->setAlignment(align);
+            storeval = storeval_align;
+        }
         result = storeval;
     }
     return result;

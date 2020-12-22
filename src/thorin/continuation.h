@@ -101,6 +101,7 @@ enum class Intrinsic : uint8_t {
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
+    Predicated,                 ///< predicated(predicate, continuation)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };

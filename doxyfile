@@ -1,3 +1,69 @@
 @INCLUDE               = ../layout/doxyfile.skeleton
 
 PROJECT_NAME           = Thorin
+
+# To ensure clickable links
+DOT_IMAGE_FORMAT       = svg
+
+# ToDos (normal way would be /* @todo */ or // \todo
+INPUT_FILTER = "sed -e 's/\/\/.*TODO/\/\/\/ \\todo/'"
+
+# If the EXTRACT_ALL tag is set to YES doxygen will assume all entities in
+# documentation are documented, even if no documentation was available.
+# Private class members and static file members will be hidden unless
+# the EXTRACT_PRIVATE and EXTRACT_STATIC tags are set to YES
+
+EXTRACT_ALL            = YES
+
+# If the EXTRACT_PRIVATE tag is set to YES all private members of a class
+# will be included in the documentation.
+
+EXTRACT_PRIVATE        = YES
+
+# If the EXTRACT_STATIC tag is set to YES all static members of a file
+# will be included in the documentation.
+
+EXTRACT_STATIC         = YES
+
+# If the EXTRACT_LOCAL_CLASSES tag is set to YES classes (and structs)
+# defined locally in source files will be included in the documentation.
+# If set to NO only classes defined in header files are included.
+
+EXTRACT_LOCAL_CLASSES  = YES
+
+# This flag is only useful for Objective-C code. When set to YES local
+# methods, which are defined in the implementation section but not in
+# the interface are included in the documentation.
+# If set to NO (the default) only methods in the interface are included.
+
+EXTRACT_LOCAL_METHODS  = YES
+
+# If this flag is set to YES, the members of anonymous namespaces will be
+# extracted and appear in the documentation as a namespace called
+# 'anonymous_namespace{file}', where file will be replaced with the base
+# name of the file that contains the anonymous namespace. By default
+# anonymous namespace are hidden.
+
+EXTRACT_ANON_NSPACES   = YES
+
+# If the HIDE_UNDOC_MEMBERS tag is set to YES, Doxygen will hide all
+# undocumented members of documented classes, files or namespaces.
+# If set to NO (the default) these members will be included in the
+# various overviews, but no documentation section is generated.
+# This option has no effect if EXTRACT_ALL is enabled.
+
+HIDE_UNDOC_MEMBERS     = NO
+
+# If the HIDE_UNDOC_CLASSES tag is set to YES, Doxygen will hide all
+# undocumented classes that are normally visible in the class hierarchy.
+# If set to NO (the default) these classes will be included in the various
+# overviews. This option has no effect if EXTRACT_ALL is enabled.
+
+HIDE_UNDOC_CLASSES     = NO
+
+# If the HIDE_FRIEND_COMPOUNDS tag is set to YES, Doxygen will hide all
+# friend (class|struct|union) declarations.
+# If set to NO (the default) these declarations will be included in the
+# documentation.
+
+HIDE_FRIEND_COMPOUNDS  = NO

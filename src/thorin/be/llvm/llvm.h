@@ -32,6 +32,7 @@ public:
 
 protected:
     virtual void optimize(int opt);
+    void verify() const;
 
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);

@@ -526,9 +526,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     rv::lowerIntrinsics(*module_);
 #endif
 
-#if THORIN_ENABLE_CHECKS
-    llvm::verifyModule(*module_);
-#endif
+    verify();
     optimize(opt);
 
     return module_;
@@ -537,6 +535,16 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 void CodeGen::emit(std::ostream& stream, int opt, bool debug) {
     llvm::raw_os_ostream llvm_stream(stream);
     emit(opt, debug)->print(llvm_stream, nullptr);
+}
+
+void CodeGen::verify() const {
+#if THORIN_ENABLE_CHECKS
+    if (llvm::verifyModule(*module_, &llvm::errs())) {
+        module_->print(llvm::errs(), nullptr, false, true);
+        llvm::errs() << "Broken module:\n";
+        abort();
+    }
+#endif
 }
 
 void CodeGen::optimize(int opt) {

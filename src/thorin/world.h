@@ -72,7 +72,7 @@ public:
     const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1);
     const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(type, dbg)), length); }
     const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
-    const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
+    const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(prim_type(tag), dbg, length); }
 
     // arithops
 

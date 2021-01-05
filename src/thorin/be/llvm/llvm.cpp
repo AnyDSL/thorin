@@ -387,6 +387,16 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             assert(continuation == entry_ || continuation->is_basicblock());
             irbuilder_.SetInsertPoint(bb2continuation[continuation]);
 
+            llvm::BasicBlock *body_block, *terminate_block;
+
+            if(current_mask != nullptr) {
+                body_block = llvm::BasicBlock::Create(*context_, (continuation->name() + "_body").c_str(), fct);
+                terminate_block = llvm::BasicBlock::Create(*context_, (continuation->name() + "_term").c_str(), fct);
+                llvm::Value *any_set = irbuilder_.CreateOrReduce(lookup(current_mask));
+                irbuilder_.CreateCondBr(any_set, body_block, terminate_block);
+                irbuilder_.SetInsertPoint(body_block);
+            }
+
             for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc(llvm::DILocation::get(*context_, primop->location().front_line(), primop->location().front_col(), discope)));
@@ -397,8 +407,25 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     THORIN_UNREACHABLE;
                 }
 
-                auto llvm_value = emit(primop);
-                primops_[primop] = llvm_value;
+                bool local_emit = true;
+
+                Scope block_scope(continuation);
+                if (continuation &&
+                        continuation->callee()->isa<Continuation>() &&
+                        continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated &&
+                        continuation->arg(1) == primop)
+                    local_emit = false;
+
+                if (local_emit) {
+                    auto llvm_value = emit(primop);
+                    primops_[primop] = llvm_value;
+                }
+
+            }
+
+            if(current_mask != nullptr) {
+                irbuilder_.CreateBr(terminate_block);
+                irbuilder_.SetInsertPoint(terminate_block);
             }
 
             // terminate bb
@@ -451,11 +478,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 }
             } else if (continuation->callee()->isa<Continuation>() &&
                        continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated) {
-                auto llvm_mask = continuation->arg(1);
-                if (llvm_mask->isa<Vector>()) { //TODO: check for other constants than <n x true>!
+                auto mask = continuation->arg(1);
+                if (mask->isa<Vector>()) { //TODO: check for other constants than <n x true>!
                     current_mask = nullptr;
                 } else {
-                    current_mask = lookup(continuation->arg(1));
+                    current_mask = mask;
                 }
                 auto target_bb = bb2continuation[continuation->arg(2)->as_continuation()];
                 irbuilder_.CreateBr(target_bb);
@@ -638,6 +665,8 @@ void CodeGen::optimize(int opt) {
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {
+    if (def == nullptr)
+        return nullptr;
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = thorin::find(primops_, primop))
             return res;
@@ -1449,13 +1478,13 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
                 auto llvm_element = irbuilder_.CreateExtractValue(llvm_value, { i });
 
                 auto gep = newgeps[i];
-                auto scatter = irbuilder_.CreateMaskedScatter(llvm_element, gep, llvm::MaybeAlign(align).getValue(), current_mask);
+                auto scatter = irbuilder_.CreateMaskedScatter(llvm_element, gep, llvm::MaybeAlign(align).getValue(), lookup(current_mask));
                 result = scatter;
             }
             //By this point, result only contains the last scatter that was generated, but this shoult be fine.
         } else {
             auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-            auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue(), current_mask);
+            auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue(), lookup(current_mask));
             result = scatter;
         }
     } else {
@@ -1463,7 +1492,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
         llvm::Value *value = lookup(store->val());
         auto align = llvm::MaybeAlign(module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType())).getValue();
         if (current_mask && value->getType()->isVectorTy()) {
-            storeval = irbuilder_.CreateMaskedStore(value, ptr, align, current_mask);
+            storeval = irbuilder_.CreateMaskedStore(value, ptr, align, lookup(current_mask));
         } else {
             auto storeval_align = irbuilder_.CreateStore(value, ptr);
             storeval_align->setAlignment(align);

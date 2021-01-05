@@ -53,7 +53,6 @@ private:
     ContinuationSet done_;
     ContinuationMap<bool> top_level_;
     Def2Def def2def_;
-    DefMap <Def *> def2def_nonconst_;
     DivergenceAnalysis * div_analysis_;
 
     size_t vector_width = 8;
@@ -642,7 +641,6 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
     new_continuation = world_.continuation(fn_type, old_continuation->debug_history());
 
     def2def_[old_continuation] = new_continuation;
-    def2def_nonconst_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
         def2def_[old_continuation->param(i)] = new_continuation->param(i);
@@ -873,7 +871,6 @@ Continuation *Vectorizer::widen() {
 
     // map value params
     def2def_[scope.entry()] = scope.entry();
-    def2def_nonconst_[kernel] = kernel;
     for (size_t i = 0, j = 0, e = scope.entry()->num_params(); i != e; ++i) {
         auto old_param = scope.entry()->param(i);
         auto new_param = ncontinuation->param(j++);
@@ -994,17 +991,27 @@ bool Vectorizer::run() {
                 auto *vectorized = widen();
                 //auto *vectorized = clone(Scope(kerndef));
                 def2def_[kerndef] = vectorized;
-                def2def_nonconst_[kerndef] = vectorized;
 
     //Task 3: Linearize divergent controll flow
                 for (auto it : div_analysis_->relJoins) {
                     auto latch_old = it.first;
-                    Continuation * latch = def2def_nonconst_[latch_old]->as<Continuation>();
+                    Continuation * latch = const_cast<Continuation*>(def2def_[latch_old]->as<Continuation>());
                     assert(latch);
 
                     assert (it.second.size() <= 1 && "no complex controll flow");
                     auto join_old = *it.second.begin();
-                    Continuation * join = def2def_nonconst_[join_old]->as<Continuation>();
+                    Continuation *join;
+                    if(join_old == *it.second.end()) {
+                        //Only possible option is that all cases call return directly.
+                        const FnType* join_type = world_.fn_type({world_.mem_type()});
+                        join = world_.continuation(join_type, Debug(Symbol("match_join")));
+                        auto return_intrinsic = vectorized->param(2);
+                        //TODO: only replace calls that are dominated by latch.
+                        return_intrinsic->replace(join);
+                        join->jump(return_intrinsic, {join->param(0)});
+                    } else {
+                       join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
+                    }
                     assert(join);
 
                     //cases according to latch: match and branch.
@@ -1012,7 +1019,7 @@ bool Vectorizer::run() {
                     auto cont = latch->op(0)->isa_continuation();
                     if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
                         const Def * otherwise_old = latch_old->op(2);
-                        Continuation * otherwise = def2def_nonconst_[otherwise_old]->as<Continuation>();
+                        Continuation * otherwise = const_cast<Continuation*>(def2def_[otherwise_old]->as<Continuation>());
                         assert(otherwise);
 
                     //  rewire match to "otherwise" with acording predicat.
@@ -1020,14 +1027,27 @@ bool Vectorizer::run() {
                         auto new_jump = world_.predicated(vec_mask);
 
                         const Def *mem = otherwise->arg(0);
+                        auto mem_back = mem;
 
                         Array<const Def *> join_cache(otherwise->num_args() - 1); //TODO: otherwise might call some other continuation at first.
 
                         for (size_t i = 0; i < otherwise->num_args() - 1; i++) {
                             auto t = world_.alloc(otherwise->arg(i + 1)->type(), mem);
                             mem = world_.extract(t, (int) 0);
+                            for (auto& use : mem_back->copy_uses()) {
+                                if (use.def() == t)
+                                    continue;
+                                auto def = const_cast<Def*>(use.def());
+                                auto index = use.index();
+                                def->unset_op(index);
+                                def->set_op(index, mem);
+                            }
+                            mem_back = mem;
                             join_cache[i] = world_.extract(t, 1);
                         }
+
+                        mem_back = mem;
+                        auto mem_first_case = mem;
 
                         auto variant_index = latch->arg(0);
 
@@ -1049,13 +1069,11 @@ bool Vectorizer::run() {
                         }
                         predicates[0] = world_.arithop_not(predicates[0]);
 
-                        auto mem_back = mem;
-
                         Continuation *last_case = otherwise;
                     //  for each case of match:
                         for (size_t i = 2; i < latch->num_args(); i++) {
                             const Continuation* case_cont_old = latch_old->arg(i)->as<Tuple>()->op(1)->as<Continuation>();
-                            Continuation* case_cont = def2def_nonconst_[case_cont_old]->as<Continuation>();
+                            Continuation* case_cont = const_cast<Continuation*>(def2def_[case_cont_old]->as<Continuation>());
                             assert(case_cont);
 
                             Scope case_scope (last_case);
@@ -1066,10 +1084,37 @@ bool Vectorizer::run() {
 
                     //          rewire to case, build next predicat.
                                 auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
-                                auto new_jump = world_.predicated(vec_mask); //TODO: Will require the memory for ordering purposes in the near future.
+                                auto new_jump = world_.predicated(vec_mask);
+
+                                //get old mem parameter, if possible.
+                                if (pred->arg(0)->type()->isa<MemType>()) {
+                                    mem = pred->arg(0);
+                                }
 
                                 for (size_t j = 1; j < pred->num_args(); j++) {
                                     mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+
+                                    for (auto& use : mem_back->copy_uses()) { //TODO: be more efficient, perform this step at the end!
+                                        if (use.def() == mem)
+                                            continue;
+                                        auto def = const_cast<Def*>(use.def());
+                                        auto index = use.index();
+                                        def->unset_op(index);
+                                        def->set_op(index, mem);
+                                    }
+                                    mem_back = mem;
+                                }
+
+                                if (mem_back != mem) {
+                                    for (auto& use : mem_back->copy_uses()) {
+                                        if (use.def() == mem)
+                                            continue;
+                                        auto def = const_cast<Def*>(use.def());
+                                        auto index = use.index();
+                                        def->unset_op(index);
+                                        def->set_op(index, mem);
+                                    }
+                                    mem_back = mem;
                                 }
 
                                 pred->jump(new_jump, { mem, predicates[i - 1], case_cont }, latch->jump_location());
@@ -1097,6 +1142,10 @@ bool Vectorizer::run() {
                                 }
                                 auto predicate = world_.vector(elements);
 
+                                if (pred->arg(0)->type()->isa<MemType>()) {
+                                    mem = pred->arg(0);
+                                }
+
                                 for (size_t j = 1; j < pred->num_args(); j++) {
                                     mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
                                 }
@@ -1116,7 +1165,7 @@ bool Vectorizer::run() {
                         join_params[0] = mem;
                         pre_join->jump(join, join_params, latch->jump_location());
 
-                        latch->jump(new_jump, { mem_back, predicates[0], otherwise }, latch->jump_location());
+                        latch->jump(new_jump, { mem_first_case, predicates[0], otherwise }, latch->jump_location());
                     }
                 }
 

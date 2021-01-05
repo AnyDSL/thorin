@@ -19,7 +19,7 @@ public:
 
 private:
     const Def* mangle(const Def*);
-    bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
+    bool within(const Def* def) { return scope().bound(def) || defs_.contains(def); }
 
     const Scope& scope_;
     Defs args_;

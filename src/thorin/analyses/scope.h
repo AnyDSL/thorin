@@ -19,12 +19,6 @@ using B_CFG = CFG<false>;
  */
 class Scope : public Streamable<Scope> {
 public:
-    struct Free {
-        DefSet defs; ///< All @p Def%s directly referenced but @em not contained in this @p Scope. May also include @p Var%s or @em nominals.
-        VarSet vars; ///< All @p Var%s that occurr free in this @p Scope. Does @em not transitively contain any free @p Var%s from @p noms.
-        NomSet noms; ///< All @em noms that occurr free in this @p Scope.
-    };
-
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
@@ -39,11 +33,13 @@ public:
     std::string name() const { return entry_->debug().name; }
     //@}
 
-    /// @name Def%s contained/free in this Scope
+    /// @name Def%s bound/free in this Scope
     //@{
-    const DefSet& defs() const { return defs_; }
-    bool contains(const Def* def) const { return defs_.contains(def); }
-    const Free& free() const;
+    bool bound(const Def* def) const { return bound().contains(def); }
+    const DefSet& bound()     const { calc_bound(); return bound_;     } ///< All @p Def%s within this @p Scope.
+    const DefSet& free_defs() const { calc_bound(); return free_defs_; } ///< All @em non-const @p Def%s @em directly referenced but @em not @p bound within this @p Scope. May also include @p Var%s or @em noms.
+    const VarSet& free_vars() const { calc_free (); return free_vars_; } ///< All @p Var%s that occurr free in this @p Scope. Does @em not transitively contain any free @p Var%s from @p noms.
+    const NomSet& free_noms() const { calc_free (); return free_noms_; } ///< All @em noms that occurr free in this @p Scope.
     //@}
 
     /// @name simple CFA to construct a CFG
@@ -57,12 +53,18 @@ public:
 
 private:
     void run();
+    void calc_bound() const;
+    void calc_free() const;
 
     World& world_;
-    DefSet defs_;
     Def* entry_ = nullptr;
-    Def* exit_ = nullptr;
-    mutable std::unique_ptr<Free> free_;
+    Def* exit_  = nullptr;
+    mutable bool has_bound_ = false;
+    mutable bool has_free_  = false;
+    mutable DefSet bound_;
+    mutable DefSet free_defs_;
+    mutable VarSet free_vars_;
+    mutable NomSet free_noms_;
     mutable std::unique_ptr<const CFA> cfa_;
 };
 

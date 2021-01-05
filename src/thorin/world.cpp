@@ -689,7 +689,7 @@ void World::visit(VisitFn f) const {
         Scope scope(nom);
         f(scope);
 
-        for (auto nom : scope.free().noms)
+        for (auto nom : scope.free_noms())
             noms.push(nom);
     }
 }

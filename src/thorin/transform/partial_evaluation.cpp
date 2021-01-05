@@ -132,10 +132,10 @@ public:
         Scope scope(lam);
         unique_queue<DefSet> queue;
 
-        if (!scope.free().vars.empty())
+        if (!scope.free_vars().empty())
             return top_level_[lam] = false;
 
-        for (auto nom : scope.free().noms) {
+        for (auto nom : scope.free_noms()) {
             if (auto free_cn = nom->isa<Lam>()) {
                 if (!is_top_level(free_cn))
                     return top_level_[lam] = false;

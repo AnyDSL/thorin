@@ -7,7 +7,7 @@ namespace thorin {
 
 const Def* Rewriter::rewrite(const Def* old_def) {
     if (auto new_def = old2new.lookup(old_def)) return *new_def;
-    if (scope != nullptr && !scope->contains(old_def)) return old_def;
+    if (scope != nullptr && !scope->bound(old_def)) return old_def;
 
     auto new_type = rewrite(old_def->type());
     auto new_dbg = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;

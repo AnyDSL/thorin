@@ -34,7 +34,7 @@ std::vector<Lam*> succs(Lam* lam) {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto lam = def->isa_nominal<Lam>()) {
+        if (auto lam = def->isa_nom<Lam>()) {
             succs.push_back(lam);
             continue;
         }
@@ -80,10 +80,10 @@ public:
         , top_level_(top_level)
     {
         //assert(callee->filter().empty() || callee->filter().size() == args.size());
-        assert(callee->num_params() == args.size());
+        assert(callee->num_vars() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            old2new_[callee->param(i)] = args[i];
+            old2new_[callee->var(i)] = args[i];
     }
 
     World& world() { return callee_->world(); }
@@ -91,7 +91,7 @@ public:
         if (auto ndef = old2new_.lookup(odef))
             return *ndef;
 
-        if (!odef->isa_nominal()) {
+        if (!odef->isa_nom()) {
             Array<const Def*> nops(odef->num_ops());
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
@@ -104,14 +104,14 @@ public:
     }
 
     bool eval(size_t i, bool lower2cff) {
-        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level lam
-        // all other parameters need specialization (lower2cff)
-        auto order = callee_->param(i)->type()->order();
+        // the only higher order var that is allowed is a single 1st-order fn-var of a top-level lam
+        // all other vars need specialization (lower2cff)
+        auto order = callee_->var(i)->type()->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<Pi>()
+                        && (!callee_->var(i)->type()->isa<Pi>()
                         || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
+            world().DLOG("bad var({}) {} of lam {}", i, callee_->var(i), callee_);
             return true;
         }
 
@@ -124,11 +124,6 @@ public:
 
     const Def* filter(size_t /*i*/) { return callee_->filter(); }
 
-    bool has_free_params(Lam* lam) {
-        Scope scope(lam);
-        return scope.has_free_params();
-    }
-
     bool is_top_level(Lam* lam) {
         auto p = top_level_.emplace(lam, true);
         if (!p.second)
@@ -137,20 +132,13 @@ public:
         Scope scope(lam);
         unique_queue<DefSet> queue;
 
-        for (auto def : scope.free())
-            queue.push(def);
+        if (!scope.free().vars.empty())
+            return top_level_[lam] = false;
 
-        while (!queue.empty()) {
-            auto def = queue.pop();
-
-            if (def->isa<Param>())
-                return top_level_[lam] = false;
-            if (auto free_cn = def->isa_nominal<Lam>()) {
+        for (auto nom : scope.free().noms) {
+            if (auto free_cn = nom->isa<Lam>()) {
                 if (!is_top_level(free_cn))
                     return top_level_[lam] = false;
-            } else {
-                for (auto op : def->ops())
-                    queue.push(op);
             }
         }
 
@@ -174,7 +162,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto lam = next->isa_nominal<Lam>()) {
+    } else if (auto lam = next->isa_nom<Lam>()) {
         queue_.push(lam);
     }
 }
@@ -204,7 +192,7 @@ bool PartialEvaluator::run() {
             callee_def = run->arg();
         }
 
-        if (auto callee = callee_def->isa_nominal<Lam>()) {
+        if (auto callee = callee_def->isa_nom<Lam>()) {
             // TODO
             //if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                 //eat_pe_info(lam);
@@ -223,7 +211,7 @@ bool PartialEvaluator::run() {
                         args[i] = app->arg(i);
                         fold = true;
                     } else {
-                        args[i] = world().top(callee->param(i)->type());
+                        args[i] = world().top(callee->var(i)->type());
                     }
                 }
 

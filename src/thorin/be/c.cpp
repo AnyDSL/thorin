@@ -284,11 +284,11 @@ void CCodeGen::emit() {
 
         assert(lam->is_returning());
 
-        auto ret_param = lam->ret_param();
+        auto ret_var = lam->ret_var();
 
         // emit function & its declaration
-        auto ret_param_cn_type = ret_param->type()->as<Pi>();
-        auto ret_type = ret_param_cn_type->num_ops() > 2 ? world_.sigma(ret_param_cn_type->ops().skip_front()) : ret_param_cn_type->ops().back();
+        auto ret_var_cn_type = ret_var->type()->as<Pi>();
+        auto ret_type = ret_var_cn_type->num_ops() > 2 ? world_.sigma(ret_var_cn_type->ops().skip_front()) : ret_var_cn_type->ops().back();
         auto name = (lam->is_external() || lam->is_empty()) ? lam->name() : lam->unique_name();
         if (lam->is_external()) {
             auto config = kernel_config_.find(lam);
@@ -326,19 +326,19 @@ void CCodeGen::emit() {
         emit_type(func_impl_,  ret_type) << " " << name << "(";
         size_t fi = 0;
         std::string hls_pragmas;
-        // emit and store all first-order params
-        for (auto param : lam->params()) {
-            if (is_mem(param) || is_unit(param))
+        // emit and store all first-order vars
+        for (auto var : lam->vars()) {
+            if (is_mem(var) || is_unit(var))
                 continue;
-            if (param->type()->order() == 0) {
-                emit_aggop_decl(param->type());
-                if (is_texture_type(param->type())) {
+            if (var->type()->order() == 0) {
+                emit_aggop_decl(var->type());
+                if (is_texture_type(var->type())) {
                     // emit texture declaration for CUDA
                     type_decls_ << "texture<";
-                    emit_type(type_decls_, param->type()->as<PtrType>()->pointee());
+                    emit_type(type_decls_, var->type()->as<PtrType>()->pointee());
                     type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
-                    type_decls_ << param->name() << ";" << endl;
-                    insert(param, param->name().str());
+                    type_decls_ << var->name() << ";" << endl;
+                    insert(var, var->name().str());
                     // skip arrays bound to texture memory
                     continue;
                 }
@@ -356,38 +356,38 @@ void CCodeGen::emit() {
                 }
 
                 if (lang_ == Lang::OPENCL && lam->is_external() &&
-                    (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<Sigma>())) {
-                    // structs are passed via buffer; the parameter is a pointer to this buffer
+                    (var->type()->isa<DefiniteArrayType>() ||
+                     var->type()->isa<Sigma>())) {
+                    // structs are passed via buffer; the var is a pointer to this buffer
                     func_decls_ << "__global ";
                     func_impl_  << "__global ";
-                    emit_type(func_decls_, param->type()) << " *";
-                    emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
-                } else if (lang_ == Lang::HLS && lam->is_external() && param->type()->isa<PtrType>()) {
-                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+                    emit_type(func_decls_, var->type()) << " *";
+                    emit_type(func_impl_,  var->type()) << " *" << var->unique_name() << "_";
+                } else if (lang_ == Lang::HLS && lam->is_external() && var->type()->isa<PtrType>()) {
+                    auto array_size = config->as<HLSKernelConfig>()->var_size(var);
                     assert(array_size > 0);
-                    auto ptr_type = param->type()->as<PtrType>();
+                    auto ptr_type = var->type()->as<PtrType>();
                     auto elem_type = ptr_type->pointee();
                     if (auto array_type = elem_type->isa<ArrayType>())
                         elem_type = array_type->elem_type();
                     emit_type(func_decls_, elem_type) << "[" << array_size << "]";
-                    emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    emit_type(func_impl_,  elem_type) << " " << var->unique_name() << "[" << array_size << "]";
                     if (elem_type->isa<Sigma>() || elem_type->isa<DefiniteArrayType>())
-                        hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+                        hls_pragmas += "#pragma HLS data_pack variable=" + var->unique_name() + " struct_level\n";
                 } else {
                     std::string qualifier;
                     // add restrict qualifier when possible
                     if ((lang_ == Lang::OPENCL || lang_ == Lang::CUDA) &&
                         config && config->as<GPUKernelConfig>()->has_restrict() &&
-                        param->type()->isa<PtrType>()) {
+                        var->type()->isa<PtrType>()) {
                         qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
                     }
-                    emit_addr_space(func_decls_, param->type());
-                    emit_addr_space(func_impl_,  param->type());
-                    emit_type(func_decls_, param->type()) << qualifier;
-                    emit_type(func_impl_,  param->type()) << qualifier << " " << param->unique_name();
+                    emit_addr_space(func_decls_, var->type());
+                    emit_addr_space(func_impl_,  var->type());
+                    emit_type(func_decls_, var->type()) << qualifier;
+                    emit_type(func_impl_,  var->type()) << qualifier << " " << var->unique_name();
                 }
-                insert(param, param->unique_name());
+                insert(var, var->unique_name());
             }
         }
         func_decls_ << ");" << endl;
@@ -396,15 +396,15 @@ void CCodeGen::emit() {
             func_impl_ << down << endl << hls_pragmas << up;
 
         // OpenCL: load struct from buffer
-        for (auto param : lam->params()) {
-            if (is_mem(param) || is_unit(param))
+        for (auto var : lam->vars()) {
+            if (is_mem(var) || is_unit(var))
                 continue;
-            if (param->type()->order() == 0) {
+            if (var->type()->order() == 0) {
                 if (lang_==Lang::OPENCL && lam->is_external() &&
-                    (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<Sigma>())) {
+                    (var->type()->isa<DefiniteArrayType>() ||
+                     var->type()->isa<Sigma>())) {
                     func_impl_ << endl;
-                    emit_type(func_impl_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
+                    emit_type(func_impl_, var->type()) << " " << var->unique_name() << " = *" << var->unique_name() << "_;";
                 }
             }
         }
@@ -413,22 +413,22 @@ void CCodeGen::emit() {
 
         // emit function arguments and phi nodes
         for (const auto& block : schedule) {
-            for (auto param : block.lam()->params()) {
-                if (is_mem(param) || is_unit(param))
+            for (auto var : block.lam()->vars()) {
+                if (is_mem(var) || is_unit(var))
                     continue;
-                emit_aggop_decl(param->type());
-                insert(param, param->unique_name());
+                emit_aggop_decl(var->type());
+                insert(var, var->unique_name());
             }
 
             auto lam = block.lam();
             if (scope.entry() != lam) {
-                for (auto param : lam->params()) {
-                    if (!is_mem(param) && !is_unit(param)) {
+                for (auto var : lam->vars()) {
+                    if (!is_mem(var) && !is_unit(var)) {
                         func_impl_ << endl;
-                        emit_addr_space(func_impl_, param->type());
-                        emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
-                        emit_addr_space(func_impl_, param->type());
-                        emit_type(func_impl_, param->type()) << " p" << param->unique_name() << ";";
+                        emit_addr_space(func_impl_, var->type());
+                        emit_type(func_impl_, var->type()) << "  " << var->unique_name() << ";" << endl;
+                        emit_addr_space(func_impl_, var->type());
+                        emit_type(func_impl_, var->type()) << " p" << var->unique_name() << ";";
                     }
                 }
             }
@@ -444,10 +444,10 @@ void CCodeGen::emit() {
             // print label for the current basic block
             if (lam != scope.entry()) {
                 func_impl_ << "l" << lam->gid() << ": ;" << up << endl;
-                // load params from phi node
-                for (auto param : lam->params()) {
-                    if (!is_mem(param) && !is_unit(param))
-                        func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
+                // load vars from phi node
+                for (auto var : lam->vars()) {
+                    if (!is_mem(var) && !is_unit(var))
+                        func_impl_ << var->unique_name() << " = p" << var->unique_name() << ";" << endl;
                 }
             }
 
@@ -489,7 +489,7 @@ void CCodeGen::emit() {
             }
 
             // terminate bb
-            if (lam->app()->callee() == ret_param) { // return
+            if (lam->app()->callee() == ret_var) { // return
                 size_t num_args = lam->app()->num_args();
                 if (num_args == 0) func_impl_ << "return ;";
                 else {
@@ -548,19 +548,19 @@ void CCodeGen::emit() {
             } else if (is_bot(lam->app()->callee())) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
-                auto store_phi = [&] (const Def* param, const Def* arg) {
-                    func_impl_ << "p" << param->unique_name() << " = ";
+                auto store_phi = [&] (const Def* var, const Def* arg) {
+                    func_impl_ << "p" << var->unique_name() << " = ";
                     emit(arg) << ";";
                 };
 
-                auto callee = lam->app()->callee()->as_nominal<Lam>();
+                auto callee = lam->app()->callee()->as_nom<Lam>();
                 emit_debug_info(callee);
 
                 if (callee->is_basicblock()) {   // ordinary jump
-                    assert(callee->num_params()==lam->app()->num_args());
-                    for (size_t i = 0, size = callee->num_params(); i != size; ++i)
-                        if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
-                            store_phi(callee->param(i), lam->app()->arg(i));
+                    assert(callee->num_vars()==lam->app()->num_args());
+                    for (size_t i = 0, size = callee->num_vars(); i != size; ++i)
+                        if (!is_mem(callee->var(i)) && !is_unit(callee->var(i))) {
+                            store_phi(callee->var(i), lam->app()->arg(i));
                             func_impl_ << endl;
                         }
                     emit(callee);
@@ -576,13 +576,13 @@ void CCodeGen::emit() {
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
-                            auto l = lam->app()->arg(2)->as_nominal<Lam>();
-                            auto elem_type = lam->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-                            auto name = "reserver_" + lam->param(1)->unique_name();
+                            auto l = lam->app()->arg(2)->as_nom<Lam>();
+                            auto elem_type = lam->var(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+                            auto name = "reserver_" + lam->var(1)->unique_name();
                             emit_type(func_impl_, elem_type) << " " << name << "[";
                             emit(lam->app()->arg(1)) << "];" << endl;
                             // store_phi:
-                            func_impl_ << "p" << l->param(1)->unique_name() << " = " << name << ";";
+                            func_impl_ << "p" << l->var(1)->unique_name() << " = " << name << ";";
                             if (lang_ == Lang::HLS)
                                 func_impl_ << endl
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
@@ -591,10 +591,10 @@ void CCodeGen::emit() {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        auto emit_call = [&] (const Def* param = nullptr) {
+                        auto emit_call = [&] (const Def* var = nullptr) {
                             auto name = (callee->is_external() || callee->is_empty()) ? callee->name() : callee->unique_name();
-                            if (param)
-                                emit(param) << " = ";
+                            if (var)
+                                emit(var) << " = ";
                             func_impl_ << name << "(";
                             // emit all first-order args
                             size_t fi = 0;
@@ -606,9 +606,9 @@ void CCodeGen::emit() {
                                 }
                             }
                             func_impl_ << ");";
-                            if (param) {
+                            if (var) {
                                 func_impl_ << endl;
-                                store_phi(param, param);
+                                store_phi(var, var);
                             }
                         };
 
@@ -621,16 +621,16 @@ void CCodeGen::emit() {
                         }
 
                         // must be call + lam --- call + return has been removed by codegen_prepare
-                        auto succ = ret_arg->as_nominal<Lam>();
-                        size_t num_params = succ->num_params();
+                        auto succ = ret_arg->as_nom<Lam>();
+                        size_t num_vars = succ->num_vars();
 
                         size_t n = 0;
-                        Array<const Def*> values(num_params);
-                        Array<const Def*> types(num_params);
-                        for (auto param : succ->params()) {
-                            if (!is_mem(param) && !is_unit(param)) {
-                                values[n] = param;
-                                types[n] = param->type();
+                        Array<const Def*> values(num_vars);
+                        Array<const Def*> types(num_vars);
+                        for (auto var : succ->vars()) {
+                            if (!is_mem(var) && !is_unit(var)) {
+                                values[n] = var;
+                                types[n] = var->type();
                                 n++;
                             }
                         }
@@ -1103,7 +1103,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_nominal<Lam>() && "no global init lam supported");
+        assert(!global->init()->isa_nom<Lam>() && "no global init lam supported");
 
         // string handling
         if (auto str_array = global->init()->isa<DefiniteArray>()) {

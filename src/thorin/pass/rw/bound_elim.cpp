@@ -9,7 +9,7 @@ const Def* BoundElim::rewrite(Def* old_nom, const Def* new_type, const Def* new_
 
     if (old_nom->type() != new_type) {
         auto new_nom = old_nom->stub(world(), new_type, new_dbg);
-        new_nom->set(old_nom->apply(proxy(old_nom->param()->type(), {new_nom->param()}, 0)));
+        new_nom->set(old_nom->apply(proxy(old_nom->var()->type(), {new_nom->var()}, 0)));
 
         if (old_nom->is_external()) {
             old_nom->make_internal();
@@ -35,11 +35,11 @@ const Def* BoundElim::rewrite(const Def* old_def, const Def*, Defs new_ops, cons
 
         auto join = test->value()->type()->as<Join>();
         auto mpi = match->type()->as<Pi>();
-        auto dom = mpi->domain()->out(0);
-        auto wpi = world().pi(dom, mpi->codomain());
+        auto dom = mpi->dom()->out(0);
+        auto wpi = world().pi(dom, mpi->codom());
         auto wrap = world().nom_lam(wpi, world().dbg("wrap_match"));
         auto probe_i = join->index(probe);
-        wrap->app(match, {wrap->param(), world().op_bitcast(probe, box)});
+        wrap->app(match, {wrap->var(), world().op_bitcast(probe, box)});
         auto cmp = world().op(ICmp::e, index, probe_i);
         return world().select(wrap, clash, cmp, new_dbg);
     } else if (auto et = old_def->isa<Et>()) {

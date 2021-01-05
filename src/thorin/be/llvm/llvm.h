@@ -42,7 +42,7 @@ protected:
     llvm::Function* emit_function_decl(Lam*);
     virtual unsigned convert_addr_space(u64);
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) {}
-    virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Def*) { return a; }
+    virtual llvm::Value* map_var(llvm::Function*, llvm::Argument* a, const Def*) { return a; }
     virtual void emit_function_start(llvm::BasicBlock*, Lam*) {}
     virtual llvm::FunctionType* convert_fn_type(Lam*);
 
@@ -85,7 +85,7 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
-    DefMap<llvm::Value*> params_;
+    DefMap<llvm::Value*> vars_;
     DefMap<llvm::PHINode*> phis_;
     DefMap<llvm::Value*> defs_;
     LamMap<llvm::Function*> fcts_;

@@ -114,8 +114,8 @@ const Def* PassMan::rewrite(const Def* old_def) {
     auto new_type = rewrite(old_def->type());
     auto new_dbg  = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
-    // rewrite nominal
-    if (auto old_nom = old_def->isa_nominal()) {
+    // rewrite nom
+    if (auto old_nom = old_def->isa_nom()) {
         for (auto pass : passes_) {
             if (auto rw = pass->rewrite(old_nom, new_type, new_dbg); rw != old_nom)
                 return map(old_nom, rewrite(rw));
@@ -146,12 +146,12 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
 void PassMan::enqueue(const Def* def) {
     if (def->is_const() || enqueued(def)) return;
-    assert(!def->isa<Proxy>() && "proxies must not occur anymore after finishing a nominal with No_Undo");
+    assert(!def->isa<Proxy>() && "proxies must not occur anymore after finishing a nom with No_Undo");
 
     enqueue(def->type());
     if (auto dbg = def->dbg()) enqueue(dbg);
 
-    if (auto nom = def->isa_nominal()) {
+    if (auto nom = def->isa_nom()) {
         cur_state().stack.push(nom);
     } else {
         for (auto op : def->ops())

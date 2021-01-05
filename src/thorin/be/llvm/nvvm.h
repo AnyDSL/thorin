@@ -17,7 +17,7 @@ protected:
 
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) override;
     virtual llvm::FunctionType* convert_fn_type(Lam*) override;
-    virtual llvm::Value* map_param(llvm::Function*, llvm::Argument*, const Def*) override;
+    virtual llvm::Value* map_var(llvm::Function*, llvm::Argument*, const Def*) override;
     virtual void emit_function_start(llvm::BasicBlock*, Lam*) override;
     virtual llvm::Value* emit_global(const Global*) override;
     virtual llvm::Value* emit_load(const App*) override;

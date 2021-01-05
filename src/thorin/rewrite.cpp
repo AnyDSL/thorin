@@ -12,7 +12,7 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     auto new_type = rewrite(old_def->type());
     auto new_dbg = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
-    if (auto old_nom = old_def->isa_nominal()) {
+    if (auto old_nom = old_def->isa_nom()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_dbg);
         old2new[old_nom] = new_nom;
 
@@ -36,7 +36,7 @@ const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const
 }
 
 const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope) {
-    return rewrite(nom->op(i), nom->param(), arg, scope);
+    return rewrite(nom->op(i), nom->var(), arg, scope);
 }
 
 const Def* rewrite(Def* nom, const Def* arg, size_t i) {
@@ -46,7 +46,7 @@ const Def* rewrite(Def* nom, const Def* arg, size_t i) {
 
 Array<const Def*> rewrite(Def* nom, const Def* arg, const Scope& scope) {
     Rewriter rewriter(nom->world(), &scope);
-    rewriter.old2new[nom->param()] = arg;
+    rewriter.old2new[nom->var()] = arg;
     return Array<const Def*>(nom->num_ops(), [&](size_t i) { return rewriter.rewrite(nom->op(i)); });
 }
 
@@ -62,7 +62,7 @@ void cleanup(World& old_world) {
     rewriter.old2new.rehash(old_world.defs().capacity());
 
     for (const auto& [name, nom] : old_world.externals())
-        rewriter.rewrite(nom)->as_nominal()->make_external();
+        rewriter.rewrite(nom)->as_nom()->make_external();
 
     swap(rewriter.old_world, rewriter.new_world);
 }

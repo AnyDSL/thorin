@@ -3,8 +3,8 @@
 namespace thorin {
 
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
-static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nominal<Lam>(); }
-static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nominal<Lam>()}; }
+static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nom<Lam>(); }
+static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nom<Lam>()}; }
 
 void SSAConstr::enter() {
     if (auto lam = cur_nom<Lam>()) {
@@ -46,7 +46,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
             }
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto mem_lam = app->callee()->isa_nominal<Lam>(); !ignore(mem_lam))
+        if (auto mem_lam = app->callee()->isa_nom<Lam>(); !ignore(mem_lam))
             return mem2phi(cur_lam, app, mem_lam);
     }
 
@@ -99,26 +99,26 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     if (num_phixys == 0) return app;
 
     if (phi_lam == nullptr) {
-        auto new_type = world().pi(merge_sigma(mem_lam->domain(), types), mem_lam->codomain());
+        auto new_type = world().pi(merge_sigma(mem_lam->dom(), types), mem_lam->codom());
         phi_lam = world().nom_lam(new_type, mem_lam->dbg());
         world().DLOG("new phi_lam '{}'", phi_lam);
-        world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->domain(), phi_lam, phi_lam->domain());
+        world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->dom(), phi_lam, phi_lam->dom());
         auto [_, ins] = preds_n_.emplace(phi_lam);
         assert(ins);
 
-        auto num_mem_params = mem_lam->num_params();
+        auto num_mem_vars = mem_lam->num_vars();
         size_t i = 0;
         Array<const Def*> traxy_ops(2*num_phixys + 1);
-        traxy_ops[0] = phi_lam->param();
+        traxy_ops[0] = phi_lam->var();
         for (auto phixy : lam2phixys) {
             traxy_ops[2*i + 1] = phixy;
-            traxy_ops[2*i + 2] = phi_lam->param(num_mem_params + i);
+            traxy_ops[2*i + 2] = phi_lam->var(num_mem_vars + i);
             ++i;
         }
-        auto traxy = proxy(phi_lam->param()->type(), traxy_ops, Traxy);
+        auto traxy = proxy(phi_lam->var()->type(), traxy_ops, Traxy);
 
-        Array<const Def*> new_params(num_mem_params, [&](size_t i) { return traxy->out(i); });
-        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->domain(), new_params)));
+        Array<const Def*> new_vars(num_mem_vars, [&](size_t i) { return traxy->out(i); });
+        phi_lam->set(mem_lam->apply(world().tuple(mem_lam->dom(), new_vars)));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }
@@ -138,7 +138,7 @@ undo_t SSAConstr::analyze() {
 
 undo_t SSAConstr::analyze(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->is_const() || def->isa_nominal() || def->isa<Param>() || !analyzed_.emplace(def).second) return No_Undo;
+    if (cur_lam == nullptr || def->is_const() || def->isa_nom() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {
@@ -163,7 +163,7 @@ undo_t SSAConstr::analyze(const Def* def) {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             undo = std::min(undo, analyze(def->op(i)));
 
-            if (auto suc_lam = def->op(i)->isa_nominal<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
+            if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
                 auto&& [suc_info, u, ins] = insert<Lam2Info>(suc_lam);
 
                 if (suc_lam->is_basicblock() && suc_lam != cur_lam) {

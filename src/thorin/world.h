@@ -87,11 +87,11 @@ public:
     u32 next_gid() { return ++state_.cur_gid; }
     //@}
 
-    /// @name Space, Kind, Param, Proxy
+    /// @name Space, Kind, Var, Proxy
     //@{
     const Space* space() const { return data_.space_;   }
     const Kind* kind() const { return data_.kind_; }
-    const Param* param(const Def* type, Def* nominal, const Def* dbg = {}) { return unify<Param>(1, type, nominal, dbg); }
+    const Var* var(const Def* type, Def* nom, const Def* dbg = {}) { return unify<Var>(1, type, nom, dbg); }
     const Proxy* proxy(const Def* type, Defs ops, tag_t index, flags_t flags, const Def* dbg = {}) { return unify<Proxy>(ops.size(), type, ops, index, flags, dbg); }
     //@}
 
@@ -105,20 +105,20 @@ public:
 
     /// @name Pi
     //@{
-    const Pi* pi(const Def* domain, const Def* codomain, const Def* dbg = {});
-    const Pi* pi(Defs domain, const Def* codomain, const Def* dbg = {}) { return pi(sigma(domain), codomain, dbg); }
-    Pi* nom_pi(const Def* type, const Def* domain, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_domain(domain); }
-    Pi* nom_pi(const Def* type, Defs domains, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_domain(domains); }
+    const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {});
+    const Pi* pi(Defs dom, const Def* codom, const Def* dbg = {}) { return pi(sigma(dom), codom, dbg); }
+    Pi* nom_pi(const Def* type, const Def* dom, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(dom); }
+    Pi* nom_pi(const Def* type, Defs doms, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(doms); }
     //@}
 
-    /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
+    /// @name Pi: continuation type (cn), i.e., @p Pi type with codom @p Bot%tom
     //@{
     const Pi* cn() { return cn(sigma()); }
-    const Pi* cn(const Def* domain, const Def* dbg = {}) { return pi(domain, bot_kind(), dbg); }
-    const Pi* cn(Defs domains, const Def* dbg = {}) { return cn(sigma(domains), dbg); }
-    /// Same as cn/pi but adds a mem parameter to each pi
-    const Pi* cn_mem(const Def* domain, const Def* dbg = {}) { return cn({ type_mem(), domain }, dbg); }
-    const Pi* cn_mem_ret(const Def* domain, const Def* ret_domain, const Def* dbg = {}) { return cn({type_mem(), domain, cn_mem(ret_domain)}, dbg); }
+    const Pi* cn(const Def* dom, const Def* dbg = {}) { return pi(dom, bot_kind(), dbg); }
+    const Pi* cn(Defs doms, const Def* dbg = {}) { return cn(sigma(doms), dbg); }
+    /// Same as @p cn/@p pi but adds a @p mem @p Var to each @p Pi
+    const Pi* cn_mem(const Def* dom, const Def* dbg = {}) { return cn({ type_mem(), dom }, dbg); }
+    const Pi* cn_mem_ret(const Def* dom, const Def* ret_dom, const Def* dbg = {}) { return cn({type_mem(), dom, cn_mem(ret_dom)}, dbg); }
     //@}
 
     /// @name Lam%bda
@@ -128,8 +128,8 @@ public:
         return lam;
     }
     Lam* nom_lam(const Pi* cn, const Def* dbg = {}) { return nom_lam(cn, Lam::CC::C, dbg); }
-    const Lam* lam(const Def* domain, const Def* filter, const Def* body, const Def* dbg);
-    const Lam* lam(const Def* domain, const Def* body, const Def* dbg) { return lam(domain, lit_true(), body, dbg); }
+    const Lam* lam(const Def* dom, const Def* filter, const Def* body, const Def* dbg);
+    const Lam* lam(const Def* dom, const Def* body, const Def* dbg) { return lam(dom, lit_true(), body, dbg); }
     //@}
 
     /// @name App
@@ -143,7 +143,7 @@ public:
     /// @name Sigma
     //@{
     Sigma* nom_sigma(const Def* type, size_t size, const Def* dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
-    Sigma* nom_sigma(size_t size, const Def* dbg = {}) { return nom_sigma(kind(), size, dbg); } ///< a @em nominal @p Sigma of type @p kind
+    Sigma* nom_sigma(size_t size, const Def* dbg = {}) { return nom_sigma(kind(), size, dbg); } ///< a @em nom @p Sigma of type @p kind
     const Def* sigma(Defs ops, const Def* dbg = {});
     const Sigma* sigma() { return data_.sigma_; } ///< the unit type within @p kind()
     //@}
@@ -215,12 +215,12 @@ public:
     const Lit* lit_nat_1  () { return data_.lit_nat_1_;   }
     const Lit* lit_nat_max() { return data_.lit_nat_max_; }
     const Lit* lit_int      (const Def* type, u64 val, const Def* dbg = {});
-    const Lit* lit_int      (nat_t bound,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (bound),                              val, dbg); }
-    const Lit* lit_int_width(nat_t width,     u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                              val, dbg); }
-    const Lit* lit_int_mod  (nat_t bound,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (bound), bound == 0 ? val : (val % bound), dbg); }
+    const Lit* lit_int      (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod),                          val, dbg); }
+    const Lit* lit_int_width(nat_t width,     u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                          val, dbg); }
+    const Lit* lit_int_mod  (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod), mod == 0 ? val : (val % mod), dbg); }
     template<class I> const Lit* lit_int(I val, const Def* dbg = {}) {
         static_assert(std::is_integral<I>());
-        return lit_int(type_int(width2bound(sizeof(I)*8)), val, dbg);
+        return lit_int(type_int(width2mod(sizeof(I)*8)), val, dbg);
     }
     const Lit* lit_bool(bool val) { return data_.lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return data_.lit_bool_[0]; }
@@ -251,7 +251,7 @@ public:
     const Def* bot_kind() { return data_.bot_kind_; }
     const Def* top_nat () { return data_.top_nat_; }
     template<bool up> TBound<up>* nom_bound(const Def* type, size_t size, const Def* dbg = {}) { return insert<TBound<up>>(size, type, size, dbg); }
-    template<bool up> TBound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nominal @p Bound of type @p kind
+    template<bool up> TBound<up>* nom_bound(size_t size, const Def* dbg = {}) { return nom_bound<up>(kind(), size, dbg); }   ///< a @em nom @p Bound of type @p kind
     template<bool up> const Def* bound(Defs ops, const Def* dbg = {});
     Join* nom_join(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<true >(type, size, dbg); }
     Meet* nom_meet(const Def* type, size_t size, const Def* dbg = {}) { return nom_bound<false>(type, size, dbg); }
@@ -284,10 +284,10 @@ public:
     const Axiom* type_real() { return data_.type_real_; }
     const Axiom* type_ptr()  { return data_.type_ptr_; }
     const App* type_bool() { return data_.type_bool_; }
-    const App* type_int_width(nat_t width) { return type_int(lit_nat(width2bound(width))); }
-    const App* type_int (nat_t bound) { return type_int (lit_nat(bound)); }
+    const App* type_int_width(nat_t width) { return type_int(lit_nat(width2mod(width))); }
+    const App* type_int (nat_t   mod) { return type_int (lit_nat(  mod)); }
     const App* type_real(nat_t width) { return type_real(lit_nat(width)); }
-    const App* type_int (const Def* bound) { return app(type_int(),  bound)->as<App>(); }
+    const App* type_int (const Def* mod) { return app(type_int(),  mod)->as<App>(); }
     const App* type_real(const Def* width) { return app(type_real(), width)->as<App>(); }
     const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, const Def* dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     const App* type_ptr(const Def* pointee, const Def* addr_space, const Def* dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
@@ -318,14 +318,14 @@ public:
 
     /// @name fn - these guys @em yield the final function to be invoked for the various operations
     //@{
-    const Def* fn(Bit  o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound,  dbg); }
+    const Def* fn(Bit  o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod,  dbg); }
     const Def* fn(Conv o, const Def* dst_w, const Def* src_w, const Def* dbg = {}) { return app(ax(o), {dst_w, src_w}, dbg); }
-    const Def* fn(Div  o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound,  dbg); }
-    const Def* fn(ICmp o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound , dbg); }
+    const Def* fn(Div  o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod,  dbg); }
+    const Def* fn(ICmp o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod , dbg); }
     const Def* fn(RCmp o, const Def* rmode, const Def* width, const Def* dbg = {}) { return app(ax(o), {rmode, width}, dbg); }
     const Def* fn(ROp  o, const Def* rmode, const Def* width, const Def* dbg = {}) { return app(ax(o), {rmode, width}, dbg); }
-    const Def* fn(Shr  o,                   const Def* bound, const Def* dbg = {}) { return app(ax(o),         bound,  dbg); }
-    const Def* fn(Wrap o, const Def* wmode, const Def* bound, const Def* dbg = {}) { return app(ax(o), {wmode, bound}, dbg); }
+    const Def* fn(Shr  o,                   const Def*   mod, const Def* dbg = {}) { return app(ax(o),           mod,  dbg); }
+    const Def* fn(Wrap o, const Def* wmode, const Def*   mod, const Def* dbg = {}) { return app(ax(o), {wmode,   mod}, dbg); }
     template<class O> const Def* fn(O o,                   nat_t      size, const Def* dbg = {}) { return fn(o,                 lit_nat(size), dbg); }
     template<class O> const Def* fn(O o, nat_t      other, nat_t      size, const Def* dbg = {}) { return fn(o, lit_nat(other), lit_nat(size), dbg); }
     const Def* fn_atomic(const Def* fn, const Def* dbg = {}) { return app(ax_atomic(), fn, dbg); }
@@ -400,7 +400,7 @@ public:
     /**
      * Transitively visits all @em reachable Scope%s in this @p World that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
+     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em noms without body.
      */
     using VisitFn = std::function<void(const Scope&)>;
     template<bool elide_empty = true> void visit(VisitFn) const;
@@ -484,7 +484,7 @@ private:
 #ifndef NDEBUG
         if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
-        assert(!def->isa_nominal());
+        assert(!def->isa_nom());
         auto [i, inserted] = data_.defs_.emplace(def);
         if (inserted) {
 #ifndef NDEBUG

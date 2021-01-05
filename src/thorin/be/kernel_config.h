@@ -45,22 +45,22 @@ private:
 class HLSKernelConfig : public KernelConfig {
 public:
     static constexpr auto Node = Node::HLSKernelConfig;
-    typedef DefMap<uint32_t> Param2Size;
+    typedef DefMap<uint32_t> Var2Size;
 
-    HLSKernelConfig(const Param2Size& param_sizes)
+    HLSKernelConfig(const Var2Size& var_sizes)
         : KernelConfig(Node)
-        , param_sizes_(param_sizes)
+        , var_sizes_(var_sizes)
     {}
 
-    uint32_t param_size(const Def* param) const {
-        auto it = param_sizes_.find(param);
-        if (it != param_sizes_.end())
+    uint32_t var_size(const Def* var) const {
+        auto it = var_sizes_.find(var);
+        if (it != var_sizes_.end())
             return it->second;
         return 0;
     }
 
 private:
-    Param2Size param_sizes_;
+    Var2Size var_sizes_;
 };
 
 }

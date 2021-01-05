@@ -42,7 +42,7 @@ public:
 
     void for_all_defs(std::function<void(const Def*)> f) {
         for (auto&& p : def2uses_) {
-            if (!p.first->isa_nominal())
+            if (!p.first->isa_nom())
                 f(p.first);
         }
     }
@@ -81,8 +81,8 @@ void Scheduler::compute_def2uses() {
     };
 
     for (auto n : cfg_.reverse_post_order()) {
-        if (n->nominal()->is_set())
-            enqueue(n->nominal());
+        if (n->nom()->is_set())
+            enqueue(n->nom());
     }
 
     while (!queue.empty()) {
@@ -104,14 +104,14 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
 
     const CFNode* result;
 
-    if (auto nom = def->isa_nominal()) {
+    if (auto nom = def->isa_nom()) {
         result = cfg_[nom];
-    } else if (auto param = def->isa<Param>()) {
-        result = schedule_early(param->nominal());
+    } else if (auto var = def->isa<Var>()) {
+        result = schedule_early(var->nom());
     } else {
         result = cfg_.entry();
         for (auto op : def->ops()) {
-            if (op->isa_nominal()) continue;
+            if (op->isa_nom()) continue;
             if (def2uses_.contains(op)) {
                 auto n = schedule_early(op);
                 if (domtree_.depth(n) > domtree_.depth(result))
@@ -129,10 +129,10 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
 
     const CFNode* result = nullptr;
 
-    if (auto nom = def->isa_nominal()) {
+    if (auto nom = def->isa_nom()) {
         result = cfg_[nom];
-    } else if (auto param = def->isa<Param>()) {
-        result = schedule_late(param->nominal());
+    } else if (auto var = def->isa<Var>()) {
+        result = schedule_late(var->nom());
     } else {
         for (auto use : uses(def)) {
             auto n = schedule_late(use);
@@ -249,7 +249,7 @@ void Schedule::block_schedule() {
 
 Stream& Schedule::stream(Stream& s) const {
     for (auto& block : *this) {
-        auto nom = block.nominal();
+        auto nom = block.nom();
         if (nom == scope_.exit()) continue;
 
         bool indent = nom != scope().entry();

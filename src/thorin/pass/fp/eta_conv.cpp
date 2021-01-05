@@ -5,10 +5,10 @@
 namespace thorin {
 
 const Def* EtaConv::rewrite(const Def* def) {
-    if (def->isa<Param>() || def->isa<Proxy>()) return def;
+    if (def->isa<Var>() || def->isa<Proxy>()) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (!is_callee(def, i)) {
                 if (expand_.contains(lam)) {
                     auto [j, ins] = def2exp_.emplace(def, nullptr);
@@ -16,7 +16,7 @@ const Def* EtaConv::rewrite(const Def* def) {
                         auto wrap = lam->stub(world(), lam->type(), lam->dbg());
                         wrappers_.emplace(wrap);
                         wrap->set_name(std::string("eta_wrap_") + lam->debug().name);
-                        wrap->app(lam, wrap->param());
+                        wrap->app(lam, wrap->var());
                         j->second = def->refine(i, wrap);
                         world().DLOG("eta-expansion '{}' -> '{}' using '{}'", def, j->second, wrap);
                     }
@@ -28,7 +28,7 @@ const Def* EtaConv::rewrite(const Def* def) {
             if (wrappers_.contains(lam)) continue;
 
             if (auto app = lam->body()->isa<App>()) {
-                if (app->arg() == lam->param() && !is_free(lam->param(), app->callee())) {
+                if (app->arg() == lam->var() && !is_free(lam->var(), app->callee())) {
                     auto new_def = def->refine(i, app->callee());
                     world().DLOG("eta-reduction '{}' -> '{}' by eliminating '{}'", def, new_def, lam);
                     return new_def;
@@ -48,7 +48,7 @@ undo_t EtaConv::analyze(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         undo = std::min(undo, analyze(def->op(i)));
 
-        if (auto lam = def->op(i)->isa_nominal<Lam>(); !ignore(lam)) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (is_callee(def, i)) {
                 if (expand_.contains(lam)) continue;
 

@@ -69,10 +69,10 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
         return result;
     };
 
-    const auto emit_texture_kernel_arg = [&](const Def* param) {
-        assert(as_lit<nat_t>(as<Tag::Ptr>(param->type())->arg(1)) == AddrSpace::Texture);
-        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->debug().name, 1);
-        metadata_[param] = append_metadata(global, "texture", 1);
+    const auto emit_texture_kernel_arg = [&](const Def* var) {
+        assert(as_lit<nat_t>(as<Tag::Ptr>(var->type())->arg(1)) == AddrSpace::Texture);
+        auto global = emit_global_variable(irbuilder_.getInt64Ty(), var->debug().name, 1);
+        metadata_[var] = append_metadata(global, "texture", 1);
     };
 
     append_metadata(f, "kernel", 1);
@@ -88,11 +88,11 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
     }
 
     // check signature for texturing memory
-    for (auto param : lam->params()) {
-        if (auto ptr = isa<Tag::Ptr>(param->type())) {
+    for (auto var : lam->vars()) {
+        if (auto ptr = isa<Tag::Ptr>(var->type())) {
             switch (as_lit<nat_t>(ptr->arg(1))) {
                 case AddrSpace::Texture:
-                    emit_texture_kernel_arg(param);
+                    emit_texture_kernel_arg(var);
                     break;
                 default:
                     // ignore this address space
@@ -102,11 +102,11 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
     }
 }
 
-llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Def* param) {
-    if (!get_param_lam(param)->is_external())
+llvm::Value* NVVMCodeGen::map_var(llvm::Function*, llvm::Argument* arg, const Def* var) {
+    if (!get_var_lam(var)->is_external())
         return arg;
-    else if (auto var = resolve_global_variable(param))
-        return var;
+    else if (auto global = resolve_global_variable(var))
+        return global;
     return arg;
 }
 
@@ -125,13 +125,13 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Lam* lam) {
         return;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun();
-    for (auto param : lam->params()) {
-        if (auto var = resolve_global_variable(param)) {
-            auto md = metadata_.find(param);
+    for (auto var : lam->vars()) {
+        if (auto global = resolve_global_variable(var)) {
+            auto md = metadata_.find(var);
             assert(md != metadata_.end());
-            // require specific handle to be mapped to a parameter
-            llvm::Value* args[] = { llvm::MetadataAsValue::get(context_, md->second), var };
-            params_[param] = irbuilder_.CreateCall(texture_handle, args);
+            // require specific handle to be mapped to a var
+            llvm::Value* args[] = { llvm::MetadataAsValue::get(context_, md->second), global };
+            vars_[var] = irbuilder_.CreateCall(texture_handle, args);
         }
     }
 }
@@ -240,9 +240,9 @@ llvm::Value* NVVMCodeGen::emit_lea(const App* lea) {
 
 Lam* NVVMCodeGen::emit_reserve(Lam* lam) { return emit_reserve_shared(lam); }
 
-llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Def* param) {
-    if (resolve_addr_space(param) != AddrSpace::Global)
-        return module_->getGlobalVariable(param->debug().name, true);
+llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Def* var) {
+    if (resolve_addr_space(var) != AddrSpace::Global)
+        return module_->getGlobalVariable(var->debug().name, true);
     return nullptr;
 }
 

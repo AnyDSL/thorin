@@ -8,7 +8,7 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const 
     u16 currying_depth = 0;
     while (auto pi = type->isa<Pi>()) {
         ++currying_depth;
-        type = pi->codomain();
+        type = pi->codom();
     }
 
     normalizer_depth_.set(normalizer, currying_depth);

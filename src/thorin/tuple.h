@@ -11,7 +11,7 @@ private:
     Sigma(const Def* type, Defs ops, const Def* dbg)
         : Def(Node, type, ops, 0, dbg)
     {}
-    /// Constructor for a @em nominal Sigma.
+    /// Constructor for a @em nom Sigma.
     Sigma(const Def* type, size_t size, const Def* dbg)
         : Def(Node, type, size, 0, dbg)
     {}
@@ -55,7 +55,7 @@ private:
     Arr(const Def* type, const Def* shape, const Def* body, const Def* dbg)
         : Def(Node, type, {shape, body}, 0, dbg)
     {}
-    /// Constructor for a @em nominal Arr.
+    /// Constructor for a @em nom Arr.
     Arr(const Def* type, const Def* shape, const Def* dbg)
         : Def(Node, type, 2, 0, dbg)
     {
@@ -68,7 +68,7 @@ public:
     const Def* shape() const { return op(0); }
     const Def* body() const { return op(1); }
     //@}
-    /// @name methods for nominals
+    /// @name methods for noms
     //@{
     Arr* set(const Def* body) { return Def::set(1, body)->as<Arr>(); }
     //@}

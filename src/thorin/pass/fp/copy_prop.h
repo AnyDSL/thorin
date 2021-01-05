@@ -6,7 +6,7 @@
 namespace thorin {
 
 /**
- * This @p FPPass is similar to sparse conditional constant propagation (SCCP) but also propagates arbitrary values through @p Param%s.
+ * This @p FPPass is similar to sparse conditional constant propagation (SCCP) but also propagates arbitrary values through @p Var%s.
  * However, this optmization also works on all @p Lam%s alike and does not only consider basic blocks as opposed to traditional SCCP.
  * What is more, this optimization will also propagate arbitrary @p Def%s and not only constants. <br>
  * Depends on: @p EtaConv.
@@ -24,7 +24,7 @@ private:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
-    Lam2Lam param2prop_;
+    Lam2Lam var2prop_;
     DefSet keep_;
 };
 

@@ -18,7 +18,7 @@ Lam* CodeGen::emit_parallel(Lam* lam) {
     auto num_threads = lookup(lam->body()->as<App>()->arg(PAR_ARG_NUMTHREADS));
     auto lower = lookup(lam->body()->as<App>()->arg(PAR_ARG_LOWER));
     auto upper = lookup(lam->body()->as<App>()->arg(PAR_ARG_UPPER));
-    auto kernel = lam->body()->as<App>()->arg(PAR_ARG_BODY)->as<Global>()->init()->as_nominal<Lam>();
+    auto kernel = lam->body()->as<App>()->arg(PAR_ARG_BODY)->as<Global>()->init()->as_nom<Lam>();
 
     const size_t num_kernel_args = lam->body()->as<App>()->num_args() - PAR_NUM_ARGS;
 
@@ -86,7 +86,7 @@ Lam* CodeGen::emit_parallel(Lam* lam) {
     // restore old insert point
     irbuilder_.SetInsertPoint(old_bb);
 
-    return lam->body()->as<App>()->arg(PAR_ARG_RETURN)->as_nominal<Lam>();
+    return lam->body()->as<App>()->arg(PAR_ARG_RETURN)->as_nom<Lam>();
 }
 
 enum {
@@ -98,7 +98,7 @@ enum {
 
 Lam* CodeGen::emit_spawn(Lam* lam) {
     assert(lam->body()->as<App>()->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
-    auto kernel = lam->body()->as<App>()->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_nominal<Lam>();
+    auto kernel = lam->body()->as<App>()->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_nom<Lam>();
     const size_t num_kernel_args = lam->body()->as<App>()->num_args() - SPAWN_NUM_ARGS;
 
     // build parallel-function signature
@@ -148,9 +148,9 @@ Lam* CodeGen::emit_spawn(Lam* lam) {
     // restore old insert point
     irbuilder_.SetInsertPoint(old_bb);
 
-    // bind parameter of lam to received handle
-    auto l = lam->body()->as<App>()->arg(SPAWN_ARG_RETURN)->as_nominal<Lam>();
-    emit_result_phi(l->param(1), call);
+    // bind var of lam to received handle
+    auto l = lam->body()->as<App>()->arg(SPAWN_ARG_RETURN)->as_nom<Lam>();
+    emit_result_phi(l->var(1), call);
     return l;
 }
 
@@ -165,7 +165,7 @@ Lam* CodeGen::emit_sync(Lam* lam) {
     assert(lam->body()->as<App>()->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
     auto id = lookup(lam->body()->as<App>()->arg(SYNC_ARG_ID));
     runtime_->sync_thread(id);
-    return lam->body()->as<App>()->arg(SYNC_ARG_RETURN)->as_nominal<Lam>();
+    return lam->body()->as<App>()->arg(SYNC_ARG_RETURN)->as_nom<Lam>();
 }
 
 }

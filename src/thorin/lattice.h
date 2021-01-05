@@ -15,7 +15,7 @@ protected:
     Bound(node_t node, const Def* type, Defs ops, const Def* dbg)
         : Def(node, type, ops, 0, dbg)
     {}
-    /// Constructor for a @em nominal Bound.
+    /// Constructor for a @em nom Bound.
     Bound(node_t node, const Def* type, size_t size, const Def* dbg)
         : Def(node, type, size, 0, dbg)
     {}
@@ -35,7 +35,7 @@ private:
     TBound(const Def* type, Defs ops, const Def* dbg)
         : Bound(Node, type, ops, dbg)
     {}
-    /// Constructor for a @em nominal Bound.
+    /// Constructor for a @em nom Bound.
     TBound(const Def* type, size_t size, const Def* dbg)
         : Bound(Node, type, size, dbg)
     {}

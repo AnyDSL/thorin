@@ -79,7 +79,7 @@ const Def* GradEmitter::grad_var(size_t i) const {
 
 const Def* GradEmitter::emit_grad_for_var(const Def* var) {
     for (auto use : var->copy_uses()) {
-        if (orig_scope_.contains(use)) {
+        if (orig_scope_.bound(use)) {
             if (emit_partial_grad_for_rop_use(var, use)) {
                 // TODO: I am pretty sure we want to use the result for something...
             } else if (emit_partial_grad_for_ret_use(var, use)) {

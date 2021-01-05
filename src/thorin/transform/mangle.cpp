@@ -9,8 +9,8 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
     , args_(args)
     , old_entry_(scope.entry()->as<Lam>())
-    , defs_(scope.defs().capacity())
-    , old2new_(scope.defs().capacity())
+    , defs_(scope.bound().capacity())
+    , old2new_(scope.bound().capacity())
 {
     assert(old_entry()->is_set());
     assert(args.size() == old_entry()->num_vars());

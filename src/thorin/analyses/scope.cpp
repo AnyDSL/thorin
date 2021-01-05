@@ -22,60 +22,67 @@ Scope::Scope(Def* entry)
 Scope::~Scope() {}
 
 void Scope::run() {
-    unique_queue<DefSet&> queue(defs_);
+    unique_queue<DefSet&> queue(bound_);
     queue.push(entry_->var());
 
     while (!queue.empty()) {
         for (auto use : queue.pop()->uses()) {
-            if (use == entry_ || use == exit_) continue;
-            queue.push(use);
+            if (use != entry_ && use != exit_) queue.push(use);
         }
     }
 }
 
-const Scope::Free& Scope::free() const {
-    if (!free_) {
-        free_ = std::make_unique<Free>();
-        unique_queue<DefSet> q_in;
-        unique_queue<DefSet> q_out;
+void Scope::calc_bound() const {
+    if (has_bound_) return;
+    has_bound_ = true;
 
-        auto enq_out = [&](const Def* def) {
-            if (def->is_const()) return;
+    DefSet live;
+    unique_queue<DefSet&> queue(live);
 
-            if (auto var = def->isa<Var>())
-                free_->vars.emplace(var);
-            else if (auto nom = def->isa_nom())
-                free_->noms.emplace(nom);
-            else
-                q_out.push(def);
-        };
+    auto enqueue = [&](const Def* def) {
+        if (def->is_const()) return;
 
-        auto enq_in = [&](const Def* def) {
-            if (def->is_const()) return;
+        if (bound_.contains(def))
+            queue.push(def);
+        else
+            free_defs_.emplace(def);
+    };
 
-            if (contains(def))
-                q_in.push(def);
-            else {
-                free_->defs.emplace(def);
-                enq_out(def);
-            }
-        };
+    for (auto op : entry()->extended_ops())
+        enqueue(op);
 
-        for (auto op : entry()->extended_ops())
-            enq_in(op);
-
-        while (!q_in.empty()) {
-            for (auto op : q_in.pop()->extended_ops())
-                enq_in(op);
-        }
-
-        while (!q_out.empty()) {
-            for (auto op : q_out.pop()->extended_ops())
-                enq_out(op);
-        }
+    while (!queue.empty()) {
+        for (auto op : queue.pop()->extended_ops())
+            enqueue(op);
     }
 
-    return *free_;
+    swap(live, bound_);
+}
+
+void Scope::calc_free() const {
+    if (has_free_) return;
+    has_free_ = true;
+
+    unique_queue<DefSet> queue;
+
+    auto enqueue = [&](const Def* def) {
+        if (def->is_const()) return;
+
+        if (auto var = def->isa<Var>())
+            free_vars_.emplace(var);
+        else if (auto nom = def->isa_nom())
+            free_noms_.emplace(nom);
+        else
+            queue.push(def);
+    };
+
+    for (auto free : free_defs())
+        enqueue(free);
+
+    while (!queue.empty()) {
+        for (auto op : queue.pop()->extended_ops())
+            enqueue(op);
+    }
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
@@ -94,7 +101,7 @@ bool is_free(const Var* var, const Def* def) {
         if (p == var) return true;
 
     Scope scope(var->nom());
-    return scope.contains(def);
+    return scope.bound(def);
 }
 
 }

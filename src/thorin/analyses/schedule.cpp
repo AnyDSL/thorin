@@ -90,7 +90,7 @@ void Scheduler::compute_def2uses() {
 
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             auto op = def->op(i);
-            if (scope_.contains(op)) {
+            if (scope_.bound(op)) {
                 def2uses_[op].emplace(def, i);
                 enqueue(op);
             }

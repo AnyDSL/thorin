@@ -1402,16 +1402,9 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
 
             llvm::Value *newgeps[flatten_type.size()];
             for (unsigned i = 0; i < flatten_type.size(); i++) {
-                auto innerpointertype = llvm::PointerType::get(flatten_type[i], llvm_element_pointer_type->getAddressSpace());
-
-                llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width));
-                for (size_t j = 0; j < vector_width; j++) {
-                    auto element = irbuilder_.CreateExtractElement(castet_pointer, j);
-                    llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
-                    auto gep = irbuilder_.CreateInBoundsGEP(castet_element_type, element, args);
-                    innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
-                }
-
+                auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
+                auto splat = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(i));
+                auto innergep = irbuilder_.CreateInBoundsGEP(castet_pointer, {zero, splat});
                 newgeps[i] = innergep;
             }
 
@@ -1461,16 +1454,9 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 
             llvm::Value *newgeps[flatten_type.size()];
             for (unsigned i = 0; i < flatten_type.size(); i++) {
-                auto innerpointertype = llvm::PointerType::get(flatten_type[i], llvm_element_pointer_type->getAddressSpace());
-
-                llvm::Value *innergep = llvm::UndefValue::get(llvm::FixedVectorType::get(innerpointertype, vector_width));
-                for (size_t j = 0; j < vector_width; j++) {
-                    auto element = irbuilder_.CreateExtractElement(castet_pointer, j);
-                    llvm::Value* args[] = { irbuilder_.getInt32(0), irbuilder_.getInt32(i) };
-                    auto gep = irbuilder_.CreateInBoundsGEP(castet_element_type, element, args);
-                    innergep = irbuilder_.CreateInsertElement(innergep, gep, j);
-                }
-
+                auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
+                auto splat = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(i));
+                auto innergep = irbuilder_.CreateInBoundsGEP(castet_pointer, {zero, splat});
                 newgeps[i] = innergep;
             }
 

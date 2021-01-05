@@ -57,7 +57,7 @@ const Tuple* ClosureConv::convert(Lam* lam) {
 
     // [Env: *, env: Env, [...., Env] -> codom]
     Scope scope(lam);
-    const auto& free = scope.free().vars;
+    const auto& free = scope.free_defs();
     size_t n = free.size();
     Array<const Def*> Env(n);
     Array<const Def*> env(n);
@@ -77,8 +77,11 @@ const Tuple* ClosureConv::convert(Lam* lam) {
 
     Rewriter rewriter(world(), &scope);
     i = 0;
-    for (auto def : free)
+    for (auto def : free) {
+        if (def->isa_nom()) continue;
+        def->dump(0);
         rewriter.old2new[def] = world().extract(new_lam->vars().back(), n, i++);
+    }
 
     new_lam->set_filter(rewriter.rewrite(lam->filter()));
     new_lam->set_body  (rewriter.rewrite(lam->body  ()));

@@ -449,7 +449,7 @@ void Vectorizer::DivergenceAnalysis::run() {
 #endif
     }
 
-    //TODO: Heavy caching is of the essence.
+    //TODO: Reaching Definitions Analysis.
     //Step 3: Definite Reaching Definitions Analysis (see Chapter 6) (not at first, focus on CFG analysis first)
     //Note: I am currently not sure which is better, first doing the Definite Reachign Analysis, or first doing the CFG analysis.
 
@@ -463,6 +463,7 @@ void Vectorizer::DivergenceAnalysis::run() {
 
     //Step 4.2: Mark varying defs
     //TODO: Memory Analysis: We need to track values that lie in memory slots!
+    //This might not be so significant, stuff resides in memory for a reason.
 
     //Step 4.2.1: Mark incomming trip counter as varying.
     //for (auto def : base->params_as_defs()) {
@@ -550,7 +551,7 @@ void Vectorizer::DivergenceAnalysis::run() {
                             std::cerr << "Varying values in\n";
                             scope.dump();
 #endif
-                            for (auto def : scope.defs()) { //TODO: only parameters are verying, not the entire continuation!
+                            for (auto def : scope.defs()) { //TODO: only parameters are varying, not the entire continuation!
 #ifdef DUMP_DIV_ANALYSIS
                                 std::cerr << "Push def ";
                                 def->dump();
@@ -613,15 +614,6 @@ void Vectorizer::DivergenceAnalysis::run() {
 
 const Type *Vectorizer::widen(const Type *old_type) {
     return world_.vec_type(old_type, vector_width);
-#if 0
-    if (old_type->isa<PtrType>()) { //TODO: these types might have a length of their own, in this case, I need to extend.
-        return world_.ptr_type(old_type->as<PtrType>()->pointee(), vector_width);
-    } else if (old_type->isa<PrimType>()) {
-        return world_.type(old_type->as<PrimType>()->primtype_tag(), vector_width);
-    } else {
-        return world_.vec_type(old_type, vector_width);
-    }
-#endif
 }
 
 Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
@@ -631,7 +623,7 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
 
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i) {
-        if (i != 0 && div_analysis_->getUniform(old_continuation->param(i)) == DivergenceAnalysis::State::Varying) //TODO: the handling of mem should be improved.
+        if (!is_mem(old_continuation->param(i)) && div_analysis_->getUniform(old_continuation->param(i)) == DivergenceAnalysis::State::Varying)
             param_types.emplace_back(widen(old_continuation->param(i)->type()));
         else
             param_types.emplace_back(old_continuation->param(i)->type());
@@ -671,11 +663,6 @@ const Def* Vectorizer::widen(const Def* old_def) {
     } else if (auto param = old_def->isa<Extract>()) {
         Array<const Def*> nops(param->num_ops());
 
-        //TODO: this is hard coded for extracts after loads.
-        //At some point I should distinguish between should- and should-not-vectorize, based on
-        //  (a) the types needed to be syntacticly correct
-        //  (b) the divergence analysis.
-
         nops[0] = widen(param->op(0));
         if (nops[0]->type()->isa<VectorExtendedType>())
             nops[1] = world_.tuple({world_.top(param->op(1)->type()), param->op(1)});
@@ -697,11 +684,6 @@ const Def* Vectorizer::widen(const Def* old_def) {
         return def2def_[param] = new_primop;
     } else if (auto param = old_def->isa<VariantExtract>()) {
         Array<const Def*> nops(param->num_ops());
-
-        //TODO: this is hard coded for extracts after loads.
-        //At some point I should distinguish between should- and should-not-vectorize, based on
-        //  (a) the types needed to be syntacticly correct
-        //  (b) the divergence analysis.
 
         nops[0] = widen(param->op(0));
 
@@ -779,7 +761,6 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     assert(!old_continuation->empty());
 
     // fold branch and match
-    // TODO find a way to factor this out in continuation.cpp
     if (auto callee = old_continuation->callee()->isa_continuation()) {
         switch (callee->intrinsic()) {
             case Intrinsic::Branch: {
@@ -820,7 +801,7 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
         for (size_t i = 0; i < nops.size() - 1; i++) {
             auto arg = nops[i + 1];
             if (i != 0 &&
-                    !arg->type()->isa<VectorExtendedType>() && //TODO: use Divergenceanalysis to find out if the parameter was vectorized?
+                    !arg->type()->isa<VectorExtendedType>() &&
                     div_analysis_->getUniform(oldtarget->param(i)) != DivergenceAnalysis::State::Uniform) {
                 Array<const Def*> elements(vector_width);
                 for (size_t i = 0; i < vector_width; i++) {
@@ -844,13 +825,6 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
 }
 
 Continuation *Vectorizer::widen() {
-    //Step 1: Dump info.
-    //kernel->dump();
-    //std::cerr << "\n";
-
-    //Step 2: Create a faithful copy.
-    //Continuation *vectorize_start = world_.continuation(kernel->type(), kernel->attributes(), kernel->debug_history());
-
     Scope scope(kernel);
     auto defs = Defs();
 
@@ -879,7 +853,7 @@ Continuation *Vectorizer::widen() {
     }
 
     for (auto def : defs)
-        def2def_[def] = ncontinuation->append_param(def->type()); // TODO reduce
+        def2def_[def] = ncontinuation->append_param(def->type());
 
     // mangle filter
     if (!scope.entry()->filter().empty()) {
@@ -897,52 +871,6 @@ Continuation *Vectorizer::widen() {
 
     widen_body(scope.entry(), ncontinuation);
 
-#if 0
-    std::queue<const Def*> queue;
-    GIDSet<const Def*> done;
-
-    std::cerr << "Widening\n";
-    Rewriter vectorizer;
-    for (size_t i = 0; i < ncontinuation->num_ops(); i++) {
-        queue.push(ncontinuation->op(i));
-        done.emplace(ncontinuation->op(i));
-    }
-    while (!queue.empty()) {
-        const Def* element = pop(queue);
-        element->dump();
-
-        //if div_analysis_->get_result(element_vectorized) == divergent:
-        const Def* element_vectorized = widen(element);
-        const Def* element_vectorized = nullptr;
-        if (element_vectorized) {
-          vectorizer.old2new[element] = element_vectorized;
-          element_vectorized->dump();
-        } else {
-          std::cerr << "Not vectorized\n";
-        }
-
-        for (auto op : element->ops())
-            if (done.emplace(op).second)
-                queue.push(op);
-    }
-    std::cerr << "Widening End\n\n";
-
-    //TODO: This should only find temporary use. We should be able to directly call the vectorized function.
-    for (auto use : kernel->copy_uses()) {
-        if (auto ucontinuation = use->isa_continuation())
-            ucontinuation->update_op(use.index(), ncontinuation);
-        else {
-            auto primop = use->as<PrimOp>();
-            Array<const Def*> nops(primop->num_ops());
-            std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
-            nops[use.index()] = ncontinuation;
-            auto newprimop = primop->rebuild(nops);
-            primop->replace(newprimop);
-        }
-    }
-#endif
-
-    //Scope(ncontinuation).dump();
     return ncontinuation;
 }
 
@@ -986,7 +914,6 @@ bool Vectorizer::run() {
                 div_analysis_->run();
 
     //Task 2: Widening
-    //TODO: Uniform branches might still need masking. => Predicate generation relevant! (see Task 3)
                 widen_setup(kerndef);
                 auto *vectorized = widen();
                 //auto *vectorized = clone(Scope(kerndef));
@@ -1134,7 +1061,6 @@ bool Vectorizer::run() {
                                 auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
                                 auto new_jump = world_.predicated(vec_mask);
 
-                                //TODO: Create bool vector for predicate.
                                 auto true_elem = world_.one(world_.type_bool());
                                 Array<const Def *> elements(vector_width);
                                 for (size_t i = 0; i < vector_width; i++) {
@@ -1150,7 +1076,6 @@ bool Vectorizer::run() {
                                     mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
                                 }
 
-                                //TODO: transform the parameters from jump.
                                 pred->jump(new_jump, { mem, predicate, pre_join }, latch->jump_location());
                             }
                         }
@@ -1190,44 +1115,16 @@ bool Vectorizer::run() {
 
                         caller->jump(vectorized, args, caller->jump_debug());
                     }
-                    //const FnType* type = dynamic_cast<const FnType*>(cont->type());
-                    //Array<const Type*> args(type->num_ops() - 2);
-                    //args[0] = type->op(0);
-                    //for (size_t k = 3; k < type->num_ops(); k++)
-                    //    args[k - 2] = type->op(k);
-                    //const FnType *newtype = world_.fn_type(args);
-
-                    //Continuation::Attributes attributes = cont->attributes();
-                    //attributes.intrinsic = Intrinsic::None;
-
-                    //auto *header = world_.continuation(type, attributes, cont->debug_history());
-                    //Array<const Def*> params(vectorized->num_params());
-                    //params[0] = header->param(0); //mem
-
-                    //params[1] = header->param(1); //width
-                    //params[1] = world_.literal_qs32(42, header->debug_history()); //width
-
-                    //params[2] = header->param(1); //return
-                    //for (size_t p = 2; p < header->num_params(); p++) {
-                    //    params[p + 1] = header->param(p);
-                    //}
-                    //header->jump(vectorized, params, cont->jump_debug());
-                    //
-                    //cont->replace(header); //TODO: replace Calls to cont!
                 }
             }
             std::cerr << "Continuation end\n\n";
         }
-        //if cont is vectorize:
-        //find all calls, repeat the rest of this for all of them with the respective set of continuations being used.
-
 
         for (auto succ : cont->succs())
             enqueue(succ);
     }
 
-
-    //world.cleanup();
+    //world_.cleanup();
     world_.dump();
 
     return false;

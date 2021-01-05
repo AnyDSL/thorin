@@ -213,8 +213,8 @@ private:
     PrimType(TypeTable& table, PrimTypeTag tag, size_t length)
         : VectorType(table, (int) tag, {}, length)
     {
-        assert(length <= 1 && "use vectorextendedtype!");
-        //TODO: lenght should be 1, vectors are implemented by a seperate type in the future.
+        // lenght should be 1, vectors are implemented by a seperate type in the future.
+        assert(length <= 1 && "use VectorExtendedType!");
     }
 
 public:
@@ -260,8 +260,8 @@ private:
         , addr_space_(addr_space)
         , device_(device)
     {
-        assert(length <= 1 && "use vectorextendedtype!");
-        //TODO: lenght should be 1, vectors are implemented by a seperate type in the future.
+        // lenght should be 1, vectors are implemented by a seperate type in the future.
+        assert(length <= 1 && "use VectorExtendedType!");
     }
 
 public:

@@ -9,65 +9,118 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
 #include "thorin/config.h"
+#include "thorin/util/stream.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
+
+using hash_t = uint32_t;
 
 //------------------------------------------------------------------------------
 
 void debug_hash();
 
-/// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
+// port from https://en.wikipedia.org/wiki/MurmurHash
+
+inline hash_t murmur_32_scramble(hash_t k) {
+    k *= 0xcc9e2d51;
+    k = (k << 15) | (k >> 17);
+    k *= 0x1b873593;
+    return k;
+}
+
+inline hash_t murmur3(hash_t h, uint32_t key) {
+    h ^= murmur_32_scramble(key);
+    h = (h << 13) | (h >> 19);
+    h = h * 5 + 0xe6546b64;
+    return h;
+}
+
+inline hash_t murmur3(hash_t h, uint64_t key) {
+    hash_t k = hash_t(key);
+    h ^= murmur_32_scramble(k);
+    h = (h << 13) | (h >> 19);
+    h = h * 5 + 0xe6546b64;
+    k = hash_t(key >> 32);
+    h ^= murmur_32_scramble(k);
+    h = (h << 13) | (h >> 19);
+    h = h * 5 + 0xe6546b64;
+    return h;
+}
+
+inline hash_t murmur3_rest(hash_t h, uint8_t key) {
+    h ^= murmur_32_scramble(key);
+    return h;
+}
+
+inline hash_t murmur3_rest(hash_t h, uint16_t key) {
+    h ^= murmur_32_scramble(key);
+    return h;
+}
+
+inline hash_t murmur3_finalize(hash_t h, hash_t len) {
+    h ^= len;
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+	return h;
+}
+
+/// use for a single value to hash
+inline hash_t murmur3(hash_t h) {
+    h ^= h >> 16;
+    h *= 0x85ebca6b;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >> 16;
+    return h;
+}
+
+/// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-var .
 struct FNV1 {
-    static const uint64_t offset = 14695981039346656037_u64;
-    static const uint64_t prime  = 1099511628211_u64;
+    static const hash_t offset = 2166136261_u32;
+    static const hash_t prime  = 16777619_u32;
 };
 
 /// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
-uint64_t hash_combine(uint64_t seed, T v) {
+hash_t hash_combine(hash_t seed, T v) {
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value,
                   "please provide your own hash function");
 
-    uint64_t val = v;
-    for (uint64_t i = 0; i < sizeof(T); ++i) {
-        uint64_t octet = val & 0xff_u64; // extract lower 8 bits
+    hash_t val = v;
+    for (hash_t i = 0; i < sizeof(T); ++i) {
+        hash_t octet = val & 0xff_u32; // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1::prime;
-        val >>= 8_u64;
+        val >>= 8_u32;
     }
     return seed;
 }
 
 template<class T>
-uint64_t hash_combine(uint64_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
+hash_t hash_combine(hash_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
 template<class T, class... Args>
-uint64_t hash_combine(uint64_t seed, T val, Args&&... args) {
+hash_t hash_combine(hash_t seed, T val, Args&&... args) {
     return hash_combine(hash_combine(seed, val), std::forward<Args>(args)...);
 }
 
 template<class T>
-uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
-inline uint64_t hash_begin() { return FNV1::offset; }
+hash_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
+inline hash_t hash_begin() { return FNV1::offset; }
 
-inline uint64_t murmur3(uint64_t h) {
-    h ^= h >> 33_u64;
-    h *= 0xff51afd7ed558ccd_u64;
-    h ^= h >> 33_u64;
-    h *= 0xc4ceb9fe1a85ec53_u64;
-    h ^= h >> 33_u64;
-    return h;
-}
-
-uint64_t hash(const char* s);
+hash_t hash(const char* s);
 
 struct StrHash {
-    static uint64_t hash(const char* s) { return thorin::hash(s); }
+    static hash_t hash(const char* s) { return thorin::hash(s); }
     static bool eq(const char* s1, const char* s2) { return std::strcmp(s1, s2) == 0; }
     static const char* sentinel() { return (const char*)(1); }
 };
@@ -77,7 +130,7 @@ struct StrHash {
 namespace detail {
 
 /// Used internally for @p HashSet and @p HashMap.
-template<class Key, class T, class H, size_t StackCapacity = 4>
+template<class Key, class T, class H, size_t StackCapacity>
 class HashTable {
 public:
     enum { MinHeapCapacity = StackCapacity*4 };
@@ -100,7 +153,7 @@ public:
     template<bool is_const>
     class iterator_base {
     public:
-        typedef typename HashTable<Key, T, H>::value_type value_type;
+        typedef typename HashTable<Key, T, H, StackCapacity>::value_type value_type;
         typedef std::ptrdiff_t difference_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
@@ -125,10 +178,11 @@ public:
 #if THORIN_ENABLE_CHECKS
         inline void verify() const { assert(table_->id_ == id_); }
         inline void verify(iterator_base i) const {
-            assert(table_ == i.table_ && id_ == i.id_);
+            assert(table_ == i.table_ && id_ == i.id_);(void)i;
             verify();
         }
 #else
+        int id() const { return id_; }
         inline void verify() const {}
         inline void verify(iterator_base) const {}
 #endif
@@ -221,6 +275,9 @@ public:
     size_t capacity() const { return capacity_; }
     size_t size() const { return size_; }
     bool empty() const { return size() == 0; }
+#if THORIN_ENABLE_CHECKS
+    int id() const { return id_; }
+#endif
     //@}
 
     //@{ get begin/end iterators
@@ -456,19 +513,21 @@ private:
 
 #if THORIN_ENABLE_PROFILING
     void debug(size_t i) {
-        auto dib = probe_distance(i);
-        if (dib > 2_s*log2(capacity())) {
-            // don't use LOG here - this results in a header dependency hell
-            printf("poor hash function; element %zu has distance %zu with size/capacity: %zu/%zu\n", i, dib, size(), capacity());
-            for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                printf("elem:desired_pos:hash: %zu:%zu:%" PRIu64 "\n", j, desired_pos(key(&nodes_[j])), hash(j));
-            debug_hash();
+        if (capacity() >= 32) {
+            auto dib = probe_distance(i);
+            if (dib > 2_s*log2(capacity())) {
+                // don't use LOG here - this results in a header dependency hell
+                printf("poor hash function; element %zu has distance %zu with size/capacity: %zu/%zu\n", i, dib, size(), capacity());
+                for (size_t j = mod(i-dib); j != i; j = mod(j+1))
+                    printf("elem:desired_pos:hash: %zu:%zu:%" PRIu32 "\n", j, desired_pos(key(&nodes_[j])), hash(j));
+                debug_hash();
+            }
         }
     }
 #else
     void debug(size_t) {}
 #endif
-    uint64_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
+    hash_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
     size_t mod(size_t i) const { return i & (capacity_-1); }
     size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
@@ -538,13 +597,13 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * This container is for the most part compatible with <tt>std::unordered_set</tt>.
+ * This container is for the most part compatible with <code>std::unordered_set</code>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class H = typename Key::Hash, size_t StackCapacity = 4>
-class HashSet : public detail::HashTable<Key, void, H> {
+class HashSet : public detail::HashTable<Key, void, H, StackCapacity> {
 public:
-    typedef detail::HashTable<Key, void, H> Super;
+    typedef detail::HashTable<Key, void, H, StackCapacity> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -572,13 +631,13 @@ public:
 //------------------------------------------------------------------------------
 
 /**
- * This container is for the most part compatible with <tt>std::unordered_map</tt>.
+ * This container is for the most part compatible with <code>std::unordered_map</code>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class T, class H = typename Key::Hash, size_t StackCapacity = 4>
-class HashMap : public detail::HashTable<Key, T, H> {
+class HashMap : public detail::HashTable<Key, T, H, StackCapacity> {
 public:
-    typedef detail::HashTable<Key, T, H> Super;
+    typedef detail::HashTable<Key, T, H, StackCapacity> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -600,33 +659,19 @@ public:
         : Super(ilist)
     {}
 
+    std::optional<mapped_type> lookup(const key_type& k) const {
+        auto i = Super::find(k);
+        return i == Super::cend() ? std::nullopt : std::optional(i->second);
+    }
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
-    mapped_type& operator[](key_type&& key) {
-        return Super::insert(value_type(std::move(key), T())).first->second;
-    }
-
-    void dump() const {
-        stream_list(std::cout, *this, [&] (const auto& p) { std::cout << p.first << " : " << p.second; }, "{", "}\n");
-    }
+    mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
 
     friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };
 
 //------------------------------------------------------------------------------
 
-template<class Key, class T, class H>
-T* find(const HashMap<Key, T*, H>& map, const typename HashMap<Key, T*, H>::key_type& key) {
-    auto i = map.find(key);
-    return i == map.end() ? nullptr : i->second;
-}
-
-template<class Key, class H, class Arg>
-bool visit(HashSet<Key, H>& set, const Arg& key) {
-    return !set.emplace(key).second;
-}
-
-//------------------------------------------------------------------------------
-
+// TODO move this somewhere else
 template<class T>
 struct GIDLt {
     bool operator()(T a, T b) const { return a->gid() < b->gid(); }

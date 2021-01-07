@@ -34,11 +34,11 @@ void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Fu
 
 llvm::Function* AMDGPUCodeGen::emit_function_decl(Continuation* continuation) {
     if (continuation->name() == "llvm.amdgcn.implicitarg.ptr")
-        if (auto f = thorin::find(fcts_, entry_))
-            f->addFnAttr("amdgpu-implicitarg-ptr");
+        if (auto f = fcts_.lookup(entry_))
+            (*f)->addFnAttr("amdgpu-implicitarg-ptr");
     if (continuation->name() == "__ockl_printf_begin")
-        if (auto f = thorin::find(fcts_, entry_))
-            f->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
+        if (auto f = fcts_.lookup(entry_))
+            (*f)->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
     return CodeGen::emit_function_decl(continuation);
 }
 

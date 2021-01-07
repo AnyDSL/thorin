@@ -48,8 +48,8 @@ public:
 
     World& world() { return callee_->world(); }
     const Def* instantiate(const Def* odef) {
-        if (auto ndef = find(old2new_, odef))
-            return ndef;
+        if (auto ndef = old2new_.lookup(odef))
+            return *ndef;
 
         if (auto oprimop = odef->isa<PrimOp>()) {
             Array<const Def*> nops(oprimop->num_ops());

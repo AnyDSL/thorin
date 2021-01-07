@@ -69,7 +69,7 @@ public:
     const ContinuationMap<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
-    const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
+    const CFNode* operator[](Continuation* cont) const { return nodes_.lookup(cont).value_or(nullptr); }
 
 private:
     void link_to_exit();

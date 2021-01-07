@@ -3,9 +3,9 @@
 namespace thorin {
 
 const Type* Importer::import(const Type* otype) {
-    if (auto ntype = find(type_old2new_, otype)) {
-        assert(&ntype->table() == &world_);
-        return ntype;
+    if (auto ntype = type_old2new_.lookup(otype)) {
+        assert(&(*ntype)->table() == &world_);
+        return *ntype;
     }
     size_t size = otype->num_ops();
 
@@ -29,17 +29,17 @@ const Type* Importer::import(const Type* otype) {
 }
 
 const Def* Importer::import(Tracker odef) {
-    if (auto ndef = find(def_old2new_, odef)) {
-        assert(&ndef->world() == &world_);
-        assert(!ndef->is_replaced());
-        return ndef;
+    if (auto ndef = def_old2new_.lookup(odef)) {
+        assert(&(*ndef)->world() == &world_);
+        assert(!(*ndef)->is_replaced());
+        return *ndef;
     }
 
     auto ntype = import(odef->type());
 
     if (auto oparam = odef->isa<Param>()) {
         import(oparam->continuation())->as_continuation();
-        auto nparam = find(def_old2new_, oparam);
+        auto nparam = def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
         assert(!nparam->is_replaced());
         return nparam;

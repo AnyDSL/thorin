@@ -17,7 +17,6 @@ public:
 
     const Scope& scope() const { return scope_; }
     World& world() const { return scope_.world(); }
-    const Def* def2def(const Def* def) { return find(def2def_, def); }
     Continuation* mangle();
     Continuation* old_entry() const { return old_entry_; }
     Continuation* new_entry() const { return new_entry_; }

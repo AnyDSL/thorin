@@ -24,7 +24,7 @@ outer_loop:;
         for (auto n : cfg().reverse_post_order().skip_front()) {
             const CFNode* new_idom = nullptr;
             for (auto pred : cfg().preds(n))
-                new_idom = new_idom ? lca(new_idom, pred) : pred;
+                new_idom = new_idom ? least_common_ancestor(new_idom, pred) : pred;
 
             assert(new_idom);
             if (idom(n) != new_idom) {
@@ -46,7 +46,7 @@ void DomTreeBase<forward>::depth(const CFNode* n, int i) {
 }
 
 template<bool forward>
-const CFNode* DomTreeBase<forward>::lca(const CFNode* i, const CFNode* j) const {
+const CFNode* DomTreeBase<forward>::least_common_ancestor(const CFNode* i, const CFNode* j) const {
     assert(i && j);
     while (index(i) != index(j)) {
         while (index(i) < index(j)) j = idom(j);

@@ -8,8 +8,7 @@
 namespace thorin {
 
 const Def* Rewriter::instantiate(const Def* odef) {
-    if (auto ndef = find(old2new, odef))
-        return ndef;
+    if (auto ndef = old2new.lookup(odef)) return *ndef;
 
     if (auto oprimop = odef->isa<PrimOp>()) {
         Array<const Def*> nops(oprimop->num_ops());
@@ -170,8 +169,8 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 }
 
 const Def* Mangler::mangle(const Def* old_def) {
-    if (auto new_def = find(def2def_, old_def))
-        return new_def;
+    if (auto new_def = def2def_.lookup(old_def))
+        return *new_def;
     else if (!within(old_def))
         return old_def;
     else if (auto old_continuation = old_def->isa_continuation()) {

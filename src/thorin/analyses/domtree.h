@@ -34,7 +34,7 @@ public:
     const CFNode* root() const { return *idoms_.begin(); }
     const CFNode* idom(const CFNode* n) const { return idoms_[n]; }
     int depth(const CFNode* n) const { return depth_[n]; }
-    const CFNode* lca(const CFNode* i, const CFNode* j) const; ///< Returns the least common ancestor of @p i and @p j.
+    const CFNode* least_common_ancestor(const CFNode* i, const CFNode* j) const;
     virtual void stream_ycomp(std::ostream& out) const override;
 
 private:

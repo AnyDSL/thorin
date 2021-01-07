@@ -105,7 +105,7 @@ Continuation* CodeGen::emit_hls(Continuation* continuation) {
 }
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
-    thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
+    phis_[param]->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
@@ -222,8 +222,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
 }
 
 llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
-    if (auto f = thorin::find(fcts_, continuation))
-        return f;
+    if (auto f = fcts_.lookup(continuation)) return *f;
 
     std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
@@ -313,10 +312,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         assert(ret_param);
 
         BBMap bb2continuation;
-        Schedule schedule(scope);
+        auto bbs = block_schedule(scope);
 
-        for (const auto& block : schedule) {
-            auto continuation = block.continuation();
+        for (auto continuation : bbs) {
             // map all bb-like continuations to llvm bb stubs
             if (continuation->intrinsic() != Intrinsic::EndScope) {
                 auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(*context_, continuation->name().c_str(), fct);
@@ -341,13 +339,13 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
-        for (auto& block : schedule) {
-            auto continuation = block.continuation();
-            if (continuation->intrinsic() == Intrinsic::EndScope)
-                continue;
+        for (auto continuation : bbs) {
+            if (continuation->intrinsic() == Intrinsic::EndScope) continue;
             assert(continuation == entry_ || continuation->is_basicblock());
             irbuilder_.SetInsertPoint(bb2continuation[continuation]);
 
+            // TODO
+#if 0
             for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
@@ -587,8 +585,7 @@ void CodeGen::optimize(int opt) {
 
 llvm::Value* CodeGen::lookup(const Def* def) {
     if (auto primop = def->isa<PrimOp>()) {
-        if (auto res = thorin::find(primops_, primop))
-            return res;
+        if (auto res = primops_.lookup(primop)) return *res;
         else {
             // we emit all Thorin constants in the entry block, since they are not part of the schedule
             if (is_const(primop)) {
@@ -616,7 +613,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
             return i->second;
 
         assert(phis_.find(param) != phis_.end());
-        return thorin::find(phis_, param);
+        return phis_[param];
     }
 
     if (auto continuation = def->isa_continuation())
@@ -1135,8 +1132,7 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {
-    if (auto llvm_type = thorin::find(types_, type))
-        return llvm_type;
+    if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;

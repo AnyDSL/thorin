@@ -509,18 +509,18 @@ void CCodeGen::emit() {
             }
         }
 
+        auto bbs = block_schedule(scope);
         Schedule schedule(scope);
 
         // emit function arguments and phi nodes
-        for (const auto& block : schedule) {
-            for (auto param : block.continuation()->params()) {
+        for (auto&& continuation : bbs) {
+            for (auto param : continuation->params()) {
                 if (is_mem(param) || is_unit(param))
                     continue;
                 emit_aggop_decl(param->type());
                 insert(param, param->unique_name());
             }
 
-            auto continuation = block.continuation();
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
                     if (!is_mem(param) && !is_unit(param)) {
@@ -539,10 +539,9 @@ void CCodeGen::emit() {
             }
         }
 
-        for (const auto& block : schedule) {
-            auto continuation = block.continuation();
-            if (continuation->empty())
-                continue;
+        for (auto continuation : bbs) {
+            if (continuation->empty()) continue;
+
             assert(continuation == scope.entry() || continuation->is_basicblock());
             func_impl_ << endl;
 
@@ -555,6 +554,8 @@ void CCodeGen::emit() {
                         func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
             }
 
+            // TODO rewrite and merge with LLVM backend
+#if 0
             for (auto primop : block) {
                 if (primop->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
@@ -580,6 +581,7 @@ void CCodeGen::emit() {
                 emit_debug_info(primop);
                 emit(primop) << endl;
             }
+#endif
 
             // emit definitions for temporaries
             for (auto arg : continuation->args())

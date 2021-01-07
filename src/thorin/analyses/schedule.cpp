@@ -12,66 +12,15 @@
 
 namespace thorin {
 
-typedef DefMap<const CFNode*> Def2CFNode;
+Schedule::Schedule(const Scope& scope)
+    : scope_(scope)
+    , cfg_(scope.f_cfg())
+    , domtree_(cfg().domtree())
+{
+    compute_def2uses();
+}
 
-//------------------------------------------------------------------------------
-
-class Scheduler {
-public:
-    Scheduler(const Scope& scope, Schedule& schedule)
-        : scope_(scope)
-        , cfg_(scope.f_cfg())
-        , domtree_(cfg_.domtree())
-        , looptree_(cfg_.looptree())
-        , schedule_(schedule)
-    {
-        compute_def2uses();
-        Def2CFNode* def2node = nullptr;
-
-        switch (schedule.tag()) {
-            case Schedule::Early: schedule_early(); def2node = &def2early_; break;
-            case Schedule::Late:  schedule_late();  def2node = &def2late_;  break;
-            case Schedule::Smart: schedule_smart(); def2node = &def2smart_; break;
-        }
-
-        for (const auto& p : *def2node) {
-            if (auto primop = p.first->isa<PrimOp>())
-                schedule[p.second].primops_.push_back(primop);
-        }
-
-        topo_sort(*def2node);
-    }
-
-    void for_all_primops(std::function<void(const PrimOp*)> f) {
-        for (const auto& p : def2uses_) {
-            if (auto primop = p.first->isa<PrimOp>())
-                f(primop);
-        }
-    }
-
-    const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
-    void compute_def2uses();
-    void schedule_early() { for_all_primops([&](const PrimOp* primop) { schedule_early(primop); }); }
-    void schedule_late()  { for_all_primops([&](const PrimOp* primop) { schedule_late (primop); }); }
-    void schedule_smart() { for_all_primops([&](const PrimOp* primop) { schedule_smart(primop); }); }
-    const CFNode* schedule_early(const Def*);
-    const CFNode* schedule_late(const Def*);
-    const CFNode* schedule_smart(const PrimOp*);
-    void topo_sort(Def2CFNode&);
-
-private:
-    const Scope& scope_;
-    const F_CFG& cfg_;
-    const DomTree& domtree_;
-    const LoopTree<true>& looptree_;
-    DefMap<Uses> def2uses_;
-    Def2CFNode def2early_;
-    Def2CFNode def2late_;
-    Def2CFNode def2smart_;
-    Schedule& schedule_;
-};
-
-void Scheduler::compute_def2uses() {
+void Schedule::compute_def2uses() {
     std::queue<const Def*> queue;
     DefSet done;
 
@@ -85,7 +34,7 @@ void Scheduler::compute_def2uses() {
         }
     };
 
-    for (auto n : cfg_.reverse_post_order()) {
+    for (auto n : cfg().reverse_post_order()) {
         queue.push(n->continuation());
         auto p = done.emplace(n->continuation());
         assert_unused(p.second);
@@ -102,55 +51,48 @@ void Scheduler::compute_def2uses() {
     }
 }
 
-const CFNode* Scheduler::schedule_early(const Def* def) {
-    auto i = def2early_.find(def);
-    if (i != def2early_.end())
-        return i->second;
+Continuation* Schedule::schedule_early(const Def* def) {
+    if (auto cont = early_.lookup(def)) return *cont;
+    if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
 
-    if (auto param = def->isa<Param>())
-        return def2early_[def] = cfg_[param->continuation()];
-
-    auto result = cfg_.entry();
+    auto result = scope().entry();
     for (auto op : def->as<PrimOp>()->ops()) {
         if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
-            auto n = schedule_early(op);
-            if (domtree_.depth(n) > domtree_.depth(result))
-                result = n;
+            auto cont = schedule_early(op);
+            if (domtree_.depth(cfg(cont)) > domtree_.depth(cfg(result)))
+                result = cont;
         }
     }
 
-    return def2early_[def] = result;
+    return early_[def] = result;
 }
 
-const CFNode* Scheduler::schedule_late(const Def* def) {
-    auto i = def2late_.find(def);
-    if (i != def2late_.end())
-        return i->second;
+Continuation* Schedule::schedule_late(const Def* def) {
+    if (auto cont = late_.lookup(def)) return *cont;
 
-    if (auto continuation = def->isa_continuation())
-        return def2late_[def] = cfg_[continuation];
-
-    const CFNode* result = nullptr;
-    auto primop = def->as<PrimOp>();
-    for (auto use : uses(primop)) {
-        auto n = schedule_late(use);
-        result = result ? domtree_.lca(result, n) : n;
+    Continuation* result = nullptr;
+    if (auto continuation = def->isa_continuation()) {
+        result = continuation;
+    } else if (auto param = def->isa<Param>()) {
+        result = param->continuation();
+    } else {
+        for (auto use : uses(def)) {
+            auto cont = schedule_late(use);
+            result = result ? domtree_.least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
+        }
     }
 
-    return def2late_[def] = result;
+    return late_[def] = result;
 }
 
-const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
-    auto i = def2smart_.find(primop);
-    if (i != def2smart_.end())
-        return i->second;
+Continuation* Schedule::schedule_smart(const Def* def) {
+    if (auto cont = smart_.lookup(def)) return *cont;
 
-    auto early = schedule_early(primop);
-    auto late  = schedule_late (primop);
+    auto early = cfg(schedule_early(def));
+    auto late  = cfg(schedule_late (def));
 
-    const CFNode* result;
-    result = late;
-    int depth = looptree_[late]->depth();
+    auto result = late;
+    int depth = cfg().looptree()[late]->depth();
     for (auto i = late; i != early;) {
         auto idom = domtree_.idom(i);
         assert(i != idom);
@@ -158,89 +100,31 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
 
         // HACK this should actually never occur
         if (i == nullptr) {
-            WLOG("don't know where to put {}", primop);
+            WLOG("don't know where to put {}", def);
             result = late;
             break;
         }
 
-        int cur_depth = looptree_[i]->depth();
+        int cur_depth = cfg().looptree()[i]->depth();
         if (cur_depth < depth) {
             result = i;
             depth = cur_depth;
         }
     }
 
-    return def2smart_[primop] = result;
+    return smart_[def] = result->continuation();
 }
 
-void Scheduler::topo_sort(Def2CFNode& def2node) {
-    for (auto& block : schedule_.blocks_) {
-        std::vector<const PrimOp*> primops;
-        std::queue<const PrimOp*> queue;
-        DefSet done;
-
-        auto inside = [&](const Def* def) {
-            auto i = def2node.find(def);
-            return i != def2node.end() && i->second == block.node();
-        };
-
-        auto enqueue = [&](const PrimOp* primop) {
-            if (!done.contains(primop)) {
-                for (auto op : primop->ops()) {
-                    if (inside(op) && !done.contains(op))
-                        return;
-                }
-
-                queue.push(primop);
-                done.emplace(primop);
-                primops.push_back(primop);
-            }
-        };
-
-        for (auto primop : block)
-            enqueue(primop);
-
-        while (!queue.empty()) {
-            auto primop = pop(queue);
-
-            for (auto use : uses(primop)) {
-                if (auto primop = use->isa<PrimOp>()) {
-                    if (inside(primop))
-                        enqueue(primop);
-                }
-            }
-        }
-
-        assert(block.primops_.size() == primops.size());
-        swap(block.primops_, primops);
-    }
-}
-
-//------------------------------------------------------------------------------
-
-Schedule::Schedule(const Scope& scope, Tag tag)
-    : scope_(scope)
-    , indices_(cfg())
-    , blocks_(cfa().size())
-    , tag_(tag)
-{
-    block_schedule();
-    Scheduler(scope, *this);
-    verify();
-}
-
-void Schedule::block_schedule() {
+BlockSchedule block_schedule(const Scope& scope) {
     // until we have sth better simply use the RPO of the CFG
-    size_t i = 0;
-    for (auto n : cfg().reverse_post_order()) {
-        auto& block = blocks_[i];
-        block.node_ = n;
-        block.index_ = i;
-        indices_[n] = i++;
-    }
-    assert(blocks_.size() == i);
+    BlockSchedule result;
+    for (auto n : scope.f_cfg().reverse_post_order())
+        result.emplace_back(n->continuation());
+
+    return result;
 }
 
+#if 0
 void Schedule::verify() {
 #if THORIN_ENABLE_CHECKS
     bool ok = true;
@@ -299,5 +183,6 @@ void Schedule::thorin() const {
 void verify_mem(World& world) {
     Scope::for_each(world, [&](const Scope& scope) { schedule(scope); });
 }
+#endif
 
 }

@@ -359,6 +359,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 auto llvm_value = emit(primop);
                 primops_[primop] = llvm_value;
             }
+#endif
 
             // terminate bb
             if (debug)

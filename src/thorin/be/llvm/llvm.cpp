@@ -387,16 +387,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             assert(continuation == entry_ || continuation->is_basicblock());
             irbuilder_.SetInsertPoint(bb2continuation[continuation]);
 
-            llvm::BasicBlock *body_block, *terminate_block;
-
-            if(current_mask != nullptr) {
-                body_block = llvm::BasicBlock::Create(*context_, (continuation->name() + "_body").c_str(), fct);
-                terminate_block = llvm::BasicBlock::Create(*context_, (continuation->name() + "_term").c_str(), fct);
-                llvm::Value *any_set = irbuilder_.CreateOrReduce(lookup(current_mask));
-                irbuilder_.CreateCondBr(any_set, body_block, terminate_block);
-                irbuilder_.SetInsertPoint(body_block);
-            }
-
             for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc(llvm::DILocation::get(*context_, primop->location().front_line(), primop->location().front_col(), discope)));
@@ -407,25 +397,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     THORIN_UNREACHABLE;
                 }
 
-                bool local_emit = true;
-
-                Scope block_scope(continuation);
-                if (continuation &&
-                        continuation->callee()->isa<Continuation>() &&
-                        continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated &&
-                        continuation->arg(1) == primop)
-                    local_emit = false;
-
-                if (local_emit) {
-                    auto llvm_value = emit(primop);
-                    primops_[primop] = llvm_value;
-                }
-
-            }
-
-            if(current_mask != nullptr) {
-                irbuilder_.CreateBr(terminate_block);
-                irbuilder_.SetInsertPoint(terminate_block);
+                auto llvm_value = emit(primop);
+                primops_[primop] = llvm_value;
             }
 
             // terminate bb
@@ -485,7 +458,14 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     current_mask = mask;
                 }
                 auto target_bb = bb2continuation[continuation->arg(2)->as_continuation()];
-                irbuilder_.CreateBr(target_bb);
+                auto over_bb = bb2continuation[continuation->arg(3)->as_continuation()];
+
+                if (current_mask != nullptr) {
+                    llvm::Value *any_set = irbuilder_.CreateOrReduce(lookup(current_mask));
+                    irbuilder_.CreateCondBr(any_set, target_bb, over_bb);
+                } else {
+                    irbuilder_.CreateBr(target_bb);
+                }
             } else if (continuation->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {

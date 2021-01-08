@@ -1,6 +1,8 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/world.h"
 #include "thorin/util/log.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/analyses/domtree.h"
 
 #include <iostream>
 #include <map>
@@ -623,7 +625,7 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
 
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i) {
-        if (!is_mem(old_continuation->param(i)) && div_analysis_->getUniform(old_continuation->param(i)) == DivergenceAnalysis::State::Varying)
+        if (!is_mem(old_continuation->param(i)) && div_analysis_->getUniform(old_continuation->param(i)) != DivergenceAnalysis::State::Uniform)
             param_types.emplace_back(widen(old_continuation->param(i)->type()));
         else
             param_types.emplace_back(old_continuation->param(i)->type());
@@ -641,21 +643,27 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
 }
 
 const Def* Vectorizer::widen(const Def* old_def) {
-    if (auto new_def = find(def2def_, old_def))
+    if (auto new_def = find(def2def_, old_def)) {
         return new_def;
-    else if (!widen_within(old_def)) {
-        if (auto cont = old_def->isa_continuation())
+    } else if (!widen_within(old_def)) {
+        if (auto cont = old_def->isa_continuation()) {
             if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
                 auto type = old_def->type();
                 auto match = world_.match(world_.vec_type(type->op(0), vector_width), type->num_ops() - 2);
                 return def2def_[old_def] = match;
             }
+            if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Branch) {
+                auto branch = world_.continuation(world_.fn_type({world_.vec_type(world_.type_bool(), vector_width), world_.fn_type(), world_.fn_type()}), Intrinsic::Branch, {"br_vec"});
+                return def2def_[old_def] = branch;
+            }
+        }
         return old_def;
-    }
-    else if (auto old_continuation = old_def->isa_continuation()) {
+    } else if (auto old_continuation = old_def->isa_continuation()) {
         auto new_continuation = widen_head(old_continuation);
         widen_body(old_continuation, new_continuation);
         return new_continuation;
+    } else if (div_analysis_->getUniform(old_def) == DivergenceAnalysis::State::Uniform) {
+        return old_def; //TODO: this def could contain a continuation inside a tuple for match cases!
     } else if (auto param = old_def->isa<Param>()) {
         widen(param->continuation());
         assert(def2def_.contains(param));
@@ -739,17 +747,31 @@ const Def* Vectorizer::widen(const Def* old_def) {
     } else {
         auto old_primop = old_def->as<PrimOp>();
         Array<const Def*> nops(old_primop->num_ops());
-        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
+        bool any_vector = false;
+        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
             nops[i] = widen(old_primop->op(i));
+            if (nops[i]->type()->isa<VectorExtendedType>())
+                any_vector = true;
+        }
+
+        if (any_vector && (old_primop->isa<BinOp>() || old_primop->isa<Access>())) {
+            for (size_t i = 0, e = old_primop->num_ops(); any_vector && i != e; ++i) {
+                if (nops[i]->type()->isa<VectorExtendedType>())
+                    continue;
+                if (nops[i]->type()->isa<MemType>())
+                    continue;
+                Array<const Def*> elements(vector_width);
+                for (size_t j = 0; j < vector_width; j++)
+                    elements[j] = nops[i];
+                nops[i] = world_.vector(elements, nops[i]->debug_history());
+            }
+        }
 
         auto type = widen(old_primop->type());
         const Def* new_primop;
+
         if (old_primop->isa<PrimLit>()) {
-            Array<const Def*> elements(vector_width);
-            for (size_t i = 0; i < vector_width; i++) {
-                elements[i] = old_primop;
-            }
-            new_primop = world_.vector(elements, old_primop->debug_history());
+            assert(false && "Primlits are uniform");
         } else {
             new_primop = old_primop->rebuild(nops, type);
         }
@@ -792,16 +814,25 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
         nops[i] = widen(old_continuation->op(i));
 
     Array<const Def*> nargs(nops.size() - 1); //new args of new_continuation
-    auto ntarget = nops.front();   // new target of new_continuation
+    const Def* ntarget = nops.front();   // new target of new_continuation
 
     Scope scope(kernel);
 
+    if (auto callee = old_continuation->callee()->isa_continuation()) {
+        if (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match) {
+            if (!nops[1]->type()->isa<VectorExtendedType>()) {
+                ntarget = old_continuation->op(0);
+            }
+        }
+    }
+
     if (old_continuation->op(0)->isa<Continuation>() && scope.contains(old_continuation->op(0))) {
         auto oldtarget = old_continuation->op(0)->as<Continuation>();
+
         for (size_t i = 0; i < nops.size() - 1; i++) {
             auto arg = nops[i + 1];
-            if (i != 0 &&
-                    !arg->type()->isa<VectorExtendedType>() &&
+            if (!is_mem(arg) &&
+                    !arg->type()->isa<VectorExtendedType>() && //TODO: This is not correct.
                     div_analysis_->getUniform(oldtarget->param(i)) != DivergenceAnalysis::State::Uniform) {
                 Array<const Def*> elements(vector_width);
                 for (size_t i = 0; i < vector_width; i++) {
@@ -815,10 +846,21 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
             }
         }
     } else {
-        for (size_t i = 0; i < nops.size() - 1; i++) {
-            auto arg = nops[i + 1];
-            nargs[i] = arg;
-        }
+        for (size_t i = 0; i < nops.size() - 1; i++)
+            nargs[i] = nops[i + 1];
+    }
+
+    for (size_t i = 0, e = nops.size() - 1; i != e; ++i) {
+            //if (div_analysis_->getUniform(old_continuation->op(i)) == DivergenceAnalysis::State::Uniform &&
+            //        div_analysis_->getUniform(oldtarget->param(i-1)) != DivergenceAnalysis::State::Uniform) {
+            if (!nargs[i]->type()->isa<VectorExtendedType>() &&
+                    ntarget->isa<Continuation>() &&
+                    ntarget->as<Continuation>()->param(i)->type()->isa<VectorExtendedType>()) { //TODO: base this on divergence analysis
+                Array<const Def*> elements(vector_width);
+                for (size_t j = 0; j < vector_width; j++)
+                    elements[j] = nargs[i];
+                nargs[i] = world_.vector(elements, nargs[i]->debug_history());
+            }
     }
 
     new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
@@ -931,10 +973,16 @@ bool Vectorizer::run() {
                     if(join_old == *it.second.end()) {
                         //Only possible option is that all cases call return directly.
                         const FnType* join_type = world_.fn_type({world_.mem_type()});
-                        join = world_.continuation(join_type, Debug(Symbol("match_join")));
+                        join = world_.continuation(join_type, Debug(Symbol("join")));
                         auto return_intrinsic = vectorized->param(2);
                         //TODO: only replace calls that are dominated by latch.
-                        return_intrinsic->replace(join);
+                        for (auto& use : return_intrinsic->copy_uses()) {
+                            auto def = const_cast<Def*>(use.def());
+                            auto index = use.index();
+                            def->unset_op(index);
+                            def->set_op(index, join);
+                        }
+
                         join->jump(return_intrinsic, {join->param(0)});
                     } else {
                        join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
@@ -945,38 +993,56 @@ bool Vectorizer::run() {
                     //match:
                     auto cont = latch->op(0)->isa_continuation();
                     if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
-                        const Def * otherwise_old = latch_old->op(2);
-                        Continuation * otherwise = const_cast<Continuation*>(def2def_[otherwise_old]->as<Continuation>());
-                        assert(otherwise);
+                        Scope latch_scope(latch);
+                        Schedule latch_schedule = schedule(latch_scope);
 
-                    //  rewire match to "otherwise" with acording predicat.
                         auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
-                        auto new_jump = world_.predicated(vec_mask);
+                        auto variant_index = latch->arg(0);
 
-                        const Def *mem = otherwise->arg(0);
-                        auto mem_back = mem;
-
-                        Array<const Def *> join_cache(otherwise->num_args() - 1); //TODO: otherwise might call some other continuation at first.
-
-                        for (size_t i = 0; i < otherwise->num_args() - 1; i++) {
-                            auto t = world_.alloc(otherwise->arg(i + 1)->type(), mem);
-                            mem = world_.extract(t, (int) 0);
-                            for (auto& use : mem_back->copy_uses()) {
-                                if (use.def() == t)
-                                    continue;
-                                auto def = const_cast<Def*>(use.def());
-                                auto index = use.index();
-                                def->unset_op(index);
-                                def->set_op(index, mem);
+                        for (size_t i = 1; i < latch_old->num_args(); i++) {
+                            const Def * old_case = latch_old->arg(i);
+                            if (i != 1) {
+                                assert(old_case->isa<Tuple>());
+                                old_case = old_case->as<Tuple>()->op(1);
                             }
-                            mem_back = mem;
-                            join_cache[i] = world_.extract(t, 1);
+                            Continuation * new_case = const_cast<Continuation*>(def2def_[old_case]->as<Continuation>());
+                            assert(new_case);
+
+                            auto new_mem = new_case->append_param(world_.mem_type());
+                            Def* first_mem = nullptr;
+                            for (auto &block : latch_schedule) {
+                                if (block.continuation() == new_case) {
+                                    for (auto primop : block) {
+                                        if (auto memop = primop->isa<MemOp>()) {
+                                            first_mem = const_cast<MemOp*>(memop);
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                            if (first_mem) {
+                                int index = 0; //TODO: always correct?
+                                first_mem->unset_op(index);
+                                first_mem->set_op(index, new_mem);
+                            } else {
+                                new_case->update_arg(0, new_mem);
+                            }
                         }
 
-                        mem_back = mem;
-                        auto mem_first_case = mem;
+                        const Def *mem = latch->mem_param();
+                        const Schedule::Block *latch_block = latch_schedule.begin();
+                        for (auto primop : *latch_block) {
+                            if (auto memop = primop->isa<MemOp>())
+                                mem = memop->out_mem();
+                        }
 
-                        auto variant_index = latch->arg(0);
+                        Array<const Def *> join_cache(join->num_params() - 1);
+                        for (size_t i = 0; i < join->num_params() - 1; i++) {
+                            auto t = world_.alloc(join->param(i + 1)->type(), mem);
+                            mem = world_.extract(t, (int) 0);
+                            join_cache[i] = world_.extract(t, 1);
+                        }
 
                         Array<const Def*> predicates(latch->num_args() - 1);
                         for (size_t i = 1; i < latch->num_args() - 1; i++) {
@@ -996,90 +1062,69 @@ bool Vectorizer::run() {
                         }
                         predicates[0] = world_.arithop_not(predicates[0]);
 
-                        Continuation *last_case = otherwise;
-                    //  for each case of match:
-                        for (size_t i = 2; i < latch->num_args(); i++) {
-                            const Continuation* case_cont_old = latch_old->arg(i)->as<Tuple>()->op(1)->as<Continuation>();
-                            Continuation* case_cont = const_cast<Continuation*>(def2def_[case_cont_old]->as<Continuation>());
-                            assert(case_cont);
+                        const Def * otherwise_old = latch_old->arg(1);
+                        Continuation * otherwise = const_cast<Continuation*>(def2def_[otherwise_old]->as<Continuation>());
+                        assert(otherwise);
 
-                            Scope case_scope (last_case);
-                    //      for calls to join in scope of last_case.
-                            for (auto pred : join->preds()) {
-                                if (!case_scope.contains(pred))
-                                    continue;
+                        Continuation * current_case = otherwise;
+                        Continuation * case_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("otherwise_back")));
 
-                    //          rewire to case, build next predicat.
-                                auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
-                                auto new_jump = world_.predicated(vec_mask);
+                        auto new_jump = world_.predicated(vec_mask);
+                        latch->jump(new_jump, { mem, predicates[0], current_case, case_back }, latch->jump_location());
 
-                                //get old mem parameter, if possible.
-                                if (pred->arg(0)->type()->isa<MemType>()) {
-                                    mem = pred->arg(0);
-                                }
+                        Continuation * pre_join = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("match_merge")));
 
-                                for (size_t j = 1; j < pred->num_args(); j++) {
-                                    mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                        for (size_t i = 2; i < latch_old->num_args() + 1; i++) {
+                            Scope case_scope(current_case);
 
-                                    for (auto& use : mem_back->copy_uses()) { //TODO: be more efficient, perform this step at the end!
-                                        if (use.def() == mem)
-                                            continue;
-                                        auto def = const_cast<Def*>(use.def());
-                                        auto index = use.index();
-                                        def->unset_op(index);
-                                        def->set_op(index, mem);
-                                    }
-                                    mem_back = mem;
-                                }
+                            Continuation *next_case;
+                            Continuation *next_case_back;
 
-                                if (mem_back != mem) {
-                                    for (auto& use : mem_back->copy_uses()) {
-                                        if (use.def() == mem)
-                                            continue;
-                                        auto def = const_cast<Def*>(use.def());
-                                        auto index = use.index();
-                                        def->unset_op(index);
-                                        def->set_op(index, mem);
-                                    }
-                                    mem_back = mem;
-                                }
-
-                                pred->jump(new_jump, { mem, predicates[i - 1], case_cont }, latch->jump_location());
+                            if (i < latch_old->num_args()) {
+                                auto next_case_old = latch_old->arg(i)->as<Tuple>()->op(1);
+                                next_case = const_cast<Continuation*>(def2def_[next_case_old]->as<Continuation>());
+                                next_case_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("case_back")));
+                            } else {
+                                next_case = pre_join;
+                                next_case_back = pre_join;
                             }
 
-                            last_case = case_cont;
-                        }
+                            assert(next_case);
+                            assert(next_case_back);
 
-                        Continuation * pre_join = world_.continuation(Debug(Symbol("match_merge")));
-                        {
-                            Scope case_scope (last_case);
-                    //      for calls to join in scope of last_case.
                             for (auto pred : join->preds()) {
                                 if (!case_scope.contains(pred))
                                     continue;
-                    //          rewire to join, discarding predicates.
-                                auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
-                                auto new_jump = world_.predicated(vec_mask);
 
-                                auto true_elem = world_.one(world_.type_bool());
-                                Array<const Def *> elements(vector_width);
-                                for (size_t i = 0; i < vector_width; i++) {
-                                    elements[i] = true_elem;
-                                }
-                                auto predicate = world_.vector(elements);
-
-                                if (pred->arg(0)->type()->isa<MemType>()) {
-                                    mem = pred->arg(0);
-                                }
+                                assert(pred->arg(0)->type()->isa<MemType>());
+                                mem = pred->arg(0);
 
                                 for (size_t j = 1; j < pred->num_args(); j++) {
                                     mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
                                 }
 
-                                pred->jump(new_jump, { mem, predicate, pre_join }, latch->jump_location());
+                                current_case->jump(case_back, { mem });
+
+                                auto new_jump = world_.predicated(vec_mask);
+                                const Def* predicate;
+                                if (i < latch_old->num_args())
+                                    predicate = predicates[i - 1];
+                                else {
+                                    auto true_elem = world_.one(world_.type_bool());
+                                    Array<const Def *> elements(vector_width);
+                                    for (size_t i = 0; i < vector_width; i++) {
+                                        elements[i] = true_elem;
+                                    }
+                                    predicate = world_.vector(elements);
+                                }
+                                case_back->jump(new_jump, { case_back->mem_param(), predicate, next_case, next_case_back }, latch->jump_location());
                             }
+
+                            current_case = next_case;
+                            case_back = next_case_back;
                         }
 
+                        mem = pre_join->mem_param();
                         Array<const Def*> join_params(join->num_params());
                         for (size_t i = 1; i < join->num_params(); i++) {
                             auto load = world_.load(mem, join_cache[i - 1]);
@@ -1089,8 +1134,144 @@ bool Vectorizer::run() {
                         }
                         join_params[0] = mem;
                         pre_join->jump(join, join_params, latch->jump_location());
+                    }
 
-                        latch->jump(new_jump, { mem_first_case, predicates[0], otherwise }, latch->jump_location());
+                    if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Branch) {
+                        const Def * then_old = latch_old->arg(1);
+                        Continuation * then_new = const_cast<Continuation*>(def2def_[then_old]->as<Continuation>());
+                        assert(then_new);
+
+                        const Def * else_old = latch_old->arg(2);
+                        Continuation * else_new = const_cast<Continuation*>(def2def_[else_old]->as<Continuation>());
+                        assert(else_new);
+
+                        auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
+
+                        Scope latch_scope(latch);
+                        const Def *mem = latch->mem_param();
+                        Schedule latch_schedule = schedule(latch_scope);
+                        const Schedule::Block *latch_block = latch_schedule.begin();
+                        for (auto primop : *latch_block) {
+                            if (auto memop = primop->isa<MemOp>())
+                                mem = memop->out_mem();
+                        }
+
+                        Array<const Def *> join_cache(then_new->num_args() - 1);
+
+                        for (size_t i = 0; i < then_new->num_args() - 1; i++) {
+                            auto t = world_.alloc(then_new->arg(i + 1)->type(), mem);
+                            mem = world_.extract(t, (int) 0);
+                            join_cache[i] = world_.extract(t, 1);
+                        }
+
+                        const Def* predicate_true = latch->arg(0);
+                        const Def* predicate_false = world_.arithop_not(predicate_true);
+
+                        auto then_mem = then_new->append_param(world_.mem_type());
+                        Def* then_first_mem = nullptr;
+                        for (auto &block : latch_schedule) {
+                            if (block.continuation() == then_new) {
+                                for (auto primop : block) {
+                                    if (auto memop = primop->isa<MemOp>()) {
+                                        then_first_mem = const_cast<MemOp*>(memop);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        if (then_first_mem) {
+                            int index = 0;
+                            then_first_mem->unset_op(index);
+                            then_first_mem->set_op(index, then_mem);
+                        } else {
+                            then_new->update_arg(0, then_mem);
+                        }
+
+                        auto else_mem = else_new->append_param(world_.mem_type());
+                        Def* else_first_mem = nullptr;
+                        for (auto &block : latch_schedule) {
+                            if (block.continuation() == else_new) {
+                                for (auto primop : block) {
+                                    if (auto memop = primop->isa<MemOp>()) {
+                                        else_first_mem = const_cast<MemOp*>(memop);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        if (else_first_mem) {
+                            int index = 0;
+                            else_first_mem->unset_op(index);
+                            else_first_mem->set_op(index, else_mem);
+                        } else {
+                            else_new->update_arg(0, else_mem);
+                        }
+
+                        Continuation * pre_join = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("branch_merge")));
+                        Continuation * then_new_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("branch_true_back")));
+                        Continuation * else_new_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("branch_false_back")));
+
+                        Scope then_scope(then_new);
+
+                        auto new_jump = world_.predicated(vec_mask);
+                        latch->jump(new_jump, { mem, predicate_true, then_new, then_new_back }, latch->jump_location());
+
+                        for (auto pred : join->preds()) {
+                            if (!then_scope.contains(pred))
+                                continue;
+
+                            //get old mem parameter, if possible.
+                            assert(pred->arg(0)->type()->isa<MemType>());
+                            mem = pred->arg(0);
+
+                            for (size_t j = 1; j < pred->num_args(); j++) {
+                                mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                            }
+
+                            pred->jump(then_new_back, { mem });
+
+                            auto new_jump = world_.predicated(vec_mask);
+                            then_new_back->jump(new_jump, { then_new_back->mem_param(), predicate_false, else_new, else_new_back }, latch->jump_location());
+                        }
+
+                        Scope else_scope(else_new);
+
+                        for (auto pred : join->preds()) {
+                            if (!else_scope.contains(pred))
+                                continue;
+
+                            auto true_elem = world_.one(world_.type_bool());
+                            Array<const Def *> elements(vector_width);
+                            for (size_t i = 0; i < vector_width; i++) {
+                                elements[i] = true_elem;
+                            }
+                            auto one_predicate = world_.vector(elements);
+
+                            assert(pred->arg(0)->type()->isa<MemType>());
+                            mem = pred->arg(0);
+
+                            for (size_t j = 1; j < pred->num_args(); j++) {
+                                mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                            }
+
+                            pred->jump(else_new_back, {mem});
+
+                            auto new_jump = world_.predicated(vec_mask);
+                            else_new_back->jump(new_jump, { else_new_back->mem_param(), one_predicate, pre_join, pre_join }, latch->jump_location());
+                        }
+
+                        mem = pre_join->param(0);
+                        Array<const Def*> join_params(join->num_params());
+                        for (size_t i = 1; i < join->num_params(); i++) {
+                            auto load = world_.load(mem, join_cache[i - 1]);
+                            auto value = world_.extract(load, (int) 1);
+                            mem = world_.extract(load, (int) 0);
+                            join_params[i] = value;
+                        }
+                        join_params[0] = mem;
+                        pre_join->jump(join, join_params, latch->jump_location());
                     }
                 }
 

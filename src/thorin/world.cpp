@@ -146,7 +146,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->length();
+        size_t num = lvec->type()->as<VectorExtendedType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = arithop(tag, lvec->op(i), rvec->op(i), dbg);
@@ -466,7 +466,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->length();
+        size_t num = lvec->type()->as<VectorExtendedType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cmp(tag, lvec->op(i), rvec->op(i), dbg);
@@ -958,10 +958,11 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
 }
 
 Continuation* World::predicated(const Type* type) {
-    Array<const Type*> arg_types(3);
+    Array<const Type*> arg_types(4);
     arg_types[0] = mem_type();
     arg_types[1] = type;
-    arg_types[2] = fn_type();
+    arg_types[2] = fn_type({mem_type()});
+    arg_types[3] = fn_type({mem_type()});
     return continuation(fn_type(arg_types), Intrinsic::Predicated, {"predicated"});
 }
 

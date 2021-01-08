@@ -816,15 +816,34 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     Array<const Def*> nargs(nops.size() - 1); //new args of new_continuation
     const Def* ntarget = nops.front();   // new target of new_continuation
 
-    Scope scope(kernel);
-
     if (auto callee = old_continuation->callee()->isa_continuation()) {
         if (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match) {
             if (!nops[1]->type()->isa<VectorExtendedType>()) {
                 ntarget = old_continuation->op(0);
             }
         }
+        if (callee->is_imported()) {
+            auto old_fn_type = callee->type()->as<FnType>();
+            Array<const Type*> ops(old_fn_type->num_ops());
+            for (size_t i = 0; i < old_fn_type->num_ops(); i++)
+                ops[i] = nops[i + 1]->type(); //TODO: this feels like a bad hack. At least it's working for now.
+
+            Debug de = callee->debug();
+            if (de.name() == "llvm.exp.f32")
+                de.set("llvm.exp.v8f32"); //TODO: Use vectorlength to find the correct intrinsic.
+            else if (de.name() == "llvm.exp.f64")
+                de.set("llvm.exp.v8f64");
+            else {
+                std::cerr << "Not supported: " << de.name() << "\n";
+                assert(false && "Import not supported in vectorize.");
+            }
+
+            ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
+            def2def_[callee] = ntarget;
+        }
     }
+
+    Scope scope(kernel);
 
     if (old_continuation->op(0)->isa<Continuation>() && scope.contains(old_continuation->op(0))) {
         auto oldtarget = old_continuation->op(0)->as<Continuation>();
@@ -992,7 +1011,7 @@ bool Vectorizer::run() {
                     //cases according to latch: match and branch.
                     //match:
                     auto cont = latch->op(0)->isa_continuation();
-                    if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
+                    if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match && latch->arg(0)->type()->isa<VectorExtendedType>()) {
                         Scope latch_scope(latch);
                         Schedule latch_schedule = schedule(latch_scope);
 
@@ -1136,7 +1155,7 @@ bool Vectorizer::run() {
                         pre_join->jump(join, join_params, latch->jump_location());
                     }
 
-                    if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Branch) {
+                    if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Branch && latch->arg(0)->type()->isa<VectorExtendedType>()) {
                         const Def * then_old = latch_old->arg(1);
                         Continuation * then_new = const_cast<Continuation*>(def2def_[then_old]->as<Continuation>());
                         assert(then_new);
@@ -1305,7 +1324,7 @@ bool Vectorizer::run() {
             enqueue(succ);
     }
 
-    //world_.cleanup();
+    world_.cleanup();
     world_.dump();
 
     return false;

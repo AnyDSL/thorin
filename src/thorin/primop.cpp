@@ -246,7 +246,17 @@ const Def* PrimLit       ::vrebuild(World& to, Defs,     const Type*  ) const { 
 const Def* Select        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], debug()); }
 const Def* AlignOf       ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.align_of(ops[0]->type(), debug()); }
 const Def* SizeOf        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), debug()); }
-const Def* Slot          ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
+const Def* Slot          ::vrebuild(World& to, Defs ops, const Type* t) const {
+    const Type *ttype;
+    if (auto ptr = t->isa<PtrType>()) {
+        ttype = ptr->pointee();
+    } else if (auto vec = t->isa<VectorExtendedType>()) {
+        auto inner = vec->element()->as<PtrType>();
+        auto vec_width = vec->length();
+        ttype = to.vec_type(inner->pointee(), vec_width);
+    }
+    return to.slot(ttype, ops[0], debug());
+}
 const Def* Store         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
 const Def* Variant       ::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], index(), debug()); }

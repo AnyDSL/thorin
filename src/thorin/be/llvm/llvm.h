@@ -43,6 +43,7 @@ protected:
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
     void emit(const Scope&);
+    void emit_epilogue(Continuation*);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Value* emit_alloc(const Type*, const Def*);
@@ -100,6 +101,7 @@ protected:
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;
+    BBMap bb2continuation_;
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV

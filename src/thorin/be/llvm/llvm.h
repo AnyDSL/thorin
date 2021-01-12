@@ -42,6 +42,7 @@ public:
 protected:
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
+    void emit(const Scope&);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Value* emit_alloc(const Type*, const Def*);
@@ -92,6 +93,7 @@ protected:
     std::unique_ptr<llvm::Module> module_;
     llvm::IRBuilder<> irbuilder_;
     llvm::DIBuilder dibuilder_;
+    llvm::DICompileUnit* dicompile_unit_;
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;

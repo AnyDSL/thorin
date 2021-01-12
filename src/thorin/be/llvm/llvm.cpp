@@ -315,7 +315,6 @@ void CodeGen::emit(const Scope& scope) {
     }
 
     // map params
-    const Param* ret_param = nullptr;
     auto arg = fct->arg_begin();
     for (auto param : entry_->params()) {
         if (is_mem(param) || is_unit(param))
@@ -329,12 +328,8 @@ void CodeGen::emit(const Scope& scope) {
             } else {
                 params_[param] = value;             // use provided value
             }
-        } else {
-            assert(!ret_param);
-            ret_param = param;
         }
     }
-    assert(ret_param);
 
     BBMap bb2continuation;
     Schedule schedule(scope);
@@ -389,7 +384,7 @@ void CodeGen::emit(const Scope& scope) {
         // terminate bb
         if (debug())
             irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
-        if (continuation->callee() == ret_param) { // return
+        if (continuation->callee() == entry_->ret_param()) { // return
             size_t num_args = continuation->num_args();
             if (num_args == 0) irbuilder_.CreateRetVoid();
             else {

@@ -20,19 +20,26 @@ typedef ContinuationMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
-
+    CodeGen(World& world,
+            llvm::CallingConv::ID function_calling_convention,
+            llvm::CallingConv::ID device_calling_convention,
+            llvm::CallingConv::ID kernel_calling_convention,
+            int opt, bool debug);
 public:
     virtual ~CodeGen() {}
 
+    /// @name getters
+    //@{
     World& world() const { return world_; }
     std::unique_ptr<llvm::LLVMContext>& context() { return context_; }
-    std::unique_ptr<llvm::Module>& emit(int opt, bool debug);
-    virtual void emit(std::ostream& stream, int opt, bool debug);
+    virtual void emit(std::ostream& stream);
+    int opt() const { return opt_; }
+    bool debug() const { return debug_; }
+    //@}
+
+    std::unique_ptr<llvm::Module>& emit();
 
 protected:
-    virtual void optimize(int opt);
-
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);
@@ -55,6 +62,7 @@ protected:
 
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
     Continuation* emit_reserve_shared(const Continuation*, bool=false);
+    void optimize();
 
 private:
     Continuation* emit_peinfo(Continuation*);
@@ -98,6 +106,8 @@ protected:
 
     std::unique_ptr<Runtime> runtime_;
     Continuation* entry_ = nullptr;
+    int opt_;
+    bool debug_;
 
     friend class Runtime;
 };
@@ -108,17 +118,19 @@ template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
 struct Backends {
-    Backends(World& world);
+    Backends(World& world, int opt, bool debug);
 
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
+    // TODO use arrays + loops for this
     Importer cuda;
     Importer nvvm;
     Importer opencl;
     Importer amdgpu;
     Importer hls;
 
+    // TODO use arrays + loops for this
     std::unique_ptr<CodeGen> cpu_cg;
     std::unique_ptr<CodeGen> cuda_cg;
     std::unique_ptr<CodeGen> nvvm_cg;

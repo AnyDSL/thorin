@@ -49,7 +49,11 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
+CodeGen::CodeGen(World& world,
+                 llvm::CallingConv::ID function_calling_convention,
+                 llvm::CallingConv::ID device_calling_convention,
+                 llvm::CallingConv::ID kernel_calling_convention,
+                 int opt, bool debug)
     : world_(world)
     , context_(new llvm::LLVMContext())
     , module_(new llvm::Module(world.name(), *context_))
@@ -59,6 +63,8 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
     , runtime_(new Runtime(*context_, *module_.get(), irbuilder_))
+    , opt_(opt)
+    , debug_(debug)
 {}
 
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
@@ -259,14 +265,14 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     return fcts_[continuation] = f;
 }
 
-std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
+std::unique_ptr<llvm::Module>& CodeGen::emit() {
     llvm::DICompileUnit* dicompile_unit;
-    if (debug) {
+    if (debug()) {
         module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
         // Darwin only supports dwarf2
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
+        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {
@@ -276,7 +282,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         llvm::DISubprogram* disub_program;
         llvm::DIScope* discope = dicompile_unit;
-        if (debug) {
+        if (debug()) {
             auto src_file = llvm::sys::path::filename(entry_->location().filename());
             auto src_dir = llvm::sys::path::parent_path(entry_->location().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
@@ -285,7 +291,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
                 entry_->location().front_line(),
                 llvm::DINode::FlagPrototyped,
-                llvm::DISubprogram::SPFlagDefinition | (opt > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
+                llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
             fct->setSubprogram(disub_program);
             discope = disub_program;
         }
@@ -336,7 +342,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(*context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
-        if (debug)
+        if (debug())
             irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
@@ -349,7 +355,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             irbuilder_.SetInsertPoint(bb2continuation[continuation]);
 
             for (auto primop : block) {
-                if (debug)
+                if (debug())
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
                 if (primop->type()->order() >= 1) {
@@ -363,7 +369,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             }
 
             // terminate bb
-            if (debug)
+            if (debug())
                 irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
@@ -514,7 +520,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         primops_.clear();
     });
 
-    if (debug)
+    if (debug())
         dibuilder_.finalize();
 
 #if THORIN_ENABLE_RV
@@ -529,18 +535,19 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 #if THORIN_ENABLE_CHECKS
     llvm::verifyModule(*module_);
 #endif
-    optimize(opt);
+    optimize();
 
     return module_;
 }
 
-void CodeGen::emit(std::ostream& stream, int opt, bool debug) {
+void CodeGen::emit(std::ostream& stream) {
     llvm::raw_os_ostream llvm_stream(stream);
-    emit(opt, debug)->print(llvm_stream, nullptr);
+    emit()->print(llvm_stream, nullptr);
 }
 
-void CodeGen::optimize(int opt) {
-    if (opt != 0) {
+void CodeGen::optimize() {
+    // TODO why is here a special case for opt() == 0?
+    if (opt() != 0) {
         llvm::PassBuilder PB;
         llvm::PassBuilder::OptimizationLevel opt_level;
 
@@ -555,15 +562,15 @@ void CodeGen::optimize(int opt) {
         PB.registerLoopAnalyses(LAM);
         PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-        switch (opt) {
-        case 0: opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
-        case 1: opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
-        case 2: opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
-        case 3: opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
-        default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
+        switch (opt()) {
+            case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
+            case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
+            case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
+            case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
+            default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
         }
 
-        if (opt == 3) {
+        if (opt() == 3) {
             llvm::ModulePassManager module_pass_manager;
 
             //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
@@ -1369,7 +1376,7 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-Backends::Backends(World& world)
+Backends::Backends(World& world, int opt, bool debug)
     : cuda(world)
     , nvvm(world)
     , opencl(world)
@@ -1474,13 +1481,13 @@ Backends::Backends(World& world)
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
     }
 
-    cpu_cg = std::make_unique<CPUCodeGen>(world);
+    cpu_cg = std::make_unique<CPUCodeGen>(world, opt, debug);
 
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);
-    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config);
-    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config);
+    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
+    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
+    if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
+    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
+    if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
 }
 
 //------------------------------------------------------------------------------

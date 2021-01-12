@@ -9,13 +9,13 @@
 
 namespace thorin {
 
-HLSCodeGen::HLSCodeGen(World& world, const Cont2Config& kernel_config)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+HLSCodeGen::HLSCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
     , kernel_config_(kernel_config)
 {}
 
-void HLSCodeGen::emit(std::ostream& stream, int /*opt*/, bool debug) {
-    thorin::emit_c(world_, kernel_config_, stream, Lang::HLS, debug);
+void HLSCodeGen::emit(std::ostream& stream) {
+    thorin::emit_c(world_, kernel_config_, stream, Lang::HLS, debug());
 }
 
 }

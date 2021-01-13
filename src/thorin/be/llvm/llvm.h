@@ -65,6 +65,7 @@ protected:
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
     Continuation* emit_reserve_shared(const Continuation*, bool=false);
     void optimize();
+    void verify() const;
 
 private:
     Continuation* emit_peinfo(Continuation*);

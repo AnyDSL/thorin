@@ -541,6 +541,16 @@ void CodeGen::emit(std::ostream& stream) {
     emit()->print(llvm_stream, nullptr);
 }
 
+void CodeGen::verify() const {
+#if THORIN_ENABLE_CHECKS
+    if (llvm::verifyModule(*module_, &llvm::errs())) {
+        module_->print(llvm::errs(), nullptr, false, true);
+        llvm::errs() << "Broken module:\n";
+        abort();
+    }
+#endif
+}
+
 void CodeGen::optimize() {
     // TODO why is here a special case for opt() == 0?
     if (opt() != 0) {
@@ -600,7 +610,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
 
                 auto dbg = irbuilder_.getCurrentDebugLocation();
                 auto ip = irbuilder_.saveAndClearIP();
-                irbuilder_.SetInsertPoint(&entry, entry.begin());
+                irbuilder_.SetInsertPoint(entry.getTerminator());
                 auto llvm_value = emit(primop);
                 irbuilder_.restoreIP(ip);
                 irbuilder_.SetCurrentDebugLocation(dbg);
@@ -971,7 +981,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         });
     }
     if (auto variant_ctor = def->isa<Variant>()) {
-        auto layout = module_->getDataLayout();
         auto llvm_type = convert(variant_ctor->type());
 
         auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());

@@ -159,15 +159,17 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         }
         return os << down << endl << "} " << tuple_name(tuple) << ";";
     } else if (auto variant = type->isa<VariantType>()) {
-        os << "typedef struct {" << up << endl << "union {" << up;
-        for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
-            os << endl;
-            // Do not emit the empty tuple ('void')
-            if (is_type_unit(variant->op(i)))
-                os << "//";
-            emit_type(os, variant->op(i)) << " " << variant->op_name(i) << ";";
+        os << "typedef struct {" << up;
+        // This is required because we have zero-sized types but C/C++ do not
+        if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
+            os << endl << "union {" << up;
+            for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
+                os << endl;
+                if (!is_type_unit(variant->op(i)))
+                    emit_type(os, variant->op(i)) << " " << variant->op_name(i) << ";";
+            }
+            os << down << endl << "} data;";
         }
-        os << down << endl << "} data;";
 
         auto tag_type =
             variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :

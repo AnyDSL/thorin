@@ -10,13 +10,13 @@
 
 namespace thorin {
 
-OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
     , kernel_config_(kernel_config)
 {}
 
-void OpenCLCodeGen::emit(std::ostream& stream, int /*opt*/, bool debug) {
-    thorin::emit_c(world_, kernel_config_, stream, Lang::OPENCL, debug);
+void OpenCLCodeGen::emit(std::ostream& stream) {
+    thorin::emit_c(world_, kernel_config_, stream, Lang::OPENCL, debug());
 }
 
 }

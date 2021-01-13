@@ -9,7 +9,7 @@ class Load;
 
 class AMDGPUCodeGen : public CodeGen {
 public:
-    AMDGPUCodeGen(World& world, const Cont2Config&);
+    AMDGPUCodeGen(World& world, const Cont2Config&, int opt, bool debug);
 
 protected:
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) override;

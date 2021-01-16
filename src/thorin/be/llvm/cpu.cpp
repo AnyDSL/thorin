@@ -39,8 +39,8 @@ CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug)
     assert(target && "can't create target for target architecture");
     llvm::TargetOptions options;
     machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, llvm::None));
-    module_->setDataLayout(machine_->createDataLayout());
-    module_->setTargetTriple(triple_str);
+    module().setDataLayout(machine_->createDataLayout());
+    module().setTargetTriple(triple_str);
 }
 
 }

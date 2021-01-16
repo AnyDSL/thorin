@@ -15,9 +15,9 @@ enum {
 Continuation* CodeGen::emit_parallel(Continuation* continuation) {
     // arguments
     assert(continuation->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
-    auto num_threads = lookup(continuation->arg(PAR_ARG_NUMTHREADS));
-    auto lower = lookup(continuation->arg(PAR_ARG_LOWER));
-    auto upper = lookup(continuation->arg(PAR_ARG_UPPER));
+    auto num_threads = emit(continuation->arg(PAR_ARG_NUMTHREADS));
+    auto lower = emit(continuation->arg(PAR_ARG_LOWER));
+    auto upper = emit(continuation->arg(PAR_ARG_UPPER));
     auto kernel = continuation->arg(PAR_ARG_BODY)->as<Global>()->init()->as_continuation();
 
     const size_t num_kernel_args = continuation->num_args() - PAR_NUM_ARGS;
@@ -35,9 +35,9 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
+            closure = irbuilder_.CreateInsertValue(closure, emit(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
     } else {
-        closure = lookup(continuation->arg(PAR_NUM_ARGS));
+        closure = emit(continuation->arg(PAR_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -102,9 +102,9 @@ enum {
 Continuation* CodeGen::emit_fibers(Continuation* continuation) {
     // arguments
     assert(continuation->num_args() >= FIB_NUM_ARGS && "required arguments are missing");
-    auto num_threads = lookup(continuation->arg(FIB_ARG_NUMTHREADS));
-    auto num_blocks = lookup(continuation->arg(FIB_ARG_NUMBLOCKS));
-    auto num_warps = lookup(continuation->arg(FIB_ARG_NUMWARPS));
+    auto num_threads = emit(continuation->arg(FIB_ARG_NUMTHREADS));
+    auto num_blocks = emit(continuation->arg(FIB_ARG_NUMBLOCKS));
+    auto num_warps = emit(continuation->arg(FIB_ARG_NUMWARPS));
     auto kernel = continuation->arg(FIB_ARG_BODY)->as<Global>()->init()->as_continuation();
 
     const size_t num_kernel_args = continuation->num_args() - FIB_NUM_ARGS;
@@ -123,9 +123,9 @@ Continuation* CodeGen::emit_fibers(Continuation* continuation) {
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + FIB_NUM_ARGS)), unsigned(i));
+            closure = irbuilder_.CreateInsertValue(closure, emit(continuation->arg(i + FIB_NUM_ARGS)), unsigned(i));
     } else {
-        closure = lookup(continuation->arg(FIB_NUM_ARGS));
+        closure = emit(continuation->arg(FIB_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -200,9 +200,9 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
     if (closure_type->isStructTy()) {
         closure = llvm::UndefValue::get(closure_type);
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
+            closure = irbuilder_.CreateInsertValue(closure, emit(continuation->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
     } else {
-        closure = lookup(continuation->arg(0 + SPAWN_NUM_ARGS));
+        closure = emit(continuation->arg(0 + SPAWN_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -258,7 +258,7 @@ enum {
 
 Continuation* CodeGen::emit_sync(Continuation* continuation) {
     assert(continuation->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
-    auto id = lookup(continuation->arg(SYNC_ARG_ID));
+    auto id = emit(continuation->arg(SYNC_ARG_ID));
     runtime_->sync_thread(id);
     return continuation->arg(SYNC_ARG_RETURN)->as_continuation();
 }

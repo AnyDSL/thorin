@@ -12,15 +12,11 @@
 
 namespace thorin {
 
-Schedule::Schedule(const Scope& scope)
+Scheduler::Scheduler(const Scope& scope)
     : scope_(scope)
     , cfg_(scope.f_cfg())
     , domtree_(cfg().domtree())
 {
-    compute_def2uses();
-}
-
-void Schedule::compute_def2uses() {
     std::queue<const Def*> queue;
     DefSet done;
 
@@ -51,14 +47,14 @@ void Schedule::compute_def2uses() {
     }
 }
 
-Continuation* Schedule::schedule_early(const Def* def) {
+Continuation* Scheduler::early(const Def* def) {
     if (auto cont = early_.lookup(def)) return *cont;
     if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
 
     auto result = scope().entry();
     for (auto op : def->as<PrimOp>()->ops()) {
         if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
-            auto cont = schedule_early(op);
+            auto cont = early(op);
             if (domtree_.depth(cfg(cont)) > domtree_.depth(cfg(result)))
                 result = cont;
         }
@@ -67,7 +63,7 @@ Continuation* Schedule::schedule_early(const Def* def) {
     return early_[def] = result;
 }
 
-Continuation* Schedule::schedule_late(const Def* def) {
+Continuation* Scheduler::late(const Def* def) {
     if (auto cont = late_.lookup(def)) return *cont;
 
     Continuation* result = nullptr;
@@ -77,7 +73,7 @@ Continuation* Schedule::schedule_late(const Def* def) {
         result = param->continuation();
     } else {
         for (auto use : uses(def)) {
-            auto cont = schedule_late(use);
+            auto cont = late(use);
             result = result ? domtree_.least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
         }
     }
@@ -85,39 +81,37 @@ Continuation* Schedule::schedule_late(const Def* def) {
     return late_[def] = result;
 }
 
-Continuation* Schedule::schedule_smart(const Def* def) {
+Continuation* Scheduler::smart(const Def* def) {
     if (auto cont = smart_.lookup(def)) return *cont;
 
-    auto early = cfg(schedule_early(def));
-    auto late  = cfg(schedule_late (def));
+    auto e = cfg(early(def));
+    auto l = cfg(late (def));
+    auto s = l;
 
-    auto result = late;
-    int depth = cfg().looptree()[late]->depth();
-    for (auto i = late; i != early;) {
+    int depth = cfg().looptree()[l]->depth();
+    for (auto i = l; i != e;) {
         auto idom = domtree_.idom(i);
         assert(i != idom);
         i = idom;
 
-        // HACK this should actually never occur
         if (i == nullptr) {
-            WLOG("don't know where to put {}", def);
-            result = late;
+            WLOG("this should never occur - don't know where to put {}", def);
+            s = l;
             break;
         }
 
-        int cur_depth = cfg().looptree()[i]->depth();
-        if (cur_depth < depth) {
-            result = i;
+        if (int cur_depth = cfg().looptree()[i]->depth(); cur_depth < depth) {
+            s = i;
             depth = cur_depth;
         }
     }
 
-    return smart_[def] = result->continuation();
+    return smart_[def] = s->continuation();
 }
 
-BlockSchedule block_schedule(const Scope& scope) {
+Schedule schedule(const Scope& scope) {
     // until we have sth better simply use the RPO of the CFG
-    BlockSchedule result;
+    Schedule result;
     for (auto n : scope.f_cfg().reverse_post_order())
         result.emplace_back(n->continuation());
 

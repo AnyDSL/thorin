@@ -31,7 +31,9 @@ public:
     /// @name getters
     //@{
     World& world() const { return world_; }
-    std::unique_ptr<llvm::LLVMContext>& context() { return context_; }
+    llvm::LLVMContext& context() { return *context_; }
+    llvm::Module& module() { return *module_; }
+    const llvm::Module& module() const { return *module_; }
     virtual void emit(std::ostream& stream);
     int opt() const { return opt_; }
     bool debug() const { return debug_; }
@@ -41,10 +43,9 @@ public:
 
 protected:
     llvm::Type* convert(const Type*);
-    llvm::Value* emit(const Def*);
     void emit(const Scope&);
+    llvm::Value* emit(const Def*);
     void emit_epilogue(Continuation*);
-    llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Value* emit_alloc(const Type*, const Def*);
     virtual llvm::Function* emit_function_decl(Continuation*);
@@ -66,6 +67,8 @@ protected:
     Continuation* emit_reserve_shared(const Continuation*, bool=false);
     void optimize();
     void verify() const;
+    void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
+    llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 
 private:
     Continuation* emit_peinfo(Continuation*);
@@ -85,14 +88,14 @@ private:
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
-protected:
-    void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
-    llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
-
     World& world_;
     std::unique_ptr<llvm::LLVMContext> context_;
-    std::unique_ptr<llvm::TargetMachine> machine_;
     std::unique_ptr<llvm::Module> module_;
+    int opt_;
+    bool debug_;
+
+protected:
+    std::unique_ptr<llvm::TargetMachine> machine_;
     llvm::IRBuilder<> irbuilder_;
     llvm::DIBuilder dibuilder_;
     llvm::DICompileUnit* dicompile_unit_;
@@ -102,7 +105,7 @@ protected:
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;
-    BBMap bb2continuation_;
+    BBMap cont2bb_;
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV
@@ -111,8 +114,6 @@ protected:
 
     std::unique_ptr<Runtime> runtime_;
     Continuation* entry_ = nullptr;
-    int opt_;
-    bool debug_;
 
     friend class Runtime;
 };

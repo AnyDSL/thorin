@@ -15,7 +15,7 @@ CUDACodeGen::CUDACodeGen(World& world, const Cont2Config& kernel_config, int opt
 {}
 
 void CUDACodeGen::emit(std::ostream& stream) {
-    thorin::emit_c(world_, kernel_config_, stream, Lang::CUDA, debug());
+    thorin::emit_c(world(), kernel_config_, stream, Lang::CUDA, debug());
 }
 
 }

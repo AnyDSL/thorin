@@ -8,9 +8,9 @@ namespace thorin {
 template<bool> class DomTreeBase;
 using DomTree = DomTreeBase<true>;
 
-class Schedule {
+class Scheduler {
 public:
-    Schedule(const Scope&);
+    Scheduler(const Scope&);
 
     /// @name getters
     //@{
@@ -23,14 +23,12 @@ public:
 
     /// @name compute schedules
     //@{
-    Continuation* schedule_early(const Def*);
-    Continuation* schedule_late (const Def*);
-    Continuation* schedule_smart(const Def*);
+    Continuation* early(const Def*);
+    Continuation* late (const Def*);
+    Continuation* smart(const Def*);
     //@}
 
 private:
-    void compute_def2uses();
-
     const Scope& scope_;
     const F_CFG& cfg_;
     const DomTree& domtree_;
@@ -40,8 +38,8 @@ private:
     DefMap<Uses> def2uses_;
 };
 
-using BlockSchedule = std::vector<Continuation*>;
-BlockSchedule block_schedule(const Scope&);
+using Schedule = std::vector<Continuation*>;
+Schedule schedule(const Scope&);
 
 }
 

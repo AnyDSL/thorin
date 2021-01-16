@@ -15,7 +15,7 @@ HLSCodeGen::HLSCodeGen(World& world, const Cont2Config& kernel_config, int opt, 
 {}
 
 void HLSCodeGen::emit(std::ostream& stream) {
-    thorin::emit_c(world_, kernel_config_, stream, Lang::HLS, debug());
+    thorin::emit_c(world(), kernel_config_, stream, Lang::HLS, debug());
 }
 
 }

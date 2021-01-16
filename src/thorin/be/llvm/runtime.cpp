@@ -68,7 +68,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     assert(continuation->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
     // arguments
-    auto target_device_id = code_gen.lookup(continuation->arg(LaunchArgs::Device));
+    auto target_device_id = code_gen.emit(continuation->arg(LaunchArgs::Device));
     auto target_platform = builder_.getInt32(platform);
     auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
 
@@ -91,7 +91,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
         auto target_arg = continuation->arg(i + LaunchArgs::Num);
-        const auto target_val = code_gen.lookup(target_arg);
+        const auto target_val = code_gen.emit(target_arg);
 
         KernelArgType arg_type;
         llvm::Value*  void_ptr;
@@ -151,7 +151,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     }
 
     // allocate arrays for the grid and block size
-    const auto get_u32 = [&](const Def* def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
+    const auto get_u32 = [&](const Def* def) { return builder_.CreateSExt(code_gen.emit(def), builder_.getInt32Ty()); };
 
     llvm::Value* grid_array  = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
     grid_array = builder_.CreateInsertValue(grid_array, get_u32(world.extract(it_space, 0_u32)), 0);

@@ -75,7 +75,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
         auto arg = continuation->arg(i + VectorizeArgs::Num);
-        auto llvm_arg = lookup(arg);
+        auto llvm_arg = emit(arg);
         if (arg->type()->isa<PtrType>())
             llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
         args[i + 1] = llvm_arg;

@@ -511,11 +511,11 @@ void CCodeGen::emit() {
             }
         }
 
-        auto bbs = block_schedule(scope);
-        Schedule schedule(scope);
+        auto conts = schedule(scope);
+        Scheduler scheduler(scope);
 
         // emit function arguments and phi nodes
-        for (auto&& continuation : bbs) {
+        for (auto&& continuation : conts) {
             for (auto param : continuation->params()) {
                 if (is_mem(param) || is_unit(param))
                     continue;
@@ -541,7 +541,7 @@ void CCodeGen::emit() {
             }
         }
 
-        for (auto continuation : bbs) {
+        for (auto continuation : conts) {
             if (continuation->empty()) continue;
 
             assert(continuation == scope.entry() || continuation->is_basicblock());

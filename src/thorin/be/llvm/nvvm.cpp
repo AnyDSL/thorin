@@ -25,16 +25,16 @@ NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, bool de
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
     if (triple.isArch32Bit()) {
-        module_->setDataLayout("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
-        module_->setTargetTriple("nvptx-nvidia-cuda");
+        module().setDataLayout("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
+        module().setTargetTriple("nvptx-nvidia-cuda");
     } else {
-        module_->setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
-        module_->setTargetTriple("nvptx64-nvidia-cuda");
+        module().setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
+        module().setTargetTriple("nvptx64-nvidia-cuda");
     }
     // nvvmir.version
-    auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
+    auto nvvmir_version_md = module().getOrInsertNamedMetadata("nvvmir.version");
     llvm::Metadata* annotation_values_15[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(5)) };
-    nvvmir_version_md->addOperand(llvm::MDNode::get(*context_, annotation_values_15));
+    nvvmir_version_md->addOperand(llvm::MDNode::get(context(), annotation_values_15));
 }
 
 //------------------------------------------------------------------------------
@@ -61,11 +61,11 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
 
 void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
-    auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
+    auto annotation = module().getOrInsertNamedMetadata("nvvm.annotations");
 
     const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
-        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(*context_, name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(val)) };
-        llvm::MDNode* result = llvm::MDNode::get(*context_, annotation_values);
+        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context(), name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(val)) };
+        llvm::MDNode* result = llvm::MDNode::get(context(), annotation_values);
         annotation->addOperand(result);
         return result;
     };
@@ -114,11 +114,11 @@ llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const 
 llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
     // %tex_ref = call i64 @llvm.nvvm.texsurf.handle.p1i64(metadata !{i64 addrspace(1)* @texture, metadata !"texture", i32 1}, i64 addrspace(1)* @texture)
     llvm::Type* types[2] = {
-            llvm::Type::getMetadataTy(*context_),
+            llvm::Type::getMetadataTy(context()),
             llvm::PointerType::get(irbuilder_.getInt64Ty(), 1)
     };
     auto type = llvm::FunctionType::get(irbuilder_.getInt64Ty(), types, false);
-    return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
+    return llvm::cast<llvm::Function>(module().getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
 }
 
 void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuation) {
@@ -131,7 +131,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuat
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
-            llvm::Value* args[] = { llvm::MetadataAsValue::get(*context_, md->second), var };
+            llvm::Value* args[] = { llvm::MetadataAsValue::get(context(), md->second), var };
             params_[param] = irbuilder_.CreateCall(texture_handle, args);
         }
     }
@@ -146,7 +146,7 @@ llvm::Value* NVVMCodeGen::emit_global(const Global* global) {
 llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
     switch (resolve_addr_space(load->ptr())) {
         case AddrSpace::Texture:
-            return irbuilder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
+            return irbuilder_.CreateExtractValue(emit(load->ptr()), { unsigned(0) });
         default:
             // shared address space uses the same load functionality
             return CodeGen::emit_load(load);
@@ -222,7 +222,7 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->pointee());
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
-                lookup(lea->ptr()), lookup(lea->index()),
+                emit(lea->ptr()), emit(lea->index()),
                 irbuilder_.getInt32(0), irbuilder_.getInt32(0), irbuilder_.getInt32(0) };
             return irbuilder_.CreateCall(get_call, values);
         }
@@ -235,7 +235,7 @@ Continuation* NVVMCodeGen::emit_reserve(const Continuation* continuation) { retu
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)
-        return module_->getGlobalVariable(param->name().str(), true);
+        return module().getGlobalVariable(param->name().str(), true);
     return nullptr;
 }
 

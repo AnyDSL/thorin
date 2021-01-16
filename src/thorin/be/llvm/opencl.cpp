@@ -16,7 +16,7 @@ OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config, int
 {}
 
 void OpenCLCodeGen::emit(std::ostream& stream) {
-    thorin::emit_c(world_, kernel_config_, stream, Lang::OPENCL, debug());
+    thorin::emit_c(world(), kernel_config_, stream, Lang::OPENCL, debug());
 }
 
 }

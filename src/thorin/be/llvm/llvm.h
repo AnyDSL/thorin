@@ -8,6 +8,7 @@
 
 #include "thorin/config.h"
 #include "thorin/continuation.h"
+#include "thorin/analyses/schedule.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
 #include "thorin/transform/importer.h"
@@ -106,6 +107,7 @@ protected:
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;
     BBMap cont2bb_;
+    Scheduler scheduler_;
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV

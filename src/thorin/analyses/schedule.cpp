@@ -12,16 +12,16 @@
 
 namespace thorin {
 
-Scheduler::Scheduler(const Scope& scope)
-    : scope_(scope)
-    , cfg_(scope.f_cfg())
-    , domtree_(cfg().domtree())
+Scheduler::Scheduler(const Scope& s)
+    : scope_(&s)
+    , cfg_(&scope().f_cfg())
+    , domtree_(&cfg().domtree())
 {
     std::queue<const Def*> queue;
     DefSet done;
 
     auto enqueue = [&](const Def* def, size_t i, const Def* op) {
-        if (scope_.contains(op)) {
+        if (scope().contains(op)) {
             auto p1 = def2uses_[op].emplace(i, def);
             assert_unused(p1.second);
             auto p2 = done.emplace(op);
@@ -55,7 +55,7 @@ Continuation* Scheduler::early(const Def* def) {
     for (auto op : def->as<PrimOp>()->ops()) {
         if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
             auto cont = early(op);
-            if (domtree_.depth(cfg(cont)) > domtree_.depth(cfg(result)))
+            if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
                 result = cont;
         }
     }
@@ -74,7 +74,7 @@ Continuation* Scheduler::late(const Def* def) {
     } else {
         for (auto use : uses(def)) {
             auto cont = late(use);
-            result = result ? domtree_.least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
+            result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
         }
     }
 
@@ -90,7 +90,7 @@ Continuation* Scheduler::smart(const Def* def) {
 
     int depth = cfg().looptree()[l]->depth();
     for (auto i = l; i != e;) {
-        auto idom = domtree_.idom(i);
+        auto idom = domtree().idom(i);
         assert(i != idom);
         i = idom;
 

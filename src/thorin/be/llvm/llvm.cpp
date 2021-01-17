@@ -35,7 +35,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
@@ -331,8 +330,9 @@ void CodeGen::emit(const Scope& scope) {
     }
 
     cont2bb_.clear();
+    Scheduler new_scheduler(scope);
+    swap(scheduler_, new_scheduler);
     auto conts = schedule(scope);
-    Scheduler scheduler(scope);
 
     for (auto continuation : conts) {
         // map all bb-like continuations to llvm bb stubs

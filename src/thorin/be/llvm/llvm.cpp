@@ -36,12 +36,14 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
+#if 0
+#include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/hls.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
+#endif
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
@@ -78,6 +80,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
         case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
+#if 0
         case Intrinsic::HLS:         return emit_hls(continuation);
         case Intrinsic::Parallel:    return emit_parallel(continuation);
         case Intrinsic::Fibers:      return emit_fibers(continuation);
@@ -88,25 +91,9 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 #else
         case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
 #endif
+#endif
         default: THORIN_UNREACHABLE;
     }
-}
-
-Continuation* CodeGen::emit_hls(Continuation* continuation) {
-    std::vector<llvm::Value*> args(continuation->num_args()-3);
-    Continuation* ret = nullptr;
-    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
-        if (auto cont = continuation->arg(i)->isa_continuation()) {
-            ret = cont;
-            continue;
-        }
-        args[j++] = emit(continuation->arg(i));
-    }
-    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_exported();
-    irbuilder_.CreateCall(emit_function_decl(callee), args);
-    assert(ret);
-    return ret;
 }
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
@@ -276,12 +263,14 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
 
     if (debug()) dibuilder_.finalize();
 
+#if 0
 #if THORIN_ENABLE_RV
     for (auto [width, fct, call] : vec_todo_)
         emit_vectorize(width, fct, call);
     vec_todo_.clear();
 
     rv::lowerIntrinsics(module());
+#endif
 #endif
 
 #if THORIN_ENABLE_CHECKS
@@ -1457,11 +1446,12 @@ Backends::Backends(World& world, int opt, bool debug)
 
     cpu_cg = std::make_unique<CPUCodeGen>(world, opt, debug);
 
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
-    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
-    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
+    // TODO
+    //if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
+    //if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
+    //if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
+    //if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
+    //if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
 }
 
 //------------------------------------------------------------------------------

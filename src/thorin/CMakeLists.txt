@@ -91,23 +91,23 @@ if(LLVM_FOUND)
     list(APPEND THORIN_SOURCES
         be/llvm/cpu.cpp
         be/llvm/cpu.h
-        be/llvm/cuda.cpp
-        be/llvm/cuda.h
-        be/llvm/hls.cpp
-        be/llvm/hls.h
+        #be/llvm/cuda.cpp
+        #be/llvm/cuda.h
+        #be/llvm/hls.cpp
+        #be/llvm/hls.h
         be/llvm/llvm.cpp
         be/llvm/llvm.h
-        be/llvm/amdgpu.cpp
-        be/llvm/amdgpu.h
-        be/llvm/nvvm.cpp
-        be/llvm/nvvm.h
-        be/llvm/opencl.cpp
-        be/llvm/opencl.h
-        be/llvm/parallel.cpp
+        #be/llvm/amdgpu.cpp
+        #be/llvm/amdgpu.h
+        #be/llvm/nvvm.cpp
+        #be/llvm/nvvm.h
+        #be/llvm/opencl.cpp
+        #be/llvm/opencl.h
+        #be/llvm/parallel.cpp
         be/llvm/runtime.inc
         be/llvm/runtime.cpp
         be/llvm/runtime.h
-        be/llvm/vectorize.cpp
+        #be/llvm/vectorize.cpp
     )
 endif()
 

@@ -74,12 +74,15 @@ protected:
 private:
     Continuation* emit_peinfo(Continuation*);
     Continuation* emit_intrinsic(Continuation*);
+#if 0
     Continuation* emit_hls(Continuation*);
     Continuation* emit_parallel(Continuation*);
     Continuation* emit_fibers(Continuation*);
     Continuation* emit_spawn(Continuation*);
     Continuation* emit_sync(Continuation*);
     Continuation* emit_vectorize_continuation(Continuation*);
+    void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
+#endif
     Continuation* emit_atomic(Continuation*);
     Continuation* emit_cmpxchg(Continuation*);
     Continuation* emit_atomic_load(Continuation*);
@@ -87,7 +90,6 @@ private:
     llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);
-    void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
     World& world_;
     std::unique_ptr<llvm::LLVMContext> context_;

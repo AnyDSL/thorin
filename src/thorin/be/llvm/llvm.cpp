@@ -68,149 +68,254 @@ CodeGen::CodeGen(World& world,
     , runtime_(new Runtime(context(), module(), irbuilder_))
 {}
 
-Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
-    auto callee = continuation->callee()->as_continuation();
-    switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:      return emit_atomic(continuation);
-        case Intrinsic::AtomicLoad:  return emit_atomic_load(continuation);
-        case Intrinsic::AtomicStore: return emit_atomic_store(continuation);
-        case Intrinsic::CmpXchg:     return emit_cmpxchg(continuation);
-        case Intrinsic::Reserve:     return emit_reserve(continuation);
-        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
-        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
-        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
-        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
-#if 0
-        case Intrinsic::HLS:         return emit_hls(continuation);
-        case Intrinsic::Parallel:    return emit_parallel(continuation);
-        case Intrinsic::Fibers:      return emit_fibers(continuation);
-        case Intrinsic::Spawn:       return emit_spawn(continuation);
-        case Intrinsic::Sync:        return emit_sync(continuation);
-#if THORIN_ENABLE_RV
-        case Intrinsic::Vectorize:   return emit_vectorize_continuation(continuation);
-#else
-        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
-#endif
-#endif
-        default: THORIN_UNREACHABLE;
+void CodeGen::optimize() {
+    // TODO why is here a special case for opt() == 0?
+    if (opt() != 0) {
+        llvm::PassBuilder PB;
+        llvm::PassBuilder::OptimizationLevel opt_level;
+
+        llvm::LoopAnalysisManager LAM;
+        llvm::FunctionAnalysisManager FAM;
+        llvm::CGSCCAnalysisManager CGAM;
+        llvm::ModuleAnalysisManager MAM;
+
+        PB.registerModuleAnalyses(MAM);
+        PB.registerCGSCCAnalyses(CGAM);
+        PB.registerFunctionAnalyses(FAM);
+        PB.registerLoopAnalyses(LAM);
+        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+        switch (opt()) {
+            case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
+            case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
+            case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
+            case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
+            default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
+        }
+
+        if (opt() == 3) {
+            llvm::ModulePassManager module_pass_manager;
+
+            //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
+            llvm::CGSCCPassManager MainCGPipeline;
+            MainCGPipeline.addPass(llvm::InlinerPass());
+            module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
+                  createDevirtSCCRepeatedPass(
+                    std::move(MainCGPipeline), 4)));
+
+            llvm::FunctionPassManager function_pass_manager;
+            function_pass_manager.addPass(llvm::ADCEPass());
+            module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
+
+            module_pass_manager.run(module(), MAM);
+        }
+
+        llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
+        builder_passes.run(module(), MAM);
     }
 }
 
-void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
-    phis_[param]->addIncoming(value, irbuilder_.GetInsertBlock());
+void CodeGen::verify() const {
+#if THORIN_ENABLE_CHECKS
+    if (llvm::verifyModule(module(), &llvm::errs())) {
+        module().print(llvm::errs(), nullptr, false, true);
+        llvm::errs() << "Broken module:\n";
+        abort();
+    }
+#endif
 }
 
-Continuation* CodeGen::emit_atomic(Continuation* continuation) {
-    assert(continuation->num_args() == 7 && "required arguments are missing");
-    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
-    u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
-    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
-    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
-                        (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
-    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
-        EDEF(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
-    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
-        EDEF(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
-    auto ptr = emit(continuation->arg(2));
-    auto val = emit(continuation->arg(3));
-    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
+/*
+ * convert thorin Type -> llvm Type
+ */
 
-Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto ptr = emit(continuation->arg(1));
-    u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(4)->as_continuation();
-    auto load = irbuilder_.CreateLoad(ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    load->setAlignment(llvm::MaybeAlign(align));
-    load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), load);
-    return cont;
-}
+llvm::Type* CodeGen::convert(const Type* type) {
+    if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
-Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
-    assert(continuation->num_args() == 6 && "required arguments are missing");
-    auto ptr = emit(continuation->arg(1));
-    auto val = emit(continuation->arg(2));
-    u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(5)->as_continuation();
-    auto store = irbuilder_.CreateStore(val, ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    store->setAlignment(llvm::MaybeAlign(align));
-    store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    return cont;
-}
+    assert(!type->isa<MemType>());
+    llvm::Type* llvm_type;
+    switch (type->tag()) {
+        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
+        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = irbuilder_.getHalfTy();   break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
+        case Node_PtrType: {
+            auto ptr = type->as<PtrType>();
+            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
+            break;
+        }
+        case Node_IndefiniteArrayType: {
+            llvm_type = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
+            return types_[type] = llvm_type;
+        }
+        case Node_DefiniteArrayType: {
+            auto array = type->as<DefiniteArrayType>();
+            llvm_type = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
+            return types_[type] = llvm_type;
+        }
 
-Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
-    assert(continuation->num_args() == 7 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
-    auto ptr  = emit(continuation->arg(1));
-    auto cmp  = emit(continuation->arg(2));
-    auto val  = emit(continuation->arg(3));
-    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
-    emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
-    return cont;
-}
+        case Node_ClosureType:
+        case Node_FnType: {
+            // extract "return" type, collect all other types
+            auto fn = type->as<FnType>();
+            llvm::Type* ret = nullptr;
+            std::vector<llvm::Type*> ops;
+            for (auto op : fn->ops()) {
+                if (op->isa<MemType>() || op == world().unit()) continue;
+                auto fn = op->isa<FnType>();
+                if (fn && !op->isa<ClosureType>()) {
+                    assert(!ret && "only one 'return' supported");
+                    std::vector<llvm::Type*> ret_types;
+                    for (auto fn_op : fn->ops()) {
+                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+                        ret_types.push_back(convert(fn_op));
+                    }
+                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
+                    else if (ret_types.size() == 1) ret = ret_types.back();
+                    else                            ret = llvm::StructType::get(context(), ret_types);
+                } else
+                    ops.push_back(convert(op));
+            }
+            assert(ret);
 
-Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    EDEF(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
-    THORIN_UNREACHABLE;
-}
+            if (type->tag() == Node_FnType) {
+                auto llvm_type = llvm::FunctionType::get(ret, ops, false);
+                return types_[type] = llvm_type;
+            }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
-    assert(continuation->num_args() == 3 && "required arguments are missing");
-    if (!continuation->arg(1)->isa<PrimLit>())
-        EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
-    auto cont = continuation->arg(2)->as_continuation();
-    auto type = convert(cont->param(1)->type());
-    // construct array type
-    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-    auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
-    auto name = continuation->unique_name();
-    // NVVM doesn't allow '.' in global identifier
-    std::replace(name.begin(), name.end(), '.', '_');
-    auto global = emit_global_variable(smem_type, name, 3, init_undef);
-    auto call = irbuilder_.CreatePointerCast(global, type);
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
+            auto env_type = convert(Closure::environment_type(world_));
+            ops.push_back(env_type);
+            auto fn_type = llvm::FunctionType::get(ret, ops, false);
+            auto ptr_type = llvm::PointerType::get(fn_type, 0);
+            llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
+            return types_[type] = llvm_type;
+        }
 
-llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
-    auto from = emit(val);
-    auto src_type = val->type();
-    auto to = convert(dst_type);
-    if (from->getType()->isAggregateType() || to->isAggregateType())
-        EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
-    if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
-        return irbuilder_.CreatePointerCast(from, to);
-    return irbuilder_.CreateBitCast(from, to);
+        case Node_StructType: {
+            auto struct_type = type->as<StructType>();
+            auto llvm_struct = llvm::StructType::create(context());
+
+            // important: memoize before recursing into element types to avoid endless recursion
+            assert(!types_.contains(struct_type) && "type already converted");
+            types_[struct_type] = llvm_struct;
+
+            Array<llvm::Type*> llvm_types(struct_type->num_ops());
+            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
+                llvm_types[i] = convert(struct_type->op(i));
+            llvm_struct->setBody(llvm_ref(llvm_types));
+            return llvm_struct;
+        }
+
+        case Node_TupleType: {
+            auto tuple = type->as<TupleType>();
+            Array<llvm::Type*> llvm_types(tuple->num_ops());
+            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
+                llvm_types[i] = convert(tuple->op(i));
+            llvm_type = llvm::StructType::get(context(), llvm_ref(llvm_types));
+            return types_[tuple] = llvm_type;
+        }
+
+        case Node_VariantType: {
+            assert(type->num_ops() > 0);
+            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
+            size_t max_align = 0, max_size = 0;
+
+            auto layout = module().getDataLayout();
+            llvm::Type* max_align_type;
+            for (auto op : type->ops()) {
+                auto op_type = convert(op);
+                size_t size  = layout.getTypeAllocSize(op_type);
+                size_t align = layout.getABITypeAlignment(op_type);
+                // Favor types that are not empty
+                if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
+                    max_align_type = op_type;
+                    max_align = align;
+                }
+                max_size = std::max(max_size, size);
+            }
+
+            auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
+            auto union_type = rem_size > 0
+                    ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
+                    : llvm::StructType::get(context(),  llvm::ArrayRef<llvm::Type*> { max_align_type });
+
+            auto tag_type =
+                    type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :
+                    type->num_ops() < (UINT64_C(1) << 16) ? irbuilder_.getInt16Ty() :
+                    type->num_ops() < (UINT64_C(1) << 32) ? irbuilder_.getInt32Ty() :
+                    irbuilder_.getInt64Ty();
+
+            return llvm::StructType::get(context(), { union_type, tag_type });
+        }
+
+        default:
+            THORIN_UNREACHABLE;
+    }
+
+    if (vector_length(type) == 1)
+        return types_[type] = llvm_type;
+
+    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type));
+    return types_[type] = llvm_type;
 }
 
 llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
     return llvm::cast<llvm::FunctionType>(convert(continuation->type()));
+}
+
+unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
+    switch (addr_space) {
+        case AddrSpace::Generic:  return 0;
+        case AddrSpace::Global:   return 1;
+        case AddrSpace::Texture:  return 2;
+        case AddrSpace::Shared:   return 3;
+        case AddrSpace::Constant: return 4;
+        default:                  THORIN_UNREACHABLE;
+    }
+}
+
+/*
+ * emit
+ */
+
+void CodeGen::emit(std::ostream& stream) {
+    llvm::raw_os_ostream llvm_stream(stream);
+    emit()->print(llvm_stream, nullptr);
+}
+
+std::unique_ptr<llvm::Module>& CodeGen::emit() {
+    if (debug()) {
+        module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+        // Darwin only supports dwarf2
+        if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+            module().addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+        dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
+    }
+
+    Scope::for_each(world_, [&] (const Scope& scope) { emit(scope); });
+
+    if (debug()) dibuilder_.finalize();
+
+#if 0
+#if THORIN_ENABLE_RV
+    for (auto [width, fct, call] : vec_todo_)
+        emit_vectorize(width, fct, call);
+    vec_todo_.clear();
+
+    rv::lowerIntrinsics(module());
+#endif
+#endif
+
+#if THORIN_ENABLE_CHECKS
+    llvm::verifyModule(module());
+#endif
+    optimize();
+
+    return module_;
 }
 
 llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
@@ -248,37 +353,6 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     }
 
     return fcts_[continuation] = f;
-}
-
-std::unique_ptr<llvm::Module>& CodeGen::emit() {
-    if (debug()) {
-        module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-        // Darwin only supports dwarf2
-        if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
-            module().addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
-    }
-
-    Scope::for_each(world_, [&] (const Scope& scope) { emit(scope); });
-
-    if (debug()) dibuilder_.finalize();
-
-#if 0
-#if THORIN_ENABLE_RV
-    for (auto [width, fct, call] : vec_todo_)
-        emit_vectorize(width, fct, call);
-    vec_todo_.clear();
-
-    rv::lowerIntrinsics(module());
-#endif
-#endif
-
-#if THORIN_ENABLE_CHECKS
-    llvm::verifyModule(module());
-#endif
-    optimize();
-
-    return module_;
 }
 
 void CodeGen::emit(const Scope& scope) {
@@ -524,21 +598,6 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             }
         }
     }
-}
-
-void CodeGen::emit(std::ostream& stream) {
-    llvm::raw_os_ostream llvm_stream(stream);
-    emit()->print(llvm_stream, nullptr);
-}
-
-void CodeGen::verify() const {
-#if THORIN_ENABLE_CHECKS
-    if (llvm::verifyModule(module(), &llvm::errs())) {
-        module().print(llvm::errs(), nullptr, false, true);
-        llvm::errs() << "Broken module:\n";
-        abort();
-    }
-#endif
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
@@ -928,18 +987,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
     THORIN_UNREACHABLE;
 }
 
-llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
-    // Emit the alloca in the entry block
-    auto entry = &irbuilder_.GetInsertBlock()->getParent()->getEntryBlock();
-    auto layout = module().getDataLayout();
-    llvm::AllocaInst* alloca;
-    if (entry->empty())
-        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
-    else
-        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
-    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)));
-    return alloca;
+void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
+    phis_[param]->addIncoming(value, irbuilder_.GetInsertBlock());
 }
+
+/*
+ * emit: special overridable methods
+ */
 
 llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
     auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
@@ -962,6 +1016,30 @@ llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
     return irbuilder_.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
 }
 
+llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
+    // Emit the alloca in the entry block
+    auto entry = &irbuilder_.GetInsertBlock()->getParent()->getEntryBlock();
+    auto layout = module().getDataLayout();
+    llvm::AllocaInst* alloca;
+    if (entry->empty())
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
+    else
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
+    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)));
+    return alloca;
+}
+
+llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
+    auto from = emit(val);
+    auto src_type = val->type();
+    auto to = convert(dst_type);
+    if (from->getType()->isAggregateType() || to->isAggregateType())
+        EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
+    if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
+        return irbuilder_.CreatePointerCast(from, to);
+    return irbuilder_.CreateBitCast(from, to);
+}
+
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
     if (auto continuation = global->init()->isa_continuation())
@@ -978,6 +1056,11 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
         val = var;
     }
     return val;
+}
+
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
+    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
+    return new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
@@ -1047,155 +1130,139 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
-unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
-    switch (addr_space) {
-        case AddrSpace::Generic:  return 0;
-        case AddrSpace::Global:   return 1;
-        case AddrSpace::Texture:  return 2;
-        case AddrSpace::Shared:   return 3;
-        case AddrSpace::Constant: return 4;
-        default:                  THORIN_UNREACHABLE;
+/*
+ * emit intrinsic
+ */
+
+Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
+    auto callee = continuation->callee()->as_continuation();
+    switch (callee->intrinsic()) {
+        case Intrinsic::Atomic:      return emit_atomic(continuation);
+        case Intrinsic::AtomicLoad:  return emit_atomic_load(continuation);
+        case Intrinsic::AtomicStore: return emit_atomic_store(continuation);
+        case Intrinsic::CmpXchg:     return emit_cmpxchg(continuation);
+        case Intrinsic::Reserve:     return emit_reserve(continuation);
+        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
+        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
+        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
+        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
+#if 0
+        case Intrinsic::HLS:         return emit_hls(continuation);
+        case Intrinsic::Parallel:    return emit_parallel(continuation);
+        case Intrinsic::Fibers:      return emit_fibers(continuation);
+        case Intrinsic::Spawn:       return emit_spawn(continuation);
+        case Intrinsic::Sync:        return emit_sync(continuation);
+#if THORIN_ENABLE_RV
+        case Intrinsic::Vectorize:   return emit_vectorize_continuation(continuation);
+#else
+        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
+#endif
+#endif
+        default: THORIN_UNREACHABLE;
     }
 }
 
-llvm::Type* CodeGen::convert(const Type* type) {
-    if (auto llvm_type = types_.lookup(type)) return *llvm_type;
-
-    assert(!type->isa<MemType>());
-    llvm::Type* llvm_type;
-    switch (type->tag()) {
-        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
-        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = irbuilder_.getHalfTy();   break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
-        case Node_PtrType: {
-            auto ptr = type->as<PtrType>();
-            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
-            break;
-        }
-        case Node_IndefiniteArrayType: {
-            llvm_type = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
-            return types_[type] = llvm_type;
-        }
-        case Node_DefiniteArrayType: {
-            auto array = type->as<DefiniteArrayType>();
-            llvm_type = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
-            return types_[type] = llvm_type;
-        }
-
-        case Node_ClosureType:
-        case Node_FnType: {
-            // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
-            llvm::Type* ret = nullptr;
-            std::vector<llvm::Type*> ops;
-            for (auto op : fn->ops()) {
-                if (op->isa<MemType>() || op == world().unit()) continue;
-                auto fn = op->isa<FnType>();
-                if (fn && !op->isa<ClosureType>()) {
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<llvm::Type*> ret_types;
-                    for (auto fn_op : fn->ops()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
-                        ret_types.push_back(convert(fn_op));
-                    }
-                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
-                    else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(context(), ret_types);
-                } else
-                    ops.push_back(convert(op));
-            }
-            assert(ret);
-
-            if (type->tag() == Node_FnType) {
-                auto llvm_type = llvm::FunctionType::get(ret, ops, false);
-                return types_[type] = llvm_type;
-            }
-
-            auto env_type = convert(Closure::environment_type(world_));
-            ops.push_back(env_type);
-            auto fn_type = llvm::FunctionType::get(ret, ops, false);
-            auto ptr_type = llvm::PointerType::get(fn_type, 0);
-            llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
-            return types_[type] = llvm_type;
-        }
-
-        case Node_StructType: {
-            auto struct_type = type->as<StructType>();
-            auto llvm_struct = llvm::StructType::create(context());
-
-            // important: memoize before recursing into element types to avoid endless recursion
-            assert(!types_.contains(struct_type) && "type already converted");
-            types_[struct_type] = llvm_struct;
-
-            Array<llvm::Type*> llvm_types(struct_type->num_ops());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_type->op(i));
-            llvm_struct->setBody(llvm_ref(llvm_types));
-            return llvm_struct;
-        }
-
-        case Node_TupleType: {
-            auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->num_ops());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->op(i));
-            llvm_type = llvm::StructType::get(context(), llvm_ref(llvm_types));
-            return types_[tuple] = llvm_type;
-        }
-
-        case Node_VariantType: {
-            assert(type->num_ops() > 0);
-            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
-            size_t max_align = 0, max_size = 0;
-
-            auto layout = module().getDataLayout();
-            llvm::Type* max_align_type;
-            for (auto op : type->ops()) {
-                auto op_type = convert(op);
-                size_t size  = layout.getTypeAllocSize(op_type);
-                size_t align = layout.getABITypeAlignment(op_type);
-                // Favor types that are not empty
-                if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
-                    max_align_type = op_type;
-                    max_align = align;
-                }
-                max_size = std::max(max_size, size);
-            }
-
-            auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
-            auto union_type = rem_size > 0
-                    ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
-                    : llvm::StructType::get(context(),  llvm::ArrayRef<llvm::Type*> { max_align_type });
-
-            auto tag_type =
-                    type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :
-                    type->num_ops() < (UINT64_C(1) << 16) ? irbuilder_.getInt16Ty() :
-                    type->num_ops() < (UINT64_C(1) << 32) ? irbuilder_.getInt32Ty() :
-                    irbuilder_.getInt64Ty();
-
-            return llvm::StructType::get(context(), { union_type, tag_type });
-        }
-
-        default:
-            THORIN_UNREACHABLE;
-    }
-
-    if (vector_length(type) == 1)
-        return types_[type] = llvm_type;
-
-    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type));
-    return types_[type] = llvm_type;
+Continuation* CodeGen::emit_atomic(Continuation* continuation) {
+    assert(continuation->num_args() == 7 && "required arguments are missing");
+    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
+    u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
+    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
+    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
+                        (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
+    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
+        EDEF(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
+    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
+        EDEF(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
+    auto ptr = emit(continuation->arg(2));
+    auto val = emit(continuation->arg(3));
+    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)order_tag;
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(6)->as_continuation();
+    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_result_phi(cont->param(1), call);
+    return cont;
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
-    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
-    return new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
+    assert(continuation->num_args() == 5 && "required arguments are missing");
+    auto ptr = emit(continuation->arg(1));
+    u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)tag;
+    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(4)->as_continuation();
+    auto load = irbuilder_.CreateLoad(ptr);
+    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    load->setAlignment(llvm::MaybeAlign(align));
+    load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_result_phi(cont->param(1), load);
+    return cont;
 }
+
+Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
+    assert(continuation->num_args() == 6 && "required arguments are missing");
+    auto ptr = emit(continuation->arg(1));
+    auto val = emit(continuation->arg(2));
+    u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)tag;
+    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(5)->as_continuation();
+    auto store = irbuilder_.CreateStore(val, ptr);
+    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    store->setAlignment(llvm::MaybeAlign(align));
+    store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    return cont;
+}
+
+Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
+    assert(continuation->num_args() == 7 && "required arguments are missing");
+    if (!is_type_i(continuation->arg(3)->type()))
+        EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
+    auto ptr  = emit(continuation->arg(1));
+    auto cmp  = emit(continuation->arg(2));
+    auto val  = emit(continuation->arg(3));
+    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)order_tag;
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(6)->as_continuation();
+    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
+    emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
+    return cont;
+}
+
+Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
+    EDEF(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
+    THORIN_UNREACHABLE;
+}
+
+Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
+    assert(continuation->num_args() == 3 && "required arguments are missing");
+    if (!continuation->arg(1)->isa<PrimLit>())
+        EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+    auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
+    auto cont = continuation->arg(2)->as_continuation();
+    auto type = convert(cont->param(1)->type());
+    // construct array type
+    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+    auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
+    auto name = continuation->unique_name();
+    // NVVM doesn't allow '.' in global identifier
+    std::replace(name.begin(), name.end(), '.', '_');
+    auto global = emit_global_variable(smem_type, name, 3, init_undef);
+    auto call = irbuilder_.CreatePointerCast(global, type);
+    emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
+/*
+ * helpers
+ */
 
 void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
     auto head = llvm::BasicBlock::Create(context(), "head", entry);
@@ -1228,53 +1295,6 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
     auto result = fun(alloca);
     irbuilder_.CreateLifetimeEnd(alloca, size);
     return result;
-}
-
-void CodeGen::optimize() {
-    // TODO why is here a special case for opt() == 0?
-    if (opt() != 0) {
-        llvm::PassBuilder PB;
-        llvm::PassBuilder::OptimizationLevel opt_level;
-
-        llvm::LoopAnalysisManager LAM;
-        llvm::FunctionAnalysisManager FAM;
-        llvm::CGSCCAnalysisManager CGAM;
-        llvm::ModuleAnalysisManager MAM;
-
-        PB.registerModuleAnalyses(MAM);
-        PB.registerCGSCCAnalyses(CGAM);
-        PB.registerFunctionAnalyses(FAM);
-        PB.registerLoopAnalyses(LAM);
-        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-        switch (opt()) {
-            case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
-            case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
-            case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
-            case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
-            default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
-        }
-
-        if (opt() == 3) {
-            llvm::ModulePassManager module_pass_manager;
-
-            //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
-            llvm::CGSCCPassManager MainCGPipeline;
-            MainCGPipeline.addPass(llvm::InlinerPass());
-            module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
-                  createDevirtSCCRepeatedPass(
-                    std::move(MainCGPipeline), 4)));
-
-            llvm::FunctionPassManager function_pass_manager;
-            function_pass_manager.addPass(llvm::ADCEPass());
-            module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
-
-            module_pass_manager.run(module(), MAM);
-        }
-
-        llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
-        builder_passes.run(module(), MAM);
-    }
 }
 
 //------------------------------------------------------------------------------

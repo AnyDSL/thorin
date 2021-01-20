@@ -60,12 +60,11 @@ CodeGen::CodeGen(World& world,
     , module_(new llvm::Module(world.name(), *context_))
     , opt_(opt)
     , debug_(debug)
-    , irbuilder_(context())
     , dibuilder_(module())
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new Runtime(context(), module(), irbuilder_))
+    , runtime_(new Runtime(context(), module()))
 {}
 
 void CodeGen::optimize() {
@@ -135,14 +134,14 @@ llvm::Type* CodeGen::convert(const Type* type) {
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->tag()) {
-        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
-        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = irbuilder_.getHalfTy();   break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
+        case PrimType_bool:                                                             llvm_type = llvm::Type::getInt1Ty  (context()); break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::Type::getInt8Ty  (context()); break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::Type::getInt16Ty (context()); break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::Type::getInt32Ty (context()); break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = llvm::Type::getInt64Ty (context()); break;
+        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = llvm::Type::getHalfTy  (context()); break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = llvm::Type::getFloatTy (context()); break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context()); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
             llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
@@ -240,14 +239,14 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
             auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
             auto union_type = rem_size > 0
-                    ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(irbuilder_.getInt8Ty(), rem_size)})
-                    : llvm::StructType::get(context(),  llvm::ArrayRef<llvm::Type*> { max_align_type });
+                    ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(llvm::Type::getInt8Ty(context()), rem_size)})
+                    : llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type });
 
             auto tag_type =
-                    type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :
-                    type->num_ops() < (UINT64_C(1) << 16) ? irbuilder_.getInt16Ty() :
-                    type->num_ops() < (UINT64_C(1) << 32) ? irbuilder_.getInt32Ty() :
-                    irbuilder_.getInt64Ty();
+                    type->num_ops() < (1_u64 <<  8) ? llvm::Type::getInt8Ty (context()) :
+                    type->num_ops() < (1_u64 << 16) ? llvm::Type::getInt16Ty(context()) :
+                    type->num_ops() < (1_u64 << 32) ? llvm::Type::getInt32Ty(context()) :
+                                                            llvm::Type::getInt64Ty(context());
 
             return llvm::StructType::get(context(), { union_type, tag_type });
         }
@@ -303,7 +302,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
 #if 0
 #if THORIN_ENABLE_RV
     for (auto [width, fct, call] : vec_todo_)
-        emit_vectorize(width, fct, call);
+        emit_vectorize(irbuilder, width, fct, call);
     vec_todo_.clear();
 
     rv::lowerIntrinsics(module());
@@ -397,42 +396,43 @@ void CodeGen::emit(const Scope& scope) {
     swap(scheduler_, new_scheduler);
     auto conts = schedule(scope);
 
+    // map all bb-like continuations to llvm bb stubs
     for (auto continuation : conts) {
-        // map all bb-like continuations to llvm bb stubs
-        if (continuation->intrinsic() != Intrinsic::EndScope) {
-            auto bb = cont2bb_[continuation] = llvm::BasicBlock::Create(context(), continuation->name().c_str(), fct);
+        if (continuation->intrinsic() == Intrinsic::EndScope) continue;
+        auto bb = cont2bb_[continuation] = llvm::BasicBlock::Create(context(), continuation->name().c_str(), fct);
 
-            // create phi node stubs (for all continuations different from entry)
-            if (entry_ != continuation) {
-                for (auto param : continuation->params()) {
-                    if (!is_mem(param) && !is_unit(param)) {
-                        auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str(), bb);
-                        phis_[param] = phi;
-                    }
-                }
+        // create phi node stubs (for all continuations different from entry)
+        if (entry_ == continuation) continue;
+
+        for (auto param : continuation->params()) {
+            if (!is_mem(param) && !is_unit(param)) {
+                auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str(), bb);
+                phis_[param] = phi;
             }
         }
     }
 
     auto oldStartBB = fct->begin();
     auto startBB = llvm::BasicBlock::Create(context(), fct->getName() + "_start", fct, &*oldStartBB);
-    irbuilder_.SetInsertPoint(startBB);
+    llvm::IRBuilder<> irbuilder(context());
+    irbuilder.SetInsertPoint(startBB);
     if (debug())
-        irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
-    emit_function_start(startBB, entry_);
-    irbuilder_.CreateBr(&*oldStartBB);
+        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
+    emit_function_start(irbuilder, startBB, entry_);
+    irbuilder.CreateBr(&*oldStartBB);
 
     for (auto continuation : conts) {
         if (continuation->intrinsic() == Intrinsic::EndScope) continue;
 
         assert(continuation == entry_ || continuation->is_basicblock());
-        irbuilder_.SetInsertPoint(cont2bb_[continuation]);
+        llvm::IRBuilder<> irbuilder(context());
+        irbuilder.SetInsertPoint(cont2bb_[continuation]);
 
 #if 0
         // TODO
         for (auto primop : block) {
             if (debug())
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
+                irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
             if (primop->type()->order() >= 1) {
                 // ignore higher-order primops which come from a match intrinsic
@@ -446,8 +446,8 @@ void CodeGen::emit(const Scope& scope) {
 #endif
 
         if (debug())
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
-        emit_epilogue(continuation);
+            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
+        emit_epilogue(irbuilder, continuation);
     }
 
     // add missing arguments to phis_
@@ -464,10 +464,10 @@ void CodeGen::emit(const Scope& scope) {
     primops_.clear();
 }
 
-void CodeGen::emit_epilogue(Continuation* continuation) {
+void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     if (continuation->callee() == entry_->ret_param()) { // return
         size_t num_args = continuation->num_args();
-        if (num_args == 0) irbuilder_.CreateRetVoid();
+        if (num_args == 0) irbuilder.CreateRetVoid();
         else {
             Array<llvm::Value*> values(num_args);
             Array<llvm::Type*> args(num_args);
@@ -481,29 +481,29 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 }
             }
 
-            if (n == 0) irbuilder_.CreateRetVoid();
-            else if (n == 1) irbuilder_.CreateRet(values[0]);
+            if (n == 0) irbuilder.CreateRetVoid();
+            else if (n == 1) irbuilder.CreateRet(values[0]);
             else {
                 values.shrink(n);
                 args.shrink(n);
                 llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), llvm_ref(args)));
 
                 for (size_t i = 0; i != n; ++i)
-                    agg = irbuilder_.CreateInsertValue(agg, values[i], { unsigned(i) });
+                    agg = irbuilder.CreateInsertValue(agg, values[i], { unsigned(i) });
 
-                irbuilder_.CreateRet(agg);
+                irbuilder.CreateRet(agg);
             }
         }
     } else if (continuation->callee() == world().branch()) {
         auto cond = emit(continuation->arg(0));
         auto tbb = cont2bb_[continuation->arg(1)->as_continuation()];
         auto fbb = cont2bb_[continuation->arg(2)->as_continuation()];
-        irbuilder_.CreateCondBr(cond, tbb, fbb);
+        irbuilder.CreateCondBr(cond, tbb, fbb);
     } else if (continuation->callee()->isa<Continuation>() &&
                 continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         auto val = emit(continuation->arg(0));
         auto otherwise_bb = cont2bb_[continuation->arg(1)->as_continuation()];
-        auto match = irbuilder_.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
+        auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
         for (size_t i = 2; i < continuation->num_args(); i++) {
             auto arg = continuation->arg(i)->as<Tuple>();
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
@@ -511,19 +511,19 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             match->addCase(case_const, case_bb);
         }
     } else if (continuation->callee()->isa<Bottom>()) {
-        irbuilder_.CreateUnreachable();
+        irbuilder.CreateUnreachable();
     } else {
         auto callee = continuation->callee();
         bool terminated = false;
         if (auto callee_continuation = callee->isa_continuation()) {
             if (callee_continuation->is_basicblock()) {
                 // ordinary jump
-                irbuilder_.CreateBr(cont2bb_[callee_continuation]);
+                irbuilder.CreateBr(cont2bb_[callee_continuation]);
                 terminated = true;
             } else if (callee_continuation->is_intrinsic()) {
                 // intrinsic call
-                auto ret_continuation = emit_intrinsic(continuation);
-                irbuilder_.CreateBr(cont2bb_[ret_continuation]);
+                auto ret_continuation = emit_intrinsic(irbuilder, continuation);
+                irbuilder.CreateBr(cont2bb_[ret_continuation]);
                 terminated = true;
             }
         }
@@ -545,7 +545,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
             llvm::CallInst* call = nullptr;
             if (auto callee_continuation = callee->isa_continuation()) {
-                call = irbuilder_.CreateCall(emit_function_decl(callee_continuation), args);
+                call = irbuilder.CreateCall(emit_function_decl(callee_continuation), args);
                 if (callee_continuation->is_exported())
                     call->setCallingConv(kernel_calling_convention_);
                 else if (callee_continuation->cc() == CC::Device)
@@ -555,8 +555,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             } else {
                 // must be a closure
                 auto closure = emit(callee);
-                args.push_back(irbuilder_.CreateExtractValue(closure, 1));
-                call = irbuilder_.CreateCall(irbuilder_.CreateExtractValue(closure, 0), args);
+                args.push_back(irbuilder.CreateExtractValue(closure, 1));
+                call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
             }
 
             // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -572,27 +572,27 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             }
 
             if (n == 0) {
-                irbuilder_.CreateBr(cont2bb_[succ]);
+                irbuilder.CreateBr(cont2bb_[succ]);
             } else if (n == 1) {
-                irbuilder_.CreateBr(cont2bb_[succ]);
-                emit_result_phi(last_param, call);
+                irbuilder.CreateBr(cont2bb_[succ]);
+                emit_result_phi(irbuilder, last_param, call);
             } else {
                 Array<llvm::Value*> extracts(n);
                 for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                     auto param = succ->param(i);
                     if (is_mem(param) || is_unit(param))
                         continue;
-                    extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
+                    extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
                     j++;
                 }
 
-                irbuilder_.CreateBr(cont2bb_[succ]);
+                irbuilder.CreateBr(cont2bb_[succ]);
 
                 for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                     auto param = succ->param(i);
                     if (is_mem(param) || is_unit(param))
                         continue;
-                    emit_result_phi(param, extracts[j]);
+                    emit_result_phi(irbuilder, param, extracts[j]);
                     j++;
                 }
             }
@@ -601,6 +601,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
+    llvm::IRBuilder<> irbuilder(context()); // TODO
+
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = primops_.lookup(primop)) return *res;
     } else if (auto param = def->isa<Param>()) {
@@ -619,35 +621,35 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto type = cmp->lhs()->type();
             if (is_type_s(type)) {
                 switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateICmpSGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateICmpSGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
+                    case Cmp_eq: return irbuilder.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt: return irbuilder.CreateICmpSGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder.CreateICmpSGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder.CreateICmpSLT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder.CreateICmpSLE(lhs, rhs, name);
                 }
             } else if (is_type_u(type) || is_type_bool(type)) {
                 switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateICmpUGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateICmpUGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
+                    case Cmp_eq: return irbuilder.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt: return irbuilder.CreateICmpUGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder.CreateICmpUGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder.CreateICmpULT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder.CreateICmpULE(lhs, rhs, name);
                 }
             } else if (is_type_f(type)) {
                 switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateFCmpOGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
+                    case Cmp_eq: return irbuilder.CreateFCmpOEQ(lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateFCmpUNE(lhs, rhs, name);
+                    case Cmp_gt: return irbuilder.CreateFCmpOGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder.CreateFCmpOGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder.CreateFCmpOLT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder.CreateFCmpOLE(lhs, rhs, name);
                 }
             } else if (type->isa<PtrType>()) {
                 switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_eq: return irbuilder.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateICmpNE (lhs, rhs, name);
                     default: THORIN_UNREACHABLE;
                 }
             }
@@ -659,11 +661,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
             if (is_type_f(type)) {
                 switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
-                    case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
-                    case ArithOp_mul: return irbuilder_.CreateFMul(lhs, rhs, name);
-                    case ArithOp_div: return irbuilder_.CreateFDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateFRem(lhs, rhs, name);
+                    case ArithOp_add: return irbuilder.CreateFAdd(lhs, rhs, name);
+                    case ArithOp_sub: return irbuilder.CreateFSub(lhs, rhs, name);
+                    case ArithOp_mul: return irbuilder.CreateFMul(lhs, rhs, name);
+                    case ArithOp_div: return irbuilder.CreateFDiv(lhs, rhs, name);
+                    case ArithOp_rem: return irbuilder.CreateFRem(lhs, rhs, name);
                     case ArithOp_and:
                     case ArithOp_or:
                     case ArithOp_xor:
@@ -674,30 +676,30 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
             if (is_type_s(type) || is_type_bool(type)) {
                 switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
-                    case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
-                    case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, false, q);
-                    case ArithOp_div: return irbuilder_.CreateSDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateSRem(lhs, rhs, name);
-                    case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                    case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                    case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, false, q);
-                    case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
+                    case ArithOp_add: return irbuilder.CreateAdd (lhs, rhs, name, false, q);
+                    case ArithOp_sub: return irbuilder.CreateSub (lhs, rhs, name, false, q);
+                    case ArithOp_mul: return irbuilder.CreateMul (lhs, rhs, name, false, q);
+                    case ArithOp_div: return irbuilder.CreateSDiv(lhs, rhs, name);
+                    case ArithOp_rem: return irbuilder.CreateSRem(lhs, rhs, name);
+                    case ArithOp_and: return irbuilder.CreateAnd (lhs, rhs, name);
+                    case ArithOp_or:  return irbuilder.CreateOr  (lhs, rhs, name);
+                    case ArithOp_xor: return irbuilder.CreateXor (lhs, rhs, name);
+                    case ArithOp_shl: return irbuilder.CreateShl (lhs, rhs, name, false, q);
+                    case ArithOp_shr: return irbuilder.CreateAShr(lhs, rhs, name);
                 }
             }
             if (is_type_u(type) || is_type_bool(type)) {
                 switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
-                    case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
-                    case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, q, false);
-                    case ArithOp_div: return irbuilder_.CreateUDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateURem(lhs, rhs, name);
-                    case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                    case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                    case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, q, false);
-                    case ArithOp_shr: return irbuilder_.CreateLShr(lhs, rhs, name);
+                    case ArithOp_add: return irbuilder.CreateAdd (lhs, rhs, name, q, false);
+                    case ArithOp_sub: return irbuilder.CreateSub (lhs, rhs, name, q, false);
+                    case ArithOp_mul: return irbuilder.CreateMul (lhs, rhs, name, q, false);
+                    case ArithOp_div: return irbuilder.CreateUDiv(lhs, rhs, name);
+                    case ArithOp_rem: return irbuilder.CreateURem(lhs, rhs, name);
+                    case ArithOp_and: return irbuilder.CreateAnd (lhs, rhs, name);
+                    case ArithOp_or:  return irbuilder.CreateOr  (lhs, rhs, name);
+                    case ArithOp_xor: return irbuilder.CreateXor (lhs, rhs, name);
+                    case ArithOp_shl: return irbuilder.CreateShl (lhs, rhs, name, q, false);
+                    case ArithOp_shr: return irbuilder.CreateLShr(lhs, rhs, name);
                 }
             }
         }
@@ -711,15 +713,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (conv->isa<Cast>()) {
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
-                return irbuilder_.CreatePointerCast(from, to);
+                return irbuilder.CreatePointerCast(from, to);
             }
             if (src_type->isa<PtrType>()) {
                 assert(is_type_i(dst_type) || is_type_bool(dst_type));
-                return irbuilder_.CreatePtrToInt(from, to);
+                return irbuilder.CreatePtrToInt(from, to);
             }
             if (dst_type->isa<PtrType>()) {
                 assert(is_type_i(src_type) || is_type_bool(src_type));
-                return irbuilder_.CreateIntToPtr(from, to);
+                return irbuilder.CreateIntToPtr(from, to);
             }
 
             auto src = src_type->as<PrimType>();
@@ -727,25 +729,25 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
             if (is_type_f(src) && is_type_f(dst)) {
                 assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
-                return irbuilder_.CreateFPCast(from, to);
+                return irbuilder.CreateFPCast(from, to);
             }
             if (is_type_f(src)) {
                 if (is_type_s(dst))
-                    return irbuilder_.CreateFPToSI(from, to);
-                return irbuilder_.CreateFPToUI(from, to);
+                    return irbuilder.CreateFPToSI(from, to);
+                return irbuilder.CreateFPToUI(from, to);
             }
             if (is_type_f(dst)) {
                 if (is_type_s(src))
-                    return irbuilder_.CreateSIToFP(from, to);
-                return irbuilder_.CreateUIToFP(from, to);
+                    return irbuilder.CreateSIToFP(from, to);
+                return irbuilder.CreateUIToFP(from, to);
             }
 
             if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
                 if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
-                    return irbuilder_.CreateTrunc(from, to);
+                    return irbuilder.CreateTrunc(from, to);
             } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
-                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
-                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder.CreateSExt(from, to);
+                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder.CreateZExt(from, to);
             } else if (is_type_i(src) && is_type_i(dst)) {
                 assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
                 return from;
@@ -755,7 +757,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
 
         if (conv->isa<Bitcast>())
-            return emit_bitcast(conv->from(), dst_type);
+            return emit_bitcast(irbuilder, conv->from(), dst_type);
     }
 
     if (auto select = def->isa<Select>()) {
@@ -765,17 +767,17 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* cond = emit(select->cond());
         llvm::Value* tval = emit(select->tval());
         llvm::Value* fval = emit(select->fval());
-        return irbuilder_.CreateSelect(cond, tval, fval);
+        return irbuilder.CreateSelect(cond, tval, fval);
     }
 
     if (auto align_of = def->isa<AlignOf>()) {
         auto type = convert(align_of->of());
-        return irbuilder_.getInt64(module().getDataLayout().getABITypeAlignment(type));
+        return irbuilder.getInt64(module().getDataLayout().getABITypeAlignment(type));
     }
 
     if (auto size_of = def->isa<SizeOf>()) {
         auto type = convert(size_of->of());
-        return irbuilder_.getInt64(module().getDataLayout().getTypeAllocSize(type));
+        return irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
     }
 
     if (auto array = def->isa<DefiniteArray>()) {
@@ -795,17 +797,17 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return llvm::ConstantArray::get(type, llvm_ref(consts));
 
         WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
-        auto alloca = emit_alloca(type, array->name().str());
+        auto alloca = emit_alloca(irbuilder, type, array->name().str());
 
         u64 i = 0;
-        llvm::Value* args[2] = { irbuilder_.getInt64(0), nullptr };
+        llvm::Value* args[2] = { irbuilder.getInt64(0), nullptr };
         for (auto op : array->ops()) {
-            args[1] = irbuilder_.getInt64(i++);
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name().c_str());
-            irbuilder_.CreateStore(emit(op), gep);
+            args[1] = irbuilder.getInt64(i++);
+            auto gep = irbuilder.CreateInBoundsGEP(alloca, args, op->name().c_str());
+            irbuilder.CreateStore(emit(op), gep);
         }
 
-        return irbuilder_.CreateLoad(alloca);
+        return irbuilder.CreateLoad(alloca);
     }
 
     if (auto array = def->isa<IndefiniteArray>())
@@ -817,9 +819,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (def->isa<Vector>()) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
-                llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, emit(agg->op(i)), irbuilder_.getInt32(i));
+                llvm_agg = irbuilder.CreateInsertElement(llvm_agg, emit(agg->op(i)), irbuilder.getInt32(i));
         } else if (auto closure = def->isa<Closure>()) {
-            auto closure_fn = irbuilder_.CreatePointerCast(emit(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
+            auto closure_fn = irbuilder.CreatePointerCast(emit(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
             auto val = agg->op(1);
             llvm::Value* env = nullptr;
             if (is_thin(closure->op(1)->type())) {
@@ -830,15 +832,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 }
             } else {
                 WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
-                auto alloc = emit_alloc(val->type(), nullptr);
-                irbuilder_.CreateStore(emit(val), alloc);
-                env = irbuilder_.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
+                auto alloc = emit_alloc(irbuilder, val->type(), nullptr);
+                irbuilder.CreateStore(emit(val), alloc);
+                env = irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
             }
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);
+            llvm_agg = irbuilder.CreateInsertValue(llvm_agg, closure_fn, 0);
+            llvm_agg = irbuilder.CreateInsertValue(llvm_agg, env, 1);
         } else {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
-                llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, emit(agg->op(i)), { unsigned(i) });
+                llvm_agg = irbuilder.CreateInsertValue(llvm_agg, emit(agg->op(i)), { unsigned(i) });
         }
 
         return llvm_agg;
@@ -849,11 +851,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_idx = emit(aggop->index());
         auto copy_to_alloca = [&] () {
             WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name().str());
-            irbuilder_.CreateStore(llvm_agg, alloca);
+            auto alloca = emit_alloca(irbuilder, llvm_agg->getType(), aggop->name().str());
+            irbuilder.CreateStore(llvm_agg, alloca);
 
-            llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args);
+            llvm::Value* args[2] = { irbuilder.getInt64(0), llvm_idx };
+            auto gep = irbuilder.CreateInBoundsGEP(alloca, args);
             return std::make_pair(alloca, gep);
         };
         auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
@@ -861,7 +863,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 auto global = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
                 global->setLinkage(llvm::GlobalValue::InternalLinkage);
                 global->setInitializer(constant);
-                return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), llvm_idx });
+                return irbuilder.CreateInBoundsGEP(global, { irbuilder.getInt64(0), llvm_idx });
             }
             return copy_to_alloca().second;
         };
@@ -871,19 +873,19 @@ llvm::Value* CodeGen::emit(const Def* def) {
             // and thus need their own rule here because the standard MemOp rule does not work
             if (auto assembly = extract->agg()->isa<Assembly>()) {
                 if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
-                    return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
+                    return irbuilder.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
             }
 
             if (auto memop = extract->agg()->isa<MemOp>())
                 return emit(memop);
 
             if (aggop->agg()->type()->isa<ArrayType>())
-                return irbuilder_.CreateLoad(copy_to_alloca_or_global());
+                return irbuilder.CreateLoad(copy_to_alloca_or_global());
 
             if (extract->agg()->type()->isa<VectorType>())
-                return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
+                return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
             // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
+            return irbuilder.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
         }
 
         auto insert = def->as<Insert>();
@@ -891,49 +893,49 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (insert->agg()->type()->isa<ArrayType>()) {
             auto p = copy_to_alloca();
-            irbuilder_.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
-            return irbuilder_.CreateLoad(p.first);
+            irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
+            return irbuilder.CreateLoad(p.first);
         }
         if (insert->agg()->type()->isa<VectorType>())
-            return irbuilder_.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
+            return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
+        return irbuilder.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
 
     if (auto variant_index = def->isa<VariantIndex>()) {
         auto llvm_value = emit(variant_index->op(0));
-        auto tag_value = irbuilder_.CreateExtractValue(llvm_value, { 1 });
-        return irbuilder_.CreateIntCast(tag_value, convert(variant_index->type()), false);
+        auto tag_value = irbuilder.CreateExtractValue(llvm_value, { 1 });
+        return irbuilder.CreateIntCast(tag_value, convert(variant_index->type()), false);
     }
     if (auto variant_extract = def->isa<VariantExtract>()) {
         auto variant_value = variant_extract->op(0);
         auto llvm_value    = emit(variant_value);
-        auto payload_value = irbuilder_.CreateExtractValue(llvm_value, { 0 });
+        auto payload_value = irbuilder.CreateExtractValue(llvm_value, { 0 });
 
         auto target_type = convert(variant_value->type()->op(variant_extract->index()));
-        return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
-            irbuilder_.CreateStore(payload_value, alloca);
+        return create_tmp_alloca(irbuilder, payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
+            irbuilder.CreateStore(payload_value, alloca);
             auto addr_space = alloca->getType()->getPointerAddressSpace();
-            auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
-            return irbuilder_.CreateLoad(payload_addr);
+            auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
+            return irbuilder.CreateLoad(payload_addr);
         });
     }
     if (auto variant_ctor = def->isa<Variant>()) {
         auto llvm_type = convert(variant_ctor->type());
 
-        auto tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
+        auto tag_value = irbuilder.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
         auto payload_value = emit(variant_ctor->op(0));
 
-        return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
-            auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
-            irbuilder_.CreateStore(tag_value, tag_addr);
+        return create_tmp_alloca(irbuilder, llvm_type, [&] (llvm::AllocaInst* alloca) {
+            auto tag_addr = irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(1) });
+            irbuilder.CreateStore(tag_value, tag_addr);
 
-            auto payload_addr = irbuilder_.CreatePointerCast(
-                irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(0) }),
+            auto payload_addr = irbuilder.CreatePointerCast(
+                irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
                 llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
-            irbuilder_.CreateStore(payload_value, payload_addr);
+            irbuilder.CreateStore(payload_value, payload_addr);
 
-            return irbuilder_.CreateLoad(alloca);
+            return irbuilder.CreateLoad(alloca);
         });
     }
 
@@ -942,15 +944,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
         Box box = primlit->value();
 
         switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     return irbuilder_. getInt1(box.get_bool());
-            case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(box. get_s8());
-            case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(box. get_u8());
-            case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(box.get_s16());
-            case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(box.get_u16());
-            case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(box.get_s32());
-            case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
-            case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
-            case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
+            case PrimType_bool:                     return irbuilder. getInt1(box.get_bool());
+            case PrimType_ps8:  case PrimType_qs8:  return irbuilder. getInt8(box. get_s8());
+            case PrimType_pu8:  case PrimType_qu8:  return irbuilder. getInt8(box. get_u8());
+            case PrimType_ps16: case PrimType_qs16: return irbuilder.getInt16(box.get_s16());
+            case PrimType_pu16: case PrimType_qu16: return irbuilder.getInt16(box.get_u16());
+            case PrimType_ps32: case PrimType_qs32: return irbuilder.getInt32(box.get_s32());
+            case PrimType_pu32: case PrimType_qu32: return irbuilder.getInt32(box.get_u32());
+            case PrimType_ps64: case PrimType_qs64: return irbuilder.getInt64(box.get_s64());
+            case PrimType_pu64: case PrimType_qu64: return irbuilder.getInt64(box.get_u64());
             case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
             case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
             case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
@@ -961,22 +963,22 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(bottom->type()));
 
     if (auto alloc = def->isa<Alloc>()) {
-        return emit_alloc(alloc->alloced_type(), alloc->extra());
+        return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
     }
 
-    if (auto load = def->isa<Load>())           return emit_load(load);
-    if (auto store = def->isa<Store>())         return emit_store(store);
-    if (auto lea = def->isa<LEA>())             return emit_lea(lea);
-    if (auto assembly = def->isa<Assembly>())   return emit_assembly(assembly);
+    if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
+    if (auto store = def->isa<Store>())         return emit_store(irbuilder, store);
+    if (auto lea = def->isa<LEA>())             return emit_lea(irbuilder, lea);
+    if (auto assembly = def->isa<Assembly>())   return emit_assembly(irbuilder, assembly);
     if (def->isa<Enter>())                      return nullptr;
 
     if (auto slot = def->isa<Slot>())
-        return emit_alloca(convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
+        return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder_.CreateInsertElement(vec, emit(vector->op(i)), emit(world_.literal_pu32(i, vector->location())));
+            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world_.literal_pu32(i, vector->location())));
 
         return vec;
     }
@@ -987,38 +989,38 @@ llvm::Value* CodeGen::emit(const Def* def) {
     THORIN_UNREACHABLE;
 }
 
-void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
-    phis_[param]->addIncoming(value, irbuilder_.GetInsertBlock());
+void CodeGen::emit_result_phi(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
+    phis_[param]->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*
  * emit: special overridable methods
  */
 
-llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
+llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type, const Def* extra) {
     auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module().getDataLayout();
     if (auto array = type->isa<IndefiniteArrayType>()) {
         assert(extra);
-        auto size = irbuilder_.CreateAdd(
-                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
-                irbuilder_.CreateMul(irbuilder_.CreateIntCast(emit(extra), irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-        llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
-        void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+        auto size = irbuilder.CreateAdd(
+                irbuilder.getInt64(layout.getTypeAllocSize(alloced_type)),
+                irbuilder.CreateMul(irbuilder.CreateIntCast(emit(extra), irbuilder.getInt64Ty(), false),
+                                     irbuilder.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
+        llvm::Value* malloc_args[] = { irbuilder.getInt32(0), size };
+        void_ptr = irbuilder.CreateCall(llvm_malloc, malloc_args);
     } else {
-        llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)) };
-        void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+        llvm::Value* malloc_args[] = { irbuilder.getInt32(0), irbuilder.getInt64(layout.getTypeAllocSize(alloced_type)) };
+        void_ptr = irbuilder.CreateCall(llvm_malloc, malloc_args);
     }
 
-    return irbuilder_.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
+    return irbuilder.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
 }
 
-llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
+llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, const std::string& name) {
     // Emit the alloca in the entry block
-    auto entry = &irbuilder_.GetInsertBlock()->getParent()->getEntryBlock();
+    auto entry = &irbuilder.GetInsertBlock()->getParent()->getEntryBlock();
     auto layout = module().getDataLayout();
     llvm::AllocaInst* alloca;
     if (entry->empty())
@@ -1029,15 +1031,15 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
     return alloca;
 }
 
-llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
+llvm::Value* CodeGen::emit_bitcast(llvm::IRBuilder<>& irbuilder, const Def* val, const Type* dst_type) {
     auto from = emit(val);
     auto src_type = val->type();
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
         EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
-        return irbuilder_.CreatePointerCast(from, to);
-    return irbuilder_.CreateBitCast(from, to);
+        return irbuilder.CreatePointerCast(from, to);
+    return irbuilder.CreateBitCast(from, to);
 }
 
 llvm::Value* CodeGen::emit_global(const Global* global) {
@@ -1063,32 +1065,32 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
     return new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
-llvm::Value* CodeGen::emit_load(const Load* load) {
+llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
     auto ptr = emit(load->ptr());
-    auto result = irbuilder_.CreateLoad(ptr);
+    auto result = irbuilder.CreateLoad(ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
     result->setAlignment(llvm::MaybeAlign(align));
     return result;
 }
 
-llvm::Value* CodeGen::emit_store(const Store* store) {
+llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* store) {
     auto ptr = emit(store->ptr());
-    auto result = irbuilder_.CreateStore(emit(store->val()), ptr);
+    auto result = irbuilder.CreateStore(emit(store->val()), ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
     result->setAlignment(llvm::MaybeAlign(align));
     return result;
 }
 
-llvm::Value* CodeGen::emit_lea(const LEA* lea) {
+llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
     if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
-        return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), emit(lea->ptr()), primlit_value<u32>(lea->index()));
+        return irbuilder.CreateStructGEP(convert(lea->ptr_pointee()), emit(lea->ptr()), primlit_value<u32>(lea->index()));
 
     assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
-    llvm::Value* args[2] = { irbuilder_.getInt64(0), emit(lea->index()) };
-    return irbuilder_.CreateInBoundsGEP(emit(lea->ptr()), args);
+    llvm::Value* args[2] = { irbuilder.getInt64(0), emit(lea->index()) };
+    return irbuilder.CreateInBoundsGEP(emit(lea->ptr()), args);
 }
 
-llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
+llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
     auto out_type = assembly->type();
     llvm::Type* res_type;
 
@@ -1127,33 +1129,33 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
-    return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
+    return irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
 /*
  * emit intrinsic
  */
 
-Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
+Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:      return emit_atomic(continuation);
-        case Intrinsic::AtomicLoad:  return emit_atomic_load(continuation);
-        case Intrinsic::AtomicStore: return emit_atomic_store(continuation);
-        case Intrinsic::CmpXchg:     return emit_cmpxchg(continuation);
+        case Intrinsic::Atomic:      return emit_atomic(irbuilder, continuation);
+        case Intrinsic::AtomicLoad:  return emit_atomic_load(irbuilder, continuation);
+        case Intrinsic::AtomicStore: return emit_atomic_store(irbuilder, continuation);
+        case Intrinsic::CmpXchg:     return emit_cmpxchg(irbuilder, continuation);
         case Intrinsic::Reserve:     return emit_reserve(continuation);
-        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
-        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
-        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
-        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
+        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
+        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
+        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
+        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
 #if 0
-        case Intrinsic::HLS:         return emit_hls(continuation);
-        case Intrinsic::Parallel:    return emit_parallel(continuation);
-        case Intrinsic::Fibers:      return emit_fibers(continuation);
-        case Intrinsic::Spawn:       return emit_spawn(continuation);
-        case Intrinsic::Sync:        return emit_sync(continuation);
+        case Intrinsic::HLS:         return emit_hls(irbuilder, continuation);
+        case Intrinsic::Parallel:    return emit_parallel(irbuilder, continuation);
+        case Intrinsic::Fibers:      return emit_fibers(irbuilder, continuation);
+        case Intrinsic::Spawn:       return emit_spawn(irbuilder, continuation);
+        case Intrinsic::Sync:        return emit_sync(irbuilder, continuation);
 #if THORIN_ENABLE_RV
-        case Intrinsic::Vectorize:   return emit_vectorize_continuation(continuation);
+        case Intrinsic::Vectorize:   return emit_vectorize_continuation(irbuilder, continuation);
 #else
         case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
 #endif
@@ -1162,7 +1164,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     }
 }
 
-Continuation* CodeGen::emit_atomic(Continuation* continuation) {
+Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() == 7 && "required arguments are missing");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
     u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
@@ -1181,12 +1183,12 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), call);
+    auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_result_phi(irbuilder, cont->param(1), call);
     return cont;
 }
 
-Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
+Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
     auto ptr = emit(continuation->arg(1));
     u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
@@ -1194,15 +1196,15 @@ Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
-    auto load = irbuilder_.CreateLoad(ptr);
+    auto load = irbuilder.CreateLoad(ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
     load->setAlignment(llvm::MaybeAlign(align));
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), load);
+    emit_result_phi(irbuilder, cont->param(1), load);
     return cont;
 }
 
-Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
+Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() == 6 && "required arguments are missing");
     auto ptr = emit(continuation->arg(1));
     auto val = emit(continuation->arg(2));
@@ -1211,14 +1213,14 @@ Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
-    auto store = irbuilder_.CreateStore(val, ptr);
+    auto store = irbuilder.CreateStore(val, ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
     store->setAlignment(llvm::MaybeAlign(align));
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 
-Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
+Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() == 7 && "required arguments are missing");
     if (!is_type_i(continuation->arg(3)->type()))
         EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
@@ -1230,9 +1232,9 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
-    emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
+    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_result_phi(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
+    emit_result_phi(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
     return cont;
 }
 
@@ -1241,7 +1243,7 @@ Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
+Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Continuation* continuation, bool init_undef) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
         EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
@@ -1255,8 +1257,8 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, boo
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
     auto global = emit_global_variable(smem_type, name, 3, init_undef);
-    auto call = irbuilder_.CreatePointerCast(global, type);
-    emit_result_phi(cont->param(1), call);
+    auto call = irbuilder.CreatePointerCast(global, type);
+    emit_result_phi(irbuilder, cont->param(1), call);
     return cont;
 }
 
@@ -1264,36 +1266,36 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, boo
  * helpers
  */
 
-void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
+void CodeGen::create_loop(llvm::IRBuilder<>& irbuilder, llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
     auto head = llvm::BasicBlock::Create(context(), "head", entry);
     auto body = llvm::BasicBlock::Create(context(), "body", entry);
     auto exit = llvm::BasicBlock::Create(context(), "exit", entry);
     // create loop phi and connect init value
-    auto loop_counter = llvm::PHINode::Create(irbuilder_.getInt32Ty(), 2U, "parallel_loop_phi", head);
-    loop_counter->addIncoming(lower, irbuilder_.GetInsertBlock());
+    auto loop_counter = llvm::PHINode::Create(irbuilder.getInt32Ty(), 2U, "parallel_loop_phi", head);
+    loop_counter->addIncoming(lower, irbuilder.GetInsertBlock());
     // connect head
-    irbuilder_.CreateBr(head);
-    irbuilder_.SetInsertPoint(head);
-    auto cond = irbuilder_.CreateICmpSLT(loop_counter, upper);
-    irbuilder_.CreateCondBr(cond, body, exit);
-    irbuilder_.SetInsertPoint(body);
+    irbuilder.CreateBr(head);
+    irbuilder.SetInsertPoint(head);
+    auto cond = irbuilder.CreateICmpSLT(loop_counter, upper);
+    irbuilder.CreateCondBr(cond, body, exit);
+    irbuilder.SetInsertPoint(body);
 
     // add instructions to the loop body
     fun(loop_counter);
 
     // inc loop counter
-    loop_counter->addIncoming(irbuilder_.CreateAdd(loop_counter, increment), body);
-    irbuilder_.CreateBr(head);
-    irbuilder_.SetInsertPoint(exit);
+    loop_counter->addIncoming(irbuilder.CreateAdd(loop_counter, increment), body);
+    irbuilder.CreateBr(head);
+    irbuilder.SetInsertPoint(exit);
 }
 
-llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
-    auto alloca = emit_alloca(type, "tmp_alloca");
-    auto size = irbuilder_.getInt64(module().getDataLayout().getTypeAllocSize(type));
+llvm::Value* CodeGen::create_tmp_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
+    auto alloca = emit_alloca(irbuilder, type, "tmp_alloca");
+    auto size = irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
 
-    irbuilder_.CreateLifetimeStart(alloca, size);
+    irbuilder.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);
-    irbuilder_.CreateLifetimeEnd(alloca, size);
+    irbuilder.CreateLifetimeEnd(alloca, size);
     return result;
 }
 

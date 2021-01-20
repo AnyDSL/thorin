@@ -43,53 +43,58 @@ public:
     std::unique_ptr<llvm::Module>& emit();
 
 protected:
+    /// @name convert
+    //@{
     llvm::Type* convert(const Type*);
-    void emit(const Scope&);
-    llvm::Value* emit(const Def*);
-    void emit_epilogue(Continuation*);
-    llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
-    llvm::Value* emit_alloc(const Type*, const Def*);
-    virtual llvm::Function* emit_function_decl(Continuation*);
     virtual unsigned convert_addr_space(const AddrSpace);
+    virtual llvm::FunctionType* convert_fn_type(Continuation*);
+    //@}
+
+    void emit(const Scope&);
+    void emit_epilogue(llvm::IRBuilder<>&, Continuation*);
+    llvm::Value* emit(const Def*);
+    llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);
+    llvm::Value*      emit_alloc (llvm::IRBuilder<>&, const Type*, const Def*);
+    virtual llvm::Function* emit_function_decl(Continuation*);
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
-    virtual void emit_function_start(llvm::BasicBlock*, Continuation*) {}
-    virtual llvm::FunctionType* convert_fn_type(Continuation*);
+    virtual void emit_function_start(llvm::IRBuilder<>&, llvm::BasicBlock*, Continuation*) {}
 
-    virtual llvm::Value* emit_global(const Global*);
-    virtual llvm::Value* emit_load(const Load*);
-    virtual llvm::Value* emit_store(const Store*);
-    virtual llvm::Value* emit_lea(const LEA*);
-    virtual llvm::Value* emit_assembly(const Assembly* assembly);
+    virtual llvm::Value* emit_load    (llvm::IRBuilder<>&, const Load*);
+    virtual llvm::Value* emit_store   (llvm::IRBuilder<>&, const Store*);
+    virtual llvm::Value* emit_lea     (llvm::IRBuilder<>&, const LEA*);
+    virtual llvm::Value* emit_assembly(llvm::IRBuilder<>&, const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
 
+    virtual llvm::Value* emit_global  (const Global*);
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
-    Continuation* emit_reserve_shared(const Continuation*, bool=false);
+
     void optimize();
     void verify() const;
-    void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
-    llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
+    void create_loop(llvm::IRBuilder<>&, llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
+    llvm::Value* create_tmp_alloca(llvm::IRBuilder<>&, llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 
 private:
-    Continuation* emit_peinfo(Continuation*);
-    Continuation* emit_intrinsic(Continuation*);
+    Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_intrinsic(llvm::IRBuilder<>&, Continuation*);
 #if 0
-    Continuation* emit_hls(Continuation*);
-    Continuation* emit_parallel(Continuation*);
-    Continuation* emit_fibers(Continuation*);
-    Continuation* emit_spawn(Continuation*);
-    Continuation* emit_sync(Continuation*);
-    Continuation* emit_vectorize_continuation(Continuation*);
-    void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
+    Continuation* emit_hls(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_parallel(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_fibers(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_spawn(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_sync(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_vectorize_continuation(llvm::IRBuilder<>&, Continuation*);
+    void emit_vectorize(llvm::IRBuilder<>&, u32, llvm::Function*, llvm::CallInst*);
 #endif
-    Continuation* emit_atomic(Continuation*);
-    Continuation* emit_cmpxchg(Continuation*);
-    Continuation* emit_atomic_load(Continuation*);
-    Continuation* emit_atomic_store(Continuation*);
-    llvm::Value* emit_bitcast(const Def*, const Type*);
+    Continuation* emit_atomic(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);
+    llvm::Value* emit_bitcast(llvm::IRBuilder<>&, const Def*, const Type*);
     virtual Continuation* emit_reserve(const Continuation*);
-    void emit_result_phi(const Param*, llvm::Value*);
+    Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);
+    void emit_result_phi(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
     World& world_;
     std::unique_ptr<llvm::LLVMContext> context_;
@@ -99,7 +104,6 @@ private:
 
 protected:
     std::unique_ptr<llvm::TargetMachine> machine_;
-    llvm::IRBuilder<> irbuilder_;
     llvm::DIBuilder dibuilder_;
     llvm::DICompileUnit* dicompile_unit_;
     llvm::CallingConv::ID function_calling_convention_;

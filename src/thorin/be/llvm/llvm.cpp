@@ -242,11 +242,10 @@ llvm::Type* CodeGen::convert(const Type* type) {
                     ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(llvm::Type::getInt8Ty(context()), rem_size)})
                     : llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type });
 
-            auto tag_type =
-                    type->num_ops() < (1_u64 <<  8) ? llvm::Type::getInt8Ty (context()) :
-                    type->num_ops() < (1_u64 << 16) ? llvm::Type::getInt16Ty(context()) :
-                    type->num_ops() < (1_u64 << 32) ? llvm::Type::getInt32Ty(context()) :
-                                                            llvm::Type::getInt64Ty(context());
+            auto tag_type = type->num_ops() < (1_u64 <<  8) ? llvm::Type::getInt8Ty (context()) :
+                            type->num_ops() < (1_u64 << 16) ? llvm::Type::getInt16Ty(context()) :
+                            type->num_ops() < (1_u64 << 32) ? llvm::Type::getInt32Ty(context()) :
+                                                              llvm::Type::getInt64Ty(context());
 
             return llvm::StructType::get(context(), { union_type, tag_type });
         }
@@ -374,60 +373,56 @@ void CodeGen::emit(const Scope& scope) {
         discope = disub_program;
     }
 
-    // map params
-    auto arg = fct->arg_begin();
-    for (auto param : entry_->params()) {
-        if (is_mem(param) || is_unit(param))
-            continue;
-        if (param->order() == 0) {
-            auto argv = &*arg;
-            auto value = map_param(fct, argv, param);
-            if (value == argv) {
-                arg->setName(param->unique_name()); // use param
-                params_[param] = &*arg++;
-            } else {
-                params_[param] = value;             // use provided value
-            }
-        }
-    }
-
-    cont2bb_.clear();
-    Scheduler new_scheduler(scope);
-    swap(scheduler_, new_scheduler);
+    cont2llvm_.clear();
     auto conts = schedule(scope);
 
-    // map all bb-like continuations to llvm bb stubs
-    for (auto continuation : conts) {
-        if (continuation->intrinsic() == Intrinsic::EndScope) continue;
-        auto bb = cont2bb_[continuation] = llvm::BasicBlock::Create(context(), continuation->name().c_str(), fct);
+    // map all bb-like continuations to llvm bb stubs and handle params/phis
+    for (auto cont : conts) {
+        if (cont->intrinsic() == Intrinsic::EndScope) continue;
 
-        // create phi node stubs (for all continuations different from entry)
-        if (entry_ == continuation) continue;
+        auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
+        auto [i, succ] = cont2llvm_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
+        assert(succ);
+        auto& irbuilder = *i->second.second;
+        irbuilder.SetInsertPoint(bb);
+        if (debug())
+            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->location().front_line(), cont->location().front_col(), discope));
 
-        for (auto param : continuation->params()) {
-            if (!is_mem(param) && !is_unit(param)) {
-                auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str(), bb);
-                phis_[param] = phi;
+        if (entry_ == cont) {
+            auto arg = fct->arg_begin();
+            for (auto param : entry_->params()) {
+                if (is_mem(param) || is_unit(param))
+                    continue;
+                if (param->order() == 0) {
+                    auto argv = &*arg;
+                    auto value = map_param(fct, argv, param);
+                    if (value == argv) {
+                        arg->setName(param->unique_name()); // use param
+                        params_[param] = &*arg++;
+                    } else {
+                        params_[param] = value;             // use provided value
+                    }
+                }
+            }
+        } else {
+            for (auto param : cont->params()) {
+                if (!is_mem(param) && !is_unit(param)) {
+                    auto phi = irbuilder.CreatePHI(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str());
+                    phis_[param] = phi;
+                }
             }
         }
     }
 
-    auto oldStartBB = fct->begin();
-    auto startBB = llvm::BasicBlock::Create(context(), fct->getName() + "_start", fct, &*oldStartBB);
-    llvm::IRBuilder<> irbuilder(context());
-    irbuilder.SetInsertPoint(startBB);
-    if (debug())
-        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
-    emit_function_start(irbuilder, startBB, entry_);
-    irbuilder.CreateBr(&*oldStartBB);
+    Scheduler new_scheduler(scope);
+    swap(scheduler_, new_scheduler);
+
+    emit_function_start(entry_);
 
     for (auto continuation : conts) {
         if (continuation->intrinsic() == Intrinsic::EndScope) continue;
 
         assert(continuation == entry_ || continuation->is_basicblock());
-        llvm::IRBuilder<> irbuilder(context());
-        irbuilder.SetInsertPoint(cont2bb_[continuation]);
-
 #if 0
         // TODO
         for (auto primop : block) {
@@ -445,9 +440,9 @@ void CodeGen::emit(const Scope& scope) {
         }
 #endif
 
-        if (debug())
-            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
-        emit_epilogue(irbuilder, continuation);
+        //if (debug())
+            //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
+        emit_epilogue(continuation);
     }
 
     // add missing arguments to phis_
@@ -456,7 +451,7 @@ void CodeGen::emit(const Scope& scope) {
         auto phi = p.second;
 
         for (const auto& peek : param->peek())
-            phi->addIncoming(emit(peek.def()), cont2bb_[peek.from()]);
+            phi->addIncoming(emit(peek.def()), cont2bb(peek.from()));
     }
 
     params_.clear();
@@ -464,7 +459,9 @@ void CodeGen::emit(const Scope& scope) {
     primops_.clear();
 }
 
-void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+void CodeGen::emit_epilogue(Continuation* continuation) {
+    auto& irbuilder = *cont2llvm_[continuation].second;
+
     if (continuation->callee() == entry_->ret_param()) { // return
         size_t num_args = continuation->num_args();
         if (num_args == 0) irbuilder.CreateRetVoid();
@@ -496,18 +493,18 @@ void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continua
         }
     } else if (continuation->callee() == world().branch()) {
         auto cond = emit(continuation->arg(0));
-        auto tbb = cont2bb_[continuation->arg(1)->as_continuation()];
-        auto fbb = cont2bb_[continuation->arg(2)->as_continuation()];
+        auto tbb = cont2bb(continuation->arg(1)->as_continuation());
+        auto fbb = cont2bb(continuation->arg(2)->as_continuation());
         irbuilder.CreateCondBr(cond, tbb, fbb);
     } else if (continuation->callee()->isa<Continuation>() &&
                 continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         auto val = emit(continuation->arg(0));
-        auto otherwise_bb = cont2bb_[continuation->arg(1)->as_continuation()];
+        auto otherwise_bb = cont2bb(continuation->arg(1)->as_continuation());
         auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
         for (size_t i = 2; i < continuation->num_args(); i++) {
             auto arg = continuation->arg(i)->as<Tuple>();
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
-            auto case_bb    = cont2bb_[arg->op(1)->as_continuation()];
+            auto case_bb    = cont2bb(arg->op(1)->as_continuation());
             match->addCase(case_const, case_bb);
         }
     } else if (continuation->callee()->isa<Bottom>()) {
@@ -518,12 +515,12 @@ void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continua
         if (auto callee_continuation = callee->isa_continuation()) {
             if (callee_continuation->is_basicblock()) {
                 // ordinary jump
-                irbuilder.CreateBr(cont2bb_[callee_continuation]);
+                irbuilder.CreateBr(cont2bb(callee_continuation));
                 terminated = true;
             } else if (callee_continuation->is_intrinsic()) {
                 // intrinsic call
                 auto ret_continuation = emit_intrinsic(irbuilder, continuation);
-                irbuilder.CreateBr(cont2bb_[ret_continuation]);
+                irbuilder.CreateBr(cont2bb(ret_continuation));
                 terminated = true;
             }
         }
@@ -572,9 +569,9 @@ void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continua
             }
 
             if (n == 0) {
-                irbuilder.CreateBr(cont2bb_[succ]);
+                irbuilder.CreateBr(cont2bb(succ));
             } else if (n == 1) {
-                irbuilder.CreateBr(cont2bb_[succ]);
+                irbuilder.CreateBr(cont2bb(succ));
                 emit_result_phi(irbuilder, last_param, call);
             } else {
                 Array<llvm::Value*> extracts(n);
@@ -586,7 +583,7 @@ void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continua
                     j++;
                 }
 
-                irbuilder.CreateBr(cont2bb_[succ]);
+                irbuilder.CreateBr(cont2bb(succ));
 
                 for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                     auto param = succ->param(i);
@@ -601,8 +598,6 @@ void CodeGen::emit_epilogue(llvm::IRBuilder<>& irbuilder, Continuation* continua
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    llvm::IRBuilder<> irbuilder(context()); // TODO
-
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = primops_.lookup(primop)) return *res;
     } else if (auto param = def->isa<Param>()) {
@@ -611,6 +606,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
     } else if (auto continuation = def->isa_continuation()) {
         return emit_function_decl(continuation);
     }
+
+    auto place = is_const(def) ? entry_ : scheduler_.smart(def);
+    auto& irbuilder = *cont2llvm_[place].second;
+
+    //if (auto cur_ins = irbuilder.GetInsertPoint(); cur_ins.isEnd() && cur_ins->isTerminator())
+        //irbuilder.SetInsertPoint(cur_ins->getPrevNode());
 
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());

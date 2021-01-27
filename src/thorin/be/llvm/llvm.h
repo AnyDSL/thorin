@@ -17,8 +17,6 @@ namespace thorin {
 
 class World;
 
-typedef ContinuationMap<llvm::BasicBlock*> BBMap;
-
 class CodeGen {
 protected:
     CodeGen(World& world,
@@ -51,14 +49,14 @@ protected:
     //@}
 
     void emit(const Scope&);
-    void emit_epilogue(llvm::IRBuilder<>&, Continuation*);
+    void emit_epilogue(Continuation*);
     llvm::Value* emit(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);
     llvm::Value*      emit_alloc (llvm::IRBuilder<>&, const Type*, const Def*);
     virtual llvm::Function* emit_function_decl(Continuation*);
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
-    virtual void emit_function_start(llvm::IRBuilder<>&, llvm::BasicBlock*, Continuation*) {}
+    virtual void emit_function_start(Continuation*) {}
 
     virtual llvm::Value* emit_load    (llvm::IRBuilder<>&, const Load*);
     virtual llvm::Value* emit_store   (llvm::IRBuilder<>&, const Store*);
@@ -66,6 +64,7 @@ protected:
     virtual llvm::Value* emit_assembly(llvm::IRBuilder<>&, const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
+    llvm::BasicBlock* cont2bb(Continuation* cont) { return cont2llvm_[cont].first; }
 
     virtual llvm::Value* emit_global  (const Global*);
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
@@ -112,7 +111,7 @@ protected:
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;
-    BBMap cont2bb_;
+    ContinuationMap<std::pair<llvm::BasicBlock*, std::unique_ptr<llvm::IRBuilder<>>>> cont2llvm_;
     Scheduler scheduler_;
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;

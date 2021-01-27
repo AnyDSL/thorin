@@ -142,17 +142,17 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  * hash
  */
 
-uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
+hash_t PrimOp::vhash() const {
+    hash_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
     for (auto op : ops_)
         seed = hash_combine(seed, uint32_t(op->gid()));
     return seed;
 }
 
-uint64_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-uint64_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
+hash_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+hash_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+hash_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
+hash_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
 //------------------------------------------------------------------------------
 

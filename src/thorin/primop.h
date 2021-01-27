@@ -36,7 +36,7 @@ public:
     virtual std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
-    virtual uint64_t vhash() const;
+    virtual hash_t vhash() const;
     virtual bool equal(const PrimOp* other) const;
     virtual const Def* vrebuild(World&, Defs, const Type*) const { return nullptr; } //  = 0;
 
@@ -44,7 +44,7 @@ protected:
     template<int i, class T> inline static const T* is_out(const Def* def);
 
 private:
-    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
 
     mutable uint64_t hash_ = 0;
 
@@ -55,7 +55,7 @@ private:
 };
 
 struct PrimOpHash {
-    static uint64_t hash(const PrimOp* o) { return o->hash(); }
+    static hash_t hash(const PrimOp* o) { return o->hash(); }
     static bool eq(const PrimOp* o1, const PrimOp* o2) { return o1->equal(o2); }
     static const PrimOp* sentinel() { return (const PrimOp*)(1); }
 };
@@ -110,7 +110,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override;
+    virtual hash_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -321,7 +321,7 @@ private:
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-    virtual uint64_t vhash() const override;
+    virtual hash_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
 
     size_t index_;
@@ -358,7 +358,7 @@ private:
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-    virtual uint64_t vhash() const override;
+    virtual hash_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
 
     size_t index_;
@@ -552,7 +552,7 @@ public:
     const Type* alloced_type() const { return type()->pointee(); }
 
 private:
-    virtual uint64_t vhash() const override;
+    virtual hash_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -577,7 +577,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override { return murmur3(gid()); }
+    virtual hash_t vhash() const override { return murmur3(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -601,7 +601,7 @@ public:
     const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    virtual uint64_t vhash() const override { return murmur3(gid()); }
+    virtual hash_t vhash() const override { return murmur3(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 

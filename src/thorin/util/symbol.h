@@ -10,7 +10,7 @@ namespace thorin {
 class Symbol {
 public:
     struct Hash {
-        static uint64_t hash(Symbol s) { return thorin::hash(s.c_str()); }
+        static hash_t hash(Symbol s) { return thorin::hash(s.c_str()); }
         static bool eq(Symbol s1, Symbol s2) { return s1 == s2; }
         static Symbol sentinel() { return Symbol(/*dummy*/23); }
     };

@@ -391,9 +391,9 @@ void CodeGen::emit(const Scope& scope) {
         if (entry_ == cont) {
             auto arg = fct->arg_begin();
             for (auto param : entry_->params()) {
-                if (is_mem(param) || is_unit(param))
-                    continue;
-                if (param->order() == 0) {
+                if (is_mem(param) || is_unit(param)) {
+                    params_[param] = nullptr;
+                } else if (param->order() == 0) {
                     auto argv = &*arg;
                     auto value = map_param(fct, argv, param);
                     if (value == argv) {
@@ -406,7 +406,9 @@ void CodeGen::emit(const Scope& scope) {
             }
         } else {
             for (auto param : cont->params()) {
-                if (!is_mem(param) && !is_unit(param)) {
+                if (is_mem(param) || is_unit(param)) {
+                    phis_[param] = nullptr;
+                } else {
                     auto phi = irbuilder.CreatePHI(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str());
                     phis_[param] = phi;
                 }
@@ -446,9 +448,8 @@ void CodeGen::emit(const Scope& scope) {
     }
 
     // add missing arguments to phis_
-    for (const auto& p : phis_) {
-        auto param = p.first;
-        auto phi = p.second;
+    for (const auto& [param, phi] : phis_) {
+        if (phi == nullptr) continue;
 
         for (const auto& peek : param->peek())
             phi->addIncoming(emit(peek.def()), cont2bb(peek.from()));
@@ -611,8 +612,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
     auto& [bb, ib] = cont2llvm_[place];
     auto& irbuilder = *ib;
 
-    if (auto term = bb->getTerminator())
-        irbuilder.SetInsertPoint(term->getPrevNode());
+    if (auto term = bb->getTerminator()) {
+        if (auto prev = term->getPrevNode())
+            irbuilder.SetInsertPoint(prev);
+        else
+            irbuilder.SetInsertPoint(bb);
+    }
 
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
@@ -965,6 +970,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(bottom->type()));
 
     if (auto alloc = def->isa<Alloc>()) {
+        emit(alloc->mem());
         return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
     }
 
@@ -1068,6 +1074,7 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
 }
 
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
+    emit(load->mem());
     auto ptr = emit(load->ptr());
     auto result = irbuilder.CreateLoad(ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
@@ -1076,6 +1083,7 @@ llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) 
 }
 
 llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* store) {
+    emit(store->mem());
     auto ptr = emit(store->ptr());
     auto result = irbuilder.CreateStore(emit(store->val()), ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
@@ -1093,6 +1101,7 @@ llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
 }
 
 llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
+    emit(assembly->mem());
     auto out_type = assembly->type();
     llvm::Type* res_type;
 

@@ -10,6 +10,10 @@
 #include <iostream>
 #include <map>
 
+//#define DUMP_DIV_ANALYSIS
+//#define DUMP_WIDEN
+//#define DUMP_VECTORIZER
+
 namespace thorin {
 
 class Vectorizer {
@@ -421,6 +425,12 @@ void Vectorizer::DivergenceAnalysis::run() {
                     if (LabelMap.contains(key))
                         plabs.emplace(LabelMap[key]);
 
+#ifdef DUMP_DIV_ANALYSIS
+                std::cerr << "Previous\n";
+                cont->dump();
+                plabs.dump();
+#endif
+
                 //At this point, we need to distinguish direct successors of split from the rest.
                 //We know that nodes that are already labeled with themselves should not be updated,
                 //but should be put into the set of relevant joins instead.
@@ -606,8 +616,10 @@ void Vectorizer::DivergenceAnalysis::run() {
                 } else {
                     uniform[use] = Varying;
                     def_queue.push(use);
-                    //std::cerr << "Push ";
-                    //use->dump();
+#ifdef DUMP_DIV_ANALYSIS
+                    std::cerr << "Push ";
+                    use->dump();
+#endif
                 }
             }
         }
@@ -656,9 +668,20 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
 }
 
 const Def* Vectorizer::widen(const Def* old_def) {
+#ifdef DUMP_WIDEN
+    std::cout << "Widen\n";
+    old_def->dump();
+#endif
+
     if (auto new_def = find(def2def_, old_def)) {
+#ifdef DUMP_WIDEN
+        std::cout << "Found\n";
+#endif
         return new_def;
     } else if (!widen_within(old_def)) {
+#ifdef DUMP_WIDEN
+        std::cout << "NWithin\n";
+#endif
         if (auto cont = old_def->isa_continuation()) {
             if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
                 auto type = old_def->type();
@@ -672,16 +695,28 @@ const Def* Vectorizer::widen(const Def* old_def) {
         }
         return old_def;
     } else if (auto old_continuation = old_def->isa_continuation()) {
+#ifdef DUMP_WIDEN
+        std::cout << "Contin\n";
+#endif
         auto new_continuation = widen_head(old_continuation);
         widen_body(old_continuation, new_continuation);
         return new_continuation;
     } else if (div_analysis_->getUniform(old_def) == DivergenceAnalysis::State::Uniform) {
+#ifdef DUMP_WIDEN
+        std::cout << "Uni\n";
+#endif
         return old_def; //TODO: this def could contain a continuation inside a tuple for match cases!
     } else if (auto param = old_def->isa<Param>()) {
+#ifdef DUMP_WIDEN
+        std::cout << "Param\n";
+#endif
         widen(param->continuation());
         assert(def2def_.contains(param));
         return def2def_[param];
     } else if (auto param = old_def->isa<Extract>()) {
+#ifdef DUMP_WIDEN
+        std::cout << "Extract\n";
+#endif
         Array<const Def*> nops(param->num_ops());
 
         nops[0] = widen(param->op(0));
@@ -693,7 +728,7 @@ const Def* Vectorizer::widen(const Def* old_def) {
         auto type = widen(param->type());
         const Def* new_primop;
         if (param->isa<PrimLit>()) {
-            assert(false); // This should not be reachable!
+            assert(false && "This should not be reachable!");
             Array<const Def*> elements(vector_width);
             for (size_t i = 0; i < vector_width; i++) {
                 elements[i] = param;
@@ -704,6 +739,9 @@ const Def* Vectorizer::widen(const Def* old_def) {
         }
         return def2def_[param] = new_primop;
     } else if (auto param = old_def->isa<VariantExtract>()) {
+#ifdef DUMP_WIDEN
+        std::cout << "VarExtract\n";
+#endif
         Array<const Def*> nops(param->num_ops());
 
         nops[0] = widen(param->op(0));
@@ -711,7 +749,7 @@ const Def* Vectorizer::widen(const Def* old_def) {
         auto type = widen(param->type());
         const Def* new_primop;
         if (param->isa<PrimLit>()) {
-            assert(false); // This should not be reachable!
+            assert(false && "This should not be reachable!");
             Array<const Def*> elements(vector_width);
             for (size_t i = 0; i < vector_width; i++) {
                 elements[i] = param;
@@ -722,6 +760,9 @@ const Def* Vectorizer::widen(const Def* old_def) {
         }
         return def2def_[param] = new_primop;
     } else if (auto param = old_def->isa<ArithOp>()) {
+#ifdef DUMP_WIDEN
+        std::cout << "Arith\n";
+#endif
         Array<const Def*> nops(param->num_ops());
         bool any_vector = false;
         for (size_t i = 0, e = param->num_ops(); i != e; ++i) {
@@ -758,6 +799,9 @@ const Def* Vectorizer::widen(const Def* old_def) {
         }
         return def2def_[param] = new_primop;
     } else {
+#ifdef DUMP_WIDEN
+        std::cout << "Primop\n";
+#endif
         auto old_primop = old_def->as<PrimOp>();
         Array<const Def*> nops(old_primop->num_ops());
         bool any_vector = false;
@@ -788,12 +832,16 @@ const Def* Vectorizer::widen(const Def* old_def) {
         } else {
             new_primop = old_primop->rebuild(nops, type);
         }
+        //assert(new_primop->type() == type);
         return def2def_[old_primop] = new_primop;
     }
 }
 
 void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_continuation) {
     assert(!old_continuation->empty());
+#ifdef DUMP_WIDEN
+    std::cout << "Body\n";
+#endif
 
     // fold branch and match
     if (auto callee = old_continuation->callee()->isa_continuation()) {
@@ -896,6 +944,9 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     }
 
     new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
+#ifdef DUMP_WIDEN
+    std::cout << "Jump\n";
+#endif
 }
 
 Continuation *Vectorizer::widen() {
@@ -958,7 +1009,9 @@ bool Vectorizer::widen_within(const Def* def) {
 }
 
 bool Vectorizer::run() {
+#ifdef DUMP_VECTORIZER
     world_.dump();
+#endif
 
     llvm::TimeRegion vregion(time);
 
@@ -973,9 +1026,11 @@ bool Vectorizer::run() {
         Continuation *cont = pop(queue_);
 
         if (cont->intrinsic() == Intrinsic::Vectorize) {
+#ifdef DUMP_VECTORIZER
             std::cerr << "Continuation\n";
-            //cont->dump_head();
-            //std::cerr << "\n";
+            cont->dump_head();
+            std::cerr << "\n";
+#endif
 
             for (auto pred : cont->preds()) {
                 auto *kernarg = dynamic_cast<const Global *>(pred->arg(2));
@@ -1003,6 +1058,10 @@ bool Vectorizer::run() {
                 def2def_[kerndef] = vectorized;
 
     //Task 3: Linearize divergent controll flow
+#ifdef DUMP_VECTORIZER
+                Scope(vectorized).dump();
+#endif
+
                 {
                 llvm::TimeRegion lin_time(time_lin);
 
@@ -1013,6 +1072,16 @@ bool Vectorizer::run() {
 
                     assert (it.second.size() <= 1 && "no complex controll flow");
                     auto join_old = *it.second.begin();
+#ifdef DUMP_VECTORIZER
+                    Scope(latch).dump(); //The mem monad can be malformed here already!?
+
+                    if (joins_old.size() > 1) {
+                        Scope(latch_old).dump();
+                        joins_old.dump();
+                        Scope(latch).dump();
+                    }
+#endif
+
                     Continuation *join;
                     if(join_old == *it.second.end()) {
                         //Only possible option is that all cases call return directly.
@@ -1180,6 +1249,10 @@ bool Vectorizer::run() {
                         pre_join->jump(join, join_params, latch->jump_location());
                     }
 
+#ifdef DUMP_VECTORIZER
+                    Scope(vectorized).dump();
+#endif
+
                     if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Branch && latch->arg(0)->type()->isa<VectorExtendedType>()) {
                         const Def * then_old = latch_old->arg(1);
                         Continuation * then_new = const_cast<Continuation*>(def2def_[then_old]->as<Continuation>());
@@ -1344,18 +1417,28 @@ bool Vectorizer::run() {
                     }
                 }
             }
+#ifdef DUMP_VECTORIZER
             std::cerr << "Continuation end\n\n";
+#endif
         }
 
         for (auto succ : cont->succs())
             enqueue(succ);
     }
 
+#ifdef DUMP_VECTORIZER
+    std::cout << "Pre Cleanup\n";
+    world_.dump();
+    std::cout << "Cleanup\n";
+#endif
     {
         llvm::TimeRegion clean_time(time_clean);
         world_.cleanup();
     }
+#ifdef DUMP_VECTORIZER
+    std::cout << "Post Cleanup\n";
     world_.dump();
+#endif
 
     return false;
 }

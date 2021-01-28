@@ -45,6 +45,7 @@ private:
         GIDMap<Continuation*, ContinuationSet> loopExits;
         GIDMap<Continuation*, ContinuationSet> loopBodys;
         GIDMap<Continuation*, ContinuationSet> relJoins;
+        GIDMap<Continuation*, ContinuationSet> splitParrents;
 
         GIDMap<const Def*, State> uniform;
 
@@ -92,6 +93,8 @@ private:
 
     void widen_body(Continuation *, Continuation *);
     Continuation* widen_head(Continuation* old_continuation);
+
+    void Continuation_MemParam(Continuation* continuation, Schedule& vector_schedule, Schedule::Map<const Def*>& block2mem);
 };
 
 Vectorizer::DivergenceAnalysis::State
@@ -364,10 +367,15 @@ void Vectorizer::DivergenceAnalysis::run() {
         Continuation *cont = pop(queue);
 
         if (cont->succs().size() > 1) {
-            splitNodes.emplace(cont);
+            if (cont->callee()->isa<Continuation>() && cont->callee()->as<Continuation>()->is_intrinsic()) {
+                splitNodes.emplace(cont);
 #ifdef DUMP_DIV_ANALYSIS
-            cont->dump();
+                cont->dump();
+            } else {
+                std::cerr << "Multiple successors in non-intrinsic node\n";
+                cont->dump();
 #endif
+            }
         }
 
         for (auto succ : cont->succs())
@@ -422,8 +430,7 @@ void Vectorizer::DivergenceAnalysis::run() {
             if (!keys.empty()) {
                 ContinuationSet plabs;
                 for (auto key : keys)
-                    if (LabelMap.contains(key))
-                        plabs.emplace(LabelMap[key]);
+                    plabs.emplace(LabelMap[key]);
 
 #ifdef DUMP_DIV_ANALYSIS
                 std::cerr << "Previous\n";
@@ -438,8 +445,15 @@ void Vectorizer::DivergenceAnalysis::run() {
                 Continuation* oldlabel = LabelMap[cont];
                 if (oldlabel == cont) {
                     //This node was either already marked as a join or, more importantly, it was a start node.
-                    if (plabs.size() > 1 || (plabs.size() == 1 && *plabs.begin() != cont))
-                        Joins.emplace(cont);
+                    if (predecessors(cont).contains(split)) {
+                        if ((plabs.size() > 1) || (plabs.size() == 1 && *plabs.begin() != cont))
+                            Joins.emplace(cont);
+                    } else {
+                        if (plabs.size() == 1 && *plabs.begin() != cont) {
+                            LabelMap[cont] = *plabs.begin();
+                            Joins.erase(cont);
+                        }
+                    }
                 } else {
                     if (plabs.size() == 1)
                         LabelMap[cont] = *plabs.begin();
@@ -474,6 +488,25 @@ void Vectorizer::DivergenceAnalysis::run() {
 #endif
     }
 
+    //Step 2.3: Sort Split-Joins in a hirarchy
+    for (auto it : relJoins) {
+        for (auto it_inner : relJoins) {
+            if (it_inner.first == it.first)
+                continue;
+            if (!Scope(it.first).contains(it_inner.first))
+                continue;
+            bool contained = it_inner.second.size() > 0;
+            for (auto join : it_inner.second)
+                if (!it.second.contains(join)) {
+                    contained = false;
+                    break;
+                }
+            if (contained)
+                //it_inner.first is fully contained in a branch of it.first
+                splitParrents[it_inner.first].emplace(it.first);
+        }
+    }
+
     //TODO: Reaching Definitions Analysis.
     //Step 3: Definite Reaching Definitions Analysis (see Chapter 6) (not at first, focus on CFG analysis first)
     //Note: I am currently not sure which is better, first doing the Definite Reachign Analysis, or first doing the CFG analysis.
@@ -501,14 +534,14 @@ void Vectorizer::DivergenceAnalysis::run() {
 
     //Step 4.2.2: Mark everything in relevant joins as varying (for now at least)
     for (auto it : relJoins) {
-        Continuation *split = it.first;
+        //Continuation *split = it.first;
         //use split to capture information about the branching condition
-        const Continuation * branch_int = split->op(0)->isa_continuation();
+        /*const Continuation * branch_int = split->op(0)->isa_continuation();
         const Def * branch_cond;
         if (branch_int && (branch_int->intrinsic() == Intrinsic::Branch || branch_int->intrinsic() == Intrinsic::Match))
             branch_cond = split->op(1);
         if (branch_cond && uniform[branch_cond] == Uniform)
-            continue;
+            continue;*/ //TODO: in this case, we still need to communicate varying information across parameters.
         ContinuationSet joins = it.second;
         for (auto join : joins) {
             Scope scope(join);
@@ -812,7 +845,7 @@ const Def* Vectorizer::widen(const Def* old_def) {
         }
 
         if (any_vector && (old_primop->isa<BinOp>() || old_primop->isa<Access>())) {
-            for (size_t i = 0, e = old_primop->num_ops(); any_vector && i != e; ++i) {
+            for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
                 if (nops[i]->type()->isa<VectorExtendedType>())
                     continue;
                 if (nops[i]->type()->isa<MemType>())
@@ -824,7 +857,12 @@ const Def* Vectorizer::widen(const Def* old_def) {
             }
         }
 
-        auto type = widen(old_primop->type());
+        const Type* type;
+        if (any_vector)
+          type  = widen(old_primop->type());
+        else
+          type  = old_primop->type();
+
         const Def* new_primop;
 
         if (old_primop->isa<PrimLit>()) {
@@ -894,6 +932,10 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                 de.set("llvm.exp.v8f32"); //TODO: Use vectorlength to find the correct intrinsic.
             else if (de.name() == "llvm.exp.f64")
                 de.set("llvm.exp.v8f64");
+            else if (de.name() == "llvm.sqrt.f32")
+                de.set("llvm.sqrt.v8f32");
+            else if (de.name() == "llvm.sqrt.f64")
+                de.set("llvm.sqrt.v8f64");
             else {
                 std::cerr << "Not supported: " << de.name() << "\n";
                 assert(false && "Import not supported in vectorize.");
@@ -1008,6 +1050,46 @@ bool Vectorizer::widen_within(const Def* def) {
     return scope.contains(def);
 }
 
+
+void Vectorizer::Continuation_MemParam(Continuation* continuation, Schedule &vector_schedule, Schedule::Map<const Def*>& block2mem) {
+    auto continuation_mem = continuation->append_param(world_.mem_type());
+    Def* continuation_first_mem = nullptr;
+    const Schedule::Block* continuation_block;
+    for (auto &block : vector_schedule) {
+        if (block.continuation() == continuation) {
+            continuation_block = &block;
+            for (auto primop : block) {
+                if (auto memop = primop->isa<MemOp>()) {
+                    continuation_first_mem = const_cast<MemOp*>(memop);
+                    break;
+                }
+            }
+        }
+    }
+    assert(continuation_block);
+    if (continuation_first_mem) {
+        int index = 0;
+        assert(is_mem(continuation_first_mem->op(index)));
+        continuation_first_mem->unset_op(index);
+        continuation_first_mem->set_op(index, continuation_mem);
+    } else {
+        if (is_mem(continuation->arg(0)))
+            continuation->update_arg(0, continuation_mem);
+        else {
+            auto& outmem = block2mem[*continuation_block];
+            for (auto use : outmem->uses()) {
+                if (Scope(continuation).contains(use)) {
+                    int index = use.index();
+                    Def* olduse = const_cast<Def*>(use.def());
+                    olduse->unset_op(index);
+                    olduse->set_op(index, continuation_mem);
+                }
+            }
+        }
+    }
+}
+
+
 bool Vectorizer::run() {
 #ifdef DUMP_VECTORIZER
     world_.dump();
@@ -1040,6 +1122,26 @@ bool Vectorizer::run() {
                 assert(kerndef && "We need a continuation for vectorization");
 
     //Task 1.2: Divergence Analysis for each vectorize block
+    //Task 1.2.1: Ensure the return intrinsic is only called once, to make the job of the divergence-analysis easier.
+                auto ret_param = kerndef->ret_param();
+#ifdef DUMP_VECTORIZER
+                ret_param->dump();
+#endif
+                if (ret_param->uses().size() > 1) {
+                    auto ret_type = const_cast<FnType*>(ret_param->type()->as<FnType>());
+                    Continuation * ret_join = world_.continuation(ret_type, Debug(Symbol("shim")));
+                    ret_param->replace(ret_join);
+
+                    Array<const Def*> args(ret_join->num_params());
+                    for (size_t i = 0, e = ret_join->num_params(); i < e; i++) {
+                        args[i] = ret_join->param(i);
+                    }
+
+                    ret_join->jump(ret_param, args);
+#ifdef DUMP_VECTORIZER
+                    Scope(kerndef).dump();
+#endif
+                }
     //Warning: Will fail to produce meaningful results or rightout break the program if kerndef does not dominate its subprogram
                 {
                     llvm::TimeRegion div_time(time_div);
@@ -1057,7 +1159,6 @@ bool Vectorizer::run() {
                 //auto *vectorized = clone(Scope(kerndef));
                 def2def_[kerndef] = vectorized;
 
-    //Task 3: Linearize divergent controll flow
 #ifdef DUMP_VECTORIZER
                 Scope(vectorized).dump();
 #endif
@@ -1065,13 +1166,23 @@ bool Vectorizer::run() {
                 {
                 llvm::TimeRegion lin_time(time_lin);
 
+                std::queue <Continuation*> split_queue;
                 for (auto it : div_analysis_->relJoins) {
-                    auto latch_old = it.first;
+                    split_queue.push(it.first);
+                }
+
+    //Task 3: Linearize divergent controll flow
+                //for (auto it : div_analysis_->relJoins) {
+                while (!split_queue.empty()) {
+                    Continuation* latch_old = pop(split_queue);
+                    ContinuationSet joins_old = div_analysis_->relJoins[latch_old];
+                    if (div_analysis_->splitParrents.contains(latch_old)) {
+                        //Dont want to work with those just yet
+                        continue;
+                    }
                     Continuation * latch = const_cast<Continuation*>(def2def_[latch_old]->as<Continuation>());
                     assert(latch);
 
-                    assert (it.second.size() <= 1 && "no complex controll flow");
-                    auto join_old = *it.second.begin();
 #ifdef DUMP_VECTORIZER
                     Scope(latch).dump(); //The mem monad can be malformed here already!?
 
@@ -1083,7 +1194,8 @@ bool Vectorizer::run() {
 #endif
 
                     Continuation *join;
-                    if(join_old == *it.second.end()) {
+                    if (joins_old.size() == 0) { //TODO: I will end up here with some intrinsics that will be recognized as splits, for some reason.
+                        assert(false && "This should no longer happen");
                         //Only possible option is that all cases call return directly.
                         const FnType* join_type = world_.fn_type({world_.mem_type()});
                         join = world_.continuation(join_type, Debug(Symbol("join")));
@@ -1095,23 +1207,64 @@ bool Vectorizer::run() {
                             def->unset_op(index);
                             def->set_op(index, join);
                         }
-
                         join->jump(return_intrinsic, {join->param(0)});
+                    } else if (joins_old.size() == 1) {
+                        auto join_old = *joins_old.begin();
+                        join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
+                        assert(join);
                     } else {
-                       join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
+                        Continuation* join_old = nullptr;
+                        //TODO: this might go horribly wrong when loops are taken into account!
+                        for (Continuation* join_it : joins_old) {
+#ifdef DUMP_VECTORIZER
+                            join_it->dump();
+#endif
+                            if (!join_old || div_analysis_->reachableBy[join_it].contains(join_old)) {
+                                join_old = join_it;
+                            }
+                        }
+                        assert(join_old);
+                        for (auto join_it : joins_old) {
+                            assert(div_analysis_->reachableBy[join_old].contains(join_it));
+                        }
+                        join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
+                        assert(join);
                     }
-                    assert(join);
 
                     //cases according to latch: match and branch.
                     //match:
                     auto cont = latch->op(0)->isa_continuation();
                     if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match && latch->arg(0)->type()->isa<VectorExtendedType>()) {
-                        Scope latch_scope(latch);
-                        Schedule latch_schedule = schedule(latch_scope);
+                        assert (joins_old.size() <= 1 && "no complex controll flow match");
+
+                        //Scope latch_scope(latch);
+                        //Schedule latch_schedule = schedule(latch_scope);
+                        Scope vector_scope(vectorized);
+                        Schedule vector_schedule = schedule(vector_scope);
+                        auto& domtree = vector_schedule.cfg().domtree();
+                        Schedule::Map<const Def*> block2mem(vector_schedule);
+                        const Schedule::Block* latch_block;
+                        for (auto& block : vector_schedule) {
+                            const Def* mem = block.continuation()->mem_param();
+                            auto idom = block.continuation() != vector_schedule.scope().entry() ? domtree.idom(block.node()) : block.node();
+                            mem = mem ? mem : block2mem[(vector_schedule)[idom]];
+                            for (auto primop : block) {
+                                if (auto memop = primop->isa<MemOp>()) {
+                                    mem = memop->out_mem();
+                                }
+                            }
+                            block2mem[block] = mem;
+                            if (block.continuation() == latch)
+                                latch_block = &block;
+                        }
+                        assert(latch_block);
+                        const Def *mem = block2mem[*latch_block];;
+                        assert(mem);
 
                         auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
                         auto variant_index = latch->arg(0);
 
+                        //Add memory parameters to make rewiring easier.
                         for (size_t i = 1; i < latch_old->num_args(); i++) {
                             const Def * old_case = latch_old->arg(i);
                             if (i != 1) {
@@ -1120,39 +1273,21 @@ bool Vectorizer::run() {
                             }
                             Continuation * new_case = const_cast<Continuation*>(def2def_[old_case]->as<Continuation>());
                             assert(new_case);
-
-                            auto new_mem = new_case->append_param(world_.mem_type());
-                            Def* first_mem = nullptr;
-                            for (auto &block : latch_schedule) {
-                                if (block.continuation() == new_case) {
-                                    for (auto primop : block) {
-                                        if (auto memop = primop->isa<MemOp>()) {
-                                            first_mem = const_cast<MemOp*>(memop);
-                                            break;
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                            if (first_mem) {
-                                int index = 0; //TODO: always correct?
-                                first_mem->unset_op(index);
-                                first_mem->set_op(index, new_mem);
-                            } else {
-                                new_case->update_arg(0, new_mem);
-                            }
+                            Continuation_MemParam(new_case, vector_schedule, block2mem);
                         }
 
-                        const Def *mem = latch->mem_param();
-                        const Schedule::Block *latch_block = latch_schedule.begin();
-                        for (auto primop : *latch_block) {
-                            if (auto memop = primop->isa<MemOp>())
-                                mem = memop->out_mem();
+                        //Allocate cache for overwritten objects.
+                        size_t cache_size = join->num_params();
+                        bool join_is_first_mem = false;
+                        if (cache_size && is_mem(join->param(0))) {
+                            cache_size -= 1;
+                            join_is_first_mem = true;
                         }
+                        assert(join_is_first_mem);
 
-                        Array<const Def *> join_cache(join->num_params() - 1);
-                        for (size_t i = 0; i < join->num_params() - 1; i++) {
-                            auto t = world_.alloc(join->param(i + 1)->type(), mem);
+                        Array<const Def *> join_cache(cache_size);
+                        for (size_t i = 0; i < cache_size; i++) {
+                            auto t = world_.alloc(join->param(join_is_first_mem ? i + 1: i)->type(), mem);
                             mem = world_.extract(t, (int) 0);
                             join_cache[i] = world_.extract(t, 1);
                         }
@@ -1182,8 +1317,8 @@ bool Vectorizer::run() {
                         Continuation * current_case = otherwise;
                         Continuation * case_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("otherwise_back")));
 
-                        auto new_jump = world_.predicated(vec_mask);
-                        latch->jump(new_jump, { mem, predicates[0], current_case, case_back }, latch->jump_location());
+                        auto new_jump_latch = world_.predicated(vec_mask);
+                        latch->jump(new_jump_latch, { mem, predicates[0], current_case, case_back }, latch->jump_location());
 
                         Continuation * pre_join = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("match_merge")));
 
@@ -1213,12 +1348,12 @@ bool Vectorizer::run() {
                                 mem = pred->arg(0);
 
                                 for (size_t j = 1; j < pred->num_args(); j++) {
-                                    mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                                    mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], pred->arg(j));
                                 }
 
                                 current_case->jump(case_back, { mem });
 
-                                auto new_jump = world_.predicated(vec_mask);
+                                auto new_jump_case = world_.predicated(vec_mask);
                                 const Def* predicate;
                                 if (i < latch_old->num_args())
                                     predicate = predicates[i - 1];
@@ -1230,7 +1365,7 @@ bool Vectorizer::run() {
                                     }
                                     predicate = world_.vector(elements);
                                 }
-                                case_back->jump(new_jump, { case_back->mem_param(), predicate, next_case, next_case_back }, latch->jump_location());
+                                case_back->jump(new_jump_case, { case_back->mem_param(), predicate, next_case, next_case_back }, latch->jump_location());
                             }
 
                             current_case = next_case;
@@ -1240,7 +1375,7 @@ bool Vectorizer::run() {
                         mem = pre_join->mem_param();
                         Array<const Def*> join_params(join->num_params());
                         for (size_t i = 1; i < join->num_params(); i++) {
-                            auto load = world_.load(mem, join_cache[i - 1]);
+                            auto load = world_.load(mem, join_cache[join_is_first_mem ? i - 1 : i]);
                             auto value = world_.extract(load, (int) 1);
                             mem = world_.extract(load, (int) 0);
                             join_params[i] = value;
@@ -1254,6 +1389,13 @@ bool Vectorizer::run() {
 #endif
 
                     if (cont && cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Branch && latch->arg(0)->type()->isa<VectorExtendedType>()) {
+                        //assert (joins_old.size() <= 1 && "no complex controll flow branch");
+                        if (joins_old.size() > 1) {
+                            //This should only occur when the condition contains an "and" or "or" instruction.
+                            //TODO: try to assert this somehow?
+                            assert(joins_old.size() == 2 && "Only this case is supported for now.");
+                        }
+
                         const Def * then_old = latch_old->arg(1);
                         Continuation * then_new = const_cast<Continuation*>(def2def_[then_old]->as<Continuation>());
                         assert(then_new);
@@ -1262,69 +1404,107 @@ bool Vectorizer::run() {
                         Continuation * else_new = const_cast<Continuation*>(def2def_[else_old]->as<Continuation>());
                         assert(else_new);
 
-                        auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
+#ifdef DUMP_VECTORIZER
+                        std::cerr << "\n";
+#endif
 
-                        Scope latch_scope(latch);
-                        const Def *mem = latch->mem_param();
-                        Schedule latch_schedule = schedule(latch_scope);
-                        const Schedule::Block *latch_block = latch_schedule.begin();
-                        for (auto primop : *latch_block) {
-                            if (auto memop = primop->isa<MemOp>())
-                                mem = memop->out_mem();
+                        if (joins_old.size() > 1) {
+                            assert(then_old->as<Continuation>()->succs().size() == 3 && "Additional branching should occur on the 'then' side.");
+                            assert(else_old->as<Continuation>()->succs().size() == 1 && "Additional branching should occur on the 'then' side.");
+
+#ifdef DUMP_VECTORIZER
+                            for (auto elem : joins_old)
+                                elem->dump();
+                            for (auto elem : then_old->as<Continuation>()->succs())
+                                elem->dump();
+#endif
+
+                            assert(then_old->as<Continuation>()->succs()[2]->succs().size() == 1);
+                            assert(joins_old.contains(then_old->as<Continuation>()->succs()[2]->succs()[0]));
                         }
 
-                        Array<const Def *> join_cache(then_new->num_args() - 1);
+                        auto vec_mask = world_.vec_type(world_.type_bool(), vector_width);
 
-                        for (size_t i = 0; i < then_new->num_args() - 1; i++) {
-                            auto t = world_.alloc(then_new->arg(i + 1)->type(), mem);
+#ifdef DUMP_VECTORIZER
+                        Scope latch_scope(latch);
+
+                        std::cerr << "Pre transformation\n";
+                        Scope(latch_old).dump();
+                        latch_scope.dump();
+#endif
+
+                        Scope vector_scope(vectorized);
+                        Schedule vector_schedule = schedule(vector_scope);
+                        auto& domtree = vector_schedule.cfg().domtree();
+                        Schedule::Map<const Def*> block2mem(vector_schedule);
+                        const Schedule::Block* latch_block;
+                        for (auto& block : vector_schedule) {
+                            const Def* mem = block.continuation()->mem_param();
+                            auto idom = block.continuation() != vector_schedule.scope().entry() ? domtree.idom(block.node()) : block.node();
+                            mem = mem ? mem : block2mem[(vector_schedule)[idom]];
+                            for (auto primop : block) {
+                                if (auto memop = primop->isa<MemOp>()) {
+                                    mem = memop->out_mem();
+                                }
+                            }
+                            block2mem[block] = mem;
+                            if (block.continuation() == latch)
+                                latch_block = &block;
+                        }
+                        assert(latch_block);
+                        const Def *mem = block2mem[*latch_block];;
+                        assert(mem);
+
+                        //TODO: I might need to add mem to the br_vec intrinsic very early.
+
+                        size_t cache_size = join->num_params();
+                        bool join_is_first_mem = false;
+                        if (cache_size && is_mem(join->param(0))) {
+                            cache_size -= 1;
+                            join_is_first_mem = true;
+                        }
+                        Array<const Def *> join_cache(cache_size);
+
+                        for (size_t i = 0; i < cache_size; i++) {
+                            auto t = world_.alloc(join->param(join_is_first_mem ? i + 1: i)->type(), mem);
                             mem = world_.extract(t, (int) 0);
                             join_cache[i] = world_.extract(t, 1);
+                        }
+
+                        const Def * pred_cache;
+                        if (joins_old.size() > 1) {
+                            auto false_elem = world_.zero(world_.type_bool());
+                            Array<const Def *> elements(vector_width);
+                            for (size_t i = 0; i < vector_width; i++) {
+                                elements[i] = false_elem;
+                            }
+                            auto zero_predicate = world_.vector(elements);
+
+                            auto t = world_.alloc(zero_predicate->type(), mem);
+                            mem = world_.extract(t, (int) 0);
+                            pred_cache = world_.extract(t, 1);
+
+                            mem = world_.store(mem, pred_cache, zero_predicate);
                         }
 
                         const Def* predicate_true = latch->arg(0);
                         const Def* predicate_false = world_.arithop_not(predicate_true);
 
-                        auto then_mem = then_new->append_param(world_.mem_type());
-                        Def* then_first_mem = nullptr;
-                        for (auto &block : latch_schedule) {
-                            if (block.continuation() == then_new) {
-                                for (auto primop : block) {
-                                    if (auto memop = primop->isa<MemOp>()) {
-                                        then_first_mem = const_cast<MemOp*>(memop);
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        if (then_first_mem) {
-                            int index = 0;
-                            then_first_mem->unset_op(index);
-                            then_first_mem->set_op(index, then_mem);
-                        } else {
-                            then_new->update_arg(0, then_mem);
-                        }
+                        //TODO: This code still feels incomplete and broken. Devise a better way to handle this rewiring of the mem-monad.
+                        //Maybe I should extend all cases surrounding a latch with a memory operand with code similar to schedule verification.
+                        //I depend on the schedule from time to time. This is not good.
 
-                        auto else_mem = else_new->append_param(world_.mem_type());
-                        Def* else_first_mem = nullptr;
-                        for (auto &block : latch_schedule) {
-                            if (block.continuation() == else_new) {
-                                for (auto primop : block) {
-                                    if (auto memop = primop->isa<MemOp>()) {
-                                        else_first_mem = const_cast<MemOp*>(memop);
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        if (else_first_mem) {
-                            int index = 0;
-                            else_first_mem->unset_op(index);
-                            else_first_mem->set_op(index, else_mem);
-                        } else {
-                            else_new->update_arg(0, else_mem);
-                        }
+#ifdef DUMP_VECTORIZER
+                        std::cerr << "PreAll\n";
+                        Scope(latch).dump();
+#endif
+
+                        Continuation_MemParam(then_new, vector_schedule, block2mem);
+                        Continuation_MemParam(else_new, vector_schedule, block2mem);
+
+#ifdef DUMP_VECTORIZER
+                        Scope(latch).dump();
+#endif
 
                         Continuation * pre_join = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("branch_merge")));
                         Continuation * then_new_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug(Symbol("branch_true_back")));
@@ -1332,63 +1512,228 @@ bool Vectorizer::run() {
 
                         Scope then_scope(then_new);
 
-                        auto new_jump = world_.predicated(vec_mask);
-                        latch->jump(new_jump, { mem, predicate_true, then_new, then_new_back }, latch->jump_location());
+                        auto new_jump_latch = world_.predicated(vec_mask);
+                        latch->jump(new_jump_latch, { mem, predicate_true, then_new, then_new_back }, latch->jump_location());
 
-                        for (auto pred : join->preds()) {
-                            if (!then_scope.contains(pred))
-                                continue;
+#ifdef DUMP_VECTORIZER
+                        std::cerr << "Then\n";
+#endif
+                        //TODO: this might be an issue: There might be loops with the exit being the "then" case, then and else should be switched then!
 
-                            //get old mem parameter, if possible.
-                            assert(pred->arg(0)->type()->isa<MemType>());
-                            mem = pred->arg(0);
+                        for (auto join_old : joins_old) {
+                            auto join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
+                            assert(join);
+                            for (auto pred : join->preds()) {
+                                if (!then_scope.contains(pred))
+                                    continue;
 
-                            for (size_t j = 1; j < pred->num_args(); j++) {
-                                mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                                //get old mem parameter, if possible.
+                                assert(pred->arg(0)->type()->isa<MemType>());
+                                mem = pred->arg(0);
+
+                                for (size_t j = 0; j < pred->num_args(); j++) {
+                                    if (join_is_first_mem && j == 0)
+                                        continue;
+                                    mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], pred->arg(j));
+                                }
+
+                                pred->jump(then_new_back, { mem });
                             }
+                        }
 
-                            pred->jump(then_new_back, { mem });
+                        auto new_jump_then = world_.predicated(vec_mask);
+                        then_new_back->jump(new_jump_then, { then_new_back->mem_param(), predicate_false, else_new, else_new_back }, latch->jump_location());
 
+#ifdef DUMP_VECTORIZER
+                        Scope(latch).dump();
+#endif
+                        if (joins_old.size() > 1) { //TODO: There might be a structure of splits at the beginning of this block!
+                            Continuation* next_target = const_cast<Continuation*>(then_new->arg(1)->as<Continuation>());
+                            Continuation_MemParam(next_target, vector_schedule, block2mem);
+                            Continuation* next_back = const_cast<Continuation*>(then_new->arg(2)->as<Continuation>());
+
+#ifdef DUMP_VECTORIZER
+                            next_back->dump();
+#endif
+                            assert(next_back->arg(0)->type()->isa<MemType>());
+                            mem = next_back->arg(0);
+
+                            Continuation_MemParam(next_back, vector_schedule, block2mem);
+
+                            auto additional_predicate = then_new->arg(0);
+                            if (!additional_predicate->type()->isa<VectorExtendedType>()) {
+                                Array<const Def *> elements(vector_width);
+                                for (size_t i = 0; i < vector_width; i++) {
+                                    elements[i] = additional_predicate;
+                                }
+                                additional_predicate = world_.vector(elements);
+                            }
+                            auto new_predicate = world_.binop(ArithOp_and, predicate_true, additional_predicate);
                             auto new_jump = world_.predicated(vec_mask);
-                            then_new_back->jump(new_jump, { then_new_back->mem_param(), predicate_false, else_new, else_new_back }, latch->jump_location());
+
+                            mem = world_.store(mem, pred_cache, new_predicate);
+
+#ifdef DUMP_VECTORIZER
+                            Scope(then_new).dump();
+#endif
+                            then_new->jump(new_jump, { mem, new_predicate, next_target, next_back }, latch->jump_location());
+#ifdef DUMP_VECTORIZER
+                            Scope(then_new).dump();
+#endif
                         }
 
                         Scope else_scope(else_new);
+#ifdef DUMP_VECTORIZER
+                        Scope(latch).dump();
+                        std::cerr << "Else\n";
+                        else_scope.dump();
+                        Scope(latch).dump();
+#endif
 
-                        for (auto pred : join->preds()) {
-                            if (!else_scope.contains(pred))
-                                continue;
+                        if (joins_old.size() > 1) {
+                            //TODO: This is hard-coded!
+                            Continuation* next_target = const_cast<Continuation*>(else_new->callee()->as<Continuation>());
+                            mem = else_new->param(0);
 
-                            auto true_elem = world_.one(world_.type_bool());
-                            Array<const Def *> elements(vector_width);
-                            for (size_t i = 0; i < vector_width; i++) {
-                                elements[i] = true_elem;
-                            }
-                            auto one_predicate = world_.vector(elements);
+                            auto load = world_.load(mem, pred_cache);
+                            mem = world_.extract(load, (int) 0);
 
-                            assert(pred->arg(0)->type()->isa<MemType>());
-                            mem = pred->arg(0);
-
-                            for (size_t j = 1; j < pred->num_args(); j++) {
-                                mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
-                            }
-
-                            pred->jump(else_new_back, {mem});
-
+                            auto old_predicate = world_.extract(load, (int) 1);
+                            auto additional_predicate = world_.arithop_not(old_predicate);
+                            auto new_predicate = world_.binop(ArithOp_or, predicate_false, additional_predicate);
                             auto new_jump = world_.predicated(vec_mask);
-                            else_new_back->jump(new_jump, { else_new_back->mem_param(), one_predicate, pre_join, pre_join }, latch->jump_location());
+
+                            else_new->jump(new_jump, { mem, new_predicate, next_target, else_new_back }, latch->jump_location());
+
+                            assert(next_target->arg(0)->type()->isa<MemType>());
+                            assert(join_is_first_mem);
+                            mem = next_target->arg(0);
+                            for (size_t j = 0; j < next_target->num_args(); j++) {
+                                if (join_is_first_mem && j == 0)
+                                    continue;
+                                mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], next_target->arg(j));
+                            }
+                            next_target->jump(else_new_back, {mem});
+                        } else {
+                            if (else_new->callee()->isa<Continuation>() && else_new->callee()->as<Continuation>()->is_intrinsic() && else_new->callee()->as<Continuation>()->intrinsic() == Intrinsic::Branch) {
+                                //TODO: This is hard-coded!
+                                auto old_predicate_true = else_new->arg(0);
+                                auto old_predicate_false = world_.arithop_not(old_predicate_true);
+                                auto new_predicate_true = world_.binop(ArithOp_and, predicate_false, old_predicate_true);
+                                auto new_predicate_false = world_.binop(ArithOp_and, predicate_false, old_predicate_false);
+
+                                auto next_target_true = const_cast<Continuation*>(else_new->arg(1)->as<Continuation>());
+                                auto next_target_false = const_cast<Continuation*>(else_new->arg(2)->as<Continuation>());
+
+                                Continuation_MemParam(next_target_true, vector_schedule, block2mem);
+                                Continuation_MemParam(next_target_false, vector_schedule, block2mem);
+
+                                auto new_jump_else = world_.predicated(vec_mask);
+                                auto new_jump_true = world_.predicated(vec_mask);
+
+                                mem = else_new->param(0);
+                                else_new->jump(new_jump_else, {mem, new_predicate_true, next_target_true, next_target_true});
+
+                                mem = next_target_true->arg(0);
+                                for (size_t j = 0; j < next_target_true->num_args(); j++) {
+                                    if (join_is_first_mem && j == 0)
+                                        continue;
+                                    mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], next_target_true->arg(j));
+                                }
+                                next_target_true->jump(new_jump_true, {mem, new_predicate_false, next_target_false, next_target_false});
+
+                                mem = next_target_false->arg(0);
+                                for (size_t j = 0; j < next_target_false->num_args(); j++) {
+                                    if (join_is_first_mem && j == 0)
+                                        continue;
+                                    mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], next_target_false->arg(j));
+                                }
+                                next_target_false->jump(else_new_back, {mem});
+                            } else {
+                                for (auto join_old : joins_old) {
+                                    auto join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
+                                    assert(join);
+                                    for (auto pred : join->preds()) {
+                                        if (!else_scope.contains(pred)) {
+                                            continue;
+                                        }
+
+                                        assert(pred->arg(0)->type()->isa<MemType>());
+                                        mem = pred->arg(0);
+
+                                        for (size_t j = 0; j < pred->num_args(); j++) {
+                                            if (join_is_first_mem && j == 0)
+                                                continue;
+                                            mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], pred->arg(j));
+                                        }
+
+                                        pred->jump(else_new_back, {mem});
+                                    }
+                                }
+                            }
                         }
+
+#ifdef DUMP_VECTORIZER
+                        Scope(latch).dump();
+#endif
+
+                        auto true_elem = world_.one(world_.type_bool());
+                        Array<const Def *> elements(vector_width);
+                        for (size_t i = 0; i < vector_width; i++) {
+                            elements[i] = true_elem;
+                        }
+                        auto one_predicate = world_.vector(elements);
+
+                        auto new_jump_else = world_.predicated(vec_mask);
+                        else_new_back->jump(new_jump_else, { else_new_back->mem_param(), one_predicate, pre_join, pre_join }, latch->jump_location());
 
                         mem = pre_join->param(0);
                         Array<const Def*> join_params(join->num_params());
-                        for (size_t i = 1; i < join->num_params(); i++) {
-                            auto load = world_.load(mem, join_cache[i - 1]);
+                        //join == else is a real option, it will come for you, it will haunt you till the end of days.
+                        if (join->num_params() > cache_size) {//We added a mem parameter in the code above!
+                            assert(is_mem(join->param(0)));
+                            join_is_first_mem = true;
+                        }
+                        for (size_t i = 0; i < join->num_params(); i++) {
+                            if (join_is_first_mem && i == 0)
+                                continue;
+                            auto load = world_.load(mem, join_cache[join_is_first_mem ? i - 1 : i]);
                             auto value = world_.extract(load, (int) 1);
                             mem = world_.extract(load, (int) 0);
                             join_params[i] = value;
                         }
-                        join_params[0] = mem;
+                        if (join_is_first_mem)
+                            join_params[0] = mem;
+#ifdef DUMP_VECTORIZER
+                        else {
+                            std::cerr << "Might need some rewiring of the mem parameter?\n";
+                        }
+#endif
                         pre_join->jump(join, join_params, latch->jump_location());
+
+#ifdef DUMP_VECTORIZER
+                        std::cerr << "Transformed branch\n";
+                        Scope(latch).dump();
+                        Scope(latch_old).dump();
+#endif
+                    }
+
+#ifdef DUMP_VECTORIZER
+                    Scope(vectorized).dump();
+#endif
+                }
+
+                {
+                    Scope vector_scope(vectorized);
+                    Schedule vector_schedule = schedule(vector_scope);
+                    for (auto& block : vector_schedule) {
+                        const Continuation* cont = block.continuation();
+                        const Def* callee = cont->callee();
+                        if(callee->name() == "br_vec") {
+                            Scope(kerndef).dump();
+                            vector_scope.dump();
+                            assert(false);
+                        }
                     }
                 }
 

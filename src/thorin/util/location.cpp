@@ -8,6 +8,9 @@ Location operator+(Location l1, Location l2) {
 }
 
 std::ostream& operator<<(std::ostream& os, Location l) {
+    if (!l.is_set())
+        return os;
+
 #ifdef _MSC_VER
     return os << l.filename() << "(" << l.front_line() << ")";
 #else // _MSC_VER

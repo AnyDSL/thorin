@@ -4,6 +4,9 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/domtree.h"
 
+#include <llvm/Support/Timer.h>
+#include <llvm/Support/raw_ostream.h>
+
 #include <iostream>
 #include <map>
 
@@ -14,6 +17,11 @@ public:
     Vectorizer(World &world)
         : world_(world)
         , boundary_(Def::gid_counter())
+        , time("Vec", "Vectorize")
+        , time_div("Div", "Divergence Analysis")
+        , time_widen("Widen", "Widen")
+        , time_clean("Cleanup", "Cleanup")
+        , time_lin("Linearization", "Linearization")
     {}
     bool run();
 
@@ -50,6 +58,13 @@ private:
 
     World& world_;
     size_t boundary_;
+
+    llvm::Timer time;
+    llvm::Timer time_div;
+    llvm::Timer time_widen;
+    llvm::Timer time_clean;
+    llvm::Timer time_lin;
+
     ContinuationSet done_;
     ContinuationMap<bool> top_level_;
     Def2Def def2def_;
@@ -945,6 +960,8 @@ bool Vectorizer::widen_within(const Def* def) {
 bool Vectorizer::run() {
     world_.dump();
 
+    llvm::TimeRegion vregion(time);
+
     for (auto continuation : world_.exported_continuations()) {
         enqueue(continuation);
         top_level_[continuation] = true;
@@ -969,16 +986,26 @@ bool Vectorizer::run() {
 
     //Task 1.2: Divergence Analysis for each vectorize block
     //Warning: Will fail to produce meaningful results or rightout break the program if kerndef does not dominate its subprogram
-                div_analysis_ = new DivergenceAnalysis(kerndef);
-                div_analysis_->run();
+                {
+                    llvm::TimeRegion div_time(time_div);
+                    div_analysis_ = new DivergenceAnalysis(kerndef);
+                    div_analysis_->run();
+                }
 
     //Task 2: Widening
-                widen_setup(kerndef);
-                auto *vectorized = widen();
+                Continuation* vectorized;
+                {
+                    llvm::TimeRegion widen_time(time_widen);
+                    widen_setup(kerndef);
+                    vectorized = widen();
+                }
                 //auto *vectorized = clone(Scope(kerndef));
                 def2def_[kerndef] = vectorized;
 
     //Task 3: Linearize divergent controll flow
+                {
+                llvm::TimeRegion lin_time(time_lin);
+
                 for (auto it : div_analysis_->relJoins) {
                     auto latch_old = it.first;
                     Continuation * latch = const_cast<Continuation*>(def2def_[latch_old]->as<Continuation>());
@@ -1292,6 +1319,8 @@ bool Vectorizer::run() {
                     }
                 }
 
+                }
+
                 delete div_analysis_;
 
     //Task 4: Rewrite vectorize call
@@ -1322,7 +1351,10 @@ bool Vectorizer::run() {
             enqueue(succ);
     }
 
-    world_.cleanup();
+    {
+        llvm::TimeRegion clean_time(time_clean);
+        world_.cleanup();
+    }
     world_.dump();
 
     return false;

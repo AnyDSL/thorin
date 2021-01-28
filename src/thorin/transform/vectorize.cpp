@@ -25,7 +25,6 @@ private:
             Uniform
         };
 
-    private:
         Continuation *base;
 
         GIDMap<Continuation*, ContinuationSet> dominatedBy;
@@ -42,7 +41,6 @@ private:
         ContinuationSet successors(Continuation *cont);
         ContinuationSet predecessors(Continuation *cont);
 
-    public:
         DivergenceAnalysis(Continuation* base) : base(base) {};
         void run();
         State getUniform(const Def * def);

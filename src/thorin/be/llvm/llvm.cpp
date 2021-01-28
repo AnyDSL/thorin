@@ -1014,6 +1014,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 dst = dst_vector->element()->as<PrimType>();
             } else {
                 src = src_type->as<PrimType>();
+                assert(!dst_type->isa<VectorExtendedType>() && "Should implement this.");
                 dst = dst_type->as<PrimType>();
             }
 
@@ -1318,8 +1319,28 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto assembly = def->isa<Assembly>())   return emit_assembly(assembly);
     if (def->isa<Enter>())                      return nullptr;
 
-    if (auto slot = def->isa<Slot>())
-        return emit_alloca(convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
+    if (auto slot = def->isa<Slot>()) {
+        if (auto ptr = slot->type()->isa<PtrType>())
+            return emit_alloca(convert(ptr->pointee()), slot->unique_name());
+        else if (auto vec = slot->type()->isa<VectorExtendedType>()) {
+            auto element = vec->element()->as<PtrType>()->pointee();
+            auto vector_width = vec->length();
+            auto vec_elements = world_.vec_type(element, vector_width);
+
+            auto space = emit_alloca(convert(vec_elements), slot->unique_name());
+
+            llvm::Constant* args[vector_width];
+            for (size_t i = 0; i < vector_width; i++) {
+                args[i] = irbuilder_.getInt32(i);
+            }
+            auto seq_vector = llvm::ConstantVector::get(llvm::makeArrayRef<llvm::Constant*>(args, vector_width));
+            auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
+
+            auto gep = irbuilder_.CreateInBoundsGEP(space, {zero, seq_vector});
+            return gep;
+        } else
+            THORIN_UNREACHABLE;
+    }
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));

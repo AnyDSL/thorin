@@ -231,7 +231,9 @@ class ConvOp : public PrimOp {
 protected:
     ConvOp(NodeTag tag, const Def* from, const Type* to, Debug dbg)
         : PrimOp(tag, to, {from}, dbg)
-    {}
+    {
+        assert(!to->isa<VectorExtendedType>() == !from->type()->isa<VectorExtendedType>());
+    }
 
 public:
     const Def* from() const { return op(0); }
@@ -419,7 +421,7 @@ private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const Type* type() const { return Aggregate::type()->as<StructType>(); }
+    const StructType* type() const { return Aggregate::type()->as<StructType>(); }
 
     friend class World;
 };
@@ -567,8 +569,7 @@ private:
 
 public:
     const Def* frame() const { return op(0); }
-    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const Type* alloced_type() const { return type()->pointee(); }
+    const Type* alloced_type() const;
 
 private:
     virtual uint64_t vhash() const override;

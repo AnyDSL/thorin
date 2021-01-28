@@ -88,7 +88,16 @@ public:
             for (auto use : frame->uses()) {
                 // All the slots allocated at that point contain bottom
                 assert(use->isa<Slot>());
-                mapping[use.def()] = world_.bottom(use->type()->as<PtrType>()->pointee());
+                if (auto ptr = use->type()->isa<PtrType>())
+                    mapping[use.def()] = world_.bottom(ptr->pointee());
+                else if (auto vec = use->type()->isa<VectorExtendedType>()) {
+                    auto ptr = vec->element()->as<PtrType>();
+                    auto vec_width = vec->length();
+                    auto pointee_vec = world_.vec_type(ptr->pointee(), vec_width);
+                    mapping[use.def()] = world_.bottom(pointee_vec);
+                } else {
+                    assert(false);
+                }
             }
             return enter->out_mem();
         } else {
@@ -106,7 +115,16 @@ public:
                 return mapping[alloc] = global->init();
         }
         // Nothing is known about this allocation yet
-        return mapping[alloc] = world_.top(alloc->type()->as<PtrType>()->pointee(), alloc->debug());
+        if (auto ptr = alloc->type()->isa<PtrType>())
+            return mapping[alloc] = world_.top(ptr->pointee(), alloc->debug());
+        else if (auto vec = alloc->type()->isa<VectorExtendedType>()) {
+            auto ptr = vec->element()->as<PtrType>();
+            auto vec_width = vec->length();
+            auto pointee_vec = world_.vec_type(ptr->pointee(), vec_width);
+            return mapping[alloc] = world_.top(pointee_vec, alloc->debug());
+        } else {
+            assert(false);
+        }
     }
 
     const Def* extract_from_slot(const Def* ptr, const Def* slot_value, Debug dbg) {

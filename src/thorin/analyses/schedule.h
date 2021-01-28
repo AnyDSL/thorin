@@ -72,7 +72,6 @@ public:
     const_iterator begin() const { return blocks().begin(); }
     const_iterator end() const { return blocks().end(); }
 
-private:
     Block& operator[](const CFNode* n) { return blocks_[indices_[n]]; }
     void block_schedule();
 
@@ -81,6 +80,7 @@ private:
     Array<Block> blocks_;
     Tag tag_;
 
+private:
     friend class Scheduler;
 };
 

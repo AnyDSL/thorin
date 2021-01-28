@@ -125,7 +125,12 @@ SizeOf::SizeOf(const Def* def, Debug dbg)
 {}
 
 Slot::Slot(const Type* type, const Def* frame, Debug dbg)
-    : PrimOp(Node_Slot, type->table().ptr_type(type), {frame}, dbg)
+    : PrimOp(Node_Slot,
+            type->isa<VectorExtendedType>() ?
+              (Type*) type->table().vec_type(type->table().ptr_type(type->as<VectorExtendedType>()->element()), type->as<VectorExtendedType>()->length()) :
+              (Type*) type->table().ptr_type(type),
+            {frame},
+            dbg)
 {
     assert(frame->type()->isa<FrameType>());
 }
@@ -428,6 +433,17 @@ const Type* Closure::environment_type(World& world) {
 
 const PtrType* Closure::environment_ptr_type(World& world) {
     return world.ptr_type(world.type_pu8());
+}
+
+const Type* Slot::alloced_type() const {
+    if (auto ptr = type()->isa<PtrType>())
+        return ptr->pointee();
+    else if (auto vec = type()->isa<VectorExtendedType>()) {
+        auto element = vec->element()->as<PtrType>();
+        auto vector_width = vec->length();
+        return world().vec_type(element->pointee(), vector_width);
+    } else
+        THORIN_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------

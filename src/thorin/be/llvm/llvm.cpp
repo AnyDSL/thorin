@@ -608,10 +608,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     auto place = is_const(def) ? entry_ : scheduler_.smart(def);
-    auto& irbuilder = *cont2llvm_[place].second;
+    auto& [bb, ib] = cont2llvm_[place];
+    auto& irbuilder = *ib;
 
-    //if (auto cur_ins = irbuilder.GetInsertPoint(); cur_ins.isEnd() && cur_ins->isTerminator())
-        //irbuilder.SetInsertPoint(cur_ins->getPrevNode());
+    if (auto term = bb->getTerminator())
+        irbuilder.SetInsertPoint(term->getPrevNode());
 
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());

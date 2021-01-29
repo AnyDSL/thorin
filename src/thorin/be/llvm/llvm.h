@@ -51,6 +51,7 @@ protected:
     void emit(const Scope&);
     void emit_epilogue(Continuation*);
     llvm::Value* emit(const Def*);
+    llvm::Value* emit_(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);
     llvm::Value*      emit_alloc (llvm::IRBuilder<>&, const Type*, const Def*);
     virtual llvm::Function* emit_function_decl(Continuation*);
@@ -110,7 +111,7 @@ protected:
     llvm::CallingConv::ID kernel_calling_convention_;
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
-    PrimOpMap<llvm::Value*> primops_;
+    DefMap<llvm::Value*> def2llvm_;
     ContinuationMap<std::pair<llvm::BasicBlock*, std::unique_ptr<llvm::IRBuilder<>>>> cont2llvm_;
     Scheduler scheduler_;
     ContinuationMap<llvm::Function*> fcts_;

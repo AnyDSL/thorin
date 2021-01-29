@@ -392,15 +392,15 @@ void CodeGen::emit(const Scope& scope) {
             auto arg = fct->arg_begin();
             for (auto param : entry_->params()) {
                 if (is_mem(param) || is_unit(param)) {
-                    params_[param] = nullptr;
+                    def2llvm_[param] = nullptr;
                 } else if (param->order() == 0) {
                     auto argv = &*arg;
                     auto value = map_param(fct, argv, param);
                     if (value == argv) {
                         arg->setName(param->unique_name()); // use param
-                        params_[param] = &*arg++;
+                        def2llvm_[param] = &*arg++;
                     } else {
-                        params_[param] = value;             // use provided value
+                        def2llvm_[param] = value;             // use provided value
                     }
                 }
             }
@@ -455,9 +455,7 @@ void CodeGen::emit(const Scope& scope) {
             phi->addIncoming(emit(peek.def()), cont2bb(peek.from()));
     }
 
-    params_.clear();
     phis_.clear();
-    primops_.clear();
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
@@ -599,10 +597,13 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto primop = def->isa<PrimOp>()) {
-        if (auto res = primops_.lookup(primop)) return *res;
+    return def2llvm_[def] = emit_(def);
+}
+
+llvm::Value* CodeGen::emit_(const Def* def) {
+    if (auto llvm = def2llvm_.lookup(def)) {
+        return *llvm;
     } else if (auto param = def->isa<Param>()) {
-        if (auto p = params_.lookup(param)) return *p;
         if (auto p = phis_  .lookup(param)) return *p;
     } else if (auto continuation = def->isa_continuation()) {
         return emit_function_decl(continuation);

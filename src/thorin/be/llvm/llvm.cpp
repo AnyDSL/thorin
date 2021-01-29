@@ -317,8 +317,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
 }
 
 llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
-    if (auto f = fcts_.lookup(continuation)) return *f;
-
     std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
@@ -350,13 +348,13 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
             f->setCallingConv(function_calling_convention_);
     }
 
-    return fcts_[continuation] = f;
+    return f;
 }
 
 void CodeGen::emit(const Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
-    llvm::Function* fct = emit_function_decl(entry_);
+    auto fct = llvm::cast<llvm::Function>(emit(entry_));
 
     llvm::DIScope* discope = dicompile_unit_;
     if (debug()) {
@@ -541,7 +539,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
             llvm::CallInst* call = nullptr;
             if (auto callee_continuation = callee->isa_continuation()) {
-                call = irbuilder.CreateCall(emit_function_decl(callee_continuation), args);
+                call = irbuilder.CreateCall(emit(callee_continuation), args);
                 if (callee_continuation->is_exported())
                     call->setCallingConv(kernel_calling_convention_);
                 else if (callee_continuation->cc() == CC::Device)
@@ -601,12 +599,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
 }
 
 llvm::Value* CodeGen::emit_(const Def* def) {
-    if (auto llvm = def2llvm_.lookup(def)) {
-        return *llvm;
-    } else if (auto param = def->isa<Param>()) {
+    if (auto llvm = def2llvm_.lookup(def)) return *llvm;
+    if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
+
+    if (auto param = def->isa<Param>()) {
         if (auto p = phis_  .lookup(param)) return *p;
-    } else if (auto continuation = def->isa_continuation()) {
-        return emit_function_decl(continuation);
     }
 
     auto place = is_const(def) ? entry_ : scheduler_.smart(def);
@@ -1054,7 +1051,7 @@ llvm::Value* CodeGen::emit_bitcast(llvm::IRBuilder<>& irbuilder, const Def* val,
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
     if (auto continuation = global->init()->isa_continuation())
-        val = fcts_[continuation];
+        val = emit(continuation);
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(global->unique_name().c_str(), llvm_type));

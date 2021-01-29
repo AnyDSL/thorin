@@ -114,7 +114,6 @@ protected:
     DefMap<llvm::Value*> def2llvm_;
     ContinuationMap<std::pair<llvm::BasicBlock*, std::unique_ptr<llvm::IRBuilder<>>>> cont2llvm_;
     Scheduler scheduler_;
-    ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;

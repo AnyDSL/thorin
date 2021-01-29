@@ -109,8 +109,6 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
-    ParamMap<llvm::Value*> params_;
-    ParamMap<llvm::PHINode*> phis_;
     DefMap<llvm::Value*> def2llvm_;
     ContinuationMap<std::pair<llvm::BasicBlock*, std::unique_ptr<llvm::IRBuilder<>>>> cont2llvm_;
     Scheduler scheduler_;

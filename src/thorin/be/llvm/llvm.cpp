@@ -398,17 +398,17 @@ void CodeGen::emit(const Scope& scope) {
                         arg->setName(param->unique_name()); // use param
                         def2llvm_[param] = &*arg++;
                     } else {
-                        def2llvm_[param] = value;             // use provided value
+                        def2llvm_[param] = value;           // use provided value
                     }
                 }
             }
         } else {
             for (auto param : cont->params()) {
                 if (is_mem(param) || is_unit(param)) {
-                    phis_[param] = nullptr;
+                    def2llvm_[param] = nullptr;
                 } else {
                     auto phi = irbuilder.CreatePHI(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str());
-                    phis_[param] = phi;
+                    def2llvm_[param] = phi;
                 }
             }
         }
@@ -419,41 +419,23 @@ void CodeGen::emit(const Scope& scope) {
 
     emit_function_start(entry_);
 
-    for (auto continuation : conts) {
-        if (continuation->intrinsic() == Intrinsic::EndScope) continue;
+    for (auto cont : conts) {
+        if (cont->intrinsic() == Intrinsic::EndScope) continue;
+        assert(cont == entry_ || cont->is_basicblock());
+        emit_epilogue(cont);
+    }
 
-        assert(continuation == entry_ || continuation->is_basicblock());
-#if 0
-        // TODO
-        for (auto primop : block) {
-            if (debug())
-                irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
+    // add missing arguments to phis
+    for (auto cont : conts) {
+        if (cont->intrinsic() == Intrinsic::EndScope || cont == entry_) continue;
 
-            if (primop->type()->order() >= 1) {
-                // ignore higher-order primops which come from a match intrinsic
-                if (is_from_match(primop)) continue;
-                THORIN_UNREACHABLE;
+        for (auto param : cont->params()) {
+            if (auto phi = def2llvm_[param]) {
+                for (const auto& peek : param->peek())
+                    llvm::cast<llvm::PHINode>(phi)->addIncoming(emit(peek.def()), cont2bb(peek.from()));
             }
-
-            auto llvm_value = emit(primop);
-            primops_[primop] = llvm_value;
         }
-#endif
-
-        //if (debug())
-            //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
-        emit_epilogue(continuation);
     }
-
-    // add missing arguments to phis_
-    for (const auto& [param, phi] : phis_) {
-        if (phi == nullptr) continue;
-
-        for (const auto& peek : param->peek())
-            phi->addIncoming(emit(peek.def()), cont2bb(peek.from()));
-    }
-
-    phis_.clear();
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
@@ -602,13 +584,13 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto llvm = def2llvm_.lookup(def)) return *llvm;
     if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
 
-    if (auto param = def->isa<Param>()) {
-        if (auto p = phis_  .lookup(param)) return *p;
-    }
-
     auto place = is_const(def) ? entry_ : scheduler_.smart(def);
     auto& [bb, ib] = cont2llvm_[place];
     auto& irbuilder = *ib;
+
+    // TODO
+    //if (debug())
+        //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->location().front_line(), def->location().front_col(), discope));
 
     if (auto term = bb->getTerminator()) {
         if (auto prev = term->getPrevNode())
@@ -996,7 +978,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 }
 
 void CodeGen::emit_result_phi(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
-    phis_[param]->addIncoming(value, irbuilder.GetInsertBlock());
+    llvm::cast<llvm::PHINode>(def2llvm_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*

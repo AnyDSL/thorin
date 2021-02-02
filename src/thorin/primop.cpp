@@ -272,58 +272,6 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
 //------------------------------------------------------------------------------
 
 /*
- * stream
- */
-
-// TODO
-#if 0
-std::ostream& PrimOp::stream(std::ostream& os) const {
-    if (is_const(this)) {
-        if (empty())
-            return streamf(os, "{} {}", op_name(), type());
-        else
-            return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
-    } else
-        return os << unique_name();
-}
-
-std::ostream& PrimLit::stream(std::ostream& os) const {
-    os << type() << ' ';
-    auto tag = primtype_tag();
-
-    // print i8 as ints
-    switch (tag) {
-        case PrimType_qs8: return os << (int) qs8_value();
-        case PrimType_ps8: return os << (int) ps8_value();
-        case PrimType_qu8: return os << (unsigned) qu8_value();
-        case PrimType_pu8: return os << (unsigned) pu8_value();
-        default:
-            switch (tag) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << value().get_##M();
-#include "thorin/tables/primtypetable.h"
-                default: THORIN_UNREACHABLE;
-            }
-    }
-}
-
-std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
-
-std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
-}
-
-std::ostream& Assembly::stream_assignment(std::ostream& os) const {
-    streamf(os, "{} {} = asm \"{}\"", type(), unique_name(), asm_template());
-    stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
-    stream_list(os,  input_constraints(), [&](const auto&  input_constraint) { os <<  input_constraint; }, " : (", ")");
-    stream_list(os,           clobbers(), [&](const auto&           clobber) { os <<           clobber; }, " : (", ") ");
-    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
-}
-
-#endif
-//------------------------------------------------------------------------------
-
-/*
  * misc
  */
 

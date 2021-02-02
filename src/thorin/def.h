@@ -82,9 +82,6 @@ using DefMap  = GIDMap<const Def*, To>;
 using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
 
-std::ostream& operator<<(std::ostream&, const Def*);
-std::ostream& operator<<(std::ostream&, Use);
-
 //------------------------------------------------------------------------------
 
 /**
@@ -138,8 +135,7 @@ public:
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
 
-    virtual std::ostream& stream(std::ostream&) const;
-    static size_t gid_counter() { return gid_counter_; }
+    Stream& stream(Stream&) const;
 
 private:
     const NodeTag tag_;
@@ -149,8 +145,6 @@ private:
     mutable Uses uses_;
     mutable Debug debug_;
     const size_t gid_ : sizeof(size_t) * 8 - 1;
-
-    static size_t gid_counter_;
 
 protected:
     bool contains_continuation_;
@@ -181,8 +175,6 @@ public:
         return def_;
     }
 
-    std::ostream& operator<<(std::ostream& os) const { return os << def(); }
-
 private:
     mutable const Def* def_;
 };
@@ -206,8 +198,6 @@ inline bool is_minus      (const Def* def) { return def->tag() == Node_sub && is
 inline bool is_div_or_rem (const Def* def) { return thorin::is_div_or_rem(def->tag()); }
 inline bool is_commutative(const Def* def) { return thorin::is_commutative(def->tag()); }
 inline bool is_associative(const Def* def) { return thorin::is_associative(def->tag()); }
-
-Stream& operator<<(Stream&, const Def* def);
 
 //------------------------------------------------------------------------------
 

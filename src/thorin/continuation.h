@@ -166,11 +166,6 @@ public:
     bool is_accelerator() const;
     void destroy_body();
 
-    std::ostream& stream_head(std::ostream&) const;
-    std::ostream& stream_jump(std::ostream&) const;
-    void dump_head() const;
-    void dump_jump() const;
-
     // terminate
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
@@ -285,8 +280,6 @@ template<class To>
 using ContinuationMap           = GIDMap<Continuation*, To>;
 using ContinuationSet           = GIDSet<Continuation*>;
 using Continuation2Continuation = ContinuationMap<Continuation*>;
-
-Stream& operator<<(Stream&, Continuation*);
 
 //------------------------------------------------------------------------------
 

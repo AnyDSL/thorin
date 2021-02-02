@@ -1,8 +1,6 @@
 #include "thorin/def.h"
 
 #include <algorithm>
-#include <iostream>
-#include <sstream>
 #include <stack>
 
 #include "thorin/continuation.h"
@@ -14,14 +12,12 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-size_t Def::gid_counter_ = 1;
-
 Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
     , ops_(size)
     , type_(type)
     , debug_(dbg)
-    , gid_(gid_counter_++)
+    , gid_(world().next_gid())
     , contains_continuation_(false)
 {}
 
@@ -32,6 +28,8 @@ Debug Def::debug_history() const {
     return debug();
 #endif
 }
+
+void Def::set_name(const std::string& name) const { debug_.name = name; }
 
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
@@ -67,9 +65,7 @@ void Def::unset_ops() {
 }
 
 std::string Def::unique_name() const {
-    std::ostringstream oss;
-    oss << name() << '_' << gid();
-    return oss.str();
+    return name() + "_" + std::to_string(gid());
 }
 
 bool is_unit(const Def* def) {
@@ -147,19 +143,60 @@ void Def::replace(Tracker with) const {
     }
 }
 
-void Def::dump() const {
-    auto primop = this->isa<PrimOp>();
-    if (primop && primop->num_ops() > 1)
-        primop->stream_assignment(std::cout);
-    else {
-        std::cout << this;
-        std::cout << std::endl;
-    }
-}
-
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
 Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
-std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
+
+/*
+ * stream
+ */
+
+// TODO
+#if 0
+std::ostream& PrimOp::stream(std::ostream& os) const {
+    if (is_const(this)) {
+        if (empty())
+            return streamf(os, "{} {}", op_name(), type());
+        else
+            return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
+    } else
+        return os << unique_name();
+}
+
+std::ostream& PrimLit::stream(std::ostream& os) const {
+    os << type() << ' ';
+    auto tag = primtype_tag();
+
+    // print i8 as ints
+    switch (tag) {
+        case PrimType_qs8: return os << (int) qs8_value();
+        case PrimType_ps8: return os << (int) ps8_value();
+        case PrimType_qu8: return os << (unsigned) qu8_value();
+        case PrimType_pu8: return os << (unsigned) pu8_value();
+        default:
+            switch (tag) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << value().get_##M();
+#include "thorin/tables/primtypetable.h"
+                default: THORIN_UNREACHABLE;
+            }
+    }
+}
+
+std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
+
+std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
+    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+}
+
+std::ostream& Assembly::stream_assignment(std::ostream& os) const {
+    streamf(os, "{} {} = asm \"{}\"", type(), unique_name(), asm_template());
+    stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
+    stream_list(os,  input_constraints(), [&](const auto&  input_constraint) { os <<  input_constraint; }, " : (", ")");
+    stream_list(os,           clobbers(), [&](const auto&           clobber) { os <<           clobber; }, " : (", ") ");
+    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
+}
+
+#endif
+//------------------------------------------------------------------------------
 
 }

@@ -1,6 +1,13 @@
 #include "thorin/world.h"
 
-#include <fstream>
+// for colored output
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -938,6 +945,40 @@ const Def* World::gid2def(u32 gid) {
 
 #endif
 
+const char* World::level2string(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return "E";
+        case LogLevel::Warn:    return "W";
+        case LogLevel::Info:    return "I";
+        case LogLevel::Verbose: return "V";
+        case LogLevel::Debug:   return "D";
+    }
+    THORIN_UNREACHABLE;
+}
+
+int World::level2color(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return 1;
+        case LogLevel::Warn:    return 3;
+        case LogLevel::Info:    return 2;
+        case LogLevel::Verbose: return 4;
+        case LogLevel::Debug:   return 4;
+    }
+    THORIN_UNREACHABLE;
+}
+
+#ifdef COLORIZE_LOG
+std::string World::colorize(const std::string& str, int color) {
+    if (isatty(fileno(stdout))) {
+        const char c = '0' + color;
+        return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
+    }
+#else
+std::string World::colorize(const std::string& str, int) {
+#endif
+    return str;
+}
+
 const Def* World::try_fold_aggregate(const Aggregate* agg) {
     const Def* from = nullptr;
     for (size_t i = 0, e = agg->num_ops(); i != e; ++i) {
@@ -977,7 +1018,7 @@ const Def* World::cse_base(const PrimOp* primop) {
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
-        --Def::gid_counter_;
+        --state_.cur_gid;
         delete primop;
         return *i;
     }
@@ -1012,6 +1053,10 @@ void World::opt() {
 /*
  * stream
  */
+
+Stream& World::stream(Stream& s) const {
+    return s;
+}
 
 #if 0
 std::ostream& World::stream(std::ostream& os) const {

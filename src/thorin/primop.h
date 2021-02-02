@@ -32,8 +32,6 @@ public:
     const Def* rebuild(Defs ops, const Type* type) const { return rebuild(world(), ops, type); }
     virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
-    virtual std::ostream& stream(std::ostream&) const override;
-    virtual std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
     virtual hash_t vhash() const;
@@ -106,8 +104,6 @@ public:
 
     const PrimType* type() const { return Literal::type()->as<PrimType>(); }
     PrimTypeTag primtype_tag() const { return type()->primtype_tag(); }
-
-    std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual hash_t vhash() const override;
@@ -574,8 +570,6 @@ public:
     const Type* alloced_type() const { return type()->pointee(); }
     virtual const char* op_name() const override;
 
-    std::ostream& stream(std::ostream&) const override;
-
 private:
     virtual hash_t vhash() const override { return murmur3(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
@@ -720,7 +714,6 @@ public:
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-    virtual std::ostream& stream_assignment(std::ostream&) const override;
 
     std::string asm_template_;
     Array<std::string> output_constraints_, input_constraints_, clobbers_;

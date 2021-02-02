@@ -2,7 +2,6 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -15,8 +14,8 @@ static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
-                ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
-            ELOG("here: {}", scope.entry());
+                world.ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
+            world.ELOG("here: {}", scope.entry());
         }
     });
 }
@@ -66,7 +65,7 @@ void Cycles::analyze_call(const Continuation* continuation) {
 
         def2color_[continuation] = Black;
     } else
-        assertf(def2color_[continuation] != Gray, "detected cycle: '{}'", continuation);
+        assertf(*def2color_[continuation] != Gray, "detected cycle: '{}'", continuation);
 }
 
 void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {

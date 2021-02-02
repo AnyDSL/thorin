@@ -9,7 +9,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -28,7 +27,7 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(location(), unique_name()) : debug();
+    return world().track_history() ? Debug(unique_name(), debug().loc) : debug();
 #else
     return debug();
 #endif
@@ -131,7 +130,7 @@ bool is_minus_zero(const Def* def) {
 }
 
 void Def::replace(Tracker with) const {
-    DLOG("replace: {} -> {}", this, with);
+    world().DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
     assert(!is_replaced());
 
@@ -163,12 +162,4 @@ Continuation* Def::as_continuation() const { return const_cast<Continuation*>(sc
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
-#if THORIN_ENABLE_CHECKS
-void force_use_dump() {
-    Defs defs;
-    defs.dump();
-    Array<const Def*> a;
-    a.dump();
-}
-#endif
 }

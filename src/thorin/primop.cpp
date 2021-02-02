@@ -151,7 +151,7 @@ hash_t PrimOp::vhash() const {
 
 hash_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
 hash_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-hash_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
+hash_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bitcast<uint64_t, Box>(value())); }
 hash_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
 //------------------------------------------------------------------------------
@@ -275,6 +275,8 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
  * stream
  */
 
+// TODO
+#if 0
 std::ostream& PrimOp::stream(std::ostream& os) const {
     if (is_const(this)) {
         if (empty())
@@ -318,6 +320,7 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
     return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
 }
 
+#endif
 //------------------------------------------------------------------------------
 
 /*

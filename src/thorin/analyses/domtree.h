@@ -12,14 +12,13 @@ namespace thorin {
  * This template parameter is associated with @p CFG's @c forward parameter.
  */
 template<bool forward>
-class DomTreeBase : public YComp {
+class DomTreeBase {
 public:
     DomTreeBase(const DomTreeBase&) = delete;
     DomTreeBase& operator=(DomTreeBase) = delete;
 
     explicit DomTreeBase(const CFG<forward>& cfg)
-        : YComp(cfg.scope(), forward ? "domtree" : "post_domtree")
-        , cfg_(cfg)
+        : cfg_(cfg)
         , children_(cfg)
         , idoms_(cfg)
         , depth_(cfg)
@@ -35,7 +34,6 @@ public:
     const CFNode* idom(const CFNode* n) const { return idoms_[n]; }
     int depth(const CFNode* n) const { return depth_[n]; }
     const CFNode* least_common_ancestor(const CFNode* i, const CFNode* j) const;
-    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
     void create();

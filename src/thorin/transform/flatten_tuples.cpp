@@ -2,7 +2,6 @@
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/util/log.h"
 
 #include <limits>
 
@@ -74,7 +73,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
     //         f = extract(b, 1)
     //         d(a, (e, f))
 
-    if (wrapped.contains(old_def)) return wrapped[old_def]->as_continuation();
+    if (wrapped.contains(old_def)) return (*wrapped[old_def])->as_continuation();
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<FnType>();
@@ -127,7 +126,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
     //     wrap_d(a: W, b: X, c: Y):
     //         d(a, (b, c))
 
-    if (unwrapped.contains(new_def)) return unwrapped[new_def]->as_continuation();
+    if (unwrapped.contains(new_def)) return (*unwrapped[new_def])->as_continuation();
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<FnType>();
@@ -191,7 +190,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
             todo = true;
 
-            DLOG("flattened {}", cont);
+            world.DLOG("flattened {}", cont);
         }
 
         // remove original versions of wrapped functions

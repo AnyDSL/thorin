@@ -243,7 +243,7 @@ public:
     Box(f32 val) { reset(); f32_ = val; }
     Box(f64 val) { reset(); f64_ = val; }
 
-    bool operator==(const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
+    bool operator==(const Box& other) const { return bitcast<uint64_t, Box>(*this) == bitcast<uint64_t, Box>(other); }
     template <typename T> inline T get() { THORIN_UNREACHABLE; }
 #define THORIN_ALL_TYPE(T, M) \
     T get_##T() const { return (T)M##_; }

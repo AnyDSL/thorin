@@ -22,7 +22,7 @@ class CFNode;
  * @p entry() will be first, @p exit() will be last.
  * @warning All other @p Continuation%s are in no particular order.
  */
-class Scope : public Streamable {
+class Scope : public Streamable<Scope> {
 public:
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
@@ -56,11 +56,12 @@ public:
     const B_CFG& b_cfg() const;
     //@}
 
-    //@{ dump
+    /// @name stream
+    //@{
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
+    Stream& stream(Stream&) const ;                 ///< Streams thorin to file @p out.
+    void write_thorin(const char* filename) const;  ///< Dumps thorin to file with name @p filename.
+    void thorin() const;                            ///< Dumps thorin to a file with an auto-generated file name.
     //@}
 
     /**

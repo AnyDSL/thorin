@@ -28,7 +28,7 @@ enum {
 template<bool forward>
 class LoopTreeBuilder {
 public:
-    typedef typename LoopTree<forward>::Node Node;
+    typedef typename LoopTree<forward>::Base Base;
     typedef typename LoopTree<forward>::Leaf Leaf;
     typedef typename LoopTree<forward>::Head Head;
 
@@ -196,8 +196,9 @@ int LoopTreeBuilder<forward>::walk_scc(const CFNode* cur, Head* parent, int dept
 //------------------------------------------------------------------------------
 
 template<bool forward>
-LoopTree<forward>::Node::Node(Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
-    : parent_(parent)
+LoopTree<forward>::Base::Base(Node node, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+    : node_(node)
+    , parent_(parent)
     , cf_nodes_(cf_nodes)
     , depth_(depth)
 {
@@ -206,38 +207,16 @@ LoopTree<forward>::Node::Node(Head* parent, int depth, const std::vector<const C
 }
 
 template<bool forward>
-std::ostream& LoopTree<forward>::Leaf::stream(std::ostream& out) const {
-    return streamf(out, "<{} | dfs: {}", cf_node(), index());
-}
+Stream& LoopTree<forward>::Leaf::stream(Stream& s) const { return s.fmt("<{} | dfs: {}", cf_node(), index()); }
 
 template<bool forward>
-std::ostream& LoopTree<forward>::Head::stream(std::ostream& out) const {
-    out << "[";
-    for (const auto& head : this->cf_nodes()) // TODO use stream comma list - once it is there
-        out << head << ", ";
-    return out << "]";
-}
-
-template<bool forward>
-void LoopTree<forward>::stream_ycomp(std::ostream& out) const {
-    std::vector<const Node *> nodes;
-    get_nodes(nodes, root());
-
-    thorin::ycomp(out, YCompOrientation::LeftToRight, cfg().scope(), range(nodes),
-        [] (const Node* n) {
-            if (auto head = n->template isa<Head>())
-                return range(head->children());
-            return range(ArrayRef<std::unique_ptr<Node>>());
-        }
-    );
-}
+Stream& LoopTree<forward>::Head::stream(Stream& s) const { return s.fmt("[{, }]", this->cf_nodes()); }
 
 //------------------------------------------------------------------------------
 
 template<bool forward>
 LoopTree<forward>::LoopTree(const CFG<forward>& cfg)
-    : YComp(cfg.scope(), forward ? "looptree" : "backwards_looptree")
-    , cfg_(cfg)
+    : cfg_(cfg)
     , leaves_(cfg)
 {
     LoopTreeBuilder<forward>(*this);

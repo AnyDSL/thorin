@@ -144,9 +144,6 @@ public:
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
-    Debug& jump_debug() const { return jump_debug_; }
-    Location jump_location() const { return jump_debug(); }
-    Symbol jump_name() const { return jump_debug().name(); }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;
@@ -197,9 +194,6 @@ public:
     void destroy_filter() { filter_.shrink(0); }
     Defs filter() const { return filter_; }
     const Def* filter(size_t i) const { return filter_[i]; }
-
-private:
-    mutable Debug jump_debug_;
 
     std::vector<const Param*> params_;
     Array<const Def*> filter_; ///< used during @p partial_evaluation
@@ -291,6 +285,8 @@ template<class To>
 using ContinuationMap           = GIDMap<Continuation*, To>;
 using ContinuationSet           = GIDSet<Continuation*>;
 using Continuation2Continuation = ContinuationMap<Continuation*>;
+
+Stream& operator<<(Stream&, Continuation*);
 
 //------------------------------------------------------------------------------
 

@@ -8,7 +8,6 @@
 #include "thorin/util/indexmap.h"
 #include "thorin/util/indexset.h"
 #include "thorin/util/stream.h"
-#include "thorin/util/ycomp.h"
 
 namespace thorin {
 
@@ -24,7 +23,7 @@ typedef GIDSet<const CFNode*> CFNodes;
  * A Control-Flow Node.
  * Managed by @p CFA.
  */
-class CFNode : public RuntimeCast<CFNode>, public Streamable {
+class CFNode : public RuntimeCast<CFNode>, public Streamable<CFNode> {
 public:
     CFNode(Continuation* continuation)
         : continuation_(continuation)
@@ -33,7 +32,7 @@ public:
 
     uint64_t gid() const { return gid_; }
     Continuation* continuation() const { return continuation_; }
-    std::ostream& stream(std::ostream& os) const override;
+    Stream& stream(Stream&) const;
 
 private:
     const CFNodes& preds() const { return preds_; }
@@ -102,7 +101,7 @@ private:
  * @see DomTreeBase
  */
 template<bool forward>
-class CFG : public YComp {
+class CFG {
 public:
     template<class Value>
     using Map = IndexMap<CFG<forward>, const CFNode*, Value>;
@@ -134,7 +133,6 @@ public:
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DomFrontierBase<forward>& domfrontier() const;
-    void stream_ycomp(std::ostream& out) const override;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
 

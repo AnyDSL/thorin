@@ -29,7 +29,7 @@ static bool has_task_or_graph_type(TypeMap<bool>& cache, const Type* type) {
         return cache[type] = contains;
     }
 
-    return cache[type];
+    return *cache[type];
 }
 
 static const Type* task_type(World& world) {
@@ -73,7 +73,7 @@ static void rewrite_jump(Continuation* old_cont, Continuation* new_cont, Rewrite
         args[i] = rewriter.instantiate(old_cont->arg(i));
 
     auto callee = rewriter.instantiate(old_cont->callee());
-    new_cont->jump(callee, args, old_cont->jump_debug());
+    new_cont->jump(callee, args, old_cont->debug()); // TODO debug
 }
 
 static void rewrite_def(const Def* def, Type2Type& types, Rewriter& rewriter) {

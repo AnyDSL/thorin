@@ -94,17 +94,17 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
  * hash
  */
 
-uint64_t Type::vhash() const {
+hash_t Type::vhash() const {
     if (is_nominal())
-        return thorin::murmur3(uint64_t(tag()) << uint64_t(56) | uint64_t(gid()));
-    uint64_t seed = thorin::hash_begin(uint8_t(tag()));
+        return thorin::murmur3(hash_t(tag()) << hash_t(32-8) | hash_t(gid()));
+    hash_t seed = thorin::hash_begin(uint8_t(tag()));
     for (auto op : ops_)
         seed = thorin::hash_combine(seed, uint32_t(op->gid()));
     return seed;
 }
 
-uint64_t PtrType::vhash() const {
-    return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space());
+hash_t PtrType::vhash() const {
+    return hash_combine(VectorType::vhash(), (hash_t)device(), (hash_t)addr_space());
 }
 
 //------------------------------------------------------------------------------
@@ -134,52 +134,51 @@ bool PtrType::equal(const Type* other) const {
  * stream
  */
 
-static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
-   return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
-}
+Stream& Type::stream(Stream& s) const {
+    if (false) {}
+    else if (isa<  MemType>()) return s.fmt("mem");
+    else if (isa<FrameType>()) return s.fmt("frame");
+    else if (auto t = isa<DefiniteArrayType>()) {
+        return s.fmt("[{} x {}]", t->dim(), t->elem_type());
+    } else if (auto t = isa<FnType>()) {
+        return s.fmt("fn[{, }]", t->ops());
+    } else if (auto t = isa<ClosureType>()) {
+        return s.fmt("closure [{, }]", t->ops());
+    } else if (auto t = isa<IndefiniteArrayType>()) {
+        return s.fmt("[{}]", t->elem_type());
+    } else if (auto t = isa<StructType>()) {
+        return s.fmt("struct ", t->name());
+    } else if (auto t = isa<VariantType>()) {
+        return s.fmt("variant ", t->name());
+    } else if (auto t = isa<TupleType>()) {
+        return s.fmt("[{, }]", t->ops());
+    } else if (auto t = isa<PtrType>()) {
+        if (t->is_vector()) s.fmt("<{} x", t->length());
+        s.fmt("{}*", t->pointee());
+        if (t->is_vector()) s.fmt(">");
+        if (t->device() != -1) s.fmt("[{}]", t->device());
 
-std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
-std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
-std::ostream& ClosureType        ::stream(std::ostream& os) const { return stream_type_ops(os << "closure", this); }
-std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
-std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
-std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
-std::ostream& StructType         ::stream(std::ostream& os) const { return os << "struct " << name(); }
-std::ostream& VariantType        ::stream(std::ostream& os) const { return os << "variant " << name(); }
-std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
+        switch (t->addr_space()) {
+            case AddrSpace::Global:   s.fmt("[Global]");   break;
+            case AddrSpace::Texture:  s.fmt("[Tex]");      break;
+            case AddrSpace::Shared:   s.fmt("[Shared]");   break;
+            case AddrSpace::Constant: s.fmt("[Constant]"); break;
+            default: /* ignore unknown address space */    break;
+        }
+        return s;
+    } else if (auto t = isa<PrimType>()) {
+        if (t->is_vector()) s.fmt("<{} x", t->length());
 
-std::ostream& PtrType::stream(std::ostream& os) const {
-    if (is_vector())
-        os << '<' << length() << " x ";
-    os << pointee() << '*';
-    if (is_vector())
-        os << '>';
-    if (device() != -1)
-        os << '[' << device() << ']';
-    switch (addr_space()) {
-        case AddrSpace::Global:   os << "[Global]";   break;
-        case AddrSpace::Texture:  os << "[Tex]";      break;
-        case AddrSpace::Shared:   os << "[Shared]";   break;
-        case AddrSpace::Constant: os << "[Constant]"; break;
-        default: /* ignore unknown address space */      break;
-    }
-    return os;
-}
-
-std::ostream& PrimType::stream(std::ostream& os) const {
-    if (is_vector())
-        os << "<" << length() << " x ";
-
-    switch (primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
+        switch (t->primtype_tag()) {
+#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: s.fmt(#T); break;
 #include "thorin/tables/primtypetable.h"
-          default: THORIN_UNREACHABLE;
+            default: THORIN_UNREACHABLE;
+        }
+
+        if (t->is_vector()) s.fmt(">");
+        return s;
     }
-
-    if (is_vector())
-        os << ">";
-
-    return os;
+    THORIN_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------

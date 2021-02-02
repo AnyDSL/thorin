@@ -6,7 +6,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -35,7 +34,7 @@ Continuation* Continuation::stub() const {
 
     auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
-        result->param(i)->debug() = param(i)->debug_history();
+        result->param(i)->set_name(debug_history().name);
         rewriter.old2new[param(i)] = result->param(i);
     }
 
@@ -200,7 +199,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "atomic_store")         attributes().intrinsic = Intrinsic::AtomicStore;
     else if (name() == "cmpxchg")              attributes().intrinsic = Intrinsic::CmpXchg;
     else if (name() == "undef")                attributes().intrinsic = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic '{}'", name());
+    else world().ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
@@ -211,7 +210,6 @@ bool Continuation::is_returning() const { return type()->is_returning(); }
  */
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
-    jump_debug_ = dbg;
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
@@ -274,16 +272,17 @@ void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, nargs, src->jump_debug());
+    src->jump(dst, nargs);
 }
 
 Continuation* Continuation::update_op(size_t i, const Def* def) {
     Array<const Def*> new_ops(ops());
     new_ops[i] = def;
-    jump(new_ops.front(), new_ops.skip_front(), jump_location());
+    jump(new_ops.front(), new_ops.skip_front());
     return this;
 }
 
+#if 0
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
     //stream_type_params(os, type());
@@ -311,6 +310,7 @@ std::ostream& Continuation::stream_jump(std::ostream& os) const {
 
 void Continuation::dump_head() const { stream_head(std::cout) << endl; }
 void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
+#endif
 
 //------------------------------------------------------------------------------
 

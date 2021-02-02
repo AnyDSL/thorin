@@ -6,7 +6,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 #include "thorin/util/stream.h"
 #include "thorin/be/c.h"
 
@@ -19,13 +18,13 @@ namespace thorin {
 
 class CCodeGen {
 public:
-    CCodeGen(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug)
+    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug)
         : world_(world)
         , kernel_config_(kernel_config)
         , lang_(lang)
         , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
-        , os_(stream)
+        , stream_(stream)
     {}
 
     void emit();
@@ -33,17 +32,17 @@ public:
     World& world() const { return world_; }
 
 private:
-    std::ostream& emit_aggop_defs(const Def*);
-    std::ostream& emit_aggop_decl(const Type*);
-    std::ostream& emit_debug_info(const Def*);
-    std::ostream& emit_addr_space(std::ostream&, const Type*);
-    std::ostream& emit_string(const Global*);
-    std::ostream& emit_temporaries(const Def*);
-    std::ostream& emit_type(std::ostream&, const Type*);
-    std::ostream& emit(const Def*);
+    Stream& emit_aggop_defs(const Def*);
+    Stream& emit_aggop_decl(const Type*);
+    Stream& emit_debug_info(const Def*);
+    Stream& emit_addr_space(Stream&, const Type*);
+    Stream& emit_string(const Global*);
+    Stream& emit_temporaries(const Def*);
+    Stream& emit_type(Stream&, const Type*);
+    Stream& emit(const Def*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
-    std::ostream& emit_float(T, IsInfFn, IsNanFn);
+    Stream& emit_float(T, IsInfFn, IsNanFn);
 
     // TODO use Symbol instead of std::string
     bool lookup(const Type*);
@@ -73,31 +72,32 @@ private:
     bool use_channels_ = false;
     bool debug_;
     int primop_counter = 0;
-    std::ostream& os_;
-    std::ostringstream func_impl_;
-    std::ostringstream func_decls_;
-    std::ostringstream type_decls_;
+    Stream& stream_;
+    Stream func_impl_;
+    Stream func_decls_;
+    Stream type_decls_;
 };
 
-std::ostream& CCodeGen::emit_debug_info(const Def* def) {
-    if (debug_ && def->location().filename())
-        return streamf(func_impl_, "#line {} \"{}\"", def->location().front_line(), def->location().filename()) << endl;
+// TODO
+Stream& CCodeGen::emit_debug_info(const Def* /*def*/) {
+    //if (debug_ && !def->debug().loc.file.empty())
+        //return streamf(func_impl_, "#line {} \"{}\"", def->debug().loc.begin.row, def->debug().loc.file) << endl;
     return func_impl_;
 }
 
-std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
+Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
     if (auto ptr = type->isa<PtrType>()) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
                 default:
                 case AddrSpace::Generic:                   break;
-                case AddrSpace::Global: os << "__global "; break;
-                case AddrSpace::Shared: os << "__local ";  break;
+                case AddrSpace::Global: s << "__global "; break;
+                case AddrSpace::Shared: s << "__local ";  break;
             }
         }
     }
 
-    return os;
+    return s;
 }
 
 inline bool is_string_type(const Type* type) {
@@ -121,7 +121,7 @@ std::string handle_string_character(char c) {
     }
 }
 
-std::ostream& CCodeGen::emit_string(const Global* global) {
+Stream& CCodeGen::emit_string(const Global* global) {
     if (auto str_array = global->init()->isa<DefiniteArray>()) {
         if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
             if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
@@ -139,7 +139,9 @@ std::ostream& CCodeGen::emit_string(const Global* global) {
     return type_decls_;
 }
 
-std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
+Stream& CCodeGen::emit_type(Stream& os, const Type* /*type*/) {
+    return os;
+#if 0
     if (lookup(type))
         return os << get_name(type);
 
@@ -228,9 +230,11 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         return os;
     }
     THORIN_UNREACHABLE;
+#endif
 }
 
-std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
+Stream& CCodeGen::emit_aggop_defs(const Def* /*def*/) {
+#if 0
     if (lookup(def) || is_unit(def))
         return func_impl_;
 
@@ -265,10 +269,12 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (def->isa<Bottom>())
         emit(def) << endl;
 
+#endif
     return func_impl_;
 }
 
-std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
+Stream& CCodeGen::emit_aggop_decl(const Type* /*type*/) {
+#if 0
     if (lookup(type) || type == world().unit())
         return type_decls_;
 
@@ -322,10 +328,12 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     while (detail::get_indent() != indent)
         type_decls_ << up;
 
+#endif
     return type_decls_;
 }
 
-std::ostream& CCodeGen::emit_temporaries(const Def* def) {
+Stream& CCodeGen::emit_temporaries(const Def* /*def*/) {
+#if 0
     // emit definitions of inlined elements, skip match
     if (!def->isa<PrimOp>() || !is_from_match(def->as<PrimOp>()))
         emit_aggop_defs(def);
@@ -335,9 +343,12 @@ std::ostream& CCodeGen::emit_temporaries(const Def* def) {
         return func_impl_;
 
     return emit(def) << endl;
+#endif
+    return stream_;
 }
 
 void CCodeGen::emit() {
+#if 0
     if (lang_==Lang::CUDA) {
         func_decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
         func_decls_ << "__device__ inline int threadIdx_y() { return threadIdx.y; }" << endl;
@@ -803,36 +814,38 @@ void CCodeGen::emit() {
 
     if (lang_==Lang::OPENCL) {
         if (use_channels_)
-            os_ << "#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl;
+            stream_ << "#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl;
         if (use_16_)
-            os_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
+            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
         if (use_64_)
-            os_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
+            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
         if (use_channels_ || use_16_ || use_64_)
-            os_ << endl;
+            stream_ << endl;
     }
 
     if (lang_==Lang::CUDA && use_16_) {
-        os_ << "#include <cuda_fp16.h>" << endl << endl;
-        os_ << "#if __CUDACC_VER_MAJOR__ > 8" << endl
+        stream_ << "#include <cuda_fp16.h>" << endl << endl;
+        stream_ << "#if __CUDACC_VER_MAJOR__ > 8" << endl
             << "#define half __half_raw" << endl
             << "#endif" << endl << endl;
     }
 
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
-        os_ << "extern \"C\" {" << endl;
+        stream_ << "extern \"C\" {" << endl;
 
     if (!type_decls_.str().empty())
-        os_ << type_decls_.str() << endl;
+        stream_ << type_decls_.str() << endl;
     if (!func_decls_.str().empty())
-        os_ << func_decls_.str() << endl;
-    os_ << func_impl_.str();
+        stream_ << func_decls_.str() << endl;
+    stream_ << func_impl_.str();
 
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
-        os_ << "}"; // extern "C"
+        stream_ << "}"; // extern "C"
+#endif
 }
 
 void CCodeGen::emit_c_int() {
+#if 0
     // Do not emit C interfaces for definitions that are not used
     world().cleanup();
 
@@ -899,26 +912,28 @@ void CCodeGen::emit_c_int() {
     });
     guard[guard.length() - 2] = '_';
 
-    os_ << "/* " << name << ": Artic interface file generated by thorin */" << endl;
-    os_ << "#ifndef " << guard << endl;
-    os_ << "#define " << guard << endl << endl;
-    os_ << "#ifdef __cplusplus" << endl;
-    os_ << "extern \"C\" {" << endl;
-    os_ << "#endif" << endl << endl;
+    stream_ << "/* " << name << ": Artic interface file generated by thorin */" << endl;
+    stream_ << "#ifndef " << guard << endl;
+    stream_ << "#define " << guard << endl << endl;
+    stream_ << "#ifdef __cplusplus" << endl;
+    stream_ << "extern \"C\" {" << endl;
+    stream_ << "#endif" << endl << endl;
 
     if (!type_decls_.str().empty())
-        os_ << type_decls_.str() << endl;
+        stream_ << type_decls_.str() << endl;
     if (!func_decls_.str().empty())
-        os_ << func_decls_.str() << endl;
+        stream_ << func_decls_.str() << endl;
 
-    os_ << "#ifdef __cplusplus" << endl;
-    os_ << "}" << endl;
-    os_ << "#endif" << endl << endl;
-    os_ << "#endif /* " << guard << " */";
+    stream_ << "#ifdef __cplusplus" << endl;
+    stream_ << "}" << endl;
+    stream_ << "#endif" << endl << endl;
+    stream_ << "#endif /* " << guard << " */";
+#endif
 }
 
 template <typename T, typename IsInfFn, typename IsNanFn>
-std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
+Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
+#if 0
     auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
     const char* suf = "", * pref = "";
 
@@ -961,10 +976,12 @@ std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
     } else {
         func_impl_ << float_mode << pref << t << suf;
     }
+#endif
     return func_impl_;
 }
 
-std::ostream& CCodeGen::emit(const Def* def) {
+Stream& CCodeGen::emit(const Def* /*def*/) {
+#if 0
     if (auto continuation = def->isa<Continuation>())
         return func_impl_ << "goto l" << continuation->gid() << ";";
 
@@ -1129,7 +1146,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     if (auto aggop = def->isa<AggOp>()) {
         emit_aggop_defs(aggop->agg());
 
-        auto emit_access = [&] (const Def* def, const Def* index) -> std::ostream& {
+        auto emit_access = [&] (const Def* def, const Def* index) -> Stream& {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
                 emit(index) << "]";
@@ -1434,6 +1451,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
+#endif
     THORIN_UNREACHABLE;
 }
 
@@ -1451,16 +1469,16 @@ bool CCodeGen::lookup(const Def* def) {
 }
 
 std::string& CCodeGen::get_name(const Type* type) {
-    return type2str_[type];
+    return *type2str_[type];
 }
 
 std::string& CCodeGen::get_name(const Def* def) {
     if (def->isa<Global>())
-        return global2str_[def];
+        return *global2str_[def];
     else if (def->isa<PrimOp>() && is_const(def))
-        return primop2str_[def];
+        return *primop2str_[def];
     else
-        return def2str_[def];
+        return *def2str_[def];
 }
 
 const std::string CCodeGen::var_name(const Def* def) {
@@ -1512,7 +1530,7 @@ inline std::string make_identifier(const std::string& str) {
 
 std::string CCodeGen::type_name(const Type* type) {
     std::stringstream os;
-    emit_type(os, type);
+    emit_type(stream_, type);
     return make_identifier(std::string(os.str()));
 }
 
@@ -1529,11 +1547,11 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug) {
+void emit_c(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug) {
     CCodeGen(world, kernel_config, stream, lang, debug).emit();
 }
 
-void emit_c_int(World& world, std::ostream& stream) {
+void emit_c_int(World& world, Stream& stream) {
     CCodeGen(world, {}, stream, Lang::C99, false).emit_c_int();
 }
 

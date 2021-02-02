@@ -71,7 +71,7 @@ Continuation* Mangler::mangle() {
         else {
             auto new_param = new_entry()->param(j++);
             def2def_[old_param] = new_param;
-            new_param->debug().set(old_param->name());
+            new_param->set_name(old_param->name());
         }
     }
 
@@ -120,19 +120,19 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
             case Intrinsic::Branch: {
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
                     auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
-                    return new_continuation->jump(mangle(cont), {}, old_continuation->jump_debug());
+                    return new_continuation->jump(mangle(cont), {}, old_continuation->debug()); // TODO debug
                 }
                 break;
             }
             case Intrinsic::Match:
                 if (old_continuation->num_args() == 2)
-                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->jump_debug());
+                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->debug()); // TODO debug
 
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
                     for (size_t i = 2; i < old_continuation->num_args(); i++) {
                         auto new_arg = mangle(old_continuation->arg(i));
                         if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
-                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->jump_debug());
+                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->debug()); // TODO debug
                     }
                 }
                 break;
@@ -161,11 +161,11 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
         if (substitute) {
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            return new_continuation->jump(new_entry(), args, old_continuation->jump_debug());
+            return new_continuation->jump(new_entry(), args, old_continuation->debug()); // TODO debug
         }
     }
 
-    new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
+    new_continuation->jump(ntarget, nargs, old_continuation->debug()); // TODO debug
 }
 
 const Def* Mangler::mangle(const Def* old_def) {
@@ -181,7 +181,7 @@ const Def* Mangler::mangle(const Def* old_def) {
         assert(within(param->continuation()));
         mangle(param->continuation());
         assert(def2def_.contains(param));
-        return def2def_[param];
+        return *def2def_[param];
     } else {
         auto old_primop = old_def->as<PrimOp>();
         Array<const Def*> nops(old_primop->num_ops());

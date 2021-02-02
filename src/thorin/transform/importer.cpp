@@ -39,7 +39,7 @@ const Def* Importer::import(Tracker odef) {
 
     if (auto oparam = odef->isa<Param>()) {
         import(oparam->continuation())->as_continuation();
-        auto nparam = def_old2new_[oparam];
+        auto nparam = *def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
         assert(!nparam->is_replaced());
         return nparam;
@@ -57,7 +57,7 @@ const Def* Importer::import(Tracker odef) {
         assert(&ncontinuation->world() == &world());
         assert(&npi->table() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-            ncontinuation->param(i)->debug() = ocontinuation->param(i)->debug_history();
+            ncontinuation->param(i)->set_name(ocontinuation->param(i)->debug_history().name);
             def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
         }
 
@@ -67,7 +67,7 @@ const Def* Importer::import(Tracker odef) {
             auto cond = import(ocontinuation->arg(0));
             if (auto lit = cond->isa<PrimLit>()) {
                 auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
-                ncontinuation->jump(callee, {}, ocontinuation->jump_debug());
+                ncontinuation->jump(callee, {}, ocontinuation->debug()); // TODO debug
 
                 assert(!ncontinuation->is_replaced());
                 return ncontinuation;
@@ -98,7 +98,7 @@ const Def* Importer::import(Tracker odef) {
     auto ocontinuation = odef->as_continuation();
     assert(ncontinuation && &ncontinuation->world() == &world());
     if (size > 0)
-        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->jump_debug());
+        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->debug()); // TODO debug
     assert(!ncontinuation->is_replaced());
     return ncontinuation;
 }

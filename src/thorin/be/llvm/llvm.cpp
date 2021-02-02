@@ -46,7 +46,6 @@
 #endif
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -317,7 +316,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
 }
 
 llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
-    std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
+    std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
@@ -358,13 +357,13 @@ void CodeGen::emit(const Scope& scope) {
 
     llvm::DIScope* discope = dicompile_unit_;
     if (debug()) {
-        auto src_file = llvm::sys::path::filename(entry_->location().filename());
-        auto src_dir = llvm::sys::path::parent_path(entry_->location().filename());
+        auto src_file = llvm::sys::path::filename(entry_->debug().loc.file);
+        auto src_dir = llvm::sys::path::parent_path(entry_->debug().loc.file);
         auto difile = dibuilder_.createFile(src_file, src_dir);
         auto disub_program = dibuilder_.createFunction(
-            discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
+            discope, fct->getName(), fct->getName(), difile, entry_->debug().loc.begin.row,
             dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-            entry_->location().front_line(),
+            entry_->debug().loc.begin.row,
             llvm::DINode::FlagPrototyped,
             llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
         fct->setSubprogram(disub_program);
@@ -384,7 +383,7 @@ void CodeGen::emit(const Scope& scope) {
         auto& irbuilder = *i->second.second;
         irbuilder.SetInsertPoint(bb);
         if (debug())
-            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->location().front_line(), cont->location().front_col(), discope));
+            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->debug().loc.begin.row, cont->debug().loc.begin.row, discope));
 
         if (entry_ == cont) {
             auto arg = fct->arg_begin();
@@ -430,7 +429,7 @@ void CodeGen::emit(const Scope& scope) {
         if (cont->intrinsic() == Intrinsic::EndScope || cont == entry_) continue;
 
         for (auto param : cont->params()) {
-            if (auto phi = def2llvm_[param]) {
+            if (auto phi = *def2llvm_[param]) {
                 for (const auto& peek : param->peek())
                     llvm::cast<llvm::PHINode>(phi)->addIncoming(emit(peek.def()), cont2bb(peek.from()));
             }
@@ -439,7 +438,9 @@ void CodeGen::emit(const Scope& scope) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
-    auto& irbuilder = *cont2llvm_[continuation].second;
+    auto bb_ib = cont2llvm_[continuation];
+    auto bb = bb_ib->first;
+    auto& irbuilder = *bb_ib->second;
 
     if (continuation->callee() == entry_->ret_param()) { // return
         size_t num_args = continuation->num_args();
@@ -450,8 +451,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
             size_t n = 0;
             for (auto arg : continuation->args()) {
-                if (!is_mem(arg) && !is_unit(arg)) {
-                    auto val = emit(arg);
+                if (auto val = emit(arg)) {
                     values[n] = val;
                     args[n++] = val->getType();
                 }
@@ -511,8 +511,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             const Def* ret_arg = nullptr;
             for (auto arg : continuation->args()) {
                 if (arg->order() == 0) {
-                    if (!is_mem(arg) && !is_unit(arg))
-                        args.push_back(emit(arg));
+                    if (auto val = emit(arg))
+                        args.push_back(val);
                 } else {
                     assert(!ret_arg);
                     ret_arg = arg;
@@ -574,10 +574,14 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             }
         }
     }
+
+    // new insert point is just before the terminator for all other instructions we have to add later on
+    irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    return def2llvm_[def] = emit_(def);
+    auto llvm = emit_(def);
+    return def2llvm_[def] = llvm;
 }
 
 llvm::Value* CodeGen::emit_(const Def* def) {
@@ -585,19 +589,11 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
 
     auto place = is_const(def) ? entry_ : scheduler_.smart(def);
-    auto& [bb, ib] = cont2llvm_[place];
-    auto& irbuilder = *ib;
+    auto& irbuilder = *cont2llvm_[place]->second;
 
     // TODO
     //if (debug())
-        //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->location().front_line(), def->location().front_col(), discope));
-
-    if (auto term = bb->getTerminator()) {
-        if (auto prev = term->getPrevNode())
-            irbuilder.SetInsertPoint(prev);
-        else
-            irbuilder.SetInsertPoint(bb);
-    }
+        //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->debug().loc.begin.row, def->debug().loc.begin.row, discope));
 
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
@@ -783,8 +779,8 @@ llvm::Value* CodeGen::emit_(const Def* def) {
         if (all_consts)
             return llvm::ConstantArray::get(type, llvm_ref(consts));
 
-        WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
-        auto alloca = emit_alloca(irbuilder, type, array->name().str());
+        world().wdef(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
+        auto alloca = emit_alloca(irbuilder, type, array->name());
 
         u64 i = 0;
         llvm::Value* args[2] = { irbuilder.getInt64(0), nullptr };
@@ -802,8 +798,9 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 
     if (auto agg = def->isa<Aggregate>()) {
         assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>() || def->isa<Closure>());
-        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
+        if (is_unit(agg)) return nullptr;
 
+        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
         if (def->isa<Vector>()) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder.CreateInsertElement(llvm_agg, emit(agg->op(i)), irbuilder.getInt32(i));
@@ -818,7 +815,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
                     env = emit(world_.cast(Closure::environment_type(world_), val));
                 }
             } else {
-                WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
+                world().wdef(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
                 auto alloc = emit_alloc(irbuilder, val->type(), nullptr);
                 irbuilder.CreateStore(emit(val), alloc);
                 env = irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
@@ -834,11 +831,13 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
+        if (is_mem(aggop)) return nullptr;
+
         auto llvm_agg = emit(aggop->agg());
         auto llvm_idx = emit(aggop->index());
         auto copy_to_alloca = [&] () {
-            WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(irbuilder, llvm_agg->getType(), aggop->name().str());
+            world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
+            auto alloca = emit_alloca(irbuilder, llvm_agg->getType(), aggop->name());
             irbuilder.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder.getInt64(0), llvm_idx };
@@ -966,7 +965,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world_.literal_pu32(i, vector->location())));
+            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world_.literal_pu32(i, vector->debug().loc)));
 
         return vec;
     }
@@ -978,7 +977,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 }
 
 void CodeGen::emit_result_phi(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
-    llvm::cast<llvm::PHINode>(def2llvm_[param])->addIncoming(value, irbuilder.GetInsertBlock());
+    llvm::cast<llvm::PHINode>(*def2llvm_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*
@@ -1024,7 +1023,7 @@ llvm::Value* CodeGen::emit_bitcast(llvm::IRBuilder<>& irbuilder, const Def* val,
     auto src_type = val->type();
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
-        EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
+        world().edef(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder.CreatePointerCast(from, to);
     return irbuilder.CreateBitCast(from, to);
@@ -1115,7 +1114,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        EDEF(assembly, "constraints and input and output types of inline assembly do not match");
+        world().edef(assembly, "constraints and input and output types of inline assembly do not match");
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
@@ -1164,9 +1163,9 @@ Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* c
     auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
                         (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
     if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
-        EDEF(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
+        world().edef(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
     else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
-        EDEF(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
+        world().edef(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
     auto ptr = emit(continuation->arg(2));
     auto val = emit(continuation->arg(3));
     u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
@@ -1214,7 +1213,7 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
 Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() == 7 && "required arguments are missing");
     if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
+        world().edef(continuation->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = emit(continuation->arg(1));
     auto cmp  = emit(continuation->arg(2));
     auto val  = emit(continuation->arg(3));
@@ -1230,14 +1229,14 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    EDEF(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
+    world().edef(continuation, "reserve_shared: only allowed in device code"); // TODO debug
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Continuation* continuation, bool init_undef) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+        world().edef(continuation->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
@@ -1376,12 +1375,12 @@ Backends::Backends(World& world, int opt, bool debug)
         else
             return;
 
-        imported->debug().set(continuation->unique_name());
+        imported->set_name(continuation->unique_name());
         imported->make_exported();
-        continuation->debug().set(continuation->unique_name());
+        continuation->set_name(continuation->unique_name());
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->debug().set(continuation->param(i)->unique_name());
+            imported->param(i)->set_name(continuation->param(i)->unique_name());
 
         kernels.emplace_back(continuation);
     });
@@ -1432,7 +1431,7 @@ Backends::Backends(World& world, int opt, bool debug)
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);
                 if (size == 0)
-                    EDEF(arg, "array size is not known at compile time");
+                    world.edef(arg, "array size is not known at compile time");
                 auto elem_type = ptr_type->pointee();
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
@@ -1447,7 +1446,7 @@ Backends::Backends(World& world, int opt, bool debug)
                 }
                 auto prim_type = elem_type->isa<PrimType>();
                 if (!prim_type)
-                    EDEF(arg, "only pointers to arrays of primitive types are supported");
+                    world.edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);

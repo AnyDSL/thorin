@@ -10,7 +10,6 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"
-#include "thorin/util/log.h"
 #include "thorin/be/llvm/llvm.h"
 #include "thorin/be/llvm/runtime.inc"
 
@@ -75,7 +74,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
     auto& world = continuation->world();
-    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name().str());
+    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
@@ -97,12 +96,12 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             target_arg->type()->isa<StructType>() ||
             target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
-            auto alloca = code_gen.emit_alloca(builder, target_val->getType(), target_arg->name().str());
+            auto alloca = code_gen.emit_alloca(builder, target_val->getType(), target_arg->name());
             builder.CreateStore(target_val, alloca);
 
             // check if argument type contains pointers
             if (!contains_ptrtype(target_arg->type()))
-                WDEF(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
+                world.wdef(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
             void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
             arg_type = KernelArgType::Struct;
@@ -111,16 +110,16 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             auto rtype = ptr->pointee();
 
             if (!rtype->isa<ArrayType>())
-                EDEF(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
+                world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
-            auto alloca = code_gen.emit_alloca(builder, builder.getInt8PtrTy(), target_arg->name().str());
+            auto alloca = code_gen.emit_alloca(builder, builder.getInt8PtrTy(), target_arg->name());
             auto target_ptr = builder.CreatePointerCast(target_val, builder.getInt8PtrTy());
             builder.CreateStore(target_ptr, alloca);
             void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
             arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
-            auto alloca = code_gen.emit_alloca(builder, target_val->getType(), target_arg->name().str());
+            auto alloca = code_gen.emit_alloca(builder, target_val->getType(), target_arg->name());
             builder.CreateStore(target_val, alloca);
 
             void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());

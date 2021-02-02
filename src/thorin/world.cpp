@@ -20,19 +20,11 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
 #else
 #define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
-#endif
-
-#if THORIN_ENABLE_CHECKS
-#define THORIN_CHECK_BREAK(gid) \
-    if (breakpoints_.find((gid)) != breakpoints_.end()) { THORIN_BREAK }
-#else
-#define THORIN_CHECK_BREAK(gid) {}
 #endif
 
 namespace thorin {
@@ -41,7 +33,7 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(std::string name)
+World::World(const std::string& name)
     : name_(name)
 {
     branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
@@ -873,13 +865,12 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
  */
 
 const Def* World::hlt(const Def* def, Debug dbg) {
-    if (pe_done_)
-        return def;
+    if (is_pe_done()) return def;
     return cse(new Hlt(def, dbg));
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
-    if (pe_done_ || def->isa<Hlt>())
+    if (is_pe_done() || def->isa<Hlt>())
         return literal_bool(false, dbg);
     if (is_const(def))
         return literal_bool(true, dbg);
@@ -887,8 +878,7 @@ const Def* World::known(const Def* def, Debug dbg) {
 }
 
 const Def* World::run(const Def* def, Debug dbg) {
-    if (pe_done_)
-        return def;
+    if (is_pe_done()) return def;
     return cse(new Run(def, dbg));
 }
 
@@ -897,17 +887,19 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto l = new Continuation(fn, attributes, dbg);
-    THORIN_CHECK_BREAK(l->gid());
-    continuations_.insert(l);
+    auto cont = new Continuation(fn, attributes, dbg);
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(cont->gid())) THORIN_BREAK;
+#endif
+    continuations_.insert(cont);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
-        auto p = param(op, l, i++, dbg);
-        l->params_.emplace_back(p);
+        auto p = param(op, cont, i++, dbg);
+        cont->params_.emplace_back(p);
     }
 
-    return l;
+    return cont;
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
@@ -921,13 +913,30 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
-    THORIN_CHECK_BREAK(param->gid());
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
+#endif
     return param;
 }
 
 /*
  * misc
  */
+
+#if THORIN_ENABLE_CHECKS
+
+void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
+void World::use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
+void World::enable_history(bool flag)     { state_.track_history = flag; }
+bool World::track_history() const         { return state_.track_history; }
+
+const Def* World::gid2def(u32 gid) {
+    auto i = std::find_if(primops_.begin(), primops_.end(), [&](const Def* def) { return def->gid() == gid; });
+    if (i == primops_.end()) return nullptr;
+    return *i;
+}
+
+#endif
 
 const Def* World::try_fold_aggregate(const Aggregate* agg) {
     const Def* from = nullptr;
@@ -962,7 +971,9 @@ Array<Continuation*> World::exported_continuations() const {
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
-    THORIN_CHECK_BREAK(primop->gid());
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(primop->gid())) THORIN_BREAK;
+#endif
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
@@ -1002,6 +1013,7 @@ void World::opt() {
  * stream
  */
 
+#if 0
 std::ostream& World::stream(std::ostream& os) const {
     os << "module '" << name() << "'\n\n";
 
@@ -1020,5 +1032,6 @@ void World::thorin() const {
     auto filename = name() + ".thorin";
     write_thorin(filename.c_str());
 }
+#endif
 
 }

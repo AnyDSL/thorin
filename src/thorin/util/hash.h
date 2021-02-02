@@ -298,9 +298,6 @@ public:
         if (size_ >= capacity_/4_s + capacity_/2_s)
             rehash(capacity_*4_s);
 
-#if THORIN_ENABLE_CHECKS
-        ++id_;
-#endif
         return emplace_no_rehash(std::forward<Args>(args)...);
     }
 
@@ -333,9 +330,6 @@ public:
                 changed |= array_emplace(*i).second;
         }
 
-#if THORIN_ENABLE_CHECKS
-        ++id_;
-#endif
         return changed;
     }
     //@}
@@ -487,6 +481,9 @@ private:
     template<class... Args>
     std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
         using std::swap;
+#if THORIN_ENABLE_CHECKS
+        ++id_;
+#endif
         value_type n(std::forward<Args>(args)...);
         auto& k = key(&n);
 
@@ -663,8 +660,53 @@ public:
         auto i = Super::find(k);
         return i == Super::cend() ? std::nullopt : std::optional(i->second);
     }
-    mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
-    mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
+
+    /**
+     * When using @c operator[] some really subtle bugs might happen:
+    @code
+        auto&& ref = map[key];
+        // some operations that might provoke a rehash like insert or erase
+        ref = sth; // broken!
+    @endcode
+     * Even more sublte is this as the order of evaluation is implementation-defined in C++:
+    @code
+        map[key] = f(args);
+    @endcode
+     * If your C++ compiler chooses to @em first evaluate @c operatr[],
+     * and @em then the function call and the function call performs @p insert/erase operations, the code is broken.
+     * This wrapper class catches these cases.
+     * The downside is that you have to use @p operator* or @p operator-> to access the wrapped value similar to @c std::optional.
+     */
+    struct mapped_ref {
+        mapped_ref([[maybe_unused]] HashMap* map, mapped_type& ref)
+            : ref_(ref)
+#if THORIN_ENABLE_CHECKS
+            , map_(map)
+            , id_(map->id())
+#endif
+        {}
+
+        mapped_type& operator=(const mapped_type& other) {
+#if THORIN_ENABLE_CHECKS
+            assert(map_->id() == id_);
+#endif
+            ref_ = other;
+            return ref_;
+        }
+
+        mapped_type* operator->() const { return &ref_; }
+        mapped_type& operator *() const { return  ref_; }
+
+    private:
+        mapped_type& ref_;
+#if THORIN_ENABLE_CHECKS
+        HashMap* map_;
+        int id_;
+#endif
+    };
+
+    mapped_ref operator[](const key_type& key) { return {this, Super::insert(value_type(key, T())).first->second}; }
+    mapped_ref operator[](key_type&& key) { return {this, Super::insert(value_type(std::move(key), T())).first->second}; }
 
     friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };

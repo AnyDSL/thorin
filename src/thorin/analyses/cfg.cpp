@@ -5,12 +5,11 @@
 #include <memory>
 #include <stack>
 
-#include "thorin/primop.h"
+#include "thorin/world.h"
 #include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -24,7 +23,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", continuation()); }
+Stream& CFNode::stream(Stream& s) const { return s << continuation(); }
 
 //------------------------------------------------------------------------------
 
@@ -72,10 +71,10 @@ CFA::CFA(const Scope& scope)
 }
 
 const CFNode* CFA::node(Continuation* continuation) {
-    auto& n = nodes_[continuation];
-    if (n == nullptr)
+    auto&& n = nodes_[continuation];
+    if (*n == nullptr)
         n = new CFNode(continuation);
-    return n;
+    return *n;
 }
 
 CFA::~CFA() {
@@ -151,14 +150,13 @@ void CFA::verify() {
     for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
-            VLOG("missing predecessors: {}", in->continuation());
+            scope().world().VLOG("missing predecessors: {}", in->continuation());
             error = true;
         }
     }
 
     if (error) {
         // TODO
-        //ycomp();
         assert(false && "CFG not sound");
     }
 }
@@ -167,8 +165,7 @@ void CFA::verify() {
 
 template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
-    : YComp(cfa.scope(), forward ? "f_cfg" : "b_cfg")
-    , cfa_(cfa)
+    : cfa_(cfa)
     , rpo_(*this)
 {
     auto index = post_order_visit(entry(), size());
@@ -189,14 +186,6 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     rpo_[n] = n;
     return n_index;
 }
-
-template<bool forward>
-void CFG<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(reverse_post_order()),
-        [&] (const CFNode* n) { return range(succs(n)); }
-    );
-}
-
 
 template<bool forward> const CFNodes& CFG<forward>::preds(const CFNode* n) const { assert(n != nullptr); return forward ? n->preds() : n->succs(); }
 template<bool forward> const CFNodes& CFG<forward>::succs(const CFNode* n) const { assert(n != nullptr); return forward ? n->succs() : n->preds(); }

@@ -8,7 +8,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -22,7 +21,7 @@ Scheduler::Scheduler(const Scope& s)
 
     auto enqueue = [&](const Def* def, size_t i, const Def* op) {
         if (scope().contains(op)) {
-            auto p1 = def2uses_[op].emplace(i, def);
+            auto&& p1 = def2uses_[op]->emplace(i, def);
             assert_unused(p1.second);
             auto p2 = done.emplace(op);
             if (p2.second)
@@ -95,7 +94,7 @@ Continuation* Scheduler::smart(const Def* def) {
         i = idom;
 
         if (i == nullptr) {
-            WLOG("this should never occur - don't know where to put {}", def);
+            scope_->world().WLOG("this should never occur - don't know where to put {}", def);
             s = l;
             break;
         }
@@ -132,7 +131,7 @@ void Schedule::verify() {
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
-                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->location(), mem, mem->location(), scope_.entry());
+                    world().WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->location(), mem, mem->location(), scope_.entry());
                     ok = false;
                 }
                 mem = memop->out_mem();

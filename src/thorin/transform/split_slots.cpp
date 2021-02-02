@@ -4,12 +4,11 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/split_slots.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
 struct IndexHash {
-    static uint64_t hash(u32 u) { return u; }
+    static hash_t hash(u32 u) { return u; } // TODO bad hash function
     static bool eq(u32 a, u32 b) { return a == b; }
     static u32 sentinel() { return 0xFFFFFFFF; }
 };
@@ -25,7 +24,7 @@ static void split(const Slot* slot) {
     auto elem_slot = [&] (u32 index) {
         if (!new_slots.contains(index))
             new_slots[index] = world.slot(elem_type, slot->frame(), slot->debug());
-        return new_slots[index];
+        return *new_slots[index];
     };
 
     for (auto use : slot->copy_uses()) {

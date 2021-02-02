@@ -6,7 +6,7 @@
 
 #include "thorin/enums.h"
 #include "thorin/type.h"
-#include "thorin/util/location.h"
+#include "thorin/debug.h"
 
 namespace thorin {
 
@@ -94,7 +94,7 @@ std::ostream& operator<<(std::ostream&, Use);
  * - \p Param%s and
  * - \p Continuation%s.
  */
-class Def : public RuntimeCast<Def>, public Streamable {
+class Def : public RuntimeCast<Def>, public Streamable<Def> {
 private:
     Def& operator=(const Def&) = delete;
     Def(const Def&) = delete;
@@ -113,9 +113,9 @@ public:
     NodeTag tag() const { return tag_; }
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     Debug debug_history() const;
-    Debug& debug() const { return debug_; }
-    Location location() const { return debug_; }
-    Symbol name() const { return debug().name(); }
+    Debug debug() const { return debug_; }
+    std::string name() const { return debug().name; }
+    void set_name(const std::string&) const;
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
@@ -171,9 +171,9 @@ public:
         : def_(def)
     {}
 
-    operator const Def*() { return def(); }
-    const Def* operator->() { return def(); }
-    const Def* def() {
+    operator const Def*() const { return def(); }
+    const Def* operator->() const { return def(); }
+    const Def* def() const {
         if (def_ != nullptr) {
             while (auto repr = def_->substitute_)
                 def_ = repr;
@@ -181,8 +181,10 @@ public:
         return def_;
     }
 
+    std::ostream& operator<<(std::ostream& os) const { return os << def(); }
+
 private:
-    const Def* def_;
+    mutable const Def* def_;
 };
 
 uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
@@ -205,14 +207,7 @@ inline bool is_div_or_rem (const Def* def) { return thorin::is_div_or_rem(def->t
 inline bool is_commutative(const Def* def) { return thorin::is_commutative(def->tag()); }
 inline bool is_associative(const Def* def) { return thorin::is_associative(def->tag()); }
 
-namespace detail {
-    inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }
-    inline std::ostream& stream(std::ostream& os, const Type* type) { return type->stream(os); }
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Def* def) { return def == nullptr ? os << "nullptr" : def->stream(os); }
-inline std::ostream& operator<<(std::ostream& os, const Type* type) { return type == nullptr ? os << "nullptr" : type->stream(os); }
-inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(os); }
+Stream& operator<<(Stream&, const Def* def);
 
 //------------------------------------------------------------------------------
 

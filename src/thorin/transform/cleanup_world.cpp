@@ -9,7 +9,6 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -84,7 +83,7 @@ void Cleaner::eliminate_tail_rec() {
             }
 
             if (new_args.size() != n) {
-                DLOG("tail recursive: {}", entry);
+                world().DLOG("tail recursive: {}", entry);
                 auto dropped = drop(scope, args);
 
                 entry->jump(dropped, new_args);
@@ -105,7 +104,7 @@ void Cleaner::eta_conversion() {
                     if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
                         for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
                             callee->param(i)->replace(continuation->arg(i));
-                        continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                        continuation->jump(callee->callee(), callee->args()); // TODO debug
                         callee->destroy_body();
                         todo_ = todo = true;
                     } else
@@ -152,7 +151,7 @@ void Cleaner::eta_conversion() {
                             for (size_t i = 0, e = perm.size(); i != e; ++i) {
                                 new_args[i] = ucontinuation->arg(perm[i]);
                             }
-                            ucontinuation->jump(param, new_args, ucontinuation->jump_debug());
+                            ucontinuation->jump(param, new_args); // TODO debug
                             todo_ = todo = true;
                         }
                     }
@@ -188,18 +187,18 @@ void Cleaner::eliminate_params() {
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
-                    ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
+                    ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
                 }
 
                 if (!ocontinuation->filter().empty())
                     ncontinuation->set_filter(ocontinuation->filter().cut(proxy_idx));
-                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
+                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->debug());
                 ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->copy_uses()) {
                     auto ucontinuation = use->as_continuation();
                     assert(use.index() == 0);
-                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_debug());
+                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->debug());
                 }
 
                 todo_ = true;
@@ -213,10 +212,6 @@ void Cleaner::rebuild() {
     Importer importer(world_);
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
-
-#if THORIN_ENABLE_CHECKS
-    world_.swap_breakpoints(importer.world());
-#endif
 
     for (auto continuation : world().exported_continuations())
         importer.import(continuation);
@@ -263,8 +258,8 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
     auto next = cur->arg(3);
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    IDEF(cur->callee(), "pe_info was not constant: {}: {}", msg->as_string(), cur->arg(2));
-    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+    world_.idef(cur->callee(), "pe_info was not constant: {}: {}", msg->as_string(), cur->arg(2));
+    cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug
     todo_ = true;
 
     // always re-insert into queue because we've changed cur's jump
@@ -272,7 +267,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
 }
 
 void Cleaner::clean_pe_infos() {
-    VLOG("cleaning remaining pe_infos");
+    world_.VLOG("cleaning remaining pe_infos");
     std::queue<Continuation*> queue;
     ContinuationSet done;
     auto enqueue = [&](Continuation* continuation) {
@@ -301,7 +296,7 @@ void Cleaner::clean_pe_infos() {
 void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
-        VLOG("iteration: {}", i);
+        world_.VLOG("iteration: {}", i);
         todo_ = false;
         if (world_.is_pe_done())
             eliminate_tail_rec();
@@ -318,7 +313,7 @@ void Cleaner::cleanup_fix_point() {
 }
 
 void Cleaner::cleanup() {
-    VLOG("start cleanup");
+    world_.VLOG("start cleanup");
     cleanup_fix_point();
 
     if (!world().is_pe_done()) {
@@ -329,7 +324,7 @@ void Cleaner::cleanup() {
         cleanup_fix_point();
     }
 
-    VLOG("end cleanup");
+    world_.VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
     debug_verify(world());

@@ -1,6 +1,8 @@
 set(THORIN_SOURCES
     continuation.cpp
     continuation.h
+    debug.cpp
+    debug.h
     def.cpp
     def.h
     enums.cpp
@@ -73,18 +75,12 @@ set(THORIN_SOURCES
     util/indexmap.h
     util/indexset.h
     util/iterator.h
-    util/location.cpp
-    util/location.h
-    util/log.cpp
-    util/log.h
     util/stream.cpp
     util/stream.h
     util/symbol.cpp
     util/symbol.h
     util/types.h
     util/utility.h
-    util/ycomp.cpp
-    util/ycomp.h
 )
 
 if(LLVM_FOUND)

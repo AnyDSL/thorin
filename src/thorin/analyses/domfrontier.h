@@ -13,14 +13,13 @@ namespace thorin {
  * See Cooper et al, 2001. A Simple, Fast Dominance Algorithm: http://www.cs.rice.edu/~keith/EMBED/dom.pdf
  */
 template<bool forward>
-class DomFrontierBase : public YComp {
+class DomFrontierBase {
 public:
     DomFrontierBase(const DomFrontierBase &) = delete;
     DomFrontierBase& operator=(DomFrontierBase) = delete;
 
     explicit DomFrontierBase(const CFG<forward> &cfg)
-        : YComp(cfg.scope(), forward ? "dom_frontier" : "control_dependencies")
-        , cfg_(cfg)
+        : cfg_(cfg)
         , preds_(cfg)
         , succs_(cfg)
     {
@@ -30,7 +29,6 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     const std::vector<const CFNode*>& preds(const CFNode* n) const { return preds_[n]; }
     const std::vector<const CFNode*>& succs(const CFNode* n) const { return succs_[n]; }
-    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
     void create();

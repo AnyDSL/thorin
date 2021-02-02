@@ -1,5 +1,6 @@
 #include "thorin/util/hash.h"
-#include "thorin/util/log.h"
+
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -11,7 +12,7 @@ hash_t hash(const char* s) {
 }
 
 void debug_hash() {
-    VLOG("debug with: break {}:{}", __FILE__, __LINE__);
+    errf("debug with: break {}:{}", __FILE__, __LINE__);
 }
 
 }

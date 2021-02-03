@@ -2,7 +2,6 @@
 
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -21,12 +20,13 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config, int
 void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     auto config = kernel_config_.find(continuation);
     if (config != kernel_config_.end()) {
+        auto& irbuilder = *cont2llvm_[continuation]->second;
         auto block = config->second->as<GPUKernelConfig>()->block_size();
         if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0) {
             Array<llvm::Metadata*> annotation_values_wgsize(3);
-            annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<0>(block)));
-            annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<1>(block)));
-            annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<2>(block)));
+            annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(irbuilder.getInt32(std::get<0>(block)));
+            annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(irbuilder.getInt32(std::get<1>(block)));
+            annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(irbuilder.getInt32(std::get<2>(block)));
             f->setMetadata(llvm::StringRef("reqd_work_group_size"), llvm::MDNode::get(context(), llvm_ref(annotation_values_wgsize)));
         }
     }
@@ -34,20 +34,22 @@ void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Fu
 
 llvm::Function* AMDGPUCodeGen::emit_function_decl(Continuation* continuation) {
     if (continuation->name() == "llvm.amdgcn.implicitarg.ptr")
-        if (auto f = fcts_.lookup(entry_))
-            (*f)->addFnAttr("amdgpu-implicitarg-ptr");
+        if (auto f = def2llvm_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
+            llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-ptr");
     if (continuation->name() == "__ockl_printf_begin")
-        if (auto f = fcts_.lookup(entry_))
-            (*f)->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
+        if (auto f = def2llvm_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
+            llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
     return CodeGen::emit_function_decl(continuation);
 }
 
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
     if (global->is_mutable())
-        WDEF(global, "AMDGPU: Global variable '{}' will not be synced with host", global);
+        world().wdef(global, "AMDGPU: Global variable '{}' will not be synced with host", global);
     return CodeGen::emit_global(global);
 }
 
-Continuation* AMDGPUCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation, true); }
+Continuation* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+    return emit_reserve_shared(irbuilder, continuation, true);
+}
 
 }

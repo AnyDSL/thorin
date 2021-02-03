@@ -80,13 +80,13 @@ bool is_const(const Def* def) {
 
     while (!stack.empty()) {
         auto def = stack.pop();
+        if (def->isa<Continuation>()) return false;
         if (def->isa<Param>()) return false;
         if (def->isa<Hlt>()) return false;
         if (def->isa<PrimOp>()) {
             for (auto op : def->ops())
                 stack.push(op);
         }
-        // continuations are always const
     }
 
     return true;

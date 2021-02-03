@@ -136,6 +136,7 @@ public:
     bool is_replaced() const { return substitute_ != nullptr; }
 
     Stream& stream(Stream&) const;
+    Stream& stream1(Stream&) const;
     Stream& stream_let(Stream&) const;
     static size_t gid_counter() { return gid_counter_; }
 

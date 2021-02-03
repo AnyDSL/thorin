@@ -36,8 +36,8 @@ void RecStreamer::run(const Def* def) {
 
     if (auto cont = def->isa_continuation())
         s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->callee(), cont->args());
-    else
-        def->stream_let(s.endl());
+    else if (!is_const(def) && !def->isa<Param>())
+        def->stream_let(s);
 }
 
 void RecStreamer::run() {
@@ -46,7 +46,7 @@ void RecStreamer::run() {
         s.endl().endl();
 
         if (!cont->empty()) {
-            s.fmt("{}: {} = {{\t", cont->unique_name(), cont->type());
+            s.fmt("{}: {} = {{\t\n", cont->unique_name(), cont->type());
             run(cont);
             s.fmt("\b\n}}");
         } else {
@@ -57,12 +57,15 @@ void RecStreamer::run() {
 
 //------------------------------------------------------------------------------
 
-Stream& Def::stream(Stream& s) const { return s << unique_name(); }
+Stream& Def::stream(Stream& s) const {
+    if (isa<Param>() || is_const(this)) return stream1(s);
+    return s << unique_name();
+}
 
-Stream& Def::stream_let(Stream& s) const {
-    s.fmt("{}: {} =", this, type());
-
-    if (auto lit = isa<PrimLit>()) {
+Stream& Def::stream1(Stream& s) const {
+    if (auto param = isa<Param>()) {
+        return s.fmt("{}[{}]", param->unique_name(), param->continuation());
+    } else if (auto lit = isa<PrimLit>()) {
         // print i8 as ints
         switch (lit->tag()) {
             case PrimType_qs8: return s.fmt("{}∷qs8", (int)      lit->qs8_value());
@@ -89,51 +92,22 @@ Stream& Def::stream_let(Stream& s) const {
     THORIN_UNREACHABLE;
 }
 
-/*
- * Scope
- */
-
-#if 0
-std::ostream& Scope::stream(std::ostream& os) const {
-    for (auto cont : schedule(*this)) {
-    }
-
-    return os; /* TODO return schedule(*this).stream(os); */
+Stream& Def::stream_let(Stream& s) const {
+    return stream1(s.fmt("{}: {} = ", this, type())).endl();
 }
-
-void Scope::write_thorin([[maybe_unused]] const char* filename) const { /* TODO return schedule(*this).write_thorin(filename); */ }
-void Scope::thorin() const { /* TODO schedule(*this).thorin(); */ }
-#endif
-
-/*
- * World
- */
-
-//------------------------------------------------------------------------------
 
 Stream& World::stream(Stream& s) const {
-    return s;
-}
+    RecStreamer rec(s, std::numeric_limits<size_t>::max());
+    s << "module '" << name();
 
-#if 0
-std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
-
-    for (auto primop : primops()) {
-        if (auto global = primop->isa<Global>())
-            global->stream_assignment(os);
+    for (auto cont : continuations()) {
+        if (cont->is_exported()) {
+            rec.conts.push(cont);
+            rec.run();
+        }
     }
 
-    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
-    return os;
+    return s.endl();
 }
-
-void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void World::thorin() const {
-    auto filename = name() + ".thorin";
-    write_thorin(filename.c_str());
-}
-#endif
 
 }

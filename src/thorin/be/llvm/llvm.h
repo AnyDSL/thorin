@@ -64,10 +64,13 @@ protected:
     virtual llvm::Value* emit_lea     (llvm::IRBuilder<>&, const LEA*);
     virtual llvm::Value* emit_assembly(llvm::IRBuilder<>&, const Assembly* assembly);
 
+    virtual Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*);
+    Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);
+
     virtual std::string get_alloc_name() const = 0;
     llvm::BasicBlock* cont2bb(Continuation* cont) { return cont2llvm_[cont]->first; }
 
-    virtual llvm::Value* emit_global  (const Global*);
+    virtual llvm::Value* emit_global(const Global*);
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
 
     void optimize();
@@ -92,8 +95,6 @@ private:
     Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);
     llvm::Value* emit_bitcast(llvm::IRBuilder<>&, const Def*, const Type*);
-    virtual Continuation* emit_reserve(const Continuation*);
-    Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);
     void emit_result_phi(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
     World& world_;

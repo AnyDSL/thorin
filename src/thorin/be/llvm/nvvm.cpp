@@ -15,7 +15,6 @@
 
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -33,7 +32,11 @@ NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, bool de
     }
     // nvvmir.version
     auto nvvmir_version_md = module().getOrInsertNamedMetadata("nvvmir.version");
-    llvm::Metadata* annotation_values_15[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(5)) };
+    llvm::IRBuilder<> irbuilder(context());
+    llvm::Metadata* annotation_values_15[] = {
+        llvm::ConstantAsMetadata::get(irbuilder.getInt64(1)),
+        llvm::ConstantAsMetadata::get(irbuilder.getInt64(5))
+    };
     nvvmir_version_md->addOperand(llvm::MDNode::get(context(), annotation_values_15));
 }
 
@@ -62,9 +65,14 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
 void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
     auto annotation = module().getOrInsertNamedMetadata("nvvm.annotations");
+    auto& irbuilder = *cont2llvm_[continuation]->second;
 
     const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
-        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context(), name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(val)) };
+        llvm::Metadata* annotation_values[] = {
+            llvm::ValueAsMetadata::get(target),
+            llvm::MDString::get(context(), name),
+            llvm::ConstantAsMetadata::get(irbuilder.getInt64(val))
+        };
         llvm::MDNode* result = llvm::MDNode::get(context(), annotation_values);
         annotation->addOperand(result);
         return result;
@@ -72,7 +80,7 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
-        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name().str(), 1);
+        auto global = emit_global_variable(irbuilder.getInt64Ty(), param->name(), 1);
         metadata_[param] = append_metadata(global, "texture", 1);
     };
 
@@ -111,52 +119,53 @@ llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const 
     return arg;
 }
 
-llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
+llvm::Function* NVVMCodeGen::get_texture_handle_fun(llvm::IRBuilder<>& irbuilder) {
     // %tex_ref = call i64 @llvm.nvvm.texsurf.handle.p1i64(metadata !{i64 addrspace(1)* @texture, metadata !"texture", i32 1}, i64 addrspace(1)* @texture)
     llvm::Type* types[2] = {
-            llvm::Type::getMetadataTy(context()),
-            llvm::PointerType::get(irbuilder_.getInt64Ty(), 1)
+        llvm::Type::getMetadataTy(context()),
+        llvm::PointerType::get(irbuilder.getInt64Ty(), 1)
     };
-    auto type = llvm::FunctionType::get(irbuilder_.getInt64Ty(), types, false);
+    auto type = llvm::FunctionType::get(irbuilder.getInt64Ty(), types, false);
     return llvm::cast<llvm::Function>(module().getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
 }
 
-void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuation) {
+void NVVMCodeGen::emit_function_start(Continuation* continuation) {
     if (!continuation->is_exported())
         return;
+    auto& irbuilder = *cont2llvm_[continuation]->second;
     // kernel needs special setup code for the arguments
-    auto texture_handle = get_texture_handle_fun();
+    auto texture_handle = get_texture_handle_fun(irbuilder);
     for (auto param : continuation->params()) {
         if (auto var = resolve_global_variable(param)) {
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
             llvm::Value* args[] = { llvm::MetadataAsValue::get(context(), md->second), var };
-            params_[param] = irbuilder_.CreateCall(texture_handle, args);
+            def2llvm_[param] = irbuilder.CreateCall(texture_handle, args);
         }
     }
 }
 
 llvm::Value* NVVMCodeGen::emit_global(const Global* global) {
     if (global->is_mutable())
-        WDEF(global, "NVVM: Global variable '{}' will not be synced with host", global);
+        world().wdef(global, "NVVM: Global variable '{}' will not be synced with host", global);
     return CodeGen::emit_global(global);
 }
 
-llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
+llvm::Value* NVVMCodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
     switch (resolve_addr_space(load->ptr())) {
         case AddrSpace::Texture:
-            return irbuilder_.CreateExtractValue(emit(load->ptr()), { unsigned(0) });
+            return irbuilder.CreateExtractValue(emit(load->ptr()), { unsigned(0) });
         default:
             // shared address space uses the same load functionality
-            return CodeGen::emit_load(load);
+            return CodeGen::emit_load(irbuilder, load);
     }
 }
 
-llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
+llvm::Value* NVVMCodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* store) {
     assert(resolve_addr_space(store->ptr()) != AddrSpace::Texture &&
             "Writes to textures are currently not supported");
-    return CodeGen::emit_store(store);
+    return CodeGen::emit_store(irbuilder, store);
 }
 
 static std::string get_texture_fetch_command(const Type* type) {
@@ -204,7 +213,7 @@ static std::string get_texture_fetch_constraint(const Type* type) {
     return constraint_str.str();
 }
 
-llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
+llvm::Value* NVVMCodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
     switch (resolve_addr_space(lea->ptr())) {
         case AddrSpace::Texture: {
             // sample for i32:
@@ -215,27 +224,29 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);
             llvm::Type* args[] = {
-                irbuilder_.getInt64Ty(),
-                irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
+                irbuilder.getInt64Ty(),
+                irbuilder.getInt32Ty(), irbuilder.getInt32Ty(), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
             auto type = llvm::FunctionType::get(ret_type, args, false);
             auto fetch_command = get_texture_fetch_command(ptr_ty->pointee());
             auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->pointee());
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
                 emit(lea->ptr()), emit(lea->index()),
-                irbuilder_.getInt32(0), irbuilder_.getInt32(0), irbuilder_.getInt32(0) };
-            return irbuilder_.CreateCall(get_call, values);
+                irbuilder.getInt32(0), irbuilder.getInt32(0), irbuilder.getInt32(0) };
+            return irbuilder.CreateCall(get_call, values);
         }
         default:
-            return CodeGen::emit_lea(lea);
+            return CodeGen::emit_lea(irbuilder, lea);
     }
 }
 
-Continuation* NVVMCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation); }
+Continuation* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+    return emit_reserve_shared(irbuilder, continuation);
+}
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)
-        return module().getGlobalVariable(param->name().str(), true);
+        return module().getGlobalVariable(param->name(), true);
     return nullptr;
 }
 

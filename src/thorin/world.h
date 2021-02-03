@@ -70,8 +70,8 @@ public:
 
     /// @name manage global identifier - a unique number for each Def
     //@{
-    u32 cur_gid() const { return state_.cur_gid; }
-    u32 next_gid() { return ++state_.cur_gid; }
+    //u32 cur_gid() const { return state_.cur_gid; }
+    //u32 next_gid() { return ++state_.cur_gid; }
     //@}
 
     // literals

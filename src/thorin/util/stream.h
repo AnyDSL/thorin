@@ -13,6 +13,7 @@
 
 namespace thorin {
 
+// TODO resort to std::fmt once we are switching to C++20
 class Stream {
 public:
     Stream(std::ostream& ostream = std::cout, const std::string& tab = {"    "}, size_t level = 0)
@@ -85,7 +86,7 @@ public:
     std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
 };
 
-// Maybe there is a nicer way to do this??? Probably, using C++20 requires ...
+// TODO Maybe there is a nicer way to do this??? Probably, using C++20 requires ...
 // I just want to find out whether "x->stream(s)" or "x.stream(s)" are valid expressions.
 template<class T, class = void>  struct is_streamable_ptr                                                                               : std::false_type {};
 template<class T, class = void>  struct is_streamable_ref                                                                               : std::false_type {};

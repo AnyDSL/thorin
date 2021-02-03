@@ -10,7 +10,7 @@ public:
     PartialEvaluator(World& world, bool lower2cff)
         : world_(world)
         , lower2cff_(lower2cff)
-        , boundary_(world.cur_gid())
+        , boundary_(Def::gid_counter())
     {}
 
     World& world() { return world_; }

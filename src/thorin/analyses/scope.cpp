@@ -141,16 +141,4 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
-#if 0
-std::ostream& Scope::stream(std::ostream& os) const {
-    for (auto cont : schedule(*this)) {
-    }
-
-    return os; /* TODO return schedule(*this).stream(os); */
-}
-
-void Scope::write_thorin([[maybe_unused]] const char* filename) const { /* TODO return schedule(*this).write_thorin(filename); */ }
-void Scope::thorin() const { /* TODO schedule(*this).thorin(); */ }
-#endif
-
 }

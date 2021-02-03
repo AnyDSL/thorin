@@ -1018,7 +1018,7 @@ const Def* World::cse_base(const PrimOp* primop) {
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
-        --state_.cur_gid;
+        --Def::gid_counter_;
         delete primop;
         return *i;
     }
@@ -1049,34 +1049,5 @@ void World::opt() {
     rewrite_flow_graphs(*this);
     codegen_prepare(*this);
 }
-
-/*
- * stream
- */
-
-Stream& World::stream(Stream& s) const {
-    return s;
-}
-
-#if 0
-std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
-
-    for (auto primop : primops()) {
-        if (auto global = primop->isa<Global>())
-            global->stream_assignment(os);
-    }
-
-    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
-    return os;
-}
-
-void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void World::thorin() const {
-    auto filename = name() + ".thorin";
-    write_thorin(filename.c_str());
-}
-#endif
 
 }

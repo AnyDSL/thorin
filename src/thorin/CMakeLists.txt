@@ -9,6 +9,7 @@ set(THORIN_SOURCES
     enums.h
     primop.cpp
     primop.h
+    rec_stream.cpp
     type.cpp
     type.h
     world.cpp

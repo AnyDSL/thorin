@@ -136,6 +136,8 @@ public:
     bool is_replaced() const { return substitute_ != nullptr; }
 
     Stream& stream(Stream&) const;
+    Stream& stream_let(Stream&) const;
+    static size_t gid_counter() { return gid_counter_; }
 
 private:
     const NodeTag tag_;
@@ -145,6 +147,8 @@ private:
     mutable Uses uses_;
     mutable Debug debug_;
     const size_t gid_ : sizeof(size_t) * 8 - 1;
+
+    static size_t gid_counter_;
 
 protected:
     bool contains_continuation_;
@@ -179,7 +183,10 @@ private:
     mutable const Def* def_;
 };
 
-uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
+uint64_t UseHash::hash(Use use) {
+    assert(use->gid() != uint32_t(-1));
+    return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid()));
+}
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);

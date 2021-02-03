@@ -37,11 +37,11 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/llvm/cpu.h"
-#if 0
+#include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
+#if 0
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/hls.h"
-#include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #endif
 #include "thorin/transform/codegen_prepare.h"
@@ -1458,11 +1458,12 @@ Backends::Backends(World& world, int opt, bool debug)
 
     cpu_cg = std::make_unique<CPUCodeGen>(world, opt, debug);
 
+    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
+    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
+
     // TODO
     //if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
-    //if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
     //if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
-    //if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
     //if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
 }
 

@@ -86,6 +86,11 @@ public:
     std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
 };
 
+#define THORIN_INSTANTIATE_STREAMABLE(T)                                    \
+    template<> void        Streamable<T>::write() const;                    \
+    template<> void        Streamable<T>::dump() const;                     \
+    template<> std::string Streamable<T>::to_string() const;
+
 // TODO Maybe there is a nicer way to do this??? Probably, using C++20 requires ...
 // I just want to find out whether "x->stream(s)" or "x.stream(s)" are valid expressions.
 template<class T, class = void>  struct is_streamable_ptr                                                                               : std::false_type {};

@@ -138,6 +138,8 @@ public:
     Stream& stream(Stream&) const;
     Stream& stream1(Stream&) const;
     Stream& stream_let(Stream&) const;
+    Stream& stream(Stream&, size_t max) const;
+    void dump(size_t max) const;
     static size_t gid_counter() { return gid_counter_; }
 
 private:

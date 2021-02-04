@@ -57,14 +57,38 @@ void RecStreamer::run() {
 
 //------------------------------------------------------------------------------
 
+void Def::dump(size_t max) const { Stream s(std::cout); stream(s, max).endl(); }
+
 Stream& Def::stream(Stream& s) const {
     if (isa<Param>() || is_const(this)) return stream1(s);
     return s << unique_name();
 }
 
+Stream& Def::stream(Stream& s, size_t max) const {
+    switch (max) {
+        case 0: return stream(s);
+        case 1: return stream1(s);
+        default:
+            max -= 2;
+            RecStreamer rec(s, max);
+
+            if (auto cont = isa_continuation()) {
+                rec.conts.push(cont);
+                rec.run();
+            } else {
+                rec.run(this);
+                if (max != 0) rec.run();
+            }
+
+            return s;
+    }
+}
+
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
         return s.fmt("{}[{}]", param->unique_name(), param->continuation());
+    } else if (auto cont = isa<Continuation>()) {
+        return s.fmt("{}({, })", cont->callee(), cont->args());
     } else if (auto lit = isa<PrimLit>()) {
         // print i8 as ints
         switch (lit->tag()) {
@@ -81,10 +105,10 @@ Stream& Def::stream1(Stream& s) const {
         }
     } else if (auto ass = isa<Assembly>()) {
         s.fmt("{} {} = asm \"{}\"\t\n", ass->type(), ass->unique_name(), ass->asm_template());
-        s.fmt(" : ({, })\n", ass->output_constraints());
-        s.fmt(" : ({, })\n", ass->input_constraints());
-        s.fmt(" : ({, })\n", ass->clobbers());
-        s.fmt(   "({, })\b", ass->ops());
+        s.fmt(": ({, })\n", ass->output_constraints());
+        s.fmt(": ({, })\n", ass->input_constraints());
+        s.fmt(": ({, })\n", ass->clobbers());
+        s.fmt(": ({, })\b", ass->ops());
         return s;
     } else if (auto primop = isa<PrimOp>()) {
         return s.fmt("{}({, }))", primop->op_name(), ops());
@@ -109,5 +133,7 @@ Stream& World::stream(Stream& s) const {
 
     return s.endl();
 }
+
+THORIN_INSTANTIATE_STREAMABLE(World)
 
 }

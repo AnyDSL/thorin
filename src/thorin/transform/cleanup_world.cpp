@@ -99,6 +99,7 @@ void Cleaner::eta_conversion() {
         todo = false;
         for (auto continuation : world().continuations()) {
             if (!continuation->empty()) {
+                continuation->dump(1);
                 // eat calls to known continuations that are only used once
                 while (auto callee = continuation->callee()->isa_continuation()) {
                     if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
@@ -300,6 +301,7 @@ void Cleaner::cleanup_fix_point() {
         todo_ = false;
         if (world_.is_pe_done())
             eliminate_tail_rec();
+        world_.dump();
         eta_conversion();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads

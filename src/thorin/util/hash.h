@@ -620,8 +620,6 @@ public:
         : Super(ilist)
     {}
 
-    void dump() const { stream_list(std::cout, *this, [&] (const auto& elem) { std::cout << elem; }, "{", "}\n"); }
-
     friend void swap(HashSet& s1, HashSet& s2) { swap(static_cast<Super&>(s1), static_cast<Super&>(s2)); }
 };
 
@@ -672,7 +670,7 @@ public:
     @code
         map[key] = f(args);
     @endcode
-     * If your C++ compiler chooses to @em first evaluate @c operatr[],
+     * If your C++ compiler chooses to @em first evaluate @c operator[],
      * and @em then the function call and the function call performs @p insert/erase operations, the code is broken.
      * This wrapper class catches these cases.
      * The downside is that you have to use @p operator* or @p operator-> to access the wrapped value similar to @c std::optional.

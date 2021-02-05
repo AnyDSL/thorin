@@ -1,6 +1,8 @@
 #ifndef THORIN_UTIL_ITERATOR_H
 #define THORIN_UTIL_ITERATOR_H
 
+// we can nuke this when switching to C++20's range library
+
 #include <iterator>
 #include <functional>
 

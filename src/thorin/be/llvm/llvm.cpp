@@ -1067,7 +1067,7 @@ llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* stor
     auto result = irbuilder.CreateStore(emit(store->val()), ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
     result->setAlignment(llvm::MaybeAlign(align));
-    return result;
+    return nullptr;
 }
 
 llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {

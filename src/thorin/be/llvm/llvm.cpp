@@ -916,11 +916,13 @@ llvm::Value* CodeGen::emit_(const Def* def) {
             auto tag_addr = irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(1) });
             irbuilder.CreateStore(tag_value, tag_addr);
 
-            auto payload_addr = irbuilder.CreatePointerCast(
-                irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
-                llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
-            irbuilder.CreateStore(payload_value, payload_addr);
-
+            // Do not store anything if the payload is unit
+            if (payload_value) {
+                auto payload_addr = irbuilder.CreatePointerCast(
+                    irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
+                    llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
+                irbuilder.CreateStore(payload_value, payload_addr);
+            }
             return irbuilder.CreateLoad(alloca);
         });
     }

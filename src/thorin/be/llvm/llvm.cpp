@@ -492,12 +492,12 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto callee = continuation->callee();
         bool terminated = false;
         if (auto callee_continuation = callee->isa_continuation()) {
-            if (callee_continuation->is_basicblock()) {
-                // ordinary jump
+            if (callee_continuation->is_basicblock()) { // ordinary jump
+                for (auto arg : continuation->args())
+                    emit(arg); // TODO wire phi here
                 irbuilder.CreateBr(cont2bb(callee_continuation));
                 terminated = true;
-            } else if (callee_continuation->is_intrinsic()) {
-                // intrinsic call
+            } else if (callee_continuation->is_intrinsic()) { // intrinsic call
                 auto ret_continuation = emit_intrinsic(irbuilder, continuation);
                 irbuilder.CreateBr(cont2bb(ret_continuation));
                 terminated = true;
@@ -1119,7 +1119,9 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
-    return irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
+    auto res = irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
+    if (res->getType()->isVoidTy()) return nullptr;
+    return res;
 }
 
 /*

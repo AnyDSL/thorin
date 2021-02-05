@@ -39,9 +39,9 @@ VarSet DepTree::run(Def* nom) {
 }
 
 VarSet DepTree::run(Def* cur_nom, const Def* def) {
-    if (def->is_const())                                         return {};
-    if (auto vars = def2vars_.lookup(def))                       return *vars;
-    if (auto nom    = def->isa_nom(); nom && cur_nom != nom) return run(nom);
+    if (def->is_const())                                   return {};
+    if (auto vars = def2vars_.lookup(def))                 return *vars;
+    if (auto nom  = def->isa_nom(); nom && cur_nom != nom) return run(nom);
 
     VarSet result;
     if (auto var = def->isa<Var>()) {

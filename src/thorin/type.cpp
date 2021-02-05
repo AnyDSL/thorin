@@ -147,9 +147,9 @@ Stream& Type::stream(Stream& s) const {
     } else if (auto t = isa<IndefiniteArrayType>()) {
         return s.fmt("[{}]", t->elem_type());
     } else if (auto t = isa<StructType>()) {
-        return s.fmt("struct ", t->name());
+        return s.fmt("struct {}", t->name());
     } else if (auto t = isa<VariantType>()) {
-        return s.fmt("variant ", t->name());
+        return s.fmt("variant {}", t->name());
     } else if (auto t = isa<TupleType>()) {
         return s.fmt("[{, }]", t->ops());
     } else if (auto t = isa<PtrType>()) {

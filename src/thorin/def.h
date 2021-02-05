@@ -121,7 +121,6 @@ public:
     bool contains_continuation() const { return contains_continuation_; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
-    void dump() const;
     const Uses& uses() const { return uses_; }
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
@@ -139,6 +138,7 @@ public:
     Stream& stream1(Stream&) const;
     Stream& stream_let(Stream&) const;
     Stream& stream(Stream&, size_t max) const;
+    void dump() const;
     void dump(size_t max) const;
     static size_t gid_counter() { return gid_counter_; }
 

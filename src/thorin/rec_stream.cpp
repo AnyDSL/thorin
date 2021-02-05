@@ -57,6 +57,7 @@ void RecStreamer::run() {
 
 //------------------------------------------------------------------------------
 
+void Def::dump() const { dump(0); }
 void Def::dump(size_t max) const { Stream s(std::cout); stream(s, max).endl(); }
 
 Stream& Def::stream(Stream& s) const {

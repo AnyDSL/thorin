@@ -301,7 +301,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             auto lam = nom->as<Lam>();
             assert(lam == entry_ || lam->is_basicblock());
-            irbuilder_.SetInsertPoint(bb2lam[lam]);
+            irbuilder_.SetInsertPoint(*bb2lam[lam]);
 
             for (auto def : block) {
                 if (debug)
@@ -376,8 +376,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 // TODO support switch
                 auto [f, t] = extract->tuple()->split<2>();
                 auto cond = lookup(extract->index());
-                auto tbb = bb2lam[t->as_nom<Lam>()];
-                auto fbb = bb2lam[f->as_nom<Lam>()];
+                auto tbb = *bb2lam[t->as_nom<Lam>()];
+                auto fbb = *bb2lam[f->as_nom<Lam>()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
 #if 0
             } else if (lam->body()->as<App>()->callee()->isa<Lam>() &&
@@ -400,7 +400,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (auto callee_lam = callee->isa_nom<Lam>()) {
                     if (callee_lam->is_basicblock()) {
                         // ordinary jump
-                        irbuilder_.CreateBr(bb2lam[callee_lam]);
+                        irbuilder_.CreateBr(*bb2lam[callee_lam]);
                         terminated = true;
                     }
                 }
@@ -449,9 +449,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
 
                     if (n == 0) {
-                        irbuilder_.CreateBr(bb2lam[succ]);
+                        irbuilder_.CreateBr(*bb2lam[succ]);
                     } else if (n == 1) {
-                        irbuilder_.CreateBr(bb2lam[succ]);
+                        irbuilder_.CreateBr(*bb2lam[succ]);
                         emit_result_phi(last_var, call);
                     } else {
                         Array<llvm::Value*> extracts(n);
@@ -463,7 +463,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                             j++;
                         }
 
-                        irbuilder_.CreateBr(bb2lam[succ]);
+                        irbuilder_.CreateBr(*bb2lam[succ]);
 
                         for (size_t i = 0, j = 0; i != succ->num_vars(); ++i) {
                             auto var = succ->var(i);
@@ -482,7 +482,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             if (auto phi = p.second) {
                 auto var = p.first;
                 for (auto&& p : peek(var))
-                    phi->addIncoming(lookup(p.def()), bb2lam[p.from()]);
+                    phi->addIncoming(lookup(p.def()), *bb2lam[p.from()]);
             }
         }
 
@@ -871,7 +871,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
     if (auto lam = global->init()->isa_nom<Lam>())
-        val = fcts_[lam];
+        val = *fcts_[lam];
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));

@@ -29,6 +29,8 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
+    be/f95.cpp
+    be/f95.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h

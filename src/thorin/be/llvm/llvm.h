@@ -82,20 +82,18 @@ private:
     llvm::Value* emit_(const Def*); ///< Internal wrapper for @p emit that checks and retrieves/puts the @c llvm::Value from @p def2llvm_.
     Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_intrinsic(llvm::IRBuilder<>&, Continuation*);
-#if 0
     Continuation* emit_hls(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_parallel(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_fibers(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_spawn(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_sync(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_vectorize_continuation(llvm::IRBuilder<>&, Continuation*);
-    void emit_vectorize(llvm::IRBuilder<>&, u32, llvm::Function*, llvm::CallInst*);
-#endif
     Continuation* emit_atomic(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);
     llvm::Value* emit_bitcast(llvm::IRBuilder<>&, const Def*, const Type*);
+    void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
     void emit_phi_arg(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
     World& world_;

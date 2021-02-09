@@ -39,11 +39,9 @@
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
-#if 0
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/hls.h"
 #include "thorin/be/llvm/opencl.h"
-#endif
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
 
@@ -297,14 +295,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
 
     if (debug()) dibuilder_.finalize();
 
-#if 0
 #if THORIN_ENABLE_RV
     for (auto [width, fct, call] : vec_todo_)
-        emit_vectorize(irbuilder, width, fct, call);
+        emit_vectorize(width, fct, call);
     vec_todo_.clear();
 
     rv::lowerIntrinsics(module());
-#endif
 #endif
 
 #if THORIN_ENABLE_CHECKS
@@ -1126,7 +1122,6 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
         case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
-#if 0
         case Intrinsic::HLS:         return emit_hls(irbuilder, continuation);
         case Intrinsic::Parallel:    return emit_parallel(irbuilder, continuation);
         case Intrinsic::Fibers:      return emit_fibers(irbuilder, continuation);
@@ -1136,7 +1131,6 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::Vectorize:   return emit_vectorize_continuation(irbuilder, continuation);
 #else
         case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
-#endif
 #endif
         default: THORIN_UNREACHABLE;
     }

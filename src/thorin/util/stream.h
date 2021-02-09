@@ -70,20 +70,20 @@ private:
 template<class... Args> void outf(const char* fmt, Args&&... args) { Stream(std::cout).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 template<class... Args> void errf(const char* fmt, Args&&... args) { Stream(std::cerr).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 
-template<class P>
+template<class C>
 class Streamable {
 private:
-    constexpr const P& parent() const { return *static_cast<const P*>(this); };
+    constexpr const C& child() const { return *static_cast<const C*>(this); };
 
 public:
     /// Writes to a file with name @p filename.
-    void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); parent().stream(s).endl(); }
-    /// Writes to a file named @c parent().name().
-    void write() const { write(parent().name()); }
+    void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); child().stream(s).endl(); }
+    /// Writes to a file named @c child().name().
+    void write() const { write(child().name()); }
     /// Writes to stdout.
-    void dump() const { Stream s(std::cout); parent().stream(s).endl(); }
+    void dump() const { Stream s(std::cout); child().stream(s).endl(); }
     /// Streams to string.
-    std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
+    std::string to_string() const { std::ostringstream oss; Stream s(oss); child().stream(s); return oss.str(); }
 };
 
 #define THORIN_INSTANTIATE_STREAMABLE(T)                                    \

@@ -245,7 +245,7 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
 
     // bind parameter of continuation to received handle
     auto cont = continuation->arg(SPAWN_ARG_RETURN)->as_continuation();
-    emit_result_phi(cont->param(1), call);
+    emit_phi_arg(cont->param(1), call);
     return cont;
 }
 

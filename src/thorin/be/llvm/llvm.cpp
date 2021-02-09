@@ -406,7 +406,8 @@ void CodeGen::emit(const Scope& scope) {
                 if (is_mem(param) || is_unit(param)) {
                     def2llvm_[param] = nullptr;
                 } else {
-                    auto phi = irbuilder.CreatePHI(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str());
+                    // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
+                    auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
                     def2llvm_[param] = phi;
                 }
             }
@@ -423,22 +424,10 @@ void CodeGen::emit(const Scope& scope) {
         assert(cont == entry_ || cont->is_basicblock());
         emit_epilogue(cont);
     }
-
-    // add missing arguments to phis
-    for (auto cont : conts) {
-        if (cont->intrinsic() == Intrinsic::EndScope || cont == entry_) continue;
-
-        for (auto param : cont->params()) {
-            if (auto phi = *def2llvm_[param]) {
-                for (const auto& peek : param->peek())
-                    llvm::cast<llvm::PHINode>(phi)->addIncoming(emit(peek.def()), cont2bb(peek.from()));
-            }
-        }
-    }
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
-    auto bb_ib = cont2llvm_[continuation];
+    auto&& bb_ib = cont2llvm_[continuation];
     auto bb = bb_ib->first;
     auto& irbuilder = *bb_ib->second;
 
@@ -483,8 +472,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     } else if (continuation->callee()->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
     } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
-        for (auto arg : continuation->args())
-            emit_unsafe(arg); // TODO wire phi here
+        for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
+            if (auto val = emit_unsafe(continuation->arg(i))) emit_phi_arg(irbuilder, callee->param(i), val);
+        }
         irbuilder.CreateBr(cont2bb(callee));
     } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);
@@ -535,7 +525,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             irbuilder.CreateBr(cont2bb(succ));
         } else if (n == 1) {
             irbuilder.CreateBr(cont2bb(succ));
-            emit_result_phi(irbuilder, last_param, call);
+            emit_phi_arg(irbuilder, last_param, call);
         } else {
             Array<llvm::Value*> extracts(n);
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
@@ -552,7 +542,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 auto param = succ->param(i);
                 if (is_mem(param) || is_unit(param))
                     continue;
-                emit_result_phi(irbuilder, param, extracts[j]);
+                emit_phi_arg(irbuilder, param, extracts[j]);
                 j++;
             }
         }
@@ -970,7 +960,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     THORIN_UNREACHABLE;
 }
 
-void CodeGen::emit_result_phi(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
+void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
     llvm::cast<llvm::PHINode>(*def2llvm_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
@@ -1172,7 +1162,7 @@ Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* c
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(irbuilder, cont->param(1), call);
+    emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
 
@@ -1188,7 +1178,7 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
     load->setAlignment(llvm::MaybeAlign(align));
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(irbuilder, cont->param(1), load);
+    emit_phi_arg(irbuilder, cont->param(1), load);
     return cont;
 }
 
@@ -1221,8 +1211,8 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
     auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
-    emit_result_phi(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
+    emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
+    emit_phi_arg(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
     return cont;
 }
 
@@ -1246,7 +1236,7 @@ Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const C
     std::replace(name.begin(), name.end(), '.', '_');
     auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder.CreatePointerCast(global, type);
-    emit_result_phi(irbuilder, cont->param(1), call);
+    emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
 

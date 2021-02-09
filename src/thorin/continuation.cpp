@@ -11,20 +11,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-std::vector<Param::Peek> Param::peek() const {
-    std::vector<Peek> peeks;
-    for (auto use : continuation()->uses()) {
-        if (auto pred = use->isa_continuation()) {
-            if (use.index() == 0)
-                peeks.emplace_back(pred->arg(index()), pred);
-        }
-    }
-
-    return peeks;
-}
-
-//------------------------------------------------------------------------------
-
 const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
 }

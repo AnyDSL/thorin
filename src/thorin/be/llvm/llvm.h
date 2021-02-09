@@ -96,7 +96,7 @@ private:
     Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);
     llvm::Value* emit_bitcast(llvm::IRBuilder<>&, const Def*, const Type*);
-    void emit_result_phi(llvm::IRBuilder<>&, const Param*, llvm::Value*);
+    void emit_phi_arg(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
     World& world_;
     std::unique_ptr<llvm::LLVMContext> context_;

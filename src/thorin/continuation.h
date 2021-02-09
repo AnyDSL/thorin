@@ -31,25 +31,8 @@ private:
     {}
 
 public:
-    class Peek {
-    public:
-        Peek() {}
-        Peek(const Def* def, Continuation* from)
-            : def_(def)
-            , from_(from)
-        {}
-
-        const Def* def() const { return def_; }
-        Continuation* from() const { return from_; }
-
-    private:
-        const Def* def_;
-        Continuation* from_;
-    };
-
     Continuation* continuation() const { return continuation_; }
     size_t index() const { return index_; }
-    std::vector<Peek> peek() const;
 
 private:
     Continuation* const continuation_;

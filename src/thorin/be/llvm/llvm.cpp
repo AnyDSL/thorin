@@ -443,32 +443,26 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     auto& irbuilder = *bb_ib->second;
 
     if (continuation->callee() == entry_->ret_param()) { // return
-        size_t num_args = continuation->num_args();
-        if (num_args == 0) irbuilder.CreateRetVoid();
-        else {
-            Array<llvm::Value*> values(num_args);
-            Array<llvm::Type*> args(num_args);
+        std::vector<llvm::Value*> values;
+        std::vector<llvm::Type *> types;
 
-            size_t n = 0;
-            for (auto arg : continuation->args()) {
-                if (auto val = emit_unsafe(arg)) {
-                    values[n] = val;
-                    args[n++] = val->getType();
-                }
+        for (auto arg : continuation->args()) {
+            if (auto val = emit_unsafe(arg)) {
+                values.emplace_back(val);
+                types.emplace_back(val->getType());
             }
+        }
 
-            if (n == 0) irbuilder.CreateRetVoid();
-            else if (n == 1) irbuilder.CreateRet(values[0]);
-            else {
-                values.shrink(n);
-                args.shrink(n);
-                llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), llvm_ref(args)));
+        switch (values.size()) {
+            case 0:  irbuilder.CreateRetVoid();      break;
+            case 1:  irbuilder.CreateRet(values[0]); break;
+            default:
+                llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), types));
 
-                for (size_t i = 0; i != n; ++i)
+                for (size_t i = 0, e = values.size(); i != e; ++i)
                     agg = irbuilder.CreateInsertValue(agg, values[i], { unsigned(i) });
 
                 irbuilder.CreateRet(agg);
-            }
         }
     } else if (continuation->callee() == world().branch()) {
         auto cond = emit(continuation->arg(0));
@@ -1094,6 +1088,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     emit_unsafe(assembly->mem());
     auto out_type = assembly->type();
     llvm::Type* res_type;
+    bool mem_only = false;
 
     if (out_type->isa<TupleType>()) {
         if (out_type->num_ops() == 2)
@@ -1102,6 +1097,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
             res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
     } else {
         res_type = llvm::Type::getVoidTy(context());
+        mem_only = true;
     }
 
     size_t num_inputs = assembly->num_inputs();
@@ -1130,7 +1126,9 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
-    return irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
+    auto res = irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
+
+    return mem_only ? nullptr : res;
 }
 
 /*

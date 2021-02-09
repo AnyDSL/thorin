@@ -357,13 +357,13 @@ void CodeGen::emit(const Scope& scope) {
 
     llvm::DIScope* discope = dicompile_unit_;
     if (debug()) {
-        auto src_file = llvm::sys::path::filename(entry_->debug().loc.file);
-        auto src_dir = llvm::sys::path::parent_path(entry_->debug().loc.file);
+        auto src_file = llvm::sys::path::filename(entry_->loc().file);
+        auto src_dir = llvm::sys::path::parent_path(entry_->loc().file);
         auto difile = dibuilder_.createFile(src_file, src_dir);
         auto disub_program = dibuilder_.createFunction(
-            discope, fct->getName(), fct->getName(), difile, entry_->debug().loc.begin.row,
+            discope, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
             dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-            entry_->debug().loc.begin.row,
+            entry_->loc().begin.row,
             llvm::DINode::FlagPrototyped,
             llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
         fct->setSubprogram(disub_program);
@@ -383,7 +383,7 @@ void CodeGen::emit(const Scope& scope) {
         auto& irbuilder = *i->second.second;
         irbuilder.SetInsertPoint(bb);
         if (debug())
-            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->debug().loc.begin.row, cont->debug().loc.begin.row, discope));
+            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope));
 
         if (entry_ == cont) {
             auto arg = fct->arg_begin();
@@ -593,7 +593,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 
     // TODO
     //if (debug())
-        //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->debug().loc.begin.row, def->debug().loc.begin.row, discope));
+        //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->loc().begin.row, def->loc().begin.row, discope));
 
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
@@ -967,7 +967,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world_.literal_pu32(i, vector->debug().loc)));
+            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world_.literal_pu32(i, vector->loc())));
 
         return vec;
     }

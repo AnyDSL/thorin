@@ -80,8 +80,8 @@ private:
 
 // TODO
 Stream& CCodeGen::emit_debug_info(const Def* /*def*/) {
-    //if (debug_ && !def->debug().loc.file.empty())
-        //return streamf(func_impl_, "#line {} \"{}\"", def->debug().loc.begin.row, def->debug().loc.file) << endl;
+    //if (debug_ && !def->loc().file.empty())
+        //return streamf(func_impl_, "#line {} \"{}\"", def->loc().begin.row, def->loc().file) << endl;
     return func_impl_;
 }
 

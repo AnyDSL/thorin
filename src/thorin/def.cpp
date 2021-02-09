@@ -25,7 +25,7 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(unique_name(), debug().loc) : debug();
+    return world().track_history() ? Debug(unique_name(), loc()) : debug();
 #else
     return debug();
 #endif

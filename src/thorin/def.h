@@ -108,11 +108,17 @@ protected:
 
 public:
     NodeTag tag() const { return tag_; }
-    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
-    Debug debug_history() const;
+
+    /// @name Debug
+    //@{
     Debug debug() const { return debug_; }
+    /// In Debug build if @c World::enable_history is @c true, this thing keeps the @p gid to track a history of @p gid%s.
+    Debug debug_history() const;
     std::string name() const { return debug().name; }
+    Loc loc() const { return debug().loc; }
     void set_name(const std::string&) const;
+    //@}
+
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);

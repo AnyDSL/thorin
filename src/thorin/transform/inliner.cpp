@@ -29,7 +29,7 @@ void force_inline(Scope& scope, int threshold) {
         auto continuation = n->continuation();
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (!callee->empty() && !scope.contains(callee))
-                scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->debug().loc, scope.entry());
+                scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
         }
     }
 }

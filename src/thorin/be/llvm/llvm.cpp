@@ -837,10 +837,12 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        if (is_mem(aggop)) return nullptr;
-
-        auto llvm_agg = emit(aggop->agg());
+        auto llvm_agg = emit_unsafe(aggop->agg());
         auto llvm_idx = emit(aggop->index());
+
+        bool mem = false;
+        if (auto tt = aggop->agg()->type()->isa<TupleType>(); tt && tt->op(0)->isa<MemType>()) mem = true;
+
         auto copy_to_alloca = [&] () {
             world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto alloca = emit_alloca(irbuilder, llvm_agg->getType(), aggop->name());
@@ -861,27 +863,28 @@ llvm::Value* CodeGen::emit_(const Def* def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
-            // Assemblys with more than two outputs are MemOps and have tuple type
-            // and thus need their own rule here because the standard MemOp rule does not work
-            if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
-                    return irbuilder.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
-            }
-
-            if (auto memop = extract->agg()->isa<MemOp>())
-                return emit(memop);
-
             if (aggop->agg()->type()->isa<ArrayType>())
                 return irbuilder.CreateLoad(copy_to_alloca_or_global());
 
             if (extract->agg()->type()->isa<VectorType>())
                 return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
+
             // tuple/struct
-            return irbuilder.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
+            if (is_mem(extract)) return nullptr;
+
+            unsigned offset = 0;
+            if (mem) {
+                if (aggop->agg()->type()->num_ops() == 2) return llvm_agg;
+                offset = 1;
+            }
+
+            return irbuilder.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - offset});
         }
 
         auto insert = def->as<Insert>();
         auto value = emit(insert->value());
+
+        // TODO deal with mem - but I think for now this case shouldn't happen
 
         if (insert->agg()->type()->isa<ArrayType>()) {
             auto p = copy_to_alloca();
@@ -1127,10 +1130,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
-    auto res = irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
-    // TODO
-    if (res->getType()->isVoidTy()) return nullptr;
-    return res;
+    return irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
 /*

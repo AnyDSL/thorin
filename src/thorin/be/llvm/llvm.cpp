@@ -451,7 +451,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
             size_t n = 0;
             for (auto arg : continuation->args()) {
-                if (auto val = emit(arg)) {
+                if (auto val = emit_unsafe(arg)) {
                     values[n] = val;
                     args[n++] = val->getType();
                 }
@@ -494,7 +494,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         if (auto callee_continuation = callee->isa_continuation()) {
             if (callee_continuation->is_basicblock()) { // ordinary jump
                 for (auto arg : continuation->args())
-                    emit(arg); // TODO wire phi here
+                    emit_unsafe(arg); // TODO wire phi here
                 irbuilder.CreateBr(cont2bb(callee_continuation));
                 terminated = true;
             } else if (callee_continuation->is_intrinsic()) { // intrinsic call
@@ -511,7 +511,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             const Def* ret_arg = nullptr;
             for (auto arg : continuation->args()) {
                 if (arg->order() == 0) {
-                    if (auto val = emit(arg))
+                    if (auto val = emit_unsafe(arg))
                         args.push_back(val);
                 } else {
                     assert(!ret_arg);
@@ -579,15 +579,21 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
-llvm::Value* CodeGen::emit(const Def* def) {
+llvm::Value* CodeGen::emit_unsafe(const Def* def) {
+    if (auto llvm = def2llvm_.lookup(def)) return *llvm;
+    if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
+
     auto llvm = emit_(def);
     return def2llvm_[def] = llvm;
 }
 
-llvm::Value* CodeGen::emit_(const Def* def) {
-    if (auto llvm = def2llvm_.lookup(def)) return *llvm;
-    if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
+llvm::Value* CodeGen::emit(const Def* def) {
+    auto res = emit_unsafe(def);
+    assert(res);
+    return res;
+}
 
+llvm::Value* CodeGen::emit_(const Def* def) {
     auto place = is_const(def) ? entry_ : scheduler_.smart(def);
     auto& irbuilder = *cont2llvm_[place]->second;
 
@@ -951,7 +957,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
         return llvm::UndefValue::get(convert(bottom->type()));
 
     if (auto alloc = def->isa<Alloc>()) {
-        emit(alloc->mem());
+        emit_unsafe(alloc->mem());
         return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
     }
 
@@ -1055,7 +1061,7 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
 }
 
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
-    emit(load->mem());
+    emit_unsafe(load->mem());
     auto ptr = emit(load->ptr());
     auto result = irbuilder.CreateLoad(ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
@@ -1064,7 +1070,7 @@ llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) 
 }
 
 llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* store) {
-    emit(store->mem());
+    emit_unsafe(store->mem());
     auto ptr = emit(store->ptr());
     auto result = irbuilder.CreateStore(emit(store->val()), ptr);
     auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
@@ -1082,7 +1088,7 @@ llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
 }
 
 llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
-    emit(assembly->mem());
+    emit_unsafe(assembly->mem());
     auto out_type = assembly->type();
     llvm::Type* res_type;
 
@@ -1122,6 +1128,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
     auto res = irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
+    // TODO
     if (res->getType()->isVoidTy()) return nullptr;
     return res;
 }

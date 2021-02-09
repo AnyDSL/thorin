@@ -50,8 +50,8 @@ protected:
 
     void emit(const Scope&);
     void emit_epilogue(Continuation*);
-    llvm::Value* emit(const Def*);
-    llvm::Value* emit_(const Def*);
+    llvm::Value* emit(const Def* def);          ///< Recursively emits code. @c mem -typed @p def%s return @c nullptr - this variant asserts in this case.
+    llvm::Value* emit_unsafe(const Def* def);   ///< As above but returning @c nullptr is permitted.
     llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);
     llvm::Value*      emit_alloc (llvm::IRBuilder<>&, const Type*, const Def*);
     virtual llvm::Function* emit_function_decl(Continuation*);
@@ -79,6 +79,7 @@ protected:
     llvm::Value* create_tmp_alloca(llvm::IRBuilder<>&, llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 
 private:
+    llvm::Value* emit_(const Def*); ///< Internal wrapper for @p emit that checks and retrieves/puts the @c llvm::Value from @p def2llvm_.
     Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_intrinsic(llvm::IRBuilder<>&, Continuation*);
 #if 0

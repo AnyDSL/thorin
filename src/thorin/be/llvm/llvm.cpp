@@ -482,89 +482,78 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
     } else if (continuation->callee()->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
-    } else {
-        auto callee = continuation->callee();
-        bool terminated = false;
-        if (auto callee_continuation = callee->isa_continuation()) {
-            if (callee_continuation->is_basicblock()) { // ordinary jump
-                for (auto arg : continuation->args())
-                    emit_unsafe(arg); // TODO wire phi here
-                irbuilder.CreateBr(cont2bb(callee_continuation));
-                terminated = true;
-            } else if (callee_continuation->is_intrinsic()) { // intrinsic call
-                auto ret_continuation = emit_intrinsic(irbuilder, continuation);
-                irbuilder.CreateBr(cont2bb(ret_continuation));
-                terminated = true;
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+        for (auto arg : continuation->args())
+            emit_unsafe(arg); // TODO wire phi here
+        irbuilder.CreateBr(cont2bb(callee));
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+        auto ret_continuation = emit_intrinsic(irbuilder, continuation);
+        irbuilder.CreateBr(cont2bb(ret_continuation));
+    } else { // function/closure call
+        // put all first-order args into an array
+        std::vector<llvm::Value*> args;
+        const Def* ret_arg = nullptr;
+        for (auto arg : continuation->args()) {
+            if (arg->order() == 0) {
+                if (auto val = emit_unsafe(arg))
+                    args.push_back(val);
+            } else {
+                assert(!ret_arg);
+                ret_arg = arg;
             }
         }
 
-        // function/closure call
-        if (!terminated) {
-            // put all first-order args into an array
-            std::vector<llvm::Value*> args;
-            const Def* ret_arg = nullptr;
-            for (auto arg : continuation->args()) {
-                if (arg->order() == 0) {
-                    if (auto val = emit_unsafe(arg))
-                        args.push_back(val);
-                } else {
-                    assert(!ret_arg);
-                    ret_arg = arg;
-                }
-            }
+        llvm::CallInst* call = nullptr;
+        if (auto callee = continuation->callee()->isa_continuation()) {
+            call = irbuilder.CreateCall(emit(callee), args);
+            if (callee->is_exported())
+                call->setCallingConv(kernel_calling_convention_);
+            else if (callee->cc() == CC::Device)
+                call->setCallingConv(device_calling_convention_);
+            else
+                call->setCallingConv(function_calling_convention_);
+        } else {
+            // must be a closure
+            auto closure = emit(callee);
+            args.push_back(irbuilder.CreateExtractValue(closure, 1));
+            call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
+        }
 
-            llvm::CallInst* call = nullptr;
-            if (auto callee_continuation = callee->isa_continuation()) {
-                call = irbuilder.CreateCall(emit(callee_continuation), args);
-                if (callee_continuation->is_exported())
-                    call->setCallingConv(kernel_calling_convention_);
-                else if (callee_continuation->cc() == CC::Device)
-                    call->setCallingConv(device_calling_convention_);
-                else
-                    call->setCallingConv(function_calling_convention_);
-            } else {
-                // must be a closure
-                auto closure = emit(callee);
-                args.push_back(irbuilder.CreateExtractValue(closure, 1));
-                call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
-            }
+        // must be call + continuation --- call + return has been removed by codegen_prepare
+        auto succ = ret_arg->as_continuation();
 
-            // must be call + continuation --- call + return has been removed by codegen_prepare
-            auto succ = ret_arg->as_continuation();
+        size_t n = 0;
+        const Param* last_param = nullptr;
+        for (auto param : succ->params()) {
+            if (is_mem(param) || is_unit(param))
+                continue;
+            last_param = param;
+            n++;
+        }
 
-            size_t n = 0;
-            const Param* last_param = nullptr;
-            for (auto param : succ->params()) {
+        if (n == 0) {
+            irbuilder.CreateBr(cont2bb(succ));
+        } else if (n == 1) {
+            irbuilder.CreateBr(cont2bb(succ));
+            emit_result_phi(irbuilder, last_param, call);
+        } else {
+            Array<llvm::Value*> extracts(n);
+            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                auto param = succ->param(i);
                 if (is_mem(param) || is_unit(param))
                     continue;
-                last_param = param;
-                n++;
+                extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
+                j++;
             }
 
-            if (n == 0) {
-                irbuilder.CreateBr(cont2bb(succ));
-            } else if (n == 1) {
-                irbuilder.CreateBr(cont2bb(succ));
-                emit_result_phi(irbuilder, last_param, call);
-            } else {
-                Array<llvm::Value*> extracts(n);
-                for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                    auto param = succ->param(i);
-                    if (is_mem(param) || is_unit(param))
-                        continue;
-                    extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
-                    j++;
-                }
+            irbuilder.CreateBr(cont2bb(succ));
 
-                irbuilder.CreateBr(cont2bb(succ));
-
-                for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                    auto param = succ->param(i);
-                    if (is_mem(param) || is_unit(param))
-                        continue;
-                    emit_result_phi(irbuilder, param, extracts[j]);
-                    j++;
-                }
+            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                auto param = succ->param(i);
+                if (is_mem(param) || is_unit(param))
+                    continue;
+                emit_result_phi(irbuilder, param, extracts[j]);
+                j++;
             }
         }
     }

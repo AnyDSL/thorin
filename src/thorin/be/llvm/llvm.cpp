@@ -874,21 +874,21 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto variant_extract = def->isa<VariantExtract>()) {
         auto variant_value = variant_extract->op(0);
         auto llvm_value    = emit(variant_value);
-        auto payload_value = irbuilder.CreateExtractValue(llvm_value, { 0 });
+        auto target_type   = variant_value->type()->op(variant_extract->index());
+        if (is_type_unit(target_type))
+            return nullptr;
 
-        auto target_type = convert(variant_value->type()->op(variant_extract->index()));
+        auto payload_value = irbuilder.CreateExtractValue(llvm_value, { 0 });
         return create_tmp_alloca(irbuilder, payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
             irbuilder.CreateStore(payload_value, alloca);
             auto addr_space = alloca->getType()->getPointerAddressSpace();
-            auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
+            auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(convert(target_type), addr_space));
             return irbuilder.CreateLoad(payload_addr);
         });
     }
     if (auto variant_ctor = def->isa<Variant>()) {
         auto llvm_type = convert(variant_ctor->type());
-
         auto tag_value = irbuilder.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
-        auto payload_value = emit(variant_ctor->op(0));
 
         return create_tmp_alloca(irbuilder, llvm_type, [&] (llvm::AllocaInst* alloca) {
             auto tag_addr = irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(1) });
@@ -896,6 +896,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 
             // Do not store anything if the payload is unit
             if (!is_type_unit(variant_ctor->op(0)->type())) {
+                auto payload_value = emit_unsafe(variant_ctor->op(0));
                 auto payload_addr = irbuilder.CreatePointerCast(
                     irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
                     llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));

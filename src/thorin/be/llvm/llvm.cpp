@@ -896,7 +896,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 
             // Do not store anything if the payload is unit
             if (!is_type_unit(variant_ctor->op(0)->type())) {
-                auto payload_value = emit_unsafe(variant_ctor->op(0));
+                auto payload_value = emit(variant_ctor->op(0));
                 auto payload_addr = irbuilder.CreatePointerCast(
                     irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
                     llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));

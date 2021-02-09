@@ -1235,6 +1235,27 @@ Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const C
 }
 
 /*
+ * backend-specific stuff
+ */
+
+Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    std::vector<llvm::Value*> args(continuation->num_args()-3);
+    Continuation* ret = nullptr;
+    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
+        if (auto cont = continuation->arg(i)->isa_continuation()) {
+            ret = cont;
+            continue;
+        }
+        args[j++] = emit(continuation->arg(i));
+    }
+    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
+    callee->make_exported();
+    irbuilder.CreateCall(emit_function_decl(callee), args);
+    assert(ret);
+    return ret;
+}
+
+/*
  * helpers
  */
 

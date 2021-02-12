@@ -41,7 +41,10 @@ else()
     message(STATUS "Building without LLVM and RV. Specify LLVM_DIR to compile with LLVM.")
 endif()
 
-find_package(SPIRV-Headers)
+if (SPIRV_ENABLED)
+    find_package(SPIRV-Headers REQUIRED)
+    message(STATUS "Enabled SPIR-V backend")
+endif()
 
 message(STATUS "Using Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "Using Release flags: ${CMAKE_CXX_FLAGS_RELEASE}")

@@ -10,9 +10,10 @@ public:
     SpirVCodeGen(World& world);
 
     void emit();
-
 protected:
     World& world_;
+
+    void emit(const Scope& scope);
 };
 
 }

@@ -104,6 +104,13 @@ if(LLVM_FOUND)
     )
 endif()
 
+if(SPIRV_ENABLED)
+    list(APPEND THORIN_SOURCES
+        be/spirv/spirv.cpp
+        be/spirv/spirv.h
+    )
+endif()
+
 add_library(thorin ${THORIN_SOURCES})
 
 if(LLVM_FOUND)

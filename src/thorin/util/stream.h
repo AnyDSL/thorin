@@ -54,9 +54,13 @@ public:
      @endcode
      * Finally, you can use @c '\n', '\t', and '\b' to @p endl, @p indent, or @p dedent, respectively.
      */
-    template<class T, class... Args>
-    Stream& fmt(const char* s, T&& t, Args&&... args);
     Stream& fmt(const char* s); ///< Base case.
+    template<class T, class... Args> Stream& fmt(const char* s, T&& t, Args&&... args);
+    template<class R, class F, bool rangei = false> Stream& range(const R& r, const char* sep, F f);
+    template<class R, class F, bool rangei = false> Stream& range(const R& r, F f) { return range(r, ", ", f); }
+    template<class R, class F> Stream& rangei(const R& r, const char* sep, F f) { return range<R, F, true>(r, sep, f); }
+    template<class R, class F> Stream& rangei(const R& r, F f) { return range<R, F, true>(r, ", ", f); }
+    template<class R> Stream& range(const R& r, const char* sep = ", ") { return range(r, sep, [&](const auto& x) { (*this) << x; }); }
     //@}
 
 private:
@@ -123,17 +127,7 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
             assert(*s == '}' && "unmatched closing brace '}' in format string");
 
             if constexpr (is_range_v<T>) {
-                const char* cur_sep = "";
-                for (const auto& elem : t) {
-                    for (auto i = cur_sep; *i != '\0'; ++i) {
-                        if (*i == '\n')
-                            this->endl();
-                        else
-                            (*this) << *i;
-                    }
-                    (*this) << elem;
-                    cur_sep = spec.c_str();
-                }
+                range(t, spec.c_str());
             } else {
                 (*this) << t;
             }
@@ -149,6 +143,27 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     }
 
     assert(false && "invalid format string for 's'");
+}
+
+template<class R, class F, bool rangei = false>
+Stream& Stream::range(const R& r, const char* sep, F f) {
+    const char* cur_sep = "";
+    size_t j = 0;
+    for (const auto& elem : r) {
+        for (auto i = cur_sep; *i != '\0'; ++i) {
+            if (*i == '\n')
+                this->endl();
+            else
+                (*this) << *i;
+        }
+        if constexpr (rangei) {
+            f(j++);
+        } else {
+            f(elem);
+        }
+        cur_sep = sep;
+    }
+    return *this;
 }
 
 #ifdef NDEBUG

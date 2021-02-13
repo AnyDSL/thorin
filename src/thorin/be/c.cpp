@@ -359,22 +359,16 @@ Stream& CCodeGen::emit_temporaries(const Def* /*def*/) {
 }
 
 void CCodeGen::emit() {
-#if 0
     if (lang_==Lang::CUDA) {
-        func_decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
-        func_decls_ << "__device__ inline int threadIdx_y() { return threadIdx.y; }" << endl;
-        func_decls_ << "__device__ inline int threadIdx_z() { return threadIdx.z; }" << endl;
-        func_decls_ << "__device__ inline int blockIdx_x() { return blockIdx.x; }" << endl;
-        func_decls_ << "__device__ inline int blockIdx_y() { return blockIdx.y; }" << endl;
-        func_decls_ << "__device__ inline int blockIdx_z() { return blockIdx.z; }" << endl;
-        func_decls_ << "__device__ inline int blockDim_x() { return blockDim.x; }" << endl;
-        func_decls_ << "__device__ inline int blockDim_y() { return blockDim.y; }" << endl;
-        func_decls_ << "__device__ inline int blockDim_z() { return blockDim.z; }" << endl;
-        func_decls_ << "__device__ inline int gridDim_x() { return gridDim.x; }" << endl;
-        func_decls_ << "__device__ inline int gridDim_y() { return gridDim.y; }" << endl;
-        func_decls_ << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
+        for (auto x : std::array<char, 3>{'x', 'y', 'z'}) {
+            func_decls_.fmt("__device__ inline int threadIdx_{}() { return threadIdx.{}; }\n", x, x);
+            func_decls_.fmt("__device__ inline int blockIdx_{}() { return blockIdx.{}; }\n", x, x);
+            func_decls_.fmt("__device__ inline int blockDim_{}() { return blockDim.{}; }\n", x, x);
+            func_decls_.fmt("__device__ inline int gridDim_{}() { return gridDim.{}; }\n", x, x);
+        }
     }
 
+#if 0
     // emit all globals
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
@@ -563,19 +557,19 @@ void CCodeGen::emit() {
             }
         }
 
-        for (auto continuation : conts) {
-            if (continuation->empty()) continue;
+        for (auto cont : conts) {
+            if (cont->empty()) continue;
 
-            assert(continuation == scope.entry() || continuation->is_basicblock());
+            assert(cont == scope.entry() || cont->is_basicblock());
             func_impl_ << endl;
 
             // print label for the current basic block
-            if (continuation != scope.entry()) {
-                func_impl_ << "l" << continuation->gid() << ": ;" << up << endl;
+            if (cont != scope.entry()) {
+                func_impl_.fmt("l{};\t\n",  cont->gid());
                 // load params from phi node
-                for (auto param : continuation->params())
+                for (auto param : cont->params())
                     if (!is_mem(param) && !is_unit(param))
-                        func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
+                        func_impl_.fmt("{} = p{};\n", param->unique_name());
             }
 
             // TODO rewrite and merge with LLVM backend
@@ -608,19 +602,19 @@ void CCodeGen::emit() {
 #endif
 
             // emit definitions for temporaries
-            for (auto arg : continuation->args())
+            for (auto arg : cont->args())
                 emit_temporaries(arg);
 
             // terminate bb
-            if (continuation->callee() == ret_param) { // return
-                size_t num_args = continuation->num_args();
+            if (cont->callee() == ret_param) { // return
+                size_t num_args = cont->num_args();
                 if (num_args == 0) func_impl_ << "return ;";
                 else {
                     Array<const Def*> values(num_args);
                     Array<const Type*> types(num_args);
 
                     size_t n = 0;
-                    for (auto arg : continuation->args()) {
+                    for (auto arg : cont->args()) {
                         if (!is_mem(arg) && !is_unit(arg)) {
                             values[n] = arg;
                             types[n] = arg->type();
@@ -635,7 +629,7 @@ void CCodeGen::emit() {
                     } else {
                         types.shrink(n);
                         auto ret_type = world_.tuple_type(types);
-                        auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                        auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
                         emit_aggop_decl(ret_type);
                         emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
 
@@ -647,28 +641,23 @@ void CCodeGen::emit() {
                         func_impl_ << endl << "return " << ret_tuple_name << ";";
                     }
                 }
-            } else if (continuation->callee() == world().branch()) {
-                emit_debug_info(continuation->arg(0)); // TODO correct?
-                func_impl_ << "if (";
-                emit(continuation->arg(0));
-                func_impl_ << ") ";
-                emit(continuation->arg(1));
-                func_impl_ << " else ";
-                emit(continuation->arg(2));
-            } else if (continuation->callee()->isa<Continuation>() &&
-                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+            } else if (cont->callee() == world().branch()) {
+                emit_debug_info(cont->arg(0)); // TODO correct?
+                func_impl_.fmt("if ({}) {} else {}", wrap(cont->arg(0)), wrap(cont->arg(1)), wrap(cont->arg(2)));
+            } else if (cont->callee()->isa<cont>() &&
+                       cont->callee()->as<concont>()->intrinsic() == Intrinsic::Match) {
                 func_impl_ << "switch (";
-                emit(continuation->arg(0)) << ") {" << up << endl;
-                for (size_t i = 2; i < continuation->num_args(); i++) {
-                    auto arg = continuation->arg(i)->as<Tuple>();
+                emit(cont->arg(0)) << ") {" << up << endl;
+                for (size_t i = 2; i < cont->num_args(); i++) {
+                    auto arg = cont->arg(i)->as<Tuple>();
                     func_impl_ << "case ";
                     emit(arg->op(0)) << ": ";
                     emit(arg->op(1)) << endl;
                 }
                 func_impl_ << "default: ";
-                emit(continuation->arg(1));
+                emit(cont->arg(1));
                 func_impl_ << down << endl << "}";
-            } else if (continuation->callee()->isa<Bottom>()) {
+            } else if (cont->callee()->isa<Bottom>()) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
                 auto store_phi = [&] (const Def* param, const Def* arg) {
@@ -676,22 +665,22 @@ void CCodeGen::emit() {
                     emit(arg) << ";";
                 };
 
-                auto callee = continuation->callee()->as_continuation();
+                auto callee = cont->callee()->as_cont();
                 emit_debug_info(callee);
 
                 if (callee->is_basicblock()) {   // ordinary jump
-                    assert(callee->num_params()==continuation->num_args());
+                    assert(callee->num_params()==cont->num_args());
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                         if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
-                            store_phi(callee->param(i), continuation->arg(i));
+                            store_phi(callee->param(i), cont->arg(i));
                             func_impl_ << endl;
                         }
                     emit(callee);
                 } else {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
-                            if (!continuation->arg(1)->isa<PrimLit>())
-                                EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+                            if (!cont->arg(1)->isa<PrimLit>())
+                                EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
                                 default:                                        break;
@@ -699,11 +688,11 @@ void CCodeGen::emit() {
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
-                            auto cont = continuation->arg(2)->as_continuation();
+                            auto cont = cont->arg(2)->as_cont();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
                             auto name = "reserver_" + cont->param(1)->unique_name();
                             emit_type(func_impl_, elem_type) << " " << name << "[";
-                            emit(continuation->arg(1)) << "];" << endl;
+                            emit(cont->arg(1)) << "];" << endl;
                             // store_phi:
                             func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
                             if (lang_ == Lang::HLS)
@@ -712,24 +701,24 @@ void CCodeGen::emit() {
                                            << "#pragma HLS data_pack  variable=" << name;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
                             assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
-                            // cast to continuation to get unique name of "for index"
-                            auto body = continuation->arg(4)->as_continuation();
+                            // cast to cont to get unique name of "for index"
+                            auto body = cont->arg(4)->as_cont();
                             if (lang_ == Lang::OPENCL) {
-                                if (continuation->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
+                                if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
                                     func_impl_ << "#pragma ii ";
-                                    emit(continuation->arg(1)) << endl;
+                                    emit(cont->arg(1)) << endl;
                                 } else {
                                     func_impl_ << "#pragma ii 1"<< endl;
                                 }
                             }
                             func_impl_ << "for (i" << callee->gid() << " = ";
-                            emit(continuation->arg(2));
+                            emit(cont->arg(2));
                             func_impl_ << "; i" << callee->gid() << " < ";
-                            emit(continuation->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
+                            emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
                             if (lang_ == Lang::HLS) {
-                                if (continuation->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
+                                if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
                                     func_impl_ << "#pragma HLS PIPELINE II=";
-                                    emit(continuation->arg(1)) << endl;
+                                    emit(cont->arg(1)) << endl;
                                 } else {
                                     func_impl_ << "#pragma HLS PIPELINE"<< endl;
                                 }
@@ -738,11 +727,11 @@ void CCodeGen::emit() {
                             func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
                             emit(body);
                             // emit "continue" with according label used for goto
-                            func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}" << endl;
-                            if (continuation->arg(5) == ret_param)
+                            func_impl_ << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+                            if (cont->arg(5) == ret_param)
                                 func_impl_ << "return;" << endl;
                             else
-                                emit(continuation->arg(5));
+                                emit(cont->arg(5));
                         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
                             func_impl_ << "goto l" << callee->gid() << ";" << endl;
                         } else {
@@ -756,7 +745,7 @@ void CCodeGen::emit() {
                             func_impl_ << name << "(";
                             // emit all first-order args
                             size_t i = 0;
-                            for (auto arg : continuation->args()) {
+                            for (auto arg : cont->args()) {
                                 if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
                                     if (i++ > 0)
                                         func_impl_ << ", ";
@@ -771,15 +760,15 @@ void CCodeGen::emit() {
                         };
 
                         const Def* ret_arg = 0;
-                        for (auto arg : continuation->args()) {
+                        for (auto arg : cont->args()) {
                             if (arg->order() != 0) {
                                 assert(!ret_arg);
                                 ret_arg = arg;
                             }
                         }
 
-                        // must be call + continuation --- call + return has been removed by codegen_prepare
-                        auto succ = ret_arg->as_continuation();
+                        // must be call + cont --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_cont();
                         size_t num_params = succ->num_params();
 
                         size_t n = 0;
@@ -800,7 +789,7 @@ void CCodeGen::emit() {
                         else {
                             types.shrink(n);
                             auto ret_type = world_.tuple_type(types);
-                            auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                            auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
                             emit_aggop_decl(ret_type);
                             emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
                             emit_call();
@@ -812,7 +801,7 @@ void CCodeGen::emit() {
                     }
                 }
             }
-            if (continuation != scope.entry())
+            if (cont != scope.entry())
                 func_impl_ << down;
             primop2str_.clear();
         }
@@ -860,15 +849,15 @@ void CCodeGen::emit_c_int() {
     // Do not emit C interfaces for definitions that are not used
     world().cleanup();
 
-    for (auto continuation : world().continuations()) {
-        if (!continuation->is_imported() && !continuation->is_exported())
+    for (auto cont : world().cont()) {
+        if (!cont->is_imported() && !cont->is_exported())
             continue;
 
-        assert(continuation->is_returning());
+        assert(cont->is_returning());
 
         // retrieve return param
         const Param* ret_param = nullptr;
-        for (auto param : continuation->params()) {
+        for (auto param : cont->params()) {
             if (param->order() != 0) {
                 assert(!ret_param);
                 ret_param = param;
@@ -878,10 +867,10 @@ void CCodeGen::emit_c_int() {
 
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
         auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-        if (continuation->is_imported()) {
+        if (cont->is_imported()) {
             // only emit types
             emit_aggop_decl(ret_type);
-            for (auto param : continuation->params()) {
+            for (auto param : cont->params()) {
                 if (is_mem(param) || is_unit(param) || param->order() != 0)
                     continue;
                 emit_aggop_decl(param->type());
@@ -891,11 +880,11 @@ void CCodeGen::emit_c_int() {
 
         // emit function declaration
         emit_aggop_decl(ret_type);
-        emit_type(func_decls_, ret_type) << " " << continuation->name() << "(";
+        emit_type(func_decls_, ret_type) << " " << cont->name() << "(";
         size_t i = 0;
 
         // emit and store all first-order params
-        for (auto param : continuation->params()) {
+        for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param))
                 continue;
             if (param->order() == 0) {
@@ -991,10 +980,11 @@ Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
     return func_impl_;
 }
 
-Stream& CCodeGen::emit(const Def* /*def*/) {
-#if 0
+Stream& CCodeGen::emit(const Def* def) {
+    Stream s(std::cout); // TODO
+
     if (auto continuation = def->isa<Continuation>())
-        return func_impl_ << "goto l" << continuation->gid() << ";";
+        return func_impl_.fmt("goto l{};", continuation->gid());
 
     if (lookup(def))
         return func_impl_ << get_name(def);
@@ -1008,39 +998,40 @@ Stream& CCodeGen::emit(const Def* /*def*/) {
         // emit definitions of inlined elements
         emit_aggop_defs(bin->lhs());
         emit_aggop_defs(bin->rhs());
-        emit_type(func_impl_, bin->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << " = ";
-        emit(bin->lhs());
+        func_impl_.fmt("{} {};", wrap(bin->type()), def_name);
+
+        const char* op;
         if (auto cmp = bin->isa<Cmp>()) {
             switch (cmp->cmp_tag()) {
-                case Cmp_eq: func_impl_ << " == "; break;
-                case Cmp_ne: func_impl_ << " != "; break;
-                case Cmp_gt: func_impl_ << " > ";  break;
-                case Cmp_ge: func_impl_ << " >= "; break;
-                case Cmp_lt: func_impl_ << " < ";  break;
-                case Cmp_le: func_impl_ << " <= "; break;
+                case Cmp_eq: op = "=="; break;
+                case Cmp_ne: op = "!="; break;
+                case Cmp_gt: op = ">";  break;
+                case Cmp_ge: op = ">="; break;
+                case Cmp_lt: op = "<";  break;
+                case Cmp_le: op = "<="; break;
             }
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
             switch (arithop->arithop_tag()) {
-                case ArithOp_add: func_impl_ << " + ";  break;
-                case ArithOp_sub: func_impl_ << " - ";  break;
-                case ArithOp_mul: func_impl_ << " * ";  break;
-                case ArithOp_div: func_impl_ << " / ";  break;
-                case ArithOp_rem: func_impl_ << " % ";  break;
-                case ArithOp_and: func_impl_ << " & ";  break;
-                case ArithOp_or:  func_impl_ << " | ";  break;
-                case ArithOp_xor: func_impl_ << " ^ ";  break;
-                case ArithOp_shl: func_impl_ << " << "; break;
-                case ArithOp_shr: func_impl_ << " >> "; break;
+                case ArithOp_add: op ="+";  break;
+                case ArithOp_sub: op ="-";  break;
+                case ArithOp_mul: op ="*";  break;
+                case ArithOp_div: op ="/";  break;
+                case ArithOp_rem: op ="%";  break;
+                case ArithOp_and: op ="&";  break;
+                case ArithOp_or:  op ="|";  break;
+                case ArithOp_xor: op ="^";  break;
+                case ArithOp_shl: op ="<<"; break;
+                case ArithOp_shr: op =">>"; break;
             }
         }
-        emit(bin->rhs()) << ";";
+
         insert(def, def_name);
-        return func_impl_;
+        return func_impl_.fmt("{} = {} {} {};", wrap(bin->lhs()), op, wrap(bin->rhs()));
     }
 
+#if 0
     if (auto conv = def->isa<ConvOp>()) {
         emit_aggop_defs(conv->from());
         auto src_type = conv->from()->type();
@@ -1461,8 +1452,8 @@ Stream& CCodeGen::emit(const Def* /*def*/) {
         insert(def, def_name);
         return func_impl_;
     }
-
 #endif
+
     THORIN_UNREACHABLE;
 }
 

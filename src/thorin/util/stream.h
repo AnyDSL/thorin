@@ -54,8 +54,8 @@ public:
      @endcode
      * Finally, you can use @c '\n', '\t', and '\b' to @p endl, @p indent, or @p dedent, respectively.
      */
-    Stream& fmt(const char* s); ///< Base case.
     template<class T, class... Args> Stream& fmt(const char* s, T&& t, Args&&... args);
+    Stream& fmt(const char* s); ///< Base case.
     template<class R, class F, bool rangei = false> Stream& range(const R& r, const char* sep, F f);
     template<class R, class F, bool rangei = false> Stream& range(const R& r, F f) { return range(r, ", ", f); }
     template<class R, class F> Stream& rangei(const R& r, const char* sep, F f) { return range<R, F, true>(r, sep, f); }

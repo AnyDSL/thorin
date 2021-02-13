@@ -13,8 +13,28 @@
 #include <sstream>
 #include <type_traits>
 #include <cctype>
+#include <variant>
 
 namespace thorin {
+
+class CCodeGen;
+
+struct CEmit : public Streamable<CEmit> {
+    CEmit(CCodeGen* cg, const Def* def)
+        : cg_(cg)
+        , def_(def)
+    {}
+    CEmit(CCodeGen* cg, const Type* type)
+        : cg_(cg)
+        , def_(type)
+    {}
+
+    Stream& stream(Stream&) const;
+
+private:
+    CCodeGen* cg_;
+    std::variant<const Def*, const Type*> def_; // we can remove this variant once we nuked Type in favor of just using Def everywhere
+};
 
 class CCodeGen {
 public:
@@ -32,6 +52,12 @@ public:
     World& world() const { return world_; }
 
 private:
+    CEmit wrap(const Def* def) { return CEmit(this, def); }
+    CEmit wrap(const Type* type) { return CEmit(this, type); }
+    template<class T>
+    std::enable_if_t<!std::is_pointer_v<T>, Array<CEmit>> wrap(const T& t) {
+        return {std::distance(t.begin(), t.end(), [&](const auto& x) { return CEmit(this, x); })};
+    }
     Stream& emit_aggop_defs(const Def*);
     Stream& emit_aggop_decl(const Type*);
     Stream& emit_debug_info(const Def*);
@@ -76,7 +102,14 @@ private:
     Stream func_impl_;
     Stream func_decls_;
     Stream type_decls_;
+
+    friend class CEmit;
 };
+
+Stream& CEmit::stream(Stream& s) const {
+    if (std::holds_alternative<const Type*>(def_)) return cg_->emit_type(s, std::get<const Type*>(def_));
+    return cg_->emit(std::get<const Def*>(def_));
+}
 
 // TODO
 Stream& CCodeGen::emit_debug_info(const Def* /*def*/) {
@@ -139,98 +172,76 @@ Stream& CCodeGen::emit_string(const Global* global) {
     return type_decls_;
 }
 
-Stream& CCodeGen::emit_type(Stream& os, const Type* /*type*/) {
-    return os;
-#if 0
+Stream& CCodeGen::emit_type(Stream& s, const Type* type) {
     if (lookup(type))
-        return os << get_name(type);
+        return s << get_name(type);
 
     if (type == nullptr) {
-        return os << "NULL";
+        return s << "NULL";
     } else if (type->isa<FrameType>()) {
-        return os;
+        return s;
     } else if (type->isa<MemType>() || type == world().unit()) {
-        return os << "void";
+        return s << "void";
     } else if (type->isa<FnType>()) {
         THORIN_UNREACHABLE;
     } else if (auto tuple = type->isa<TupleType>()) {
-        os << "typedef struct {" << up;
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
-            os << endl;
-            emit_type(os, tuple->op(i)) << " e" << i << ";";
-        }
-        return os << down << endl << "} " << tuple_name(tuple) << ";";
+        s.fmt("typedef struct {{\t\n");
+        s.rangei(tuple->ops(), ";\n", [&](size_t i) { s.fmt("{} e{}", wrap(tuple->op(i)), i); });
+        return s.fmt("\b\n}} {};", tuple_name(tuple));
     } else if (auto variant = type->isa<VariantType>()) {
-        os << "typedef struct {" << up;
-        // This is required because we have zero-sized types but C/C++ do not
-        if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
-            os << endl << "union {" << up;
-            for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
-                os << endl;
-                if (!is_type_unit(variant->op(i)))
-                    emit_type(os, variant->op(i)) << " " << variant->op_name(i) << ";";
-            }
-            os << down << endl << "} data;";
-        }
-
         auto tag_type =
             variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
             variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
             variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() :
-            world_.type_qu64();
-        emit_type(os << endl, tag_type);
-        return os << " tag; " << down << endl << "} " << variant->name() << ";";
-    } else if (auto struct_type = type->isa<StructType>()) {
-        os << "typedef struct {" << up;
-        for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
-            os << endl;
-            emit_type(os, struct_type->op(i)) << " " << struct_type->op_name(i) << ";";
+                                                        world_.type_qu64();
+        s.fmt("typedef struct {{\t\n");
+        // This is required because we have zero-sized types but C/C++ do not
+        if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
+            s.fmt("union {{\t\n");
+            s.rangei(variant->ops(), "\n;", [&](size_t i) {
+                if (!is_type_unit(variant->op(i)))
+                    s.fmt("{} {}", wrap(variant->op(i)), variant->op_name(i));
+            });
+            s.fmt("\b\n}} data;");
         }
-        os << down << endl << "} " << struct_type->name() << ";";
+        s.fmt("{} tag;\n", wrap(tag_type));
+        return s.fmt("\b\n}} {};", variant->name());
+    } else if (auto struct_type = type->isa<StructType>()) {
+        s.fmt("typedef struct {{\t\n");
+        size_t i = 0;
+        s.range(struct_type->ops(), ";\n", [&](const Type* t) { s.fmt("{} e{}", wrap(t), struct_type->op_name(i)); });
+        s.fmt("\b\n}} {};", tuple_name(tuple));
+
         if (struct_type->name().str().find("channel_") != std::string::npos)
             use_channels_ = true;
-        return os;
+        return s;
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
-        emit_type(os, array->elem_type());
-        return os;
-    } else if (auto array = type->isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
-        os << "typedef struct {" << up << endl;
-        emit_type(os, array->elem_type()) << " e[" << array->dim() << "];";
-        std::stringstream elem_name;
-        emit_type(elem_name, array->elem_type());
-        auto safe_elem_name = elem_name.str();
-        for (auto& c : safe_elem_name) {
-            if (c == ' ')
-                c = '_';
-        }
-        return os << down << endl << "} " << array_name(array) << ";";
+        // TODO I'm confused by the orignal code; it just emitted the elem_type Oo
+        return s.fmt("{}[]", array->elem_type());
+    } else if (auto array = type->isa<DefiniteArrayType>()) {
+        return s.fmt("typedef struct {{\t\n{} e[{}];\b\n}} {};", wrap(array->elem_type()), array->dim(), array_name(array));
     } else if (auto ptr = type->isa<PtrType>()) {
-        emit_type(os, ptr->pointee());
-        os << '*';
-        if (ptr->is_vector())
-            os << vector_length(ptr->pointee());
-        return os;
+        // TODO vector_length - I'm pretty sure the old code was incorrect anyway
+        return s.fmt("{}*", wrap(ptr->pointee()));
     } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     os << "bool";                   break;
-            case PrimType_ps8:  case PrimType_qs8:  os << "char";                   break;
-            case PrimType_pu8:  case PrimType_qu8:  os << "unsigned char";          break;
-            case PrimType_ps16: case PrimType_qs16: os << "short";                  break;
-            case PrimType_pu16: case PrimType_qu16: os << "unsigned short";         break;
-            case PrimType_ps32: case PrimType_qs32: os << "int";                    break;
-            case PrimType_pu32: case PrimType_qu32: os << "unsigned int";           break;
-            case PrimType_ps64: case PrimType_qs64: os << "long";                   break;
-            case PrimType_pu64: case PrimType_qu64: os << "unsigned long";          break;
-            case PrimType_pf16: case PrimType_qf16: os << "half";   use_16_ = true; break;
-            case PrimType_pf32: case PrimType_qf32: os << "float";                  break;
-            case PrimType_pf64: case PrimType_qf64: os << "double"; use_64_ = true; break;
+            case PrimType_bool:                     s << "bool";                   break;
+            case PrimType_ps8:  case PrimType_qs8:  s << "char";                   break;
+            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";          break;
+            case PrimType_ps16: case PrimType_qs16: s << "short";                  break;
+            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";         break;
+            case PrimType_ps32: case PrimType_qs32: s << "int";                    break;
+            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";           break;
+            case PrimType_ps64: case PrimType_qs64: s << "long";                   break;
+            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";          break;
+            case PrimType_pf16: case PrimType_qf16: s << "half";   use_16_ = true; break;
+            case PrimType_pf32: case PrimType_qf32: s << "float";                  break;
+            case PrimType_pf64: case PrimType_qf64: s << "double"; use_64_ = true; break;
         }
-        if (primtype->is_vector())
-            os << primtype->length();
-        return os;
+        // TODO vector_length - I'm pretty sure the old code was incorrect anyway
+        return s;
     }
     THORIN_UNREACHABLE;
-#endif
 }
 
 Stream& CCodeGen::emit_aggop_defs(const Def* /*def*/) {

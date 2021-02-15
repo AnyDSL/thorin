@@ -15,7 +15,7 @@
 #include <cctype>
 #include <variant>
 
-namespace thorin::c_be {
+namespace thorin::c {
 
 class CCodeGen;
 

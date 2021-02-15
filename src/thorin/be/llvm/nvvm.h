@@ -7,7 +7,9 @@ namespace thorin {
 
 class Load;
 
-namespace llvm_be {
+namespace llvm {
+
+namespace llvm = ::llvm;
 
 class NVVMCodeGen : public CodeGen {
 public:

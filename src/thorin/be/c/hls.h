@@ -3,7 +3,7 @@
 
 #include "c.h"
 
-namespace thorin::c_be {
+namespace thorin::c {
 
 class HLSCodeGen : public CodeGen {
 public:

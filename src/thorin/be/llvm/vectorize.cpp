@@ -36,7 +36,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
-namespace thorin::llvm_be {
+namespace thorin::llvm {
 
 struct VectorizeArgs {
     enum {

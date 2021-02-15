@@ -38,7 +38,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 
-namespace thorin::llvm_be {
+namespace thorin::llvm {
 
 CodeGen::CodeGen(World& world,
                  llvm::CallingConv::ID function_calling_convention,

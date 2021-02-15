@@ -179,16 +179,16 @@ Backends::Backends(World& world, int opt, bool debug)
     }
 
 #ifdef THORIN_ENABLE_LLVM
-    cpu_cg = std::make_unique<llvm_be::CPUCodeGen>(world, opt, debug);
+    cpu_cg = std::make_unique<llvm::CPUCodeGen>(world, opt, debug);
 
-    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<llvm_be::NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
-    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<llvm_be::AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
+    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<llvm::NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
+    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<llvm::AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
 #else
     // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
 #endif
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<c_be::CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<c_be::OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<c_be::HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
+    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<c::CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
+    if (!opencl.world().empty()) opencl_cg = std::make_unique<c::OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
+    if (!hls.   world().empty()) hls_cg    = std::make_unique<c::HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

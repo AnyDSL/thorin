@@ -10,7 +10,7 @@ namespace thorin {
 
 class World;
 
-namespace c_be {
+namespace c {
 
 enum class Lang : uint8_t {
     C99,        ///< Flag for C99

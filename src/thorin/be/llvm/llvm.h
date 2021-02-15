@@ -18,7 +18,9 @@ namespace thorin {
 
 class World;
 
-namespace llvm_be {
+namespace llvm {
+
+namespace llvm = ::llvm;
 
 class CodeGen : public thorin::CodeGen {
 protected:

@@ -119,9 +119,9 @@ Backends::Backends(World& world, int opt, bool debug)
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
                     return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
-                            it_config->op(0)->as<PrimLit>()->qu32_value().data(),
-                            it_config->op(1)->as<PrimLit>()->qu32_value().data(),
-                            it_config->op(2)->as<PrimLit>()->qu32_value().data()
+                        it_config->op(0)->as<PrimLit>()->qu32_value().data(),
+                        it_config->op(1)->as<PrimLit>()->qu32_value().data(),
+                        it_config->op(2)->as<PrimLit>()->qu32_value().data()
                     }, has_restrict);
                 }
                 return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);

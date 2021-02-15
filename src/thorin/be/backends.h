@@ -48,6 +48,8 @@ struct Backends {
 
     /// Backends that need GPUKernelConfig
     static constexpr auto gpu_compute_backends = { Cuda, NVVM, OpenCL, AMDGPU };
+
+    static constexpr std::array<const char*, BackendCount> backends_extensions = { ".cu", ".nvvm", ".cl", ".amdgpu", ".hls" };
 private:
     std::vector<Importer> importers_;
 };

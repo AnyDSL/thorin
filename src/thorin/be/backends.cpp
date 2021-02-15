@@ -2,7 +2,7 @@
 
 #include "thorin/analyses/scope.h"
 
-#ifdef THORIN_ENABLE_LLVM
+#if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
@@ -165,7 +165,7 @@ Backends::Backends(World& world, int opt, bool debug)
         get_kernel_configs(importers_[HLS], kernels, kernel_config, get_hls_config);
     }
 
-#ifdef THORIN_ENABLE_LLVM
+#if THORIN_ENABLE_LLVM
     cpu_cg = std::make_unique<llvm::CPUCodeGen>(world, opt, debug);
 
     if (!importers_[NVVM  ].world().empty()) device_cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);

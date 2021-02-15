@@ -99,7 +99,7 @@ Backends::Backends(World& world, int opt, bool debug)
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : gpu_compute_backends) {
+    for (auto backend : std::array { Cuda, NVVM, OpenCL, AMDGPU }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 // determine whether or not this kernel uses restrict pointers

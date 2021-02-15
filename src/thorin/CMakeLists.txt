@@ -32,12 +32,6 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c/c.cpp
     be/c/c.h
-    be/c/cuda.cpp
-    be/c/cuda.h
-    be/c/hls.cpp
-    be/c/hls.h
-    be/c/opencl.cpp
-    be/c/opencl.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h

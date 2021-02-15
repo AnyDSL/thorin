@@ -7,9 +7,7 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
 #endif
-#include "thorin/be/c/cuda.h"
-#include "thorin/be/c/hls.h"
-#include "thorin/be/c/opencl.h"
+#include "thorin/be/c/c.h"
 
 namespace thorin {
 
@@ -186,9 +184,9 @@ Backends::Backends(World& world, int opt, bool debug)
 #else
     // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
 #endif
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<c::CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<c::OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<c::HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
+    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<c::CodeGen>(cuda  .world(), kernel_config, c::Lang::CUDA  , debug);
+    if (!opencl.world().empty()) opencl_cg = std::make_unique<c::CodeGen>(opencl.world(), kernel_config, c::Lang::OPENCL, debug);
+    if (!hls.   world().empty()) hls_cg    = std::make_unique<c::CodeGen>(hls   .world(), kernel_config, c::Lang::HLS   , debug);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

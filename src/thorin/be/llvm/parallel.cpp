@@ -1,6 +1,6 @@
 #include "thorin/be/llvm/llvm.h"
 
-namespace thorin::llvm_be {
+namespace thorin::llvm {
 
 enum {
     PAR_ARG_MEM,

@@ -3,7 +3,7 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
 
-namespace thorin::llvm_be {
+namespace thorin::llvm {
 
 AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::AMDGPU_KERNEL, opt, debug)

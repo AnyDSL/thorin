@@ -8,7 +8,9 @@
 
 #include "thorin/world.h"
 
-namespace thorin::llvm_be {
+namespace thorin::llvm {
+
+namespace llvm = ::llvm;
 
 class CodeGen;
 

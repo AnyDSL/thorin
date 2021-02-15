@@ -879,7 +879,7 @@ const Def* World::hlt(const Def* def, Debug dbg) {
 const Def* World::known(const Def* def, Debug dbg) {
     if (is_pe_done() || def->isa<Hlt>())
         return literal_bool(false, dbg);
-    if (is_const(def))
+    if (def->dep() == Dep::Bot)
         return literal_bool(true, dbg);
     return cse(new Known(def, dbg));
 }

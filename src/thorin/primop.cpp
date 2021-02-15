@@ -103,7 +103,7 @@ Global::Global(const Def* init, bool is_mutable, Debug dbg)
     : PrimOp(Node_Global, init->type()->table().ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
-    assert(is_const(init));
+    assert(init->dep() == Dep::Bot);
 }
 
 Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg)

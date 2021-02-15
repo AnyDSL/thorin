@@ -563,7 +563,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 }
 
 llvm::Value* CodeGen::emit_(const Def* def) {
-    auto place = is_const(def) ? entry_ : scheduler_.smart(def);
+    auto place = def->dep() == Dep::Bot ? entry_ : scheduler_.smart(def);
     auto& irbuilder = *cont2llvm_[place]->second;
 
     // TODO

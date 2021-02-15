@@ -110,7 +110,6 @@ private:
         , attributes_(attributes)
     {
         params_.reserve(fn->num_ops());
-        contains_continuation_ = true;
     }
     virtual ~Continuation() { for (auto param : params()) delete param; }
 

@@ -20,7 +20,10 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
-    , contains_continuation_(false)
+    , dep_( tag == Node_Continuation ? unsigned(Dep::Cont)  :
+            tag == Node_Param        ? unsigned(Dep::Param) :
+            tag == Node_Hlt          ? unsigned(Dep::Param) :
+                                       unsigned(Dep::Bot))
 {}
 
 Debug Def::debug_history() const {
@@ -37,7 +40,7 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    contains_continuation_ |= def->contains_continuation();
+    dep_ |= def->dep();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
@@ -72,24 +75,6 @@ std::string Def::unique_name() const {
 
 bool is_unit(const Def* def) {
     return def->type() == def->world().unit();
-}
-
-bool is_const(const Def* def) {
-    unique_stack<DefSet> stack;
-    stack.push(def);
-
-    while (!stack.empty()) {
-        auto def = stack.pop();
-        if (def->isa<Continuation>()) return false;
-        if (def->isa<Param>()) return false;
-        if (def->isa<Hlt>()) return false;
-        if (def->isa<PrimOp>()) {
-            for (auto op : def->ops())
-                stack.push(op);
-        }
-    }
-
-    return true;
 }
 
 size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }

@@ -1464,7 +1464,7 @@ bool CCodeGen::lookup(const Type* type) {
 bool CCodeGen::lookup(const Def* def) {
     if (def->isa<Global>())
         return global2str_.contains(def);
-    else if (def->isa<PrimOp>() && is_const(def))
+    else if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
         return primop2str_.contains(def);
     else
         return def2str_.contains(def);
@@ -1477,14 +1477,14 @@ std::string& CCodeGen::get_name(const Type* type) {
 std::string& CCodeGen::get_name(const Def* def) {
     if (def->isa<Global>())
         return *global2str_[def];
-    else if (def->isa<PrimOp>() && is_const(def))
+    else if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
         return *primop2str_[def];
     else
         return *def2str_[def];
 }
 
 const std::string CCodeGen::var_name(const Def* def) {
-    if (def->isa<PrimOp>() && is_const(def))
+    if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
         return def->unique_name() + "_" + std::to_string(primop_counter++);
     else
         return def->unique_name();
@@ -1506,7 +1506,7 @@ void CCodeGen::insert(const Type* type, std::string str) {
 void CCodeGen::insert(const Def* def, std::string str) {
     if (def->isa<Global>())
         global2str_[def] = str;
-    else if (def->isa<PrimOp>() && is_const(def))
+    else if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
         primop2str_[def] = str;
     else
         def2str_[def] = str;

@@ -1549,8 +1549,9 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug) {
-    CCodeGen(world, kernel_config, stream, lang, debug).emit();
+void CodeGen::emit(std::ostream &stream) {
+    Stream s(stream);
+    CCodeGen(world(), kernel_config_, s, lang_, debug_).emit();
 }
 
 void emit_c_int(World& world, Stream& stream) {

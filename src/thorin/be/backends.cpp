@@ -171,9 +171,8 @@ Backends::Backends(World& world, int opt, bool debug)
 #else
     // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
 #endif
-    if (!importers_[Cuda  ].world().empty()) device_cgs[Cuda  ] = std::make_unique<c::CodeGen>(importers_[Cuda  ].world(), kernel_config, c::Lang::CUDA  , debug);
-    if (!importers_[OpenCL].world().empty()) device_cgs[OpenCL] = std::make_unique<c::CodeGen>(importers_[OpenCL].world(), kernel_config, c::Lang::OPENCL, debug);
-    if (!importers_[HLS   ].world().empty()) device_cgs[HLS   ] = std::make_unique<c::CodeGen>(importers_[HLS   ].world(), kernel_config, c::Lang::HLS   , debug);
+    for (auto [backend, lang] : std::array { std::pair { Cuda, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
+        if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

@@ -72,18 +72,25 @@ static uint64_t get_alloc_size(const Def* def) {
 }
 
 Backends::Backends(World& world, int opt, bool debug)
-    : device_cgs({})
+    : device_cgs {}
 {
-    for (int backend = 0; backend < BackendCount; backend++)
+    for (size_t i = 0; i < device_cgs.size(); ++i)
         importers_.emplace_back(world);
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-        for (int backend = 0; backend <= BackendCount; backend++) {
-            if (backend == BackendCount) return;
-            if (is_passed_to_intrinsic(continuation, Intrinsic(int(Intrinsic::AcceleratorBegin) + backend))) {
+
+        static const auto backend_intrinsics = std::array {
+            std::pair { CUDA,   Intrinsic::CUDA   },
+            std::pair { NVVM,   Intrinsic::NVVM   },
+            std::pair { OpenCL, Intrinsic::OpenCL },
+            std::pair { AMDGPU, Intrinsic::AMDGPU },
+            std::pair { HLS,    Intrinsic::HLS    }
+        };
+        for (auto [backend, intrinsic] : backend_intrinsics) {
+            if (is_passed_to_intrinsic(continuation, intrinsic)) {
                 imported = importers_[backend].import(continuation)->as_continuation();
                 break;
             }
@@ -99,7 +106,7 @@ Backends::Backends(World& world, int opt, bool debug)
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { Cuda, NVVM, OpenCL, AMDGPU }) {
+    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 // determine whether or not this kernel uses restrict pointers
@@ -171,7 +178,7 @@ Backends::Backends(World& world, int opt, bool debug)
 #else
     // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
 #endif
-    for (auto [backend, lang] : std::array { std::pair { Cuda, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
+    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
 }
 

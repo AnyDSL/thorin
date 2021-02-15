@@ -45,8 +45,6 @@ struct Backends {
 
     enum { Cuda, NVVM, OpenCL, AMDGPU, HLS, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> device_cgs;
-
-    static constexpr const char* file_exts[] = { ".cu", ".nvvm", ".cl", ".amdgpu", ".hls" };
 private:
     std::vector<Importer> importers_;
 };

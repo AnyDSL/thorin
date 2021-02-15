@@ -41,20 +41,12 @@ struct Backends {
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
-    // TODO use arrays + loops for this
-    Importer cuda;
-    Importer nvvm;
-    Importer opencl;
-    Importer amdgpu;
-    Importer hls;
-
-    // TODO use arrays + loops for this
     std::unique_ptr<CodeGen> cpu_cg;
-    std::unique_ptr<CodeGen> cuda_cg;
-    std::unique_ptr<CodeGen> nvvm_cg;
-    std::unique_ptr<CodeGen> opencl_cg;
-    std::unique_ptr<CodeGen> amdgpu_cg;
-    std::unique_ptr<CodeGen> hls_cg;
+
+    enum { Cuda, NVVM, OpenCL, AMDGPU, HLS, BackendCount };
+    std::array<std::unique_ptr<CodeGen>, BackendCount> device_cgs;
+private:
+    std::vector<Importer> importers_;
 };
 
 }

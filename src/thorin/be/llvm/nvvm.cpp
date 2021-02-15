@@ -16,7 +16,7 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, 0, debug)

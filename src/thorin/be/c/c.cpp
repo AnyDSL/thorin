@@ -7,7 +7,7 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/stream.h"
-#include "thorin/be/c.h"
+#include "c.h"
 
 #include <cmath>
 #include <sstream>
@@ -15,7 +15,7 @@
 #include <cctype>
 #include <variant>
 
-namespace thorin {
+namespace thorin::c_be {
 
 class CCodeGen;
 

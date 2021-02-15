@@ -13,7 +13,7 @@
 #include "thorin/be/llvm/llvm.h"
 #include "thorin/be/llvm/runtime.inc"
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 Runtime::Runtime(llvm::LLVMContext& context,
                  llvm::Module& target)

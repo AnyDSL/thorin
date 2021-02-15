@@ -1,22 +1,21 @@
-#include "thorin/be/llvm/opencl.h"
+#include "opencl.h"
 
 #include <fstream>
 #include <stdexcept>
 
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/be/c.h"
+#include "thorin/be/c/c.h"
 
-
-namespace thorin {
+namespace thorin::c_be {
 
 OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
+    : CodeGen(world, debug)
     , kernel_config_(kernel_config)
 {}
 
 void OpenCLCodeGen::emit(std::ostream& stream) {
-    thorin::emit_c(world(), kernel_config_, stream, Lang::OPENCL, debug());
+    emit_c(world(), kernel_config_, stream, Lang::OPENCL, debug());
 }
 
 }

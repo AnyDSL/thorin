@@ -30,8 +30,8 @@ set(THORIN_SOURCES
     analyses/scope.h
     analyses/verify.cpp
     analyses/verify.h
-    be/c.cpp
-    be/c.h
+    be/c/c.cpp
+    be/c/c.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h
@@ -82,7 +82,9 @@ set(THORIN_SOURCES
     util/symbol.h
     util/types.h
     util/utility.h
-)
+    be/backends.cpp
+    be/backends.h
+    )
 
 if(LLVM_FOUND)
     list(APPEND THORIN_SOURCES
@@ -98,8 +100,8 @@ if(LLVM_FOUND)
         be/llvm/amdgpu.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
-        #be/llvm/opencl.cpp
-        #be/llvm/opencl.h
+            be/c/opencl.cpp
+            be/c/opencl.h
         be/llvm/parallel.cpp
         be/llvm/runtime.inc
         be/llvm/runtime.cpp

@@ -7,6 +7,8 @@ namespace thorin {
 
 class Load;
 
+namespace llvm_be {
+
 class NVVMCodeGen : public CodeGen {
 public:
     NVVMCodeGen(World& world, const Cont2Config&, bool debug); // NVVM-specific optimizations are run in the runtime
@@ -34,6 +36,8 @@ private:
     const Cont2Config& kernel_config_;
     ParamMap<llvm::MDNode*> metadata_;
 };
+
+}
 
 }
 

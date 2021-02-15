@@ -4,12 +4,13 @@
 #include <cstdint>
 #include <iostream>
 
-#include "thorin/world.h"
 #include "thorin/be/kernel_config.h"
 
 namespace thorin {
 
 class World;
+
+namespace c_be {
 
 enum class Lang : uint8_t {
     C99,        ///< Flag for C99
@@ -19,7 +20,9 @@ enum class Lang : uint8_t {
 };
 
 void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);
-void emit_c_int(World&, std::ostream& stream);
+void emit_c_int(World&, Stream& stream);
+
+}
 
 }
 

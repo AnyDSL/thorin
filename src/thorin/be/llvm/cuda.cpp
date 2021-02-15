@@ -7,7 +7,7 @@
 #include "thorin/world.h"
 #include "thorin/be/c.h"
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 CUDACodeGen::CUDACodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)

@@ -3,7 +3,7 @@
 
 #include "thorin/be/llvm/llvm.h"
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 class HLSCodeGen : public CodeGen {
 public:

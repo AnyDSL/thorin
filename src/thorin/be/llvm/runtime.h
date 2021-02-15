@@ -8,21 +8,9 @@
 
 #include "thorin/world.h"
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 class CodeGen;
-
-struct LaunchArgs {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
-};
 
 class Runtime {
 public:

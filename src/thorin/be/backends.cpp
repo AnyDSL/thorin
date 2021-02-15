@@ -99,40 +99,35 @@ Backends::Backends(World& world, int opt, bool debug)
         kernels.emplace_back(continuation);
     });
 
-    // get the GPU kernel configurations
-    if (!importers_[Cuda  ].world().empty() ||
-        !importers_[NVVM  ].world().empty() ||
-        !importers_[OpenCL].world().empty() ||
-        !importers_[AMDGPU].world().empty()) {
-        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
-            // determine whether or not this kernel uses restrict pointers
-            bool has_restrict = true;
-            DefSet allocs;
-            for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
-                auto arg = use->arg(i);
-                if (!arg->type()->isa<PtrType>()) continue;
-                auto alloc = get_alloc_call(arg);
-                if (!alloc) has_restrict = false;
-                auto p = allocs.insert(alloc);
-                has_restrict &= p.second;
-            }
+    for (auto backend : gpu_compute_backends) {
+        if (!importers_[backend].world().empty()) {
+            auto get_gpu_config = [&](Continuation *use, Continuation * /* imported */) {
+                // determine whether or not this kernel uses restrict pointers
+                bool has_restrict = true;
+                DefSet allocs;
+                for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
+                    auto arg = use->arg(i);
+                    if (!arg->type()->isa<PtrType>()) continue;
+                    auto alloc = get_alloc_call(arg);
+                    if (!alloc) has_restrict = false;
+                    auto p = allocs.insert(alloc);
+                    has_restrict &= p.second;
+                }
 
-            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
-            if (it_config->op(0)->isa<PrimLit>() &&
-                it_config->op(1)->isa<PrimLit>() &&
-                it_config->op(2)->isa<PrimLit>()) {
-                return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> {
-                it_config->op(0)->as<PrimLit>()->qu32_value().data(),
-                it_config->op(1)->as<PrimLit>()->qu32_value().data(),
-                it_config->op(2)->as<PrimLit>()->qu32_value().data()
-                }, has_restrict);
-            }
-            return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);
-        };
-        get_kernel_configs(importers_[Cuda  ], kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(importers_[NVVM  ], kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(importers_[OpenCL], kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(importers_[AMDGPU], kernels, kernel_config, get_gpu_config);
+                auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+                if (it_config->op(0)->isa<PrimLit>() &&
+                    it_config->op(1)->isa<PrimLit>() &&
+                    it_config->op(2)->isa<PrimLit>()) {
+                    return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
+                            it_config->op(0)->as<PrimLit>()->qu32_value().data(),
+                            it_config->op(1)->as<PrimLit>()->qu32_value().data(),
+                            it_config->op(2)->as<PrimLit>()->qu32_value().data()
+                    }, has_restrict);
+                }
+                return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
+            };
+            get_kernel_configs(importers_[backend], kernels, kernel_config, get_gpu_config);
+        }
     }
 
     // get the HLS kernel configurations

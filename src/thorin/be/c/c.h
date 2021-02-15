@@ -22,10 +22,11 @@ enum class Lang : uint8_t {
 class CodeGen : public thorin::CodeGen {
 public:
     CodeGen(World& world, const Cont2Config& kernel_config, Lang lang, bool debug)
-    : thorin::CodeGen(world, debug)
-    , kernel_config_(kernel_config)
-    , lang_(lang)
-    , debug_(debug) {}
+        : thorin::CodeGen(world, debug)
+        , kernel_config_(kernel_config)
+        , lang_(lang)
+        , debug_(debug)
+    {}
 
     void emit(std::ostream& stream) override;
 

@@ -72,11 +72,11 @@ static uint64_t get_alloc_size(const Def* def) {
 }
 
 Backends::Backends(World& world, int opt, bool debug)
-: cuda(world)
-, nvvm(world)
-, opencl(world)
-, amdgpu(world)
-, hls(world)
+    : cuda(world)
+    , nvvm(world)
+    , opencl(world)
+    , amdgpu(world)
+    , hls(world)
 {
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
@@ -190,8 +190,8 @@ Backends::Backends(World& world, int opt, bool debug)
 }
 
 CodeGen::CodeGen(World& world, bool debug)
-: world_(world)
-, debug_(debug)
+    : world_(world)
+    , debug_(debug)
 {}
 
 }

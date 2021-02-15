@@ -72,28 +72,22 @@ static uint64_t get_alloc_size(const Def* def) {
 }
 
 Backends::Backends(World& world, int opt, bool debug)
-    : cuda(world)
-    , nvvm(world)
-    , opencl(world)
-    , amdgpu(world)
-    , hls(world)
+    : device_cgs({})
 {
+    for (int backend = 0; backend < BackendCount; backend++)
+        importers_.emplace_back(world);
+
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-        if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
-            imported = cuda.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
-            imported = nvvm.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
-            imported = opencl.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
-            imported = amdgpu.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS))
-            imported = hls.import(continuation)->as_continuation();
-        else
-            return;
+        for (int backend = 0; backend <= BackendCount; backend++) {
+            if (backend == BackendCount) return;
+            if (is_passed_to_intrinsic(continuation, Intrinsic(int(Intrinsic::AcceleratorBegin) + backend))) {
+                imported = importers_[backend].import(continuation)->as_continuation();
+                break;
+            }
+        }
 
         imported->set_name(continuation->unique_name());
         imported->make_exported();
@@ -106,10 +100,10 @@ Backends::Backends(World& world, int opt, bool debug)
     });
 
     // get the GPU kernel configurations
-    if (!cuda.world().empty()   ||
-        !nvvm.world().empty()   ||
-        !opencl.world().empty() ||
-        !amdgpu.world().empty()) {
+    if (!importers_[Cuda  ].world().empty() ||
+        !importers_[NVVM  ].world().empty() ||
+        !importers_[OpenCL].world().empty() ||
+        !importers_[AMDGPU].world().empty()) {
         auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
             // determine whether or not this kernel uses restrict pointers
             bool has_restrict = true;
@@ -135,14 +129,14 @@ Backends::Backends(World& world, int opt, bool debug)
             }
             return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);
         };
-        get_kernel_configs(cuda,   kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(nvvm,   kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(opencl, kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(amdgpu, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(importers_[Cuda  ], kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(importers_[NVVM  ], kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(importers_[OpenCL], kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(importers_[AMDGPU], kernels, kernel_config, get_gpu_config);
     }
 
     // get the HLS kernel configurations
-    if (!hls.world().empty()) {
+    if (!importers_[HLS].world().empty()) {
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
@@ -173,20 +167,20 @@ Backends::Backends(World& world, int opt, bool debug)
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         };
-        get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
+        get_kernel_configs(importers_[HLS], kernels, kernel_config, get_hls_config);
     }
 
 #ifdef THORIN_ENABLE_LLVM
     cpu_cg = std::make_unique<llvm::CPUCodeGen>(world, opt, debug);
 
-    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<llvm::NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
-    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<llvm::AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
+    if (!importers_[NVVM  ].world().empty()) device_cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
+    if (!importers_[AMDGPU].world().empty()) device_cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
     // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
 #endif
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<c::CodeGen>(cuda  .world(), kernel_config, c::Lang::CUDA  , debug);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<c::CodeGen>(opencl.world(), kernel_config, c::Lang::OPENCL, debug);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<c::CodeGen>(hls   .world(), kernel_config, c::Lang::HLS   , debug);
+    if (!importers_[Cuda  ].world().empty()) device_cgs[Cuda  ] = std::make_unique<c::CodeGen>(importers_[Cuda  ].world(), kernel_config, c::Lang::CUDA  , debug);
+    if (!importers_[OpenCL].world().empty()) device_cgs[OpenCL] = std::make_unique<c::CodeGen>(importers_[OpenCL].world(), kernel_config, c::Lang::OPENCL, debug);
+    if (!importers_[HLS   ].world().empty()) device_cgs[HLS   ] = std::make_unique<c::CodeGen>(importers_[HLS   ].world(), kernel_config, c::Lang::HLS   , debug);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

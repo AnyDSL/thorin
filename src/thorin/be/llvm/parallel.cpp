@@ -1,6 +1,6 @@
 #include "thorin/be/llvm/llvm.h"
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 enum {
     PAR_ARG_MEM,
@@ -31,7 +31,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.tuple_type(continuation->arg_fn_type()->ops().skip_front(PAR_NUM_ARGS)));
+    auto closure_type = convert(world().tuple_type(continuation->arg_fn_type()->ops().skip_front(PAR_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -119,7 +119,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.tuple_type(continuation->arg_fn_type()->ops().skip_front(FIB_NUM_ARGS)));
+    auto closure_type = convert(world().tuple_type(continuation->arg_fn_type()->ops().skip_front(FIB_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -195,7 +195,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.tuple_type(continuation->arg_fn_type()->ops().skip_front(SPAWN_NUM_ARGS)));
+    auto closure_type = convert(world().tuple_type(continuation->arg_fn_type()->ops().skip_front(SPAWN_NUM_ARGS)));
     llvm::Value* closure = nullptr;
     if (closure_type->isStructTy()) {
         closure = llvm::UndefValue::get(closure_type);

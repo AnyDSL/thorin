@@ -9,6 +9,7 @@
 #include "thorin/config.h"
 #include "thorin/continuation.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/be/backends.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
 #include "thorin/transform/importer.h"
@@ -17,7 +18,9 @@ namespace thorin {
 
 class World;
 
-class CodeGen {
+namespace llvm_be {
+
+class CodeGen : public thorin::CodeGen {
 protected:
     CodeGen(World& world,
             llvm::CallingConv::ID function_calling_convention,
@@ -29,15 +32,13 @@ public:
 
     /// @name getters
     //@{
-    World& world() const { return world_; }
     llvm::LLVMContext& context() { return *context_; }
     llvm::Module& module() { return *module_; }
     const llvm::Module& module() const { return *module_; }
-    virtual void emit(std::ostream& stream);
     int opt() const { return opt_; }
-    bool debug() const { return debug_; }
     //@}
 
+    void emit(std::ostream& stream) override;
     std::unique_ptr<llvm::Module>& emit();
 
 protected:
@@ -96,11 +97,9 @@ private:
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
     void emit_phi_arg(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
-    World& world_;
     std::unique_ptr<llvm::LLVMContext> context_;
     std::unique_ptr<llvm::Module> module_;
     int opt_;
-    bool debug_;
 
 protected:
     std::unique_ptr<llvm::TargetMachine> machine_;
@@ -128,27 +127,7 @@ protected:
 template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
-struct Backends {
-    Backends(World& world, int opt, bool debug);
-
-    Cont2Config kernel_config;
-    std::vector<Continuation*> kernels;
-
-    // TODO use arrays + loops for this
-    Importer cuda;
-    Importer nvvm;
-    Importer opencl;
-    Importer amdgpu;
-    Importer hls;
-
-    // TODO use arrays + loops for this
-    std::unique_ptr<CodeGen> cpu_cg;
-    std::unique_ptr<CodeGen> cuda_cg;
-    std::unique_ptr<CodeGen> nvvm_cg;
-    std::unique_ptr<CodeGen> opencl_cg;
-    std::unique_ptr<CodeGen> amdgpu_cg;
-    std::unique_ptr<CodeGen> hls_cg;
-};
+} // namespace llvm_be
 
 } // namespace thorin
 

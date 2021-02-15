@@ -8,7 +8,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 
-namespace thorin {
+namespace thorin::llvm_be {
 
 CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)

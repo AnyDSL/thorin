@@ -7,6 +7,8 @@ namespace thorin {
 
 class Load;
 
+namespace llvm_be {
+
 class AMDGPUCodeGen : public CodeGen {
 public:
     AMDGPUCodeGen(World& world, const Cont2Config&, int opt, bool debug);
@@ -20,6 +22,8 @@ protected:
 
     const Cont2Config& kernel_config_;
 };
+
+}
 
 }
 

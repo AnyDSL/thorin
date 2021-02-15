@@ -101,7 +101,7 @@ Backends::Backends(World& world, int opt, bool debug)
 
     for (auto backend : gpu_compute_backends) {
         if (!importers_[backend].world().empty()) {
-            auto get_gpu_config = [&](Continuation *use, Continuation * /* imported */) {
+            get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
                 DefSet allocs;
@@ -125,14 +125,13 @@ Backends::Backends(World& world, int opt, bool debug)
                     }, has_restrict);
                 }
                 return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
-            };
-            get_kernel_configs(importers_[backend], kernels, kernel_config, get_gpu_config);
+            });
         }
     }
 
     // get the HLS kernel configurations
     if (!importers_[HLS].world().empty()) {
-        auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
+        get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
                 auto arg = use->arg(i);
@@ -161,8 +160,7 @@ Backends::Backends(World& world, int opt, bool debug)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
-        };
-        get_kernel_configs(importers_[HLS], kernels, kernel_config, get_hls_config);
+        });
     }
 
 #if THORIN_ENABLE_LLVM

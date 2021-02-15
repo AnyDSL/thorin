@@ -32,6 +32,12 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c/c.cpp
     be/c/c.h
+    be/c/cuda.cpp
+    be/c/cuda.h
+    be/c/hls.cpp
+    be/c/hls.h
+    be/c/opencl.cpp
+    be/c/opencl.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h
@@ -90,18 +96,12 @@ if(LLVM_FOUND)
     list(APPEND THORIN_SOURCES
         be/llvm/cpu.cpp
         be/llvm/cpu.h
-        #be/llvm/cuda.cpp
-        #be/llvm/cuda.h
-        #be/llvm/hls.cpp
-        #be/llvm/hls.h
         be/llvm/llvm.cpp
         be/llvm/llvm.h
         be/llvm/amdgpu.cpp
         be/llvm/amdgpu.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
-            be/c/opencl.cpp
-            be/c/opencl.h
         be/llvm/parallel.cpp
         be/llvm/runtime.inc
         be/llvm/runtime.cpp

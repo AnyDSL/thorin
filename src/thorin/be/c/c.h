@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "thorin/be/kernel_config.h"
+#include "thorin/be/backends.h"
 
 namespace thorin {
 
@@ -19,7 +19,22 @@ enum class Lang : uint8_t {
     OPENCL      ///< Flag for OpenCL
 };
 
-void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);
+class CodeGen : public thorin::CodeGen {
+public:
+    CodeGen(World& world, const Cont2Config& kernel_config, Lang lang, bool debug)
+    : thorin::CodeGen(world, debug)
+    , kernel_config_(kernel_config)
+    , lang_(lang)
+    , debug_(debug) {}
+
+    void emit(std::ostream& stream) override;
+
+private:
+    const Cont2Config& kernel_config_;
+    Lang lang_;
+    bool debug_;
+};
+
 void emit_c_int(World&, Stream& stream);
 
 }

@@ -58,7 +58,7 @@ static bool can_split(const Slot* slot) {
     // only accept LEAs with constant indices and loads and stores
     for (auto use : slot->uses()) {
         if (auto lea = use->isa<LEA>()) {
-            if (lea->index()->dep() != Dep::Bot)
+            if (lea->index()->has_dep(Dep::Param))
                 return false;
         } else if (!use->isa<Store>() && !use->isa<Load>()) {
             return false;

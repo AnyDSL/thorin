@@ -129,6 +129,7 @@ public:
     //@}
 
     unsigned dep() const { return dep_; }
+    bool has_dep(unsigned dep) const { return (dep_ & dep) != 0; }
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);

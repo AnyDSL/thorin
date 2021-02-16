@@ -1457,6 +1457,10 @@ Stream& CCodeGen::emit(const Def* def) {
     THORIN_UNREACHABLE;
 }
 
+static inline bool is_const_primop(const Def* def) {
+    return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
+}
+
 bool CCodeGen::lookup(const Type* type) {
     return type2str_.contains(type);
 }
@@ -1464,7 +1468,7 @@ bool CCodeGen::lookup(const Type* type) {
 bool CCodeGen::lookup(const Def* def) {
     if (def->isa<Global>())
         return global2str_.contains(def);
-    else if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
+    else if (is_const_primop(def))
         return primop2str_.contains(def);
     else
         return def2str_.contains(def);
@@ -1477,18 +1481,19 @@ std::string& CCodeGen::get_name(const Type* type) {
 std::string& CCodeGen::get_name(const Def* def) {
     if (def->isa<Global>())
         return *global2str_[def];
-    else if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
+    else if (is_const_primop(def))
         return *primop2str_[def];
     else
         return *def2str_[def];
 }
 
 const std::string CCodeGen::var_name(const Def* def) {
-    if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
+    if (is_const_primop(def))
         return def->unique_name() + "_" + std::to_string(primop_counter++);
     else
         return def->unique_name();
 }
+
 const std::string CCodeGen::get_lang() const {
     switch (lang_) {
         default:
@@ -1506,7 +1511,7 @@ void CCodeGen::insert(const Type* type, std::string str) {
 void CCodeGen::insert(const Def* def, std::string str) {
     if (def->isa<Global>())
         global2str_[def] = str;
-    else if (def->isa<PrimOp>() && def->dep() == Dep::Bot)
+    else if (is_const_primop(def))
         primop2str_[def] = str;
     else
         def2str_[def] = str;

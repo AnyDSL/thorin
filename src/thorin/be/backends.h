@@ -43,7 +43,7 @@ struct Backends {
 
     std::unique_ptr<CodeGen> cpu_cg;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, BackendCount };
+    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, VkCompute, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> device_cgs;
 private:
     std::vector<Importer> importers_;

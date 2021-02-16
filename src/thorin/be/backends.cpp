@@ -7,6 +7,9 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
 #endif
+#if THORIN_ENABLE_SPIRV
+#include "thorin/be/spirv/spirv.h"
+#endif
 #include "thorin/be/c/c.h"
 
 namespace thorin {
@@ -83,11 +86,12 @@ Backends::Backends(World& world, int opt, bool debug)
         Continuation* imported = nullptr;
 
         static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,   Intrinsic::CUDA   },
-            std::pair { NVVM,   Intrinsic::NVVM   },
-            std::pair { OpenCL, Intrinsic::OpenCL },
-            std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    }
+            std::pair { CUDA,      Intrinsic::CUDA      },
+            std::pair { NVVM,      Intrinsic::NVVM      },
+            std::pair { OpenCL,    Intrinsic::OpenCL    },
+            std::pair { AMDGPU,    Intrinsic::AMDGPU    },
+            std::pair { HLS,       Intrinsic::HLS       },
+            std::pair { VkCompute, Intrinsic::VkCompute }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -180,6 +184,9 @@ Backends::Backends(World& world, int opt, bool debug)
     if (!importers_[AMDGPU].world().empty()) device_cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
     // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
+#endif
+#if THORIN_ENABLE_SPIRV
+    if (!importers_[VkCompute].world().empty()) device_cgs[VkCompute] = std::make_unique<spirv::CodeGen>(importers_[VkCompute].world(), kernel_config, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);

@@ -4,16 +4,15 @@
 #include <spirv/unified1/spirv.hpp>
 
 #include <iostream>
-#include <fstream>
 
- int div_roundup(int a, int b) {
+int div_roundup(int a, int b) {
     if (a % b == 0)
         return a / b;
     else
         return (a / b) + 1;
 }
 
-namespace thorin {
+namespace thorin::spirv {
 
 struct SpvId { uint32_t id; };
 
@@ -139,27 +138,24 @@ public:
     }
 };
 
-thorin::SpirVCodeGen::SpirVCodeGen(thorin::World& world)
-: world_(world) {}
+CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
+    : thorin::CodeGen(world, debug)
+{}
 
-void thorin::SpirVCodeGen::emit() {
-    std::ofstream myfile;
-    myfile.open("test.spv");
-    auto builder = SpvFileBuilder(myfile);
+void CodeGen::emit(std::ostream& out) {
+    auto builder = SpvFileBuilder(out);
 
     builder.capability(spv::Capability::CapabilityShader);
     builder.capability(spv::Capability::CapabilityLinkage);
 
     builder.name(builder.declare_bool_type(), "test");
 
-    Scope::for_each(world_, [&](const Scope& scope) { emit(scope); });
+    Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 
     builder.finish();
-    myfile.flush();
-    myfile.close();
 }
 
-void thorin::SpirVCodeGen::emit(const thorin::Scope& scope) {
+void CodeGen::emit(const thorin::Scope& scope) {
 
 }
 

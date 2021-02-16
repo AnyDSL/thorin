@@ -1,18 +1,16 @@
 #ifndef THORIN_SPIRV_H
 #define THORIN_SPIRV_H
 
-#include "thorin/continuation.h"
+#include "thorin/be/backends.h"
 
-namespace thorin {
+namespace thorin::spirv {
 
-class SpirVCodeGen {
+class CodeGen : public thorin::CodeGen {
 public:
-    SpirVCodeGen(World& world);
+    CodeGen(World&, Cont2Config&, bool debug);
 
-    void emit();
+    void emit(std::ostream& stream) override;
 protected:
-    World& world_;
-
     void emit(const Scope& scope);
 };
 

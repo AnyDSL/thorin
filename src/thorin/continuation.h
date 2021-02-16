@@ -62,7 +62,7 @@ enum class Intrinsic : uint8_t {
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     AMDGPU,                     ///< Internal AMDGPU-Backend.
-    VulkanCompute,              ///< Internal Vulkan-Compute-Shader-Backend.
+    VkCompute,                  ///< Internal Vulkan-Compute-Shader-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.

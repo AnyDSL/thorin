@@ -96,6 +96,9 @@ Backends::Backends(World& world, int opt, bool debug)
             }
         }
 
+        if (imported == nullptr)
+            return;
+
         imported->set_name(continuation->unique_name());
         imported->make_exported();
         continuation->set_name(continuation->unique_name());

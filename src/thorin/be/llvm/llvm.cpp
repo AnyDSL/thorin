@@ -938,7 +938,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto store = def->isa<Store>())         return emit_store(irbuilder, store);
     if (auto lea = def->isa<LEA>())             return emit_lea(irbuilder, lea);
     if (auto assembly = def->isa<Assembly>())   return emit_assembly(irbuilder, assembly);
-    if (def->isa<Enter>())                      return nullptr;
+    if (def->isa<Enter>())                      return emit_unsafe(def->op(0));
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());

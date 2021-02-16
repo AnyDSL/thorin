@@ -40,7 +40,9 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    dep_ |= def->dep();
+    // A continuation should not have other bits than `Dep::Cont` set
+    if (!isa_continuation())
+        dep_ |= def->dep();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);

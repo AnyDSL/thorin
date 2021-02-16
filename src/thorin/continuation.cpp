@@ -145,7 +145,7 @@ Continuations Continuation::succs() const {
         }
 
         for (auto op : def->ops()) {
-            if (op->dep() & Dep::Cont)
+            if (op->has_dep(Dep::Cont))
                 enqueue(op);
         }
     }

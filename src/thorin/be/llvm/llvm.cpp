@@ -563,7 +563,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 }
 
 llvm::Value* CodeGen::emit_(const Def* def) {
-    auto place = def->has_dep(Dep::Param) ? scheduler_.smart(def) : entry_;
+    auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
     auto& irbuilder = *cont2llvm_[place]->second;
 
     // TODO

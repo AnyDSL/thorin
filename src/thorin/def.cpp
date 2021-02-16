@@ -20,10 +20,9 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
-    , dep_( tag == Node_Continuation ? unsigned(Dep::Cont)  :
-            tag == Node_Param        ? unsigned(Dep::Param) :
-            tag == Node_Hlt          ? unsigned(Dep::Param) :
-                                       unsigned(Dep::Bot))
+    , dep_(tag == Node_Continuation ? Dep::Cont  :
+           tag == Node_Param        ? Dep::Param :
+                                      Dep::Bot   )
 {}
 
 Debug Def::debug_history() const {
@@ -40,8 +39,9 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    // A continuation should not have other bits than `Dep::Cont` set
-    if (!isa_continuation())
+    // A Param/Continuation should not have other bits than its own set.
+    // (Right now, Param doesn't have ops, but this will change in the future).
+    if (!isa_continuation() && !isa<Param>())
         dep_ |= def->dep();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);

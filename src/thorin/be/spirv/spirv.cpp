@@ -130,6 +130,15 @@ struct SpvFileBuilder {
         return id;
     }
 
+    SpvId declare_struct_type(std::vector<SpvId>& elements) {
+        types_constants.op(spv::Op::OpTypeStruct, 2 + elements.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        for (auto arg : elements)
+            types_constants.ref_id(arg);
+        return id;
+    }
+
     SpvId define_function(SpvFnBuilder& fn_builder) {
         fn_defs.op(spv::Op::OpFunction, 5);
         fn_defs.ref_id(fn_builder.fn_ret_type);
@@ -246,7 +255,7 @@ void CodeGen::emit(std::ostream& out) {
 }
 
 SpvId CodeGen::convert(const Type* type) {
-    if (auto llvm_type = types_.lookup(type)) return *llvm_type;
+    if (auto spv_type = types_.lookup(type)) return *spv_type;
 
     assert(!type->isa<MemType>());
     SpvId spv_type;
@@ -263,19 +272,17 @@ SpvId CodeGen::convert(const Type* type) {
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
             assert(false && "TODO");
-            //llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
             break;
         }
         case Node_IndefiniteArrayType: {
             assert(false && "TODO");
-            //llvm_type = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
-            //return types_[type] = llvm_type;
+            auto array = type->as<IndefiniteArrayType>();
+            //return types_[type] = spv_type;
         }
         case Node_DefiniteArrayType: {
             assert(false && "TODO");
             auto array = type->as<DefiniteArrayType>();
-            //llvm_type = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
-            //return types_[type] = llvm_type;
+            //return types_[type] = spv_type;
         }
 
         case Node_ClosureType:
@@ -296,7 +303,7 @@ SpvId CodeGen::convert(const Type* type) {
                     }
                     if (ret_types.size() == 0)      ret = std::make_unique<SpvId>(builder_->void_type);
                     else if (ret_types.size() == 1) ret = std::make_unique<SpvId>(ret_types.back());
-                    else                            assert(false && "Didn't we refactor this out yet by making functions single-argument ?"); //ret = llvm::StructType::get(context(), ret_types);
+                    else                            assert(false && "Didn't we refactor this out yet by making functions single-argument ?");
                 } else
                     ops.push_back(convert(op));
             }
@@ -307,72 +314,18 @@ SpvId CodeGen::convert(const Type* type) {
             }
 
             assert(false && "TODO: handle closure mess");
-            /* auto env_type = convert(Closure::environment_type(world()));
-            ops.push_back(env_type);
-            auto fn_type = llvm::FunctionType::get(ret, ops, false);
-            auto ptr_type = llvm::PointerType::get(fn_type, 0);
-            llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
-            return types_[type] = llvm_type;*/
         }
 
         case Node_StructType: {
             assert(false && "TODO");
-            /*auto struct_type = type->as<StructType>();
-            auto llvm_struct = llvm::StructType::create(context());
-
-            // important: memoize before recursing into element types to avoid endless recursion
-            assert(!types_.contains(struct_type) && "type already converted");
-            types_[struct_type] = llvm_struct;
-
-            Array<llvm::Type*> llvm_types(struct_type->num_ops());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_type->op(i));
-            llvm_struct->setBody(llvm_ref(llvm_types));
-            return llvm_struct;*/
         }
 
         case Node_TupleType: {
             assert(false && "TODO");
-            /*auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->num_ops());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->op(i));
-            llvm_type = llvm::StructType::get(context(), llvm_ref(llvm_types));
-            return types_[tuple] = llvm_type;*/
         }
 
         case Node_VariantType: {
             assert(false && "TODO");
-            /*assert(type->num_ops() > 0);
-
-            // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
-            size_t max_align = 0, max_size = 0;
-
-            auto layout = module().getDataLayout();
-            llvm::Type* max_align_type;
-            for (auto op : type->ops()) {
-                auto op_type = convert(op);
-                size_t size  = layout.getTypeAllocSize(op_type);
-                size_t align = layout.getABITypeAlignment(op_type);
-                // Favor types that are not empty
-                if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
-                    max_align_type = op_type;
-                    max_align = align;
-                }
-                max_size = std::max(max_size, size);
-            }
-
-            auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
-            auto union_type = rem_size > 0
-                              ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(llvm::Type::getInt8Ty(context()), rem_size)})
-                              : llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type });
-
-            auto tag_type = type->num_ops() < (1_u64 <<  8) ? llvm::Type::getInt8Ty (context()) :
-                            type->num_ops() < (1_u64 << 16) ? llvm::Type::getInt16Ty(context()) :
-                            type->num_ops() < (1_u64 << 32) ? llvm::Type::getInt32Ty(context()) :
-                            llvm::Type::getInt64Ty(context());
-
-            return llvm::StructType::get(context(), { union_type, tag_type });*/
         }
 
         default:
@@ -385,61 +338,29 @@ SpvId CodeGen::convert(const Type* type) {
 void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
-    //auto fct = llvm::cast<llvm::Function>(emit(entry_));
+
     auto fn = SpvFnBuilder { };
     fn.fn_type = convert(entry_->type());
-    fn.fn_ret_type = builder_->void_type; // TODO !!!
+    fn.fn_ret_type = get_codom_type(entry_);
 
     current_fn_ = &fn;
 
-    //cont2llvm_.clear();
     auto conts = schedule(scope);
 
-    // map all bb-like continuations to llvm bb stubs and handle params/phis
     for (auto cont : conts) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
 
         auto [i, b] = fn.bbs.emplace(cont, std::make_unique<SpvBasicBlockBuilder>(*builder_));
+        assert(b);
+
         SpvBasicBlockBuilder& bb = *i->second;
         SpvId label = bb.label();
-        builder_->name(label, cont->name().c_str());
+
+        if (debug())
+            builder_->name(label, cont->name().c_str());
         fn.labels.emplace(cont, label);
-        //auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
-        //auto [i, succ] = cont2llvm_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
-        assert(b);
-        // auto& irbuilder = *i->second.second;
-        // irbuilder.SetInsertPoint(bb);
 
-        //if (debug())
-        //    irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope));
-
-        /*if (entry_ == cont) {
-            auto arg = fct->arg_begin();
-            for (auto param : entry_->params()) {
-                if (is_mem(param) || is_unit(param)) {
-                    def2llvm_[param] = nullptr;
-                } else if (param->order() == 0) {
-                    auto argv = &*arg;
-                    auto value = map_param(fct, argv, param);
-                    if (value == argv) {
-                        arg->setName(param->unique_name()); // use param
-                        def2llvm_[param] = &*arg++;
-                    } else {
-                        def2llvm_[param] = value;           // use provided value
-                    }
-                }
-            }
-        } else {
-            for (auto param : cont->params()) {
-                if (is_mem(param) || is_unit(param)) {
-                    def2llvm_[param] = nullptr;
-                } else {
-                    // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
-                    auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
-                    def2llvm_[param] = phi;
-                }
-            }
-        }*/
+        // TODO prepare phis/params
     }
 
     Scheduler new_scheduler(scope);
@@ -454,14 +375,26 @@ void CodeGen::emit(const thorin::Scope& scope) {
     builder_->define_function(fn);
 }
 
-void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb) {
-    /*auto&& bb_ib = cont2llvm_[continuation];
-    auto bb = bb_ib->first;
-    auto& irbuilder = *bb_ib->second;*/
+SpvId CodeGen::get_codom_type(const Continuation* fn) {
+    auto ret_cont_type = fn->ret_param()->type();
+    std::vector<SpvId> types;
+    for (auto& op : ret_cont_type->ops()) {
+        if (op->isa<MemType>() || is_type_unit(op))
+            continue;
+        assert(op->order() == 0);
+        types.push_back(convert(op));
+    }
+    if (types.empty())
+        return builder_->void_type;
+    if (types.size() == 1)
+        return types[0];
+    return builder_->declare_struct_type(types);
+}
 
+void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb) {
     if (continuation->callee() == entry_->ret_param()) { // return
-        std::vector<SpvId> values;
         std::vector<SpvId> types;
+        std::vector<SpvId> values;
 
         for (auto arg : continuation->args()) {
             /*if (auto val = emit_unsafe(arg)) {
@@ -472,7 +405,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
 
         switch (values.size()) {
             case 0:  bb.return_void();      break;
-            //case 1:  irbuilder.CreateRet(values[0]); break;
+                //case 1:  irbuilder.CreateRet(values[0]); break;
             default:
                 assert(false && "TODO handle non-void returns");
                 /*llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), types));

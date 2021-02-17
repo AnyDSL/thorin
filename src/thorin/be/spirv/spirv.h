@@ -22,6 +22,8 @@ protected:
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, SpvBasicBlockBuilder& bb);
 
+    SpvId get_codom_type(const Continuation* fn);
+
     SpvFileBuilder* builder_ = nullptr;
     Continuation* entry_ = nullptr;
     SpvFnBuilder* current_fn_ = nullptr;

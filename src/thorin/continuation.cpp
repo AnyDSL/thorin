@@ -172,10 +172,6 @@ void Continuation::set_intrinsic() {
     else if (name() == "fibers")               attributes().intrinsic = Intrinsic::Fibers;
     else if (name() == "spawn")                attributes().intrinsic = Intrinsic::Spawn;
     else if (name() == "sync")                 attributes().intrinsic = Intrinsic::Sync;
-    else if (name() == "anydsl_create_graph")  attributes().intrinsic = Intrinsic::CreateGraph;
-    else if (name() == "anydsl_create_task")   attributes().intrinsic = Intrinsic::CreateTask;
-    else if (name() == "anydsl_create_edge")   attributes().intrinsic = Intrinsic::CreateEdge;
-    else if (name() == "anydsl_execute_graph") attributes().intrinsic = Intrinsic::ExecuteGraph;
     else if (name() == "vectorize")            attributes().intrinsic = Intrinsic::Vectorize;
     else if (name() == "pe_info")              attributes().intrinsic = Intrinsic::PeInfo;
     else if (name() == "pipeline")             attributes().intrinsic = Intrinsic::Pipeline;

@@ -67,10 +67,6 @@ enum class Intrinsic : uint8_t {
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
-    CreateGraph,                ///< Internal Flow-Graph-Backend.
-    CreateTask,                 ///< Internal Flow-Graph-Backend.
-    CreateEdge,                 ///< Internal Flow-Graph-Backend.
-    ExecuteGraph,               ///< Internal Flow-Graph-Backend.
     Vectorize,                  ///< External vectorizer.
     AcceleratorEnd,
     Reserve = AcceleratorEnd,   ///< Intrinsic memory reserve function

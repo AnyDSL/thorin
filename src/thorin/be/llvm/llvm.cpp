@@ -65,50 +65,47 @@ CodeGen::CodeGen(World& world,
 {}
 
 void CodeGen::optimize() {
-    // TODO why is here a special case for opt() == 0?
-    if (opt() != 0) {
-        llvm::PassBuilder PB;
-        llvm::PassBuilder::OptimizationLevel opt_level;
+    llvm::PassBuilder PB;
+    llvm::PassBuilder::OptimizationLevel opt_level;
 
-        llvm::LoopAnalysisManager LAM;
-        llvm::FunctionAnalysisManager FAM;
-        llvm::CGSCCAnalysisManager CGAM;
-        llvm::ModuleAnalysisManager MAM;
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    llvm::CGSCCAnalysisManager CGAM;
+    llvm::ModuleAnalysisManager MAM;
 
-        PB.registerModuleAnalyses(MAM);
-        PB.registerCGSCCAnalyses(CGAM);
-        PB.registerFunctionAnalyses(FAM);
-        PB.registerLoopAnalyses(LAM);
-        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-        switch (opt()) {
-            case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
-            case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
-            case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
-            case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
-            default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
-        }
-
-        if (opt() == 3) {
-            llvm::ModulePassManager module_pass_manager;
-
-            //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
-            llvm::CGSCCPassManager MainCGPipeline;
-            MainCGPipeline.addPass(llvm::InlinerPass());
-            module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
-                  createDevirtSCCRepeatedPass(
-                    std::move(MainCGPipeline), 4)));
-
-            llvm::FunctionPassManager function_pass_manager;
-            function_pass_manager.addPass(llvm::ADCEPass());
-            module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
-
-            module_pass_manager.run(module(), MAM);
-        }
-
-        llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
-        builder_passes.run(module(), MAM);
+    switch (opt()) {
+        case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
+        case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
+        case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
+        case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
+        default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
     }
+
+    if (opt() == 3) {
+        llvm::ModulePassManager module_pass_manager;
+
+        //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
+        llvm::CGSCCPassManager MainCGPipeline;
+        MainCGPipeline.addPass(llvm::InlinerPass());
+        module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
+              createDevirtSCCRepeatedPass(
+                std::move(MainCGPipeline), 4)));
+
+        llvm::FunctionPassManager function_pass_manager;
+        function_pass_manager.addPass(llvm::ADCEPass());
+        module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
+
+        module_pass_manager.run(module(), MAM);
+    }
+
+    llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
+    builder_passes.run(module(), MAM);
 }
 
 void CodeGen::verify() const {

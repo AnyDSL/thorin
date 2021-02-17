@@ -61,6 +61,14 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     SpvFileBuilder& file_builder;
 
+    struct Phi {
+        SpvId type;
+        SpvId value;
+        std::vector<std::pair<SpvId, SpvId>> preds;
+    };
+    GIDMap<const Param*, Phi> phis;
+    DefMap<SpvId> args;
+
     SpvId label() {
         op(spv::Op::OpLabel, 2);
         auto id = generate_fresh_id();
@@ -76,6 +84,18 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         for (auto e : elements)
             ref_id(e);
         return id;
+    }
+
+    void branch(SpvId target) {
+        op(spv::Op::OpBranch, 2);
+        ref_id(target);
+    }
+
+    void branch_conditional(SpvId condition, SpvId true_target, SpvId false_target) {
+        op(spv::Op::OpBranchConditional, 4);
+        ref_id(condition);
+        ref_id(true_target);
+        ref_id(false_target);
     }
 
     void return_void() {
@@ -167,11 +187,20 @@ struct SpvFileBuilder {
         fn_defs.data_.push_back(spv::FunctionControlMaskNone);
         fn_defs.ref_id(fn_builder.fn_type);
 
+        // Includes stuff like OpFunctionParameters
         for (auto w : fn_builder.header.data_)
             fn_defs.data_.push_back(w);
 
-        // TODO OpFunctionParameters
         for (auto& [cont, bb] : fn_builder.bbs) {
+            for (auto [param, phi] : bb->phis) {
+                fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi.preds.size());
+                fn_defs.ref_id(phi.type);
+                fn_defs.ref_id(phi.value);
+                for (auto& [pred_value, pred_label] : phi.preds) {
+                    fn_defs.ref_id(pred_value);
+                    fn_defs.ref_id(pred_label);
+                }
+            }
             for (auto w : bb->data_)
                 fn_defs.data_.push_back(w);
         }
@@ -395,7 +424,6 @@ void CodeGen::emit(const thorin::Scope& scope) {
         fn.labels.emplace(cont, label);
 
         if (entry_ == cont) {
-            int arg = 0;
             for (auto param : entry_->params()) {
                 if (is_mem(param) || is_unit(param)) {
                     // Nothing
@@ -413,8 +441,10 @@ void CodeGen::emit(const thorin::Scope& scope) {
                 if (is_mem(param) || is_unit(param)) {
                     // Nothing
                 } else {
-                    // TODO OpPhi requires the full list of predecessors when emitting
-                    assert(false);
+                    // OpPhi requires the full list of predecessors (values, labels)
+                    // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
+                    // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
+                    bb.phis[param] = { convert(param->type()), builder_->generate_fresh_id(), {} };
                 }
             }
         }
@@ -427,6 +457,18 @@ void CodeGen::emit(const thorin::Scope& scope) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
         assert(cont == entry_ || cont->is_basicblock());
         emit_epilogue(cont, *fn.bbs[cont]->get());
+    }
+
+    // Wire up Phi nodes
+    for (auto& [cont, bb]: fn.bbs) {
+        for (auto [param, phi] : bb->phis) {
+            assert(param->order() == 0);
+            for (auto pred : cont->preds()) {
+                auto& pred_bb = *fn.bbs[pred];
+                auto arg = pred->arg(param->index());
+                phi.preds.emplace_back(*pred_bb->args[arg], *fn.labels[pred]);
+            }
+        }
     }
 
     builder_->define_function(fn);
@@ -456,7 +498,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
             assert(arg->order() == 0);
             if (is_mem(arg) || is_unit(arg))
                 continue;
-            auto val = emit(arg);
+            auto val = emit(arg, bb);
             values.emplace_back(val);
         }
 
@@ -465,15 +507,14 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
             case 1:  bb.return_value(values[0]); break;
             default: bb.return_value(bb.composite(current_fn_->fn_ret_type, values));
         }
-    } else {
-        assert(false && "epilogue not implemented");
     }
-    /*else if (continuation->callee() == world().branch()) {
-        auto cond = emit(continuation->arg(0));
-        auto tbb = cont2bb(continuation->arg(1)->as_continuation());
-        auto fbb = cont2bb(continuation->arg(2)->as_continuation());
-        irbuilder.CreateCondBr(cond, tbb, fbb);
-    } else if (continuation->callee()->isa<Continuation>() &&
+    else if (continuation->callee() == world().branch()) {
+        auto cond = emit(continuation->arg(0), bb);
+        bb.args[continuation->arg(0)] = cond;
+        auto tbb = *current_fn_->labels[continuation->arg(1)->as_continuation()];
+        auto fbb = *current_fn_->labels[continuation->arg(2)->as_continuation()];
+        bb.branch_conditional(cond, tbb, fbb);
+    } /*else if (continuation->callee()->isa<Continuation>() &&
                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         auto val = emit(continuation->arg(0));
         auto otherwise_bb = cont2bb(continuation->arg(1)->as_continuation());
@@ -486,12 +527,14 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
         }
     } else if (continuation->callee()->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
-        for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
-            if (auto val = emit_unsafe(continuation->arg(i))) emit_phi_arg(irbuilder, callee->param(i), val);
+    } */
+    else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+        for (auto& arg : continuation->args()) {
+            if (is_mem(arg) || is_unit(arg)) continue;
+            bb.args[arg] = emit(arg, bb);
         }
-        irbuilder.CreateBr(cont2bb(callee));
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+        bb.branch(*current_fn_->labels[callee]);
+    } /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);
         irbuilder.CreateBr(cont2bb(ret_continuation));
     } else { // function/closure call
@@ -562,13 +605,13 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
             }
         }
     }*/
-
-    // new insert point is just before the terminator for all other instructions we have to add later on
-    // irbuilder.SetInsertPoint(bb->getTerminator());
+    else {
+        assert(false && "epilogue not implemented for this");
+    }
 }
 
-SpvId CodeGen::emit(const Def* def) {
-    return SpvId();
+SpvId CodeGen::emit(const Def* def, SpvBasicBlockBuilder& bb) {
+    assertf(false, "Incomplete emit(def) definition");
 }
 
 }

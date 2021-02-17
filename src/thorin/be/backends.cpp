@@ -11,10 +11,11 @@
 
 namespace thorin {
 
-static void get_kernel_configs(Importer& importer,
-                               const std::vector<Continuation*>& kernels,
-                               Cont2Config& kernel_config,
-                               std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
+static void get_kernel_configs(
+    Importer& importer,
+    const std::vector<Continuation*>& kernels,
+    Cont2Config& kernel_config,
+    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
 

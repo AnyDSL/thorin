@@ -15,8 +15,9 @@
 
 namespace thorin::llvm {
 
-Runtime::Runtime(llvm::LLVMContext& context,
-                 llvm::Module& target)
+Runtime::Runtime(
+    llvm::LLVMContext& context,
+    llvm::Module& target)
     : target_(target)
     , layout_(target.getDataLayout())
 {
@@ -182,17 +183,21 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     return continuation->arg(LaunchArgs::Return)->as_continuation();
 }
 
-llvm::Value* Runtime::launch_kernel(llvm::IRBuilder<>& builder, llvm::Value* device,
-                                    llvm::Value* file, llvm::Value* kernel,
-                                    llvm::Value* grid, llvm::Value* block,
-                                    llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
-                                    llvm::Value* num_args) {
+llvm::Value* Runtime::launch_kernel(
+    llvm::IRBuilder<>& builder, llvm::Value* device,
+    llvm::Value* file, llvm::Value* kernel,
+    llvm::Value* grid, llvm::Value* block,
+    llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
+    llvm::Value* num_args)
+{
     llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, aligns, allocs, types, num_args };
     return builder.CreateCall(get("anydsl_launch_kernel"), launch_args);
 }
 
-llvm::Value* Runtime::parallel_for(llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
-                                   llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+llvm::Value* Runtime::parallel_for(
+    llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
+    llvm::Value* closure_ptr, llvm::Value* fun_ptr)
+{
     llvm::Value* parallel_args[] = {
         num_threads, lower, upper,
         builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
@@ -201,8 +206,10 @@ llvm::Value* Runtime::parallel_for(llvm::IRBuilder<>& builder, llvm::Value* num_
     return builder.CreateCall(get("anydsl_parallel_for"), parallel_args);
 }
 
-llvm::Value* Runtime::spawn_fibers(llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
-                                   llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+llvm::Value* Runtime::spawn_fibers(
+    llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
+    llvm::Value* closure_ptr, llvm::Value* fun_ptr)
+{
     llvm::Value* fibers_args[] = {
         num_threads, num_blocks, num_warps,
         builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),

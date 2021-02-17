@@ -86,6 +86,16 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId binop(spv::Op op_, SpvId result_type, SpvId lhs, SpvId rhs) {
+        op(op_, 5);
+        auto id = generate_fresh_id();
+        ref_id(result_type);
+        ref_id(id);
+        ref_id(lhs);
+        ref_id(rhs);
+        return id;
+    }
+
     void branch(SpvId target) {
         op(spv::Op::OpBranch, 2);
         ref_id(target);
@@ -176,6 +186,24 @@ struct SpvFileBuilder {
         types_constants.ref_id(id);
         for (auto arg : elements)
             types_constants.ref_id(arg);
+        return id;
+    }
+
+    SpvId bool_constant(SpvId type, bool value) {
+        types_constants.op(value ? spv::Op::OpConstantTrue : spv::Op::OpConstantFalse, 3);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(type);
+        types_constants.ref_id(id);
+        return id;
+    }
+
+    SpvId constant(SpvId type, std::vector<uint32_t>&& bit_pattern) {
+        types_constants.op(spv::Op::OpConstant, 4 + bit_pattern.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(type);
+        types_constants.ref_id(id);
+        for (auto arg : bit_pattern)
+            types_constants.data_.push_back(arg);
         return id;
     }
 
@@ -290,7 +318,7 @@ SpvId SpvBasicBlockBuilder::generate_fresh_id() {
     return file_builder.generate_fresh_id();
 }
 
-CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
+CodeGen::CodeGen(thorin::World& world, Cont2Config&, bool debug)
     : thorin::CodeGen(world, debug)
 {}
 
@@ -611,6 +639,130 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
 }
 
 SpvId CodeGen::emit(const Def* def, SpvBasicBlockBuilder& bb) {
+    if (auto bin = def->isa<BinOp>()) {
+        SpvId lhs = emit(bin->lhs(), bb);
+        SpvId rhs = emit(bin->rhs(), bb);
+        SpvId result_type = convert(def->type());
+
+        if (auto cmp = bin->isa<Cmp>()) {
+            auto type = cmp->lhs()->type();
+            if (is_type_s(type)) {
+                switch (cmp->cmp_tag()) {
+                    case Cmp_eq: return bb.binop(spv::Op::OpIEqual            , result_type, lhs, rhs);
+                    case Cmp_ne: return bb.binop(spv::Op::OpINotEqual         , result_type, lhs, rhs);
+                    case Cmp_gt: return bb.binop(spv::Op::OpSGreaterThan      , result_type, lhs, rhs);
+                    case Cmp_ge: return bb.binop(spv::Op::OpSGreaterThanEqual , result_type, lhs, rhs);
+                    case Cmp_lt: return bb.binop(spv::Op::OpSLessThan         , result_type, lhs, rhs);
+                    case Cmp_le: return bb.binop(spv::Op::OpSLessThanEqual    , result_type, lhs, rhs);
+                }
+            } else if (is_type_u(type)) {
+                switch (cmp->cmp_tag()) {
+                    case Cmp_eq: return bb.binop(spv::Op::OpIEqual            , result_type, lhs, rhs);
+                    case Cmp_ne: return bb.binop(spv::Op::OpINotEqual         , result_type, lhs, rhs);
+                    case Cmp_gt: return bb.binop(spv::Op::OpUGreaterThan      , result_type, lhs, rhs);
+                    case Cmp_ge: return bb.binop(spv::Op::OpUGreaterThanEqual , result_type, lhs, rhs);
+                    case Cmp_lt: return bb.binop(spv::Op::OpULessThan         , result_type, lhs, rhs);
+                    case Cmp_le: return bb.binop(spv::Op::OpULessThanEqual    , result_type, lhs, rhs);
+                }
+            } else if (is_type_f(type)) {
+                switch (cmp->cmp_tag()) {
+                    // TODO look into the NaN story
+                    case Cmp_eq: return bb.binop(spv::Op::OpFOrdEqual            , result_type, lhs, rhs);
+                    case Cmp_ne: return bb.binop(spv::Op::OpFOrdNotEqual         , result_type, lhs, rhs);
+                    case Cmp_gt: return bb.binop(spv::Op::OpFOrdGreaterThan      , result_type, lhs, rhs);
+                    case Cmp_ge: return bb.binop(spv::Op::OpFOrdGreaterThanEqual , result_type, lhs, rhs);
+                    case Cmp_lt: return bb.binop(spv::Op::OpFOrdLessThan         , result_type, lhs, rhs);
+                    case Cmp_le: return bb.binop(spv::Op::OpFOrdLessThanEqual    , result_type, lhs, rhs);
+                }
+            } else if (type->isa<PtrType>()) {
+                assertf(false, "Physical pointers are unsupported");
+            } else if(is_type_bool(type)) {
+                switch (cmp->cmp_tag()) {
+                    // TODO look into the NaN story
+                    case Cmp_eq: return bb.binop(spv::Op::OpLogicalEqual    , result_type, lhs, rhs);
+                    case Cmp_ne: return bb.binop(spv::Op::OpLogicalNotEqual , result_type, lhs, rhs);
+                    default: THORIN_UNREACHABLE;
+                }
+                assertf(false, "TODO: should we emulate the other comparison ops ?");
+            }
+        }
+
+        if (auto arithop = bin->isa<ArithOp>()) {
+            auto type = arithop->type();
+
+            if (is_type_f(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_add: return bb.binop(spv::Op::OpFAdd, result_type, lhs, rhs);
+                    case ArithOp_sub: return bb.binop(spv::Op::OpFSub, result_type, lhs, rhs);
+                    case ArithOp_mul: return bb.binop(spv::Op::OpFMul, result_type, lhs, rhs);
+                    case ArithOp_div: return bb.binop(spv::Op::OpFDiv, result_type, lhs, rhs);
+                    case ArithOp_rem: return bb.binop(spv::Op::OpFRem, result_type, lhs, rhs);
+                    case ArithOp_and:
+                    case ArithOp_or:
+                    case ArithOp_xor:
+                    case ArithOp_shl:
+                    case ArithOp_shr: THORIN_UNREACHABLE;
+                }
+            }
+
+            if (is_type_s(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_add: return bb.binop(spv::Op::OpIAdd                 , result_type, lhs, rhs);
+                    case ArithOp_sub: return bb.binop(spv::Op::OpISub                 , result_type, lhs, rhs);
+                    case ArithOp_mul: return bb.binop(spv::Op::OpIMul                 , result_type, lhs, rhs);
+                    case ArithOp_div: return bb.binop(spv::Op::OpSDiv                 , result_type, lhs, rhs);
+                    case ArithOp_rem: return bb.binop(spv::Op::OpSRem                 , result_type, lhs, rhs);
+                    case ArithOp_and: return bb.binop(spv::Op::OpBitwiseAnd           , result_type, lhs, rhs);
+                    case ArithOp_or:  return bb.binop(spv::Op::OpBitwiseOr            , result_type, lhs, rhs);
+                    case ArithOp_xor: return bb.binop(spv::Op::OpBitwiseXor           , result_type, lhs, rhs);
+                    case ArithOp_shl: return bb.binop(spv::Op::OpShiftLeftLogical     , result_type, lhs, rhs);
+                    case ArithOp_shr: return bb.binop(spv::Op::OpShiftRightArithmetic , result_type, lhs, rhs);
+                }
+            } else if (is_type_u(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_add: return bb.binop(spv::Op::OpIAdd              , result_type, lhs, rhs);
+                    case ArithOp_sub: return bb.binop(spv::Op::OpISub              , result_type, lhs, rhs);
+                    case ArithOp_mul: return bb.binop(spv::Op::OpIMul              , result_type, lhs, rhs);
+                    case ArithOp_div: return bb.binop(spv::Op::OpUDiv              , result_type, lhs, rhs);
+                    case ArithOp_rem: return bb.binop(spv::Op::OpUMod              , result_type, lhs, rhs);
+                    case ArithOp_and: return bb.binop(spv::Op::OpBitwiseAnd        , result_type, lhs, rhs);
+                    case ArithOp_or:  return bb.binop(spv::Op::OpBitwiseOr         , result_type, lhs, rhs);
+                    case ArithOp_xor: return bb.binop(spv::Op::OpBitwiseXor        , result_type, lhs, rhs);
+                    case ArithOp_shl: return bb.binop(spv::Op::OpShiftLeftLogical  , result_type, lhs, rhs);
+                    case ArithOp_shr: return bb.binop(spv::Op::OpShiftRightLogical , result_type, lhs, rhs);
+                }
+            } else if(is_type_bool(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_and: return bb.binop(spv::Op::OpLogicalAnd      , result_type, lhs, rhs);
+                    case ArithOp_or:  return bb.binop(spv::Op::OpLogicalOr       , result_type, lhs, rhs);
+                    // Note: there is no OpLogicalXor
+                    case ArithOp_xor: return bb.binop(spv::Op::OpLogicalNotEqual , result_type, lhs, rhs);
+                    default: THORIN_UNREACHABLE;
+                }
+            }
+            THORIN_UNREACHABLE;
+        }
+    }
+    if (auto primlit = def->isa<PrimLit>()) {
+        Box box = primlit->value();
+        auto type = convert(def->type());
+        SpvId constant;
+        switch (primlit->primtype_tag()) {
+            case PrimType_bool:                     constant = bb.file_builder.bool_constant(type, box.get_bool()); break;
+            case PrimType_ps8:  case PrimType_qs8:  assertf(false, "not implemented yet");
+            case PrimType_pu8:  case PrimType_qu8:  assertf(false, "not implemented yet");
+            case PrimType_ps16: case PrimType_qs16: assertf(false, "not implemented yet");
+            case PrimType_pu16: case PrimType_qu16: assertf(false, "not implemented yet");
+            case PrimType_ps32: case PrimType_qs32: constant = bb.file_builder.constant(type, { static_cast<unsigned int>(box.get_s32()) }); break;
+            case PrimType_pu32: case PrimType_qu32: constant = bb.file_builder.constant(type, { static_cast<unsigned int>(box.get_u32()) }); break;
+            case PrimType_ps64: case PrimType_qs64: assertf(false, "not implemented yet");
+            case PrimType_pu64: case PrimType_qu64: assertf(false, "not implemented yet");
+            case PrimType_pf16: case PrimType_qf16: assertf(false, "not implemented yet");
+            case PrimType_pf32: case PrimType_qf32: assertf(false, "not implemented yet");
+            case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
+        }
+        return constant;
+    }
     assertf(false, "Incomplete emit(def) definition");
 }
 

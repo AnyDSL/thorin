@@ -1115,6 +1115,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
         case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
+        case Intrinsic::VkCompute:   return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".spv",    continuation); // TODO have a real runtime component
         case Intrinsic::HLS:         return emit_hls(irbuilder, continuation);
         case Intrinsic::Parallel:    return emit_parallel(irbuilder, continuation);
         case Intrinsic::Fibers:      return emit_fibers(irbuilder, continuation);

@@ -1,9 +1,16 @@
 #ifndef THORIN_SPIRV_H
 #define THORIN_SPIRV_H
 
+#include <thorin/analyses/schedule.h>
 #include "thorin/be/backends.h"
 
 namespace thorin::spirv {
+
+struct SpvSectionBuilder;
+struct SpvBasicBlockBuilder;
+struct SpvFnBuilder;
+struct SpvFileBuilder;
+struct SpvId { uint32_t id; };
 
 class CodeGen : public thorin::CodeGen {
 public:
@@ -11,7 +18,15 @@ public:
 
     void emit(std::ostream& stream) override;
 protected:
+    SpvId convert(const Type*);
     void emit(const Scope& scope);
+    void emit_epilogue(Continuation*, SpvBasicBlockBuilder& bb);
+
+    SpvFileBuilder* builder_ = nullptr;
+    Continuation* entry_ = nullptr;
+    SpvFnBuilder* current_fn_ = nullptr;
+    Scheduler scheduler_;
+    TypeMap<SpvId> types_;
 };
 
 }

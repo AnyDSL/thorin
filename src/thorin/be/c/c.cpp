@@ -98,10 +98,14 @@ private:
     bool use_channels_ = false;
     bool debug_;
     int primop_counter = 0;
+
+    std::ostringstream type_decls_out_;
+    std::ostringstream func_impls_out_;
+    std::ostringstream func_decls_out_;
     Stream& stream_;
-    Stream func_impl_;
-    Stream func_decls_;
-    Stream type_decls_;
+    Stream func_impls_ { func_impls_out_ };
+    Stream func_decls_ { func_decls_out_ };
+    Stream type_decls_ { type_decls_out_ };
 
     friend class CEmit;
 };
@@ -114,8 +118,8 @@ Stream& CEmit::stream(Stream& s) const {
 // TODO
 Stream& CCodeGen::emit_debug_info(const Def* /*def*/) {
     //if (debug_ && !def->loc().file.empty())
-        //return streamf(func_impl_, "#line {} \"{}\"", def->loc().begin.row, def->loc().file) << endl;
-    return func_impl_;
+        //return streamf(func_impls_, "#line {} \"{}\"", def->loc().begin.row, def->loc().file) << endl;
+    return func_impls_;
 }
 
 Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
@@ -246,14 +250,14 @@ Stream& CCodeGen::emit_type(Stream& s, const Type* type) {
 
 Stream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (lookup(def) || is_unit(def))
-        return func_impl_;
+        return func_impls_;
 
     // look for nested array
     if (auto array = def->isa<DefiniteArray>()) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
         if (lookup(def))
-            return func_impl_;
+            return func_impls_;
         emit(array).endl();
     }
 
@@ -262,7 +266,7 @@ Stream& CCodeGen::emit_aggop_defs(const Def* def) {
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
-            return func_impl_;
+            return func_impls_;
         emit(agg).endl();
     }
 
@@ -271,7 +275,7 @@ Stream& CCodeGen::emit_aggop_defs(const Def* def) {
         for (auto op : variant->ops())
             emit_aggop_defs(op);
         if (lookup(def))
-            return func_impl_;
+            return func_impls_;
         emit(variant).endl();
     }
 
@@ -279,7 +283,7 @@ Stream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (def->isa<Bottom>())
         emit(def).endl();
 
-    return func_impl_;
+    return func_impls_;
 }
 
 Stream& CCodeGen::emit_aggop_decl(const Type* type) {
@@ -348,7 +352,7 @@ Stream& CCodeGen::emit_temporaries(const Def* def) {
 
     // emit temporaries for arguments
     if (def->order() >= 1 || is_mem(def) || is_unit(def) || lookup(def) || def->isa<PrimLit>())
-        return func_impl_;
+        return func_impls_;
 
     return emit(def).endl();
 }
@@ -406,34 +410,34 @@ void CCodeGen::emit() {
                 default: break;
                 case Lang::CUDA:
                    func_decls_ << "__global__ ";
-                   func_impl_  << "__global__ ";
+                   func_impls_ << "__global__ ";
                    if (config != kernel_config_.end()) {
                        auto block = config->second->as<GPUKernelConfig>()->block_size();
                        if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                           func_impl_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
+                           func_impls_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
                    }
                    break;
                 case Lang::OpenCL:
                    func_decls_ << "__kernel ";
-                   func_impl_  << "__kernel ";
+                   func_impls_ << "__kernel ";
                    if (config != kernel_config_.end()) {
                        auto block = config->second->as<GPUKernelConfig>()->block_size();
                        if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                           func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                           func_impls_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
                    }
                    break;
             }
         } else {
             if (lang_ == Lang::CUDA) {
                 func_decls_ << "__device__ ";
-                func_impl_  << "__device__ ";
+                func_impls_ << "__device__ ";
             }
         }
         emit_aggop_decl(ret_type);
         emit_addr_space(func_decls_, ret_type);
-        emit_addr_space(func_impl_,  ret_type);
+        emit_addr_space(func_impls_, ret_type);
         emit_type(func_decls_, ret_type) << " " << name << "(";
-        emit_type(func_impl_,  ret_type) << " " << name << "(";
+        emit_type(func_impls_, ret_type) << " " << name << "(";
         size_t i = 0;
         std::string hls_pragmas;
         // emit and store all first-order params
@@ -451,7 +455,7 @@ void CCodeGen::emit() {
                 }
                 if (i++ > 0) {
                     func_decls_ << ", ";
-                    func_impl_  << ", ";
+                    func_impls_ << ", ";
                 }
 
                 // get the kernel launch config
@@ -468,9 +472,9 @@ void CCodeGen::emit() {
                      param->type()->isa<TupleType>())) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
                     func_decls_ << "__global ";
-                    func_impl_  << "__global ";
+                    func_impls_ << "__global ";
                     emit_type(func_decls_, param->type()) << " *";
-                    emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
+                    emit_type(func_impls_, param->type()) << " *" << param->unique_name() << "_";
                 } else if (lang_ == Lang::HLS && continuation->is_exported() && param->type()->isa<PtrType>()) {
                     auto array_size = config->as<HLSKernelConfig>()->param_size(param);
                     assert(array_size > 0);
@@ -479,7 +483,7 @@ void CCodeGen::emit() {
                     if (auto array_type = elem_type->isa<ArrayType>())
                         elem_type = array_type->elem_type();
                     emit_type(func_decls_, elem_type) << "[" << array_size << "]";
-                    emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    emit_type(func_impls_, elem_type) << " " << param->unique_name() << "[" << array_size << "]";
                     if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
                         hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
                 } else {
@@ -491,19 +495,19 @@ void CCodeGen::emit() {
                         qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
                     }
                     emit_addr_space(func_decls_, param->type());
-                    emit_addr_space(func_impl_,  param->type());
+                    emit_addr_space(func_impls_, param->type());
                     emit_type(func_decls_, param->type()) << qualifier;
-                    emit_type(func_impl_,  param->type()) << qualifier << " " << param->unique_name();
+                    emit_type(func_impls_, param->type()) << qualifier << " " << param->unique_name();
                 }
                 insert(param, param->unique_name());
             }
         }
         func_decls_.fmt(");\n");
-        func_impl_ .fmt(") {{\t\n)");
+        func_impls_.fmt(") {{\t\n)");
 #if 0
         // TODO
         if (!hls_pragmas.empty())
-            func_impl_ << down << endl << hls_pragmas << up;
+            func_impls_ << down << endl << hls_pragmas << up;
 #endif
 
         // OpenCL: load struct from buffer
@@ -515,8 +519,8 @@ void CCodeGen::emit() {
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
-                    func_impl_.endl();
-                    emit_type(func_impl_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
+                    func_impls_.endl();
+                    emit_type(func_impls_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
                 }
             }
         }
@@ -538,18 +542,18 @@ void CCodeGen::emit() {
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
                     if (!is_mem(param) && !is_unit(param)) {
-                        func_impl_.endl();
-                        emit_addr_space(func_impl_, param->type());
-                        emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
-                        emit_addr_space(func_impl_, param->type());
-                        emit_type(func_impl_, param->type()) << " p" << param->unique_name() << ";";
+                        func_impls_.endl();
+                        emit_addr_space(func_impls_, param->type());
+                        emit_type(func_impls_, param->type()) << "  " << param->unique_name() << ";" << endl;
+                        emit_addr_space(func_impls_, param->type());
+                        emit_type(func_impls_, param->type()) << " p" << param->unique_name() << ";";
                     }
                 }
             }
             // emit counter for pipeline intrinsic
             if (continuation->callee()->isa_continuation() &&
                 continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
-                func_impl_ << endl << "int i" << continuation->callee()->gid() << ";";
+                func_impls_ << endl << "int i" << continuation->callee()->gid() << ";";
             }
         }
 
@@ -557,15 +561,15 @@ void CCodeGen::emit() {
             if (cont->empty()) continue;
 
             assert(cont == scope.entry() || cont->is_basicblock());
-            func_impl_ << endl;
+            func_impls_ << endl;
 
             // print label for the current basic block
             if (cont != scope.entry()) {
-                func_impl_.fmt("l{};\t\n",  cont->gid());
+                func_impls_.fmt("l{};\t\n",  cont->gid());
                 // load params from phi node
                 for (auto param : cont->params())
                     if (!is_mem(param) && !is_unit(param))
-                        func_impl_.fmt("{} = p{};\n", param->unique_name());
+                        func_impls_.fmt("{} = p{};\n", param->unique_name());
             }
 
             // TODO rewrite and merge with LLVM backend
@@ -604,7 +608,7 @@ void CCodeGen::emit() {
             // terminate bb
             if (cont->callee() == ret_param) { // return
                 size_t num_args = cont->num_args();
-                if (num_args == 0) func_impl_ << "return ;";
+                if (num_args == 0) func_impls_ << "return ;";
                 else {
                     Array<const Def*> values(num_args);
                     Array<const Type*> types(num_args);
@@ -618,46 +622,46 @@ void CCodeGen::emit() {
                         }
                     }
 
-                    if (n == 0) func_impl_ << "return ;";
+                    if (n == 0) func_impls_ << "return ;";
                     else if (n == 1) {
-                        func_impl_ << "return ";
+                        func_impls_ << "return ";
                         emit(values[0]) << ";";
                     } else {
                         types.shrink(n);
                         auto ret_type = world_.tuple_type(types);
                         auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
                         emit_aggop_decl(ret_type);
-                        emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
+                        emit_type(func_impls_, ret_type) << " " << ret_tuple_name << ";";
 
                         for (size_t i = 0; i != n; ++i) {
-                            func_impl_ << endl << ret_tuple_name << ".e" << i << " = ";
+                            func_impls_ << endl << ret_tuple_name << ".e" << i << " = ";
                             emit(values[i]) << ";";
                         }
 
-                        func_impl_ << endl << "return " << ret_tuple_name << ";";
+                        func_impls_ << endl << "return " << ret_tuple_name << ";";
                     }
                 }
             } else if (cont->callee() == world().branch()) {
                 emit_debug_info(cont->arg(0)); // TODO correct?
-                func_impl_.fmt("if ({}) {} else {}", wrap(cont->arg(0)), wrap(cont->arg(1)), wrap(cont->arg(2)));
+                func_impls_.fmt("if ({}) {} else {}", wrap(cont->arg(0)), wrap(cont->arg(1)), wrap(cont->arg(2)));
             } else if (cont->callee()->isa<cont>() &&
                        cont->callee()->as<concont>()->intrinsic() == Intrinsic::Match) {
-                func_impl_ << "switch (";
+                func_impls_ << "switch (";
                 emit(cont->arg(0)) << ") {" << up << endl;
                 for (size_t i = 2; i < cont->num_args(); i++) {
                     auto arg = cont->arg(i)->as<Tuple>();
-                    func_impl_ << "case ";
+                    func_impls_ << "case ";
                     emit(arg->op(0)) << ": ";
                     emit(arg->op(1)) << endl;
                 }
-                func_impl_ << "default: ";
+                func_impls_ << "default: ";
                 emit(cont->arg(1));
-                func_impl_ << down << endl << "}";
+                func_impls_ << down << endl << "}";
             } else if (cont->callee()->isa<Bottom>()) {
-                func_impl_ << "return ; // bottom: unreachable";
+                func_impls_ << "return ; // bottom: unreachable";
             } else {
                 auto store_phi = [&] (const Def* param, const Def* arg) {
-                    func_impl_ << "p" << param->unique_name() << " = ";
+                    func_impls_ << "p" << param->unique_name() << " = ";
                     emit(arg) << ";";
                 };
 
@@ -669,7 +673,7 @@ void CCodeGen::emit() {
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                         if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
                             store_phi(callee->param(i), cont->arg(i));
-                            func_impl_ << endl;
+                            func_impls_ << endl;
                         }
                     emit(callee);
                 } else {
@@ -680,19 +684,19 @@ void CCodeGen::emit() {
 
                             switch (lang_) {
                                 default:                                        break;
-                                case Lang::CUDA:   func_impl_ << "__shared__ "; break;
-                                case Lang::OpenCL: func_impl_ << "__local ";    break;
+                                case Lang::CUDA:   func_impls_ << "__shared__ "; break;
+                                case Lang::OpenCL: func_impls_ << "__local ";    break;
                             }
 
                             auto cont = cont->arg(2)->as_cont();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
                             auto name = "reserver_" + cont->param(1)->unique_name();
-                            emit_type(func_impl_, elem_type) << " " << name << "[";
+                            emit_type(func_impls_, elem_type) << " " << name << "[";
                             emit(cont->arg(1)) << "];" << endl;
                             // store_phi:
-                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+                            func_impls_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
                             if (lang_ == Lang::HLS)
-                                func_impl_ << endl
+                                func_impls_ << endl
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
                                            << "#pragma HLS data_pack  variable=" << name;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
@@ -701,35 +705,35 @@ void CCodeGen::emit() {
                             auto body = cont->arg(4)->as_cont();
                             if (lang_ == Lang::OpenCL) {
                                 if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
-                                    func_impl_ << "#pragma ii ";
+                                    func_impls_ << "#pragma ii ";
                                     emit(cont->arg(1)) << endl;
                                 } else {
-                                    func_impl_ << "#pragma ii 1"<< endl;
+                                    func_impls_ << "#pragma ii 1"<< endl;
                                 }
                             }
-                            func_impl_ << "for (i" << callee->gid() << " = ";
+                            func_impls_ << "for (i" << callee->gid() << " = ";
                             emit(cont->arg(2));
-                            func_impl_ << "; i" << callee->gid() << " < ";
+                            func_impls_ << "; i" << callee->gid() << " < ";
                             emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
                             if (lang_ == Lang::HLS) {
                                 if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
-                                    func_impl_ << "#pragma HLS PIPELINE II=";
+                                    func_impls_ << "#pragma HLS PIPELINE II=";
                                     emit(cont->arg(1)) << endl;
                                 } else {
-                                    func_impl_ << "#pragma HLS PIPELINE"<< endl;
+                                    func_impls_ << "#pragma HLS PIPELINE"<< endl;
                                 }
                             }
                             // emit body and "for index" as the "body parameter"
-                            func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
+                            func_impls_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
                             emit(body);
                             // emit "continue" with according label used for goto
-                            func_impl_ << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+                            func_impls_ << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
                             if (cont->arg(5) == ret_param)
-                                func_impl_ << "return;" << endl;
+                                func_impls_ << "return;" << endl;
                             else
                                 emit(cont->arg(5));
                         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
-                            func_impl_ << "goto l" << callee->gid() << ";" << endl;
+                            func_impls_ << "goto l" << callee->gid() << ";" << endl;
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -738,19 +742,19 @@ void CCodeGen::emit() {
                             auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
-                            func_impl_ << name << "(";
+                            func_impls_ << name << "(";
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : cont->args()) {
                                 if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
                                     if (i++ > 0)
-                                        func_impl_ << ", ";
+                                        func_impls_ << ", ";
                                     emit(arg);
                                 }
                             }
-                            func_impl_ << ");";
+                            func_impls_ << ");";
                             if (param) {
-                                func_impl_ << endl;
+                                func_impls_ << endl;
                                 store_phi(param, param);
                             }
                         };
@@ -787,21 +791,21 @@ void CCodeGen::emit() {
                             auto ret_type = world_.tuple_type(types);
                             auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
                             emit_aggop_decl(ret_type);
-                            emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
+                            emit_type(func_impls_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
                             emit_call();
 
                             // store arguments to phi node
                             for (size_t i = 0; i != n; ++i)
-                                func_impl_ << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                                func_impls_ << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
                         }
                     }
                 }
             }
             if (cont != scope.entry())
-                func_impl_ << down;
+                func_impls_ << down;
             primop2str_.clear();
         }
-        func_impl_ << down << endl << "}" << endl << endl;
+        func_impls_ << down << endl << "}" << endl << endl;
         def2str_.clear();
     });
 
@@ -825,19 +829,19 @@ void CCodeGen::emit() {
             << "#define half __half_raw" << endl
             << "#endif" << endl << endl;
     }
+#endif
 
-    if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
-        stream_ << "extern \"C\" {" << endl;
+    if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
+        stream_ << "extern \"C\" {";
+        stream_.endl();
+    }
 
-    if (!type_decls_.str().empty())
-        stream_ << type_decls_.str() << endl;
-    if (!func_decls_.str().empty())
-        stream_ << func_decls_.str() << endl;
-    stream_ << func_impl_.str();
+    stream_ << type_decls_out_.str(); stream_.endl();
+    stream_ << func_decls_out_.str(); stream_.endl();
+    stream_ << func_impls_out_.str();
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_ << "}"; // extern "C"
-#endif
 }
 
 void CCodeGen::emit_c_int() {
@@ -948,9 +952,9 @@ Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 
     auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
         switch (lang_) {
-            default:           func_impl_ << def;    break;
-            case Lang::CUDA:   func_impl_ << cuda;   break;
-            case Lang::OpenCL: func_impl_ << opencl; break;
+            default:           func_impls_ << def;    break;
+            case Lang::CUDA:   func_impls_ << cuda;   break;
+            case Lang::OpenCL: func_impls_ << opencl; break;
         }
     };
 
@@ -971,29 +975,29 @@ Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
             emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
         }
     } else {
-        func_impl_ << float_mode << pref << t << suf;
+        func_impls_ << float_mode << pref << t << suf;
     }
 #endif
-    return func_impl_;
+    return func_impls_;
 }
 
 Stream& CCodeGen::emit(const Def* def) {
     if (auto continuation = def->isa<Continuation>())
-        return func_impl_.fmt("goto l{};", continuation->gid());
+        return func_impls_.fmt("goto l{};", continuation->gid());
 
     if (lookup(def))
-        return func_impl_ << get_name(def);
+        return func_impls_ << get_name(def);
 
     auto def_name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
         if (is_type_unit(bin->lhs()->type()))
-            return func_impl_;
+            return func_impls_;
 
         // emit definitions of inlined elements
         emit_aggop_defs(bin->lhs());
         emit_aggop_defs(bin->rhs());
-        func_impl_.fmt("{} {};", wrap(bin->type()), def_name);
+        func_impls_.fmt("{} {};", wrap(bin->type()), def_name);
 
         const char* op;
         if (auto cmp = bin->isa<Cmp>()) {
@@ -1023,7 +1027,7 @@ Stream& CCodeGen::emit(const Def* def) {
         }
 
         insert(def, def_name);
-        return func_impl_.fmt("{} = {} {} {};", wrap(bin->lhs()), op, wrap(bin->rhs()));
+        return func_impls_.fmt("{} = {} {} {};", wrap(bin->lhs()), op, wrap(bin->rhs()));
     }
 
 #if 0
@@ -1037,72 +1041,72 @@ Stream& CCodeGen::emit(const Def* def) {
         // string handling: bitcast [n*pu8]* -> [pu8]*
         if (conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
             if (dst_ptr && dst_ptr->pointee()->isa<IndefiniteArrayType>()) {
-                func_impl_ << "// skipped string bitcast: ";
+                func_impls_ << "// skipped string bitcast: ";
                 emit(conv->from());
                 insert(def, get_name(conv->from()));
-                return func_impl_;
+                return func_impls_;
             }
         }
 
-        emit_addr_space(func_impl_, dst_type);
-        emit_type(func_impl_, dst_type) << " " << def_name << ";" << endl;
+        emit_addr_space(func_impls_, dst_type);
+        emit_type(func_impls_, dst_type) << " " << def_name << ";" << endl;
 
         if (src_ptr && dst_ptr && src_ptr->addr_space() == dst_ptr->addr_space()) {
-            func_impl_ << def_name << " = (";
-            emit_addr_space(func_impl_, dst_type);
-            emit_type(func_impl_, dst_type) << ")";
+            func_impls_ << def_name << " = (";
+            emit_addr_space(func_impls_, dst_type);
+            emit_type(func_impls_, dst_type) << ")";
             emit(conv->from()) << ";";
             insert(def, def_name);
-            return func_impl_;
+            return func_impls_;
         }
 
         if (conv->isa<Cast>()) {
-            func_impl_ << def_name << " = ";
+            func_impls_ << def_name << " = ";
 
             auto from = src_type->as<PrimType>();
             auto to   = dst_type->as<PrimType>();
 
             if (lang_ == Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
-                func_impl_ << "(";
-                emit_type(func_impl_, dst_type) << ") __half2float(";
+                func_impls_ << "(";
+                emit_type(func_impls_, dst_type) << ") __half2float(";
                 emit(conv->from()) << ");";
             } else if (lang_ == Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
-                func_impl_ << "__float2half((float)";
+                func_impls_ << "__float2half((float)";
                 emit(conv->from()) << ");";
             } else {
-                func_impl_ << "(";
-                emit_addr_space(func_impl_, dst_type);
-                emit_type(func_impl_, dst_type) << ")";
+                func_impls_ << "(";
+                emit_addr_space(func_impls_, dst_type);
+                emit_type(func_impls_, dst_type) << ")";
                 emit(conv->from()) << ";";
             }
         }
 
         if (conv->isa<Bitcast>()) {
-            func_impl_ << "union { ";
-            emit_addr_space(func_impl_, dst_type);
-            emit_type(func_impl_, dst_type) << " dst; ";
-            emit_addr_space(func_impl_, src_type);
-            emit_type(func_impl_, src_type) << " src; ";
-            func_impl_ << "} u" << def_name << ";" << endl;
-            func_impl_ << "u" << def_name << ".src = ";
+            func_impls_ << "union { ";
+            emit_addr_space(func_impls_, dst_type);
+            emit_type(func_impls_, dst_type) << " dst; ";
+            emit_addr_space(func_impls_, src_type);
+            emit_type(func_impls_, src_type) << " src; ";
+            func_impls_ << "} u" << def_name << ";" << endl;
+            func_impls_ << "u" << def_name << ".src = ";
             emit(conv->from()) << ";" << endl;
-            func_impl_ << def_name << " = u" << def_name << ".dst;";
+            func_impls_ << def_name << " = u" << def_name << ".dst;";
         }
 
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto align_of = def->isa<AlignOf>()) {
-        func_impl_ << "alignof(";
-        emit_type(func_impl_, align_of->of()) << ")";
-        return func_impl_;
+        func_impls_ << "alignof(";
+        emit_type(func_impls_, align_of->of()) << ")";
+        return func_impls_;
     }
 
     if (auto size_of = def->isa<SizeOf>()) {
-        func_impl_ << "sizeof(";
-        emit_type(func_impl_, size_of->of()) << ")";
-        return func_impl_;
+        func_impls_ << "sizeof(";
+        emit_type(func_impls_, size_of->of()) << ")";
+        return func_impls_;
     }
 
     if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
@@ -1111,14 +1115,14 @@ Stream& CCodeGen::emit(const Def* def) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
-        emit_type(func_impl_, array->type()) << " " << def_name << "_tmp = { { ";
+        emit_type(func_impls_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
+        emit_type(func_impls_, array->type()) << " " << def_name << "_tmp = { { ";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
-        func_impl_ << "} };" << endl;
-        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
+        func_impls_ << "} };" << endl;
+        func_impls_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto agg = def->isa<Aggregate>()) {
@@ -1128,16 +1132,16 @@ Stream& CCodeGen::emit(const Def* def) {
         for (auto op : agg->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
-        emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
+        emit_type(func_impls_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
+        emit_type(func_impls_, agg->type()) << " " << def_name << "_tmp = { " << up;
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            func_impl_ << endl;
+            func_impls_ << endl;
             emit(agg->op(i)) << ",";
         }
-        func_impl_ << down << endl << "};" << endl;
-        func_impl_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
+        func_impls_ << down << endl << "};" << endl;
+        func_impls_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto aggop = def->isa<AggOp>()) {
@@ -1145,38 +1149,38 @@ Stream& CCodeGen::emit(const Def* def) {
 
         auto emit_access = [&] (const Def* def, const Def* index) -> Stream& {
             if (def->type()->isa<ArrayType>()) {
-                func_impl_ << ".e[";
+                func_impls_ << ".e[";
                 emit(index) << "]";
             } else if (def->type()->isa<TupleType>()) {
-                func_impl_ << ".e";
+                func_impls_ << ".e";
                 emit(index);
             } else if (def->type()->isa<StructType>()) {
-                func_impl_ << "." << def->type()->as<StructType>()->op_name(primlit_value<size_t>(index));
+                func_impls_ << "." << def->type()->as<StructType>()->op_name(primlit_value<size_t>(index));
             } else if (def->type()->isa<VectorType>()) {
                 if (is_primlit(index, 0))
-                    func_impl_ << ".x";
+                    func_impls_ << ".x";
                 else if (is_primlit(index, 1))
-                    func_impl_ << ".y";
+                    func_impls_ << ".y";
                 else if (is_primlit(index, 2))
-                    func_impl_ << ".z";
+                    func_impls_ << ".z";
                 else if (is_primlit(index, 3))
-                    func_impl_ << ".w";
+                    func_impls_ << ".w";
                 else {
-                    func_impl_ << ".s";
+                    func_impls_ << ".s";
                     emit(index);
                 }
             } else {
                 THORIN_UNREACHABLE;
             }
-            return func_impl_;
+            return func_impls_;
         };
 
         if (auto extract = aggop->isa<Extract>()) {
             if (is_mem(extract) || extract->type()->isa<FrameType>())
-                return func_impl_;
+                return func_impls_;
             if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
-                emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
-                func_impl_ << def_name << " = ";
+                emit_type(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
+                func_impls_ << def_name << " = ";
                 if (auto memop = extract->agg()->isa<MemOp>())
                     emit(memop) << ";";
                 else {
@@ -1185,31 +1189,31 @@ Stream& CCodeGen::emit(const Def* def) {
                 }
             }
             insert(def, def_name);
-            return func_impl_;
+            return func_impls_;
         }
 
         auto ins = def->as<Insert>();
-        emit_type(func_impl_, aggop->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << " = ";
+        emit_type(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
+        func_impls_ << def_name << " = ";
         emit(ins->agg()) << ";" << endl;
-        func_impl_ << def_name;
+        func_impls_ << def_name;
         emit_access(def, ins->index()) << " = ";
         emit(ins->value()) << ";";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false");      break;
-            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
-            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
-            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                           break;
-            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                           break;
-            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                           break;
-            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                           break;
-            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                           break;
-            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                           break;
+            case PrimType_bool:                     func_impls_ << (primlit->bool_value() ? "true" : "false");      break;
+            case PrimType_ps8:  case PrimType_qs8:  func_impls_ << (int) primlit->ps8_value();                      break;
+            case PrimType_pu8:  case PrimType_qu8:  func_impls_ << (unsigned) primlit->pu8_value();                 break;
+            case PrimType_ps16: case PrimType_qs16: func_impls_ << primlit->ps16_value();                           break;
+            case PrimType_pu16: case PrimType_qu16: func_impls_ << primlit->pu16_value();                           break;
+            case PrimType_ps32: case PrimType_qs32: func_impls_ << primlit->ps32_value();                           break;
+            case PrimType_pu32: case PrimType_qu32: func_impls_ << primlit->pu32_value();                           break;
+            case PrimType_ps64: case PrimType_qs64: func_impls_ << primlit->ps64_value();                           break;
+            case PrimType_pu64: case PrimType_qu64: func_impls_ << primlit->pu64_value();                           break;
             case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value(),
                                                                      [](half v) { return half_float::isinf(v); },
                                                                      [](half v) { return half_float::isnan(v); }); break;
@@ -1220,60 +1224,60 @@ Stream& CCodeGen::emit(const Def* def) {
                                                                        [](double v) { return std::isinf(v); },
                                                                        [](double v) { return std::isnan(v); });    break;
         }
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto variant = def->isa<Variant>()) {
-        emit_type(func_impl_, variant->type()) << " " << def_name << ";" << endl;
-        func_impl_ << "{" << up << endl;
-        emit_type(func_impl_, variant->type()) << " " << def_name << "_tmp;" << endl;
+        emit_type(func_impls_, variant->type()) << " " << def_name << ";" << endl;
+        func_impls_ << "{" << up << endl;
+        emit_type(func_impls_, variant->type()) << " " << def_name << "_tmp;" << endl;
         if (!is_type_unit(variant->op(0)->type())) {
             auto variant_type = variant->type()->as<VariantType>();
-            func_impl_ << def_name << "_tmp.data." << variant_type->op_name(variant->index()) << " = ";
+            func_impls_ << def_name << "_tmp.data." << variant_type->op_name(variant->index()) << " = ";
             emit(variant->op(0)) << ";" << endl;
         }
-        func_impl_
+        func_impls_
             << def_name << "_tmp.tag = " << variant->index() << ";" << endl
             << def_name << " = " << def_name << "_tmp;" << down << endl
             << "}";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto variant_index = def->isa<VariantIndex>()) {
-        emit_type(func_impl_, variant_index->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << " = ";
+        emit_type(func_impls_, variant_index->type()) << " " << def_name << ";" << endl;
+        func_impls_ << def_name << " = ";
         emit(variant_index->op(0)) << ".tag" << ";";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto variant_extract = def->isa<VariantExtract>()) {
-        emit_type(func_impl_, variant_extract->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << " = ";
+        emit_type(func_impls_, variant_extract->type()) << " " << def_name << ";" << endl;
+        func_impls_ << def_name << " = ";
         auto variant_type = variant_extract->value()->type()->as<VariantType>();
         emit(variant_extract->op(0)) << ".data." << variant_type->op_name(variant_extract->index()) << ";";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto bottom = def->isa<Bottom>()) {
-        emit_addr_space(func_impl_, bottom->type());
-        emit_type(func_impl_, bottom->type()) << " " << def_name << "; // bottom";
+        emit_addr_space(func_impls_, bottom->type());
+        emit_type(func_impls_, bottom->type()) << " " << def_name << "; // bottom";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto load = def->isa<Load>()) {
-        emit_type(func_impl_, load->out_val()->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << " = ";
+        emit_type(func_impls_, load->out_val()->type()) << " " << def_name << ";" << endl;
+        func_impls_ << def_name << " = ";
         // handle texture fetches
         if (!is_texture_type(load->ptr()->type()))
-            func_impl_ << "*";
+            func_impls_ << "*";
         emit(load->ptr()) << ";";
 
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto store = def->isa<Store>()) {
@@ -1282,19 +1286,19 @@ Stream& CCodeGen::emit(const Def* def) {
         emit(store->val()) << ";";
 
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto slot = def->isa<Slot>()) {
-        emit_type(func_impl_, slot->alloced_type()) << " " << def_name << "_slot;" << endl;
-        emit_type(func_impl_, slot->alloced_type()) << "* " << def_name << ";" << endl;
-        func_impl_ << def_name << " = &" << def_name << "_slot;";
+        emit_type(func_impls_, slot->alloced_type()) << " " << def_name << "_slot;" << endl;
+        emit_type(func_impls_, slot->alloced_type()) << "* " << def_name << ";" << endl;
+        func_impls_ << def_name << " = &" << def_name << "_slot;";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (def->isa<Enter>())
-        return func_impl_;
+        return func_impls_;
 
     if (def->isa<Vector>()) {
         THORIN_UNREACHABLE;
@@ -1304,35 +1308,35 @@ Stream& CCodeGen::emit(const Def* def) {
         emit_aggop_defs(lea->ptr());
         emit_aggop_defs(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(func_impl_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = tex1Dfetch(";
+            emit_type(func_impls_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
+            func_impls_ << def_name << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else if (lea->ptr_pointee()->isa<TupleType>()) {
-            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = &";
+            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            func_impls_ << def_name << " = &";
             emit(lea->ptr()) << "->e";
             emit(lea->index()) << ";";
         } else if (lea->ptr_pointee()->isa<StructType>()) {
-            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = &";
+            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            func_impls_ << def_name << " = &";
             emit(lea->ptr()) << "->";
-            func_impl_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";";
+            func_impls_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";";
         } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
-            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = &";
+            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            func_impls_ << def_name << " = &";
             emit(lea->ptr()) << "->e[";
             emit(lea->index()) << "];";
         } else {
-            emit_addr_space(func_impl_, lea->ptr()->type());
-            emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
-            func_impl_ << def_name << " = ";
+            emit_addr_space(func_impls_, lea->ptr()->type());
+            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            func_impls_ << def_name << " = ";
             emit(lea->ptr()) << " + ";
             emit(lea->index()) << ";";
         }
 
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto assembly = def->isa<Assembly>()) {
@@ -1347,7 +1351,7 @@ Stream& CCodeGen::emit(const Def* def) {
             assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
             auto name = var_name(extract);
             outputs[index - 1] = name;
-            emit_type(func_impl_, assembly->type()->op(index)) << " " << name << ";" << endl;
+            emit_type(func_impls_, assembly->type()->op(index)) << " " << name << ";" << endl;
         }
         // some outputs that were originally there might have been pruned because
         // they are not used but we still need them as operands for the asm
@@ -1355,7 +1359,7 @@ Stream& CCodeGen::emit(const Def* def) {
         for (size_t i = 0; i < out_size; ++i) {
             if (outputs[i] == "") {
                 auto name = var_name(assembly) + "_" + std::to_string(i + 1);
-                emit_type(func_impl_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
+                emit_type(func_impls_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
                 outputs[i] = name;
             }
         }
@@ -1364,21 +1368,21 @@ Stream& CCodeGen::emit(const Def* def) {
         for (auto op : assembly->ops())
             emit_temporaries(op);
 
-        func_impl_ << "asm ";
+        func_impls_ << "asm ";
         if (assembly->has_sideeffects())
-            func_impl_ << "volatile ";
+            func_impls_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
             WDEF(assembly, "stack alignment and inteldialect flags unsupported for C output");
-        func_impl_ << "(\"";
+        func_impls_ << "(\"";
         for (auto c : assembly->asm_template())
-            func_impl_ << handle_string_character(c);
-        func_impl_ << "\"";
+            func_impls_ << handle_string_character(c);
+        func_impls_ << "\"";
 
         // emit the outputs
         const char* separator = " : ";
         const auto& output_constraints = assembly->output_constraints();
         for (size_t i = 0; i < output_constraints.size(); ++i) {
-            func_impl_ << separator << "\"" << output_constraints[i] << "\"("
+            func_impls_ << separator << "\"" << output_constraints[i] << "\"("
                 << outputs[i] << ")";
             separator = ", ";
         }
@@ -1387,7 +1391,7 @@ Stream& CCodeGen::emit(const Def* def) {
         separator = output_constraints.empty() ? " :: " : " : ";
         auto input_constraints = assembly->input_constraints();
         for (size_t i = 0; i < input_constraints.size(); ++i) {
-            func_impl_ << separator << "\"" << input_constraints[i] << "\"(";
+            func_impls_ << separator << "\"" << input_constraints[i] << "\"(";
             emit(assembly->op(i + 1)) << ")";
             separator = ", ";
         }
@@ -1395,10 +1399,10 @@ Stream& CCodeGen::emit(const Def* def) {
         // emit the clobbers
         separator = input_constraints.empty() ? output_constraints.empty() ? " ::: " : " :: " : " : ";
         for (auto clob : assembly->clobbers()) {
-            func_impl_ << separator << "\"" << clob << "\"";
+            func_impls_ << separator << "\"" << clob << "\"";
             separator = ", ";
         }
-        return func_impl_ << ");";
+        return func_impls_ << ");";
     }
 
     if (auto global = def->isa<Global>()) {
@@ -1409,43 +1413,43 @@ Stream& CCodeGen::emit(const Def* def) {
 
         switch (lang_) {
             default:                                        break;
-            case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OpenCL: func_impl_ << "__constant "; break;
+            case Lang::CUDA:   func_impls_ << "__device__ "; break;
+            case Lang::OpenCL: func_impls_ << "__constant "; break;
         }
         bool bottom = global->init()->isa<Bottom>();
         if (!bottom)
             emit(global->init()) << endl;
-        emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
+        emit_type(func_impls_, global->alloced_type()) << " " << def_name << "_slot";
         if (bottom) {
-            func_impl_ << "; // bottom";
+            func_impls_ << "; // bottom";
         } else {
-            func_impl_ << " = ";
+            func_impls_ << " = ";
             emit(global->init()) << ";";
         }
-        func_impl_ << endl;
+        func_impls_ << endl;
 
         switch (lang_) {
             default:                                        break;
-            case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OpenCL: func_impl_ << "__constant "; break;
+            case Lang::CUDA:   func_impls_ << "__device__ "; break;
+            case Lang::OpenCL: func_impls_ << "__constant "; break;
         }
-        emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
+        emit_type(func_impls_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
 
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 
     if (auto select = def->isa<Select>()) {
         emit_aggop_defs(select->cond());
         emit_aggop_defs(select->tval());
         emit_aggop_defs(select->fval());
-        emit_type(func_impl_, select->type()) << " " << def_name << ";" << endl;
-        func_impl_ << def_name << " = ";
+        emit_type(func_impls_, select->type()) << " " << def_name << ";" << endl;
+        func_impls_ << def_name << " = ";
         emit(select->cond()) << " ? ";
         emit(select->tval()) << " : ";
         emit(select->fval()) << ";";
         insert(def, def_name);
-        return func_impl_;
+        return func_impls_;
     }
 #endif
 

@@ -20,7 +20,6 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/rewrite_flow_graphs.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
@@ -1046,7 +1045,6 @@ void World::opt() {
     hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
-    rewrite_flow_graphs(*this);
     codegen_prepare(*this);
 }
 

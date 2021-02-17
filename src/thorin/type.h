@@ -80,7 +80,7 @@ private:
     {}
 
 public:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -101,7 +101,7 @@ protected:
     Array<Symbol> op_names_;
 
 private:
-    virtual const Type* vrebuild(TypeTable&, Types) const override;
+    const Type* vrebuild(TypeTable&, Types) const override;
 
 public:
     Symbol name() const { return name_; }
@@ -129,7 +129,7 @@ private:
     {}
 
 public:
-    virtual const NominalType* stub(TypeTable&) const override;
+    const NominalType* stub(TypeTable&) const override;
 
     friend class TypeTable;
 };
@@ -141,7 +141,7 @@ private:
     {}
 
 public:
-    virtual const NominalType* stub(TypeTable&) const override;
+    const NominalType* stub(TypeTable&) const override;
 
     friend class TypeTable;
 };
@@ -153,7 +153,7 @@ private:
         : Type(table, Node_MemType, {})
     {}
 
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -165,7 +165,7 @@ private:
         : Type(table, Node_FrameType, {})
     {}
 
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -178,8 +178,8 @@ protected:
         , length_(length)
     {}
 
-    virtual hash_t vhash() const override { return hash_combine(Type::vhash(), length()); }
-    virtual bool equal(const Type* other) const override {
+    hash_t vhash() const override { return hash_combine(Type::vhash(), length()); }
+    bool equal(const Type* other) const override {
         return Type::equal(other) && this->length() == other->as<VectorType>()->length();
     }
 
@@ -206,7 +206,7 @@ private:
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -250,11 +250,11 @@ public:
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    virtual hash_t vhash() const override;
-    virtual bool equal(const Type* other) const override;
+    hash_t vhash() const override;
+    bool equal(const Type* other) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -280,7 +280,7 @@ public:
     bool is_returning() const;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -296,7 +296,7 @@ private:
 
 public:
     int inner_order() const { return inner_order_; }
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
 private:
     int inner_order_;
@@ -323,7 +323,7 @@ public:
     {}
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     friend class TypeTable;
 };
@@ -336,13 +336,13 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual hash_t vhash() const override { return hash_combine(Type::vhash(), dim()); }
-    virtual bool equal(const Type* other) const override {
+    hash_t vhash() const override { return hash_combine(Type::vhash(), dim()); }
+    bool equal(const Type* other) const override {
         return Type::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
 
     u64 dim_;
 

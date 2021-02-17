@@ -128,7 +128,7 @@ Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
         if (lang_ == Lang::OpenCL) {
             switch (ptr->addr_space()) {
                 default:
-                case AddrSpace::Generic:                   break;
+                case AddrSpace::Generic:                  break;
                 case AddrSpace::Global: s << "__global "; break;
                 case AddrSpace::Shared: s << "__local ";  break;
             }
@@ -504,12 +504,13 @@ void CCodeGen::emit() {
             }
         }
         func_decls_.fmt(");\n");
-        func_impls_.fmt(") {{\t\n)");
-#if 0
-        // TODO
-        if (!hls_pragmas.empty())
-            func_impls_ << down << endl << hls_pragmas << up;
-#endif
+        func_impls_.fmt(") {{\t\n");
+
+        if (!hls_pragmas.empty()) {
+            func_impls_.dedent().endl();
+            func_impls_ << hls_pragmas;
+            func_impls_.indent();
+        }
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {

@@ -18,6 +18,8 @@ public:
     bool debug() const { return debug_; }
     //@}
 
+    virtual const char* file_ext() const = 0;
+
 private:
     World& world_;
     bool debug_;

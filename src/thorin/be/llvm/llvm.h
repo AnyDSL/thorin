@@ -43,6 +43,8 @@ public:
     void emit(std::ostream& stream) override;
     std::unique_ptr<llvm::Module>& emit();
 
+    const char* file_ext() const override { return ".ll"; }
+
 protected:
     /// @name convert
     //@{

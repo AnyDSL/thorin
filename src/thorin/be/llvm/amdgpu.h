@@ -15,6 +15,8 @@ class AMDGPUCodeGen : public CodeGen {
 public:
     AMDGPUCodeGen(World& world, const Cont2Config&, int opt, bool debug);
 
+    const char* file_ext() const override { return ".amdgpu"; }
+
 protected:
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) override;
     virtual llvm::Function* emit_function_decl(Continuation*) override;

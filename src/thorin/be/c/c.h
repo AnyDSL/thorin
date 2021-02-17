@@ -30,6 +30,16 @@ public:
 
     void emit(std::ostream& stream) override;
 
+    const char* file_ext() const override {
+        switch (lang_) {
+            case Lang::C99:    return ".c";
+            case Lang::HLS:    return ".hls";
+            case Lang::CUDA:   return ".cuda";
+            case Lang::OPENCL: return ".cl";
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
 private:
     const Cont2Config& kernel_config_;
     Lang lang_;

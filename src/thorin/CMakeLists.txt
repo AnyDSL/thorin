@@ -30,6 +30,8 @@ set(THORIN_SOURCES
     analyses/scope.h
     analyses/verify.cpp
     analyses/verify.h
+    be/codegen.cpp
+    be/codegen.h
     be/c/c.cpp
     be/c/c.h
     be/kernel_config.h
@@ -79,8 +81,6 @@ set(THORIN_SOURCES
     util/symbol.h
     util/types.h
     util/utility.h
-    be/backends.cpp
-    be/backends.h
     )
 
 if(LLVM_FOUND)

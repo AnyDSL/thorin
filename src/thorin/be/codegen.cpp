@@ -1,5 +1,4 @@
-#include "backends.h"
-
+#include "thorin/be/codegen.h"
 #include "thorin/analyses/scope.h"
 
 #if THORIN_ENABLE_LLVM
@@ -72,10 +71,10 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-Backends::Backends(World& world, int opt, bool debug)
-    : device_cgs {}
+DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
+    : cgs {}
 {
-    for (size_t i = 0; i < device_cgs.size(); ++i)
+    for (size_t i = 0; i < cgs.size(); ++i)
         importers_.emplace_back(world);
 
     // determine different parts of the world which need to be compiled differently
@@ -175,15 +174,13 @@ Backends::Backends(World& world, int opt, bool debug)
     }
 
 #if THORIN_ENABLE_LLVM
-    cpu_cg = std::make_unique<llvm::CPUCodeGen>(world, opt, debug);
-
-    if (!importers_[NVVM  ].world().empty()) device_cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
-    if (!importers_[AMDGPU].world().empty()) device_cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
+    if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
+    if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
-    cpu_cg = std::make_unique<c::CodeGen>(world, kernel_config, c::Lang::C99, debug);
+    (void)opt;
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
-        if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
+        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

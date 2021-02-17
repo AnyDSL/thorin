@@ -40,11 +40,12 @@
 
 namespace thorin::llvm {
 
-CodeGen::CodeGen(World& world,
-                 llvm::CallingConv::ID function_calling_convention,
-                 llvm::CallingConv::ID device_calling_convention,
-                 llvm::CallingConv::ID kernel_calling_convention,
-                 int opt, bool debug)
+CodeGen::CodeGen(
+    World& world,
+    llvm::CallingConv::ID function_calling_convention,
+    llvm::CallingConv::ID device_calling_convention,
+    llvm::CallingConv::ID kernel_calling_convention,
+    int opt, bool debug)
     : thorin::CodeGen(world, debug)
     , context_(new llvm::LLVMContext())
     , module_(new llvm::Module(world.name(), *context_))

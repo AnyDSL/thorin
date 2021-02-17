@@ -9,7 +9,7 @@
 #include "thorin/config.h"
 #include "thorin/continuation.h"
 #include "thorin/analyses/schedule.h"
-#include "thorin/be/backends.h"
+#include "thorin/be/codegen.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
 #include "thorin/transform/importer.h"
@@ -24,11 +24,12 @@ namespace llvm = ::llvm;
 
 class CodeGen : public thorin::CodeGen {
 protected:
-    CodeGen(World& world,
-            llvm::CallingConv::ID function_calling_convention,
-            llvm::CallingConv::ID device_calling_convention,
-            llvm::CallingConv::ID kernel_calling_convention,
-            int opt, bool debug);
+    CodeGen(
+        World& world,
+        llvm::CallingConv::ID function_calling_convention,
+        llvm::CallingConv::ID device_calling_convention,
+        llvm::CallingConv::ID kernel_calling_convention,
+        int opt, bool debug);
 public:
     virtual ~CodeGen() {}
 

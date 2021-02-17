@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "thorin/be/backends.h"
+#include "thorin/be/codegen.h"
 
 namespace thorin {
 

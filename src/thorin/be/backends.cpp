@@ -179,7 +179,7 @@ Backends::Backends(World& world, int opt, bool debug)
     if (!importers_[NVVM  ].world().empty()) device_cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
     if (!importers_[AMDGPU].world().empty()) device_cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
-    // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
+    cpu_cg = std::make_unique<c::CodeGen>(world, kernel_config, c::Lang::C99, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);

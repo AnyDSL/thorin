@@ -115,10 +115,11 @@ Stream& CEmit::stream(Stream& s) const {
     return cg_->emit(std::get<const Def*>(def_));
 }
 
-// TODO
-Stream& CCodeGen::emit_debug_info(const Def* /*def*/) {
-    //if (debug_ && !def->loc().file.empty())
-        //return streamf(func_impls_, "#line {} \"{}\"", def->loc().begin.row, def->loc().file) << endl;
+Stream& CCodeGen::emit_debug_info(const Def* def) {
+    if (debug_ && !def->loc().file.empty()) {
+        func_impls_.fmt("#line {} \"{}\"", def->loc().begin.row, def->loc().file);
+        return func_impls_.endl();
+    }
     return func_impls_;
 }
 

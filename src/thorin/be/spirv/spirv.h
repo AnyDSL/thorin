@@ -21,6 +21,7 @@ protected:
     SpvId convert(const Type*);
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, SpvBasicBlockBuilder& bb);
+    SpvId emit(const Def* def);
 
     SpvId get_codom_type(const Continuation* fn);
 
@@ -29,6 +30,7 @@ protected:
     SpvFnBuilder* current_fn_ = nullptr;
     Scheduler scheduler_;
     TypeMap<SpvId> types_;
+    DefMap<SpvId> defs_;
 };
 
 }

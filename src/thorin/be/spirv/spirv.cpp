@@ -68,9 +68,25 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId composite(SpvId aggregate_t, std::vector<SpvId>& elements) {
+        op(spv::Op::OpLabel, 3 + elements.size());
+        ref_id(aggregate_t);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        for (auto e : elements)
+            ref_id(e);
+        return id;
+    }
+
     void return_void() {
         op(spv::Op::OpReturn, 1);
     }
+
+    void return_value(SpvId value) {
+        op(spv::Op::OpReturnValue, 2);
+        ref_id(value);
+    }
+
 private:
     SpvId generate_fresh_id();
 };
@@ -80,6 +96,10 @@ struct SpvFnBuilder {
     SpvId fn_ret_type;
     ContinuationMap<std::unique_ptr<SpvBasicBlockBuilder>> bbs;
     ContinuationMap<SpvId> labels;
+    DefMap<SpvId> params;
+
+    // Contains OpFunctionParams
+    SpvSectionBuilder header;
 };
 
 struct SpvFileBuilder {
@@ -146,6 +166,9 @@ struct SpvFileBuilder {
         fn_defs.ref_id(id);
         fn_defs.data_.push_back(spv::FunctionControlMaskNone);
         fn_defs.ref_id(fn_builder.fn_type);
+
+        for (auto w : fn_builder.header.data_)
+            fn_defs.data_.push_back(w);
 
         // TODO OpFunctionParameters
         for (auto& [cont, bb] : fn_builder.bbs) {
@@ -314,14 +337,25 @@ SpvId CodeGen::convert(const Type* type) {
             }
 
             assert(false && "TODO: handle closure mess");
+            break;
         }
 
         case Node_StructType: {
-            assert(false && "TODO");
+            std::vector<SpvId> types;
+            for (auto elem : type->as<StructType>()->ops())
+                types.push_back(convert(elem));
+            spv_type = builder_->declare_struct_type(types);
+            // TODO debug info
+            break;
         }
 
         case Node_TupleType: {
-            assert(false && "TODO");
+            std::vector<SpvId> types;
+            for (auto elem : type->as<TupleType>()->ops())
+                types.push_back(convert(elem));
+            spv_type = builder_->declare_struct_type(types);
+            // TODO debug info
+            break;
         }
 
         case Node_VariantType: {
@@ -360,7 +394,30 @@ void CodeGen::emit(const thorin::Scope& scope) {
             builder_->name(label, cont->name().c_str());
         fn.labels.emplace(cont, label);
 
-        // TODO prepare phis/params
+        if (entry_ == cont) {
+            int arg = 0;
+            for (auto param : entry_->params()) {
+                if (is_mem(param) || is_unit(param)) {
+                    // Nothing
+                } else if (param->order() == 0) {
+                    auto param_t = convert(param->type());
+                    fn.header.op(spv::Op::OpFunctionParameter, 3);
+                    auto id = builder_->generate_fresh_id();
+                    fn.header.ref_id(param_t);
+                    fn.header.ref_id(id);
+                    fn.params[param] = id;
+                }
+            }
+        } else {
+            for (auto param : cont->params()) {
+                if (is_mem(param) || is_unit(param)) {
+                    // Nothing
+                } else {
+                    // TODO OpPhi requires the full list of predecessors when emitting
+                    assert(false);
+                }
+            }
+        }
     }
 
     Scheduler new_scheduler(scope);
@@ -392,30 +449,26 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb) {
-    if (continuation->callee() == entry_->ret_param()) { // return
-        std::vector<SpvId> types;
+    if (continuation->callee() == entry_->ret_param()) {
         std::vector<SpvId> values;
 
         for (auto arg : continuation->args()) {
-            /*if (auto val = emit_unsafe(arg)) {
-                values.emplace_back(val);
-                types.emplace_back(val->getType());
-            }*/
+            assert(arg->order() == 0);
+            if (is_mem(arg) || is_unit(arg))
+                continue;
+            auto val = emit(arg);
+            values.emplace_back(val);
         }
 
         switch (values.size()) {
             case 0:  bb.return_void();      break;
-                //case 1:  irbuilder.CreateRet(values[0]); break;
-            default:
-                assert(false && "TODO handle non-void returns");
-                /*llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), types));
-
-                for (size_t i = 0, e = values.size(); i != e; ++i)
-                    agg = irbuilder.CreateInsertValue(agg, values[i], { unsigned(i) });
-
-                irbuilder.CreateRet(agg);*/
+            case 1:  bb.return_value(values[0]); break;
+            default: bb.return_value(bb.composite(current_fn_->fn_ret_type, values));
         }
-    } /*else if (continuation->callee() == world().branch()) {
+    } else {
+        assert(false && "epilogue not implemented");
+    }
+    /*else if (continuation->callee() == world().branch()) {
         auto cond = emit(continuation->arg(0));
         auto tbb = cont2bb(continuation->arg(1)->as_continuation());
         auto fbb = cont2bb(continuation->arg(2)->as_continuation());
@@ -512,6 +565,10 @@ void CodeGen::emit_epilogue(Continuation* continuation, SpvBasicBlockBuilder& bb
 
     // new insert point is just before the terminator for all other instructions we have to add later on
     // irbuilder.SetInsertPoint(bb->getTerminator());
+}
+
+SpvId CodeGen::emit(const Def* def) {
+    return SpvId();
 }
 
 }

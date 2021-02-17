@@ -84,6 +84,15 @@ using Def2Def = DefMap<const Def*>;
 
 //------------------------------------------------------------------------------
 
+namespace Dep {
+enum : unsigned {
+    Bot,
+    Cont,
+    Param,
+    Top = Cont | Param
+};
+}
+
 /**
  * The base class for all three tags of Definitions in AnyDSL.
  * These are:
@@ -119,12 +128,18 @@ public:
     void set_name(const std::string&) const;
     //@}
 
+    /// @name dependence checks
+    //@{
+    unsigned dep() const { return dep_; }
+    bool no_dep() const { return dep() == Dep::Bot; }
+    bool has_dep(unsigned dep) const { return (dep_ & dep) != 0; }
+    //@}
+
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
-    bool contains_continuation() const { return contains_continuation_; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
     const Uses& uses() const { return uses_; }
@@ -155,12 +170,10 @@ private:
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
-    const size_t gid_ : sizeof(size_t) * 8 - 1;
+    const uint32_t gid_;
+    unsigned dep_ : 2;
 
     static size_t gid_counter_;
-
-protected:
-    bool contains_continuation_;
 
     friend class Cleaner;
     friend class PrimOp;
@@ -200,7 +213,6 @@ uint64_t UseHash::hash(Use use) {
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);
 bool is_unit(const Def*);
-bool is_const(const Def*);
 bool is_primlit(const Def*, int64_t);
 bool is_minus_zero(const Def*);
 inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }

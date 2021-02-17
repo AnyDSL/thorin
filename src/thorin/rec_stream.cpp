@@ -22,7 +22,7 @@ public:
 };
 
 void RecStreamer::run(const Def* def) {
-    if (is_const(def) || !defs.emplace(def).second) return;
+    if (def->no_dep() || !defs.emplace(def).second) return;
 
     for (auto op : def->ops()) { // for now, don't include debug info and type
         if (auto cont = op->isa_continuation()) {
@@ -36,7 +36,7 @@ void RecStreamer::run(const Def* def) {
 
     if (auto cont = def->isa_continuation())
         s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->callee(), cont->args());
-    else if (!is_const(def) && !def->isa<Param>())
+    else if (!def->no_dep() && !def->isa<Param>())
         def->stream_let(s);
 }
 
@@ -61,7 +61,7 @@ void Def::dump() const { dump(0); }
 void Def::dump(size_t max) const { Stream s(std::cout); stream(s, max).endl(); }
 
 Stream& Def::stream(Stream& s) const {
-    if (isa<Param>() || is_const(this)) return stream1(s);
+    if (isa<Param>() || no_dep()) return stream1(s);
     return s << unique_name();
 }
 

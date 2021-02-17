@@ -181,7 +181,7 @@ Backends::Backends(World& world, int opt, bool debug)
 #else
     cpu_cg = std::make_unique<c::CodeGen>(world, kernel_config, c::Lang::C99, debug);
 #endif
-    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
+    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
 }
 

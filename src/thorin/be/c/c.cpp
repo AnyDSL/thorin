@@ -120,7 +120,7 @@ Stream& CCodeGen::emit_debug_info(const Def* /*def*/) {
 
 Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
     if (auto ptr = type->isa<PtrType>()) {
-        if (lang_==Lang::OPENCL) {
+        if (lang_ == Lang::OpenCL) {
             switch (ptr->addr_space()) {
                 default:
                 case AddrSpace::Generic:                   break;
@@ -354,7 +354,7 @@ Stream& CCodeGen::emit_temporaries(const Def* def) {
 }
 
 void CCodeGen::emit() {
-    if (lang_==Lang::CUDA) {
+    if (lang_ == Lang::CUDA) {
         for (auto x : std::array<char, 3>{'x', 'y', 'z'}) {
             func_decls_.fmt("__device__ inline int threadIdx_{}() { return threadIdx.{}; }\n", x, x);
             func_decls_.fmt("__device__ inline int blockIdx_{}() { return blockIdx.{}; }\n", x, x);
@@ -413,7 +413,7 @@ void CCodeGen::emit() {
                            func_impl_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
                    }
                    break;
-                case Lang::OPENCL:
+                case Lang::OpenCL:
                    func_decls_ << "__kernel ";
                    func_impl_  << "__kernel ";
                    if (config != kernel_config_.end()) {
@@ -424,7 +424,7 @@ void CCodeGen::emit() {
                    break;
             }
         } else {
-            if (lang_==Lang::CUDA) {
+            if (lang_ == Lang::CUDA) {
                 func_decls_ << "__device__ ";
                 func_impl_  << "__device__ ";
             }
@@ -462,7 +462,7 @@ void CCodeGen::emit() {
                     config = config_it->second.get();
                 }
 
-                if (lang_ == Lang::OPENCL && continuation->is_exported() &&
+                if (lang_ == Lang::OpenCL && continuation->is_exported() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
@@ -485,7 +485,7 @@ void CCodeGen::emit() {
                 } else {
                     std::string qualifier;
                     // add restrict qualifier when possible
-                    if ((lang_ == Lang::OPENCL || lang_ == Lang::CUDA) &&
+                    if ((lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
                         config && config->as<GPUKernelConfig>()->has_restrict() &&
                         param->type()->isa<PtrType>()) {
                         qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
@@ -511,7 +511,7 @@ void CCodeGen::emit() {
             if (is_mem(param) || is_unit(param))
                 continue;
             if (param->order() == 0) {
-                if (lang_==Lang::OPENCL && continuation->is_exported() &&
+                if (lang_ == Lang::OpenCL && continuation->is_exported() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
@@ -681,7 +681,7 @@ void CCodeGen::emit() {
                             switch (lang_) {
                                 default:                                        break;
                                 case Lang::CUDA:   func_impl_ << "__shared__ "; break;
-                                case Lang::OPENCL: func_impl_ << "__local ";    break;
+                                case Lang::OpenCL: func_impl_ << "__local ";    break;
                             }
 
                             auto cont = cont->arg(2)->as_cont();
@@ -696,10 +696,10 @@ void CCodeGen::emit() {
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
                                            << "#pragma HLS data_pack  variable=" << name;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
-                            assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
+                            assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
                             // cast to cont to get unique name of "for index"
                             auto body = cont->arg(4)->as_cont();
-                            if (lang_ == Lang::OPENCL) {
+                            if (lang_ == Lang::OpenCL) {
                                 if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
                                     func_impl_ << "#pragma ii ";
                                     emit(cont->arg(1)) << endl;
@@ -808,7 +808,7 @@ void CCodeGen::emit() {
     type2str_.clear();
     global2str_.clear();
 
-    if (lang_==Lang::OPENCL) {
+    if (lang_ == Lang::OpenCL) {
         if (use_channels_)
             stream_ << "#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl;
         if (use_16_)
@@ -819,14 +819,14 @@ void CCodeGen::emit() {
             stream_ << endl;
     }
 
-    if (lang_==Lang::CUDA && use_16_) {
+    if (lang_ == Lang::CUDA && use_16_) {
         stream_ << "#include <cuda_fp16.h>" << endl << endl;
         stream_ << "#if __CUDACC_VER_MAJOR__ > 8" << endl
             << "#define half __half_raw" << endl
             << "#endif" << endl << endl;
     }
 
-    if (lang_==Lang::CUDA || lang_==Lang::HLS)
+    if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_ << "extern \"C\" {" << endl;
 
     if (!type_decls_.str().empty())
@@ -835,7 +835,7 @@ void CCodeGen::emit() {
         stream_ << func_decls_.str() << endl;
     stream_ << func_impl_.str();
 
-    if (lang_==Lang::CUDA || lang_==Lang::HLS)
+    if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_ << "}"; // extern "C"
 #endif
 }
@@ -950,7 +950,7 @@ Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
         switch (lang_) {
             default:           func_impl_ << def;    break;
             case Lang::CUDA:   func_impl_ << cuda;   break;
-            case Lang::OPENCL: func_impl_ << opencl; break;
+            case Lang::OpenCL: func_impl_ << opencl; break;
         }
     };
 
@@ -1064,11 +1064,11 @@ Stream& CCodeGen::emit(const Def* def) {
             auto from = src_type->as<PrimType>();
             auto to   = dst_type->as<PrimType>();
 
-            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
+            if (lang_ == Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
                 func_impl_ << "(";
                 emit_type(func_impl_, dst_type) << ") __half2float(";
                 emit(conv->from()) << ");";
-            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
+            } else if (lang_ == Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
                 func_impl_ << "__float2half((float)";
                 emit(conv->from()) << ");";
             } else {
@@ -1412,7 +1412,7 @@ Stream& CCodeGen::emit(const Def* def) {
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OPENCL: func_impl_ << "__constant "; break;
+            case Lang::OpenCL: func_impl_ << "__constant "; break;
         }
         bool bottom = global->init()->isa<Bottom>();
         if (!bottom)
@@ -1429,7 +1429,7 @@ Stream& CCodeGen::emit(const Def* def) {
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OPENCL: func_impl_ << "__constant "; break;
+            case Lang::OpenCL: func_impl_ << "__constant "; break;
         }
         emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
 
@@ -1497,7 +1497,7 @@ const std::string CCodeGen::get_lang() const {
         case Lang::C99:    return "C99";
         case Lang::HLS:    return "HLS";
         case Lang::CUDA:   return "CUDA";
-        case Lang::OPENCL: return "OpenCL";
+        case Lang::OpenCL: return "OpenCL";
     }
 }
 
@@ -1517,7 +1517,7 @@ void CCodeGen::insert(const Def* def, std::string str) {
 bool CCodeGen::is_texture_type(const Type* type) {
     if (auto ptr = type->isa<PtrType>()) {
         if (ptr->addr_space()==AddrSpace::Texture) {
-            assert(lang_==Lang::CUDA && "Textures currently only supported in CUDA");
+            assert(lang_ == Lang::CUDA && "Textures currently only supported in CUDA");
             return true;
         }
     }

@@ -978,8 +978,6 @@ Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 }
 
 Stream& CCodeGen::emit(const Def* def) {
-    Stream s(std::cout); // TODO
-
     if (auto continuation = def->isa<Continuation>())
         return func_impl_.fmt("goto l{};", continuation->gid());
 
@@ -1551,7 +1549,7 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 
 //------------------------------------------------------------------------------
 
-void CodeGen::emit(std::ostream &stream) {
+void CodeGen::emit(std::ostream& stream) {
     Stream s(stream);
     CCodeGen(world(), kernel_config_, s, lang_, debug_).emit();
 }

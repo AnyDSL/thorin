@@ -363,7 +363,6 @@ void CCodeGen::emit() {
         }
     }
 
-#if 0
     // emit all globals
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
@@ -371,7 +370,7 @@ void CCodeGen::emit() {
                 emit_string(global);
             else {
                 emit_aggop_decl(global->type());
-                emit(global) << endl;
+                emit(global).endl();
             }
         }
     }
@@ -444,12 +443,9 @@ void CCodeGen::emit() {
             if (param->order() == 0) {
                 emit_aggop_decl(param->type());
                 if (is_texture_type(param->type())) {
-                    // emit texture declaration for CUDA
-                    type_decls_ << "texture<";
-                    emit_type(type_decls_, param->type()->as<PtrType>()->pointee());
-                    type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
-                    type_decls_ << param->name() << ";" << endl;
-                    insert(param, param->name().str());
+                    type_decls_.fmt("texture<{}, cudaTextureType1D, cudaReadModeElementType> {};\n",
+                            wrap(param->type()->as<PtrType>()->pointee()), param->name());
+                    insert(param, param->name());
                     // skip arrays bound to texture memory
                     continue;
                 }
@@ -502,10 +498,13 @@ void CCodeGen::emit() {
                 insert(param, param->unique_name());
             }
         }
-        func_decls_ << ");" << endl;
-        func_impl_  << ") {" << up;
+        func_decls_.fmt(");\n");
+        func_impl_ .fmt(") {\t\n)");
+#if 0
+        // TODO
         if (!hls_pragmas.empty())
             func_impl_ << down << endl << hls_pragmas << up;
+#endif
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
@@ -516,12 +515,14 @@ void CCodeGen::emit() {
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
-                    func_impl_ << endl;
+                    func_impl_.endl();
                     emit_type(func_impl_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
                 }
             }
         }
+    }); // TODO
 
+#if 0
         auto conts = schedule(scope);
         Scheduler scheduler(scope);
 
@@ -537,7 +538,7 @@ void CCodeGen::emit() {
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
                     if (!is_mem(param) && !is_unit(param)) {
-                        func_impl_ << endl;
+                        func_impl_.endl();
                         emit_addr_space(func_impl_, param->type());
                         emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
                         emit_addr_space(func_impl_, param->type());

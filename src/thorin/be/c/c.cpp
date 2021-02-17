@@ -499,7 +499,7 @@ void CCodeGen::emit() {
             }
         }
         func_decls_.fmt(");\n");
-        func_impl_ .fmt(") {\t\n)");
+        func_impl_ .fmt(") {{\t\n)");
 #if 0
         // TODO
         if (!hls_pragmas.empty())

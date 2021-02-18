@@ -40,7 +40,7 @@ private:
     void emit(const Scope&);
     void emit_epilogue(Continuation*);
     std::string emit(const Def*);            ///< Recursively emits code. @c mem -typed @p def%s return an empty string - this variant asserts in this case.
-    std::string emit_unsafe(const Def* def); ///< As above but returning @c nullptr is permitted.
+    std::string emit_unsafe(const Def* def); ///< As above but returning an empty string is permitted.
     std::string emit_(const Def*);           ///< Internal wrapper for @p emit that checks and retrieves/puts @c std::string into @p def2str_;
 
     Stream& emit_aggop_defs(const Def*);

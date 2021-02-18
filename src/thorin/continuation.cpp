@@ -167,7 +167,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "nvvm")                 attributes().intrinsic = Intrinsic::NVVM;
     else if (name() == "opencl")               attributes().intrinsic = Intrinsic::OpenCL;
     else if (name() == "amdgpu")               attributes().intrinsic = Intrinsic::AMDGPU;
-    else if (name() == "vk_compute")           attributes().intrinsic = Intrinsic::VkCompute;
+    else if (name() == "spirv")                attributes().intrinsic = Intrinsic::SpirV;
     else if (name() == "hls")                  attributes().intrinsic = Intrinsic::HLS;
     else if (name() == "parallel")             attributes().intrinsic = Intrinsic::Parallel;
     else if (name() == "fibers")               attributes().intrinsic = Intrinsic::Fibers;

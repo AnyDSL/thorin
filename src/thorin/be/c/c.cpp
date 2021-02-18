@@ -506,11 +506,8 @@ void CCodeGen::emit() {
         func_decls_.fmt(");\n");
         func_impls_.fmt(") {{\t\n");
 
-        if (!hls_pragmas.empty()) {
-            func_impls_.dedent().endl();
-            func_impls_ << hls_pragmas;
-            func_impls_.indent();
-        }
+        if (!hls_pragmas.empty())
+            func_impls_.fmt("\b\n{}\t", hls_pragmas);
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {

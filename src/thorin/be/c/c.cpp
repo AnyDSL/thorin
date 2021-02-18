@@ -19,23 +19,6 @@ namespace thorin::c {
 
 class CCodeGen;
 
-struct CEmit : public Streamable<CEmit> {
-    CEmit(CCodeGen* cg, const Def* def)
-        : cg_(cg)
-        , def_(def)
-    {}
-    CEmit(CCodeGen* cg, const Type* type)
-        : cg_(cg)
-        , def_(type)
-    {}
-
-    Stream& stream(Stream&) const;
-
-private:
-    CCodeGen* cg_;
-    std::variant<const Def*, const Type*> def_; // we can remove this variant once we nuked Type in favor of just using Def everywhere
-};
-
 class CCodeGen {
 public:
     CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug)
@@ -52,31 +35,24 @@ public:
     World& world() const { return world_; }
 
 private:
-    CEmit wrap(const Def* def) { return CEmit(this, def); }
-    CEmit wrap(const Type* type) { return CEmit(this, type); }
-    template<class T>
-    std::enable_if_t<!std::is_pointer_v<T>, Array<CEmit>> wrap(const T& t) {
-        return {std::distance(t.begin(), t.end(), [&](const auto& x) { return CEmit(this, x); })};
-    }
+    std::string convert(const Type*);
+
+    void emit(const Scope&);
+    void emit_epilogue(Continuation*);
+    std::string emit(const Def*);            ///< Recursively emits code. @c mem -typed @p def%s return an empty string - this variant asserts in this case.
+    std::string emit_unsafe(const Def* def); ///< As above but returning @c nullptr is permitted.
+    std::string emit_(const Def*);           ///< Internal wrapper for @p emit that checks and retrieves/puts @c std::string into @p def2str_;
+
     Stream& emit_aggop_defs(const Def*);
     Stream& emit_aggop_decl(const Type*);
     Stream& emit_debug_info(const Def*);
     Stream& emit_addr_space(Stream&, const Type*);
     Stream& emit_string(const Global*);
     Stream& emit_temporaries(const Def*);
-    Stream& emit_type(Stream&, const Type*);
-    Stream& emit(const Def*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     Stream& emit_float(T, IsInfFn, IsNanFn);
 
-    // TODO use Symbol instead of std::string
-    bool lookup(const Type*);
-    bool lookup(const Def*);
-    void insert(const Type*, std::string);
-    void insert(const Def*, std::string);
-    std::string& get_name(const Type*);
-    std::string& get_name(const Def*);
     const std::string var_name(const Def*);
     const std::string get_lang() const;
     bool is_texture_type(const Type*);
@@ -91,8 +67,6 @@ private:
     const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
-    DefMap<std::string> global2str_;
-    DefMap<std::string> primop2str_;
     bool use_64_ = false;
     bool use_16_ = false;
     bool use_channels_ = false;
@@ -106,39 +80,12 @@ private:
     Stream func_impls_ { func_impls_out_ };
     Stream func_decls_ { func_decls_out_ };
     Stream type_decls_ { type_decls_out_ };
+    Continuation* entry_ = nullptr;
 
     friend class CEmit;
 };
 
-Stream& CEmit::stream(Stream& s) const {
-    if (std::holds_alternative<const Type*>(def_)) return cg_->emit_type(s, std::get<const Type*>(def_));
-    return cg_->emit(std::get<const Def*>(def_));
-}
-
-Stream& CCodeGen::emit_debug_info(const Def* def) {
-    if (debug_ && !def->loc().file.empty()) {
-        func_impls_.fmt("#line {} \"{}\"", def->loc().begin.row, def->loc().file);
-        return func_impls_.endl();
-    }
-    return func_impls_;
-}
-
-Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
-    if (auto ptr = type->isa<PtrType>()) {
-        if (lang_ == Lang::OpenCL) {
-            switch (ptr->addr_space()) {
-                default:
-                case AddrSpace::Generic:                  break;
-                case AddrSpace::Global: s << "__global "; break;
-                case AddrSpace::Shared: s << "__local ";  break;
-            }
-        }
-    }
-
-    return s;
-}
-
-inline bool is_string_type(const Type* type) {
+static inline bool is_string_type(const Type* type) {
     if (auto array = type->isa<DefiniteArrayType>())
         if (auto primtype = array->elem_type()->isa<PrimType>())
             if (primtype->primtype_tag() == PrimType_pu8)
@@ -146,7 +93,7 @@ inline bool is_string_type(const Type* type) {
     return false;
 }
 
-std::string handle_string_character(char c) {
+static std::string handle_string_character(char c) {
     switch (c) {
         case '\a': return "\\a";
         case '\b': return "\\b";
@@ -159,27 +106,14 @@ std::string handle_string_character(char c) {
     }
 }
 
-Stream& CCodeGen::emit_string(const Global* global) {
-    if (auto str_array = global->init()->isa<DefiniteArray>()) {
-        if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
-            if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
-                if (primtype->primtype_tag() == PrimType_pu8) {
-                    std::string str = "\"";
-                    for (auto op : str_array->ops().skip_back())
-                        str += handle_string_character(op->as<PrimLit>()->pu8_value());
-                    str += '"';
-                    insert(global, str);
-                }
-            }
-        }
-    }
+/*
+ * convert
+ */
 
-    return type_decls_;
-}
-
-Stream& CCodeGen::emit_type(Stream& s, const Type* type) {
-    if (lookup(type))
-        return s << get_name(type);
+std::string CCodeGen::convert(const Type* type) {
+    if (auto res = type2str_.lookup(type)) return *res;
+#if 0
+    Stream s(std::cout); // TODO
 
     if (type == nullptr) {
         return s << "NULL";
@@ -246,119 +180,16 @@ Stream& CCodeGen::emit_type(Stream& s, const Type* type) {
         // TODO vector_length - I'm pretty sure the old code was incorrect anyway
         return s;
     }
+#endif
     THORIN_UNREACHABLE;
 }
 
-Stream& CCodeGen::emit_aggop_defs(const Def* def) {
-    if (lookup(def) || is_unit(def))
-        return func_impls_;
-
-    // look for nested array
-    if (auto array = def->isa<DefiniteArray>()) {
-        for (auto op : array->ops())
-            emit_aggop_defs(op);
-        if (lookup(def))
-            return func_impls_;
-        emit(array).endl();
-    }
-
-    // look for nested struct
-    if (auto agg = def->isa<Aggregate>()) {
-        for (auto op : agg->ops())
-            emit_aggop_defs(op);
-        if (lookup(def))
-            return func_impls_;
-        emit(agg).endl();
-    }
-
-    // look for nested variants
-    if (auto variant = def->isa<Variant>()) {
-        for (auto op : variant->ops())
-            emit_aggop_defs(op);
-        if (lookup(def))
-            return func_impls_;
-        emit(variant).endl();
-    }
-
-    // emit declarations for bottom - required for nested data structures
-    if (def->isa<Bottom>())
-        emit(def).endl();
-
-    return func_impls_;
-}
-
-Stream& CCodeGen::emit_aggop_decl(const Type* type) {
-    if (lookup(type) || type == world().unit())
-        return type_decls_;
-
-    // TODO wat???
-    // set indent to zero
-    //auto indent = detail::get_indent();
-    //while (detail::get_indent() != 0)
-        //type_decls_.dedent();
-
-    if (auto ptr = type->isa<PtrType>())
-        emit_aggop_decl(ptr->pointee());
-
-    if (auto array = type->isa<IndefiniteArrayType>())
-        emit_aggop_decl(array->elem_type());
-
-    if (auto fn = type->isa<FnType>())
-        for (auto type : fn->ops())
-            emit_aggop_decl(type);
-
-    // look for nested array
-    if (auto array = type->isa<DefiniteArrayType>()) {
-        emit_aggop_decl(array->elem_type());
-        emit_type(type_decls_, array).endl();
-        insert(type, array_name(array));
-    }
-
-    // look for nested tuple
-    if (auto tuple = type->isa<TupleType>()) {
-        for (auto op : tuple->ops())
-            emit_aggop_decl(op);
-        emit_type(type_decls_, tuple).endl();
-        insert(type, tuple_name(tuple));
-    }
-
-    // look for nested struct
-    if (auto struct_type = type->isa<StructType>()) {
-        for (auto op : struct_type->ops())
-            emit_aggop_decl(op);
-        emit_type(type_decls_, struct_type).endl();
-        insert(type, struct_type->name().str());
-    }
-
-    // look for nested variants
-    if (auto variant = type->isa<VariantType>()) {
-        for (auto op : variant->ops())
-            emit_aggop_decl(op);
-        emit_type(type_decls_, variant).endl();
-        insert(type, variant->name().str());
-    }
-
-    // TODO see above
-    // restore indent
-    //while (detail::get_indent() != indent)
-        //type_decls_ << up;
-
-    return type_decls_;
-}
-
-Stream& CCodeGen::emit_temporaries(const Def* def) {
-    // emit definitions of inlined elements, skip match
-    if (!def->isa<PrimOp>() || !is_from_match(def->as<PrimOp>()))
-        emit_aggop_defs(def);
-
-    // emit temporaries for arguments
-    if (def->order() >= 1 || is_mem(def) || is_unit(def) || lookup(def) || def->isa<PrimLit>())
-        return func_impls_;
-
-    return emit(def).endl();
-}
+/*
+ * emit
+ */
 
 void CCodeGen::emit() {
+#if 0
     if (lang_ == Lang::CUDA) {
         for (auto x : std::array<char, 3>{'x', 'y', 'z'}) {
             func_decls_.fmt("__device__ inline int threadIdx_{}() { return threadIdx.{}; }\n", x, x);
@@ -380,459 +211,31 @@ void CCodeGen::emit() {
         }
     }
 
-    Scope::for_each(world(), [&] (const Scope& scope) {
-        if (scope.entry() == world().branch())
-            return;
-
-        // continuation declarations
-        auto continuation = scope.entry();
-        if (continuation->is_intrinsic())
-            return;
-
-        assert(continuation->is_returning());
-
-        // retrieve return param
-        const Param* ret_param = nullptr;
-        for (auto param : continuation->params()) {
-            if (param->order() != 0) {
-                assert(!ret_param);
-                ret_param = param;
-            }
-        }
-        assert(ret_param);
-
-        // emit function & its declaration
-        auto ret_param_fn_type = ret_param->type()->as<FnType>();
-        auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-        auto name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-        if (continuation->is_exported()) {
-            auto config = kernel_config_.find(continuation);
-            switch (lang_) {
-                default: break;
-                case Lang::CUDA:
-                   func_decls_ << "__global__ ";
-                   func_impls_ << "__global__ ";
-                   if (config != kernel_config_.end()) {
-                       auto block = config->second->as<GPUKernelConfig>()->block_size();
-                       if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                           func_impls_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
-                   }
-                   break;
-                case Lang::OpenCL:
-                   func_decls_ << "__kernel ";
-                   func_impls_ << "__kernel ";
-                   if (config != kernel_config_.end()) {
-                       auto block = config->second->as<GPUKernelConfig>()->block_size();
-                       if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                           func_impls_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
-                   }
-                   break;
-            }
-        } else {
-            if (lang_ == Lang::CUDA) {
-                func_decls_ << "__device__ ";
-                func_impls_ << "__device__ ";
-            }
-        }
-        emit_aggop_decl(ret_type);
-        emit_addr_space(func_decls_, ret_type);
-        emit_addr_space(func_impls_, ret_type);
-        emit_type(func_decls_, ret_type) << " " << name << "(";
-        emit_type(func_impls_, ret_type) << " " << name << "(";
-        size_t i = 0;
-        std::string hls_pragmas;
-        // emit and store all first-order params
-        for (auto param : continuation->params()) {
-            if (is_mem(param) || is_unit(param))
-                continue;
-            if (param->order() == 0) {
-                emit_aggop_decl(param->type());
-                if (is_texture_type(param->type())) {
-                    type_decls_.fmt("texture<{}, cudaTextureType1D, cudaReadModeElementType> {};\n",
-                            wrap(param->type()->as<PtrType>()->pointee()), param->name());
-                    insert(param, param->name());
-                    // skip arrays bound to texture memory
-                    continue;
-                }
-                if (i++ > 0) {
-                    func_decls_ << ", ";
-                    func_impls_ << ", ";
-                }
-
-                // get the kernel launch config
-                KernelConfig* config = nullptr;
-                if (continuation->is_exported()) {
-                    auto config_it = kernel_config_.find(continuation);
-                    assert(config_it != kernel_config_.end());
-                    config = config_it->second.get();
-                }
-
-                if (lang_ == Lang::OpenCL && continuation->is_exported() &&
-                    (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructType>() ||
-                     param->type()->isa<TupleType>())) {
-                    // structs are passed via buffer; the parameter is a pointer to this buffer
-                    func_decls_ << "__global ";
-                    func_impls_ << "__global ";
-                    emit_type(func_decls_, param->type()) << " *";
-                    emit_type(func_impls_, param->type()) << " *" << param->unique_name() << "_";
-                } else if (lang_ == Lang::HLS && continuation->is_exported() && param->type()->isa<PtrType>()) {
-                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-                    assert(array_size > 0);
-                    auto ptr_type = param->type()->as<PtrType>();
-                    auto elem_type = ptr_type->pointee();
-                    if (auto array_type = elem_type->isa<ArrayType>())
-                        elem_type = array_type->elem_type();
-                    emit_type(func_decls_, elem_type) << "[" << array_size << "]";
-                    emit_type(func_impls_, elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-                    if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
-                        hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
-                } else {
-                    std::string qualifier;
-                    // add restrict qualifier when possible
-                    if ((lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
-                        config && config->as<GPUKernelConfig>()->has_restrict() &&
-                        param->type()->isa<PtrType>()) {
-                        qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
-                    }
-                    emit_addr_space(func_decls_, param->type());
-                    emit_addr_space(func_impls_, param->type());
-                    emit_type(func_decls_, param->type()) << qualifier;
-                    emit_type(func_impls_, param->type()) << qualifier << " " << param->unique_name();
-                }
-                insert(param, param->unique_name());
-            }
-        }
-        func_decls_.fmt(");\n");
-        func_impls_.fmt(") {{\t\n");
-
-        if (!hls_pragmas.empty())
-            func_impls_.fmt("\b\n{}\t", hls_pragmas);
-
-        // OpenCL: load struct from buffer
-        for (auto param : continuation->params()) {
-            if (is_mem(param) || is_unit(param))
-                continue;
-            if (param->order() == 0) {
-                if (lang_ == Lang::OpenCL && continuation->is_exported() &&
-                    (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructType>() ||
-                     param->type()->isa<TupleType>())) {
-                    func_impls_.endl();
-                    emit_type(func_impls_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
-                }
-            }
-        }
-    }); // TODO
-
-#if 0
-        auto conts = schedule(scope);
-        Scheduler scheduler(scope);
-
-        // emit function arguments and phi nodes
-        for (auto&& continuation : conts) {
-            for (auto param : continuation->params()) {
-                if (is_mem(param) || is_unit(param))
-                    continue;
-                emit_aggop_decl(param->type());
-                insert(param, param->unique_name());
-            }
-
-            if (scope.entry() != continuation) {
-                for (auto param : continuation->params()) {
-                    if (!is_mem(param) && !is_unit(param)) {
-                        func_impls_.endl();
-                        emit_addr_space(func_impls_, param->type());
-                        emit_type(func_impls_, param->type()) << "  " << param->unique_name() << ";" << endl;
-                        emit_addr_space(func_impls_, param->type());
-                        emit_type(func_impls_, param->type()) << " p" << param->unique_name() << ";";
-                    }
-                }
-            }
-            // emit counter for pipeline intrinsic
-            if (continuation->callee()->isa_continuation() &&
-                continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
-                func_impls_ << endl << "int i" << continuation->callee()->gid() << ";";
-            }
-        }
-
-        for (auto cont : conts) {
-            if (cont->empty()) continue;
-
-            assert(cont == scope.entry() || cont->is_basicblock());
-            func_impls_ << endl;
-
-            // print label for the current basic block
-            if (cont != scope.entry()) {
-                func_impls_.fmt("l{};\t\n",  cont->gid());
-                // load params from phi node
-                for (auto param : cont->params())
-                    if (!is_mem(param) && !is_unit(param))
-                        func_impls_.fmt("{} = p{};\n", param->unique_name());
-            }
-
-            // TODO rewrite and merge with LLVM backend
-#if 0
-            for (auto primop : block) {
-                if (primop->type()->order() >= 1) {
-                    // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_match(primop))
-                        continue;
-                    THORIN_UNREACHABLE;
-                }
-
-                // struct/tuple/array declarations
-                if (!primop->isa<MemOp>()) {
-                    emit_aggop_decl(primop->type());
-                    // search for inlined tuples/arrays
-                    if (auto aggop = primop->isa<AggOp>()) {
-                        if (!aggop->agg()->isa<MemOp>())
-                            emit_aggop_decl(aggop->agg()->type());
-                    }
-                }
-
-                // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (primop->type()->isa<FnType>() || primop->type()->isa<FrameType>() || ((is_mem(primop) || is_unit(primop)) && !primop->isa<Store>()))
-                    continue;
-
-                emit_debug_info(primop);
-                emit(primop) << endl;
-            }
-#endif
-
-            // emit definitions for temporaries
-            for (auto arg : cont->args())
-                emit_temporaries(arg);
-
-            // terminate bb
-            if (cont->callee() == ret_param) { // return
-                size_t num_args = cont->num_args();
-                if (num_args == 0) func_impls_ << "return ;";
-                else {
-                    Array<const Def*> values(num_args);
-                    Array<const Type*> types(num_args);
-
-                    size_t n = 0;
-                    for (auto arg : cont->args()) {
-                        if (!is_mem(arg) && !is_unit(arg)) {
-                            values[n] = arg;
-                            types[n] = arg->type();
-                            n++;
-                        }
-                    }
-
-                    if (n == 0) func_impls_ << "return ;";
-                    else if (n == 1) {
-                        func_impls_ << "return ";
-                        emit(values[0]) << ";";
-                    } else {
-                        types.shrink(n);
-                        auto ret_type = world_.tuple_type(types);
-                        auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
-                        emit_aggop_decl(ret_type);
-                        emit_type(func_impls_, ret_type) << " " << ret_tuple_name << ";";
-
-                        for (size_t i = 0; i != n; ++i) {
-                            func_impls_ << endl << ret_tuple_name << ".e" << i << " = ";
-                            emit(values[i]) << ";";
-                        }
-
-                        func_impls_ << endl << "return " << ret_tuple_name << ";";
-                    }
-                }
-            } else if (cont->callee() == world().branch()) {
-                emit_debug_info(cont->arg(0)); // TODO correct?
-                func_impls_.fmt("if ({}) {} else {}", wrap(cont->arg(0)), wrap(cont->arg(1)), wrap(cont->arg(2)));
-            } else if (cont->callee()->isa<cont>() &&
-                       cont->callee()->as<concont>()->intrinsic() == Intrinsic::Match) {
-                func_impls_ << "switch (";
-                emit(cont->arg(0)) << ") {" << up << endl;
-                for (size_t i = 2; i < cont->num_args(); i++) {
-                    auto arg = cont->arg(i)->as<Tuple>();
-                    func_impls_ << "case ";
-                    emit(arg->op(0)) << ": ";
-                    emit(arg->op(1)) << endl;
-                }
-                func_impls_ << "default: ";
-                emit(cont->arg(1));
-                func_impls_ << down << endl << "}";
-            } else if (cont->callee()->isa<Bottom>()) {
-                func_impls_ << "return ; // bottom: unreachable";
-            } else {
-                auto store_phi = [&] (const Def* param, const Def* arg) {
-                    func_impls_ << "p" << param->unique_name() << " = ";
-                    emit(arg) << ";";
-                };
-
-                auto callee = cont->callee()->as_cont();
-                emit_debug_info(callee);
-
-                if (callee->is_basicblock()) {   // ordinary jump
-                    assert(callee->num_params()==cont->num_args());
-                    for (size_t i = 0, size = callee->num_params(); i != size; ++i)
-                        if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
-                            store_phi(callee->param(i), cont->arg(i));
-                            func_impls_ << endl;
-                        }
-                    emit(callee);
-                } else {
-                    if (callee->is_intrinsic()) {
-                        if (callee->intrinsic() == Intrinsic::Reserve) {
-                            if (!cont->arg(1)->isa<PrimLit>())
-                                EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
-
-                            switch (lang_) {
-                                default:                                        break;
-                                case Lang::CUDA:   func_impls_ << "__shared__ "; break;
-                                case Lang::OpenCL: func_impls_ << "__local ";    break;
-                            }
-
-                            auto cont = cont->arg(2)->as_cont();
-                            auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-                            auto name = "reserver_" + cont->param(1)->unique_name();
-                            emit_type(func_impls_, elem_type) << " " << name << "[";
-                            emit(cont->arg(1)) << "];" << endl;
-                            // store_phi:
-                            func_impls_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
-                            if (lang_ == Lang::HLS)
-                                func_impls_ << endl
-                                           << "#pragma HLS dependence variable=" << name << " inter false" << endl
-                                           << "#pragma HLS data_pack  variable=" << name;
-                        } else if (callee->intrinsic() == Intrinsic::Pipeline) {
-                            assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
-                            // cast to cont to get unique name of "for index"
-                            auto body = cont->arg(4)->as_cont();
-                            if (lang_ == Lang::OpenCL) {
-                                if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
-                                    func_impls_ << "#pragma ii ";
-                                    emit(cont->arg(1)) << endl;
-                                } else {
-                                    func_impls_ << "#pragma ii 1"<< endl;
-                                }
-                            }
-                            func_impls_ << "for (i" << callee->gid() << " = ";
-                            emit(cont->arg(2));
-                            func_impls_ << "; i" << callee->gid() << " < ";
-                            emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
-                            if (lang_ == Lang::HLS) {
-                                if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
-                                    func_impls_ << "#pragma HLS PIPELINE II=";
-                                    emit(cont->arg(1)) << endl;
-                                } else {
-                                    func_impls_ << "#pragma HLS PIPELINE"<< endl;
-                                }
-                            }
-                            // emit body and "for index" as the "body parameter"
-                            func_impls_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
-                            emit(body);
-                            // emit "continue" with according label used for goto
-                            func_impls_ << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
-                            if (cont->arg(5) == ret_param)
-                                func_impls_ << "return;" << endl;
-                            else
-                                emit(cont->arg(5));
-                        } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
-                            func_impls_ << "goto l" << callee->gid() << ";" << endl;
-                        } else {
-                            THORIN_UNREACHABLE;
-                        }
-                    } else {
-                        auto emit_call = [&] (const Param* param = nullptr) {
-                            auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
-                            if (param)
-                                emit(param) << " = ";
-                            func_impls_ << name << "(";
-                            // emit all first-order args
-                            size_t i = 0;
-                            for (auto arg : cont->args()) {
-                                if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
-                                    if (i++ > 0)
-                                        func_impls_ << ", ";
-                                    emit(arg);
-                                }
-                            }
-                            func_impls_ << ");";
-                            if (param) {
-                                func_impls_ << endl;
-                                store_phi(param, param);
-                            }
-                        };
-
-                        const Def* ret_arg = 0;
-                        for (auto arg : cont->args()) {
-                            if (arg->order() != 0) {
-                                assert(!ret_arg);
-                                ret_arg = arg;
-                            }
-                        }
-
-                        // must be call + cont --- call + return has been removed by codegen_prepare
-                        auto succ = ret_arg->as_cont();
-                        size_t num_params = succ->num_params();
-
-                        size_t n = 0;
-                        Array<const Param*> values(num_params);
-                        Array<const Type*> types(num_params);
-                        for (auto param : succ->params()) {
-                            if (!is_mem(param) && !is_unit(param)) {
-                                values[n] = param;
-                                types[n] = param->type();
-                                n++;
-                            }
-                        }
-
-                        if (n == 0)
-                            emit_call();
-                        else if (n == 1)
-                            emit_call(values[0]);
-                        else {
-                            types.shrink(n);
-                            auto ret_type = world_.tuple_type(types);
-                            auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
-                            emit_aggop_decl(ret_type);
-                            emit_type(func_impls_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
-                            emit_call();
-
-                            // store arguments to phi node
-                            for (size_t i = 0; i != n; ++i)
-                                func_impls_ << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
-                        }
-                    }
-                }
-            }
-            if (cont != scope.entry())
-                func_impls_ << down;
-            primop2str_.clear();
-        }
-        func_impls_ << down << endl << "}" << endl << endl;
-        def2str_.clear();
-    });
+    Scope::for_each(world(), [&] (const Scope& scope) { emit(scope); });
 
     type2str_.clear();
     global2str_.clear();
 
     if (lang_ == Lang::OpenCL) {
         if (use_channels_)
-            stream_ << "#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl;
+            stream_.fmt("#pragma OPENCL EXTENSION cl_intel_channels : enable\n");
         if (use_16_)
-            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
+            stream_.fmt("#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n");
         if (use_64_)
-            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
+            stream_.fmt("#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n");
         if (use_channels_ || use_16_ || use_64_)
-            stream_ << endl;
+            stream_.endl();
     }
 
     if (lang_ == Lang::CUDA && use_16_) {
-        stream_ << "#include <cuda_fp16.h>" << endl << endl;
-        stream_ << "#if __CUDACC_VER_MAJOR__ > 8" << endl
-            << "#define half __half_raw" << endl
-            << "#endif" << endl << endl;
+        stream_.fmt("#include <cuda_fp16.h>\n\n");
+        stream_.fmt("#if __CUDACC_VER_MAJOR__ > 8\n");
+        stream_.fmt("#define half __half_raw\n");
+        stream_.fmt("#endif\n\n");
     }
-#endif
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
-        stream_ << "extern \"C\" {";
-        stream_.endl();
+        stream_.fmt("extern \"C\" {{\t\n");
     }
 
     stream_ << type_decls_out_.str(); stream_.endl();
@@ -840,152 +243,467 @@ void CCodeGen::emit() {
     stream_ << func_impls_out_.str();
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
-        stream_ << "}"; // extern "C"
-}
-
-void CCodeGen::emit_c_int() {
-    // Do not emit C interfaces for definitions that are not used
-    world().cleanup();
-
-    for (auto cont : world().continuations()) {
-        if (!cont->is_imported() && !cont->is_exported())
-            continue;
-
-        assert(cont->is_returning());
-
-        // retrieve return param
-        const Param* ret_param = nullptr;
-        for (auto param : cont->params()) {
-            if (param->order() != 0) {
-                assert(!ret_param);
-                ret_param = param;
-            }
-        }
-        assert(ret_param);
-
-        auto ret_param_fn_type = ret_param->type()->as<FnType>();
-        auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-        if (cont->is_imported()) {
-            // only emit types
-            emit_aggop_decl(ret_type);
-            for (auto param : cont->params()) {
-                if (is_mem(param) || is_unit(param) || param->order() != 0)
-                    continue;
-                emit_aggop_decl(param->type());
-            }
-            continue;
-        }
-
-        // emit function declaration
-        emit_aggop_decl(ret_type);
-        emit_type(func_decls_, ret_type) << " " << cont->name() << "(";
-        size_t i = 0;
-
-        // emit and store all first-order params
-        for (auto param : cont->params()) {
-            if (is_mem(param) || is_unit(param))
-                continue;
-            if (param->order() == 0) {
-                emit_aggop_decl(param->type());
-                if (i++ > 0)
-                    func_decls_ << ", ";
-
-                emit_type(func_decls_, param->type());
-                insert(param, param->unique_name());
-            }
-        }
-        func_decls_.fmt(");\n");
-    }
-
-    size_t pos = world().name().find_last_of("\\/");
-    pos = (pos == std::string::npos) ? 0 : pos + 1;
-    auto guard = world().name().substr(pos) + ".h";
-    auto name = world().name() + ".h";
-
-    // Generate a valid include guard macro name
-    if (!std::isalpha(guard[0]) && guard[0] != '_') guard.insert(guard.begin(), '_');
-    transform(guard.begin(), guard.end(), guard.begin(), [] (char c) -> char {
-        if (!std::isalnum(c)) return '_';
-        return ::toupper(c);
-    });
-    guard[guard.length() - 2] = '_';
-
-    stream_.fmt("/* {}: Artic interface file generated by thorin */\n", name);
-    stream_.fmt("#ifndef {}\n", guard);
-    stream_.fmt("#define {}\n\n", guard);
-    stream_.fmt("#ifdef __cplusplus\n");
-    stream_.fmt("extern \"C\" {\n");
-    stream_.fmt("#endif\n\n");
-
-    // TODO porting
-#if 0
-    if (!type_decls_.str().empty())
-        stream_ << type_decls_.str() << endl;
-    if (!func_decls_.str().empty())
-        stream_ << func_decls_.str() << endl;
+        stream_.fmt("}} /* extern \"C\" */\n");
 #endif
-
-    stream_.fmt("#ifdef __cplusplus\n");
-    stream_.fmt("}\n");
-    stream_.fmt("#endif\n\n");
-    stream_.fmt("#endif /* {} */\n", guard);
 }
 
-template <typename T, typename IsInfFn, typename IsNanFn>
-Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
-#if 0
-    auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-    const char* suf = "", * pref = "";
+void CCodeGen::emit(const Scope& scope) {
+    // continuation declarations
+    auto continuation = scope.entry();
+    if (continuation->is_intrinsic())
+        return;
 
-    if (std::is_same<T, half>::value) {
-        if (lang_ == Lang::CUDA) {
-            pref = "__float2half(";
-            suf  = ")";
-        } else {
-            suf = "h";
+    assert(continuation->is_returning());
+
+    // retrieve return param
+    const Param* ret_param = nullptr;
+    for (auto param : continuation->params()) {
+        if (param->order() != 0) {
+            assert(!ret_param);
+            ret_param = param;
         }
     }
-    if (std::is_same<T, float>::value) {
-        suf  = "f";
-    }
+    assert(ret_param);
 
-    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
+    // emit function & its declaration
+    auto ret_param_fn_type = ret_param->type()->as<FnType>();
+    auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
+    auto name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+    if (continuation->is_exported()) {
+        auto config = kernel_config_.find(continuation);
         switch (lang_) {
-            default:           func_impls_ << def;    break;
-            case Lang::CUDA:   func_impls_ << cuda;   break;
-            case Lang::OpenCL: func_impls_ << opencl; break;
-        }
-    };
-
-    if (is_inf(t)) {
-        if (std::is_same<T, half>::value) {
-            emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
-        } else if (std::is_same<T, float>::value) {
-            emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
-        } else {
-            emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
-        }
-    } else if (is_nan(t)) {
-        if (std::is_same<T, half>::value) {
-            emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
-        } else if (std::is_same<T, float>::value) {
-            emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
-        } else {
-            emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
+            default: break;
+            case Lang::CUDA:
+                func_decls_ << "__global__ ";
+                func_impls_ << "__global__ ";
+                if (config != kernel_config_.end()) {
+                    auto block = config->second->as<GPUKernelConfig>()->block_size();
+                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                        func_impls_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
+                }
+                break;
+            case Lang::OpenCL:
+                func_decls_ << "__kernel ";
+                func_impls_ << "__kernel ";
+                if (config != kernel_config_.end()) {
+                    auto block = config->second->as<GPUKernelConfig>()->block_size();
+                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                        func_impls_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                }
+                break;
         }
     } else {
-        func_impls_ << float_mode << pref << t << suf;
+        if (lang_ == Lang::CUDA) {
+            func_decls_ << "__device__ ";
+            func_impls_ << "__device__ ";
+        }
+    }
+    emit_aggop_decl(ret_type);
+    emit_addr_space(func_decls_, ret_type);
+    emit_addr_space(func_impls_, ret_type);
+    // TODO
+    //convert(func_decls_, ret_type) << " " << name << "(";
+    //convert(func_impls_, ret_type) << " " << name << "(";
+    size_t i = 0;
+    std::string hls_pragmas;
+    // emit and store all first-order params
+    for (auto param : continuation->params()) {
+        if (is_mem(param) || is_unit(param))
+            continue;
+        if (param->order() == 0) {
+            emit_aggop_decl(param->type());
+            if (is_texture_type(param->type())) {
+                auto pointee = convert(param->type()->as<PtrType>()->pointee());
+                type_decls_.fmt("texture<{}, cudaTextureType1D, cudaReadModeElementType> {};\n", pointee, param->name());
+                // TODO
+                //insert(param, param->name());
+                // skip arrays bound to texture memory
+                continue;
+            }
+            if (i++ > 0) {
+                func_decls_ << ", ";
+                func_impls_ << ", ";
+            }
+
+            // get the kernel launch config
+            KernelConfig* config = nullptr;
+            if (continuation->is_exported()) {
+                auto config_it = kernel_config_.find(continuation);
+                assert(config_it != kernel_config_.end());
+                config = config_it->second.get();
+            }
+
+            if (lang_ == Lang::OpenCL && continuation->is_exported() &&
+                (param->type()->isa<DefiniteArrayType>() ||
+                    param->type()->isa<StructType>() ||
+                    param->type()->isa<TupleType>())) {
+                // structs are passed via buffer; the parameter is a pointer to this buffer
+                func_decls_ << "__global ";
+                func_impls_ << "__global ";
+                // TODO
+                //convert(func_decls_, param->type()) << " *";
+                //convert(func_impls_, param->type()) << " *" << param->unique_name() << "_";
+            } else if (lang_ == Lang::HLS && continuation->is_exported() && param->type()->isa<PtrType>()) {
+                auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+                assert(array_size > 0);
+                auto ptr_type = param->type()->as<PtrType>();
+                auto elem_type = ptr_type->pointee();
+                if (auto array_type = elem_type->isa<ArrayType>())
+                    elem_type = array_type->elem_type();
+                //TODO
+                //convert(func_decls_, elem_type) << "[" << array_size << "]";
+                //convert(func_impls_, elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
+                    hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+            } else {
+                std::string qualifier;
+                // add restrict qualifier when possible
+                if ((lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
+                    config && config->as<GPUKernelConfig>()->has_restrict() &&
+                    param->type()->isa<PtrType>()) {
+                    qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
+                }
+                emit_addr_space(func_decls_, param->type());
+                emit_addr_space(func_impls_, param->type());
+                // TODO
+                //convert(func_decls_, param->type()) << qualifier;
+                //convert(func_impls_, param->type()) << qualifier << " " << param->unique_name();
+            }
+            // TODO
+            //insert(param, param->unique_name());
+        }
+    }
+    func_decls_.fmt(");\n");
+    func_impls_.fmt(") {{\t\n");
+
+    if (!hls_pragmas.empty())
+        func_impls_.fmt("\b\n{}\t", hls_pragmas);
+
+    // OpenCL: load struct from buffer
+    for (auto param : continuation->params()) {
+        if (is_mem(param) || is_unit(param))
+            continue;
+        if (param->order() == 0) {
+            if (lang_ == Lang::OpenCL && continuation->is_exported() &&
+                (param->type()->isa<DefiniteArrayType>() ||
+                    param->type()->isa<StructType>() ||
+                    param->type()->isa<TupleType>())) {
+                func_impls_.endl();
+                auto t = convert(param->type());
+                func_impls_.fmt("{} {} = *{}_;", t, param->unique_name(), param->unique_name());
+            }
+        }
+    }
+
+    auto conts = schedule(scope);
+    Scheduler scheduler(scope);
+#if 0
+
+    // emit function arguments and phi nodes
+    for (auto&& continuation : conts) {
+        for (auto param : continuation->params()) {
+            if (is_mem(param) || is_unit(param))
+                continue;
+            emit_aggop_decl(param->type());
+            insert(param, param->unique_name());
+        }
+
+        if (scope.entry() != continuation) {
+            for (auto param : continuation->params()) {
+                if (!is_mem(param) && !is_unit(param)) {
+                    func_impls_.endl();
+                    emit_addr_space(func_impls_, param->type());
+                    convert(func_impls_, param->type()) << "  " << param->unique_name() << ";" << endl;
+                    emit_addr_space(func_impls_, param->type());
+                    convert(func_impls_, param->type()) << " p" << param->unique_name() << ";";
+                }
+            }
+        }
+        // emit counter for pipeline intrinsic
+        if (continuation->callee()->isa_continuation() &&
+            continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
+            func_impls_ << endl << "int i" << continuation->callee()->gid() << ";";
+        }
     }
 #endif
-    return func_impls_;
+
+    for (auto cont : conts) {
+        if (cont->empty()) continue;
+
+        assert(cont == scope.entry() || cont->is_basicblock());
+        func_impls_.endl();
+
+        // print label for the current basic block
+        if (cont != scope.entry()) {
+            func_impls_.fmt("l{};\t\n",  cont->gid());
+            // load params from phi node
+            for (auto param : cont->params())
+                if (!is_mem(param) && !is_unit(param))
+                    func_impls_.fmt("{} = p{};\n", param->unique_name());
+        }
+
+#if 0
+        // TODO rewrite and merge with LLVM backend
+        for (auto primop : block) {
+            if (primop->type()->order() >= 1) {
+                // ignore higher-order primops which come from a match intrinsic
+                if (is_from_match(primop))
+                    continue;
+                THORIN_UNREACHABLE;
+            }
+
+            // struct/tuple/array declarations
+            if (!primop->isa<MemOp>()) {
+                emit_aggop_decl(primop->type());
+                // search for inlined tuples/arrays
+                if (auto aggop = primop->isa<AggOp>()) {
+                    if (!aggop->agg()->isa<MemOp>())
+                        emit_aggop_decl(aggop->agg()->type());
+                }
+            }
+
+            // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
+            if (primop->type()->isa<FnType>() || primop->type()->isa<FrameType>() || ((is_mem(primop) || is_unit(primop)) && !primop->isa<Store>()))
+                continue;
+
+            emit_debug_info(primop);
+            emit(primop) << endl;
+        }
+#endif
+
+        // emit definitions for temporaries
+        for (auto arg : cont->args())
+            emit_temporaries(arg);
+
+        emit_epilogue(cont);
+
+#if 0
+        if (cont != scope.entry())
+            func_impls_ << down;
+#endif
+    }
+    //func_impls_ << down << endl << "}" << endl << endl;
 }
 
-Stream& CCodeGen::emit(const Def* def) {
+void CCodeGen::emit_epilogue(Continuation*) {
+#if 0
+    if (cont->callee() == entry_->ret_param()) { // return
+        size_t num_args = cont->num_args();
+        if (num_args == 0) func_impls_ << "return ;";
+        else {
+            Array<const Def*> values(num_args);
+            Array<const Type*> types(num_args);
+
+            size_t n = 0;
+            for (auto arg : cont->args()) {
+                if (!is_mem(arg) && !is_unit(arg)) {
+                    values[n] = arg;
+                    types[n] = arg->type();
+                    n++;
+                }
+            }
+
+            if (n == 0) func_impls_ << "return ;";
+            else if (n == 1) {
+                func_impls_ << "return ";
+                emit(values[0]) << ";";
+            } else {
+                types.shrink(n);
+                auto ret_type = world_.tuple_type(types);
+                auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
+                emit_aggop_decl(ret_type);
+                convert(func_impls_, ret_type) << " " << ret_tuple_name << ";";
+
+                for (size_t i = 0; i != n; ++i) {
+                    func_impls_ << endl << ret_tuple_name << ".e" << i << " = ";
+                    emit(values[i]) << ";";
+                }
+
+                func_impls_ << endl << "return " << ret_tuple_name << ";";
+            }
+        }
+    } else if (cont->callee() == world().branch()) {
+        emit_debug_info(cont->arg(0)); // TODO correct?
+        func_impls_.fmt("if ({}) {} else {}", wrap(cont->arg(0)), wrap(cont->arg(1)), wrap(cont->arg(2)));
+    } else if (cont->callee()->isa<cont>() &&
+                cont->callee()->as<concont>()->intrinsic() == Intrinsic::Match) {
+        func_impls_ << "switch (";
+        emit(cont->arg(0)) << ") {" << up << endl;
+        for (size_t i = 2; i < cont->num_args(); i++) {
+            auto arg = cont->arg(i)->as<Tuple>();
+            func_impls_ << "case ";
+            emit(arg->op(0)) << ": ";
+            emit(arg->op(1)) << endl;
+        }
+        func_impls_ << "default: ";
+        emit(cont->arg(1));
+        func_impls_ << down << endl << "}";
+    } else if (cont->callee()->isa<Bottom>()) {
+        func_impls_ << "return ; // bottom: unreachable";
+    } else {
+        auto store_phi = [&] (const Def* param, const Def* arg) {
+            func_impls_ << "p" << param->unique_name() << " = ";
+            emit(arg) << ";";
+        };
+
+        auto callee = cont->callee()->as_cont();
+        emit_debug_info(callee);
+
+        if (callee->is_basicblock()) {   // ordinary jump
+            assert(callee->num_params()==cont->num_args());
+            for (size_t i = 0, size = callee->num_params(); i != size; ++i)
+                if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
+                    store_phi(callee->param(i), cont->arg(i));
+                    func_impls_ << endl;
+                }
+            emit(callee);
+        } else {
+            if (callee->is_intrinsic()) {
+                if (callee->intrinsic() == Intrinsic::Reserve) {
+                    if (!cont->arg(1)->isa<PrimLit>())
+                        EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
+
+                    switch (lang_) {
+                        default:                                        break;
+                        case Lang::CUDA:   func_impls_ << "__shared__ "; break;
+                        case Lang::OpenCL: func_impls_ << "__local ";    break;
+                    }
+
+                    auto cont = cont->arg(2)->as_cont();
+                    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+                    auto name = "reserver_" + cont->param(1)->unique_name();
+                    convert(func_impls_, elem_type) << " " << name << "[";
+                    emit(cont->arg(1)) << "];" << endl;
+                    // store_phi:
+                    func_impls_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+                    if (lang_ == Lang::HLS)
+                        func_impls_ << endl
+                                    << "#pragma HLS dependence variable=" << name << " inter false" << endl
+                                    << "#pragma HLS data_pack  variable=" << name;
+                } else if (callee->intrinsic() == Intrinsic::Pipeline) {
+                    assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
+                    // cast to cont to get unique name of "for index"
+                    auto body = cont->arg(4)->as_cont();
+                    if (lang_ == Lang::OpenCL) {
+                        if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
+                            func_impls_ << "#pragma ii ";
+                            emit(cont->arg(1)) << endl;
+                        } else {
+                            func_impls_ << "#pragma ii 1"<< endl;
+                        }
+                    }
+                    func_impls_ << "for (i" << callee->gid() << " = ";
+                    emit(cont->arg(2));
+                    func_impls_ << "; i" << callee->gid() << " < ";
+                    emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
+                    if (lang_ == Lang::HLS) {
+                        if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
+                            func_impls_ << "#pragma HLS PIPELINE II=";
+                            emit(cont->arg(1)) << endl;
+                        } else {
+                            func_impls_ << "#pragma HLS PIPELINE"<< endl;
+                        }
+                    }
+                    // emit body and "for index" as the "body parameter"
+                    func_impls_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
+                    emit(body);
+                    // emit "continue" with according label used for goto
+                    func_impls_ << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+                    if (cont->arg(5) == ret_param)
+                        func_impls_ << "return;" << endl;
+                    else
+                        emit(cont->arg(5));
+                } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
+                    func_impls_ << "goto l" << callee->gid() << ";" << endl;
+                } else {
+                    THORIN_UNREACHABLE;
+                }
+            } else {
+                auto emit_call = [&] (const Param* param = nullptr) {
+                    auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
+                    if (param)
+                        emit(param) << " = ";
+                    func_impls_ << name << "(";
+                    // emit all first-order args
+                    size_t i = 0;
+                    for (auto arg : cont->args()) {
+                        if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
+                            if (i++ > 0)
+                                func_impls_ << ", ";
+                            emit(arg);
+                        }
+                    }
+                    func_impls_ << ");";
+                    if (param) {
+                        func_impls_ << endl;
+                        store_phi(param, param);
+                    }
+                };
+
+                const Def* ret_arg = 0;
+                for (auto arg : cont->args()) {
+                    if (arg->order() != 0) {
+                        assert(!ret_arg);
+                        ret_arg = arg;
+                    }
+                }
+
+                // must be call + cont --- call + return has been removed by codegen_prepare
+                auto succ = ret_arg->as_cont();
+                size_t num_params = succ->num_params();
+
+                size_t n = 0;
+                Array<const Param*> values(num_params);
+                Array<const Type*> types(num_params);
+                for (auto param : succ->params()) {
+                    if (!is_mem(param) && !is_unit(param)) {
+                        values[n] = param;
+                        types[n] = param->type();
+                        n++;
+                    }
+                }
+
+                if (n == 0)
+                    emit_call();
+                else if (n == 1)
+                    emit_call(values[0]);
+                else {
+                    types.shrink(n);
+                    auto ret_type = world_.tuple_type(types);
+                    auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
+                    emit_aggop_decl(ret_type);
+                    convert(func_impls_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
+                    emit_call();
+
+                    // store arguments to phi node
+                    for (size_t i = 0; i != n; ++i)
+                        func_impls_ << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                }
+            }
+        }
+    }
+#endif
+}
+
+std::string CCodeGen::emit_unsafe(const Def* def) {
+    if (auto llvm = def2str_.lookup(def)) return *llvm;
+    // TODO
+    //if (auto cont = def->isa_continuation()) return def2str_[cont] = emit_function_decl(cont);
+
+    auto str = emit_(def);
+    return def2str_[def] = str;
+}
+
+std::string CCodeGen::emit(const Def* def) {
+    auto res = emit_unsafe(def);
+    assert(!res.empty());
+    return res;
+}
+
+std::string CCodeGen::emit_(const Def*) {
+#if 0
     if (auto continuation = def->isa<Continuation>())
         return func_impls_.fmt("goto l{};", continuation->gid());
-
-    if (lookup(def))
-        return func_impls_ << get_name(def);
 
     auto def_name = var_name(def);
 
@@ -1029,7 +747,6 @@ Stream& CCodeGen::emit(const Def* def) {
         return func_impls_.fmt("{} = {} {} {};", wrap(bin->lhs()), op, wrap(bin->rhs()));
     }
 
-#if 0
     if (auto conv = def->isa<ConvOp>()) {
         emit_aggop_defs(conv->from());
         auto src_type = conv->from()->type();
@@ -1048,12 +765,12 @@ Stream& CCodeGen::emit(const Def* def) {
         }
 
         emit_addr_space(func_impls_, dst_type);
-        emit_type(func_impls_, dst_type) << " " << def_name << ";" << endl;
+        convert(func_impls_, dst_type) << " " << def_name << ";" << endl;
 
         if (src_ptr && dst_ptr && src_ptr->addr_space() == dst_ptr->addr_space()) {
             func_impls_ << def_name << " = (";
             emit_addr_space(func_impls_, dst_type);
-            emit_type(func_impls_, dst_type) << ")";
+            convert(func_impls_, dst_type) << ")";
             emit(conv->from()) << ";";
             insert(def, def_name);
             return func_impls_;
@@ -1067,7 +784,7 @@ Stream& CCodeGen::emit(const Def* def) {
 
             if (lang_ == Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
                 func_impls_ << "(";
-                emit_type(func_impls_, dst_type) << ") __half2float(";
+                convert(func_impls_, dst_type) << ") __half2float(";
                 emit(conv->from()) << ");";
             } else if (lang_ == Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
                 func_impls_ << "__float2half((float)";
@@ -1075,7 +792,7 @@ Stream& CCodeGen::emit(const Def* def) {
             } else {
                 func_impls_ << "(";
                 emit_addr_space(func_impls_, dst_type);
-                emit_type(func_impls_, dst_type) << ")";
+                convert(func_impls_, dst_type) << ")";
                 emit(conv->from()) << ";";
             }
         }
@@ -1083,9 +800,9 @@ Stream& CCodeGen::emit(const Def* def) {
         if (conv->isa<Bitcast>()) {
             func_impls_ << "union { ";
             emit_addr_space(func_impls_, dst_type);
-            emit_type(func_impls_, dst_type) << " dst; ";
+            convert(func_impls_, dst_type) << " dst; ";
             emit_addr_space(func_impls_, src_type);
-            emit_type(func_impls_, src_type) << " src; ";
+            convert(func_impls_, src_type) << " src; ";
             func_impls_ << "} u" << def_name << ";" << endl;
             func_impls_ << "u" << def_name << ".src = ";
             emit(conv->from()) << ";" << endl;
@@ -1098,13 +815,13 @@ Stream& CCodeGen::emit(const Def* def) {
 
     if (auto align_of = def->isa<AlignOf>()) {
         func_impls_ << "alignof(";
-        emit_type(func_impls_, align_of->of()) << ")";
+        convert(func_impls_, align_of->of()) << ")";
         return func_impls_;
     }
 
     if (auto size_of = def->isa<SizeOf>()) {
         func_impls_ << "sizeof(";
-        emit_type(func_impls_, size_of->of()) << ")";
+        convert(func_impls_, size_of->of()) << ")";
         return func_impls_;
     }
 
@@ -1114,8 +831,8 @@ Stream& CCodeGen::emit(const Def* def) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impls_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
-        emit_type(func_impls_, array->type()) << " " << def_name << "_tmp = { { ";
+        convert(func_impls_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
+        convert(func_impls_, array->type()) << " " << def_name << "_tmp = { { ";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
         func_impls_ << "} };" << endl;
@@ -1131,8 +848,8 @@ Stream& CCodeGen::emit(const Def* def) {
         for (auto op : agg->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impls_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
-        emit_type(func_impls_, agg->type()) << " " << def_name << "_tmp = { " << up;
+        convert(func_impls_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
+        convert(func_impls_, agg->type()) << " " << def_name << "_tmp = { " << up;
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
             func_impls_ << endl;
             emit(agg->op(i)) << ",";
@@ -1178,7 +895,7 @@ Stream& CCodeGen::emit(const Def* def) {
             if (is_mem(extract) || extract->type()->isa<FrameType>())
                 return func_impls_;
             if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
-                emit_type(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
+                convert(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
                 func_impls_ << def_name << " = ";
                 if (auto memop = extract->agg()->isa<MemOp>())
                     emit(memop) << ";";
@@ -1192,7 +909,7 @@ Stream& CCodeGen::emit(const Def* def) {
         }
 
         auto ins = def->as<Insert>();
-        emit_type(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
+        convert(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         emit(ins->agg()) << ";" << endl;
         func_impls_ << def_name;
@@ -1227,9 +944,9 @@ Stream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto variant = def->isa<Variant>()) {
-        emit_type(func_impls_, variant->type()) << " " << def_name << ";" << endl;
+        convert(func_impls_, variant->type()) << " " << def_name << ";" << endl;
         func_impls_ << "{" << up << endl;
-        emit_type(func_impls_, variant->type()) << " " << def_name << "_tmp;" << endl;
+        convert(func_impls_, variant->type()) << " " << def_name << "_tmp;" << endl;
         if (!is_type_unit(variant->op(0)->type())) {
             auto variant_type = variant->type()->as<VariantType>();
             func_impls_ << def_name << "_tmp.data." << variant_type->op_name(variant->index()) << " = ";
@@ -1244,7 +961,7 @@ Stream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto variant_index = def->isa<VariantIndex>()) {
-        emit_type(func_impls_, variant_index->type()) << " " << def_name << ";" << endl;
+        convert(func_impls_, variant_index->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         emit(variant_index->op(0)) << ".tag" << ";";
         insert(def, def_name);
@@ -1252,7 +969,7 @@ Stream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto variant_extract = def->isa<VariantExtract>()) {
-        emit_type(func_impls_, variant_extract->type()) << " " << def_name << ";" << endl;
+        convert(func_impls_, variant_extract->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         auto variant_type = variant_extract->value()->type()->as<VariantType>();
         emit(variant_extract->op(0)) << ".data." << variant_type->op_name(variant_extract->index()) << ";";
@@ -1262,13 +979,13 @@ Stream& CCodeGen::emit(const Def* def) {
 
     if (auto bottom = def->isa<Bottom>()) {
         emit_addr_space(func_impls_, bottom->type());
-        emit_type(func_impls_, bottom->type()) << " " << def_name << "; // bottom";
+        convert(func_impls_, bottom->type()) << " " << def_name << "; // bottom";
         insert(def, def_name);
         return func_impls_;
     }
 
     if (auto load = def->isa<Load>()) {
-        emit_type(func_impls_, load->out_val()->type()) << " " << def_name << ";" << endl;
+        convert(func_impls_, load->out_val()->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         // handle texture fetches
         if (!is_texture_type(load->ptr()->type()))
@@ -1289,8 +1006,8 @@ Stream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto slot = def->isa<Slot>()) {
-        emit_type(func_impls_, slot->alloced_type()) << " " << def_name << "_slot;" << endl;
-        emit_type(func_impls_, slot->alloced_type()) << "* " << def_name << ";" << endl;
+        convert(func_impls_, slot->alloced_type()) << " " << def_name << "_slot;" << endl;
+        convert(func_impls_, slot->alloced_type()) << "* " << def_name << ";" << endl;
         func_impls_ << def_name << " = &" << def_name << "_slot;";
         insert(def, def_name);
         return func_impls_;
@@ -1307,28 +1024,28 @@ Stream& CCodeGen::emit(const Def* def) {
         emit_aggop_defs(lea->ptr());
         emit_aggop_defs(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(func_impls_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
+            convert(func_impls_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
             func_impls_ << def_name << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else if (lea->ptr_pointee()->isa<TupleType>()) {
-            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
             func_impls_ << def_name << " = &";
             emit(lea->ptr()) << "->e";
             emit(lea->index()) << ";";
         } else if (lea->ptr_pointee()->isa<StructType>()) {
-            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
             func_impls_ << def_name << " = &";
             emit(lea->ptr()) << "->";
             func_impls_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";";
         } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
-            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
             func_impls_ << def_name << " = &";
             emit(lea->ptr()) << "->e[";
             emit(lea->index()) << "];";
         } else {
             emit_addr_space(func_impls_, lea->ptr()->type());
-            emit_type(func_impls_, lea->type()) << " " << def_name << ";" << endl;
+            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
             func_impls_ << def_name << " = ";
             emit(lea->ptr()) << " + ";
             emit(lea->index()) << ";";
@@ -1350,7 +1067,7 @@ Stream& CCodeGen::emit(const Def* def) {
             assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
             auto name = var_name(extract);
             outputs[index - 1] = name;
-            emit_type(func_impls_, assembly->type()->op(index)) << " " << name << ";" << endl;
+            convert(func_impls_, assembly->type()->op(index)) << " " << name << ";" << endl;
         }
         // some outputs that were originally there might have been pruned because
         // they are not used but we still need them as operands for the asm
@@ -1358,7 +1075,7 @@ Stream& CCodeGen::emit(const Def* def) {
         for (size_t i = 0; i < out_size; ++i) {
             if (outputs[i] == "") {
                 auto name = var_name(assembly) + "_" + std::to_string(i + 1);
-                emit_type(func_impls_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
+                convert(func_impls_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
                 outputs[i] = name;
             }
         }
@@ -1418,7 +1135,7 @@ Stream& CCodeGen::emit(const Def* def) {
         bool bottom = global->init()->isa<Bottom>();
         if (!bottom)
             emit(global->init()) << endl;
-        emit_type(func_impls_, global->alloced_type()) << " " << def_name << "_slot";
+        convert(func_impls_, global->alloced_type()) << " " << def_name << "_slot";
         if (bottom) {
             func_impls_ << "; // bottom";
         } else {
@@ -1432,7 +1149,7 @@ Stream& CCodeGen::emit(const Def* def) {
             case Lang::CUDA:   func_impls_ << "__device__ "; break;
             case Lang::OpenCL: func_impls_ << "__constant "; break;
         }
-        emit_type(func_impls_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
+        convert(func_impls_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
 
         insert(def, def_name);
         return func_impls_;
@@ -1442,7 +1159,7 @@ Stream& CCodeGen::emit(const Def* def) {
         emit_aggop_defs(select->cond());
         emit_aggop_defs(select->tval());
         emit_aggop_defs(select->fval());
-        emit_type(func_impls_, select->type()) << " " << def_name << ";" << endl;
+        convert(func_impls_, select->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         emit(select->cond()) << " ? ";
         emit(select->tval()) << " : ";
@@ -1455,34 +1172,307 @@ Stream& CCodeGen::emit(const Def* def) {
     THORIN_UNREACHABLE;
 }
 
+Stream& CCodeGen::emit_debug_info(const Def* def) {
+    if (debug_ && !def->loc().file.empty()) {
+        func_impls_.fmt("#line {} \"{}\"", def->loc().begin.row, def->loc().file);
+        return func_impls_.endl();
+    }
+    return func_impls_;
+}
+
+Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
+    if (auto ptr = type->isa<PtrType>()) {
+        if (lang_ == Lang::OpenCL) {
+            switch (ptr->addr_space()) {
+                default:
+                case AddrSpace::Generic:                  break;
+                case AddrSpace::Global: s << "__global "; break;
+                case AddrSpace::Shared: s << "__local ";  break;
+            }
+        }
+    }
+
+    return s;
+}
+
+Stream& CCodeGen::emit_string(const Global* global) {
+    if (auto str_array = global->init()->isa<DefiniteArray>()) {
+        if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
+            if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
+                if (primtype->primtype_tag() == PrimType_pu8) {
+                    std::string str = "\"";
+                    for (auto op : str_array->ops().skip_back())
+                        str += handle_string_character(op->as<PrimLit>()->pu8_value());
+                    str += '"';
+                    // TODO
+                    //insert(global, str);
+                }
+            }
+        }
+    }
+
+    return type_decls_;
+}
+
+Stream& CCodeGen::emit_aggop_defs(const Def*) {
+#if 0
+    if (lookup(def) || is_unit(def))
+        return func_impls_;
+
+    // look for nested array
+    if (auto array = def->isa<DefiniteArray>()) {
+        for (auto op : array->ops())
+            emit_aggop_defs(op);
+        if (lookup(def))
+            return func_impls_;
+        emit(array).endl();
+    }
+
+    // look for nested struct
+    if (auto agg = def->isa<Aggregate>()) {
+        for (auto op : agg->ops())
+            emit_aggop_defs(op);
+        if (lookup(def))
+            return func_impls_;
+        emit(agg).endl();
+    }
+
+    // look for nested variants
+    if (auto variant = def->isa<Variant>()) {
+        for (auto op : variant->ops())
+            emit_aggop_defs(op);
+        if (lookup(def))
+            return func_impls_;
+        emit(variant).endl();
+    }
+
+    // emit declarations for bottom - required for nested data structures
+    if (def->isa<Bottom>())
+        emit(def).endl();
+
+    return func_impls_;
+#endif
+    THORIN_UNREACHABLE;
+}
+
+Stream& CCodeGen::emit_aggop_decl(const Type*) {
+#if 0
+    if (lookup(type) || type == world().unit())
+        return type_decls_;
+
+    // TODO wat???
+    // set indent to zero
+    //auto indent = detail::get_indent();
+    //while (detail::get_indent() != 0)
+        //type_decls_.dedent();
+
+    if (auto ptr = type->isa<PtrType>())
+        emit_aggop_decl(ptr->pointee());
+
+    if (auto array = type->isa<IndefiniteArrayType>())
+        emit_aggop_decl(array->elem_type());
+
+    if (auto fn = type->isa<FnType>())
+        for (auto type : fn->ops())
+            emit_aggop_decl(type);
+
+    // look for nested array
+    if (auto array = type->isa<DefiniteArrayType>()) {
+        emit_aggop_decl(array->elem_type());
+        convert(type_decls_, array).endl();
+        insert(type, array_name(array));
+    }
+
+    // look for nested tuple
+    if (auto tuple = type->isa<TupleType>()) {
+        for (auto op : tuple->ops())
+            emit_aggop_decl(op);
+        convert(type_decls_, tuple).endl();
+        insert(type, tuple_name(tuple));
+    }
+
+    // look for nested struct
+    if (auto struct_type = type->isa<StructType>()) {
+        for (auto op : struct_type->ops())
+            emit_aggop_decl(op);
+        convert(type_decls_, struct_type).endl();
+        insert(type, struct_type->name().str());
+    }
+
+    // look for nested variants
+    if (auto variant = type->isa<VariantType>()) {
+        for (auto op : variant->ops())
+            emit_aggop_decl(op);
+        convert(type_decls_, variant).endl();
+        insert(type, variant->name().str());
+    }
+
+    // TODO see above
+    // restore indent
+    //while (detail::get_indent() != indent)
+        //type_decls_ << up;
+
+    return type_decls_;
+#endif
+    THORIN_UNREACHABLE;
+}
+
+Stream& CCodeGen::emit_temporaries(const Def*) {
+#if 0
+    // emit definitions of inlined elements, skip match
+    if (!def->isa<PrimOp>() || !is_from_match(def->as<PrimOp>()))
+        emit_aggop_defs(def);
+
+    // emit temporaries for arguments
+    if (def->order() >= 1 || is_mem(def) || is_unit(def) || lookup(def) || def->isa<PrimLit>())
+        return func_impls_;
+
+    return emit(def).endl();
+#endif
+    THORIN_UNREACHABLE;
+}
+
+void CCodeGen::emit_c_int() {
+#if 0
+    // Do not emit C interfaces for definitions that are not used
+    world().cleanup();
+
+    for (auto cont : world().continuations()) {
+        if (!cont->is_imported() && !cont->is_exported())
+            continue;
+
+        assert(cont->is_returning());
+
+        // retrieve return param
+        const Param* ret_param = nullptr;
+        for (auto param : cont->params()) {
+            if (param->order() != 0) {
+                assert(!ret_param);
+                ret_param = param;
+            }
+        }
+        assert(ret_param);
+
+        auto ret_param_fn_type = ret_param->type()->as<FnType>();
+        auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
+        if (cont->is_imported()) {
+            // only emit types
+            emit_aggop_decl(ret_type);
+            for (auto param : cont->params()) {
+                if (is_mem(param) || is_unit(param) || param->order() != 0)
+                    continue;
+                emit_aggop_decl(param->type());
+            }
+            continue;
+        }
+
+        // emit function declaration
+        emit_aggop_decl(ret_type);
+        convert(func_decls_, ret_type) << " " << cont->name() << "(";
+        size_t i = 0;
+
+        // emit and store all first-order params
+        for (auto param : cont->params()) {
+            if (is_mem(param) || is_unit(param))
+                continue;
+            if (param->order() == 0) {
+                emit_aggop_decl(param->type());
+                if (i++ > 0)
+                    func_decls_ << ", ";
+
+                convert(func_decls_, param->type());
+                insert(param, param->unique_name());
+            }
+        }
+        func_decls_.fmt(");\n");
+    }
+
+    size_t pos = world().name().find_last_of("\\/");
+    pos = (pos == std::string::npos) ? 0 : pos + 1;
+    auto guard = world().name().substr(pos) + ".h";
+    auto name = world().name() + ".h";
+
+    // Generate a valid include guard macro name
+    if (!std::isalpha(guard[0]) && guard[0] != '_') guard.insert(guard.begin(), '_');
+    transform(guard.begin(), guard.end(), guard.begin(), [] (char c) -> char {
+        if (!std::isalnum(c)) return '_';
+        return ::toupper(c);
+    });
+    guard[guard.length() - 2] = '_';
+
+    stream_.fmt("/* {}: Artic interface file generated by thorin */\n", name);
+    stream_.fmt("#ifndef {}\n", guard);
+    stream_.fmt("#define {}\n\n", guard);
+    stream_.fmt("#ifdef __cplusplus\n");
+    stream_.fmt("extern \"C\" {\n");
+    stream_.fmt("#endif\n\n");
+
+    // TODO porting
+#if 0
+    if (!type_decls_.str().empty())
+        stream_ << type_decls_.str() << endl;
+    if (!func_decls_.str().empty())
+        stream_ << func_decls_.str() << endl;
+#endif
+
+    stream_.fmt("#ifdef __cplusplus\n");
+    stream_.fmt("}\n");
+    stream_.fmt("#endif\n\n");
+    stream_.fmt("#endif /* {} */\n", guard);
+#endif
+}
+
+template <typename T, typename IsInfFn, typename IsNanFn>
+Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
+#if 0
+    auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
+    const char* suf = "", * pref = "";
+
+    if (std::is_same<T, half>::value) {
+        if (lang_ == Lang::CUDA) {
+            pref = "__float2half(";
+            suf  = ")";
+        } else {
+            suf = "h";
+        }
+    }
+    if (std::is_same<T, float>::value) {
+        suf  = "f";
+    }
+
+    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
+        switch (lang_) {
+            default:           func_impls_ << def;    break;
+            case Lang::CUDA:   func_impls_ << cuda;   break;
+            case Lang::OpenCL: func_impls_ << opencl; break;
+        }
+    };
+
+    if (is_inf(t)) {
+        if (std::is_same<T, half>::value) {
+            emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
+        } else if (std::is_same<T, float>::value) {
+            emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
+        } else {
+            emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
+        }
+    } else if (is_nan(t)) {
+        if (std::is_same<T, half>::value) {
+            emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
+        } else if (std::is_same<T, float>::value) {
+            emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
+        } else {
+            emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
+        }
+    } else {
+        func_impls_ << float_mode << pref << t << suf;
+    }
+#endif
+    return func_impls_;
+}
+
 static inline bool is_const_primop(const Def* def) {
     return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
-}
-
-bool CCodeGen::lookup(const Type* type) {
-    return type2str_.contains(type);
-}
-
-bool CCodeGen::lookup(const Def* def) {
-    if (def->isa<Global>())
-        return global2str_.contains(def);
-    else if (is_const_primop(def))
-        return primop2str_.contains(def);
-    else
-        return def2str_.contains(def);
-}
-
-std::string& CCodeGen::get_name(const Type* type) {
-    return *type2str_[type];
-}
-
-std::string& CCodeGen::get_name(const Def* def) {
-    if (def->isa<Global>())
-        return *global2str_[def];
-    else if (is_const_primop(def))
-        return *primop2str_[def];
-    else
-        return *def2str_[def];
 }
 
 const std::string CCodeGen::var_name(const Def* def) {
@@ -1500,19 +1490,6 @@ const std::string CCodeGen::get_lang() const {
         case Lang::CUDA:   return "CUDA";
         case Lang::OpenCL: return "OpenCL";
     }
-}
-
-void CCodeGen::insert(const Type* type, std::string str) {
-    type2str_[type] = str;
-}
-
-void CCodeGen::insert(const Def* def, std::string str) {
-    if (def->isa<Global>())
-        global2str_[def] = str;
-    else if (is_const_primop(def))
-        primop2str_[def] = str;
-    else
-        def2str_[def] = str;
 }
 
 bool CCodeGen::is_texture_type(const Type* type) {
@@ -1533,10 +1510,13 @@ inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
-std::string CCodeGen::type_name(const Type* type) {
+std::string CCodeGen::type_name(const Type* /*type*/) {
+#if 0
     std::stringstream os;
-    emit_type(stream_, type);
+    convert(stream_, type);
     return make_identifier(std::string(os.str()));
+#endif
+    return "";
 }
 
 std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {

@@ -13,18 +13,17 @@
 
 namespace thorin {
 
-// TODO resort to std::fmt once we are switching to C++20
 class Stream {
 public:
     Stream(std::ostream& ostream = std::cout, const std::string& tab = {"    "}, size_t level = 0)
-        : ostream_(ostream)
+        : ostream_(&ostream)
         , tab_(tab)
         , level_(level)
     {}
 
     /// @name getters
     //@{
-    std::ostream& ostream() { return ostream_; }
+    std::ostream& ostream() { return *ostream_; }
     std::string tab() const { return tab_; }
     size_t level() const { return level_; }
     //@}
@@ -63,10 +62,17 @@ public:
     template<class R> Stream& range(const R& r, const char* sep = ", ") { return range(r, sep, [&](const auto& x) { (*this) << x; }); }
     //@}
 
+    void friend swap(Stream& a, Stream& b) {
+        using std::swap;
+        swap(a.ostream_, b.ostream_);
+        swap(a.tab_,     b.tab_);
+        swap(a.level_,   b.level_);
+    }
+
 private:
     bool match2nd(const char* next, const char*& s, const char c);
 
-    std::ostream& ostream_;
+    std::ostream* ostream_;
     std::string tab_;
     size_t level_;
 };

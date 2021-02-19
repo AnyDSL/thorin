@@ -32,6 +32,7 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/codegen.cpp
     be/codegen.h
+    be/emitter.h
     be/c/c.cpp
     be/c/c.h
     be/kernel_config.h

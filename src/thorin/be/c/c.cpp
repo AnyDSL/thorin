@@ -6,6 +6,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/be/emitter.h"
 #include "thorin/util/stream.h"
 #include "c.h"
 
@@ -17,9 +18,28 @@
 
 namespace thorin::c {
 
-class CCodeGen;
+struct BB {
+    BB()
+        : body(body_s)
+        , tail(tail_s)
+    {}
 
-class CCodeGen {
+    std::ostringstream body_s;
+    std::ostringstream tail_s;
+    Stream body;
+    Stream tail;
+
+    friend void swap(BB& a, BB& b) {
+        using std::swap;
+        swap(a.body_s, b.body_s);
+        swap(a.tail_s, b.tail_s);
+        swap(a.body, b.body);
+        swap(a.tail, b.tail);
+    }
+};
+
+
+class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
     CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug)
         : world_(world)
@@ -30,18 +50,19 @@ public:
         , stream_(stream)
     {}
 
+    World& world() const { return world_; }
     void emit();
     void emit_c_int();
-    World& world() const { return world_; }
+    std::string emit(BB&, const Def*);
+    bool is_valid(const std::string& s) { return !s.empty(); }
+    std::string emit_fun_decl(Continuation*);
 
 private:
     std::string convert(const Type*);
 
     void emit(const Scope&);
     void emit_epilogue(Continuation*);
-    std::string emit(const Def*);            ///< Recursively emits code. @c mem -typed @p def%s return an empty string - this variant asserts in this case.
-    std::string emit_unsafe(const Def* def); ///< As above but returning an empty string is permitted.
-    std::string emit_(const Def*);           ///< Internal wrapper for @p emit that checks and retrieves/puts @c std::string into @p def2str_;
+    std::string emit(const Def* def) { return Emitter<std::string, std::string, BB, CCodeGen>::emit(def); }
 
     Stream& emit_aggop_defs(const Def*);
     Stream& emit_aggop_decl(const Type*);
@@ -51,7 +72,7 @@ private:
     Stream& emit_temporaries(const Def*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
-    Stream& emit_float(T, IsInfFn, IsNanFn);
+    std::string emit_float(T, IsInfFn, IsNanFn);
 
     const std::string var_name(const Def*);
     const std::string get_lang() const;
@@ -685,36 +706,16 @@ void CCodeGen::emit_epilogue(Continuation*) {
 #endif
 }
 
-std::string CCodeGen::emit_unsafe(const Def* def) {
-    if (auto llvm = def2str_.lookup(def)) return *llvm;
-    // TODO
-    //if (auto cont = def->isa_continuation()) return def2str_[cont] = emit_function_decl(cont);
+std::string CCodeGen::emit(BB& bb, const Def* def) {
+    //if (auto continuation = def->isa<Continuation>())
+        //return func_impls_.fmt("goto l{};", continuation->gid());
 
-    auto str = emit_(def);
-    return def2str_[def] = str;
-}
-
-std::string CCodeGen::emit(const Def* def) {
-    auto res = emit_unsafe(def);
-    assert(!res.empty());
-    return res;
-}
-
-std::string CCodeGen::emit_(const Def*) {
-#if 0
-    if (auto continuation = def->isa<Continuation>())
-        return func_impls_.fmt("goto l{};", continuation->gid());
-
-    auto def_name = var_name(def);
+    auto t = convert(def->type());
+    auto name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
-        if (is_type_unit(bin->lhs()->type()))
-            return func_impls_;
-
-        // emit definitions of inlined elements
-        emit_aggop_defs(bin->lhs());
-        emit_aggop_defs(bin->rhs());
-        func_impls_.fmt("{} {};", wrap(bin->type()), def_name);
+        auto a = emit(bin->lhs());
+        auto b = emit(bin->rhs());
 
         const char* op;
         if (auto cmp = bin->isa<Cmp>()) {
@@ -726,9 +727,7 @@ std::string CCodeGen::emit_(const Def*) {
                 case Cmp_lt: op = "<";  break;
                 case Cmp_le: op = "<="; break;
             }
-        }
-
-        if (auto arithop = bin->isa<ArithOp>()) {
+        } else if (auto arithop = bin->isa<ArithOp>()) {
             switch (arithop->arithop_tag()) {
                 case ArithOp_add: op ="+";  break;
                 case ArithOp_sub: op ="-";  break;
@@ -743,11 +742,9 @@ std::string CCodeGen::emit_(const Def*) {
             }
         }
 
-        insert(def, def_name);
-        return func_impls_.fmt("{} = {} {} {};", wrap(bin->lhs()), op, wrap(bin->rhs()));
-    }
-
-    if (auto conv = def->isa<ConvOp>()) {
+        bb.body.fmt("{} {} = {} {} {};", t, name, a, op, b);
+    } else if (auto conv = def->isa<ConvOp>()) {
+#if 0
         emit_aggop_defs(conv->from());
         auto src_type = conv->from()->type();
         auto dst_type = conv->type();
@@ -811,21 +808,21 @@ std::string CCodeGen::emit_(const Def*) {
 
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto align_of = def->isa<AlignOf>()) {
+#endif
+    } else if (auto align_of = def->isa<AlignOf>()) {
+#if 0
         func_impls_ << "alignof(";
         convert(func_impls_, align_of->of()) << ")";
         return func_impls_;
-    }
-
-    if (auto size_of = def->isa<SizeOf>()) {
+#endif
+    } else if (auto size_of = def->isa<SizeOf>()) {
+#if 0
         func_impls_ << "sizeof(";
         convert(func_impls_, size_of->of()) << ")";
         return func_impls_;
-    }
-
-    if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
+#endif
+    } else if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
+#if 0
         emit_aggop_decl(def->type());
         // emit definitions of inlined elements
         for (auto op : array->ops())
@@ -839,9 +836,9 @@ std::string CCodeGen::emit_(const Def*) {
         func_impls_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto agg = def->isa<Aggregate>()) {
+#endif
+    } else if (auto agg = def->isa<Aggregate>()) {
+#if 0
         emit_aggop_decl(def->type());
         assert(def->isa<Tuple>() || def->isa<StructAgg>());
         // emit definitions of inlined elements
@@ -858,9 +855,9 @@ std::string CCodeGen::emit_(const Def*) {
         func_impls_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto aggop = def->isa<AggOp>()) {
+#endif
+    } else if (auto aggop = def->isa<AggOp>()) {
+#if 0
         emit_aggop_defs(aggop->agg());
 
         auto emit_access = [&] (const Def* def, const Def* index) -> Stream& {
@@ -917,33 +914,31 @@ std::string CCodeGen::emit_(const Def*) {
         emit(ins->value()) << ";";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto primlit = def->isa<PrimLit>()) {
+#endif
+    } else if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     func_impls_ << (primlit->bool_value() ? "true" : "false");      break;
-            case PrimType_ps8:  case PrimType_qs8:  func_impls_ << (int) primlit->ps8_value();                      break;
-            case PrimType_pu8:  case PrimType_qu8:  func_impls_ << (unsigned) primlit->pu8_value();                 break;
-            case PrimType_ps16: case PrimType_qs16: func_impls_ << primlit->ps16_value();                           break;
-            case PrimType_pu16: case PrimType_qu16: func_impls_ << primlit->pu16_value();                           break;
-            case PrimType_ps32: case PrimType_qs32: func_impls_ << primlit->ps32_value();                           break;
-            case PrimType_pu32: case PrimType_qu32: func_impls_ << primlit->pu32_value();                           break;
-            case PrimType_ps64: case PrimType_qs64: func_impls_ << primlit->ps64_value();                           break;
-            case PrimType_pu64: case PrimType_qu64: func_impls_ << primlit->pu64_value();                           break;
-            case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value(),
-                                                                     [](half v) { return half_float::isinf(v); },
-                                                                     [](half v) { return half_float::isnan(v); }); break;
-            case PrimType_pf32: case PrimType_qf32: emit_float<float>(primlit->pf32_value(),
-                                                                      [](float v) { return std::isinf(v); },
-                                                                      [](float v) { return std::isnan(v); });      break;
-            case PrimType_pf64: case PrimType_qf64: emit_float<double>(primlit->pf64_value(),
-                                                                       [](double v) { return std::isinf(v); },
-                                                                       [](double v) { return std::isnan(v); });    break;
+            case PrimType_bool:                     return primlit->bool_value() ? "true" : "false";
+            case PrimType_ps8:  case PrimType_qs8:  return std::to_string(  (signed) primlit->ps8_value());
+            case PrimType_pu8:  case PrimType_qu8:  return std::to_string((unsigned) primlit->pu8_value());
+            case PrimType_ps16: case PrimType_qs16: return std::to_string(primlit->ps16_value());
+            case PrimType_pu16: case PrimType_qu16: return std::to_string(primlit->pu16_value());
+            case PrimType_ps32: case PrimType_qs32: return std::to_string(primlit->ps32_value());
+            case PrimType_pu32: case PrimType_qu32: return std::to_string(primlit->pu32_value());
+            case PrimType_ps64: case PrimType_qs64: return std::to_string(primlit->ps64_value());
+            case PrimType_pu64: case PrimType_qu64: return std::to_string(primlit->pu64_value());
+            case PrimType_pf16: case PrimType_qf16: return emit_float<half>(primlit->pf16_value(),
+                                                        [](half v) { return half_float::isinf(v); },
+                                                        [](half v) { return half_float::isnan(v); });
+            case PrimType_pf32: case PrimType_qf32: return emit_float<float>(primlit->pf32_value(),
+                                                        [](float v) { return std::isinf(v); },
+                                                        [](float v) { return std::isnan(v); });
+            case PrimType_pf64: case PrimType_qf64: return emit_float<double>(primlit->pf64_value(),
+                                                        [](double v) { return std::isinf(v); },
+                                                        [](double v) { return std::isnan(v); });
         }
-        return func_impls_;
-    }
-
-    if (auto variant = def->isa<Variant>()) {
+        THORIN_UNREACHABLE;
+    } else if (auto variant = def->isa<Variant>()) {
+#if 0
         convert(func_impls_, variant->type()) << " " << def_name << ";" << endl;
         func_impls_ << "{" << up << endl;
         convert(func_impls_, variant->type()) << " " << def_name << "_tmp;" << endl;
@@ -958,33 +953,33 @@ std::string CCodeGen::emit_(const Def*) {
             << "}";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto variant_index = def->isa<VariantIndex>()) {
+#endif
+    } else if (auto variant_index = def->isa<VariantIndex>()) {
+#if 0
         convert(func_impls_, variant_index->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         emit(variant_index->op(0)) << ".tag" << ";";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto variant_extract = def->isa<VariantExtract>()) {
+#endif
+    } else if (auto variant_extract = def->isa<VariantExtract>()) {
+#if 0
         convert(func_impls_, variant_extract->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         auto variant_type = variant_extract->value()->type()->as<VariantType>();
         emit(variant_extract->op(0)) << ".data." << variant_type->op_name(variant_extract->index()) << ";";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto bottom = def->isa<Bottom>()) {
+#endif
+    } else if (auto bottom = def->isa<Bottom>()) {
+#if 0
         emit_addr_space(func_impls_, bottom->type());
         convert(func_impls_, bottom->type()) << " " << def_name << "; // bottom";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto load = def->isa<Load>()) {
+#endif
+    } else if (auto load = def->isa<Load>()) {
+#if 0
         convert(func_impls_, load->out_val()->type()) << " " << def_name << ";" << endl;
         func_impls_ << def_name << " = ";
         // handle texture fetches
@@ -994,33 +989,28 @@ std::string CCodeGen::emit_(const Def*) {
 
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto store = def->isa<Store>()) {
+#endif
+    } else if (auto store = def->isa<Store>()) {
+#if 0
         emit_aggop_defs(store->val()) << "*";
         emit(store->ptr()) << " = ";
         emit(store->val()) << ";";
 
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto slot = def->isa<Slot>()) {
+#endif
+    } else if (auto slot = def->isa<Slot>()) {
+#if 0
         convert(func_impls_, slot->alloced_type()) << " " << def_name << "_slot;" << endl;
         convert(func_impls_, slot->alloced_type()) << "* " << def_name << ";" << endl;
         func_impls_ << def_name << " = &" << def_name << "_slot;";
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (def->isa<Enter>())
-        return func_impls_;
-
-    if (def->isa<Vector>()) {
-        THORIN_UNREACHABLE;
-    }
-
-    if (auto lea = def->isa<LEA>()) {
+#endif
+    } else if (auto enter = def->isa<Enter>()) {
+        return emit_unsafe(enter->mem());
+    } else if (auto lea = def->isa<LEA>()) {
+#if 0
         emit_aggop_defs(lea->ptr());
         emit_aggop_defs(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
@@ -1053,9 +1043,9 @@ std::string CCodeGen::emit_(const Def*) {
 
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto assembly = def->isa<Assembly>()) {
+#endif
+    } else if (auto assembly = def->isa<Assembly>()) {
+#if 0
         size_t out_size = assembly->type()->num_ops() - 1;
         Array<std::string> outputs(out_size, std::string(""));
         for (auto use : assembly->uses()) {
@@ -1119,9 +1109,9 @@ std::string CCodeGen::emit_(const Def*) {
             separator = ", ";
         }
         return func_impls_ << ");";
-    }
-
-    if (auto global = def->isa<Global>()) {
+#endif
+    } else if (auto global = def->isa<Global>()) {
+#if 0
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
 
         if (global->is_mutable())
@@ -1153,23 +1143,21 @@ std::string CCodeGen::emit_(const Def*) {
 
         insert(def, def_name);
         return func_impls_;
-    }
-
-    if (auto select = def->isa<Select>()) {
-        emit_aggop_defs(select->cond());
-        emit_aggop_defs(select->tval());
-        emit_aggop_defs(select->fval());
-        convert(func_impls_, select->type()) << " " << def_name << ";" << endl;
-        func_impls_ << def_name << " = ";
-        emit(select->cond()) << " ? ";
-        emit(select->tval()) << " : ";
-        emit(select->fval()) << ";";
-        insert(def, def_name);
-        return func_impls_;
-    }
 #endif
+    } else if (auto select = def->isa<Select>()) {
+        auto cond = emit(select->cond());
+        auto tval = emit(select->tval());
+        auto fval = emit(select->fval());
+        bb.body.fmt("{} {} = {} ? {} : {};", t, name, cond, tval, fval);
+    } else {
+        THORIN_UNREACHABLE;
+    }
 
-    THORIN_UNREACHABLE;
+    return name;
+}
+
+std::string CCodeGen::emit_fun_decl(Continuation*) {
+    return "TODO";
 }
 
 Stream& CCodeGen::emit_debug_info(const Def* def) {
@@ -1423,7 +1411,7 @@ void CCodeGen::emit_c_int() {
 }
 
 template <typename T, typename IsInfFn, typename IsNanFn>
-Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
+std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 #if 0
     auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
     const char* suf = "", * pref = "";
@@ -1468,7 +1456,7 @@ Stream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
         func_impls_ << float_mode << pref << t << suf;
     }
 #endif
-    return func_impls_;
+    return "";
 }
 
 static inline bool is_const_primop(const Def* def) {

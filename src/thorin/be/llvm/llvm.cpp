@@ -301,7 +301,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
     return module_;
 }
 
-llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
+llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
     std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
@@ -325,7 +325,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     // set calling convention
     if (continuation->is_exported()) {
         f->setCallingConv(kernel_calling_convention_);
-        emit_function_decl_hook(continuation, f);
+        emit_fun_decl_hook(continuation, f);
     } else {
         if (continuation->cc() == CC::Device)
             f->setCallingConv(device_calling_convention_);
@@ -356,7 +356,7 @@ void CodeGen::emit(const Scope& scope) {
         discope = disub_program;
     }
 
-    cont2llvm_.clear();
+    cont2bb_.clear();
     auto conts = schedule(scope);
 
     // map all bb-like continuations to llvm bb stubs and handle params/phis
@@ -364,7 +364,7 @@ void CodeGen::emit(const Scope& scope) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
 
         auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
-        auto [i, succ] = cont2llvm_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
+        auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
         assert(succ);
         auto& irbuilder = *i->second.second;
         irbuilder.SetInsertPoint(bb);
@@ -375,26 +375,26 @@ void CodeGen::emit(const Scope& scope) {
             auto arg = fct->arg_begin();
             for (auto param : entry_->params()) {
                 if (is_mem(param) || is_unit(param)) {
-                    def2llvm_[param] = nullptr;
+                    def2val_[param] = nullptr;
                 } else if (param->order() == 0) {
                     auto argv = &*arg;
                     auto value = map_param(fct, argv, param);
                     if (value == argv) {
                         arg->setName(param->unique_name()); // use param
-                        def2llvm_[param] = &*arg++;
+                        def2val_[param] = &*arg++;
                     } else {
-                        def2llvm_[param] = value;           // use provided value
+                        def2val_[param] = value;           // use provided value
                     }
                 }
             }
         } else {
             for (auto param : cont->params()) {
                 if (is_mem(param) || is_unit(param)) {
-                    def2llvm_[param] = nullptr;
+                    def2val_[param] = nullptr;
                 } else {
                     // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
                     auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
-                    def2llvm_[param] = phi;
+                    def2val_[param] = phi;
                 }
             }
         }
@@ -403,7 +403,7 @@ void CodeGen::emit(const Scope& scope) {
     Scheduler new_scheduler(scope);
     swap(scheduler_, new_scheduler);
 
-    emit_function_start(entry_);
+    emit_fun_start(entry_);
 
     for (auto cont : conts) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
@@ -413,7 +413,7 @@ void CodeGen::emit(const Scope& scope) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
-    auto&& bb_ib = cont2llvm_[continuation];
+    auto&& bb_ib = cont2bb_[continuation];
     auto bb = bb_ib->first;
     auto& irbuilder = *bb_ib->second;
 
@@ -538,23 +538,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
-llvm::Value* CodeGen::emit_unsafe(const Def* def) {
-    if (auto llvm = def2llvm_.lookup(def)) return *llvm;
-    if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
-
-    auto llvm = emit_(def);
-    return def2llvm_[def] = llvm;
-}
-
-llvm::Value* CodeGen::emit(const Def* def) {
-    auto res = emit_unsafe(def);
-    assert(res);
-    return res;
-}
-
-llvm::Value* CodeGen::emit_(const Def* def) {
-    auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
-    auto& irbuilder = *cont2llvm_[place]->second;
+llvm::Value* CodeGen::emit(BB& bb, const Def* def) {
+    auto& irbuilder = *bb.second;
 
     // TODO
     //if (debug())
@@ -948,7 +933,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 }
 
 void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
-    llvm::cast<llvm::PHINode>(*def2llvm_[param])->addIncoming(value, irbuilder.GetInsertBlock());
+    llvm::cast<llvm::PHINode>(*def2val_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*
@@ -1241,7 +1226,7 @@ Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* cont
     }
     auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
     callee->make_exported();
-    irbuilder.CreateCall(emit_function_decl(callee), args);
+    irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);
     return ret;
 }

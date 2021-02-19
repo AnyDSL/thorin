@@ -77,6 +77,19 @@ private:
     size_t level_;
 };
 
+struct StringStream : public Stream {
+    StringStream()
+        : Stream(oss)
+    {}
+
+    friend void swap(StringStream& a, StringStream& b) {
+        using std::swap;
+        swap(a.oss, b.oss);
+    }
+
+    std::ostringstream oss;
+};
+
 template<class... Args> void outf(const char* fmt, Args&&... args) { Stream(std::cout).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 template<class... Args> void errf(const char* fmt, Args&&... args) { Stream(std::cerr).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 

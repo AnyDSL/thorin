@@ -19,25 +19,19 @@
 namespace thorin::c {
 
 struct BB {
-    BB()
-        : body(body_s)
-        , tail(tail_s)
-    {}
+    BB() = default;
 
-    std::ostringstream body_s;
-    std::ostringstream tail_s;
-    Stream body;
-    Stream tail;
+    StringStream head;
+    StringStream body;
+    StringStream tail;
 
     friend void swap(BB& a, BB& b) {
         using std::swap;
-        swap(a.body_s, b.body_s);
-        swap(a.tail_s, b.tail_s);
+        swap(a.head, b.head);
         swap(a.body, b.body);
         swap(a.tail, b.tail);
     }
 };
-
 
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
@@ -1412,7 +1406,33 @@ void CCodeGen::emit_c_int() {
 
 template <typename T, typename IsInfFn, typename IsNanFn>
 std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
-#if 0
+    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
+        switch (lang_) {
+            case Lang::CUDA:   return cuda;
+            case Lang::OpenCL: return opencl;
+            default:           return def;
+        }
+    };
+
+    if (is_inf(t)) {
+        if (std::is_same<T, half>::value) {
+            return emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
+        } else if (std::is_same<T, float>::value) {
+            return emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
+        } else {
+            return emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
+        }
+    } else if (is_nan(t)) {
+        if (std::is_same<T, half>::value) {
+            return emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
+        } else if (std::is_same<T, float>::value) {
+            return emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
+        } else {
+            return emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
+        }
+    }
+
+    StringStream s;
     auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
     const char* suf = "", * pref = "";
 
@@ -1423,40 +1443,12 @@ std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
         } else {
             suf = "h";
         }
-    }
-    if (std::is_same<T, float>::value) {
+    } else if (std::is_same<T, float>::value) {
         suf  = "f";
     }
 
-    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
-        switch (lang_) {
-            default:           func_impls_ << def;    break;
-            case Lang::CUDA:   func_impls_ << cuda;   break;
-            case Lang::OpenCL: func_impls_ << opencl; break;
-        }
-    };
-
-    if (is_inf(t)) {
-        if (std::is_same<T, half>::value) {
-            emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
-        } else if (std::is_same<T, float>::value) {
-            emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
-        } else {
-            emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
-        }
-    } else if (is_nan(t)) {
-        if (std::is_same<T, half>::value) {
-            emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
-        } else if (std::is_same<T, float>::value) {
-            emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
-        } else {
-            emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
-        }
-    } else {
-        func_impls_ << float_mode << pref << t << suf;
-    }
-#endif
-    return "";
+    s.fmt("{}{}{}{}", float_mode, pref, t, suf);
+    return s.oss.str();
 }
 
 static inline bool is_const_primop(const Def* def) {
@@ -1491,6 +1483,7 @@ bool CCodeGen::is_texture_type(const Type* type) {
 }
 
 inline std::string make_identifier(const std::string& str) {
+    // TODO use std::copy + std::transform or so
     auto copy = str;
     for (auto& c : copy) {
         if (c == ' ') c = '_';

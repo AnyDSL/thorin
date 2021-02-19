@@ -375,26 +375,26 @@ void CodeGen::emit(const Scope& scope) {
             auto arg = fct->arg_begin();
             for (auto param : entry_->params()) {
                 if (is_mem(param) || is_unit(param)) {
-                    def2val_[param] = nullptr;
+                    defs_[param] = nullptr;
                 } else if (param->order() == 0) {
                     auto argv = &*arg;
                     auto value = map_param(fct, argv, param);
                     if (value == argv) {
                         arg->setName(param->unique_name()); // use param
-                        def2val_[param] = &*arg++;
+                        defs_[param] = &*arg++;
                     } else {
-                        def2val_[param] = value;           // use provided value
+                        defs_[param] = value;           // use provided value
                     }
                 }
             }
         } else {
             for (auto param : cont->params()) {
                 if (is_mem(param) || is_unit(param)) {
-                    def2val_[param] = nullptr;
+                    defs_[param] = nullptr;
                 } else {
                     // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
                     auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
-                    def2val_[param] = phi;
+                    defs_[param] = phi;
                 }
             }
         }
@@ -933,7 +933,7 @@ llvm::Value* CodeGen::emit(BB& bb, const Def* def) {
 }
 
 void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
-    llvm::cast<llvm::PHINode>(*def2val_[param])->addIncoming(value, irbuilder.GetInsertBlock());
+    llvm::cast<llvm::PHINode>(*defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*

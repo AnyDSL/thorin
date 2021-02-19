@@ -141,7 +141,7 @@ void NVVMCodeGen::emit_fun_start(Continuation* continuation) {
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
             llvm::Value* args[] = { llvm::MetadataAsValue::get(context(), md->second), var };
-            def2val_[param] = irbuilder.CreateCall(texture_handle, args);
+            defs_[param] = irbuilder.CreateCall(texture_handle, args);
         }
     }
 }

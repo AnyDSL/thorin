@@ -80,8 +80,6 @@ private:
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
-    TypeMap<std::string> type2str_;
-    DefMap<std::string> def2str_;
     bool use_64_ = false;
     bool use_16_ = false;
     bool use_channels_ = false;
@@ -95,7 +93,6 @@ private:
     Stream func_impls_ { func_impls_out_ };
     Stream func_decls_ { func_decls_out_ };
     Stream type_decls_ { type_decls_out_ };
-    Continuation* entry_ = nullptr;
 
     friend class CEmit;
 };
@@ -126,7 +123,7 @@ static std::string handle_string_character(char c) {
  */
 
 std::string CCodeGen::convert(const Type* type) {
-    if (auto res = type2str_.lookup(type)) return *res;
+    if (auto res = types_.lookup(type)) return *res;
 #if 0
     Stream s(std::cout); // TODO
 

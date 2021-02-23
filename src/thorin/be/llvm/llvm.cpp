@@ -361,7 +361,7 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     irbuilder.SetInsertPoint(bb);
 
     if (debug())
-        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope_));
+        irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), cont->loc().begin.row, cont->loc().begin.col, discope_));
 
     if (entry_ == cont) {
         auto arg = fct->arg_begin();
@@ -535,7 +535,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
 
     // TODO
     //if (debug())
-        //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->loc().begin.row, def->loc().begin.row, discope));
+        //irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
 
     if (false) {}
     else if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);

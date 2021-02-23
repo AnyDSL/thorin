@@ -124,22 +124,47 @@ static std::string handle_string_character(char c) {
 
 std::string CCodeGen::convert(const Type* type) {
     if (auto res = types_.lookup(type)) return *res;
-#if 0
-    Stream s(std::cout); // TODO
 
-    if (type == nullptr) {
-        return s << "NULL";
-    } else if (type->isa<FrameType>()) {
-        return s;
-    } else if (type->isa<MemType>() || type == world().unit()) {
-        return s << "void";
+    StringStream s;
+    std::string name;
+
+    // TODO simd types
+    if (type->isa<MemType>())        s << "<MemType>";
+    else if (type->isa<FrameType>()) s <<  "<FrameType>";
+    else if( type == world().unit()) s <<  "void";
+    else if (auto primtype = type->isa<PrimType>()) {
+        switch (primtype->primtype_tag()) {
+            case PrimType_bool:                     s << "bool";                   break;
+            case PrimType_ps8:  case PrimType_qs8:  s << "char";                   break;
+            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";          break;
+            case PrimType_ps16: case PrimType_qs16: s << "short";                  break;
+            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";         break;
+            case PrimType_ps32: case PrimType_qs32: s << "int";                    break;
+            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";           break;
+            case PrimType_ps64: case PrimType_qs64: s << "long";                   break;
+            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";          break;
+            case PrimType_pf32: case PrimType_qf32: s << "float";                  break;
+            case PrimType_pf16: case PrimType_qf16: s << "half";   use_16_ = true; break;
+            case PrimType_pf64: case PrimType_qf64: s << "double"; use_64_ = true; break;
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto array = type->isa<IndefiniteArrayType>()) {
+        return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
     } else if (type->isa<FnType>()) {
-        THORIN_UNREACHABLE;
+        assert(false && "todo");
+    } else if (auto ptr = type->isa<PtrType>()) {
+        s.fmt("{}*", convert(ptr->pointee()));
+    } else if (auto array = type->isa<DefiniteArrayType>()) {
+        name = array_name(array);
+        auto elem_type = convert(array->elem_type());
+        s.fmt("typedef struct {{\t\n{} e[{}];\b\n}} {};", elem_type, array->dim(), name);
     } else if (auto tuple = type->isa<TupleType>()) {
+        name = tuple_name(tuple);
         s.fmt("typedef struct {{\t\n");
-        s.rangei(tuple->ops(), ";\n", [&](size_t i) { s.fmt("{} e{}", wrap(tuple->op(i)), i); });
-        return s.fmt("\b\n}} {};", tuple_name(tuple));
+        s.rangei(tuple->ops(), ";\n", [&](size_t i) { s.fmt("{} e{}", convert(tuple->op(i)), i); });
+        s.fmt("\b\n}} {};\n", name);
     } else if (auto variant = type->isa<VariantType>()) {
+        name = variant->name();
         auto tag_type =
             variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
             variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
@@ -151,49 +176,36 @@ std::string CCodeGen::convert(const Type* type) {
             s.fmt("union {{\t\n");
             s.rangei(variant->ops(), "\n;", [&](size_t i) {
                 if (!is_type_unit(variant->op(i)))
-                    s.fmt("{} {}", wrap(variant->op(i)), variant->op_name(i));
+                    s.fmt("{} {}", convert(variant->op(i)), variant->op_name(i));
             });
             s.fmt("\b\n}} data;");
         }
-        s.fmt("{} tag;\n", wrap(tag_type));
-        return s.fmt("\b\n}} {};", variant->name());
+        s.fmt("{} tag;\n", convert(tag_type));
+        s.fmt("\b\n}} {};", name);
     } else if (auto struct_type = type->isa<StructType>()) {
+        name = type_name(struct_type);
+        types_[struct_type] = name;
+
         s.fmt("typedef struct {{\t\n");
         size_t i = 0;
-        s.range(struct_type->ops(), ";\n", [&](const Type* t) { s.fmt("{} e{}", wrap(t), struct_type->op_name(i)); });
-        s.fmt("\b\n}} {};", tuple_name(tuple));
+        s.range(struct_type->ops(), ";\n", [&](const Type* t) { s.fmt("{} e{}", convert(t), struct_type->op_name(i)); });
+        s.fmt("\b\n}} {};", name);
 
-        if (struct_type->name().str().find("channel_") != std::string::npos)
-            use_channels_ = true;
-        return s;
-    } else if (auto array = type->isa<IndefiniteArrayType>()) {
-        // TODO I'm confused by the orignal code; it just emitted the elem_type Oo
-        return s.fmt("{}[]", array->elem_type());
-    } else if (auto array = type->isa<DefiniteArrayType>()) {
-        return s.fmt("typedef struct {{\t\n{} e[{}];\b\n}} {};", wrap(array->elem_type()), array->dim(), array_name(array));
-    } else if (auto ptr = type->isa<PtrType>()) {
-        // TODO vector_length - I'm pretty sure the old code was incorrect anyway
-        return s.fmt("{}*", wrap(ptr->pointee()));
-    } else if (auto primtype = type->isa<PrimType>()) {
-        switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     s << "bool";                   break;
-            case PrimType_ps8:  case PrimType_qs8:  s << "char";                   break;
-            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";          break;
-            case PrimType_ps16: case PrimType_qs16: s << "short";                  break;
-            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";         break;
-            case PrimType_ps32: case PrimType_qs32: s << "int";                    break;
-            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";           break;
-            case PrimType_ps64: case PrimType_qs64: s << "long";                   break;
-            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";          break;
-            case PrimType_pf16: case PrimType_qf16: s << "half";   use_16_ = true; break;
-            case PrimType_pf32: case PrimType_qf32: s << "float";                  break;
-            case PrimType_pf64: case PrimType_qf64: s << "double"; use_64_ = true; break;
-        }
-        // TODO vector_length - I'm pretty sure the old code was incorrect anyway
-        return s;
+        if (struct_type->name().str().find("channel_") != std::string::npos) use_channels_ = true;
+
+        type_decls_ << s.str();
+        return name;
+    } else {
+        THORIN_UNREACHABLE;
     }
-#endif
-    THORIN_UNREACHABLE;
+
+    if (name.empty()) {
+        return types_[type] = s.str();
+    } else {
+        assert(!s.str().empty());
+        type_decls_ << s.str();
+        return types_[type] = name;
+    }
 }
 
 /*
@@ -1445,7 +1457,7 @@ std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
     }
 
     s.fmt("{}{}{}{}", float_mode, pref, t, suf);
-    return s.oss.str();
+    return s.str();
 }
 
 static inline bool is_const_primop(const Def* def) {

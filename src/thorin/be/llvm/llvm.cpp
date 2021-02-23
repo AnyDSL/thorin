@@ -335,7 +335,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         auto startBB = llvm::BasicBlock::Create(*context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DILocation::get(discope->getContext(), entry_->location().front_line(), entry_->location().front_col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
@@ -348,7 +348,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DILocation::get(discope->getContext(), primop->location().front_line(), primop->location().front_col(), discope));
 
                 if (primop->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
@@ -362,7 +362,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DILocation::get(discope->getContext(), continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
                 if (num_args == 0) irbuilder_.CreateRetVoid();

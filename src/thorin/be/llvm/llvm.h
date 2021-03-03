@@ -45,11 +45,15 @@ public:
     //@}
 
     const char* file_ext() const override { return ".ll"; }
-    void emit(std::ostream& stream) override;
-    std::unique_ptr<llvm::Module>& emit();
-    llvm::Value* emit(BB&, const Def* def);
+    void emit_stream(std::ostream& stream) override;
+    std::unique_ptr<llvm::Module>& emit_module();
+    llvm::Function* prepare(const Scope&);
+    void prepare(Continuation*, llvm::Function*);
+    llvm::Value* emit_bb(BB&, const Def* def);
     virtual llvm::Function* emit_fun_decl(Continuation*);
     bool is_valid(llvm::Value* value) { return value != nullptr; }
+    void emit_epilogue(Continuation*);
+    virtual void emit_fun_start(Continuation*) {}
 
 protected:
     /// @name convert
@@ -59,14 +63,10 @@ protected:
     virtual llvm::FunctionType* convert_fn_type(Continuation*);
     //@}
 
-    void emit(const Scope&);
-    void emit_epilogue(Continuation*);
-    llvm::Value* emit(const Def* def) { return thorin::Emitter<llvm::Value*, llvm::Type*, BB, CodeGen>::emit(def); }
     llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);
     llvm::Value*      emit_alloc (llvm::IRBuilder<>&, const Type*, const Def*);
     virtual void emit_fun_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
-    virtual void emit_fun_start(Continuation*) {}
 
     virtual llvm::Value* emit_load    (llvm::IRBuilder<>&, const Load*);
     virtual llvm::Value* emit_store   (llvm::IRBuilder<>&, const Store*);
@@ -115,6 +115,7 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
+    llvm::DIScope* discope_ = nullptr;
     std::unique_ptr<Runtime> runtime_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;

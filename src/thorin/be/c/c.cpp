@@ -45,18 +45,18 @@ public:
     {}
 
     World& world() const { return world_; }
-    void emit();
+    void emit_module();
     void emit_c_int();
-    std::string emit(BB&, const Def*);
+    std::string emit_bb(BB&, const Def*);
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_decl(Continuation*);
+    std::string prepare(const Scope&);
+    void prepare(Continuation*, const std::string&);
 
 private:
     std::string convert(const Type*);
 
-    void emit(const Scope&);
     void emit_epilogue(Continuation*);
-    std::string emit(const Def* def) { return Emitter<std::string, std::string, BB, CCodeGen>::emit(def); }
 
     Stream& emit_aggop_defs(const Def*);
     Stream& emit_aggop_decl(const Type*);
@@ -212,7 +212,7 @@ std::string CCodeGen::convert(const Type* type) {
  * emit
  */
 
-void CCodeGen::emit() {
+void CCodeGen::emit_module() {
 #if 0
     if (lang_ == Lang::CUDA) {
         for (auto x : std::array<char, 3>{'x', 'y', 'z'}) {
@@ -271,24 +271,8 @@ void CCodeGen::emit() {
 #endif
 }
 
-void CCodeGen::emit(const Scope& scope) {
-    // continuation declarations
-    auto continuation = scope.entry();
-    if (continuation->is_intrinsic())
-        return;
-
-    assert(continuation->is_returning());
-
-    // retrieve return param
-    const Param* ret_param = nullptr;
-    for (auto param : continuation->params()) {
-        if (param->order() != 0) {
-            assert(!ret_param);
-            ret_param = param;
-        }
-    }
-    assert(ret_param);
-
+std::string CCodeGen::prepare(const Scope& scope) {
+#if 0
     // emit function & its declaration
     auto ret_param_fn_type = ret_param->type()->as<FnType>();
     auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
@@ -330,6 +314,12 @@ void CCodeGen::emit(const Scope& scope) {
     //convert(func_impls_, ret_type) << " " << name << "(";
     size_t i = 0;
     std::string hls_pragmas;
+#endif
+    return {};
+}
+
+void CCodeGen::prepare(Continuation*, const std::string&) {
+#if 0
     // emit and store all first-order params
     for (auto param : continuation->params()) {
         if (is_mem(param) || is_unit(param))
@@ -418,95 +408,7 @@ void CCodeGen::emit(const Scope& scope) {
             }
         }
     }
-
-    auto conts = schedule(scope);
-    Scheduler scheduler(scope);
-#if 0
-
-    // emit function arguments and phi nodes
-    for (auto&& continuation : conts) {
-        for (auto param : continuation->params()) {
-            if (is_mem(param) || is_unit(param))
-                continue;
-            emit_aggop_decl(param->type());
-            insert(param, param->unique_name());
-        }
-
-        if (scope.entry() != continuation) {
-            for (auto param : continuation->params()) {
-                if (!is_mem(param) && !is_unit(param)) {
-                    func_impls_.endl();
-                    emit_addr_space(func_impls_, param->type());
-                    convert(func_impls_, param->type()) << "  " << param->unique_name() << ";" << endl;
-                    emit_addr_space(func_impls_, param->type());
-                    convert(func_impls_, param->type()) << " p" << param->unique_name() << ";";
-                }
-            }
-        }
-        // emit counter for pipeline intrinsic
-        if (continuation->callee()->isa_continuation() &&
-            continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
-            func_impls_ << endl << "int i" << continuation->callee()->gid() << ";";
-        }
-    }
 #endif
-
-    for (auto cont : conts) {
-        if (cont->empty()) continue;
-
-        assert(cont == scope.entry() || cont->is_basicblock());
-        func_impls_.endl();
-
-        // print label for the current basic block
-        if (cont != scope.entry()) {
-            func_impls_.fmt("l{};\t\n",  cont->gid());
-            // load params from phi node
-            for (auto param : cont->params())
-                if (!is_mem(param) && !is_unit(param))
-                    func_impls_.fmt("{} = p{};\n", param->unique_name());
-        }
-
-#if 0
-        // TODO rewrite and merge with LLVM backend
-        for (auto primop : block) {
-            if (primop->type()->order() >= 1) {
-                // ignore higher-order primops which come from a match intrinsic
-                if (is_from_match(primop))
-                    continue;
-                THORIN_UNREACHABLE;
-            }
-
-            // struct/tuple/array declarations
-            if (!primop->isa<MemOp>()) {
-                emit_aggop_decl(primop->type());
-                // search for inlined tuples/arrays
-                if (auto aggop = primop->isa<AggOp>()) {
-                    if (!aggop->agg()->isa<MemOp>())
-                        emit_aggop_decl(aggop->agg()->type());
-                }
-            }
-
-            // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-            if (primop->type()->isa<FnType>() || primop->type()->isa<FrameType>() || ((is_mem(primop) || is_unit(primop)) && !primop->isa<Store>()))
-                continue;
-
-            emit_debug_info(primop);
-            emit(primop) << endl;
-        }
-#endif
-
-        // emit definitions for temporaries
-        for (auto arg : cont->args())
-            emit_temporaries(arg);
-
-        emit_epilogue(cont);
-
-#if 0
-        if (cont != scope.entry())
-            func_impls_ << down;
-#endif
-    }
-    //func_impls_ << down << endl << "}" << endl << endl;
 }
 
 void CCodeGen::emit_epilogue(Continuation*) {
@@ -709,7 +611,7 @@ void CCodeGen::emit_epilogue(Continuation*) {
 #endif
 }
 
-std::string CCodeGen::emit(BB& bb, const Def* def) {
+std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     //if (auto continuation = def->isa<Continuation>())
         //return func_impls_.fmt("goto l{};", continuation->gid());
 
@@ -1522,9 +1424,9 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 
 //------------------------------------------------------------------------------
 
-void CodeGen::emit(std::ostream& stream) {
+void CodeGen::emit_stream(std::ostream& stream) {
     Stream s(stream);
-    CCodeGen(world(), kernel_config_, s, lang_, debug_).emit();
+    CCodeGen(world(), kernel_config_, s, lang_, debug_).emit_module();
 }
 
 void emit_c_int(World& world, Stream& stream) {

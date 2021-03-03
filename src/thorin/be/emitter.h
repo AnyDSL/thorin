@@ -13,7 +13,7 @@ private:
     Value emit_(const Def* def) {
         auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
         auto& bb = *cont2bb_[place];
-        return child().emit(bb, def);
+        return child().emit_bb(bb, def);
     }
 
 protected:
@@ -31,6 +31,30 @@ protected:
 
         auto val = emit_(def);
         return defs_[def] = val;
+    }
+
+    void emit_scope(const Scope& scope) {
+        entry_ = scope.entry();
+        assert(entry_->is_returning());
+
+        auto fct = child().prepare(scope);
+        cont2bb_.clear();
+        auto conts = schedule(scope);
+
+        for (auto cont : conts) {
+            if (cont->intrinsic() != Intrinsic::EndScope) child().prepare(cont, fct);
+        }
+
+        Scheduler new_scheduler(scope);
+        swap(scheduler_, new_scheduler);
+
+        child().emit_fun_start(entry_);
+
+        for (auto cont : conts) {
+            if (cont->intrinsic() == Intrinsic::EndScope) continue;
+            assert(cont == entry_ || cont->is_basicblock());
+            child().emit_epilogue(cont);
+        }
     }
 
     Scheduler scheduler_;

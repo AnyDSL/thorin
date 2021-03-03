@@ -23,7 +23,7 @@ public:
         , debug_(debug)
     {}
 
-    void emit(std::ostream& stream) override;
+    void emit_stream(std::ostream& stream) override;
 
     const char* file_ext() const override {
         switch (lang_) {

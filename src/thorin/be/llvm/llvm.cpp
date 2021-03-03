@@ -267,12 +267,12 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
  * emit
  */
 
-void CodeGen::emit(std::ostream& stream) {
+void CodeGen::emit_stream(std::ostream& stream) {
     llvm::raw_os_ostream llvm_stream(stream);
-    emit()->print(llvm_stream, nullptr);
+    emit_module()->print(llvm_stream, nullptr);
 }
 
-std::unique_ptr<llvm::Module>& CodeGen::emit() {
+std::unique_ptr<llvm::Module>& CodeGen::emit_module() {
     if (debug()) {
         module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
         // Darwin only supports dwarf2
@@ -281,7 +281,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
         dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world().name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
     }
 
-    Scope::for_each(world(), [&] (const Scope& scope) { emit(scope); });
+    Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
 
     if (debug()) dibuilder_.finalize();
 
@@ -336,79 +336,64 @@ llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
     return f;
 }
 
-void CodeGen::emit(const Scope& scope) {
-    entry_ = scope.entry();
-    assert(entry_->is_returning());
-    auto fct = llvm::cast<llvm::Function>(emit(entry_));
+llvm::Function* CodeGen::prepare(const Scope& scope) {
+    auto fct = llvm::cast<llvm::Function>(emit(scope.entry()));
 
-    llvm::DIScope* discope = dicompile_unit_;
+    discope_ = dicompile_unit_;
     if (debug()) {
         auto src_file = llvm::sys::path::filename(entry_->loc().file);
         auto src_dir = llvm::sys::path::parent_path(entry_->loc().file);
         auto difile = dibuilder_.createFile(src_file, src_dir);
         auto disub_program = dibuilder_.createFunction(
-            discope, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
+            discope_, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
             dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
             entry_->loc().begin.row,
             llvm::DINode::FlagPrototyped,
             llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
         fct->setSubprogram(disub_program);
-        discope = disub_program;
+        discope_ = disub_program;
     }
 
-    cont2bb_.clear();
-    auto conts = schedule(scope);
+    return fct;
+}
 
+void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     // map all bb-like continuations to llvm bb stubs and handle params/phis
-    for (auto cont : conts) {
-        if (cont->intrinsic() == Intrinsic::EndScope) continue;
+    auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
+    auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
+    assert(succ);
+    auto& irbuilder = *i->second.second;
+    irbuilder.SetInsertPoint(bb);
 
-        auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
-        auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
-        assert(succ);
-        auto& irbuilder = *i->second.second;
-        irbuilder.SetInsertPoint(bb);
-        if (debug())
-            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope));
+    if (debug())
+        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope_));
 
-        if (entry_ == cont) {
-            auto arg = fct->arg_begin();
-            for (auto param : entry_->params()) {
-                if (is_mem(param) || is_unit(param)) {
-                    defs_[param] = nullptr;
-                } else if (param->order() == 0) {
-                    auto argv = &*arg;
-                    auto value = map_param(fct, argv, param);
-                    if (value == argv) {
-                        arg->setName(param->unique_name()); // use param
-                        defs_[param] = &*arg++;
-                    } else {
-                        defs_[param] = value;           // use provided value
-                    }
-                }
-            }
-        } else {
-            for (auto param : cont->params()) {
-                if (is_mem(param) || is_unit(param)) {
-                    defs_[param] = nullptr;
+    if (entry_ == cont) {
+        auto arg = fct->arg_begin();
+        for (auto param : entry_->params()) {
+            if (is_mem(param) || is_unit(param)) {
+                defs_[param] = nullptr;
+            } else if (param->order() == 0) {
+                auto argv = &*arg;
+                auto value = map_param(fct, argv, param);
+                if (value == argv) {
+                    arg->setName(param->unique_name()); // use param
+                    defs_[param] = &*arg++;
                 } else {
-                    // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
-                    auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
-                    defs_[param] = phi;
+                    defs_[param] = value;           // use provided value
                 }
             }
         }
-    }
-
-    Scheduler new_scheduler(scope);
-    swap(scheduler_, new_scheduler);
-
-    emit_fun_start(entry_);
-
-    for (auto cont : conts) {
-        if (cont->intrinsic() == Intrinsic::EndScope) continue;
-        assert(cont == entry_ || cont->is_basicblock());
-        emit_epilogue(cont);
+    } else {
+        for (auto param : cont->params()) {
+            if (is_mem(param) || is_unit(param)) {
+                defs_[param] = nullptr;
+            } else {
+                // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
+                auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
+                defs_[param] = phi;
+            }
+        }
     }
 }
 
@@ -538,7 +523,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
-llvm::Value* CodeGen::emit(BB& bb, const Def* def) {
+llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     auto& irbuilder = *bb.second;
 
     // TODO

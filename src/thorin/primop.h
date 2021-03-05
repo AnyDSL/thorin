@@ -316,10 +316,17 @@ public:
 /// Data constructor for a @p VariantType.
 class Variant : public PrimOp {
 private:
-    Variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg)
-        : PrimOp(Node_Variant, variant_type, {value}, dbg), index_(index)
+    Variant(const Type* type, const Def* value, size_t index, Debug dbg)
+        : PrimOp(Node_Variant, type, {value}, dbg), index_(index)
     {
-        assert(variant_type->op(index) == value->type());
+        if (auto variant_type = type->isa<VariantType>())
+            assert(variant_type->op(index) == value->type());
+        else if (auto vec_type = type->isa<VectorExtendedType>()) {
+            auto variant_type = vec_type->element()->as<VariantType>();
+            auto value_vector_type = value->type()->as<VectorExtendedType>();
+            auto value_type = value_vector_type->element();
+            assert(variant_type->op(index) == value_type);
+        }
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -329,7 +336,6 @@ private:
     size_t index_;
 
 public:
-    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
     size_t index() const { return index_; }
     const Def* value() const { return op(0); }
 

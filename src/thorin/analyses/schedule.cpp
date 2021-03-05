@@ -242,6 +242,7 @@ void Schedule::block_schedule() {
 }
 
 void Schedule::verify() {
+#if 0
 #if THORIN_ENABLE_CHECKS
     bool ok = true;
     auto& domtree = cfg().domtree();
@@ -264,6 +265,7 @@ void Schedule::verify() {
     }
 
     assert(ok && "incorrectly wired or scheduled memory operations");
+#endif
 #endif
 }
 

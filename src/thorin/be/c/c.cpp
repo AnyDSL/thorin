@@ -54,6 +54,8 @@ public:
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
     void prepare(Continuation*, const std::string&);
+    void finalize(const Scope&);
+    void finalize(Continuation*);
 
 private:
     std::string convert(const Type*);
@@ -273,7 +275,7 @@ void CCodeGen::emit_module() {
 #endif
 }
 
-std::string CCodeGen::prepare(const Scope& scope) {
+std::string CCodeGen::prepare(const Scope&) {
 #if 0
     // emit function & its declaration
     auto ret_param_fn_type = ret_param->type()->as<FnType>();
@@ -411,6 +413,16 @@ void CCodeGen::prepare(Continuation*, const std::string&) {
         }
     }
 #endif
+}
+
+void CCodeGen::finalize(const Scope&) {
+}
+
+void CCodeGen::finalize(Continuation* cont) {
+    auto& bb = *cont2bb_[cont];
+    stream_ << bb.head.str();
+    stream_ << bb.body.str();
+    stream_ << bb.tail.str();
 }
 
 void CCodeGen::emit_epilogue(Continuation*) {

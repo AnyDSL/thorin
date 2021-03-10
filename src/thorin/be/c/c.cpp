@@ -47,6 +47,8 @@ public:
     World& world() const { return world_; }
     void emit_module();
     void emit_c_int();
+    void emit_epilogue(Continuation*);
+
     std::string emit_bb(BB&, const Def*);
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_decl(Continuation*);
@@ -55,8 +57,6 @@ public:
 
 private:
     std::string convert(const Type*);
-
-    void emit_epilogue(Continuation*);
 
     Stream& emit_aggop_defs(const Def*);
     Stream& emit_aggop_decl(const Type*);
@@ -234,9 +234,11 @@ void CCodeGen::emit_module() {
             }
         }
     }
+#endif
 
-    Scope::for_each(world(), [&] (const Scope& scope) { emit(scope); });
+    Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
 
+#if 0
     type2str_.clear();
     global2str_.clear();
 

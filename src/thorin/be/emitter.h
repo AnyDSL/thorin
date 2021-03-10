@@ -17,6 +17,12 @@ private:
     }
 
 protected:
+    //@{
+    /// @name default implemantations
+    void finalize(const Scope&) {}
+    void finalize(Continuation*) {}
+    //@}
+
     /// Recursively emits code. @c mem -typed @p Def%s return sth that is @c !child().is_valid(value) - this variant asserts in this case.
     Value emit(const Def* def) {
         auto res = emit_unsafe(def);
@@ -34,13 +40,11 @@ protected:
     }
 
     void emit_scope(const Scope& scope) {
+        auto conts = schedule(scope);
         entry_ = scope.entry();
         assert(entry_->is_returning());
 
         auto fct = child().prepare(scope);
-        cont2bb_.clear();
-        auto conts = schedule(scope);
-
         for (auto cont : conts) {
             if (cont->intrinsic() != Intrinsic::EndScope) child().prepare(cont, fct);
         }
@@ -48,12 +52,15 @@ protected:
         Scheduler new_scheduler(scope);
         swap(scheduler_, new_scheduler);
 
-        child().emit_fun_start(entry_);
-
         for (auto cont : conts) {
             if (cont->intrinsic() == Intrinsic::EndScope) continue;
             assert(cont == entry_ || cont->is_basicblock());
             child().emit_epilogue(cont);
+        }
+
+        child().finalize(scope);
+        for (auto cont : conts) {
+            if (cont->intrinsic() != Intrinsic::EndScope) child().finalize(cont);
         }
     }
 

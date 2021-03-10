@@ -21,7 +21,7 @@ protected:
     void emit_fun_decl_hook(Continuation*, llvm::Function*) override;
     llvm::FunctionType* convert_fn_type(Continuation*) override;
     llvm::Value* map_param(llvm::Function*, llvm::Argument*, const Param*) override;
-    void emit_fun_start(Continuation*) override;
+    void prepare(Continuation*, llvm::Function*) override;
 
     llvm::Value* emit_load(llvm::IRBuilder<>&,  const Load*) override;
     llvm::Value* emit_store(llvm::IRBuilder<>&, const Store*) override;

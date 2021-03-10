@@ -129,13 +129,15 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun(llvm::IRBuilder<>& irbuilder
     return llvm::cast<llvm::Function>(module().getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
 }
 
-void NVVMCodeGen::emit_fun_start(Continuation* continuation) {
-    if (!continuation->is_exported())
-        return;
-    auto& irbuilder = *cont2bb_[continuation]->second;
+void NVVMCodeGen::prepare(Continuation* cont, llvm::Function* fct) {
+    CodeGen::prepare(cont, fct);
+
+    if (cont != entry_ || !cont->is_exported()) return;
+
+    auto& irbuilder = *cont2bb_[cont]->second;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun(irbuilder);
-    for (auto param : continuation->params()) {
+    for (auto param : cont->params()) {
         if (auto var = resolve_global_variable(param)) {
             auto md = metadata_.find(param);
             assert(md != metadata_.end());

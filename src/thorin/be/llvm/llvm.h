@@ -48,12 +48,11 @@ public:
     void emit_stream(std::ostream& stream) override;
     std::unique_ptr<llvm::Module>& emit_module();
     llvm::Function* prepare(const Scope&);
-    void prepare(Continuation*, llvm::Function*);
+    virtual void prepare(Continuation*, llvm::Function*);
     llvm::Value* emit_bb(BB&, const Def* def);
     virtual llvm::Function* emit_fun_decl(Continuation*);
     bool is_valid(llvm::Value* value) { return value != nullptr; }
     void emit_epilogue(Continuation*);
-    virtual void emit_fun_start(Continuation*) {}
 
 protected:
     /// @name convert

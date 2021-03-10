@@ -380,7 +380,7 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
                     arg->setName(param->unique_name()); // use param
                     defs_[param] = &*arg++;
                 } else {
-                    defs_[param] = value;           // use provided value
+                    defs_[param] = value;               // use provided value
                 }
             }
         }

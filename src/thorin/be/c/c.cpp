@@ -54,13 +54,15 @@ public:
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
     void prepare(Continuation*, const std::string&);
+    void finalize(const Scope&);
+    void finalize(Continuation*);
 
 private:
     std::string convert(const Type*);
+    Stream& emit_debug_info(Stream&, const Def*);
 
     Stream& emit_aggop_defs(const Def*);
     Stream& emit_aggop_decl(const Type*);
-    Stream& emit_debug_info(const Def*);
     Stream& emit_addr_space(Stream&, const Type*);
     Stream& emit_string(const Global*);
     Stream& emit_temporaries(const Def*);
@@ -273,7 +275,7 @@ void CCodeGen::emit_module() {
 #endif
 }
 
-std::string CCodeGen::prepare(const Scope& scope) {
+std::string CCodeGen::prepare(const Scope&) {
 #if 0
     // emit function & its declaration
     auto ret_param_fn_type = ret_param->type()->as<FnType>();
@@ -413,204 +415,208 @@ void CCodeGen::prepare(Continuation*, const std::string&) {
 #endif
 }
 
-void CCodeGen::emit_epilogue(Continuation*) {
-#if 0
+void CCodeGen::finalize(const Scope&) {
+
+}
+
+void CCodeGen::finalize(Continuation* cont) {
+    auto&& bb = cont2bb_[cont];
+    stream_ << bb->head.str();
+    stream_ << bb->body.str();
+    stream_ << bb->tail.str();
+}
+
+void CCodeGen::emit_epilogue(Continuation* cont) {
+    auto&& bb = cont2bb_[cont];
+    emit_debug_info(bb->tail, cont->arg(0));
+
     if (cont->callee() == entry_->ret_param()) { // return
-        size_t num_args = cont->num_args();
-        if (num_args == 0) func_impls_ << "return ;";
-        else {
-            Array<const Def*> values(num_args);
-            Array<const Type*> types(num_args);
+        std::vector<std::string> values;
+        std::vector<const Type*> types;
 
-            size_t n = 0;
-            for (auto arg : cont->args()) {
-                if (!is_mem(arg) && !is_unit(arg)) {
-                    values[n] = arg;
-                    types[n] = arg->type();
-                    n++;
-                }
+        for (auto arg : cont->args()) {
+            if (auto val = emit_unsafe(arg); !val.empty()) {
+                values.emplace_back(val);
+                types.emplace_back(arg->type());
             }
+        }
 
-            if (n == 0) func_impls_ << "return ;";
-            else if (n == 1) {
-                func_impls_ << "return ";
-                emit(values[0]) << ";";
-            } else {
-                types.shrink(n);
-                auto ret_type = world_.tuple_type(types);
-                auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
-                emit_aggop_decl(ret_type);
-                convert(func_impls_, ret_type) << " " << ret_tuple_name << ";";
+        switch (values.size()) {
+            case 0: bb->tail.fmt("return;");               break;
+            case 1: bb->tail.fmt("return {};", values[0]); break;
+            default:
+                auto tuple = convert(world().tuple_type(types));
+                bb->tail.fmt("{} _result;\n", tuple);
 
-                for (size_t i = 0; i != n; ++i) {
-                    func_impls_ << endl << ret_tuple_name << ".e" << i << " = ";
-                    emit(values[i]) << ";";
-                }
-
-                func_impls_ << endl << "return " << ret_tuple_name << ";";
-            }
+                for (size_t i = 0, e = types.size(); i != e; ++i)
+                    bb->tail.fmt("_result.e{} = {};\n", i, values[i]);
+                bb->tail.fmt("return _result;");
         }
     } else if (cont->callee() == world().branch()) {
-        emit_debug_info(cont->arg(0)); // TODO correct?
-        func_impls_.fmt("if ({}) {} else {}", wrap(cont->arg(0)), wrap(cont->arg(1)), wrap(cont->arg(2)));
-    } else if (cont->callee()->isa<cont>() &&
-                cont->callee()->as<concont>()->intrinsic() == Intrinsic::Match) {
-        func_impls_ << "switch (";
-        emit(cont->arg(0)) << ") {" << up << endl;
+        auto c = emit(cont->arg(0));
+        auto t = emit(cont->arg(1));
+        auto f = emit(cont->arg(2));
+        bb->tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
+    } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::Match) {
+        bb->tail.fmt("switch ({}) {{\t\n", emit(cont->arg(0)));
+
         for (size_t i = 2; i < cont->num_args(); i++) {
             auto arg = cont->arg(i)->as<Tuple>();
-            func_impls_ << "case ";
-            emit(arg->op(0)) << ": ";
-            emit(arg->op(1)) << endl;
+            auto value = emit(arg->op(0));
+            auto label = emit(arg->op(1));
+            bb->tail.fmt("case {}: goto {};\n", value, label);
         }
-        func_impls_ << "default: ";
-        emit(cont->arg(1));
-        func_impls_ << down << endl << "}";
+
+        bb->tail.fmt("default: goto {};\n", emit(cont->arg(1)));
+        bb->tail.fmt("\b\n}}");
     } else if (cont->callee()->isa<Bottom>()) {
-        func_impls_ << "return ; // bottom: unreachable";
-    } else {
+        bb->tail.fmt("return;  // bottom: unreachable");
+    } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+#if 0
         auto store_phi = [&] (const Def* param, const Def* arg) {
-            func_impls_ << "p" << param->unique_name() << " = ";
+            bb->tail << "p" << param->unique_name() << " = ";
             emit(arg) << ";";
         };
 
         auto callee = cont->callee()->as_cont();
-        emit_debug_info(callee);
-
         if (callee->is_basicblock()) {   // ordinary jump
             assert(callee->num_params()==cont->num_args());
             for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                 if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
                     store_phi(callee->param(i), cont->arg(i));
-                    func_impls_ << endl;
+                    bb->tail << endl;
                 }
             emit(callee);
         } else {
-            if (callee->is_intrinsic()) {
-                if (callee->intrinsic() == Intrinsic::Reserve) {
-                    if (!cont->arg(1)->isa<PrimLit>())
-                        EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
+#endif
+        // TODO phi
+        bb->tail.fmt("goto {}", emit(callee));
+    } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+#if 0
+        if (callee->intrinsic() == Intrinsic::Reserve) {
+            if (!cont->arg(1)->isa<PrimLit>())
+                world().EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
 
-                    switch (lang_) {
-                        default:                                        break;
-                        case Lang::CUDA:   func_impls_ << "__shared__ "; break;
-                        case Lang::OpenCL: func_impls_ << "__local ";    break;
-                    }
+            switch (lang_) {
+                case Lang::CUDA:   bb->tail.fmt("__shared__ "); break;
+                case Lang::OpenCL: bb->tail.fmt("__local ");    break;
+                default:                                        break;
+            }
 
-                    auto cont = cont->arg(2)->as_cont();
-                    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-                    auto name = "reserver_" + cont->param(1)->unique_name();
-                    convert(func_impls_, elem_type) << " " << name << "[";
-                    emit(cont->arg(1)) << "];" << endl;
-                    // store_phi:
-                    func_impls_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
-                    if (lang_ == Lang::HLS)
-                        func_impls_ << endl
-                                    << "#pragma HLS dependence variable=" << name << " inter false" << endl
-                                    << "#pragma HLS data_pack  variable=" << name;
-                } else if (callee->intrinsic() == Intrinsic::Pipeline) {
-                    assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
-                    // cast to cont to get unique name of "for index"
-                    auto body = cont->arg(4)->as_cont();
-                    if (lang_ == Lang::OpenCL) {
-                        if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
-                            func_impls_ << "#pragma ii ";
-                            emit(cont->arg(1)) << endl;
-                        } else {
-                            func_impls_ << "#pragma ii 1"<< endl;
-                        }
-                    }
-                    func_impls_ << "for (i" << callee->gid() << " = ";
-                    emit(cont->arg(2));
-                    func_impls_ << "; i" << callee->gid() << " < ";
-                    emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
-                    if (lang_ == Lang::HLS) {
-                        if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
-                            func_impls_ << "#pragma HLS PIPELINE II=";
-                            emit(cont->arg(1)) << endl;
-                        } else {
-                            func_impls_ << "#pragma HLS PIPELINE"<< endl;
-                        }
-                    }
-                    // emit body and "for index" as the "body parameter"
-                    func_impls_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
-                    emit(body);
-                    // emit "continue" with according label used for goto
-                    func_impls_ << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
-                    if (cont->arg(5) == ret_param)
-                        func_impls_ << "return;" << endl;
-                    else
-                        emit(cont->arg(5));
-                } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
-                    func_impls_ << "goto l" << callee->gid() << ";" << endl;
+            auto cont = cont->arg(2)->as_cont();
+            auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+            auto name = "reserver_" + cont->param(1)->unique_name();
+            convert(bb->tail, elem_type) << " " << name << "[";
+            emit(cont->arg(1)) << "];" << endl;
+            // store_phi:
+            bb->tail << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+            if (lang_ == Lang::HLS)
+                bb->tail << endl
+                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
+                            << "#pragma HLS data_pack  variable=" << name;
+        } else if (callee->intrinsic() == Intrinsic::Pipeline) {
+            assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
+            // cast to cont to get unique name of "for index"
+            auto body = cont->arg(4)->as_cont();
+            if (lang_ == Lang::OpenCL) {
+                if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
+                    bb->tail << "#pragma ii ";
+                    emit(cont->arg(1)) << endl;
                 } else {
-                    THORIN_UNREACHABLE;
-                }
-            } else {
-                auto emit_call = [&] (const Param* param = nullptr) {
-                    auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
-                    if (param)
-                        emit(param) << " = ";
-                    func_impls_ << name << "(";
-                    // emit all first-order args
-                    size_t i = 0;
-                    for (auto arg : cont->args()) {
-                        if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
-                            if (i++ > 0)
-                                func_impls_ << ", ";
-                            emit(arg);
-                        }
-                    }
-                    func_impls_ << ");";
-                    if (param) {
-                        func_impls_ << endl;
-                        store_phi(param, param);
-                    }
-                };
-
-                const Def* ret_arg = 0;
-                for (auto arg : cont->args()) {
-                    if (arg->order() != 0) {
-                        assert(!ret_arg);
-                        ret_arg = arg;
-                    }
-                }
-
-                // must be call + cont --- call + return has been removed by codegen_prepare
-                auto succ = ret_arg->as_cont();
-                size_t num_params = succ->num_params();
-
-                size_t n = 0;
-                Array<const Param*> values(num_params);
-                Array<const Type*> types(num_params);
-                for (auto param : succ->params()) {
-                    if (!is_mem(param) && !is_unit(param)) {
-                        values[n] = param;
-                        types[n] = param->type();
-                        n++;
-                    }
-                }
-
-                if (n == 0)
-                    emit_call();
-                else if (n == 1)
-                    emit_call(values[0]);
-                else {
-                    types.shrink(n);
-                    auto ret_type = world_.tuple_type(types);
-                    auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
-                    emit_aggop_decl(ret_type);
-                    convert(func_impls_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
-                    emit_call();
-
-                    // store arguments to phi node
-                    for (size_t i = 0; i != n; ++i)
-                        func_impls_ << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                    bb->tail << "#pragma ii 1"<< endl;
                 }
             }
+            bb->tail << "for (i" << callee->gid() << " = ";
+            emit(cont->arg(2));
+            bb->tail << "; i" << callee->gid() << " < ";
+            emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
+            if (lang_ == Lang::HLS) {
+                if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
+                    bb->tail << "#pragma HLS PIPELINE II=";
+                    emit(cont->arg(1)) << endl;
+                } else {
+                    bb->tail << "#pragma HLS PIPELINE"<< endl;
+                }
+            }
+            // emit body and "for index" as the "body parameter"
+            bb->tail << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
+            emit(body);
+            // emit "continue" with according label used for goto
+            bb->tail << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+            if (cont->arg(5) == ret_param)
+                bb->tail << "return;" << endl;
+            else
+                emit(cont->arg(5));
+        } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
+            bb->tail << "goto l" << callee->gid() << ";" << endl;
+        } else {
+            THORIN_UNREACHABLE;
         }
-    }
 #endif
+    } else { // function/closure call
+#if 0
+        auto emit_call = [&] (const Param* param = nullptr) {
+            auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
+            if (param)
+                emit(param) << " = ";
+            bb->tail << name << "(";
+            // emit all first-order args
+            size_t i = 0;
+            for (auto arg : cont->args()) {
+                if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
+                    if (i++ > 0)
+                        bb->tail << ", ";
+                    emit(arg);
+                }
+            }
+            bb->tail << ");";
+            if (param) {
+                bb->tail << endl;
+                store_phi(param, param);
+            }
+        };
+
+        const Def* ret_arg = 0;
+        for (auto arg : cont->args()) {
+            if (arg->order() != 0) {
+                assert(!ret_arg);
+                ret_arg = arg;
+            }
+        }
+
+        // must be call + cont --- call + return has been removed by codegen_prepare
+        auto succ = ret_arg->as_cont();
+        size_t num_params = succ->num_params();
+
+        size_t n = 0;
+        Array<const Param*> values(num_params);
+        Array<const Type*> types(num_params);
+        for (auto param : succ->params()) {
+            if (!is_mem(param) && !is_unit(param)) {
+                values[n] = param;
+                types[n] = param->type();
+                n++;
+            }
+        }
+
+        if (n == 0)
+            emit_call();
+        else if (n == 1)
+            emit_call(values[0]);
+        else {
+            types.shrink(n);
+            auto ret_type = world_.tuple_type(types);
+            auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
+            emit_aggop_decl(ret_type);
+            convert(bb->tail, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
+            emit_call();
+
+            // store arguments to phi node
+            for (size_t i = 0; i != n; ++i)
+                bb->tail << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+        }
+#endif
+    }
 }
 
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
@@ -1057,7 +1063,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         auto fval = emit(select->fval());
         bb.body.fmt("{} {} = {} ? {} : {};", t, name, cond, tval, fval);
     } else {
-        THORIN_UNREACHABLE;
+        //THORIN_UNREACHABLE;
     }
 
     return name;
@@ -1067,12 +1073,10 @@ std::string CCodeGen::emit_fun_decl(Continuation*) {
     return "TODO";
 }
 
-Stream& CCodeGen::emit_debug_info(const Def* def) {
-    if (debug_ && !def->loc().file.empty()) {
-        func_impls_.fmt("#line {} \"{}\"", def->loc().begin.row, def->loc().file);
-        return func_impls_.endl();
-    }
-    return func_impls_;
+Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {
+    if (debug_ && !def->loc().file.empty())
+        return s.fmt("#line {} \"{}\"\n", def->loc().begin.row, def->loc().file);
+    return s;
 }
 
 Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {

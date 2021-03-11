@@ -88,13 +88,10 @@ private:
     bool debug_;
     int primop_counter = 0;
 
-    std::ostringstream type_decls_out_;
-    std::ostringstream func_impls_out_;
-    std::ostringstream func_decls_out_;
     Stream& stream_;
-    Stream func_impls_ { func_impls_out_ };
-    Stream func_decls_ { func_decls_out_ };
-    Stream type_decls_ { type_decls_out_ };
+    StringStream func_impls_;
+    StringStream func_decls_;
+    StringStream type_decls_;
 
     friend class CEmit;
 };
@@ -273,6 +270,8 @@ void CCodeGen::emit_module() {
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");
 #endif
+
+    stream_ << type_decls_.str();
 }
 
 std::string CCodeGen::prepare(const Scope&) {

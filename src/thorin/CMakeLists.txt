@@ -84,7 +84,8 @@ set(THORIN_SOURCES
     util/utility.h
     be/backends.cpp
     be/backends.h
-    )
+    be/spirv/spirv_transform.cpp
+)
 
 if(LLVM_FOUND)
     list(APPEND THORIN_SOURCES

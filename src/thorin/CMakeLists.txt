@@ -82,6 +82,7 @@ set(THORIN_SOURCES
     util/symbol.h
     util/types.h
     util/utility.h
+    util/dot_dump.cpp
     be/backends.cpp
     be/backends.h
     be/spirv/spirv_transform.cpp

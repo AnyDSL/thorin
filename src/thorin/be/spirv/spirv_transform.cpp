@@ -79,33 +79,67 @@ inline std::string safe_name(const Head* head) {
     }
 }
 
+inline const Type* dom_to_tuple(World& world, const thorin::FnType* fn_type) {
+    std::vector<const thorin::Type*> t;
+    t.resize(fn_type->num_ops());
+    for (size_t i = 0; i < fn_type->num_ops(); i++)
+        t[i] = fn_type->op(i);
+    return world.tuple_type(t);
+}
+
 inline void augmentLoops(World& world, ScopeContext& ctx, const Base* base) {
     if (const Head* head = base->isa<Head>()) {
+        auto name = safe_name(head);
+
+        const thorin::Type* unified_heads_param;
+        const thorin::VariantType* header_variant_type = nullptr;
+        if (base->cf_nodes().size() >= 1) {
+            header_variant_type = world.variant_type(name, base->cf_nodes().size());
+            int i = 0;
+            for (auto& header_node : base->cf_nodes()) {
+                header_variant_type->set(i++, dom_to_tuple(world, header_node->continuation()->type()));
+            }
+            unified_heads_param = header_variant_type;
+        //} else if (base->cf_nodes().size() == 1) {
+        //    unified_heads_param = dom_to_tuple(world, base->cf_nodes()[0]->continuation()->type());
+        } else {
+            unified_heads_param = world.unit();
+        }
+
+        auto fn_type = world.fn_type( { unified_heads_param } );
+
         StructuredLoop loop {
             head,
-            safe_name(head),
-            world.continuation({ safe_name(head) + "_header"}),
-            world.continuation({ safe_name(head) + "_inner_dispatch"}),
-            world.continuation({ safe_name(head) + "_outer_dispatch"}),
+            name,
+            world.continuation(fn_type, { name + "_header"}),
+            world.continuation({ name + "_inner_dispatch"}),
+            world.continuation({ name + "_outer_dispatch"}),
             {},
             {},
         };
 
-        for (auto& header_node : base->cf_nodes()) {
+        // Handle internal backedges: re-wire them to go through header
+        for (size_t header_index = 0; header_index < base->num_cf_nodes(); header_index++) {
+            auto& header_node = base->cf_nodes()[header_index];
+
             const Head* dest_loop = *ctx.def2loop[header_node->continuation()];
             for (auto& pred : header_node->continuation()->preds()) {
                 const Head* src_loop = *ctx.def2loop[pred];
                 printf("%s -> %s\n", safe_name(src_loop).c_str(), safe_name(dest_loop).c_str());
 
-                // Backedge !
                 if (src_loop == dest_loop) {
                     get_or_create_destination(loop.inner_destinations, header_node->continuation());
 
-                    // point backedge to loop header
                     for (int i = 0; i < pred->num_ops(); i++) {
                         if (pred->op(i) == header_node->continuation()) {
                             pred->unset_op(i);
-                            pred->set_op(i, loop.new_header);
+
+                            // Oops except we can't do that! The new header has a mismatched signature, so we must go through a synthetic wrapper
+                            //pred->set_op(i, loop.new_header);
+
+                            auto wrapper = world.continuation(fn_type, {"synthetic_backedge_wrapper"});
+                            wrapper->jump(loop.new_header, { world.variant(header_variant_type, world.tuple(pred->args()), header_index) });
+                            pred->set_op(i, wrapper);
                         }
                     }
                 }

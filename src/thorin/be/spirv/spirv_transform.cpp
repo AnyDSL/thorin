@@ -4,6 +4,7 @@
 #include "thorin/analyses/cfg.h"
 
 #include <algorithm>
+#include <thorin/analyses/domtree.h>
 
 namespace thorin::spirv {
 
@@ -463,7 +464,31 @@ void CodeGen::structure_loops() {
 }
 
 void CodeGen::structure_flow() {
-    // TODO
+    Scope::for_each(world(), [&](const Scope& scope) {
+        CFA cfa(scope);
+        auto& post_dom_tree = cfa.b_cfg().domtree();
+
+        for (auto def : scope.defs()) {
+            if (auto cont = def->isa_continuation()) {
+                auto cfn = cfa[cont];
+                /*if (cont->callee() == world().branch()) {
+                    printf("xd: %s\n", cont->unique_name().c_str());
+                }*/
+
+                if (cont->intrinsic() >= Intrinsic::SCFBegin && cont->intrinsic() < Intrinsic::SCFEnd)
+                    continue;
+                if (cont->preds().size() <= 1)
+                    continue;
+
+                for (auto pred : cont->preds()) {
+                    auto& pred_dominators = post_dom_tree.children(cfa[cont]);
+                    // TODO insert join nodes when this assert breaks
+                    // TODO inspect postdom tree recursively
+                    assert(std::find(pred_dominators.begin(), pred_dominators.end(), cfa[pred]) != pred_dominators.end());
+                }
+            }
+        }
+    });
 }
 
 }

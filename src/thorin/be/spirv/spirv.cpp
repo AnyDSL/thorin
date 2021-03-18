@@ -19,6 +19,7 @@ void CodeGen::emit(std::ostream& out) {
     builder_->capability(spv::Capability::CapabilityLinkage);
 
     structure_loops();
+    structure_flow();
     // cleanup_world(world());
 
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });

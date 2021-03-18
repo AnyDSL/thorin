@@ -30,7 +30,7 @@ protected:
         return res;
     }
 
-    /// As above but returning @c Child::None is permitted.
+    /// As above but returning @c !child().is_valid(value) is permitted.
     Value emit_unsafe(const Def* def) {
         if (auto val = defs_.lookup(def)) return *val;
         if (auto cont = def->isa_continuation()) return defs_[cont] = child().emit_fun_decl(cont);

@@ -10,6 +10,13 @@ namespace thorin::spirv {
 
 using SpvId = builder::SpvId;
 
+struct SpvType {
+    SpvId id;
+    size_t size = 0;
+    // TODO: Alignment rules are complicated and client API dependant
+    size_t alignment = 0;
+};
+
 struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
     explicit BasicBlockBuilder(builder::SpvFileBuilder& file_builder)
     : builder::SpvBasicBlockBuilder(file_builder)
@@ -34,7 +41,7 @@ protected:
     void structure_loops();
     void structure_flow();
 
-    SpvId convert(const Type*);
+    SpvType convert(const Type*);
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
     SpvId emit(const Def* def, BasicBlockBuilder* bb);
@@ -45,7 +52,7 @@ protected:
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
     Scheduler scheduler_;
-    TypeMap<SpvId> types_;
+    TypeMap<SpvType> types_;
     DefMap<SpvId> defs_;
 };
 

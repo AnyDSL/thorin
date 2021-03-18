@@ -28,20 +28,23 @@ void CodeGen::emit(std::ostream& out) {
     builder_ = nullptr;
 }
 
-SpvId CodeGen::convert(const Type* type) {
+SpvType CodeGen::convert(const Type* type) {
     if (auto spv_type = types_.lookup(type)) return *spv_type;
 
     assert(!type->isa<MemType>());
-    SpvId spv_type;
+    SpvType spv_type;
     switch (type->tag()) {
-        case PrimType_bool:                                                             spv_type = builder_->declare_bool_type(); break;
+        // Boolean types are typically packed intelligently when declaring in local variables, however with vanilla Vulkan 1.0 they can only be represented via 32-bit integers
+        // Using extensions, we could use 16 or 8-bit ints instead
+        // We can also pack them inside structures using bit-twiddling tricks, if the need arises
+        case PrimType_bool:                                                             spv_type.id = builder_->declare_bool_type(); spv_type.size = 4; spv_type.alignment = 4; break;
         case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  assert(false && "TODO: look into capabilities to enable this");
         case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_ps32: case PrimType_qs32:                                         spv_type = builder_->declare_int_type(32, true ); break;
-        case PrimType_pu32: case PrimType_qu32:                                         spv_type = builder_->declare_int_type(32, false); break;
+        case PrimType_ps32: case PrimType_qs32:                                         spv_type.id = builder_->declare_int_type(32, true ); spv_type.size = 4; spv_type.alignment = 4; break;
+        case PrimType_pu32: case PrimType_qu32:                                         spv_type.id = builder_->declare_int_type(32, false); spv_type.size = 4; spv_type.alignment = 4; break;
         case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: assert(false && "TODO: look into capabilities to enable this");
         case PrimType_pf16: case PrimType_qf16:                                         assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pf32: case PrimType_qf32:                                         spv_type = builder_->declare_float_type(32); break;
+        case PrimType_pf32: case PrimType_qf32:                                         spv_type.id = builder_->declare_float_type(32); spv_type.size = 4; spv_type.alignment = 4; break;
         case PrimType_pf64: case PrimType_qf64:                                         assert(false && "TODO: look into capabilities to enable this");
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
@@ -54,37 +57,41 @@ SpvId CodeGen::convert(const Type* type) {
             //return types_[type] = spv_type;
         }
         case Node_DefiniteArrayType: {
-            assert(false && "TODO");
             auto array = type->as<DefiniteArrayType>();
-            //return types_[type] = spv_type;
+            SpvType element = convert(array->elem_type());
+            SpvId size = builder_->constant(convert(world().type_pu32()).id, { (uint32_t) array->dim() });
+            spv_type.id = builder_->declare_array_type(element.id, size);
+            spv_type.size = element.size * array->dim();
+            spv_type.alignment = element.alignment;
+            break;
         }
 
         case Node_ClosureType:
         case Node_FnType: {
             // extract "return" type, collect all other types
             auto fn = type->as<FnType>();
-            std::unique_ptr<SpvId> ret;
+            std::unique_ptr<SpvType> ret;
             std::vector<SpvId> ops;
             for (auto op : fn->ops()) {
                 if (op->isa<MemType>() || op == world().unit()) continue;
                 auto fn = op->isa<FnType>();
                 if (fn && !op->isa<ClosureType>()) {
                     assert(!ret && "only one 'return' supported");
-                    std::vector<SpvId> ret_types;
+                    std::vector<SpvType> ret_types;
                     for (auto fn_op : fn->ops()) {
                         if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
                         ret_types.push_back(convert(fn_op));
                     }
-                    if (ret_types.size() == 0)      ret = std::make_unique<SpvId>(builder_->void_type);
-                    else if (ret_types.size() == 1) ret = std::make_unique<SpvId>(ret_types.back());
+                    if (ret_types.empty())          ret = std::make_unique<SpvType>( SpvType { { builder_->void_type }, 0, 1} );
+                    else if (ret_types.size() == 1) ret = std::make_unique<SpvType>(ret_types.back());
                     else                            assert(false && "Didn't we refactor this out yet by making functions single-argument ?");
                 } else
-                    ops.push_back(convert(op));
+                    ops.push_back(convert(op).id);
             }
             assert(ret);
 
             if (type->tag() == Node_FnType) {
-                return types_[type] = builder_->declare_fn_type(ops, *ret);
+                return types_[type] = { builder_->declare_fn_type(ops, ret->id), 0, 0 };
             }
 
             assert(false && "TODO: handle closure mess");
@@ -93,24 +100,57 @@ SpvId CodeGen::convert(const Type* type) {
 
         case Node_StructType: {
             std::vector<SpvId> types;
-            for (auto elem : type->as<StructType>()->ops())
-                types.push_back(convert(elem));
-            spv_type = builder_->declare_struct_type(types);
-            // TODO debug info
+            for (auto elem : type->as<StructType>()->ops()) {
+                auto member_type = convert(elem);
+                types.push_back(member_type.id);
+                spv_type.size += member_type.size;
+
+                // TODO handle alignment for real
+                assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
+                spv_type.alignment = 4;
+            }
+            if (spv_type.size == 0)
+                spv_type.alignment = 1;
+            spv_type.id = builder_->declare_struct_type(types);
+            builder_->name(spv_type.id, type->to_string());
             break;
         }
 
         case Node_TupleType: {
             std::vector<SpvId> types;
-            for (auto elem : type->as<TupleType>()->ops())
-                types.push_back(convert(elem));
-            spv_type = builder_->declare_struct_type(types);
-            // TODO debug info
+            for (auto elem : type->as<TupleType>()->ops()){
+                auto member_type = convert(elem);
+                types.push_back(member_type.id);
+                spv_type.size += member_type.size;
+
+                // TODO handle alignment for real
+                assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
+                spv_type.alignment = 4;
+            }
+            if (spv_type.size == 0)
+                spv_type.alignment = 1;
+            spv_type.id = builder_->declare_struct_type(types);
+            builder_->name(spv_type.id, type->to_string());
             break;
         }
 
         case Node_VariantType: {
-            assert(false && "TODO");
+            std::vector<SpvId> types;
+            types.push_back(convert(world().type_pu32()).id);
+            for (auto elem : type->as<VariantType>()->ops()){
+                auto member_type = convert(elem);
+                spv_type.size = std::max(spv_type.size, member_type.size);
+
+                // TODO handle alignment for real
+                assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
+                spv_type.alignment = 4;
+            }
+            types.push_back(convert(world().definite_array_type(world().type_pu32(), (spv_type.size + 3) / 4)).id);
+            if (spv_type.size == 0)
+                spv_type.alignment = 1;
+            spv_type.id = builder_->declare_struct_type(types);
+            builder_->name(spv_type.id, type->to_string());
+            break;
         }
 
         default:
@@ -125,7 +165,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     assert(entry_->is_returning());
 
     FnBuilder fn;
-    fn.fn_type = convert(entry_->type());
+    fn.fn_type = convert(entry_->type()).id;
     fn.fn_ret_type = get_codom_type(entry_);
 
     current_fn_ = &fn;
@@ -158,7 +198,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     auto param_t = convert(param->type());
                     fn.header.op(spv::Op::OpFunctionParameter, 3);
                     auto id = builder_->generate_fresh_id();
-                    fn.header.ref_id(param_t);
+                    fn.header.ref_id(param_t.id);
                     fn.header.ref_id(id);
                     fn.params[param] = id;
                 }
@@ -171,7 +211,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     // OpPhi requires the full list of predecessors (values, labels)
                     // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
                     // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
-                    bb->phis[param] = { convert(param->type()), builder_->generate_fresh_id(), {} };
+                    bb->phis[param] = { convert(param->type()).id, builder_->generate_fresh_id(), {} };
                 }
             }
         }
@@ -196,7 +236,7 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
         if (op->isa<MemType>() || is_type_unit(op))
             continue;
         assert(op->order() == 0);
-        types.push_back(convert(op));
+        types.push_back(convert(op).id);
     }
     if (types.empty())
         return builder_->void_type;
@@ -334,7 +374,8 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs(), bb);
         SpvId rhs = emit(bin->rhs(), bb);
-        SpvId result_type = convert(def->type());
+        SpvType result_types = convert(def->type());
+        SpvId result_type = result_types.id;
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -436,7 +477,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
     } else if (auto primlit = def->isa<PrimLit>()) {
         Box box = primlit->value();
-        auto type = convert(def->type());
+        auto type = convert(def->type()).id;
         SpvId constant;
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     constant = bb->file_builder.bool_constant(type, box.get_bool()); break;

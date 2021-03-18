@@ -170,6 +170,15 @@ struct SpvFileBuilder {
         return id;
     }
 
+    SpvId declare_array_type(SpvId element_type, SpvId dim) {
+        types_constants.op(spv::Op::OpTypeArray, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.ref_id(element_type);
+        types_constants.ref_id(dim);
+        return id;
+    }
+
     SpvId declare_fn_type(std::vector<SpvId>& dom, SpvId codom) {
         types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
         auto id = generate_fresh_id();

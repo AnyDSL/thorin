@@ -151,6 +151,9 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
     } else {
         const Leaf* leaf = base->as<Leaf>();
         auto cont = leaf->cf_node()->continuation();
+        // For some nonsense reason, synthetic nodes created during scopes iteration leak in next iterations >:(
+        if (cont->intrinsic() >= Intrinsic::SCFBegin && cont->intrinsic() < Intrinsic::SCFEnd)
+            return;
         for (size_t i = 0; i < cont->num_ops(); i++) {
             auto def = cont->op(i);
             if (auto dest = def->isa_continuation()) {
@@ -353,7 +356,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
         auto& loop = ctx.rewritten_loops[head];
 
         if (head->num_cf_nodes() > 0) {
-            loop.new_epilogue->structured_loop_epilogue(loop.new_header, loop.epilogue_destination_conts);
+            loop.new_epilogue->structured_loop_merge(loop.new_header, loop.epilogue_destination_conts);
             loop.new_continue->structured_loop_continue(loop.new_header);
             loop.new_header->structured_loop_header(loop.new_epilogue, loop.new_continue, loop.header_destination_conts);
             printf("Loop %s!\n", loop.name.c_str());
@@ -378,6 +381,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
 
                 auto old_fn_type = rewire.backedge->type();
                 auto wrapper = world.continuation(old_fn_type, {"synthetic_backedge_wrapper"});
+                wrapper->attributes_.intrinsic = Intrinsic::SCFBackEdge;
 
                 auto header_variant_type = loop.new_header->type()->op(0)->as<VariantType>();
                 wrapper->jump(loop.new_continue, { world.variant(header_variant_type, tuple_from_params(world, wrapper->params()), variant_index) });
@@ -391,6 +395,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
 
                 auto old_fn_type = nlj.final_destination->type();
                 auto wrapper = world.continuation(old_fn_type, {"synthetic_nlj_wrapper"});
+                wrapper->attributes_.intrinsic = Intrinsic::SCFNonLocalJump;
 
                 printf("nlj = %s\n", wrapper->unique_name().c_str());
                 printf("src = %s\n", rewire.cont->name().c_str());
@@ -443,6 +448,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
 void CodeGen::structure_loops() {
     Scope::for_each(world(), [&](const Scope& scope) {
         ScopeContext context(scope);
+        printf("top: %d\n", scope.has_free_params());
 
         const LoopTree<true>& looptree = context.cfa.f_cfg().looptree();
         tag_continuations(context, looptree.root(), nullptr);

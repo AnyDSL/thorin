@@ -252,8 +252,8 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
-void Continuation::structured_loop_epilogue(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
-    attributes_.intrinsic = Intrinsic::StructuredLoopMerge;
+void Continuation::structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
+    attributes_.intrinsic = Intrinsic::SCFLoopMerge;
     resize(1 + targets.size());
     set_op(0, loop_header);
     size_t x = 1;
@@ -262,13 +262,13 @@ void Continuation::structured_loop_epilogue(const Continuation* loop_header, Arr
 }
 
 void Continuation::structured_loop_continue(const Continuation* loop_header) {
-    attributes_.intrinsic = Intrinsic::StructuredLoopContinue;
+    attributes_.intrinsic = Intrinsic::SCFLoopContinue;
     resize(1);
     set_op(0, loop_header);
 }
 
 void Continuation::structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets) {
-    attributes_.intrinsic = Intrinsic::StructuredLoopHeader;
+    attributes_.intrinsic = Intrinsic::SCFLoopHeader;
     resize(2 + targets.size());
     set_op(0, loop_epilogue);
     set_op(1, loop_continue);

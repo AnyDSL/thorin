@@ -252,6 +252,31 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
+void Continuation::structured_loop_epilogue(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
+    attributes_.intrinsic = Intrinsic::StructuredLoopMerge;
+    resize(1 + targets.size());
+    set_op(0, loop_header);
+    size_t x = 1;
+    for (auto target : targets)
+        set_op(x++, target);
+}
+
+void Continuation::structured_loop_continue(const Continuation* loop_header) {
+    attributes_.intrinsic = Intrinsic::StructuredLoopContinue;
+    resize(1);
+    set_op(0, loop_header);
+}
+
+void Continuation::structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets) {
+    attributes_.intrinsic = Intrinsic::StructuredLoopHeader;
+    resize(2 + targets.size());
+    set_op(0, loop_epilogue);
+    set_op(1, loop_continue);
+    size_t x = 2;
+    for (auto target : targets)
+        set_op(x++, target);
+}
+
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {

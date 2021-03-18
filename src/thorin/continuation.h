@@ -84,6 +84,9 @@ enum class Intrinsic : uint8_t {
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
+    StructuredLoopHeader,       ///< A header for a structured loop,
+    StructuredLoopMerge,        ///< A merge block for a structured loop,
+    StructuredLoopContinue,     ///< A continue block in a structured loop,
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
@@ -154,6 +157,9 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
+    void structured_loop_epilogue(const Continuation* loop_header, ArrayRef<const Continuation*> targets);
+    void structured_loop_continue(const Continuation* loop_header);
+    void structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets);
     void verify() const {
 #if THORIN_ENABLE_CHECKS
         auto c = callee_fn_type();

@@ -17,9 +17,7 @@ struct StructuredLoop;
 // because their fn type takes a variant type with a case for each target. So we symbolically refer to these yet-to-be dispatch nodes via their loop
 struct DispatchTarget {
     bool operator==(const DispatchTarget& rhs) const {
-        return cont == rhs.cont &&
-               entry == rhs.entry &&
-               exit == rhs.exit;
+        return cont == rhs.cont &&entry == rhs.entry &&exit == rhs.exit;
     }
 
     Continuation* cont = nullptr;
@@ -50,8 +48,14 @@ struct StructuredLoop {
     std::vector<DispatchTarget> inner_destinations = {};
     std::vector<DispatchTarget> outer_destinations = {};
 
+    // Created to serve as codegen helpers
     Continuation* new_header = nullptr;
     Continuation* new_epilogue = nullptr;
+    Continuation* new_continue = nullptr;
+
+    // Same as the inner/outer destinations, but entry/exits instead now point to the corresponding header/epilogue nodes
+    std::vector<const Continuation*> header_destination_conts;
+    std::vector<const Continuation*> epilogue_destination_conts;
 
     std::vector<RewireMe> rewire;
 };
@@ -284,15 +288,17 @@ inline void create_headers(World& world, ScopeContext& ctx, const Base* base) {
         // here, parent headers need to know what they're jumping *into*
         std::vector<const Type*> dest_types;
         for (auto& target : loop.inner_destinations) {
-            const thorin::FnType* target_type;
+            const thorin::Continuation* target_cont;
             if (target.cont != nullptr) {
-                target_type = target.cont->type();
+                target_cont = target.cont;
             } else if (target.entry != nullptr) {
                 assert(target.entry->new_header != nullptr);
-                target_type = target.entry->new_header->type();
+                target_cont = target.entry->new_header;
             } else {
                 assert(false && "Header dispatches may not exit loops");
             }
+            loop.header_destination_conts.push_back(target_cont);
+            const thorin::FnType* target_type = target_cont->type();
             dest_types.emplace_back(dom_to_tuple(world, target_type));
         }
         auto variant_type = world.variant_type(loop.name + "_param", dest_types.size());
@@ -300,6 +306,7 @@ inline void create_headers(World& world, ScopeContext& ctx, const Base* base) {
             variant_type->set(i, dest_types[i]);
         auto fn_type = world.fn_type( { variant_type } );
         loop.new_header = world.continuation(fn_type, { loop.name + "_new_header"});
+        loop.new_continue = world.continuation(fn_type, { loop.name + "_new_continue"});
     }
 }
 
@@ -311,17 +318,19 @@ inline void create_epilogues(World& world, ScopeContext& ctx, const Base* base) 
             // here, children epilogues need to know what they're jumping *out to*
             std::vector<const Type*> dest_types;
             for (auto& target : loop.outer_destinations) {
-                const thorin::FnType* target_type;
+                const thorin::Continuation* target_cont;
                 if (target.cont != nullptr) {
-                    target_type = target.cont->type();
+                    target_cont = target.cont;
                 } else if (target.entry != nullptr) {
                     assert(target.entry->new_header != nullptr);
-                    target_type = target.entry->new_header->type();
+                    target_cont = target.entry->new_header;
                 } else {
                     assert(target.exit != nullptr);
                     assert(target.exit->new_epilogue != nullptr);
-                    target_type = target.exit->new_epilogue->type();
+                    target_cont = target.exit->new_epilogue;
                 }
+                loop.epilogue_destination_conts.push_back(target_cont);
+                const thorin::FnType* target_type = target_cont->type();
                 dest_types.emplace_back(dom_to_tuple(world, target_type));
             }
             auto variant_type = world.variant_type(loop.name + "_param", dest_types.size());
@@ -337,10 +346,22 @@ inline void create_epilogues(World& world, ScopeContext& ctx, const Base* base) 
     }
 }
 
+// Finishes loop headers & epilogues, and re-wires backedges and non-local jumps to go through structured CF intrinsics
 inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
     if (const Head* head = base->isa<Head>()) {
         assert(ctx.rewritten_loops.find(head) != ctx.rewritten_loops.end());
         auto& loop = ctx.rewritten_loops[head];
+
+        if (head->num_cf_nodes() > 0) {
+            loop.new_epilogue->structured_loop_epilogue(loop.new_header, loop.epilogue_destination_conts);
+            loop.new_continue->structured_loop_continue(loop.new_header);
+            loop.new_header->structured_loop_header(loop.new_epilogue, loop.new_continue, loop.header_destination_conts);
+            printf("Loop %s!\n", loop.name.c_str());
+            for (auto c : loop.header_destination_conts)
+                printf("  header target: %s!\n", c->unique_name().c_str());
+            for (auto c : loop.epilogue_destination_conts)
+                printf("  epilogue target: %s!\n", c->unique_name().c_str());
+        }
 
         for (auto& children : head->children()) {
             rewire_loops(world, ctx, &*children);
@@ -359,7 +380,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
                 auto wrapper = world.continuation(old_fn_type, {"synthetic_backedge_wrapper"});
 
                 auto header_variant_type = loop.new_header->type()->op(0)->as<VariantType>();
-                wrapper->jump(loop.new_header, { world.variant(header_variant_type, tuple_from_params(world, wrapper->params()), variant_index) });
+                wrapper->jump(loop.new_continue, { world.variant(header_variant_type, tuple_from_params(world, wrapper->params()), variant_index) });
 
                 rewire.cont->unset_op(rewire.op);
                 rewire.cont->set_op(rewire.op, wrapper);
@@ -367,8 +388,17 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
                 printf("handling NLJ!\n");
 
                 auto& nlj = rewire.non_local_jump;
+
                 auto old_fn_type = nlj.final_destination->type();
                 auto wrapper = world.continuation(old_fn_type, {"synthetic_nlj_wrapper"});
+
+                printf("nlj = %s\n", wrapper->unique_name().c_str());
+                printf("src = %s\n", rewire.cont->name().c_str());
+                for (auto exit : nlj.exits)
+                    printf("exit = %s\n", exit->name.c_str());
+                for (auto enter : nlj.enters)
+                    printf("enter = %s\n", enter->name.c_str());
+                printf("dst = %s\n", nlj.final_destination->name().c_str());
 
                 const Def* argument = tuple_from_params(world, wrapper->params());
                 Continuation* first_jump = nullptr;
@@ -405,49 +435,6 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
 
                 rewire.cont->unset_op(rewire.op);
                 rewire.cont->set_op(rewire.op, wrapper);
-
-                // ---------------------------------------------------------------------------------------
-
-                /*// 0 = this is the first step of the path
-                // 1 = last step was to break out of a loop
-                // 2 = last step was to enter a loop
-                int last = 0;
-                StructuredLoop* prev;
-
-                auto record_step = [&](StructuredLoop* loop, DispatchTarget destination) {
-                    if (last == 0) {
-                        // nothing to do, this node isn't a dispatching one
-                    } else {
-                        if (last == 1)
-                            record_destination(prev->outer_destinations, destination);
-                        else
-                            record_destination(prev->inner_destinations, destination);
-                    }
-                };
-
-                for (auto loop : leave) {
-                    DispatchTarget destination;
-                    destination.exit = loop;
-
-                    record_step(loop, destination);
-                    last = 1;
-                    prev = loop;
-                    assert(prev != nullptr);
-                }
-                for (auto loop : enter) {
-                    DispatchTarget destination;
-                    destination.entry = loop;
-
-                    record_step(loop, destination);
-                    last = 2;
-                    prev = loop;
-                    assert(prev != nullptr);
-                }
-
-                assert(last != 0);
-                DispatchTarget destination;
-                destination.cont = dest;
-                record_step(prev, destination);*/
             }
         }
     }

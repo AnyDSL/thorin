@@ -311,18 +311,31 @@ std::string CCodeGen::prepare(const Scope& scope) {
     }
 
     s << convert(ret_type) << " " << name << "(";
-    func_decls_ << s.str();
     return s.str();
 }
 
-void CCodeGen::prepare(Continuation*, const std::string&) {
-#if 0
+inline bool passed_via_buffer(const Param* param) {
+    return
+        param->type()->isa<DefiniteArrayType>() ||
+        param->type()->isa<StructType>() ||
+        param->type()->isa<TupleType>();
+}
+
+void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
+    auto config = cont->is_exported() && kernel_config_.count(cont)
+        ? kernel_config_.find(cont)->second.get() : nullptr;
+
+    StringStream s;
+    std::string hls_pragmas;
+
     // emit and store all first-order params
-    for (auto param : continuation->params()) {
+    for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
+        auto param = cont->param(i);
         if (is_mem(param) || is_unit(param))
             continue;
         if (param->order() == 0) {
-            emit_aggop_decl(param->type());
+            // TODO
+#if 0
             if (is_texture_type(param->type())) {
                 auto pointee = convert(param->type()->as<PtrType>()->pointee());
                 type_decls_.fmt("texture<{}, cudaTextureType1D, cudaReadModeElementType> {};\n", pointee, param->name());
@@ -331,81 +344,60 @@ void CCodeGen::prepare(Continuation*, const std::string&) {
                 // skip arrays bound to texture memory
                 continue;
             }
-            if (i++ > 0) {
-                func_decls_ << ", ";
-                func_impls_ << ", ";
-            }
+#endif
 
-            // get the kernel launch config
-            KernelConfig* config = nullptr;
-            if (continuation->is_exported()) {
-                auto config_it = kernel_config_.find(continuation);
-                assert(config_it != kernel_config_.end());
-                config = config_it->second.get();
-            }
-
-            if (lang_ == Lang::OpenCL && continuation->is_exported() &&
-                (param->type()->isa<DefiniteArrayType>() ||
-                    param->type()->isa<StructType>() ||
-                    param->type()->isa<TupleType>())) {
-                // structs are passed via buffer; the parameter is a pointer to this buffer
-                func_decls_ << "__global ";
-                func_impls_ << "__global ";
-                // TODO
-                //convert(func_decls_, param->type()) << " *";
-                //convert(func_impls_, param->type()) << " *" << param->unique_name() << "_";
-            } else if (lang_ == Lang::HLS && continuation->is_exported() && param->type()->isa<PtrType>()) {
+            if (lang_ == Lang::OpenCL && cont->is_exported() && passed_via_buffer(param)) {
+                // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
+                s << "__global " << convert(param->type()) << "* " << param->unique_name() << "_";
+            } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
+                // HLS requires to annotate the array size at compile-time
                 auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-                assert(array_size > 0);
                 auto ptr_type = param->type()->as<PtrType>();
                 auto elem_type = ptr_type->pointee();
                 if (auto array_type = elem_type->isa<ArrayType>())
                     elem_type = array_type->elem_type();
-                //TODO
-                //convert(func_decls_, elem_type) << "[" << array_size << "]";
-                //convert(func_impls_, elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                assert(array_size > 0);
+                s << convert(elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                // TODO
+#if 0
                 if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
                     hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+#endif
             } else {
                 std::string qualifier;
-                // add restrict qualifier when possible
-                if ((lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
+                if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
                     config && config->as<GPUKernelConfig>()->has_restrict() &&
-                    param->type()->isa<PtrType>()) {
+                    param->type()->isa<PtrType>())
+                {
                     qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
                 }
+#if 0
                 emit_addr_space(func_decls_, param->type());
                 emit_addr_space(func_impls_, param->type());
-                // TODO
-                //convert(func_decls_, param->type()) << qualifier;
-                //convert(func_impls_, param->type()) << qualifier << " " << param->unique_name();
+#endif
+                s << convert(param->type()) << qualifier << param->unique_name();
             }
-            // TODO
-            //insert(param, param->unique_name());
+            defs_[param] = param->unique_name();
         }
+        if (i != n - 1)
+            s.fmt(", ");
     }
-    func_decls_.fmt(");\n");
-    func_impls_.fmt(") {{\t\n");
+    s.fmt(")");
+    func_impls_.fmt("{}{} {{\t\n", func_prefix, s.str());
+    func_decls_.fmt("{}{};\n", func_prefix, s.str());
 
     if (!hls_pragmas.empty())
-        func_impls_.fmt("\b\n{}\t", hls_pragmas);
+        func_impls_.fmt("\b\n{}\t\n", hls_pragmas);
 
-    // OpenCL: load struct from buffer
-    for (auto param : continuation->params()) {
+    // Load OpenCL structs from buffers
+    for (auto param : cont->params()) {
         if (is_mem(param) || is_unit(param))
             continue;
         if (param->order() == 0) {
-            if (lang_ == Lang::OpenCL && continuation->is_exported() &&
-                (param->type()->isa<DefiniteArrayType>() ||
-                    param->type()->isa<StructType>() ||
-                    param->type()->isa<TupleType>())) {
-                func_impls_.endl();
-                auto t = convert(param->type());
-                func_impls_.fmt("{} {} = *{}_;", t, param->unique_name(), param->unique_name());
-            }
+            if (lang_ == Lang::OpenCL && cont->is_exported() && passed_via_buffer(param))
+                func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
         }
     }
-#endif
 }
 
 void CCodeGen::finalize(const Scope&) {
@@ -442,6 +434,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 for (size_t i = 0, e = types.size(); i != e; ++i)
                     bb->tail.fmt("_result.e{} = {};\n", i, values[i]);
                 bb->tail.fmt("return _result;");
+                break;
         }
     } else if (cont->callee() == world().branch()) {
         auto c = emit(cont->arg(0));
@@ -830,15 +823,21 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             case PrimType_pu32: case PrimType_qu32: return std::to_string(primlit->pu32_value());
             case PrimType_ps64: case PrimType_qs64: return std::to_string(primlit->ps64_value());
             case PrimType_pu64: case PrimType_qu64: return std::to_string(primlit->pu64_value());
-            case PrimType_pf16: case PrimType_qf16: return emit_float<half>(primlit->pf16_value(),
-                                                        [](half v) { return half_float::isinf(v); },
-                                                        [](half v) { return half_float::isnan(v); });
-            case PrimType_pf32: case PrimType_qf32: return emit_float<float>(primlit->pf32_value(),
-                                                        [](float v) { return std::isinf(v); },
-                                                        [](float v) { return std::isnan(v); });
-            case PrimType_pf64: case PrimType_qf64: return emit_float<double>(primlit->pf64_value(),
-                                                        [](double v) { return std::isinf(v); },
-                                                        [](double v) { return std::isnan(v); });
+            case PrimType_pf16:
+            case PrimType_qf16:
+                return emit_float<half>(primlit->pf16_value(),
+                    [](half v) { return half_float::isinf(v); },
+                    [](half v) { return half_float::isnan(v); });
+            case PrimType_pf32:
+            case PrimType_qf32:
+                return emit_float<float>(primlit->pf32_value(),
+                    [](float v) { return std::isinf(v); },
+                    [](float v) { return std::isnan(v); });
+            case PrimType_pf64:
+            case PrimType_qf64:
+                return emit_float<double>(primlit->pf64_value(),
+                    [](double v) { return std::isinf(v); },
+                    [](double v) { return std::isnan(v); });
         }
         THORIN_UNREACHABLE;
     } else if (auto variant = def->isa<Variant>()) {

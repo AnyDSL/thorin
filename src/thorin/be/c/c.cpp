@@ -324,6 +324,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
     std::string hls_pragmas;
 
     // emit and store all first-order params
+    bool needs_comma = false;
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
         if (is_mem(param) || is_unit(param)) {
@@ -331,6 +332,8 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
             continue;
         }
         if (param->order() == 0) {
+            if (needs_comma) { s.fmt(", "); needs_comma = false; }
+
             // TODO
 #if 0
             if (is_texture_type(param->type())) {
@@ -355,11 +358,8 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
                     elem_type = array_type->elem_type();
                 assert(array_size > 0);
                 s << convert(elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-                // TODO
-#if 0
                 if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
                     hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
-#endif
             } else {
                 std::string qualifier;
                 if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
@@ -372,12 +372,11 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
                 emit_addr_space(func_decls_, param->type());
                 emit_addr_space(func_impls_, param->type());
 #endif
-                s << convert(param->type()) << qualifier << param->unique_name();
+                s << convert(param->type()) << qualifier << " " << param->unique_name();
             }
             defs_[param] = param->unique_name();
+            needs_comma = true;
         }
-        if (i != n - 1)
-            s.fmt(", ");
     }
     s.fmt(")");
     func_impls_.fmt("{}{} {{\t\n", func_prefix, s.str());
@@ -403,7 +402,9 @@ void CCodeGen::finalize(const Scope&) {
 
 void CCodeGen::finalize(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    func_impls_ << bb->head.str() << bb->body.str() << bb->tail.str();
+    if (!bb->head.str().empty()) func_impls_.fmt("{}\n", bb->head.str());
+    if (!bb->body.str().empty()) func_impls_.fmt("{}\n", bb->body.str());
+    func_impls_ << bb->tail.str();
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {

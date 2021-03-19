@@ -127,7 +127,6 @@ std::string CCodeGen::convert(const Type* type) {
     StringStream s;
     std::string name;
 
-    // TODO simd types
     if (type->isa<MemType>())        s << "<MemType>";
     else if (type->isa<FrameType>()) s <<  "<FrameType>";
     else if( type == world().unit()) s <<  "void";
@@ -147,6 +146,8 @@ std::string CCodeGen::convert(const Type* type) {
             case PrimType_pf64: case PrimType_qf64: s << "double"; use_64_ = true; break;
             default: THORIN_UNREACHABLE;
         }
+        if (primtype->is_vector())
+            s << primtype->length();
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
     } else if (type->isa<FnType>()) {
@@ -160,7 +161,12 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (auto tuple = type->isa<TupleType>()) {
         name = tuple_name(tuple);
         s.fmt("typedef struct {{\t\n");
-        s.rangei(tuple->ops(), ";\n", [&](size_t i) { s.fmt("{} e{}", convert(tuple->op(i)), i); });
+        s.rangei(tuple->ops(), "\n", [&](size_t i) {
+            // Skip memory or frame objects
+            if (tuple->op(i)->isa<MemType>() || tuple->op(i)->isa<FrameType>())
+                s.fmt("// ");
+            s.fmt("{} e{};", convert(tuple->op(i)), i);
+        });
         s.fmt("\b\n}} {};\n", name);
     } else if (auto variant = type->isa<VariantType>()) {
         name = variant->name();
@@ -170,30 +176,27 @@ std::string CCodeGen::convert(const Type* type) {
             variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() :
                                                         world_.type_qu64();
         s.fmt("typedef struct {{\t\n");
+
         // This is required because we have zero-sized types but C/C++ do not
         if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
             s.fmt("union {{\t\n");
-            s.rangei(variant->ops(), "\n;", [&](size_t i) {
+            s.rangei(variant->ops(), "\n", [&](size_t i) {
                 if (!is_type_unit(variant->op(i)))
-                    s.fmt("{} {}", convert(variant->op(i)), variant->op_name(i));
+                    s.fmt("{} {};", convert(variant->op(i)), variant->op_name(i));
             });
             s.fmt("\b\n}} data;");
         }
+
         s.fmt("{} tag;\n", convert(tag_type));
         s.fmt("\b\n}} {};", name);
     } else if (auto struct_type = type->isa<StructType>()) {
         name = type_name(struct_type);
         types_[struct_type] = name;
-
         s.fmt("typedef struct {{\t\n");
         size_t i = 0;
         s.range(struct_type->ops(), ";\n", [&](const Type* t) { s.fmt("{} e{}", convert(t), struct_type->op_name(i)); });
         s.fmt("\b\n}} {};", name);
-
         if (struct_type->name().str().find("channel_") != std::string::npos) use_channels_ = true;
-
-        type_decls_ << s.str();
-        return name;
     } else {
         THORIN_UNREACHABLE;
     }
@@ -212,9 +215,8 @@ std::string CCodeGen::convert(const Type* type) {
  */
 
 void CCodeGen::emit_module() {
-#if 0
     if (lang_ == Lang::CUDA) {
-        for (auto x : std::array<char, 3>{'x', 'y', 'z'}) {
+        for (auto x : std::array {'x', 'y', 'z'}) {
             func_decls_.fmt("__device__ inline int threadIdx_{}() { return threadIdx.{}; }\n", x, x);
             func_decls_.fmt("__device__ inline int blockIdx_{}() { return blockIdx.{}; }\n", x, x);
             func_decls_.fmt("__device__ inline int blockDim_{}() { return blockDim.{}; }\n", x, x);
@@ -222,6 +224,7 @@ void CCodeGen::emit_module() {
         }
     }
 
+#if 0
     // emit all globals
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
@@ -236,10 +239,6 @@ void CCodeGen::emit_module() {
 #endif
 
     Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
-
-#if 0
-    type2str_.clear();
-    global2str_.clear();
 
     if (lang_ == Lang::OpenCL) {
         if (use_channels_)
@@ -263,62 +262,57 @@ void CCodeGen::emit_module() {
         stream_.fmt("extern \"C\" {{\t\n");
     }
 
-    stream_ << type_decls_out_.str(); stream_.endl();
-    stream_ << func_decls_out_.str(); stream_.endl();
-    stream_ << func_impls_out_.str();
+    stream_ << type_decls_.str();
+    stream_ << func_decls_.str();
+    stream_ << func_impls_.str();
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");
-#endif
-
-    stream_ << type_decls_.str();
 }
 
-std::string CCodeGen::prepare(const Scope&) {
-#if 0
-    // emit function & its declaration
-    auto ret_param_fn_type = ret_param->type()->as<FnType>();
-    auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-    auto name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-    if (continuation->is_exported()) {
-        auto config = kernel_config_.find(continuation);
+std::string CCodeGen::prepare(const Scope& scope) {
+    StringStream s;
+
+    auto cont = scope.entry();
+    auto ret_param_type = cont->ret_param()->type()->as<FnType>();
+    auto name = (cont->is_exported() || cont->empty()) ? cont->name() : cont->unique_name();
+
+    // Convert the return type to a tuple if several values are returned
+    auto ret_type = ret_param_type->num_ops() > 2
+        ? world_.tuple_type(ret_param_type->ops().skip_front())
+        : ret_param_type->ops().back();
+
+    // Emit function qualifiers
+    if (cont->is_exported()) {
+        auto config = kernel_config_.find(cont);
         switch (lang_) {
             default: break;
             case Lang::CUDA:
-                func_decls_ << "__global__ ";
-                func_impls_ << "__global__ ";
+                s << "__global__ ";
                 if (config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
                     if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                        func_impls_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
+                        s << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
                 }
                 break;
             case Lang::OpenCL:
-                func_decls_ << "__kernel ";
-                func_impls_ << "__kernel ";
+                s << "__kernel ";
                 if (config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
                     if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                        func_impls_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                        s << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
                 }
                 break;
         }
+    } else if (lang_ == Lang::CUDA) {
+        s << "__device__ ";
     } else {
-        if (lang_ == Lang::CUDA) {
-            func_decls_ << "__device__ ";
-            func_impls_ << "__device__ ";
-        }
+        s << "static ";
     }
-    emit_aggop_decl(ret_type);
-    emit_addr_space(func_decls_, ret_type);
-    emit_addr_space(func_impls_, ret_type);
-    // TODO
-    //convert(func_decls_, ret_type) << " " << name << "(";
-    //convert(func_impls_, ret_type) << " " << name << "(";
-    size_t i = 0;
-    std::string hls_pragmas;
-#endif
-    return {};
+
+    s << convert(ret_type) << " " << name << "(";
+    func_decls_ << s.str();
+    return s.str();
 }
 
 void CCodeGen::prepare(Continuation*, const std::string&) {
@@ -420,9 +414,7 @@ void CCodeGen::finalize(const Scope&) {
 
 void CCodeGen::finalize(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    stream_ << bb->head.str();
-    stream_ << bb->body.str();
-    stream_ << bb->tail.str();
+    func_impls_ << bb->head.str() << bb->body.str() << bb->tail.str();
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
@@ -1158,12 +1150,6 @@ Stream& CCodeGen::emit_aggop_decl(const Type*) {
     if (lookup(type) || type == world().unit())
         return type_decls_;
 
-    // TODO wat???
-    // set indent to zero
-    //auto indent = detail::get_indent();
-    //while (detail::get_indent() != 0)
-        //type_decls_.dedent();
-
     if (auto ptr = type->isa<PtrType>())
         emit_aggop_decl(ptr->pointee());
 
@@ -1204,11 +1190,6 @@ Stream& CCodeGen::emit_aggop_decl(const Type*) {
         convert(type_decls_, variant).endl();
         insert(type, variant->name().str());
     }
-
-    // TODO see above
-    // restore indent
-    //while (detail::get_indent() != indent)
-        //type_decls_ << up;
 
     return type_decls_;
 #endif
@@ -1305,13 +1286,10 @@ void CCodeGen::emit_c_int() {
     stream_.fmt("extern \"C\" {\n");
     stream_.fmt("#endif\n\n");
 
-    // TODO porting
-#if 0
     if (!type_decls_.str().empty())
         stream_ << type_decls_.str() << endl;
     if (!func_decls_.str().empty())
         stream_ << func_decls_.str() << endl;
-#endif
 
     stream_.fmt("#ifdef __cplusplus\n");
     stream_.fmt("}\n");
@@ -1399,11 +1377,8 @@ bool CCodeGen::is_texture_type(const Type* type) {
 }
 
 inline std::string make_identifier(const std::string& str) {
-    // TODO use std::copy + std::transform or so
     auto copy = str;
-    for (auto& c : copy) {
-        if (c == ' ') c = '_';
-    }
+    std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) { return c == ' ' ? '_' : c; });
     return copy;
 }
 

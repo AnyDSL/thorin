@@ -13,20 +13,27 @@ using SpvId = builder::SpvId;
 struct SpvType {
     SpvId id;
     size_t size = 0;
+
     // TODO: Alignment rules are complicated and client API dependant
     size_t alignment = 0;
+
+    // Only set for variant types
+    bool variant_trivial = false;
+    size_t variant_data_size = -1;
 };
 
-struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
-    explicit BasicBlockBuilder(builder::SpvFileBuilder& file_builder)
-    : builder::SpvBasicBlockBuilder(file_builder)
-    {}
+struct FnBuilder;
 
-    std::unordered_map<const Param*, Phi> phis;
+struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
+    explicit BasicBlockBuilder(FnBuilder& fn_builder);
+
+    std::unordered_map<const Param*, Phi> phis_map;
     DefMap<SpvId> args;
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {
+    builder::SpvFileBuilder* file_builder;
+    std::vector<BasicBlockBuilder> bbs;
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
     ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;

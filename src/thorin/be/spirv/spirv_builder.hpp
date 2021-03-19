@@ -74,11 +74,11 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         SpvId value;
         std::vector<std::pair<SpvId, SpvId>> preds;
     };
-    std::vector<Phi> phis;
+    std::vector<Phi*> phis;
     SpvId label;
 
     SpvId composite(SpvId aggregate_t, std::vector<SpvId>& elements) {
-        op(spv::Op::OpLabel, 3 + elements.size());
+        op(spv::Op::OpCompositeConstruct, 3 + elements.size());
         ref_id(aggregate_t);
         auto id = generate_fresh_id();
         ref_id(id);
@@ -109,6 +109,16 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         ref_id(false_target);
     }
 
+    void loop_merge(SpvId merge_bb, SpvId continue_bb, spv::LoopControlMask loop_control, std::vector<uint32_t> loop_control_ops) {
+        op(spv::Op::OpLoopMerge, 4 + loop_control_ops.size());
+        ref_id(merge_bb);
+        ref_id(continue_bb);
+        literal_int(loop_control);
+
+        for (auto e : loop_control_ops)
+            literal_int(e);
+    }
+
     void return_void() {
         op(spv::Op::OpReturn, 1);
     }
@@ -126,7 +136,7 @@ struct SpvFnBuilder {
 public:
     SpvId fn_type;
     SpvId fn_ret_type;
-    std::vector<SpvBasicBlockBuilder*> bbs;
+    std::vector<SpvBasicBlockBuilder*> bbs_to_emit;
 
     // Contains OpFunctionParams
     SpvSectionBuilder header;
@@ -136,8 +146,9 @@ struct SpvFileBuilder {
     SpvFileBuilder()
     : void_type(declare_void_type())
     {}
+    SpvFileBuilder(const SpvFileBuilder&) = delete;
 
-    SpvId generate_fresh_id() { return {bound++ }; }
+    SpvId generate_fresh_id() { return { bound++ }; }
 
     void name(SpvId id, std::string_view str) {
         assert(id.id < bound);
@@ -228,15 +239,17 @@ struct SpvFileBuilder {
         for (auto w : fn_builder.header.data_)
             fn_defs.data_.push_back(w);
 
-        for (auto& bb : fn_builder.bbs) {
+        for (auto& bb : fn_builder.bbs_to_emit) {
             fn_defs.op(spv::Op::OpLabel, 2);
             fn_defs.ref_id(bb->label);
 
             for (auto& phi : bb->phis) {
-                fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi.preds.size());
-                fn_defs.ref_id(phi.type);
-                fn_defs.ref_id(phi.value);
-                for (auto& [pred_value, pred_label] : phi.preds) {
+                fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
+                fn_defs.ref_id(phi->type);
+                fn_defs.ref_id(phi->value);
+                printf("Phi %d\n", phi->value);
+                assert(phi->preds.size() > 0);
+                for (auto& [pred_value, pred_label] : phi->preds) {
                     fn_defs.ref_id(pred_value);
                     fn_defs.ref_id(pred_label);
                 }

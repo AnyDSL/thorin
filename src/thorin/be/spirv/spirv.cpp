@@ -135,6 +135,7 @@ SpvType CodeGen::convert(const Type* type) {
         }
 
         case Node_VariantType: {
+            assert(type->num_ops() > 0 && "empty variants not supported");
             std::vector<SpvId> types;
             types.push_back(convert(world().type_pu32()).id);
             for (auto elem : type->as<VariantType>()->ops()){
@@ -145,9 +146,12 @@ SpvType CodeGen::convert(const Type* type) {
                 assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
                 spv_type.alignment = 4;
             }
-            types.push_back(convert(world().definite_array_type(world().type_pu32(), (spv_type.size + 3) / 4)).id);
+            spv_type.variant_data_size = (spv_type.size + 3) / 4;
             if (spv_type.size == 0)
                 spv_type.alignment = 1;
+            else
+                types.push_back(convert(world().definite_array_type(world().type_pu32(), spv_type.variant_data_size)).id);
+            spv_type.variant_trivial = type->num_ops() == 1;
             spv_type.id = builder_->declare_struct_type(types);
             builder_->name(spv_type.id, type->to_string());
             break;
@@ -165,6 +169,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     assert(entry_->is_returning());
 
     FnBuilder fn;
+    fn.file_builder = builder_;
     fn.fn_type = convert(entry_->type()).id;
     fn.fn_ret_type = get_codom_type(entry_);
 
@@ -172,19 +177,17 @@ void CodeGen::emit(const thorin::Scope& scope) {
 
     auto conts = schedule(scope);
 
+    fn.bbs_to_emit.reserve(conts.size());
     fn.bbs.reserve(conts.size());
-    std::vector<BasicBlockBuilder> bbs;
-    bbs.reserve(conts.size());
+    auto& bbs = fn.bbs;
 
     for (auto cont : conts) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
 
-        BasicBlockBuilder* bb = &bbs.emplace_back(BasicBlockBuilder(*builder_));
-        fn.bbs.emplace_back(bb);
+        BasicBlockBuilder* bb = &bbs.emplace_back(fn);
+        fn.bbs_to_emit.emplace_back(bb);
         auto [i, b] = fn.bbs_map.emplace(cont, bb);
         assert(b);
-
-        bb->label = builder_->generate_fresh_id();
 
         if (debug())
             builder_->name(bb->label, cont->name().c_str());
@@ -211,7 +214,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     // OpPhi requires the full list of predecessors (values, labels)
                     // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
                     // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
-                    bb->phis[param] = { convert(param->type()).id, builder_->generate_fresh_id(), {} };
+                    bb->phis_map[param] = { convert(param->type()).id, builder_->generate_fresh_id(), {} };
                 }
             }
         }
@@ -224,6 +227,12 @@ void CodeGen::emit(const thorin::Scope& scope) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
         assert(cont == entry_ || cont->is_basicblock());
         emit_epilogue(cont, fn.bbs_map[cont]);
+    }
+
+    for(auto& bb : fn.bbs) {
+        for (auto& [param, phi] : bb.phis_map) {
+            bb.phis.emplace_back(&phi);
+        }
     }
     
     builder_->define_function(fn);
@@ -283,18 +292,76 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
     } else if (continuation->callee()->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
     } */
-    else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+    else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
+        auto merge_label = current_fn_->bbs_map[continuation->op(0)->as_continuation()]->label;
+        auto continue_label = current_fn_->bbs_map[continuation->op(1)->as_continuation()]->label;
+        bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
+
+        BasicBlockBuilder* dispatch_bb = &current_fn_->bbs.emplace_back(*current_fn_);
+        current_fn_->bbs_to_emit.emplace_back(dispatch_bb);
+        builder_->name(dispatch_bb->label, "inner_dispatch");
+
+        bb->branch(dispatch_bb->label);
+        int targets = continuation->num_ops() - 2;
+        assert(targets > 0);
+
+        assert(targets == 1);
+        auto callee = continuation->op(2)->as_continuation();
+        // Extract the relevant variant & expand the tuple if necessary
+        auto arg = world().variant_extract(continuation->param(0), 0);
+        bb->args[arg] = emit(arg, bb);
+
+        if (callee->param(0)->type()->equal(arg->type())) {
+            auto* param = callee->param(0);
+            auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
+            phi.preds.emplace_back(*bb->args[arg], bb->label);
+        } else {
+            assert(false && "TODO destructure argument");
+        }
+
+        dispatch_bb->branch(current_fn_->bbs_map[callee]->label);
+
+    } else if (continuation->intrinsic() == Intrinsic::SCFLoopContinue) {
+        auto loop_header =continuation->op(0)->as_continuation();
+        auto header_label = current_fn_->bbs_map[loop_header]->label;
+
+        auto arg = continuation->param(0);
+        bb->args[arg] = emit(arg, bb);
+        auto* param = loop_header->param(0);
+        auto& phi = current_fn_->bbs_map[loop_header]->phis_map[param];
+        phi.preds.emplace_back(*bb->args[arg], *current_fn_->labels[continuation]);
+
+        bb->branch(header_label);
+    } else if (continuation->intrinsic() == Intrinsic::SCFLoopMerge) {
+        auto header_cont = continuation->op(0)->as_continuation();
+
+        int targets = continuation->num_ops() - 1;
+        assert(targets > 0);
+
+        assert(targets == 1);
+        auto callee = continuation->op(1)->as_continuation();
+        // TODO phis
+        bb->branch(current_fn_->bbs_map[callee]->label);
+    } /*else if (continuation->intrinsic() == Intrinsic::SCFNonLocalJump) {
+        auto header_cont = continuation->op(0)->as_continuation();
+        // TODO setup arguments & stuff
+        bb->branch(current_fn_->bbs_map[continuation->op(0)->as_continuation()]->label);
+    } else if (continuation->intrinsic() == Intrinsic::SCFBackEdge) {
+        // TODO setup arguments & stuff
+        bb->branch(current_fn_->bbs_map[continuation->op(0)->as_continuation()]->label);
+    } */ else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
         int index = -1;
         for (auto& arg : continuation->args()) {
             index++;
             if (is_mem(arg) || is_unit(arg)) continue;
             bb->args[arg] = emit(arg, bb);
             auto* param = callee->param(index);
-            auto& phi = current_fn_->bbs_map[callee]->phis[param];
+            auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
             phi.preds.emplace_back(*bb->args[arg], *current_fn_->labels[continuation]);
         }
         bb->branch(*current_fn_->labels[callee]);
-    } /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+    }
+    /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);
         irbuilder.CreateBr(cont2bb(ret_continuation));
     } else { // function/closure call
@@ -494,17 +561,46 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
         }
         return constant;
-    } else if(auto param = def->isa<Param>()) {
+    } else if (auto param = def->isa<Param>()) {
         if (auto param_id = current_fn_->params.lookup(param)) {
             assert((*param_id).id != 0);
             return *param_id;
         } else {
-            auto val = (*current_fn_->bbs_map[param->continuation()]).phis[param].value;
+            auto val = (*current_fn_->bbs_map[param->continuation()]).phis_map[param].value;
             assert(val.id != 0);
             return val;
         }
+    } else if (auto variant = def->isa<Variant>()) {
+        auto type = convert(def->type());
+        assert(type.variant_trivial); // TODO !
+        return emit(variant->value(), bb);
+    } else if (auto vextract = def->isa<VariantExtract>()) {
+        auto type = convert(def->op(0)->type());
+        assert(type.variant_trivial); // TODO !
+        return emit(vextract->value(), bb);
+    } else if (auto vindex = def->isa<VariantIndex>()) {
+        assert(false && "Missing variant index");
+    } else if (auto tuple = def->isa<Tuple>()) {
+        std::vector<SpvId> elements;
+        size_t x = 0;
+        for (auto& e : tuple->ops()) {
+            elements[x++] = emit(e, bb);
+        }
+        return bb->composite(convert(tuple->type()).id, elements);
+    } else if (auto structagg = def->isa<StructAgg>()) {
+        std::vector<SpvId> elements;
+        size_t x = 0;
+        for (auto& e : structagg->ops()) {
+            elements[x++] = emit(e, bb);
+        }
+        return bb->composite(convert(structagg->type()).id, elements);
     }
     assertf(false, "Incomplete emit(def) definition");
+}
+
+BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
+: builder::SpvBasicBlockBuilder(*fn_builder.file_builder) {
+    label = file_builder.generate_fresh_id();
 }
 
 }

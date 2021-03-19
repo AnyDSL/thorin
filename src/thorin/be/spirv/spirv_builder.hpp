@@ -87,6 +87,51 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId extract(SpvId target_type, SpvId composite, std::vector<uint32_t> indices) {
+        op(spv::Op::OpCompositeExtract, 4 + indices.size());
+        ref_id(target_type);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        ref_id(composite);
+        for (auto i : indices)
+            literal_int(i);
+        return id;
+    }
+
+    SpvId variable(SpvId type, spv::StorageClass storage_class) {
+        op(spv::Op::OpVariable, 4);
+        ref_id(type);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        literal_int(storage_class);
+        return id;
+    }
+
+    SpvId bitcast(SpvId target_type, SpvId value) {
+        op(spv::Op::OpBitcast, 4);
+        auto id = generate_fresh_id();
+        ref_id(target_type);
+        ref_id(id);
+        ref_id(value);
+        return id;
+    }
+
+    SpvId load(SpvId target_type, SpvId pointer) {
+        op(spv::Op::OpLoad, 4);
+        auto id = generate_fresh_id();
+        ref_id(target_type);
+        ref_id(id);
+        ref_id(pointer);
+        return id;
+    }
+
+    void store(SpvId value, SpvId pointer) {
+        op(spv::Op::OpStore, 3);
+        auto id = generate_fresh_id();
+        ref_id(pointer);
+        ref_id(value);
+    }
+
     SpvId binop(spv::Op op_, SpvId result_type, SpvId lhs, SpvId rhs) {
         op(op_, 5);
         auto id = generate_fresh_id();
@@ -178,6 +223,15 @@ struct SpvFileBuilder {
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
         types_constants.literal_int(width);
+        return id;
+    }
+
+    SpvId declare_ptr_type(spv::StorageClass storage_class, SpvId element_type) {
+        types_constants.op(spv::Op::OpTypePointer, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(storage_class);
+        types_constants.ref_id(element_type);
         return id;
     }
 

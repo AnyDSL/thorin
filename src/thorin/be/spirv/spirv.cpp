@@ -48,7 +48,16 @@ SpvType CodeGen::convert(const Type* type) {
         case PrimType_pf64: case PrimType_qf64:                                         assert(false && "TODO: look into capabilities to enable this");
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            assert(false && "TODO");
+            spv::StorageClass storage_class;
+            switch (ptr->addr_space()) {
+                case AddrSpace::Function: storage_class = spv::StorageClassFunction; break;
+                case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;  break;
+                default:
+                    assert(false && "This address space is not supported");
+                    break;
+            }
+            SpvType element = convert(ptr->pointee());
+            spv_type.id = builder_->declare_ptr_type(storage_class, element.id);
             break;
         }
         case Node_IndefiniteArrayType: {
@@ -300,7 +309,6 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         BasicBlockBuilder* dispatch_bb = &current_fn_->bbs.emplace_back(*current_fn_);
         current_fn_->bbs_to_emit.emplace_back(dispatch_bb);
         builder_->name(dispatch_bb->label, "inner_dispatch");
-
         bb->branch(dispatch_bb->label);
         int targets = continuation->num_ops() - 2;
         assert(targets > 0);
@@ -309,12 +317,12 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto callee = continuation->op(2)->as_continuation();
         // Extract the relevant variant & expand the tuple if necessary
         auto arg = world().variant_extract(continuation->param(0), 0);
-        bb->args[arg] = emit(arg, bb);
+        auto extracted = emit(arg, dispatch_bb);
 
         if (callee->param(0)->type()->equal(arg->type())) {
             auto* param = callee->param(0);
             auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
-            phi.preds.emplace_back(*bb->args[arg], bb->label);
+            phi.preds.emplace_back(extracted, dispatch_bb->label);
         } else {
             assert(false && "TODO destructure argument");
         }
@@ -572,14 +580,41 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
     } else if (auto variant = def->isa<Variant>()) {
         auto type = convert(def->type());
-        assert(type.variant_trivial); // TODO !
-        return emit(variant->value(), bb);
+        auto value = emit(variant->value(), bb);
+        std::vector<SpvId> elements;
+        elements.emplace_back(builder_->constant(convert(world().type_pu32()).id, { (uint32_t) variant->index() }));
+        if (type.variant_data_size > 0) {
+            auto variant_payload_type = world().definite_array_type(world().type_pu32(), type.variant_data_size);
+            auto payload_ptr_type = world().ptr_type(variant_payload_type, 1, -1, AddrSpace::Function);
+            auto alloca = bb->variable(convert(payload_ptr_type).id, spv::StorageClass::StorageClassFunction);
+
+            auto casted_ptr_type = world().ptr_type(variant->value()->type(), 1, -1, AddrSpace::Function);
+            auto casted = bb->bitcast(convert(casted_ptr_type).id, alloca);
+
+            bb->store(value, casted);
+            elements.push_back(bb->load(convert(variant_payload_type).id, alloca));
+        }
+        return bb->composite(convert(variant->type()).id, elements);
     } else if (auto vextract = def->isa<VariantExtract>()) {
-        auto type = convert(def->op(0)->type());
-        assert(type.variant_trivial); // TODO !
-        return emit(vextract->value(), bb);
+        auto type = convert(def->type());
+        assert(type.variant_data_size > 0); // TODO is it legal to extract () ?
+        if (type.variant_data_size > 0) {
+            auto payload = bb->extract(convert(world().type_pu32()).id, emit(vextract->value(), bb), {1});
+
+            auto variant_payload_type = world().definite_array_type(world().type_pu32(), type.variant_data_size);
+            auto payload_ptr_type = world().ptr_type(variant_payload_type, 1, -1, AddrSpace::Function);
+            auto alloca = bb->variable(convert(payload_ptr_type).id, spv::StorageClass::StorageClassFunction);
+
+            auto casted_ptr_type = world().ptr_type(def->type(), 1, -1, AddrSpace::Function);
+            auto casted = bb->bitcast(convert(casted_ptr_type).id, alloca);
+
+            bb->store(payload, alloca);
+            return bb->load(convert(def->type()).id, casted);
+        }
+        THORIN_UNREACHABLE;
     } else if (auto vindex = def->isa<VariantIndex>()) {
-        assert(false && "Missing variant index");
+        auto value = emit(vindex->op(0), bb);
+        return bb->extract(convert(world().type_pu32()).id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
         std::vector<SpvId> elements;
         size_t x = 0;

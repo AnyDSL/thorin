@@ -161,12 +161,7 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (auto tuple = type->isa<TupleType>()) {
         name = tuple_name(tuple);
         s.fmt("typedef struct {{\t\n");
-        s.rangei(tuple->ops(), "\n", [&](size_t i) {
-            // Skip memory or frame objects
-            if (tuple->op(i)->isa<MemType>() || tuple->op(i)->isa<FrameType>())
-                s.fmt("// ");
-            s.fmt("{} e{};", convert(tuple->op(i)), i);
-        });
+        s.rangei(tuple->ops(), "\n", [&](size_t i) { s.fmt("{} e{};", convert(tuple->op(i)), i); });
         s.fmt("\b\n}} {};\n", name);
     } else if (auto variant = type->isa<VariantType>()) {
         name = variant->name();
@@ -331,8 +326,10 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
     // emit and store all first-order params
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
-        if (is_mem(param) || is_unit(param))
+        if (is_mem(param) || is_unit(param)) {
+            defs_[param] = "";
             continue;
+        }
         if (param->order() == 0) {
             // TODO
 #if 0
@@ -401,7 +398,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
 }
 
 void CCodeGen::finalize(const Scope&) {
-
+    func_impls_.fmt("\b\n}}");
 }
 
 void CCodeGen::finalize(Continuation* cont) {

@@ -58,10 +58,10 @@ protected:
             child().emit_epilogue(cont);
         }
 
-        child().finalize(scope);
         for (auto cont : conts) {
             if (cont->intrinsic() != Intrinsic::EndScope) child().finalize(cont);
         }
+        child().finalize(scope);
     }
 
     Scheduler scheduler_;

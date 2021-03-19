@@ -69,7 +69,7 @@ public:
         swap(a.level_,   b.level_);
     }
 
-private:
+protected:
     bool match2nd(const char* next, const char*& s, const char c);
 
     std::ostream* ostream_;
@@ -87,7 +87,12 @@ public:
 
     friend void swap(StringStream& a, StringStream& b) {
         using std::swap;
+        swap((Stream&)a, (Stream&)b);
         swap(a.oss_, b.oss_);
+        // Pointers have to be restored so that this stream
+        // still holds the ownership over its ostringstream object.
+        a.ostream_ = &a.oss_;
+        b.ostream_ = &b.oss_;
     }
 
 private:

@@ -246,6 +246,9 @@ void CCodeGen::emit_module() {
             stream_.endl();
     }
 
+    if (lang_ == Lang::C99)
+        stream_.fmt("#include <stdbool.h>\n\n");
+
     if (lang_ == Lang::CUDA && use_16_) {
         stream_.fmt("#include <cuda_fp16.h>\n\n");
         stream_.fmt("#if __CUDACC_VER_MAJOR__ > 8\n");
@@ -263,6 +266,13 @@ void CCodeGen::emit_module() {
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");
+}
+
+inline bool passed_via_buffer(const Param* param) {
+    return
+        param->type()->isa<DefiniteArrayType>() ||
+        param->type()->isa<StructType>() ||
+        param->type()->isa<TupleType>();
 }
 
 std::string CCodeGen::prepare(const Scope& scope) {
@@ -306,22 +316,10 @@ std::string CCodeGen::prepare(const Scope& scope) {
     }
 
     s << convert(ret_type) << " " << name << "(";
-    return s.str();
-}
 
-inline bool passed_via_buffer(const Param* param) {
-    return
-        param->type()->isa<DefiniteArrayType>() ||
-        param->type()->isa<StructType>() ||
-        param->type()->isa<TupleType>();
-}
-
-void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
+    std::string hls_pragmas;
     auto config = cont->is_exported() && kernel_config_.count(cont)
         ? kernel_config_.find(cont)->second.get() : nullptr;
-
-    StringStream s;
-    std::string hls_pragmas;
 
     // emit and store all first-order params
     bool needs_comma = false;
@@ -379,12 +377,12 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
         }
     }
     s.fmt(")");
-    func_impls_.fmt("{}{} {{\t\n", func_prefix, s.str());
-    func_decls_.fmt("{}{};\n", func_prefix, s.str());
+    func_impls_.fmt("{} {{", s.str());
+    func_decls_.fmt("{};\n", s.str());
 
     if (!hls_pragmas.empty())
-        func_impls_.fmt("\b\n{}\t\n", hls_pragmas);
-
+        func_impls_.fmt("\n{}", hls_pragmas);
+    func_impls_.fmt("\t\n");
     // Load OpenCL structs from buffers
     for (auto param : cont->params()) {
         if (is_mem(param) || is_unit(param))
@@ -394,17 +392,25 @@ void CCodeGen::prepare(Continuation* cont, const std::string& func_prefix) {
                 func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
         }
     }
+    func_impls_.fmt("goto {};\b\n", cont->unique_name());
+    return {};
+}
+
+void CCodeGen::prepare(Continuation* cont, const std::string&) {
+    auto&& bb = cont2bb_[cont];
+    bb->head.indent();
+    bb->body.indent();
+    bb->tail.indent();
 }
 
 void CCodeGen::finalize(const Scope&) {
-    func_impls_.fmt("\b\n}}");
+    func_impls_.fmt("}}\n\n");
 }
 
 void CCodeGen::finalize(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    if (!bb->head.str().empty()) func_impls_.fmt("{}\n", bb->head.str());
-    if (!bb->body.str().empty()) func_impls_.fmt("{}\n", bb->body.str());
-    func_impls_ << bb->tail.str();
+    func_impls_.fmt("{}: {{\t\n{}{}{}\b\n}}\n",
+        cont->unique_name(), bb->head.str(), bb->body.str(), bb->tail.str());
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
@@ -472,7 +478,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
 #endif
         // TODO phi
-        bb->tail.fmt("goto {}", emit(callee));
+        bb->tail.fmt("goto {};", emit(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
 #if 0
         if (callee->intrinsic() == Intrinsic::Reserve) {
@@ -637,7 +643,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             }
         }
 
-        bb.body.fmt("{} {} = {} {} {};", t, name, a, op, b);
+        bb.body.fmt("{} {} = {} {} {};\n", t, name, a, op, b);
     } else if (auto conv = def->isa<ConvOp>()) {
 #if 0
         emit_aggop_defs(conv->from());
@@ -1057,8 +1063,8 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     return name;
 }
 
-std::string CCodeGen::emit_fun_decl(Continuation*) {
-    return "TODO";
+std::string CCodeGen::emit_fun_decl(Continuation* cont) {
+    return cont->unique_name();
 }
 
 Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {

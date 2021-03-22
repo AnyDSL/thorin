@@ -145,23 +145,23 @@ SpvType CodeGen::convert(const Type* type) {
 
         case Node_VariantType: {
             assert(type->num_ops() > 0 && "empty variants not supported");
-            std::vector<SpvId> types;
-            types.push_back(convert(world().type_pu32()).id);
+            std::vector<SpvId> payload_type;
             for (auto elem : type->as<VariantType>()->ops()){
                 auto member_type = convert(elem);
-                spv_type.size = std::max(spv_type.size, member_type.size);
+                payload_type.push_back(member_type.id);
+                spv_type.size += member_type.size;
 
                 // TODO handle alignment for real
                 assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
                 spv_type.alignment = 4;
             }
-            spv_type.variant_data_size = (spv_type.size + 3) / 4;
             if (spv_type.size == 0)
                 spv_type.alignment = 1;
-            else
-                types.push_back(convert(world().definite_array_type(world().type_pu32(), spv_type.variant_data_size)).id);
-            spv_type.variant_trivial = type->num_ops() == 1;
-            spv_type.id = builder_->declare_struct_type(types);
+            spv_type.payload_id = builder_->declare_struct_type(payload_type);
+            builder_->name(spv_type.payload_id, type->to_string() + "_payload");
+
+            std::vector<SpvId> with_tag = { convert(world().type_pu32()).id, spv_type.payload_id};
+            spv_type.id = builder_->declare_struct_type(with_tag);
             builder_->name(spv_type.id, type->to_string());
             break;
         }
@@ -579,44 +579,35 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             return val;
         }
     } else if (auto variant = def->isa<Variant>()) {
-        auto type = convert(def->type());
-        auto value = emit(variant->value(), bb);
+        auto struct_type = def->type()->as<VariantType>();
+        auto type = convert(struct_type);
         std::vector<SpvId> elements;
-        elements.emplace_back(builder_->constant(convert(world().type_pu32()).id, { (uint32_t) variant->index() }));
-        if (type.variant_data_size > 0) {
-            auto variant_payload_type = world().definite_array_type(world().type_pu32(), type.variant_data_size);
-            auto payload_ptr_type = world().ptr_type(variant_payload_type, 1, -1, AddrSpace::Function);
-            auto alloca = bb->variable(convert(payload_ptr_type).id, spv::StorageClass::StorageClassFunction);
-
-            auto casted_ptr_type = world().ptr_type(variant->value()->type(), 1, -1, AddrSpace::Function);
-            auto casted = bb->bitcast(convert(casted_ptr_type).id, alloca);
-
-            bb->store(value, casted);
-            elements.push_back(bb->load(convert(variant_payload_type).id, alloca));
+        elements.resize(struct_type->num_ops());
+        size_t x = 0;
+        for (auto& e : struct_type->ops()) {
+            if (x == variant->index())
+                elements[x] = emit(variant->value(), bb);
+            else
+                elements[x] = bb->undef(convert(e).id);
+            x++;
         }
-        return bb->composite(convert(variant->type()).id, elements);
+        auto payload = bb->composite(convert(variant->type()).payload_id, elements);
+        auto tag = builder_->constant(convert(world().type_pu32()).id, { static_cast<uint32_t>(variant->index()) });
+        std::vector<SpvId> with_tag = { tag, payload };
+        return bb->composite(convert(variant->type()).id, with_tag);
     } else if (auto vextract = def->isa<VariantExtract>()) {
-        auto type = convert(def->type());
-        assert(type.variant_data_size > 0); // TODO is it legal to extract () ?
-        if (type.variant_data_size > 0) {
-            auto payload = bb->extract(convert(world().type_pu32()).id, emit(vextract->value(), bb), {1});
+        auto variant_type = vextract->value()->type()->as<VariantType>();
 
-            auto variant_payload_type = world().definite_array_type(world().type_pu32(), type.variant_data_size);
-            auto payload_ptr_type = world().ptr_type(variant_payload_type, 1, -1, AddrSpace::Function);
-            auto alloca = bb->variable(convert(payload_ptr_type).id, spv::StorageClass::StorageClassFunction);
+        auto target_type = convert(def->type());
+        auto payload = bb->extract(convert(variant_type).payload_id, emit(vextract->value(), bb), {1});
 
-            auto casted_ptr_type = world().ptr_type(def->type(), 1, -1, AddrSpace::Function);
-            auto casted = bb->bitcast(convert(casted_ptr_type).id, alloca);
-
-            bb->store(payload, alloca);
-            return bb->load(convert(def->type()).id, casted);
-        }
-        THORIN_UNREACHABLE;
+        return bb->extract(target_type.id, payload, { static_cast<uint32_t>(vextract->index()) });
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
         return bb->extract(convert(world().type_pu32()).id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
         std::vector<SpvId> elements;
+        elements.resize(tuple->num_ops());
         size_t x = 0;
         for (auto& e : tuple->ops()) {
             elements[x++] = emit(e, bb);
@@ -624,6 +615,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         return bb->composite(convert(tuple->type()).id, elements);
     } else if (auto structagg = def->isa<StructAgg>()) {
         std::vector<SpvId> elements;
+        elements.resize(structagg->num_ops());
         size_t x = 0;
         for (auto& e : structagg->ops()) {
             elements[x++] = emit(e, bb);

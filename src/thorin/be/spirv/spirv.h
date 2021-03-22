@@ -17,9 +17,7 @@ struct SpvType {
     // TODO: Alignment rules are complicated and client API dependant
     size_t alignment = 0;
 
-    // Only set for variant types
-    bool variant_trivial = false;
-    size_t variant_data_size = -1;
+    SpvId payload_id;
 };
 
 struct FnBuilder;

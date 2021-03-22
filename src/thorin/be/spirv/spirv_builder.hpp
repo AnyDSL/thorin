@@ -77,6 +77,14 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     std::vector<Phi*> phis;
     SpvId label;
 
+    SpvId undef(SpvId type) {
+        op(spv::Op::OpUndef, 3);
+        ref_id(type);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        return id;
+    }
+
     SpvId composite(SpvId aggregate_t, std::vector<SpvId>& elements) {
         op(spv::Op::OpCompositeConstruct, 3 + elements.size());
         ref_id(aggregate_t);

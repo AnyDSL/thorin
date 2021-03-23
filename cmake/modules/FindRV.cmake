@@ -8,6 +8,7 @@
 find_path(RV_INCLUDE_DIR rv/rv.h
     PATHS
         ${LLVM_INCLUDE_DIRS}
+        ${LLVM_EXTERNAL_RV_SOURCE_DIR}/include
         ${LLVM_BUILD_MAIN_SRC_DIR}/../rv/include
         ${LLVM_BUILD_MAIN_SRC_DIR}/tools/rv/include)
 if(TARGET RV)

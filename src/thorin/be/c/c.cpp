@@ -387,12 +387,14 @@ std::string CCodeGen::prepare(const Scope& scope) {
         if (lang_ == Lang::OpenCL && cont->is_exported() && passed_via_buffer(param))
             func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
     }
-    func_impls_.fmt("goto {};\b\n", cont->unique_name());
     return {};
 }
 
 void CCodeGen::prepare(Continuation* cont, const std::string&) {
     auto&& bb = cont2bb_[cont];
+    bb->head.indent(2);
+    bb->body.indent(2);
+    bb->tail.indent(2);
     // The parameters of the entry continuation have already been emitted.
     if (cont != entry_) {
         for (auto param : cont->params()) {
@@ -400,13 +402,16 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
                 defs_[param] = {};
                 continue;
             }
-            func_impls_.fmt("{} {};\n", convert(param->type()), param->unique_name());
+            // Note: Having two versions of a phi is necessary, since we may have a loop which
+            // invokes itself like this: `loop(param1 + 1, param1 + 2)`. In this case, the C
+            // code generator will emit two assignments to the phis nodes, but the second one
+            // depends on the current value of the phi node.
+            func_impls_.fmt("{}   {};\n", convert(param->type()), param->unique_name());
+            func_impls_.fmt("{} p_{};\n", convert(param->type()), param->unique_name());
+            bb->head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());
             defs_[param] = param->unique_name();
         }
     }
-    bb->head.indent();
-    bb->body.indent();
-    bb->tail.indent();
 }
 
 void CCodeGen::finalize(const Scope&) {
@@ -415,7 +420,9 @@ void CCodeGen::finalize(const Scope&) {
 
 void CCodeGen::finalize(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    func_impls_.fmt("{}: {{\t\n{}{}{}\b\n}}\n",
+    if (cont == entry_)
+        func_impls_.fmt("goto {};\b\n", cont->unique_name());
+    func_impls_.fmt("{}: \t{{\t\n{}{}{}\b\n}}\b\n",
         cont->unique_name(), bb->head.str(), bb->body.str(), bb->tail.str());
 }
 
@@ -466,24 +473,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     } else if (cont->callee()->isa<Bottom>()) {
         bb->tail.fmt("return;  // bottom: unreachable");
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
-#if 0
-        auto store_phi = [&] (const Def* param, const Def* arg) {
-            bb->tail << "p" << param->unique_name() << " = ";
-            emit(arg) << ";";
-        };
-
-        auto callee = cont->callee()->as_cont();
-        if (callee->is_basicblock()) {   // ordinary jump
-            assert(callee->num_params()==cont->num_args());
-            for (size_t i = 0, size = callee->num_params(); i != size; ++i)
-                if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
-                    store_phi(callee->param(i), cont->arg(i));
-                    bb->tail << endl;
-                }
-            emit(callee);
-        } else {
-#endif
-        // TODO phi
+        assert(callee->num_params() == cont->num_args());
+        for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
+            if (is_mem(callee->param(i)) || is_unit(callee->param(i)))
+                continue;
+            bb->tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), emit(cont->arg(i)));
+        }
         bb->tail.fmt("goto {};", emit(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
 #if 0

@@ -30,8 +30,8 @@ public:
 
     /// @name modify Stream
     //@{
-    Stream& indent() { ++level_; return *this; }
-    Stream& dedent() { assert(level_ > 0); --level_; return *this; }
+    Stream& indent(size_t i = 1) { level_ += i; return *this; }
+    Stream& dedent(size_t i = 1) { assert(level_ >= i); level_ -= i; return *this; }
     Stream& endl();
     Stream& flush() { ostream().flush(); return *this; }
     //@}

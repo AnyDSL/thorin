@@ -328,7 +328,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
             defs_[param] = {};
             continue;
         }
-        if (needs_comma) { s.fmt(", "); needs_comma = false; }
+        if (needs_comma) s.fmt(", ");
 
         // TODO
 #if 0
@@ -446,11 +446,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             case 1: bb->tail.fmt("return {};", values[0]); break;
             default:
                 auto tuple = convert(world().tuple_type(types));
-                bb->tail.fmt("{} _result;\n", tuple);
-
+                bb->tail.fmt("{} ret_val;\n", tuple);
                 for (size_t i = 0, e = types.size(); i != e; ++i)
-                    bb->tail.fmt("_result.e{} = {};\n", i, values[i]);
-                bb->tail.fmt("return _result;");
+                    bb->tail.fmt("ret_val.e{} = {};\n", i, values[i]);
+                bb->tail.fmt("return ret_val;");
                 break;
         }
     } else if (cont->callee() == world().branch()) {
@@ -542,69 +541,52 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             THORIN_UNREACHABLE;
         }
 #endif
-    } else { // function/closure call
-#if 0
-        auto emit_call = [&] (const Param* param = nullptr) {
-            auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
-            if (param)
-                emit(param) << " = ";
-            bb->tail << name << "(";
-            // emit all first-order args
-            size_t i = 0;
-            for (auto arg : cont->args()) {
-                if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
-                    if (i++ > 0)
-                        bb->tail << ", ";
-                    emit(arg);
-                }
-            }
-            bb->tail << ");";
-            if (param) {
-                bb->tail << endl;
-                store_phi(param, param);
-            }
-        };
+    } else if (auto callee = cont->callee()->isa_continuation()) { // function/closure call
+        auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
+        auto ret_cont = (*std::find_if(cont->args().begin(), cont->args().end(), [] (const Def* arg) {
+            return arg->isa_continuation();
+        }))->as_continuation();
 
-        const Def* ret_arg = 0;
-        for (auto arg : cont->args()) {
-            if (arg->order() != 0) {
-                assert(!ret_arg);
-                ret_arg = arg;
-            }
+        // Create an object to hold the return type of the call
+        std::vector<const Type*> types;
+        for (auto param : ret_cont->params()) {
+            if (is_mem(param) || is_unit(param) || param->order() > 0)
+                continue;
+            types.emplace_back(param->type());
         }
-
-        // must be call + cont --- call + return has been removed by codegen_prepare
-        auto succ = ret_arg->as_cont();
-        size_t num_params = succ->num_params();
-
-        size_t n = 0;
-        Array<const Param*> values(num_params);
-        Array<const Type*> types(num_params);
-        for (auto param : succ->params()) {
-            if (!is_mem(param) && !is_unit(param)) {
-                values[n] = param;
-                types[n] = param->type();
-                n++;
-            }
-        }
-
-        if (n == 0)
-            emit_call();
-        else if (n == 1)
-            emit_call(values[0]);
-        else {
-            types.shrink(n);
+        if (!types.empty()) {
             auto ret_type = world_.tuple_type(types);
-            auto ret_tuple_name = "ret_tuple" + std::to_string(cont->gid());
-            emit_aggop_decl(ret_type);
-            convert(bb->tail, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
-            emit_call();
-
-            // store arguments to phi node
-            for (size_t i = 0; i != n; ++i)
-                bb->tail << endl << "p" << values[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+            bb->tail.fmt("{} ret_val = ", convert(ret_type));
         }
-#endif
+
+        // Call the function
+        bb->tail.fmt("{}(", name);
+        bool needs_comma = false;
+        for (size_t i = 0, n = cont->num_args(); i < n; ++i) {
+            auto arg = cont->arg(i);
+            if (is_mem(arg) || is_unit(arg) || arg->order() > 0)
+                continue;
+            if (needs_comma) bb->tail << ", ";
+            emit(arg);
+            needs_comma = true;
+        }
+        bb->tail.fmt(");\n");
+
+        // Pass the result to the phi nodes of the return continuation
+        if (!types.empty()) {
+            size_t i = 0;
+            for (auto param : ret_cont->params()) {
+                if (is_mem(param) || is_unit(param) || param->order() > 0)
+                    continue;
+                if (types.size() > 1)
+                    bb->tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
+                else
+                    bb->tail.fmt("p_{} = ret_val;\n", param->unique_name());
+            }
+        }
+        bb->tail.fmt("goto {};", ret_cont->unique_name());
+    } else {
+        THORIN_UNREACHABLE;
     }
 }
 

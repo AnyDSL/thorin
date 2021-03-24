@@ -860,10 +860,12 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
     } else if (auto lea = def->isa<LEA>()) {
+        auto ptr = emit(lea->ptr());
+        auto index = emit(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
-            bb.body.fmt("{} {} = tex1Dfetch({}, {});\n", convert(lea->ptr_pointee()), name, emit(lea->ptr()), emit(lea->index()));
+            bb.body.fmt("{} {} = tex1Dfetch({}, {});\n", convert(lea->ptr_pointee()), name, ptr, index);
         } else {
-            bb.body.fmt("{} {} = &{}", convert(lea->type()), name, emit(lea->ptr()));
+            bb.body.fmt("{} {} = &{}", convert(lea->type()), name, ptr);
             emit_access(bb.body, lea->ptr_pointee(), lea->index(), "->");
             bb.body.fmt(";\n");
         }

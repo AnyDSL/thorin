@@ -142,30 +142,31 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     while (*s != '\0') {
         auto next = s + 1;
 
-        if (false) {
-        } else if (*s == '\n') { s++; endl();
-        } else if (*s == '\t') { s++; indent();
-        } else if (*s == '\b') { s++; dedent();
-        } else if (*s == '{') {
-            if (match2nd(next, s, '{')) continue;
-            s++; // skip opening brace '{'
+        switch (*s) {
+            case '\n': s++; endl();   break;
+            case '\t': s++; indent(); break;
+            case '\b': s++; dedent(); break;
+            case '{': {
+                if (match2nd(next, s, '{')) continue;
+                s++; // skip opening brace '{'
 
-            std::string spec;
-            while (*s != '\0' && *s != '}') spec.push_back(*s++);
-            assert(*s == '}' && "unmatched closing brace '}' in format string");
+                std::string spec;
+                while (*s != '\0' && *s != '}') spec.push_back(*s++);
+                assert(*s == '}' && "unmatched closing brace '}' in format string");
 
-            if constexpr (is_range_v<T>) {
-                range(t, spec.c_str());
-            } else {
-                (*this) << t;
-            }
+                if constexpr (is_range_v<T>) {
+                    range(t, spec.c_str());
+                } else {
+                    (*this) << t;
+                }
 
-            ++s; // skip closing brace '}'
-            return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
-        } else if (*s == '}') {
+                ++s; // skip closing brace '}'
+                return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
+        }
+        case '}':
             if (match2nd(next, s, '}')) continue;
             assert(false && "unmatched/unescaped closing brace '}' in format string");
-        } else {
+        default:
             (*this) << *s++;
         }
     }

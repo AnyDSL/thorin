@@ -682,13 +682,13 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         } else if (auto bitcast = conv->isa<Bitcast>()) {
             // TODO This kind of type punning is actually undefined behavior.
             // memcpy is AFAIK the only safe way of doing this.
-            // That being said, it should work nontheless but maybe we can add a option to use memcpy instead.
+            // That being said, it should work nontheless but maybe we can add an option to use memcpy instead.
             bb.body.fmt("union {{\t\n");
-            bb.body.fmt("{} src\n",   s_t);
-            bb.body.fmt("{} dst\b\n", d_t);
-            bb.body.fmt("}} {};\n", name);
-            bb.body.fmt("{}.src = {};\n", src);
-            bb.body.fmt("{} {} = {}.dst;\n", d_t, name, name);
+            bb.body.fmt("{} src;\n",   s_t);
+            bb.body.fmt("{} dst;\b\n", d_t);
+            bb.body.fmt("}} {}_u;\n", name);
+            bb.body.fmt("{}_u.src = {};\n", name, src);
+            bb.body.fmt("{} {} = {}_u.dst;\n", d_t, name, name);
         }
     } else if (auto align_of = def->isa<AlignOf>()) {
         if (lang_ == Lang::C99 || lang_ == Lang::OpenCL) {

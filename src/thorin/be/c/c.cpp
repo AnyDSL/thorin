@@ -763,23 +763,20 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return func_impls_;
 #endif
     } else if (auto extract = def->isa<Extract>()) {
-        emit_unsafe(extract->agg());
-        if (is_mem(extract) || extract->type()->isa<FrameType>())
+        auto agg = emit_unsafe(extract->agg());
+        if (agg.empty() || is_mem(extract) || extract->type()->isa<FrameType>())
             return "";
-        bb.body.fmt("{} {} = {}", convert(extract->type()), name, emit(extract->agg()));
+        bb.body.fmt("{} {} = {}", convert(extract->type()), name, agg);
         if (!extract->agg()->isa<MemOp>() && !extract->agg()->isa<Assembly>())
             emit_access(bb.body, extract);
         bb.body.fmt(";\n");
     } else if (auto insert = def->isa<Insert>()) {
-        emit_unsafe(extract->agg());
-        if (is_mem(insert->value()) ||
-            is_type_unit(insert->value()->type()) ||
-            insert->value()->type()->isa<FrameType>())
-            return "";
-        bb.body.fmt("{} {} = {};\n", convert(insert->type()), name, emit(extract->agg()));
+        auto value = emit_unsafe(insert->value());
+        if (value.empty()) return "";
+        bb.body.fmt("{} {} = {};\n", convert(insert->type()), name, emit(insert->agg()));
         bb.body.fmt("{}", name);
         emit_access(bb.body, insert);
-        bb.body.fmt(" = {}\n;", emit(insert->value()));
+        bb.body.fmt(" = {}\n;", value);
     } else if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     return primlit->bool_value() ? "true" : "false";

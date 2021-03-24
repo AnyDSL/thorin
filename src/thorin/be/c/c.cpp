@@ -83,9 +83,10 @@ private:
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
-    bool use_64_ = false;
-    bool use_16_ = false;
+    bool use_fp_64_ = false;
+    bool use_fp_16_ = false;
     bool use_channels_ = false;
+    bool use_align_of_ = false;
     bool debug_;
     int primop_counter = 0;
 
@@ -132,18 +133,18 @@ std::string CCodeGen::convert(const Type* type) {
         s << "void";
     else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     s << "bool";                   break;
-            case PrimType_ps8:  case PrimType_qs8:  s << "char";                   break;
-            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";          break;
-            case PrimType_ps16: case PrimType_qs16: s << "short";                  break;
-            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";         break;
-            case PrimType_ps32: case PrimType_qs32: s << "int";                    break;
-            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";           break;
-            case PrimType_ps64: case PrimType_qs64: s << "long";                   break;
-            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";          break;
-            case PrimType_pf32: case PrimType_qf32: s << "float";                  break;
-            case PrimType_pf16: case PrimType_qf16: s << "half";   use_16_ = true; break;
-            case PrimType_pf64: case PrimType_qf64: s << "double"; use_64_ = true; break;
+            case PrimType_bool:                     s << "bool";                      break;
+            case PrimType_ps8:  case PrimType_qs8:  s << "char";                      break;
+            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";             break;
+            case PrimType_ps16: case PrimType_qs16: s << "short";                     break;
+            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";            break;
+            case PrimType_ps32: case PrimType_qs32: s << "int";                       break;
+            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";              break;
+            case PrimType_ps64: case PrimType_qs64: s << "long";                      break;
+            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";             break;
+            case PrimType_pf32: case PrimType_qf32: s << "float";                     break;
+            case PrimType_pf16: case PrimType_qf16: s << "half";   use_fp_16_ = true; break;
+            case PrimType_pf64: case PrimType_qf64: s << "double"; use_fp_64_ = true; break;
             default: THORIN_UNREACHABLE;
         }
         if (primtype->is_vector())
@@ -238,18 +239,22 @@ void CCodeGen::emit_module() {
     if (lang_ == Lang::OpenCL) {
         if (use_channels_)
             stream_.fmt("#pragma OPENCL EXTENSION cl_intel_channels : enable\n");
-        if (use_16_)
+        if (use_fp_16_)
             stream_.fmt("#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n");
-        if (use_64_)
+        if (use_fp_64_)
             stream_.fmt("#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n");
-        if (use_channels_ || use_16_ || use_64_)
+        if (use_channels_ || use_fp_16_ || use_fp_64_)
             stream_.endl();
     }
 
-    if (lang_ == Lang::C99)
-        stream_.fmt("#include <stdbool.h>\n\n");
+    if (lang_ == Lang::C99) {
+        stream_.fmt("#include <stdbool.h>\n"); // for the 'bool' type
+        if (use_align_of_)
+            stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
+        stream_.fmt("\n");
+    }
 
-    if (lang_ == Lang::CUDA && use_16_) {
+    if (lang_ == Lang::CUDA && use_fp_16_) {
         stream_.fmt("#include <cuda_fp16.h>\n\n");
         stream_.fmt("#if __CUDACC_VER_MAJOR__ > 8\n");
         stream_.fmt("#define half __half_raw\n");
@@ -615,8 +620,6 @@ void CCodeGen::emit_access(Stream& s, const AggOp* agg_op) {
 }
 
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
-    //if (auto continuation = def->isa<Continuation>())
-        //return func_impls_.fmt("goto l{};", continuation->gid());
     auto name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
@@ -716,17 +719,13 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return func_impls_;
 #endif
     } else if (auto align_of = def->isa<AlignOf>()) {
-#if 0
-        func_impls_ << "alignof(";
-        convert(func_impls_, align_of->of()) << ")";
-        return func_impls_;
-#endif
+        if (lang_ == Lang::C99 || lang_ == Lang::OpenCL) {
+            world().wdef(def, "alignof() is only available in C11");
+            use_align_of_ = true;
+        }
+        return "alignof(" + convert(align_of->of()) + ")";
     } else if (auto size_of = def->isa<SizeOf>()) {
-#if 0
-        func_impls_ << "sizeof(";
-        convert(func_impls_, size_of->of()) << ")";
-        return func_impls_;
-#endif
+        return "sizeof(" + convert(size_of->of()) + ")";
     } else if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
 #if 0
         emit_aggop_decl(def->type());
@@ -840,12 +839,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return func_impls_;
 #endif
     } else if (auto bottom = def->isa<Bottom>()) {
-#if 0
-        emit_addr_space(func_impls_, bottom->type());
-        convert(func_impls_, bottom->type()) << " " << def_name << "; // bottom";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+        bb.body.fmt("{} {}; // bottom", convert(bottom->type()), name);
     } else if (auto load = def->isa<Load>()) {
         emit_unsafe(load->mem());
         bb.body.fmt("{} {} = ", convert(load->out_val()->type()), name);

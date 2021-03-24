@@ -412,6 +412,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             // invokes itself like this: `loop(param1 + 1, param1 + 2)`. In this case, the C
             // code generator will emit two assignments to the phis nodes, but the second one
             // depends on the current value of the phi node.
+            // Lookup "lost copy problem" and "swap problem" in literature for SSA destruction for more information.
             func_impls_.fmt("{}   {};\n", convert(param->type()), param->unique_name());
             func_impls_.fmt("{} p_{};\n", convert(param->type()), param->unique_name());
             bb.head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());

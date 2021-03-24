@@ -50,6 +50,7 @@ public:
     void emit_epilogue(Continuation*);
 
     std::string emit_bb(BB&, const Def*);
+    void emit_access(Stream&, const AggOp*);
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
@@ -474,9 +475,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
         assert(callee->num_params() == cont->num_args());
         for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
-            if (is_mem(callee->param(i)) || is_unit(callee->param(i)))
-                continue;
-            bb->tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), emit(cont->arg(i)));
+            if (auto arg = emit_unsafe(cont->arg(i)); !arg.empty())
+                bb->tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
         bb->tail.fmt("goto {};", emit(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
@@ -590,11 +590,33 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     }
 }
 
+void CCodeGen::emit_access(Stream& s, const AggOp* agg_op) {
+    if (agg_op->agg()->type()->isa<ArrayType>()) {
+        s.fmt(".e[{}]", emit(agg_op->index()));
+    } else if (agg_op->agg()->type()->isa<TupleType>()) {
+        s.fmt(".e{}", emit(agg_op->index()));
+    } else if (agg_op->agg()->type()->isa<StructType>()) {
+        s.fmt(".{}", agg_op->agg()->type()->as<StructType>()->op_name(primlit_value<size_t>(agg_op->index())));
+    } else if (agg_op->agg()->type()->isa<VectorType>()) {
+        if (is_primlit(agg_op->index(), 0))
+            s << ".x";
+        else if (is_primlit(agg_op->index(), 1))
+            s << ".y";
+        else if (is_primlit(agg_op->index(), 2))
+            s << ".z";
+        else if (is_primlit(agg_op->index(), 3))
+            s << ".w";
+        else {
+            s.fmt(".s{}", emit(agg_op->index()));
+        }
+    } else {
+        THORIN_UNREACHABLE;
+    }
+}
+
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     //if (auto continuation = def->isa<Continuation>())
         //return func_impls_.fmt("goto l{};", continuation->gid());
-
-    auto t = convert(def->type());
     auto name = var_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
@@ -626,7 +648,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             }
         }
 
-        bb.body.fmt("{} {} = {} {} {};\n", t, name, a, op, b);
+        bb.body.fmt("{} {} = {} {} {};\n", convert(bin->type()), name, a, op, b);
     } else if (auto conv = def->isa<ConvOp>()) {
 #if 0
         emit_aggop_defs(conv->from());
@@ -740,65 +762,24 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         insert(def, def_name);
         return func_impls_;
 #endif
-    } else if (auto aggop = def->isa<AggOp>()) {
-#if 0
-        emit_aggop_defs(aggop->agg());
-
-        auto emit_access = [&] (const Def* def, const Def* index) -> Stream& {
-            if (def->type()->isa<ArrayType>()) {
-                func_impls_ << ".e[";
-                emit(index) << "]";
-            } else if (def->type()->isa<TupleType>()) {
-                func_impls_ << ".e";
-                emit(index);
-            } else if (def->type()->isa<StructType>()) {
-                func_impls_ << "." << def->type()->as<StructType>()->op_name(primlit_value<size_t>(index));
-            } else if (def->type()->isa<VectorType>()) {
-                if (is_primlit(index, 0))
-                    func_impls_ << ".x";
-                else if (is_primlit(index, 1))
-                    func_impls_ << ".y";
-                else if (is_primlit(index, 2))
-                    func_impls_ << ".z";
-                else if (is_primlit(index, 3))
-                    func_impls_ << ".w";
-                else {
-                    func_impls_ << ".s";
-                    emit(index);
-                }
-            } else {
-                THORIN_UNREACHABLE;
-            }
-            return func_impls_;
-        };
-
-        if (auto extract = aggop->isa<Extract>()) {
-            if (is_mem(extract) || extract->type()->isa<FrameType>())
-                return func_impls_;
-            if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
-                convert(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
-                func_impls_ << def_name << " = ";
-                if (auto memop = extract->agg()->isa<MemOp>())
-                    emit(memop) << ";";
-                else {
-                    emit(aggop->agg());
-                    emit_access(aggop->agg(), aggop->index()) << ";";
-                }
-            }
-            insert(def, def_name);
-            return func_impls_;
-        }
-
-        auto ins = def->as<Insert>();
-        convert(func_impls_, aggop->type()) << " " << def_name << ";" << endl;
-        func_impls_ << def_name << " = ";
-        emit(ins->agg()) << ";" << endl;
-        func_impls_ << def_name;
-        emit_access(def, ins->index()) << " = ";
-        emit(ins->value()) << ";";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+    } else if (auto extract = def->isa<Extract>()) {
+        emit_unsafe(extract->agg());
+        if (is_mem(extract) || extract->type()->isa<FrameType>())
+            return "";
+        bb.body.fmt("{} {} = {}", convert(extract->type()), name, emit(extract->agg()));
+        if (!extract->agg()->isa<MemOp>() && !extract->agg()->isa<Assembly>())
+            emit_access(bb.body, extract);
+        bb.body.fmt(";\n");
+    } else if (auto insert = def->isa<Insert>()) {
+        emit_unsafe(extract->agg());
+        if (is_mem(insert->value()) ||
+            is_type_unit(insert->value()->type()) ||
+            insert->value()->type()->isa<FrameType>())
+            return "";
+        bb.body.fmt("{} {} = {};\n", convert(insert->type()), name, emit(extract->agg()));
+        bb.body.fmt("{}", name);
+        emit_access(bb.body, insert);
+        bb.body.fmt(" = {}\n;", emit(insert->value()));
     } else if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     return primlit->bool_value() ? "true" : "false";
@@ -869,34 +850,19 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return func_impls_;
 #endif
     } else if (auto load = def->isa<Load>()) {
-#if 0
-        convert(func_impls_, load->out_val()->type()) << " " << def_name << ";" << endl;
-        func_impls_ << def_name << " = ";
-        // handle texture fetches
+        emit_unsafe(load->mem());
+        bb.body.fmt("{} {} = ", convert(load->out_val()->type()), name);
         if (!is_texture_type(load->ptr()->type()))
-            func_impls_ << "*";
-        emit(load->ptr()) << ";";
-
-        insert(def, def_name);
-        return func_impls_;
-#endif
+            bb.body << "*";
+        bb.body.fmt("{};\n", emit(load->ptr()));
     } else if (auto store = def->isa<Store>()) {
-#if 0
-        emit_aggop_defs(store->val()) << "*";
-        emit(store->ptr()) << " = ";
-        emit(store->val()) << ";";
-
-        insert(def, def_name);
-        return func_impls_;
-#endif
+        emit_unsafe(store->mem());
+        bb.body.fmt("*{} = {};\n", emit(store->ptr()), emit(store->val()));
+        return "";
     } else if (auto slot = def->isa<Slot>()) {
-#if 0
-        convert(func_impls_, slot->alloced_type()) << " " << def_name << "_slot;" << endl;
-        convert(func_impls_, slot->alloced_type()) << "* " << def_name << ";" << endl;
-        func_impls_ << def_name << " = &" << def_name << "_slot;";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+        emit_unsafe(slot->frame());
+        func_impls_.fmt("{} {}_slot;\n", convert(slot->alloced_type()), name);
+        func_impls_.fmt("{}* {} = &{}_slot;\n", convert(slot->alloced_type()), name, name);
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
     } else if (auto lea = def->isa<LEA>()) {
@@ -1038,7 +1004,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         auto cond = emit(select->cond());
         auto tval = emit(select->tval());
         auto fval = emit(select->fval());
-        bb.body.fmt("{} {} = {} ? {} : {};", t, name, cond, tval, fval);
+        bb.body.fmt("{} {} = {} ? {} : {};", convert(select->type()), name, cond, tval, fval);
     } else {
         THORIN_UNREACHABLE;
     }

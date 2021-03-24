@@ -397,10 +397,10 @@ std::string CCodeGen::prepare(const Scope& scope) {
 }
 
 void CCodeGen::prepare(Continuation* cont, const std::string&) {
-    auto&& bb = cont2bb_[cont];
-    bb->head.indent(2);
-    bb->body.indent(2);
-    bb->tail.indent(2);
+    auto& bb = cont2bb_[cont];
+    bb.head.indent(2);
+    bb.body.indent(2);
+    bb.tail.indent(2);
     // The parameters of the entry continuation have already been emitted.
     if (cont != entry_) {
         for (auto param : cont->params()) {
@@ -414,7 +414,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             // depends on the current value of the phi node.
             func_impls_.fmt("{}   {};\n", convert(param->type()), param->unique_name());
             func_impls_.fmt("{} p_{};\n", convert(param->type()), param->unique_name());
-            bb->head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());
+            bb.head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());
             defs_[param] = param->unique_name();
         }
     }
@@ -429,12 +429,12 @@ void CCodeGen::finalize(Continuation* cont) {
     if (cont == entry_)
         func_impls_.fmt("goto {};\b\n", cont->unique_name());
     func_impls_.fmt("{}: \t{{\t\n{}{}{}\b\n}}\b\n",
-        cont->unique_name(), bb->head.str(), bb->body.str(), bb->tail.str());
+        cont->unique_name(), bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    emit_debug_info(bb->tail, cont->arg(0));
+    emit_debug_info(bb.tail, cont->arg(0));
 
     if (cont->callee() == entry_->ret_param()) { // return
         std::vector<std::string> values;
@@ -448,42 +448,42 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
 
         switch (values.size()) {
-            case 0: bb->tail.fmt("return;");               break;
-            case 1: bb->tail.fmt("return {};", values[0]); break;
+            case 0: bb.tail.fmt("return;");               break;
+            case 1: bb.tail.fmt("return {};", values[0]); break;
             default:
                 auto tuple = convert(world().tuple_type(types));
-                bb->tail.fmt("{} ret_val;\n", tuple);
+                bb.tail.fmt("{} ret_val;\n", tuple);
                 for (size_t i = 0, e = types.size(); i != e; ++i)
-                    bb->tail.fmt("ret_val.e{} = {};\n", i, values[i]);
-                bb->tail.fmt("return ret_val;");
+                    bb.tail.fmt("ret_val.e{} = {};\n", i, values[i]);
+                bb.tail.fmt("return ret_val;");
                 break;
         }
     } else if (cont->callee() == world().branch()) {
         auto c = emit(cont->arg(0));
         auto t = emit(cont->arg(1));
         auto f = emit(cont->arg(2));
-        bb->tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
+        bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::Match) {
-        bb->tail.fmt("switch ({}) {{\t\n", emit(cont->arg(0)));
+        bb.tail.fmt("switch ({}) {{\t\n", emit(cont->arg(0)));
 
         for (size_t i = 2; i < cont->num_args(); i++) {
             auto arg = cont->arg(i)->as<Tuple>();
             auto value = emit(arg->op(0));
             auto label = emit(arg->op(1));
-            bb->tail.fmt("case {}: goto {};\n", value, label);
+            bb.tail.fmt("case {}: goto {};\n", value, label);
         }
 
-        bb->tail.fmt("default: goto {};\n", emit(cont->arg(1)));
-        bb->tail.fmt("\b\n}}");
+        bb.tail.fmt("default: goto {};\n", emit(cont->arg(1)));
+        bb.tail.fmt("\b\n}}");
     } else if (cont->callee()->isa<Bottom>()) {
-        bb->tail.fmt("return;  // bottom: unreachable");
+        bb.tail.fmt("return;  // bottom: unreachable");
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
         assert(callee->num_params() == cont->num_args());
         for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
             if (auto arg = emit_unsafe(cont->arg(i)); !arg.empty())
-                bb->tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
+                bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
-        bb->tail.fmt("goto {};", emit(callee));
+        bb.tail.fmt("goto {};", emit(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
 #if 0
         if (callee->intrinsic() == Intrinsic::Reserve) {
@@ -491,20 +491,20 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 world().EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
 
             switch (lang_) {
-                case Lang::CUDA:   bb->tail.fmt("__shared__ "); break;
-                case Lang::OpenCL: bb->tail.fmt("__local ");    break;
+                case Lang::CUDA:   bb.tail.fmt("__shared__ "); break;
+                case Lang::OpenCL: bb.tail.fmt("__local ");    break;
                 default:                                        break;
             }
 
             auto cont = cont->arg(2)->as_cont();
             auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
             auto name = "reserver_" + cont->param(1)->unique_name();
-            convert(bb->tail, elem_type) << " " << name << "[";
+            convert(bb.tail, elem_type) << " " << name << "[";
             emit(cont->arg(1)) << "];" << endl;
             // store_phi:
-            bb->tail << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+            bb.tail << "p" << cont->param(1)->unique_name() << " = " << name << ";";
             if (lang_ == Lang::HLS)
-                bb->tail << endl
+                bb.tail << endl
                             << "#pragma HLS dependence variable=" << name << " inter false" << endl
                             << "#pragma HLS data_pack  variable=" << name;
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
@@ -513,35 +513,35 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             auto body = cont->arg(4)->as_cont();
             if (lang_ == Lang::OpenCL) {
                 if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
-                    bb->tail << "#pragma ii ";
+                    bb.tail << "#pragma ii ";
                     emit(cont->arg(1)) << endl;
                 } else {
-                    bb->tail << "#pragma ii 1"<< endl;
+                    bb.tail << "#pragma ii 1"<< endl;
                 }
             }
-            bb->tail << "for (i" << callee->gid() << " = ";
+            bb.tail << "for (i" << callee->gid() << " = ";
             emit(cont->arg(2));
-            bb->tail << "; i" << callee->gid() << " < ";
+            bb.tail << "; i" << callee->gid() << " < ";
             emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
             if (lang_ == Lang::HLS) {
                 if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
-                    bb->tail << "#pragma HLS PIPELINE II=";
+                    bb.tail << "#pragma HLS PIPELINE II=";
                     emit(cont->arg(1)) << endl;
                 } else {
-                    bb->tail << "#pragma HLS PIPELINE"<< endl;
+                    bb.tail << "#pragma HLS PIPELINE"<< endl;
                 }
             }
             // emit body and "for index" as the "body parameter"
-            bb->tail << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
+            bb.tail << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
             emit(body);
             // emit "continue" with according label used for goto
-            bb->tail << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+            bb.tail << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
             if (cont->arg(5) == ret_param)
-                bb->tail << "return;" << endl;
+                bb.tail << "return;" << endl;
             else
                 emit(cont->arg(5));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
-            bb->tail << "goto l" << callee->gid() << ";" << endl;
+            bb.tail << "goto l" << callee->gid() << ";" << endl;
         } else {
             THORIN_UNREACHABLE;
         }
@@ -561,21 +561,21 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
         if (!types.empty()) {
             auto ret_type = world_.tuple_type(types);
-            bb->tail.fmt("{} ret_val = ", convert(ret_type));
+            bb.tail.fmt("{} ret_val = ", convert(ret_type));
         }
 
         // Call the function
-        bb->tail.fmt("{}(", name);
+        bb.tail.fmt("{}(", name);
         bool needs_comma = false;
         for (size_t i = 0, n = cont->num_args(); i < n; ++i) {
             auto arg = cont->arg(i);
             if (is_mem(arg) || is_unit(arg) || arg->order() > 0)
                 continue;
-            if (needs_comma) bb->tail << ", ";
+            if (needs_comma) bb.tail << ", ";
             emit(arg);
             needs_comma = true;
         }
-        bb->tail.fmt(");\n");
+        bb.tail.fmt(");\n");
 
         // Pass the result to the phi nodes of the return continuation
         if (!types.empty()) {
@@ -584,12 +584,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 if (is_mem(param) || is_unit(param) || param->order() > 0)
                     continue;
                 if (types.size() > 1)
-                    bb->tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
+                    bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
                 else
-                    bb->tail.fmt("p_{} = ret_val;\n", param->unique_name());
+                    bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }
         }
-        bb->tail.fmt("goto {};", ret_cont->unique_name());
+        bb.tail.fmt("goto {};", ret_cont->unique_name());
     } else {
         THORIN_UNREACHABLE;
     }

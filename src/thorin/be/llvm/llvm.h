@@ -76,7 +76,7 @@ protected:
     Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);
 
     virtual std::string get_alloc_name() const = 0;
-    llvm::BasicBlock* cont2bb(Continuation* cont) { return cont2bb_[cont]->first; }
+    llvm::BasicBlock* cont2bb(Continuation* cont) { return cont2bb_[cont].first; }
 
     virtual llvm::Value* emit_global(const Global*);
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);

@@ -69,7 +69,7 @@ public:
     }
 
     const Def* convert(const Def* def, bool as_callee = false) {
-        if (new_defs_.count(def)) def = *new_defs_[def];
+        if (new_defs_.count(def)) def = new_defs_[def];
         if (def->order() <= 1)
             return def;
 
@@ -157,7 +157,7 @@ public:
     // - struct S { fn (X, fn(Y)) } => struct T { closure(fn (X, fn(Y))) }
     // - ...
     const Type* convert(const Type* type) {
-        if (new_types_.count(type)) return *new_types_[type];
+        if (new_types_.count(type)) return new_types_[type];
         if (type->order() <= 1) return type;
         Array<const Type*> ops(type->ops());
 

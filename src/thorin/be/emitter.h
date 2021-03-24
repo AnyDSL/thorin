@@ -12,7 +12,7 @@ private:
     /// Internal wrapper for @p emit that checks and retrieves/puts the @c Value from @p defs_.
     Value emit_(const Def* def) {
         auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
-        auto& bb = *cont2bb_[place];
+        auto& bb = cont2bb_[place];
         return child().emit_bb(bb, def);
     }
 

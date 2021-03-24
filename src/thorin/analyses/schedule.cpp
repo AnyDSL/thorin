@@ -21,11 +21,9 @@ Scheduler::Scheduler(const Scope& s)
 
     auto enqueue = [&](const Def* def, size_t i, const Def* op) {
         if (scope().contains(op)) {
-            auto&& p1 = def2uses_[op]->emplace(i, def);
-            assert_unused(p1.second);
-            auto p2 = done.emplace(op);
-            if (p2.second)
-                queue.push(op);
+            auto [_, ins] = def2uses_[op].emplace(i, def);
+            assert_unused(ins);
+            if (auto [_, ins] = done.emplace(op); ins) queue.push(op);
         }
     };
 

@@ -65,7 +65,7 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
 void NVVMCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
     auto annotation = module().getOrInsertNamedMetadata("nvvm.annotations");
-    auto& irbuilder = *cont2bb_[continuation]->second;
+    auto& irbuilder = *cont2bb_[continuation].second;
 
     const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
         llvm::Metadata* annotation_values[] = {
@@ -134,7 +134,7 @@ void NVVMCodeGen::prepare(Continuation* cont, llvm::Function* fct) {
 
     if (cont != entry_ || !cont->is_exported()) return;
 
-    auto& irbuilder = *cont2bb_[cont]->second;
+    auto& irbuilder = *cont2bb_[cont].second;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun(irbuilder);
     for (auto param : cont->params()) {

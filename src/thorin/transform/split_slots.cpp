@@ -24,7 +24,7 @@ static void split(const Slot* slot) {
     auto elem_slot = [&] (u32 index) {
         if (!new_slots.contains(index))
             new_slots[index] = world.slot(elem_type, slot->frame(), slot->debug());
-        return *new_slots[index];
+        return new_slots[index];
     };
 
     for (auto use : slot->copy_uses()) {

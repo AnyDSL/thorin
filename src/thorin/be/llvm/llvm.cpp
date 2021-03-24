@@ -398,9 +398,8 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
-    auto&& bb_ib = cont2bb_[continuation];
-    auto bb = bb_ib->first;
-    auto& irbuilder = *bb_ib->second;
+    auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
+    auto& irbuilder = *ptr_irbuilder;
 
     if (continuation->callee() == entry_->ret_param()) { // return
         std::vector<llvm::Value*> values;
@@ -918,7 +917,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
 }
 
 void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
-    llvm::cast<llvm::PHINode>(*defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
+    llvm::cast<llvm::PHINode>(defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*

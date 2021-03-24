@@ -50,7 +50,7 @@ public:
     void emit_epilogue(Continuation*);
 
     std::string emit_bb(BB&, const Def*);
-    void emit_access(Stream&, const AggOp*);
+    void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
@@ -158,7 +158,7 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (auto array = type->isa<DefiniteArrayType>()) {
         name = array_name(array);
         auto elem_type = convert(array->elem_type());
-        s.fmt("typedef struct {{\t\n{} e[{}];\b\n}} {};", elem_type, array->dim(), name);
+        s.fmt("typedef struct {{\t\n{} e[{}];\b\n}} {};\n", elem_type, array->dim(), name);
     } else if (auto tuple = type->isa<TupleType>()) {
         name = tuple_name(tuple);
         s.fmt("typedef struct {{\t\n");
@@ -266,8 +266,8 @@ void CCodeGen::emit_module() {
     }
 
     stream_ << type_decls_.str();
-    stream_ << func_decls_.str();
-    stream_ << func_impls_.str();
+    stream_.endl() << func_decls_.str();
+    stream_.endl() << func_impls_.str();
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");
@@ -595,25 +595,23 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     }
 }
 
-void CCodeGen::emit_access(Stream& s, const AggOp* agg_op) {
-    if (agg_op->agg()->type()->isa<ArrayType>()) {
-        s.fmt(".e[{}]", emit(agg_op->index()));
-    } else if (agg_op->agg()->type()->isa<TupleType>()) {
-        s.fmt(".e{}", emit(agg_op->index()));
-    } else if (agg_op->agg()->type()->isa<StructType>()) {
-        s.fmt(".{}", agg_op->agg()->type()->as<StructType>()->op_name(primlit_value<size_t>(agg_op->index())));
-    } else if (agg_op->agg()->type()->isa<VectorType>()) {
-        if (is_primlit(agg_op->index(), 0))
-            s << ".x";
-        else if (is_primlit(agg_op->index(), 1))
-            s << ".y";
-        else if (is_primlit(agg_op->index(), 2))
-            s << ".z";
-        else if (is_primlit(agg_op->index(), 3))
-            s << ".w";
-        else {
-            s.fmt(".s{}", emit(agg_op->index()));
-        }
+void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, const std::string_view& prefix) {
+    if (agg_type->isa<DefiniteArrayType>()) {
+        s.fmt("{}e[{}]", prefix, emit(index));
+    } else if (agg_type->isa<IndefiniteArrayType>()) {
+        s.fmt("[{}]", emit(index));
+    } else if (agg_type->isa<TupleType>()) {
+        s.fmt("{}e{}", prefix, emit(index));
+    } else if (agg_type->isa<StructType>()) {
+        s.fmt("{}{}", prefix, agg_type->as<StructType>()->op_name(primlit_value<size_t>(index)));
+    } else if (agg_type->isa<VectorType>()) {
+        std::ostringstream os;
+        // OpenCL indices must be in hex format
+        if (index->isa<PrimLit>())
+            os << std::hex << primlit_value<size_t>(index);
+        else
+            world().edef(index, "only constants are supported as vector component indices");
+        s.fmt("{}s{}", prefix, os.str());
     } else {
         THORIN_UNREACHABLE;
     }
@@ -761,21 +759,25 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         insert(def, def_name);
         return func_impls_;
 #endif
-    } else if (auto extract = def->isa<Extract>()) {
-        auto agg = emit_unsafe(extract->agg());
-        if (agg.empty() || is_mem(extract) || extract->type()->isa<FrameType>())
-            return "";
-        bb.body.fmt("{} {} = {}", convert(extract->type()), name, agg);
-        if (!extract->agg()->isa<MemOp>() && !extract->agg()->isa<Assembly>())
-            emit_access(bb.body, extract);
-        bb.body.fmt(";\n");
-    } else if (auto insert = def->isa<Insert>()) {
-        auto value = emit_unsafe(insert->value());
-        if (value.empty()) return "";
-        bb.body.fmt("{} {} = {};\n", convert(insert->type()), name, emit(insert->agg()));
-        bb.body.fmt("{}", name);
-        emit_access(bb.body, insert);
-        bb.body.fmt(" = {}\n;", value);
+    } else if (auto agg_op = def->isa<AggOp>()) {
+        if (auto agg = emit_unsafe(agg_op->agg()); !agg.empty()) {
+            emit(agg_op->index());
+            if (auto extract = def->isa<Extract>()) {
+                if (is_mem(extract) || extract->type()->isa<FrameType>())
+                    return "";
+                bb.body.fmt("{} {} = {}", convert(extract->type()), name, agg);
+                if (!extract->agg()->isa<MemOp>() && !extract->agg()->isa<Assembly>())
+                    emit_access(bb.body, extract->agg()->type(), extract->index());
+                bb.body.fmt(";\n");
+            } else if (auto insert = def->isa<Insert>()) {
+                if (auto value = emit_unsafe(insert->value()); !value.empty()) {
+                    bb.body.fmt("{} {} = {};\n", convert(insert->type()), name, agg);
+                    bb.body.fmt("{}", name);
+                    emit_access(bb.body, insert->agg()->type(), insert->index());
+                    bb.body.fmt(" = {}\n;", value);
+                }
+            }
+        }
     } else if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     return primlit->bool_value() ? "true" : "false";
@@ -842,10 +844,11 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         bb.body.fmt("{} {}; // bottom", convert(bottom->type()), name);
     } else if (auto load = def->isa<Load>()) {
         emit_unsafe(load->mem());
+        auto ptr = emit(load->ptr());
         bb.body.fmt("{} {} = ", convert(load->out_val()->type()), name);
         if (!is_texture_type(load->ptr()->type()))
             bb.body << "*";
-        bb.body.fmt("{};\n", emit(load->ptr()));
+        bb.body.fmt("{};\n", ptr);
     } else if (auto store = def->isa<Store>()) {
         emit_unsafe(store->mem());
         bb.body.fmt("*{} = {};\n", emit(store->ptr()), emit(store->val()));
@@ -857,40 +860,13 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
     } else if (auto lea = def->isa<LEA>()) {
-#if 0
-        emit_aggop_defs(lea->ptr());
-        emit_aggop_defs(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
-            convert(func_impls_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
-            func_impls_ << def_name << " = tex1Dfetch(";
-            emit(lea->ptr()) << ", ";
-            emit(lea->index()) << ");";
-        } else if (lea->ptr_pointee()->isa<TupleType>()) {
-            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
-            func_impls_ << def_name << " = &";
-            emit(lea->ptr()) << "->e";
-            emit(lea->index()) << ";";
-        } else if (lea->ptr_pointee()->isa<StructType>()) {
-            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
-            func_impls_ << def_name << " = &";
-            emit(lea->ptr()) << "->";
-            func_impls_ << lea->ptr_pointee()->isa<StructType>()->op_name(primlit_value<size_t>(lea->index())) << ";";
-        } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
-            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
-            func_impls_ << def_name << " = &";
-            emit(lea->ptr()) << "->e[";
-            emit(lea->index()) << "];";
+            bb.body.fmt("{} {} = tex1Dfetch({}, {});\n", convert(lea->ptr_pointee()), name, emit(lea->ptr()), emit(lea->index()));
         } else {
-            emit_addr_space(func_impls_, lea->ptr()->type());
-            convert(func_impls_, lea->type()) << " " << def_name << ";" << endl;
-            func_impls_ << def_name << " = ";
-            emit(lea->ptr()) << " + ";
-            emit(lea->index()) << ";";
+            bb.body.fmt("{} {} = &{}", convert(lea->type()), name, emit(lea->ptr()));
+            emit_access(bb.body, lea->ptr_pointee(), lea->index(), "->");
+            bb.body.fmt(";\n");
         }
-
-        insert(def, def_name);
-        return func_impls_;
-#endif
     } else if (auto assembly = def->isa<Assembly>()) {
 #if 0
         size_t out_size = assembly->type()->num_ops() - 1;

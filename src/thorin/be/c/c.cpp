@@ -1303,13 +1303,8 @@ inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
-std::string CCodeGen::type_name(const Type* /*type*/) {
-#if 0
-    std::stringstream os;
-    convert(stream_, type);
-    return make_identifier(std::string(os.str()));
-#endif
-    return "";
+std::string CCodeGen::type_name(const Type* type) {
+    return make_identifier(convert(type));
 }
 
 std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {

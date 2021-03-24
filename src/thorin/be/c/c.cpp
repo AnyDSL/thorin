@@ -652,71 +652,44 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
 
         bb.body.fmt("{} {} = {} {} {};\n", convert(bin->type()), name, a, op, b);
     } else if (auto conv = def->isa<ConvOp>()) {
-#if 0
-        emit_aggop_defs(conv->from());
-        auto src_type = conv->from()->type();
-        auto dst_type = conv->type();
-        auto src_ptr = src_type->isa<PtrType>();
-        auto dst_ptr = dst_type->isa<PtrType>();
+        auto s_type = conv->from()->type();
+        auto d_type = conv->type();
+        auto s_ptr = s_type->isa<PtrType>();
+        auto d_ptr = d_type->isa<PtrType>();
+        auto src = emit(conv->from());
 
         // string handling: bitcast [n*pu8]* -> [pu8]*
         if (conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
-            if (dst_ptr && dst_ptr->pointee()->isa<IndefiniteArrayType>()) {
-                func_impls_ << "// skipped string bitcast: ";
-                emit(conv->from());
-                insert(def, get_name(conv->from()));
-                return func_impls_;
-            }
+            if (d_ptr && d_ptr->pointee()->isa<IndefiniteArrayType>()) return src;
         }
 
-        emit_addr_space(func_impls_, dst_type);
-        convert(func_impls_, dst_type) << " " << def_name << ";" << endl;
+        auto s_t = convert(s_type);
+        auto d_t = convert(d_type);
 
-        if (src_ptr && dst_ptr && src_ptr->addr_space() == dst_ptr->addr_space()) {
-            func_impls_ << def_name << " = (";
-            emit_addr_space(func_impls_, dst_type);
-            convert(func_impls_, dst_type) << ")";
-            emit(conv->from()) << ";";
-            insert(def, def_name);
-            return func_impls_;
-        }
+        if (s_ptr && d_ptr && s_ptr->addr_space() == d_ptr->addr_space()) {
+            bb.body.fmt("{} {} = ({}) {};\n", d_t, name, d_t, src);
+        } else if (auto cast = conv->isa<Cast>()) {
+            auto s_prim = s_type->as<PrimType>();
+            auto d_prim = d_type->as<PrimType>();
 
-        if (conv->isa<Cast>()) {
-            func_impls_ << def_name << " = ";
-
-            auto from = src_type->as<PrimType>();
-            auto to   = dst_type->as<PrimType>();
-
-            if (lang_ == Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
-                func_impls_ << "(";
-                convert(func_impls_, dst_type) << ") __half2float(";
-                emit(conv->from()) << ");";
-            } else if (lang_ == Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
-                func_impls_ << "__float2half((float)";
-                emit(conv->from()) << ");";
+            if (lang_ == Lang::CUDA && s_prim && (s_prim->primtype_tag() == PrimType_pf16 || s_prim->primtype_tag() == PrimType_qf16)) {
+                bb.body.fmt("{} {} = __half2float({});\n", d_t, name, src);
+            } else if (lang_ == Lang::CUDA && d_prim && (d_prim->primtype_tag() == PrimType_pf16 || d_prim->primtype_tag() == PrimType_qf16)) {
+                bb.body.fmt("{} {} = __float2half({});\n", d_t, name, src);
             } else {
-                func_impls_ << "(";
-                emit_addr_space(func_impls_, dst_type);
-                convert(func_impls_, dst_type) << ")";
-                emit(conv->from()) << ";";
+                bb.body.fmt("{} {} = ({}) {};\n", d_t, name, d_t, src);
             }
+        } else if (auto bitcast = conv->isa<Bitcast>()) {
+            // TODO This kind of type punning is actually undefined behavior.
+            // memcpy is AFAIK the only safe way of doing this.
+            // That being said, it should work nontheless but maybe we can add a option to use memcpy instead.
+            bb.body.fmt("union {{\t\n");
+            bb.body.fmt("{} src\n",   s_t);
+            bb.body.fmt("{} dst\b\n", d_t);
+            bb.body.fmt("}} {};\n", name);
+            bb.body.fmt("{}.src = {};\n", src);
+            bb.body.fmt("{} {} = {}.dst;\n", d_t, name, name);
         }
-
-        if (conv->isa<Bitcast>()) {
-            func_impls_ << "union { ";
-            emit_addr_space(func_impls_, dst_type);
-            convert(func_impls_, dst_type) << " dst; ";
-            emit_addr_space(func_impls_, src_type);
-            convert(func_impls_, src_type) << " src; ";
-            func_impls_ << "} u" << def_name << ";" << endl;
-            func_impls_ << "u" << def_name << ".src = ";
-            emit(conv->from()) << ";" << endl;
-            func_impls_ << def_name << " = u" << def_name << ".dst;";
-        }
-
-        insert(def, def_name);
-        return func_impls_;
-#endif
     } else if (auto align_of = def->isa<AlignOf>()) {
         if (lang_ == Lang::C99 || lang_ == Lang::OpenCL) {
             world().wdef(def, "alignof() is only available in C11");

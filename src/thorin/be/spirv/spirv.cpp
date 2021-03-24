@@ -1,7 +1,8 @@
 #include "thorin/be/spirv/spirv.h"
+
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
-
+#include "thorin/analyses/domtree.h"
 #include "thorin/transform/cleanup_world.h"
 
 #include <iostream>
@@ -173,11 +174,36 @@ SpvType CodeGen::convert(const Type* type) {
     return types_[type] = spv_type;
 }
 
+inline Schedule schedule_structured(const Scope& scope) {
+    // until we have sth better simply use the RPO of the CFG
+    Schedule result;
+    for (auto n : scope.f_cfg().reverse_post_order())
+        result.emplace_back(n->continuation());
+
+    auto schedule = [&](const Continuation* cont) {
+        printf("scheduled: %s\n", cont->unique_name().c_str());
+    };
+
+    auto visit = [&](const Continuation* cont) {
+        if (cont->intrinsic() == Intrinsic::SCFLoopHeader) {
+            // Write continue block FIRST
+            schedule(cont->op(1)->as_continuation());
+            // Then write the header
+            schedule(cont);
+
+            schedule(cont->op(0)->as_continuation());
+        }
+    };
+
+    return result;
+}
+
 void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
 
     FnBuilder fn;
+    fn.scope = &scope;
     fn.file_builder = builder_;
     fn.fn_type = convert(entry_->type()).id;
     fn.fn_ret_type = get_codom_type(entry_);
@@ -229,9 +255,6 @@ void CodeGen::emit(const thorin::Scope& scope) {
         }
     }
 
-    Scheduler new_scheduler(scope);
-    swap(scheduler_, new_scheduler);
-
     for (auto cont : conts) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
         assert(cont == entry_ || cont->is_basicblock());
@@ -282,10 +305,20 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
     }
     else if (continuation->callee() == world().branch()) {
+        auto& domtree = current_fn_->scope->b_cfg().domtree();
+        auto merge_cont = domtree.idom(current_fn_->scope->f_cfg().operator[](continuation))->continuation();
+
+        printf("Merge @%s\n", merge_cont->unique_name().c_str());
+        /*BasicBlockBuilder* merge_bb = &current_fn_->bbs.emplace_back(*current_fn_);
+        auto merge_bb_location = std::find(current_fn_->bbs_to_emit.begin(), current_fn_->bbs_to_emit.end(), merge_cont);
+        current_fn_->bbs_to_emit.emplace(merge_bb_location + 1, merge_bb);
+        builder_->name(merge_bb->label, "merge_" + merge_cont->name());*/
+
         auto cond = emit(continuation->arg(0), bb);
         bb->args[continuation->arg(0)] = cond;
         auto tbb = *current_fn_->labels[continuation->arg(1)->as_continuation()];
         auto fbb = *current_fn_->labels[continuation->arg(2)->as_continuation()];
+        bb->selection_merge(*current_fn_->labels[merge_cont],spv::SelectionControlMaskNone);
         bb->branch_conditional(cond, tbb, fbb);
     } /*else if (continuation->callee()->isa<Continuation>() &&
                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
@@ -307,8 +340,11 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
 
         BasicBlockBuilder* dispatch_bb = &current_fn_->bbs.emplace_back(*current_fn_);
-        current_fn_->bbs_to_emit.emplace_back(dispatch_bb);
-        builder_->name(dispatch_bb->label, "inner_dispatch");
+
+        auto header_bb_location = std::find(current_fn_->bbs_to_emit.begin(), current_fn_->bbs_to_emit.end(), bb);
+
+        current_fn_->bbs_to_emit.emplace(header_bb_location + 1, dispatch_bb);
+        builder_->name(dispatch_bb->label, "dispatch_" + continuation->name());
         bb->branch(dispatch_bb->label);
         int targets = continuation->num_ops() - 2;
         assert(targets > 0);
@@ -330,7 +366,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         dispatch_bb->branch(current_fn_->bbs_map[callee]->label);
 
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopContinue) {
-        auto loop_header =continuation->op(0)->as_continuation();
+        auto loop_header = continuation->op(0)->as_continuation();
         auto header_label = current_fn_->bbs_map[loop_header]->label;
 
         auto arg = continuation->param(0);

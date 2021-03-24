@@ -133,6 +133,7 @@ public:
     const Param* ret_param() const;
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
+    Defs potential_succs() const;
     const Def* arg(size_t i) const { return args()[i]; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }

@@ -162,6 +162,12 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         ref_id(false_target);
     }
 
+    void selection_merge(SpvId merge_bb, spv::SelectionControlMask selection_control) {
+        op(spv::Op::OpSelectionMerge, 3);
+        ref_id(merge_bb);
+        literal_int(selection_control);
+    }
+
     void loop_merge(SpvId merge_bb, SpvId continue_bb, spv::LoopControlMask loop_control, std::vector<uint32_t> loop_control_ops) {
         op(spv::Op::OpLoopMerge, 4 + loop_control_ops.size());
         ref_id(merge_bb);

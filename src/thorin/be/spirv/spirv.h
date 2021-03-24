@@ -4,8 +4,6 @@
 #include "thorin/be/spirv/spirv_builder.hpp"
 #include "thorin/be/backends.h"
 
-#include "thorin/analyses/schedule.h"
-
 namespace thorin::spirv {
 
 using SpvId = builder::SpvId;
@@ -30,6 +28,7 @@ struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {
+    const Scope* scope;
     builder::SpvFileBuilder* file_builder;
     std::vector<BasicBlockBuilder> bbs;
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
@@ -56,7 +55,6 @@ protected:
     builder::SpvFileBuilder* builder_ = nullptr;
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
-    Scheduler scheduler_;
     TypeMap<SpvType> types_;
     DefMap<SpvId> defs_;
 };

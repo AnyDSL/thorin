@@ -15,6 +15,18 @@ const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
 }
 
+Defs Continuation::potential_succs() const {
+    if (intrinsic() == Intrinsic::SCFLoopHeader)
+        return ops().skip_front(2);
+    else if (intrinsic() == Intrinsic::SCFLoopMerge)
+        return ops().skip_front();
+
+    //else if (intrinsic() == Intrinsic::SCFLoopContinue)
+    //return std::vector<const Def*> { op(0) };
+
+    return ops();
+}
+
 Continuation* Continuation::stub() const {
     Rewriter rewriter;
 

@@ -61,6 +61,12 @@ CFA::CFA(const Scope& scope)
 
         while (!queue.empty()) {
             auto def = pop(queue);
+            // Hacky ?
+            if (auto cont = def->isa_continuation()) {
+                for (auto op : cont->potential_succs())
+                    enqueue(op);
+                continue;
+            }
             for (auto op : def->ops())
                 enqueue(op);
         }

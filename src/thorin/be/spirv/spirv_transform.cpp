@@ -381,7 +381,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
                 auto variant_index = index_of_destination(loop.inner_destinations, destination);
 
                 auto old_fn_type = rewire.backedge->type();
-                auto wrapper = world.continuation(old_fn_type, {"synthetic_backedge_wrapper"});
+                auto wrapper = world.continuation(old_fn_type, {"synthetic_backedge_wrapper_to" + destination.cont->unique_name() });
                 wrapper->attributes_.intrinsic = Intrinsic::SCFBackEdge;
 
                 auto header_variant_type = loop.new_header->type()->op(0)->as<VariantType>();
@@ -395,7 +395,7 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
                 auto& nlj = rewire.non_local_jump;
 
                 auto old_fn_type = nlj.final_destination->type();
-                auto wrapper = world.continuation(old_fn_type, {"synthetic_nlj_wrapper"});
+                auto wrapper = world.continuation(old_fn_type, {"synthetic_nlj_wrapper_to" + nlj.final_destination->unique_name() });
                 wrapper->attributes_.intrinsic = Intrinsic::SCFNonLocalJump;
 
                 printf("nlj = %s\n", wrapper->unique_name().c_str());
@@ -479,6 +479,8 @@ void CodeGen::structure_flow() {
                     continue;
                 if (cont->preds().size() <= 1)
                     continue;
+
+                printf("has more than 1 incoming branch: %s\n", cont->unique_name().c_str());
 
                 for (auto pred : cont->preds()) {
                     auto& pred_dominators = post_dom_tree.children(cfa[cont]);

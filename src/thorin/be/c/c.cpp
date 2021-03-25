@@ -481,8 +481,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
         assert(callee->num_params() == cont->num_args());
         for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
-            if (auto arg = emit_unsafe(cont->arg(i)); !arg.empty())
-                bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
+            auto arg = cont->arg(i);
+            if (!is_mem(arg) && !is_unit(arg) && arg->order() == 0)
+                bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), emit(arg));
         }
         bb.tail.fmt("goto {};", emit(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {

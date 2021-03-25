@@ -7,6 +7,10 @@
 
 #include <iostream>
 
+namespace thorin {
+    void dump_dot(thorin::World &world);
+}
+
 namespace thorin::spirv {
 
 CodeGen::CodeGen(thorin::World& world, Cont2Config&, bool debug)
@@ -22,6 +26,7 @@ void CodeGen::emit(std::ostream& out) {
     structure_loops();
     structure_flow();
     // cleanup_world(world());
+    dump_dot(world());
 
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 

@@ -463,6 +463,28 @@ void CodeGen::structure_loops() {
     });
 }
 
+template<typename Fn>
+inline void iterate_ancestors(Continuation* cont, Fn fn) {
+    ContinuationSet done;
+
+    Continuations stack;
+    stack.push_back(cont);
+    while (!stack.empty()) {
+        Continuation* top = stack.back();
+        stack.pop_back();
+        if (done.contains(top)) continue;
+        if (top != cont) fn(top);
+        done.insert(top);
+        for (auto pred : top->preds()) {
+            auto pred_cont = pred->isa_continuation();
+            if (!pred_cont) continue;
+            if (!done.contains(pred_cont)) {
+                stack.push_back(pred_cont);
+            }
+        }
+    }
+}
+
 void CodeGen::structure_flow() {
     Scope::for_each(world(), [&](const Scope& scope) {
         CFA cfa(scope);
@@ -475,19 +497,22 @@ void CodeGen::structure_flow() {
                     printf("xd: %s\n", cont->unique_name().c_str());
                 }*/
 
-                if (cont->intrinsic() >= Intrinsic::SCFBegin && cont->intrinsic() < Intrinsic::SCFEnd)
-                    continue;
+                //if (cont->intrinsic() >= Intrinsic::SCFBegin && cont->intrinsic() < Intrinsic::SCFEnd)
+                //    continue;
                 if (cont->preds().size() <= 1)
                     continue;
 
                 printf("has more than 1 incoming branch: %s\n", cont->unique_name().c_str());
 
-                for (auto pred : cont->preds()) {
+                /*for (auto pred : cont->preds()) {
                     auto& pred_dominators = post_dom_tree.children(cfa[cont]);
                     // TODO insert join nodes when this assert breaks
                     // TODO inspect postdom tree recursively
                     assert(std::find(pred_dominators.begin(), pred_dominators.end(), cfa[pred]) != pred_dominators.end());
-                }
+                }*/
+                iterate_ancestors(cont, [&](Continuation* ancestor) {
+                    printf("  ancestor: %s\n", ancestor->unique_name().c_str());
+                });
             }
         }
     });

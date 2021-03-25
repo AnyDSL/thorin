@@ -556,28 +556,17 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         // Create an object to hold the return type of the call
         std::vector<const Type*> types;
-        for (auto param : ret_cont->params()) {
-            if (is_mem(param) || is_unit(param) || param->order() > 0)
-                continue;
+        std::vector<std::string> args;
+        for (size_t i = 0, e = cont->num_args(); i != e; ++i) {
+            auto param = callee->param(i);
+            if (is_mem(param) || is_unit(param) || param->order() > 0) continue;
+
             types.emplace_back(param->type());
-        }
-        if (!types.empty()) {
-            auto ret_type = world_.tuple_type(types);
-            bb.tail.fmt("{} ret_val = ", convert(ret_type));
+            args.emplace_back(emit(cont->arg(i)));
         }
 
-        // Call the function
-        bb.tail.fmt("{}(", name);
-        bool needs_comma = false;
-        for (size_t i = 0, n = cont->num_args(); i < n; ++i) {
-            auto arg = cont->arg(i);
-            if (is_mem(arg) || is_unit(arg) || arg->order() > 0)
-                continue;
-            if (needs_comma) bb.tail << ", ";
-            emit(arg);
-            needs_comma = true;
-        }
-        bb.tail.fmt(");\n");
+        auto ret_type = world_.tuple_type(types);
+        bb.tail.fmt("{} ret_val = {}({, });\n", convert(ret_type), name, args);
 
         // Pass the result to the phi nodes of the return continuation
         if (!types.empty()) {

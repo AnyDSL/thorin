@@ -105,6 +105,15 @@ static Array<llvm::Type*> flatten (llvm::Type* orig_type) {
                 new_elements.push_back(orig_type->getArrayElementType());
         }
         return Array<llvm::Type*>(new_elements);
+    } else if (orig_type->isPointerTy()) {
+        auto pointee = orig_type->getPointerElementType();
+        auto addrspace = orig_type->getPointerAddressSpace();
+        auto flattened_pointee = flatten(pointee);
+        std::vector<llvm::Type*> new_elements;
+        for (unsigned i = 0; i < flattened_pointee.size(); i++) {
+            new_elements.push_back(llvm::PointerType::get(flattened_pointee[i], addrspace));
+        }
+        return Array<llvm::Type*>(new_elements);
     }
     return Array<llvm::Type*> {orig_type};
 }
@@ -149,7 +158,8 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(align).getValue(), order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -198,7 +208,8 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(align).getValue(), order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
     emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
     return cont;
@@ -572,8 +583,19 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto param = p.first;
             auto phi = p.second;
 
-            for (const auto& peek : param->peek())
+            for (const auto& peek : param->peek()) {
+                assert(peek.from());
+                if (!bb2continuation[peek.from()]) {
+                    //param->dump();
+                    //param->continuation()->dump();
+                    //peek.from()->dump();
+                    //peek.from is unreachable, so we skip it.
+                    //TODO: This is an artifact from the way in which the vectorizer deals with stacked branches.
+                    continue;
+                }
+                assert(bb2continuation[peek.from()]);
                 phi->addIncoming(lookup(peek.def()), bb2continuation[peek.from()]);
+            }
         }
 
         //At the end of a block, we should have reset the current mask.
@@ -1387,18 +1409,38 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto element = vec->element()->as<PtrType>()->pointee();
             auto vector_width = vec->length();
             auto vec_elements = world_.vec_type(element, vector_width);
-
             auto space = emit_alloca(convert(vec_elements), slot->unique_name());
-
             llvm::Constant* args[vector_width];
             for (size_t i = 0; i < vector_width; i++) {
                 args[i] = irbuilder_.getInt32(i);
             }
             auto seq_vector = llvm::ConstantVector::get(llvm::makeArrayRef<llvm::Constant*>(args, vector_width));
             auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
+            if (space->getType()->getPointerElementType()->isStructTy()) {
+                return space;
+                //return irbuilder_.CreatePointerCast(space, convert(slot->type()));
 
-            auto gep = irbuilder_.CreateInBoundsGEP(space, {zero, seq_vector});
-            return gep;
+#if 0
+                llvm::Value* target = llvm::UndefValue::get(convert(slot->type()));
+
+                target->getType()->dump();
+                target->getType()->getPointerElementType()->dump();
+                space->getType()->dump();
+                space->getType()->getPointerElementType()->dump();
+
+                /*auto structType = space->getType()->getPointerElementType();
+                for (unsigned i = 0; i < structType->getStructNumElements(); i++) {
+                    auto splat = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(i));
+                    auto gep = irbuilder_.CreateInBoundsGEP(space, {zero, splat, seq_vector});
+                    gep->getType()->dump();
+                    target = irbuilder_.CreateInsertValue(target, gep, {i});
+                }*/
+
+                return target;
+#endif
+            } else {
+                return irbuilder_.CreateInBoundsGEP(space, {zero, seq_vector});
+            }
         } else
             THORIN_UNREACHABLE;
     }
@@ -1542,6 +1584,11 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
         if (current_mask && value->getType()->isVectorTy()) {
             storeval = irbuilder_.CreateMaskedStore(value, ptr, align, current_mask);
         } else {
+            if (value->getType() != ptr->getType()->getPointerElementType()) {
+                assert(false);
+                ptr = irbuilder_.CreatePointerCast(ptr, llvm::PointerType::get(value->getType(), ptr->getType()->getPointerAddressSpace()));
+            }
+
             auto storeval_align = irbuilder_.CreateStore(value, ptr);
             storeval_align->setAlignment(align);
             storeval = storeval_align;
@@ -1636,6 +1683,12 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_VecType: {
             size_t vector_width = type->as<VectorExtendedType>()->length();
             auto element_type = type->as<VectorExtendedType>()->element();
+            if (auto ptr_type = element_type->isa<PtrType>()) {
+                llvm_type = convert(world().vec_type(ptr_type->pointee(), vector_width));
+                llvm_type->dump();
+                llvm_type = llvm::PointerType::get(llvm_type, convert_addr_space(ptr_type->addr_space()));
+                return types_[type] = llvm_type;
+            }
             llvm_type = convert(element_type);
             if (!llvm::VectorType::isValidElementType(llvm_type)) {
                 auto flatten_type = flatten(llvm_type);
@@ -1646,6 +1699,23 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 }
 
                 llvm_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
+                return types_[type] = llvm_type;
+            }
+            if (llvm_type->isPointerTy() && !llvm::VectorType::isValidElementType(llvm_type->getPointerElementType())) {
+                assert(false);
+                auto flatten_type = flatten(llvm_type);
+                llvm::Type *newelements[flatten_type.size()];
+
+                for (unsigned i = 0; i < flatten_type.size(); i++) {
+                    auto element = flatten_type[i];
+                    assert(element->isPointerTy());
+                    newelements[i] = llvm::FixedVectorType::get(element->getPointerElementType(), vector_width);
+                }
+                llvm_type = llvm::PointerType::get(
+                        llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size())),
+                        llvm_type->getPointerAddressSpace()
+                        );
+
                 return types_[type] = llvm_type;
             }
             break;

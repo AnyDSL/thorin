@@ -15,18 +15,6 @@ const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
 }
 
-Defs Continuation::potential_succs() const {
-    if (intrinsic() == Intrinsic::SCFLoopHeader)
-        return ops().skip_front(2);
-    else if (intrinsic() == Intrinsic::SCFLoopMerge)
-        return ops().skip_front();
-
-    //else if (intrinsic() == Intrinsic::SCFLoopContinue)
-    //return std::vector<const Def*> { op(0) };
-
-    return ops();
-}
-
 Continuation* Continuation::stub() const {
     Rewriter rewriter;
 
@@ -266,9 +254,9 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
 
 void Continuation::structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
     attributes_.intrinsic = Intrinsic::SCFLoopMerge;
-    resize(1 + targets.size());
-    set_op(0, loop_header);
-    size_t x = 1;
+    attributes_.scf_metadata.loop_epilogue.loop_header = loop_header;
+    resize(targets.size());
+    size_t x = 0;
     for (auto target : targets)
         set_op(x++, target);
 }
@@ -281,10 +269,10 @@ void Continuation::structured_loop_continue(const Continuation* loop_header) {
 
 void Continuation::structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets) {
     attributes_.intrinsic = Intrinsic::SCFLoopHeader;
-    resize(2 + targets.size());
-    set_op(0, loop_epilogue);
-    set_op(1, loop_continue);
-    size_t x = 2;
+    resize(targets.size());
+    attributes_.scf_metadata.loop_header.continue_target = loop_continue;
+    attributes_.scf_metadata.loop_header.merge_target = loop_epilogue;
+    size_t x = 0;
     for (auto target : targets)
         set_op(x++, target);
 }

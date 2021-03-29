@@ -473,7 +473,7 @@ inline void iterate_ancestors(Continuation* cont, Fn fn) {
         Continuation* top = stack.back();
         stack.pop_back();
         if (done.contains(top)) continue;
-        if (top != cont) fn(top);
+        if (top != cont && fn(top)) return;
         done.insert(top);
         for (auto pred : top->preds()) {
             auto pred_cont = pred->isa_continuation();
@@ -484,35 +484,121 @@ inline void iterate_ancestors(Continuation* cont, Fn fn) {
         }
     }
 }
+template<bool b, typename Fn>
+inline void visit_children(const DomTreeBase<b>& tree, const CFNode* n, Fn fn, bool is_children = false) {
+    if (is_children)
+        fn(n);
+    for (auto children : tree.children(n)) {
+        visit_children(tree, children, fn, true);
+    }
+}
 
 void CodeGen::structure_flow() {
     Scope::for_each(world(), [&](const Scope& scope) {
         CFA cfa(scope);
+        auto& dom_tree = cfa.f_cfg().domtree();
         auto& post_dom_tree = cfa.b_cfg().domtree();
 
         for (auto def : scope.defs()) {
             if (auto cont = def->isa_continuation()) {
-                auto cfn = cfa[cont];
-                /*if (cont->callee() == world().branch()) {
-                    printf("xd: %s\n", cont->unique_name().c_str());
-                }*/
-
                 //if (cont->intrinsic() >= Intrinsic::SCFBegin && cont->intrinsic() < Intrinsic::SCFEnd)
                 //    continue;
                 if (cont->preds().size() <= 1)
                     continue;
 
-                printf("has more than 1 incoming branch: %s\n", cont->unique_name().c_str());
+                auto dominator = dom_tree.idom(cfa[cont]);
 
-                /*for (auto pred : cont->preds()) {
-                    auto& pred_dominators = post_dom_tree.children(cfa[cont]);
-                    // TODO insert join nodes when this assert breaks
-                    // TODO inspect postdom tree recursively
-                    assert(std::find(pred_dominators.begin(), pred_dominators.end(), cfa[pred]) != pred_dominators.end());
-                }*/
+                printf("has more than 1 incoming branch: %s\n", cont->unique_name().c_str());
+                printf(" dominator: %s\n", dominator->continuation()->unique_name().c_str());
+
+                auto dominator_post_dominator = post_dom_tree.idom(dominator);
+                if (dominator_post_dominator != nullptr)
+                    printf(" dominator post dominator: %s\n", dominator_post_dominator->continuation()->unique_name().c_str());
+                else
+                    printf(" dominator post dominator: NONE lmao\n");
+
+                visit_children(dom_tree, dominator, [&](const CFNode* n) {
+                    printf("  dominator child: %s\n", n->continuation()->unique_name().c_str());
+                });
+
+                bool needs_join = false;
+                Continuation* selection_dominator = nullptr;
                 iterate_ancestors(cont, [&](Continuation* ancestor) {
                     printf("  ancestor: %s\n", ancestor->unique_name().c_str());
+
+                    /*for (auto post_dom : post_dom_tree.children(cfa[ancestor])) {
+                        printf("    post-dominator: %s\n", post_dom->continuation()->unique_name().c_str());
+                    }*/
+                    auto post_dom = cfa[ancestor];
+                    while(true) {
+                        post_dom = post_dom_tree.idom(post_dom);
+                        if (post_dom == nullptr) break;
+                        printf("    post-dominator: %s\n", post_dom->continuation()->unique_name().c_str());
+                    }
+
+                    /*bool ancestor_post_dominated = false;
+                    Continuation* post_dom = ancestor;
+                    while (true) {
+                        auto dom_cfn = post_dom_tree.idom(cfa[post_dom]);
+                        if (dom_cfn == nullptr) break;
+                        post_dom = dom_cfn->continuation();
+                        printf("    post-dominator: %s\n", post_dom->unique_name().c_str());
+                        if (post_dom == cont) {
+                            // Wrong.
+                            ancestor_post_dominated = true;
+                            continue;
+                        }
+                    }
+                    needs_join |= !ancestor_post_dominated;
+                    if (needs_join)
+                        return true;
+
+                    bool dominate_all_preds = true;
+                    for (auto pred : cont->preds()) {
+                        printf("    pred: %s\n", ancestor->unique_name().c_str());
+                        bool dominated = false;
+                        Continuation* dom = pred;
+                        while (true) {
+                            auto dom_cfn = dom_tree.idom(cfa[dom]);
+                            if (dom_cfn == nullptr) break;
+                            dom = dom_cfn->continuation();
+                            printf("        pred dominator: %s\n", dom->unique_name().c_str());
+                            if (dom == ancestor) {
+                                dominated = true;
+                                break;
+                            }
+                        }
+                        dominate_all_preds &= dominated;
+                    }
+                    if (dominate_all_preds) {
+                        selection_dominator = ancestor;
+                        printf("This one dominates all preds: %s!\n", selection_dominator->unique_name().c_str());
+                        return true;
+                    }*/
+
+                    /*
+                    ContinuationSet preds;
+                    for (auto pred : cont->preds())
+                        preds.insert(pred);
+                    Continuation* dom = ancestor;
+                    while (true) {
+                        auto dom_cfn = dom_tree.idom(cfa[dom]);
+                        if (dom_cfn == nullptr) break;
+                        dom = dom_cfn->continuation();
+                        printf("    dominator: %s\n", dom->unique_name().c_str());
+                        if (preds.contains(dom)) {
+                            preds.erase(dom);
+                        }
+                    }
+                    printf("%d\n", preds.size());
+                    if (preds.empty()) {
+                        printf("This one dominates all preds!\n");
+                    }*/
+
+                    return false;
                 });
+
+                assert(!needs_join);
             }
         }
     });

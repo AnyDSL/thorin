@@ -155,16 +155,14 @@ void DotPrinter::dump_continuation(const Continuation* cont) {
 
     file << down << endl << "]";
 
-    int x = 1;
+    int x = 0;
     switch (intrinsic) {
-        case Intrinsic::SCFLoopHeader:
-            dump_def(cont->op(1));
-            file << endl << cont->unique_name() << " -> " << cont->op(1)->unique_name() << " [arrowhead=none];";
-            x = 2;
         case Intrinsic::SCFLoopContinue:
-        case Intrinsic::SCFLoopMerge:
             dump_def(cont->op(0));
-            file << endl << cont->unique_name() << " -> " << cont->op(0)->unique_name() << " [arrowhead=none];";
+            file << endl << cont->unique_name() << " -> " << cont->op(0)->unique_name() << " [arrowhead=normal];";
+            return;
+        case Intrinsic::SCFLoopHeader:
+        case Intrinsic::SCFLoopMerge:
             for (size_t i = x; i < cont->num_ops(); i++) {
                 auto op = cont->op(i);
                 dump_def(op);

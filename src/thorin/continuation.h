@@ -102,10 +102,25 @@ enum class Intrinsic : uint8_t {
  */
 class Continuation : public Def {
 public:
+    /// Stores information about structured control flow that should not be encoded in ops, as ops encode control flow
+    union SCFMetadata {
+        struct {
+            const Continuation* continue_target;
+            const Continuation* merge_target;
+        } loop_header;
+        struct {
+            const Continuation* loop_header;
+        } loop_epilogue;
+        struct {
+            const Continuation* merge_target;
+        } selection_header;
+    };
+
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         Visibility visibility = Visibility::Internal;
         CC cc = CC::C;
+        SCFMetadata scf_metadata = {};
 
         Attributes() = default;
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
@@ -133,7 +148,6 @@ public:
     const Param* ret_param() const;
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
-    Defs potential_succs() const;
     const Def* arg(size_t i) const { return args()[i]; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }

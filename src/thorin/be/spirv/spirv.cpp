@@ -340,8 +340,8 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         irbuilder.CreateUnreachable();
     } */
     else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
-        auto merge_label = current_fn_->bbs_map[continuation->op(0)->as_continuation()]->label;
-        auto continue_label = current_fn_->bbs_map[continuation->op(1)->as_continuation()]->label;
+        auto merge_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.merge_target)]->label;
+        auto continue_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.continue_target)]->label;
         bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
 
         BasicBlockBuilder* dispatch_bb = &current_fn_->bbs.emplace_back(*current_fn_);
@@ -351,11 +351,11 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         current_fn_->bbs_to_emit.emplace(header_bb_location + 1, dispatch_bb);
         builder_->name(dispatch_bb->label, "dispatch_" + continuation->name());
         bb->branch(dispatch_bb->label);
-        int targets = continuation->num_ops() - 2;
+        int targets = continuation->num_ops();
         assert(targets > 0);
 
         assert(targets == 1);
-        auto callee = continuation->op(2)->as_continuation();
+        auto callee = continuation->op(0)->as_continuation();
         // Extract the relevant variant & expand the tuple if necessary
         auto arg = world().variant_extract(continuation->param(0), 0);
         auto extracted = emit(arg, dispatch_bb);
@@ -382,13 +382,13 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
 
         bb->branch(header_label);
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopMerge) {
-        auto header_cont = continuation->op(0)->as_continuation();
+        // auto header_cont = continuation->op(0)->as_continuation();
 
-        int targets = continuation->num_ops() - 1;
+        int targets = continuation->num_ops();
         assert(targets > 0);
 
         assert(targets == 1);
-        auto callee = continuation->op(1)->as_continuation();
+        auto callee = continuation->op(0)->as_continuation();
         // TODO phis
         bb->branch(current_fn_->bbs_map[callee]->label);
     } /*else if (continuation->intrinsic() == Intrinsic::SCFNonLocalJump) {

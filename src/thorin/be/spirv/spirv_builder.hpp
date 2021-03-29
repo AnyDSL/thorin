@@ -135,7 +135,6 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     void store(SpvId value, SpvId pointer) {
         op(spv::Op::OpStore, 3);
-        auto id = generate_fresh_id();
         ref_id(pointer);
         ref_id(value);
     }
@@ -185,6 +184,10 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     void return_value(SpvId value) {
         op(spv::Op::OpReturnValue, 2);
         ref_id(value);
+    }
+
+    void unreachable() {
+        op(spv::Op::OpUnreachable, 1);
     }
 
 private:
@@ -315,8 +318,7 @@ struct SpvFileBuilder {
                 fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
                 fn_defs.ref_id(phi->type);
                 fn_defs.ref_id(phi->value);
-                printf("Phi %d\n", phi->value);
-                assert(phi->preds.size() > 0);
+                assert(!phi->preds.empty());
                 for (auto& [pred_value, pred_label] : phi->preds) {
                     fn_defs.ref_id(pred_value);
                     fn_defs.ref_id(pred_label);

@@ -312,18 +312,23 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
     else if (continuation->callee() == world().branch()) {
         auto& domtree = current_fn_->scope->b_cfg().domtree();
         auto merge_cont = domtree.idom(current_fn_->scope->f_cfg().operator[](continuation))->continuation();
-
-        printf("Merge @%s\n", merge_cont->unique_name().c_str());
-        /*BasicBlockBuilder* merge_bb = &current_fn_->bbs.emplace_back(*current_fn_);
-        auto merge_bb_location = std::find(current_fn_->bbs_to_emit.begin(), current_fn_->bbs_to_emit.end(), merge_cont);
-        current_fn_->bbs_to_emit.emplace(merge_bb_location + 1, merge_bb);
-        builder_->name(merge_bb->label, "merge_" + merge_cont->name());*/
+        SpvId merge_bb;
+        if (merge_cont == current_fn_->scope->exit()) {
+            BasicBlockBuilder* unreachable_merge_bb = &current_fn_->bbs.emplace_back(*current_fn_);
+            current_fn_->bbs_to_emit.emplace_back(unreachable_merge_bb);
+            builder_->name(unreachable_merge_bb->label, "merge_unreachable" + continuation->name());
+            unreachable_merge_bb->unreachable();
+            merge_bb = unreachable_merge_bb->label;
+        } else {
+            // TODO create a dedicated merge bb if this one is the merge blocks for more than 1 selection construct
+            *current_fn_->labels[merge_cont];
+        }
 
         auto cond = emit(continuation->arg(0), bb);
-        bb->args[continuation->arg(0)] = cond;
+        bb->args.emplace(continuation->arg(0), cond);
         auto tbb = *current_fn_->labels[continuation->arg(1)->as_continuation()];
         auto fbb = *current_fn_->labels[continuation->arg(2)->as_continuation()];
-        bb->selection_merge(*current_fn_->labels[merge_cont],spv::SelectionControlMaskNone);
+        bb->selection_merge(merge_bb,spv::SelectionControlMaskNone);
         bb->branch_conditional(cond, tbb, fbb);
     } /*else if (continuation->callee()->isa<Continuation>() &&
                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {

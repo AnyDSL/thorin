@@ -45,6 +45,8 @@ struct StructuredLoop {
     const Head* parent_head;
     const Head* head;
     const std::string name;
+    StructuredLoop(const Head* parent_head, const Head* head, std::string&& name)
+    : parent_head(parent_head), head(head), name(name) {}
 
     std::vector<DispatchTarget> inner_destinations = {};
     std::vector<DispatchTarget> outer_destinations = {};
@@ -71,7 +73,7 @@ struct ScopeContext {
     std::unordered_map<const Head*, StructuredLoop> rewritten_loops;
 };
 
-inline std::string safe_name(const Head* head) {
+inline std::string loop_name(const Head* head) {
     if (head == nullptr || head->is_root()) {
         return "root";
     } else {
@@ -87,27 +89,17 @@ inline std::string safe_name(const Head* head) {
 
 /// Visits the forest and fills def2loop
 inline void tag_continuations(ScopeContext& ctx, const Base* base, const Head* parent) {
-    for (int i = 0; i < base->depth(); i++)
-        printf(" ");
-    if (auto* head = base->isa<Head>()) {
-        printf("loop: header = ");
-    }
-    for (auto& node : base->cf_nodes()) {
-        printf("%s ", node->continuation()->to_string().c_str());
-    }
-    printf("\n");
-
     if (const Head* head = base->isa<Head>()) {
-        auto name = safe_name(head);
+        auto name = loop_name(head);
 
         for (auto& children : head->children()) {
             tag_continuations(ctx, &*children, head);
         }
 
-        StructuredLoop loop{parent, head, name};
+        StructuredLoop loop(parent, head, std::move(name));
         ctx.rewritten_loops.emplace(head, loop);
 
-    } else if(auto* leaf = base->isa<Leaf>()) {
+    } else if(base->isa<Leaf>()) {
         for (auto& node : base->cf_nodes()) {
             auto[i, result] = ctx.def2loop.emplace(node->continuation(), parent);
             assert(result);
@@ -121,7 +113,7 @@ inline int record_destination(std::vector<DispatchTarget>& vec, DispatchTarget d
     auto i = std::find(vec.begin(), vec.end(), dest);
     if (i == vec.end()) {
         vec.emplace_back(dest);
-        return vec.size() - 1;
+        return static_cast<int>(vec.size()) - 1;
     } else return i - vec.begin();
 }
 
@@ -136,7 +128,7 @@ inline std::vector<StructuredLoop*> get_path(ScopeContext& ctx, const Head* head
     std::vector<StructuredLoop*> path = {};
     assert(head != nullptr);
     while (head != nullptr) {
-        auto* loop = &ctx.rewritten_loops[head];
+        StructuredLoop* loop = &ctx.rewritten_loops.find(head)->second;
         assert(loop != nullptr);
         path.emplace(path.begin(), loop);
         head = loop->parent_head;
@@ -158,22 +150,22 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
         for (size_t i = 0; i < cont->num_ops(); i++) {
             auto def = cont->op(i);
             if (auto dest = def->isa_continuation()) {
-                const Head* source_loop = *ctx.def2loop[cont];
+                const Head* source_loop_head = *ctx.def2loop[cont];
 
                 if (dest->intrinsic() == Intrinsic::Branch) {
                     continue;
                 }
 
                 assert(ctx.def2loop.find(dest) != ctx.def2loop.end());
-                const Head* dest_loop = *ctx.def2loop[dest];
+                const Head* dest_loop_head = *ctx.def2loop[dest];
 
-                if (source_loop != dest_loop) {
+                if (source_loop_head != dest_loop_head) {
                     // We found a non-local jump
-                    assert(ctx.rewritten_loops.find(source_loop) != ctx.rewritten_loops.end());
-                    auto& loop = ctx.rewritten_loops[source_loop];
+                    assert(ctx.rewritten_loops.find(source_loop_head) != ctx.rewritten_loops.end());
+                    auto& loop = ctx.rewritten_loops.find(source_loop_head)->second;
 
-                    std::vector<StructuredLoop*> source_path = get_path(ctx, source_loop);
-                    std::vector<StructuredLoop*> dest_path = get_path(ctx, dest_loop);
+                    std::vector<StructuredLoop*> source_path = get_path(ctx, source_loop_head);
+                    std::vector<StructuredLoop*> dest_path = get_path(ctx, dest_loop_head);
                     int bi = 0;
                     while (bi < std::min(source_path.size(), dest_path.size())) {
                         if (source_path[bi] == dest_path[bi])
@@ -207,22 +199,22 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                         }
                     };
 
-                    for (auto loop : leave) {
+                    for (auto dest_loop : leave) {
                         DispatchTarget destination;
-                        destination.exit = loop;
+                        destination.exit = dest_loop;
 
-                        record_step(loop, destination);
+                        record_step(dest_loop, destination);
                         last = 1;
-                        prev = loop;
+                        prev = dest_loop;
                         assert(prev != nullptr);
                     }
-                    for (auto loop : enter) {
+                    for (auto dest_loop : enter) {
                         DispatchTarget destination;
-                        destination.entry = loop;
+                        destination.entry = dest_loop;
 
-                        record_step(loop, destination);
+                        record_step(dest_loop, destination);
                         last = 2;
-                        prev = loop;
+                        prev = dest_loop;
                         assert(prev != nullptr);
                     }
 
@@ -238,22 +230,20 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                         dest
                     };
                     loop.rewire.emplace_back(rewire);
-                    printf("nlj %s %d!\n", loop.name.c_str(), loop.rewire.size());
-                } else if (source_loop == dest_loop && source_loop != nullptr) {
-                    for (auto& head : source_loop->cf_nodes()) {
-                        if (head->continuation() == dest) {
+                } else if (source_loop_head == dest_loop_head && source_loop_head != nullptr) {
+                    for (auto& cf_node : source_loop_head->cf_nodes()) {
+                        if (cf_node->continuation() == dest) {
                             // We found a backedge
-                            assert(ctx.rewritten_loops.find(source_loop) != ctx.rewritten_loops.end());
-                            auto& loop = ctx.rewritten_loops[source_loop];
+                            assert(ctx.rewritten_loops.find(source_loop_head) != ctx.rewritten_loops.end());
+                            auto& loop = ctx.rewritten_loops.find(source_loop_head)->second;
 
                             DispatchTarget destination;
                             destination.cont = dest;
                             record_destination(loop.inner_destinations, destination);
 
                             RewireMe rewire(cont, i);
-                            rewire.backedge = head->continuation();
+                            rewire.backedge = cf_node->continuation();
                             loop.rewire.emplace_back(rewire);
-                            printf("backedge %s %d!\n", loop.name.c_str(), loop.rewire.size());
                             break;
                         }
                     }
@@ -287,7 +277,7 @@ inline void create_headers(World& world, ScopeContext& ctx, const Base* base) {
 
         if (head->num_cf_nodes() == 0)
             return;
-        StructuredLoop& loop = ctx.rewritten_loops[head];
+        StructuredLoop& loop = ctx.rewritten_loops.find(head)->second;
 
         // here, parent headers need to know what they're jumping *into*
         std::vector<const Type*> dest_types;
@@ -316,7 +306,7 @@ inline void create_headers(World& world, ScopeContext& ctx, const Base* base) {
 
 inline void create_epilogues(World& world, ScopeContext& ctx, const Base* base) {
     if (const Head* head = base->isa<Head>()) {
-        StructuredLoop& loop = ctx.rewritten_loops[head];
+        StructuredLoop& loop = ctx.rewritten_loops.find(head)->second;
 
         if (head->num_cf_nodes() > 0) {
             // here, children epilogues need to know what they're jumping *out to*
@@ -354,34 +344,29 @@ inline void create_epilogues(World& world, ScopeContext& ctx, const Base* base) 
 inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
     if (const Head* head = base->isa<Head>()) {
         assert(ctx.rewritten_loops.find(head) != ctx.rewritten_loops.end());
-        auto& loop = ctx.rewritten_loops[head];
+        auto& loop = ctx.rewritten_loops.find(head)->second;
 
         if (head->num_cf_nodes() > 0) {
             loop.new_epilogue->structured_loop_merge(loop.new_header, loop.epilogue_destination_conts);
             loop.new_continue->structured_loop_continue(loop.new_header);
             loop.new_header->structured_loop_header(loop.new_epilogue, loop.new_continue, loop.header_destination_conts);
-            printf("Loop %s!\n", loop.name.c_str());
-            for (auto c : loop.header_destination_conts)
-                printf("  header target: %s!\n", c->unique_name().c_str());
-            for (auto c : loop.epilogue_destination_conts)
-                printf("  epilogue target: %s!\n", c->unique_name().c_str());
         }
 
         for (auto& children : head->children()) {
             rewire_loops(world, ctx, &*children);
         }
 
-        printf("rewires %s %d!\n", loop.name.c_str(), loop.rewire.size());
         for (auto& rewire : loop.rewire) {
-            printf("rewire!\n");
+            assert(loop.head != nullptr);
             if (rewire.backedge != nullptr) {
-                printf("handling BE!\n");
+
                 DispatchTarget destination;
                 destination.cont = rewire.backedge;
                 auto variant_index = index_of_destination(loop.inner_destinations, destination);
 
                 auto old_fn_type = rewire.backedge->type();
                 auto wrapper = world.continuation(old_fn_type, {"synthetic_backedge_wrapper_to" + destination.cont->unique_name() });
+                ctx.def2loop[wrapper] = loop.head;
                 wrapper->attributes_.intrinsic = Intrinsic::SCFBackEdge;
 
                 auto header_variant_type = loop.new_header->type()->op(0)->as<VariantType>();
@@ -390,21 +375,12 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
                 rewire.cont->unset_op(rewire.op);
                 rewire.cont->set_op(rewire.op, wrapper);
             } else {
-                printf("handling NLJ!\n");
-
                 auto& nlj = rewire.non_local_jump;
 
                 auto old_fn_type = nlj.final_destination->type();
                 auto wrapper = world.continuation(old_fn_type, {"synthetic_nlj_wrapper_to" + nlj.final_destination->unique_name() });
+                ctx.def2loop[wrapper] = loop.head;
                 wrapper->attributes_.intrinsic = Intrinsic::SCFNonLocalJump;
-
-                printf("nlj = %s\n", wrapper->unique_name().c_str());
-                printf("src = %s\n", rewire.cont->name().c_str());
-                for (auto exit : nlj.exits)
-                    printf("exit = %s\n", exit->name.c_str());
-                for (auto enter : nlj.enters)
-                    printf("enter = %s\n", enter->name.c_str());
-                printf("dst = %s\n", nlj.final_destination->name().c_str());
 
                 const Def* argument = tuple_from_params(world, wrapper->params());
                 Continuation* first_jump = nullptr;
@@ -447,9 +423,8 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
 }
 
 void CodeGen::structure_loops() {
-    Scope::for_each(world(), [&](const Scope& scope) {
+    Scope::for_each(world(), [&](Scope& scope) {
         ScopeContext context(scope);
-        printf("top: %d\n", scope.has_free_params());
 
         const LoopTree<true>& looptree = context.cfa.f_cfg().looptree();
         tag_continuations(context, looptree.root(), nullptr);
@@ -459,38 +434,8 @@ void CodeGen::structure_loops() {
         create_epilogues(world(), context, looptree.root());
 
         rewire_loops(world(), context, looptree.root());
-        printf("done\n");
+        scope.update();
     });
-}
-
-template<typename Fn>
-inline void iterate_ancestors(Continuation* cont, Fn fn) {
-    ContinuationSet done;
-
-    Continuations stack;
-    stack.push_back(cont);
-    while (!stack.empty()) {
-        Continuation* top = stack.back();
-        stack.pop_back();
-        if (done.contains(top)) continue;
-        if (top != cont && fn(top)) return;
-        done.insert(top);
-        for (auto pred : top->preds()) {
-            auto pred_cont = pred->isa_continuation();
-            if (!pred_cont) continue;
-            if (!done.contains(pred_cont)) {
-                stack.push_back(pred_cont);
-            }
-        }
-    }
-}
-template<bool b, typename Fn>
-inline void visit_children(const DomTreeBase<b>& tree, const CFNode* n, Fn fn, bool is_children = false) {
-    if (is_children)
-        fn(n);
-    for (auto children : tree.children(n)) {
-        visit_children(tree, children, fn, true);
-    }
 }
 
 void CodeGen::structure_flow() {
@@ -501,104 +446,16 @@ void CodeGen::structure_flow() {
 
         for (auto def : scope.defs()) {
             if (auto cont = def->isa_continuation()) {
-                //if (cont->intrinsic() >= Intrinsic::SCFBegin && cont->intrinsic() < Intrinsic::SCFEnd)
-                //    continue;
                 if (cont->preds().size() <= 1)
                     continue;
 
                 auto dominator = dom_tree.idom(cfa[cont]);
-
-                printf("has more than 1 incoming branch: %s\n", cont->unique_name().c_str());
-                printf(" dominator: %s\n", dominator->continuation()->unique_name().c_str());
-
                 auto dominator_post_dominator = post_dom_tree.idom(dominator);
-                if (dominator_post_dominator != nullptr)
-                    printf(" dominator post dominator: %s\n", dominator_post_dominator->continuation()->unique_name().c_str());
-                else
-                    printf(" dominator post dominator: NONE lmao\n");
-
-                visit_children(dom_tree, dominator, [&](const CFNode* n) {
-                    printf("  dominator child: %s\n", n->continuation()->unique_name().c_str());
-                });
-
-                bool needs_join = false;
-                Continuation* selection_dominator = nullptr;
-                iterate_ancestors(cont, [&](Continuation* ancestor) {
-                    printf("  ancestor: %s\n", ancestor->unique_name().c_str());
-
-                    /*for (auto post_dom : post_dom_tree.children(cfa[ancestor])) {
-                        printf("    post-dominator: %s\n", post_dom->continuation()->unique_name().c_str());
-                    }*/
-                    auto post_dom = cfa[ancestor];
-                    while(true) {
-                        post_dom = post_dom_tree.idom(post_dom);
-                        if (post_dom == nullptr) break;
-                        printf("    post-dominator: %s\n", post_dom->continuation()->unique_name().c_str());
-                    }
-
-                    /*bool ancestor_post_dominated = false;
-                    Continuation* post_dom = ancestor;
-                    while (true) {
-                        auto dom_cfn = post_dom_tree.idom(cfa[post_dom]);
-                        if (dom_cfn == nullptr) break;
-                        post_dom = dom_cfn->continuation();
-                        printf("    post-dominator: %s\n", post_dom->unique_name().c_str());
-                        if (post_dom == cont) {
-                            // Wrong.
-                            ancestor_post_dominated = true;
-                            continue;
-                        }
-                    }
-                    needs_join |= !ancestor_post_dominated;
-                    if (needs_join)
-                        return true;
-
-                    bool dominate_all_preds = true;
-                    for (auto pred : cont->preds()) {
-                        printf("    pred: %s\n", ancestor->unique_name().c_str());
-                        bool dominated = false;
-                        Continuation* dom = pred;
-                        while (true) {
-                            auto dom_cfn = dom_tree.idom(cfa[dom]);
-                            if (dom_cfn == nullptr) break;
-                            dom = dom_cfn->continuation();
-                            printf("        pred dominator: %s\n", dom->unique_name().c_str());
-                            if (dom == ancestor) {
-                                dominated = true;
-                                break;
-                            }
-                        }
-                        dominate_all_preds &= dominated;
-                    }
-                    if (dominate_all_preds) {
-                        selection_dominator = ancestor;
-                        printf("This one dominates all preds: %s!\n", selection_dominator->unique_name().c_str());
-                        return true;
-                    }*/
-
-                    /*
-                    ContinuationSet preds;
-                    for (auto pred : cont->preds())
-                        preds.insert(pred);
-                    Continuation* dom = ancestor;
-                    while (true) {
-                        auto dom_cfn = dom_tree.idom(cfa[dom]);
-                        if (dom_cfn == nullptr) break;
-                        dom = dom_cfn->continuation();
-                        printf("    dominator: %s\n", dom->unique_name().c_str());
-                        if (preds.contains(dom)) {
-                            preds.erase(dom);
-                        }
-                    }
-                    printf("%d\n", preds.size());
-                    if (preds.empty()) {
-                        printf("This one dominates all preds!\n");
-                    }*/
-
-                    return false;
-                });
-
-                assert(!needs_join);
+                bool needs_join = dominator_post_dominator->continuation() != cont;
+                if (needs_join) {
+                    assert(false && "Not structured CF !");
+                    // TODO: insert join node into dominator and redirect dominated nodes to take it
+                }
             }
         }
     });

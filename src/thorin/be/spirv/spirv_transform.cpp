@@ -136,10 +136,10 @@ inline std::vector<StructuredLoop*> get_path(ScopeContext& ctx, const Head* head
     return path;
 }
 
-inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base* base, const Head* parent) {
+inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base* base) {
     if (const Head* head = base->isa<Head>()) {
         for (auto& children : head->children()) {
-            collect_dispatch_targets(world, ctx, &*children, head);
+            collect_dispatch_targets(world, ctx, &*children);
         }
     } else {
         const Leaf* leaf = base->as<Leaf>();
@@ -167,7 +167,7 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                     std::vector<StructuredLoop*> source_path = get_path(ctx, source_loop_head);
                     std::vector<StructuredLoop*> dest_path = get_path(ctx, dest_loop_head);
                     int bi = 0;
-                    while (bi < std::min(source_path.size(), dest_path.size())) {
+                    while (bi < static_cast<int>(std::min(source_path.size(), dest_path.size()))) {
                         if (source_path[bi] == dest_path[bi])
                             bi++;
                         else break;
@@ -177,9 +177,9 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                     // these two sequences cannot be both empty (that wouldn't be a non-local jump then!)
                     std::vector<StructuredLoop*> leave;
                     std::vector<StructuredLoop*> enter;
-                    for (int j = source_path.size() - 1; j >= bi; j--)
+                    for (int j = static_cast<int>(source_path.size()) - 1; j >= bi; j--)
                         leave.emplace_back(source_path[j]);
-                    for (int j = bi; j < dest_path.size(); j++)
+                    for (int j = bi; j < static_cast<int>(dest_path.size()); j++)
                         enter.emplace_back(dest_path[j]);
 
                     // 0 = this is the first step of the path
@@ -188,7 +188,7 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                     int last = 0;
                     StructuredLoop* prev;
 
-                    auto record_step = [&](StructuredLoop* loop, DispatchTarget destination) {
+                    auto record_step = [&](DispatchTarget destination) {
                         if (last == 0) {
                             // nothing to do, this node isn't a dispatching one
                         } else {
@@ -203,7 +203,7 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                         DispatchTarget destination;
                         destination.exit = dest_loop;
 
-                        record_step(dest_loop, destination);
+                        record_step(destination);
                         last = 1;
                         prev = dest_loop;
                         assert(prev != nullptr);
@@ -212,7 +212,7 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                         DispatchTarget destination;
                         destination.entry = dest_loop;
 
-                        record_step(dest_loop, destination);
+                        record_step(destination);
                         last = 2;
                         prev = dest_loop;
                         assert(prev != nullptr);
@@ -221,7 +221,7 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
                     assert(last != 0);
                     DispatchTarget destination;
                     destination.cont = dest;
-                    record_step(prev, destination);
+                    record_step(destination);
 
                     RewireMe rewire(cont, i);
                     rewire.non_local_jump = {
@@ -428,7 +428,7 @@ void CodeGen::structure_loops() {
 
         const LoopTree<true>& looptree = context.cfa.f_cfg().looptree();
         tag_continuations(context, looptree.root(), nullptr);
-        collect_dispatch_targets(world(), context, looptree.root(), nullptr);
+        collect_dispatch_targets(world(), context, looptree.root());
 
         create_headers(world(), context, looptree.root());
         create_epilogues(world(), context, looptree.root());

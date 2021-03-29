@@ -68,8 +68,9 @@ SpvType CodeGen::convert(const Type* type) {
         }
         case Node_IndefiniteArrayType: {
             assert(false && "TODO");
-            auto array = type->as<IndefiniteArrayType>();
-            //return types_[type] = spv_type;
+            // auto array = type->as<IndefiniteArrayType>();
+            // return types_[type] = spv_type;
+            THORIN_UNREACHABLE;
         }
         case Node_DefiniteArrayType: {
             auto array = type->as<DefiniteArrayType>();
@@ -110,7 +111,7 @@ SpvType CodeGen::convert(const Type* type) {
             }
 
             assert(false && "TODO: handle closure mess");
-            break;
+            THORIN_UNREACHABLE;
         }
 
         case Node_StructType: {
@@ -179,30 +180,6 @@ SpvType CodeGen::convert(const Type* type) {
     return types_[type] = spv_type;
 }
 
-inline Schedule schedule_structured(const Scope& scope) {
-    // until we have sth better simply use the RPO of the CFG
-    Schedule result;
-    for (auto n : scope.f_cfg().reverse_post_order())
-        result.emplace_back(n->continuation());
-
-    auto schedule = [&](const Continuation* cont) {
-        printf("scheduled: %s\n", cont->unique_name().c_str());
-    };
-
-    auto visit = [&](const Continuation* cont) {
-        if (cont->intrinsic() == Intrinsic::SCFLoopHeader) {
-            // Write continue block FIRST
-            schedule(cont->op(1)->as_continuation());
-            // Then write the header
-            schedule(cont);
-
-            schedule(cont->op(0)->as_continuation());
-        }
-    };
-
-    return result;
-}
-
 void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
@@ -224,7 +201,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     for (auto cont : conts) {
         if (cont->intrinsic() == Intrinsic::EndScope) continue;
 
-        BasicBlockBuilder* bb = &bbs.emplace_back(fn);
+        BasicBlockBuilder* bb = bbs.emplace_back(std::make_unique<BasicBlockBuilder>(fn)).get();
         fn.bbs_to_emit.emplace_back(bb);
         auto [i, b] = fn.bbs_map.emplace(cont, bb);
         assert(b);
@@ -267,8 +244,8 @@ void CodeGen::emit(const thorin::Scope& scope) {
     }
 
     for(auto& bb : fn.bbs) {
-        for (auto& [param, phi] : bb.phis_map) {
-            bb.phis.emplace_back(&phi);
+        for (auto& [param, phi] : bb->phis_map) {
+            bb->phis.emplace_back(&phi);
         }
     }
     
@@ -314,7 +291,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto merge_cont = domtree.idom(current_fn_->scope->f_cfg().operator[](continuation))->continuation();
         SpvId merge_bb;
         if (merge_cont == current_fn_->scope->exit()) {
-            BasicBlockBuilder* unreachable_merge_bb = &current_fn_->bbs.emplace_back(*current_fn_);
+            BasicBlockBuilder* unreachable_merge_bb = current_fn_->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*current_fn_)).get();
             current_fn_->bbs_to_emit.emplace_back(unreachable_merge_bb);
             builder_->name(unreachable_merge_bb->label, "merge_unreachable" + continuation->name());
             unreachable_merge_bb->unreachable();
@@ -349,7 +326,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto continue_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.continue_target)]->label;
         bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
 
-        BasicBlockBuilder* dispatch_bb = &current_fn_->bbs.emplace_back(*current_fn_);
+        BasicBlockBuilder* dispatch_bb = current_fn_->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*current_fn_)).get();
 
         auto header_bb_location = std::find(current_fn_->bbs_to_emit.begin(), current_fn_->bbs_to_emit.end(), bb);
 
@@ -396,14 +373,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto callee = continuation->op(0)->as_continuation();
         // TODO phis
         bb->branch(current_fn_->bbs_map[callee]->label);
-    } /*else if (continuation->intrinsic() == Intrinsic::SCFNonLocalJump) {
-        auto header_cont = continuation->op(0)->as_continuation();
-        // TODO setup arguments & stuff
-        bb->branch(current_fn_->bbs_map[continuation->op(0)->as_continuation()]->label);
-    } else if (continuation->intrinsic() == Intrinsic::SCFBackEdge) {
-        // TODO setup arguments & stuff
-        bb->branch(current_fn_->bbs_map[continuation->op(0)->as_continuation()]->label);
-    } */ else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
         int index = -1;
         for (auto& arg : continuation->args()) {
             index++;
@@ -626,7 +596,6 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
     } else if (auto variant = def->isa<Variant>()) {
         auto struct_type = def->type()->as<VariantType>();
-        auto type = convert(struct_type);
         std::vector<SpvId> elements;
         elements.resize(struct_type->num_ops());
         size_t x = 0;

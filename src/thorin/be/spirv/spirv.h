@@ -15,7 +15,7 @@ struct SpvType {
     // TODO: Alignment rules are complicated and client API dependant
     size_t alignment = 0;
 
-    SpvId payload_id;
+    SpvId payload_id = { 0 };
 };
 
 struct FnBuilder;
@@ -30,7 +30,7 @@ struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
 struct FnBuilder : public builder::SpvFnBuilder {
     const Scope* scope;
     builder::SpvFileBuilder* file_builder;
-    std::vector<BasicBlockBuilder> bbs;
+    std::vector<std::unique_ptr<BasicBlockBuilder>> bbs;
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
     ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;

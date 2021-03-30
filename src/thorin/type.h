@@ -394,9 +394,7 @@ public:
         swap(t1.fn0_,   t2.fn0_);
         swap(t1.mem_,   t2.mem_);
         swap(t1.frame_, t2.frame_);
-#define THORIN_ALL_TYPE(T, M) \
-        swap(t1.T##_,   t2.T##_);
-#include "thorin/tables/primtypetable.h"
+        std::swap_ranges(t1.primtypes_, t1.primtypes_ + Num_PrimTypes, t2.primtypes_);
 
         t1.fix();
         t2.fix();
@@ -418,14 +416,7 @@ private:
     const FnType* fn0_;
     const MemType* mem_;
     const FrameType* frame_;
-    union {
-        struct {
-#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
-#include "thorin/tables/primtypetable.h"
-        };
-
-        const PrimType* primtypes_[Num_PrimTypes];
-    };
+    const PrimType* primtypes_[Num_PrimTypes];
 };
 
 //------------------------------------------------------------------------------

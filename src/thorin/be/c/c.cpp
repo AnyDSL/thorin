@@ -704,21 +704,11 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto size_of = def->isa<SizeOf>()) {
         return "sizeof(" + convert(size_of->of()) + ")";
     } else if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
-#if 0
-        emit_aggop_decl(def->type());
-        // emit definitions of inlined elements
         for (auto op : array->ops())
-            emit_aggop_defs(op);
-
-        convert(func_impls_, array->type()) << " " << def_name << ";" << endl << "{" << up << endl;
-        convert(func_impls_, array->type()) << " " << def_name << "_tmp = { { ";
-        for (size_t i = 0, e = array->num_ops(); i != e; ++i)
-            emit(array->op(i)) << ", ";
-        func_impls_ << "} };" << endl;
-        func_impls_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+            emit(op);
+        bb.body.fmt("{} {} = {{ {{\t\n", convert(array->type()), name);
+        bb.body.range(array->ops(), ", ", [&] (const Def* op) { bb.body.fmt("{}", emit(op)); });
+        bb.body.fmt("\b\n }} }};\n");
     } else if (auto agg = def->isa<Aggregate>()) {
         for (auto op : agg->ops())
             emit(op);

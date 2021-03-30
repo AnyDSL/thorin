@@ -720,24 +720,11 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return func_impls_;
 #endif
     } else if (auto agg = def->isa<Aggregate>()) {
-#if 0
-        emit_aggop_decl(def->type());
-        assert(def->isa<Tuple>() || def->isa<StructAgg>());
-        // emit definitions of inlined elements
         for (auto op : agg->ops())
-            emit_aggop_defs(op);
-
-        convert(func_impls_, agg->type()) << " " << def_name << ";" << endl << "{" << up<< endl;
-        convert(func_impls_, agg->type()) << " " << def_name << "_tmp = { " << up;
-        for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            func_impls_ << endl;
-            emit(agg->op(i)) << ",";
-        }
-        func_impls_ << down << endl << "};" << endl;
-        func_impls_ << def_name << " = " << def_name << "_tmp;" << down << endl << "}";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+            emit(op);
+        bb.body.fmt("{} {} = {{\t\n", convert(agg->type()), name);
+        bb.body.rangei(agg->ops(), ",\n", [&] (size_t i) { bb.body.fmt("{}", emit(agg->op(i))); });
+        bb.body.fmt("\b\n}};\n");
     } else if (auto agg_op = def->isa<AggOp>()) {
         if (auto agg = emit_unsafe(agg_op->agg()); !agg.empty()) {
             emit(agg_op->index());

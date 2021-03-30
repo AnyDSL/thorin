@@ -1292,6 +1292,8 @@ inline std::string make_identifier(const std::string& str) {
 }
 
 std::string CCodeGen::type_name(const Type* type) {
+    if (type->is_nominal())
+        return type->as<NominalType>()->name().str();
     return make_identifier(convert(type));
 }
 

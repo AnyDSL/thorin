@@ -552,24 +552,32 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
 #endif
     } else if (auto callee = cont->callee()->isa_continuation()) { // function/closure call
-        auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
         auto ret_cont = (*std::find_if(cont->args().begin(), cont->args().end(), [] (const Def* arg) {
             return arg->isa_continuation();
         }))->as_continuation();
 
         // Create an object to hold the return type of the call
         std::vector<const Type*> types;
-        std::vector<std::string> args;
-        for (size_t i = 0, e = cont->num_args(); i != e; ++i) {
-            auto param = callee->param(i);
-            if (is_mem(param) || is_unit(param) || param->order() > 0) continue;
-
-            types.emplace_back(param->type());
-            args.emplace_back(emit(cont->arg(i)));
+        for (auto ret_param : ret_cont->params()) {
+            if (is_mem(ret_param) || is_unit(ret_param) || ret_param->order() > 0)
+                continue;
+            types.push_back(ret_param->type());
         }
 
-        auto ret_type = world_.tuple_type(types);
-        bb.tail.fmt("{} ret_val = {}({, });\n", convert(ret_type), name, args);
+        std::vector<std::string> args;
+        for (auto arg : cont->args()) {
+            if (arg == ret_cont) continue;
+            if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
+                args.emplace_back(emitted_arg);
+        }
+
+        // Do not store the result of `void` calls
+        if (!types.empty()) {
+            auto ret_type = world_.tuple_type(types);
+            bb.tail.fmt("{} ret_val = ", convert(ret_type));
+        }
+
+        bb.tail.fmt("{}({, });\n", emit(callee), args);
 
         // Pass the result to the phi nodes of the return continuation
         if (!types.empty()) {
@@ -953,6 +961,24 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
 }
 
 std::string CCodeGen::emit_fun_decl(Continuation* cont) {
+    if (cont->is_exported() || cont->is_imported()) {
+        // Create a prototype for functions that are imported or exported
+        std::vector<std::string> args;
+        for (auto param : cont->params()) {
+            if (is_mem(param) || is_unit(param) || param->order() > 0)
+                continue;
+            args.push_back(convert(param->type()));
+        }
+        auto ret_type = cont->ret_param()->type()->as<FnType>();
+        std::vector<const Type*> ret_types;
+        for (auto op : ret_type->ops()) {
+            if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0)
+                continue;
+            ret_types.push_back(op);
+        }
+        func_impls_.fmt("{} {}({, });\n", convert(world().tuple_type(ret_types)), cont->name(), args);
+        return cont->name();
+    }
     return cont->unique_name();
 }
 

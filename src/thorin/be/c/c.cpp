@@ -87,6 +87,7 @@ private:
     bool use_fp_16_ = false;
     bool use_channels_ = false;
     bool use_align_of_ = false;
+    bool use_memcpy_ = false;
     bool debug_;
     int primop_counter = 0;
 
@@ -251,6 +252,8 @@ void CCodeGen::emit_module() {
         stream_.fmt("#include <stdbool.h>\n"); // for the 'bool' type
         if (use_align_of_)
             stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
+        if (use_memcpy_)
+            stream_.fmt("#include <string.h>\n"); // for 'memcpy'
         stream_.fmt("\n");
     }
 
@@ -670,15 +673,19 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
                 bb.body.fmt("{} {} = ({}) {};\n", d_t, name, d_t, src);
             }
         } else if (auto bitcast = conv->isa<Bitcast>()) {
-            // TODO This kind of type punning is actually undefined behavior.
-            // memcpy is AFAIK the only safe way of doing this.
-            // That being said, it should work nontheless but maybe we can add an option to use memcpy instead.
-            bb.body.fmt("union {{\t\n");
-            bb.body.fmt("{} src;\n",   s_t);
-            bb.body.fmt("{} dst;\b\n", d_t);
-            bb.body.fmt("}} {}_u;\n", name);
-            bb.body.fmt("{}_u.src = {};\n", name, src);
-            bb.body.fmt("{} {} = {}_u.dst;\n", d_t, name, name);
+            if (lang_ == Lang::OpenCL) {
+                // OpenCL explicitly supports type punning via unions (6.4.4.1)
+                bb.body.fmt("union {{\t\n");
+                bb.body.fmt("{} src;\n",   s_t);
+                bb.body.fmt("{} dst;\b\n", d_t);
+                bb.body.fmt("}} {}_u;\n", name);
+                bb.body.fmt("{}_u.src = {};\n", name, src);
+                bb.body.fmt("{} {} = {}_u.dst;\n", d_t, name, name);
+            } else {
+                bb.body.fmt("{} {};\n", d_t, name);
+                bb.body.fmt("memcpy(&{}, &{}, sizeof({}));\n", name, src, name);
+                use_memcpy_ = true;
+            }
         }
     } else if (auto align_of = def->isa<AlignOf>()) {
         if (lang_ == Lang::C99 || lang_ == Lang::OpenCL) {

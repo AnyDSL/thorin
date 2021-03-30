@@ -177,7 +177,7 @@ std::string CCodeGen::convert(const Type* type) {
         // This is required because we have zero-sized types but C/C++ do not
         if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
             s.fmt("union {{\t\n");
-            s.rangei(variant->ops(), "\n", [&](size_t i) {
+            s.rangei(variant->ops(), "\n", [&] (size_t i) {
                 if (!is_type_unit(variant->op(i)))
                     s.fmt("{} {};", convert(variant->op(i)), variant->op_name(i));
             });
@@ -713,7 +713,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         for (auto op : agg->ops())
             emit(op);
         bb.body.fmt("{} {} = {{\t\n", convert(agg->type()), name);
-        bb.body.rangei(agg->ops(), ",\n", [&] (size_t i) { bb.body.fmt("{}", emit(agg->op(i))); });
+        bb.body.range(agg->ops(), ",\n", [&] (const Def* op) { bb.body.fmt("{}", emit(op)); });
         bb.body.fmt("\b\n}};\n");
     } else if (auto agg_op = def->isa<AggOp>()) {
         if (auto agg = emit_unsafe(agg_op->agg()); !agg.empty()) {

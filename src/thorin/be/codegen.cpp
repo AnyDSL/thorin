@@ -6,6 +6,9 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
 #endif
+#if THORIN_ENABLE_SPIRV
+#include "thorin/be/spirv/spirv.h"
+#endif
 #include "thorin/be/c/c.h"
 
 namespace thorin {
@@ -87,7 +90,8 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
             std::pair { NVVM,   Intrinsic::NVVM   },
             std::pair { OpenCL, Intrinsic::OpenCL },
             std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    }
+            std::pair { HLS,    Intrinsic::HLS    },
+            std::pair { SpirV,  Intrinsic::SpirV  }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -109,7 +113,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
+    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, SpirV }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 // determine whether or not this kernel uses restrict pointers
@@ -178,6 +182,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
     (void)opt;
+#endif
+#if THORIN_ENABLE_SPIRV
+    if (!importers_[SpirV].world().empty()) cgs[SpirV] = std::make_unique<spirv::CodeGen>(importers_[SpirV].world(), kernel_config, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);

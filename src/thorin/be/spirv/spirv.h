@@ -2,7 +2,7 @@
 #define THORIN_SPIRV_H
 
 #include "thorin/be/spirv/spirv_builder.hpp"
-#include "thorin/be/backends.h"
+#include "thorin/be/codegen.h"
 
 namespace thorin::spirv {
 
@@ -40,7 +40,8 @@ class CodeGen : public thorin::CodeGen {
 public:
     CodeGen(World&, Cont2Config&, bool debug);
 
-    void emit(std::ostream& stream) override;
+    void emit_stream(std::ostream& stream) override;
+    const char* file_ext() const override { return ".spv"; }
 protected:
     void structure_loops();
     void structure_flow();

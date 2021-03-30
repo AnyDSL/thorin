@@ -17,7 +17,7 @@ CodeGen::CodeGen(thorin::World& world, Cont2Config&, bool debug)
     : thorin::CodeGen(world, debug)
 {}
 
-void CodeGen::emit(std::ostream& out) {
+void CodeGen::emit_stream(std::ostream& out) {
     builder::SpvFileBuilder builder;
     builder_ = &builder;
     builder_->capability(spv::Capability::CapabilityShader);
@@ -298,13 +298,13 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             merge_bb = unreachable_merge_bb->label;
         } else {
             // TODO create a dedicated merge bb if this one is the merge blocks for more than 1 selection construct
-            *current_fn_->labels[merge_cont];
+            merge_bb = current_fn_->labels[merge_cont];
         }
 
         auto cond = emit(continuation->arg(0), bb);
         bb->args.emplace(continuation->arg(0), cond);
-        auto tbb = *current_fn_->labels[continuation->arg(1)->as_continuation()];
-        auto fbb = *current_fn_->labels[continuation->arg(2)->as_continuation()];
+        auto tbb = current_fn_->labels[continuation->arg(1)->as_continuation()];
+        auto fbb = current_fn_->labels[continuation->arg(2)->as_continuation()];
         bb->selection_merge(merge_bb,spv::SelectionControlMaskNone);
         bb->branch_conditional(cond, tbb, fbb);
     } /*else if (continuation->callee()->isa<Continuation>() &&
@@ -360,7 +360,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         bb->args[arg] = emit(arg, bb);
         auto* param = loop_header->param(0);
         auto& phi = current_fn_->bbs_map[loop_header]->phis_map[param];
-        phi.preds.emplace_back(*bb->args[arg], *current_fn_->labels[continuation]);
+        phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
 
         bb->branch(header_label);
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopMerge) {
@@ -381,9 +381,9 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             bb->args[arg] = emit(arg, bb);
             auto* param = callee->param(index);
             auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
-            phi.preds.emplace_back(*bb->args[arg], *current_fn_->labels[continuation]);
+            phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
         }
-        bb->branch(*current_fn_->labels[callee]);
+        bb->branch(current_fn_->labels[callee]);
     }
     /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);

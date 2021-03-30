@@ -191,7 +191,7 @@ std::string CCodeGen::convert(const Type* type) {
         types_[struct_type] = name;
         s.fmt("typedef struct {{\t\n");
         size_t i = 0;
-        s.range(struct_type->ops(), ";\n", [&](const Type* t) { s.fmt("{} e{}", convert(t), struct_type->op_name(i)); });
+        s.range(struct_type->ops(), "\n", [&](const Type* t) { s.fmt("{} {};", convert(t), struct_type->op_name(i++)); });
         s.fmt("\b\n}} {};", name);
         if (struct_type->name().str().find("channel_") != std::string::npos) use_channels_ = true;
     } else {

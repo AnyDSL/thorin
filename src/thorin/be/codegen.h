@@ -1,5 +1,5 @@
-#ifndef THORIN_BACKENDS_H
-#define THORIN_BACKENDS_H
+#ifndef THORIN_CODEGEN_H
+#define THORIN_CODEGEN_H
 
 #include "thorin/transform/importer.h"
 #include "thorin/be/kernel_config.h"
@@ -10,7 +10,8 @@ class CodeGen {
 protected:
     CodeGen(World& world, bool debug);
 public:
-    virtual void emit(std::ostream& stream) = 0;
+    virtual void emit_stream(std::ostream& stream) = 0;
+    virtual const char* file_ext() const = 0;
 
     /// @name getters
     //@{
@@ -35,16 +36,14 @@ struct LaunchArgs {
     };
 };
 
-struct Backends {
-    Backends(World& world, int opt, bool debug);
+struct DeviceBackends {
+    DeviceBackends(World& world, int opt, bool debug);
 
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
-    std::unique_ptr<CodeGen> cpu_cg;
-
     enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, SpirV, BackendCount };
-    std::array<std::unique_ptr<CodeGen>, BackendCount> device_cgs;
+    std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
 private:
     std::vector<Importer> importers_;
 };

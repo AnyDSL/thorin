@@ -39,7 +39,7 @@ const Def* Importer::import(Tracker odef) {
 
     if (auto oparam = odef->isa<Param>()) {
         import(oparam->continuation())->as_continuation();
-        auto nparam = *def_old2new_[oparam];
+        auto nparam = def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
         assert(!nparam->is_replaced());
         return nparam;

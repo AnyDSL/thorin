@@ -30,6 +30,9 @@ set(THORIN_SOURCES
     analyses/scope.h
     analyses/verify.cpp
     analyses/verify.h
+    be/codegen.cpp
+    be/codegen.h
+    be/emitter.h
     be/c/c.cpp
     be/c/c.h
     be/kernel_config.h
@@ -64,11 +67,8 @@ set(THORIN_SOURCES
     transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
-    transform/rewrite_flow_graphs.cpp
-    transform/rewrite_flow_graphs.h
     transform/split_slots.cpp
     transform/split_slots.h
-    util/args.h
     util/array.h
     util/cast.h
     util/hash.h
@@ -82,10 +82,6 @@ set(THORIN_SOURCES
     util/symbol.h
     util/types.h
     util/utility.h
-    util/dot_dump.cpp
-    be/backends.cpp
-    be/backends.h
-    be/spirv/spirv_transform.cpp
 )
 
 if(LLVM_FOUND)
@@ -110,6 +106,7 @@ if(SPIRV_ENABLED)
     list(APPEND THORIN_SOURCES
         be/spirv/spirv.cpp
         be/spirv/spirv.h
+        be/spirv/spirv_transform.cpp
     )
 endif()
 

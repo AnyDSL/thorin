@@ -84,7 +84,7 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
         world().edef(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
-    vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
+    vec_todo_.emplace_back(vector_length_constant, emit_fun_decl(kernel), simd_kernel_call);
 
     return continuation->arg(VectorizeArgs::Return)->as_continuation();
 }

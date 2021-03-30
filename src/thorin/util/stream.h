@@ -13,26 +13,25 @@
 
 namespace thorin {
 
-// TODO resort to std::fmt once we are switching to C++20
 class Stream {
 public:
     Stream(std::ostream& ostream = std::cout, const std::string& tab = {"    "}, size_t level = 0)
-        : ostream_(ostream)
+        : ostream_(&ostream)
         , tab_(tab)
         , level_(level)
     {}
 
     /// @name getters
     //@{
-    std::ostream& ostream() { return ostream_; }
+    std::ostream& ostream() { return *ostream_; }
     std::string tab() const { return tab_; }
     size_t level() const { return level_; }
     //@}
 
     /// @name modify Stream
     //@{
-    Stream& indent() { ++level_; return *this; }
-    Stream& dedent() { assert(level_ > 0); --level_; return *this; }
+    Stream& indent(size_t i = 1) { level_ += i; return *this; }
+    Stream& dedent(size_t i = 1) { assert(level_ >= i); level_ -= i; return *this; }
     Stream& endl();
     Stream& flush() { ostream().flush(); return *this; }
     //@}
@@ -63,12 +62,41 @@ public:
     template<class R> Stream& range(const R& r, const char* sep = ", ") { return range(r, sep, [&](const auto& x) { (*this) << x; }); }
     //@}
 
-private:
+    void friend swap(Stream& a, Stream& b) {
+        using std::swap;
+        swap(a.ostream_, b.ostream_);
+        swap(a.tab_,     b.tab_);
+        swap(a.level_,   b.level_);
+    }
+
+protected:
     bool match2nd(const char* next, const char*& s, const char c);
 
-    std::ostream& ostream_;
+    std::ostream* ostream_;
     std::string tab_;
     size_t level_;
+};
+
+class StringStream : public Stream {
+public:
+    StringStream()
+        : Stream(oss_)
+    {}
+
+    std::string str() const { return oss_.str(); }
+
+    friend void swap(StringStream& a, StringStream& b) {
+        using std::swap;
+        swap((Stream&)a, (Stream&)b);
+        swap(a.oss_, b.oss_);
+        // Pointers have to be restored so that this stream
+        // still holds the ownership over its ostringstream object.
+        a.ostream_ = &a.oss_;
+        b.ostream_ = &b.oss_;
+    }
+
+private:
+    std::ostringstream oss_;
 };
 
 template<class... Args> void outf(const char* fmt, Args&&... args) { Stream(std::cout).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
@@ -114,30 +142,31 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     while (*s != '\0') {
         auto next = s + 1;
 
-        if (false) {
-        } else if (*s == '\n') { s++; endl();
-        } else if (*s == '\t') { s++; indent();
-        } else if (*s == '\b') { s++; dedent();
-        } else if (*s == '{') {
-            if (match2nd(next, s, '{')) continue;
-            s++; // skip opening brace '{'
+        switch (*s) {
+            case '\n': s++; endl();   break;
+            case '\t': s++; indent(); break;
+            case '\b': s++; dedent(); break;
+            case '{': {
+                if (match2nd(next, s, '{')) continue;
+                s++; // skip opening brace '{'
 
-            std::string spec;
-            while (*s != '\0' && *s != '}') spec.push_back(*s++);
-            assert(*s == '}' && "unmatched closing brace '}' in format string");
+                std::string spec;
+                while (*s != '\0' && *s != '}') spec.push_back(*s++);
+                assert(*s == '}' && "unmatched closing brace '}' in format string");
 
-            if constexpr (is_range_v<T>) {
-                range(t, spec.c_str());
-            } else {
-                (*this) << t;
-            }
+                if constexpr (is_range_v<T>) {
+                    range(t, spec.c_str());
+                } else {
+                    (*this) << t;
+                }
 
-            ++s; // skip closing brace '}'
-            return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
-        } else if (*s == '}') {
+                ++s; // skip closing brace '}'
+                return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
+        }
+        case '}':
             if (match2nd(next, s, '}')) continue;
             assert(false && "unmatched/unescaped closing brace '}' in format string");
-        } else {
+        default:
             (*this) << *s++;
         }
     }

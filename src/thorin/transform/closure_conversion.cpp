@@ -19,7 +19,7 @@ public:
         std::vector<std::pair<Continuation*, Continuation*>> converted;
         for (auto continuation : world_.copy_continuations()) {
             // do not convert empty continuations or intrinsics, except graph intrinsics
-            if ((continuation->empty() || continuation->is_intrinsic()) && !is_graph_intrinsic(continuation)) {
+            if (continuation->empty() || continuation->is_intrinsic()) {
                 new_defs_[continuation] = continuation;
                 continue;
             }
@@ -60,7 +60,7 @@ public:
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
         auto callee = continuation->callee()->isa_continuation();
         if (callee == continuation) return;
-        if (!callee || !callee->is_intrinsic() || is_graph_intrinsic(callee)) {
+        if (!callee || !callee->is_intrinsic()) {
             Array<const Def*> new_args(continuation->num_args());
             for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
                 new_args[i] = convert(continuation->arg(i));
@@ -69,7 +69,7 @@ public:
     }
 
     const Def* convert(const Def* def, bool as_callee = false) {
-        if (new_defs_.count(def)) def = *new_defs_[def];
+        if (new_defs_.count(def)) def = new_defs_[def];
         if (def->order() <= 1)
             return def;
 
@@ -157,7 +157,7 @@ public:
     // - struct S { fn (X, fn(Y)) } => struct T { closure(fn (X, fn(Y))) }
     // - ...
     const Type* convert(const Type* type) {
-        if (new_types_.count(type)) return *new_types_[type];
+        if (new_types_.count(type)) return new_types_[type];
         if (type->order() <= 1) return type;
         Array<const Type*> ops(type->ops());
 
@@ -191,13 +191,6 @@ public:
             return new_types_[type] = new_type;
         else
             return new_types_[type] = world_.closure_type(new_type->ops());
-    }
-
-    bool is_graph_intrinsic(const Continuation* cont) {
-        return cont->intrinsic() == Intrinsic::CreateTask  ||
-               cont->intrinsic() == Intrinsic::CreateGraph ||
-               cont->intrinsic() == Intrinsic::CreateEdge  ||
-               cont->intrinsic() == Intrinsic::ExecuteGraph;
     }
 
 private:

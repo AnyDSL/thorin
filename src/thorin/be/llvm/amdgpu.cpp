@@ -17,10 +17,10 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config, int
 // Kernel code
 //------------------------------------------------------------------------------
 
-void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
+void AMDGPUCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
     auto config = kernel_config_.find(continuation);
     if (config != kernel_config_.end()) {
-        auto& irbuilder = *cont2llvm_[continuation]->second;
+        auto& irbuilder = *cont2bb_[continuation].second;
         auto block = config->second->as<GPUKernelConfig>()->block_size();
         if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0) {
             Array<llvm::Metadata*> annotation_values_wgsize(3);
@@ -32,14 +32,14 @@ void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Fu
     }
 }
 
-llvm::Function* AMDGPUCodeGen::emit_function_decl(Continuation* continuation) {
+llvm::Function* AMDGPUCodeGen::emit_fun_decl(Continuation* continuation) {
     if (continuation->name() == "llvm.amdgcn.implicitarg.ptr")
-        if (auto f = def2llvm_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
+        if (auto f = defs_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
             llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-ptr");
     if (continuation->name() == "__ockl_printf_begin")
-        if (auto f = def2llvm_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
+        if (auto f = defs_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
             llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
-    return CodeGen::emit_function_decl(continuation);
+    return CodeGen::emit_fun_decl(continuation);
 }
 
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {

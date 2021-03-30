@@ -181,7 +181,7 @@ const Def* Mangler::mangle(const Def* old_def) {
         assert(within(param->continuation()));
         mangle(param->continuation());
         assert(def2def_.contains(param));
-        return *def2def_[param];
+        return def2def_[param];
     } else {
         auto old_primop = old_def->as<PrimOp>();
         Array<const Def*> nops(old_primop->num_ops());

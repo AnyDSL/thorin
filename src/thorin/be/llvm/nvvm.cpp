@@ -62,10 +62,10 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
 }
 
-void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
+void NVVMCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
     auto annotation = module().getOrInsertNamedMetadata("nvvm.annotations");
-    auto& irbuilder = *cont2llvm_[continuation]->second;
+    auto& irbuilder = *cont2bb_[continuation].second;
 
     const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
         llvm::Metadata* annotation_values[] = {
@@ -129,19 +129,21 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun(llvm::IRBuilder<>& irbuilder
     return llvm::cast<llvm::Function>(module().getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
 }
 
-void NVVMCodeGen::emit_function_start(Continuation* continuation) {
-    if (!continuation->is_exported())
-        return;
-    auto& irbuilder = *cont2llvm_[continuation]->second;
+void NVVMCodeGen::prepare(Continuation* cont, llvm::Function* fct) {
+    CodeGen::prepare(cont, fct);
+
+    if (cont != entry_ || !cont->is_exported()) return;
+
+    auto& irbuilder = *cont2bb_[cont].second;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun(irbuilder);
-    for (auto param : continuation->params()) {
+    for (auto param : cont->params()) {
         if (auto var = resolve_global_variable(param)) {
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
             llvm::Value* args[] = { llvm::MetadataAsValue::get(context(), md->second), var };
-            def2llvm_[param] = irbuilder.CreateCall(texture_handle, args);
+            defs_[param] = irbuilder.CreateCall(texture_handle, args);
         }
     }
 }

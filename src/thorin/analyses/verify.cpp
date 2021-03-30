@@ -65,7 +65,7 @@ void Cycles::analyze_call(const Continuation* continuation) {
 
         def2color_[continuation] = Black;
     } else
-        assertf(*def2color_[continuation] != Gray, "detected cycle: '{}'", continuation);
+        assertf(def2color_[continuation] != Gray, "detected cycle: '{}'", continuation);
 }
 
 void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {

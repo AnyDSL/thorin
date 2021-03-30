@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "thorin/be/backends.h"
+#include "thorin/be/codegen.h"
 
 namespace thorin {
 
@@ -12,12 +12,7 @@ class World;
 
 namespace c {
 
-enum class Lang : uint8_t {
-    C99,        ///< Flag for C99
-    HLS,        ///< Flag for HLS
-    CUDA,       ///< Flag for CUDA
-    OPENCL      ///< Flag for OpenCL
-};
+enum class Lang : uint8_t { C99, HLS, CUDA, OpenCL };
 
 class CodeGen : public thorin::CodeGen {
 public:
@@ -28,7 +23,17 @@ public:
         , debug_(debug)
     {}
 
-    void emit(std::ostream& stream) override;
+    void emit_stream(std::ostream& stream) override;
+
+    const char* file_ext() const override {
+        switch (lang_) {
+            case Lang::C99:    return ".c";
+            case Lang::HLS:    return ".hls";
+            case Lang::CUDA:   return ".cuda";
+            case Lang::OpenCL: return ".cl";
+            default: THORIN_UNREACHABLE;
+        }
+    }
 
 private:
     const Cont2Config& kernel_config_;

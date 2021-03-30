@@ -40,11 +40,12 @@
 
 namespace thorin::llvm {
 
-CodeGen::CodeGen(World& world,
-                 llvm::CallingConv::ID function_calling_convention,
-                 llvm::CallingConv::ID device_calling_convention,
-                 llvm::CallingConv::ID kernel_calling_convention,
-                 int opt, bool debug)
+CodeGen::CodeGen(
+    World& world,
+    llvm::CallingConv::ID function_calling_convention,
+    llvm::CallingConv::ID device_calling_convention,
+    llvm::CallingConv::ID kernel_calling_convention,
+    int opt, bool debug)
     : thorin::CodeGen(world, debug)
     , context_(new llvm::LLVMContext())
     , module_(new llvm::Module(world.name(), *context_))
@@ -57,50 +58,47 @@ CodeGen::CodeGen(World& world,
 {}
 
 void CodeGen::optimize() {
-    // TODO why is here a special case for opt() == 0?
-    if (opt() != 0) {
-        llvm::PassBuilder PB;
-        llvm::PassBuilder::OptimizationLevel opt_level;
+    llvm::PassBuilder PB;
+    llvm::PassBuilder::OptimizationLevel opt_level;
 
-        llvm::LoopAnalysisManager LAM;
-        llvm::FunctionAnalysisManager FAM;
-        llvm::CGSCCAnalysisManager CGAM;
-        llvm::ModuleAnalysisManager MAM;
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    llvm::CGSCCAnalysisManager CGAM;
+    llvm::ModuleAnalysisManager MAM;
 
-        PB.registerModuleAnalyses(MAM);
-        PB.registerCGSCCAnalyses(CGAM);
-        PB.registerFunctionAnalyses(FAM);
-        PB.registerLoopAnalyses(LAM);
-        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-        switch (opt()) {
-            case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
-            case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
-            case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
-            case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
-            default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
-        }
-
-        if (opt() == 3) {
-            llvm::ModulePassManager module_pass_manager;
-
-            //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
-            llvm::CGSCCPassManager MainCGPipeline;
-            MainCGPipeline.addPass(llvm::InlinerPass());
-            module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
-                  createDevirtSCCRepeatedPass(
-                    std::move(MainCGPipeline), 4)));
-
-            llvm::FunctionPassManager function_pass_manager;
-            function_pass_manager.addPass(llvm::ADCEPass());
-            module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
-
-            module_pass_manager.run(module(), MAM);
-        }
-
-        llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
-        builder_passes.run(module(), MAM);
+    switch (opt()) {
+        case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
+        case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
+        case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
+        case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
+        default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
     }
+
+    if (opt() == 3) {
+        llvm::ModulePassManager module_pass_manager;
+
+        //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
+        llvm::CGSCCPassManager MainCGPipeline;
+        MainCGPipeline.addPass(llvm::InlinerPass());
+        module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
+              createDevirtSCCRepeatedPass(
+                std::move(MainCGPipeline), 4)));
+
+        llvm::FunctionPassManager function_pass_manager;
+        function_pass_manager.addPass(llvm::ADCEPass());
+        module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
+
+        module_pass_manager.run(module(), MAM);
+    }
+
+    llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
+    builder_passes.run(module(), MAM);
 }
 
 void CodeGen::verify() const {
@@ -269,12 +267,12 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
  * emit
  */
 
-void CodeGen::emit(std::ostream& stream) {
+void CodeGen::emit_stream(std::ostream& stream) {
     llvm::raw_os_ostream llvm_stream(stream);
-    emit()->print(llvm_stream, nullptr);
+    emit_module()->print(llvm_stream, nullptr);
 }
 
-std::unique_ptr<llvm::Module>& CodeGen::emit() {
+std::unique_ptr<llvm::Module>& CodeGen::emit_module() {
     if (debug()) {
         module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
         // Darwin only supports dwarf2
@@ -283,7 +281,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
         dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world().name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
     }
 
-    Scope::for_each(world(), [&] (const Scope& scope) { emit(scope); });
+    Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
 
     if (debug()) dibuilder_.finalize();
 
@@ -303,7 +301,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit() {
     return module_;
 }
 
-llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
+llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
     std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
@@ -327,7 +325,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     // set calling convention
     if (continuation->is_exported()) {
         f->setCallingConv(kernel_calling_convention_);
-        emit_function_decl_hook(continuation, f);
+        emit_fun_decl_hook(continuation, f);
     } else {
         if (continuation->cc() == CC::Device)
             f->setCallingConv(device_calling_convention_);
@@ -338,86 +336,70 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     return f;
 }
 
-void CodeGen::emit(const Scope& scope) {
-    entry_ = scope.entry();
-    assert(entry_->is_returning());
-    auto fct = llvm::cast<llvm::Function>(emit(entry_));
+llvm::Function* CodeGen::prepare(const Scope& scope) {
+    auto fct = llvm::cast<llvm::Function>(emit(scope.entry()));
 
-    llvm::DIScope* discope = dicompile_unit_;
+    discope_ = dicompile_unit_;
     if (debug()) {
         auto src_file = llvm::sys::path::filename(entry_->loc().file);
         auto src_dir = llvm::sys::path::parent_path(entry_->loc().file);
         auto difile = dibuilder_.createFile(src_file, src_dir);
         auto disub_program = dibuilder_.createFunction(
-            discope, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
+            discope_, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
             dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
             entry_->loc().begin.row,
             llvm::DINode::FlagPrototyped,
             llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
         fct->setSubprogram(disub_program);
-        discope = disub_program;
+        discope_ = disub_program;
     }
 
-    cont2llvm_.clear();
-    auto conts = schedule(scope);
+    return fct;
+}
 
+void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     // map all bb-like continuations to llvm bb stubs and handle params/phis
-    for (auto cont : conts) {
-        if (cont->intrinsic() == Intrinsic::EndScope) continue;
+    auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
+    auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
+    assert(succ);
+    auto& irbuilder = *i->second.second;
+    irbuilder.SetInsertPoint(bb);
 
-        auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
-        auto [i, succ] = cont2llvm_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
-        assert(succ);
-        auto& irbuilder = *i->second.second;
-        irbuilder.SetInsertPoint(bb);
-        if (debug())
-            irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope));
+    if (debug())
+        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(cont->loc().begin.row, cont->loc().begin.row, discope_));
 
-        if (entry_ == cont) {
-            auto arg = fct->arg_begin();
-            for (auto param : entry_->params()) {
-                if (is_mem(param) || is_unit(param)) {
-                    def2llvm_[param] = nullptr;
-                } else if (param->order() == 0) {
-                    auto argv = &*arg;
-                    auto value = map_param(fct, argv, param);
-                    if (value == argv) {
-                        arg->setName(param->unique_name()); // use param
-                        def2llvm_[param] = &*arg++;
-                    } else {
-                        def2llvm_[param] = value;           // use provided value
-                    }
-                }
-            }
-        } else {
-            for (auto param : cont->params()) {
-                if (is_mem(param) || is_unit(param)) {
-                    def2llvm_[param] = nullptr;
+    if (entry_ == cont) {
+        auto arg = fct->arg_begin();
+        for (auto param : entry_->params()) {
+            if (is_mem(param) || is_unit(param)) {
+                defs_[param] = nullptr;
+            } else if (param->order() == 0) {
+                auto argv = &*arg;
+                auto value = map_param(fct, argv, param);
+                if (value == argv) {
+                    arg->setName(param->unique_name()); // use param
+                    defs_[param] = &*arg++;
                 } else {
-                    // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
-                    auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
-                    def2llvm_[param] = phi;
+                    defs_[param] = value;               // use provided value
                 }
             }
         }
-    }
-
-    Scheduler new_scheduler(scope);
-    swap(scheduler_, new_scheduler);
-
-    emit_function_start(entry_);
-
-    for (auto cont : conts) {
-        if (cont->intrinsic() == Intrinsic::EndScope) continue;
-        assert(cont == entry_ || cont->is_basicblock());
-        emit_epilogue(cont);
+    } else {
+        for (auto param : cont->params()) {
+            if (is_mem(param) || is_unit(param)) {
+                defs_[param] = nullptr;
+            } else {
+                // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
+                auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
+                defs_[param] = phi;
+            }
+        }
     }
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
-    auto&& bb_ib = cont2llvm_[continuation];
-    auto bb = bb_ib->first;
-    auto& irbuilder = *bb_ib->second;
+    auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
+    auto& irbuilder = *ptr_irbuilder;
 
     if (continuation->callee() == entry_->ret_param()) { // return
         std::vector<llvm::Value*> values;
@@ -540,23 +522,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
-llvm::Value* CodeGen::emit_unsafe(const Def* def) {
-    if (auto llvm = def2llvm_.lookup(def)) return *llvm;
-    if (auto cont = def->isa_continuation()) return def2llvm_[cont] = emit_function_decl(cont);
-
-    auto llvm = emit_(def);
-    return def2llvm_[def] = llvm;
-}
-
-llvm::Value* CodeGen::emit(const Def* def) {
-    auto res = emit_unsafe(def);
-    assert(res);
-    return res;
-}
-
-llvm::Value* CodeGen::emit_(const Def* def) {
-    auto place = def->has_dep(Dep::Param) ? scheduler_.smart(def) : entry_;
-    auto& irbuilder = *cont2llvm_[place]->second;
+llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
+    auto& irbuilder = *bb.second;
 
     // TODO
     //if (debug())
@@ -930,7 +897,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
     if (auto store = def->isa<Store>())         return emit_store(irbuilder, store);
     if (auto lea = def->isa<LEA>())             return emit_lea(irbuilder, lea);
     if (auto assembly = def->isa<Assembly>())   return emit_assembly(irbuilder, assembly);
-    if (def->isa<Enter>())                      return nullptr;
+    if (def->isa<Enter>())                      return emit_unsafe(def->op(0));
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
@@ -950,7 +917,7 @@ llvm::Value* CodeGen::emit_(const Def* def) {
 }
 
 void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
-    llvm::cast<llvm::PHINode>(*def2llvm_[param])->addIncoming(value, irbuilder.GetInsertBlock());
+    llvm::cast<llvm::PHINode>(defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
 /*
@@ -1244,7 +1211,7 @@ Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* cont
     }
     auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
     callee->make_exported();
-    irbuilder.CreateCall(emit_function_decl(callee), args);
+    irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);
     return ret;
 }

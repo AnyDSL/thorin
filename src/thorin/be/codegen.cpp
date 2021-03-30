@@ -1,5 +1,4 @@
-#include "backends.h"
-
+#include "thorin/be/codegen.h"
 #include "thorin/analyses/scope.h"
 
 #if THORIN_ENABLE_LLVM
@@ -7,17 +6,15 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
 #endif
-#if THORIN_ENABLE_SPIRV
-#include "thorin/be/spirv/spirv.h"
-#endif
 #include "thorin/be/c/c.h"
 
 namespace thorin {
 
-static void get_kernel_configs(Importer& importer,
-                               const std::vector<Continuation*>& kernels,
-                               Cont2Config& kernel_config,
-                               std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
+static void get_kernel_configs(
+    Importer& importer,
+    const std::vector<Continuation*>& kernels,
+    Cont2Config& kernel_config,
+    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
 
@@ -74,10 +71,10 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-Backends::Backends(World& world, int opt, bool debug)
-    : device_cgs {}
+DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
+    : cgs {}
 {
-    for (size_t i = 0; i < device_cgs.size(); ++i)
+    for (size_t i = 0; i < cgs.size(); ++i)
         importers_.emplace_back(world);
 
     // determine different parts of the world which need to be compiled differently
@@ -86,12 +83,11 @@ Backends::Backends(World& world, int opt, bool debug)
         Continuation* imported = nullptr;
 
         static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,      Intrinsic::CUDA   },
-            std::pair { NVVM,      Intrinsic::NVVM   },
-            std::pair { OpenCL,    Intrinsic::OpenCL },
-            std::pair { AMDGPU,    Intrinsic::AMDGPU },
-            std::pair { HLS,       Intrinsic::HLS    },
-            std::pair { SpirV    , Intrinsic::SpirV  }
+            std::pair { CUDA,   Intrinsic::CUDA   },
+            std::pair { NVVM,   Intrinsic::NVVM   },
+            std::pair { OpenCL, Intrinsic::OpenCL },
+            std::pair { AMDGPU, Intrinsic::AMDGPU },
+            std::pair { HLS,    Intrinsic::HLS    }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -178,18 +174,13 @@ Backends::Backends(World& world, int opt, bool debug)
     }
 
 #if THORIN_ENABLE_LLVM
-    cpu_cg = std::make_unique<llvm::CPUCodeGen>(world, opt, debug);
-
-    if (!importers_[NVVM  ].world().empty()) device_cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
-    if (!importers_[AMDGPU].world().empty()) device_cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
+    if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
+    if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
-    // TODO: maybe use the C backend as a fallback when LLVM is not present for host codegen ?
+    (void)opt;
 #endif
-#if THORIN_ENABLE_SPIRV
-    if (!importers_[SpirV].world().empty()) device_cgs[SpirV] = std::make_unique<spirv::CodeGen>(importers_[SpirV].world(), kernel_config, debug);
-#endif
-    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OPENCL }, std::pair { HLS, c::Lang::HLS } })
-        if (!importers_[backend].world().empty()) device_cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
+    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
+        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

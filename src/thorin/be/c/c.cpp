@@ -1263,7 +1263,11 @@ bool CCodeGen::is_texture_type(const Type* type) {
 
 inline std::string make_identifier(const std::string& str) {
     auto copy = str;
-    std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) { return c == ' ' ? '_' : c; });
+    std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) {
+        if (c == ' ') return '_';
+        if (c == '*') return 'p';
+        return c;
+    });
     return copy;
 }
 

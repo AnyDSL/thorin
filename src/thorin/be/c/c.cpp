@@ -167,7 +167,8 @@ std::string CCodeGen::convert(const Type* type) {
         s.rangei(tuple->ops(), "\n", [&](size_t i) { s.fmt("{} e{};", convert(tuple->op(i)), i); });
         s.fmt("\b\n}} {};\n", name);
     } else if (auto variant = type->isa<VariantType>()) {
-        name = variant->name();
+        name = type_name(variant);
+        types_[variant] = name;
         auto tag_type =
             variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
             variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
@@ -179,13 +180,14 @@ std::string CCodeGen::convert(const Type* type) {
         if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
             s.fmt("union {{\t\n");
             s.rangei(variant->ops(), "\n", [&] (size_t i) {
-                if (!is_type_unit(variant->op(i)))
-                    s.fmt("{} {};", convert(variant->op(i)), variant->op_name(i));
+                if (is_type_unit(variant->op(i)))
+                    s << "// ";
+                s.fmt("{} {};", convert(variant->op(i)), variant->op_name(i));
             });
-            s.fmt("\b\n}} data;");
+            s.fmt("\b\n}} data;\n");
         }
 
-        s.fmt("{} tag;\n", convert(tag_type));
+        s.fmt("{} tag;", convert(tag_type));
         s.fmt("\b\n}} {};", name);
     } else if (auto struct_type = type->isa<StructType>()) {
         name = type_name(struct_type);
@@ -763,22 +765,10 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto primlit = def->isa<PrimLit>()) {
         return emit_constant(primlit);
     } else if (auto variant = def->isa<Variant>()) {
-#if 0
-        convert(func_impls_, variant->type()) << " " << def_name << ";" << endl;
-        func_impls_ << "{" << up << endl;
-        convert(func_impls_, variant->type()) << " " << def_name << "_tmp;" << endl;
-        if (!is_type_unit(variant->op(0)->type())) {
-            auto variant_type = variant->type()->as<VariantType>();
-            func_impls_ << def_name << "_tmp.data." << variant_type->op_name(variant->index()) << " = ";
-            emit(variant->op(0)) << ";" << endl;
-        }
-        func_impls_
-            << def_name << "_tmp.tag = " << variant->index() << ";" << endl
-            << def_name << " = " << def_name << "_tmp;" << down << endl
-            << "}";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+        func_impls_.fmt("{} {};\n", convert(variant->type()), name);
+        if (auto arg = emit_unsafe(variant->op(0)); !arg.empty())
+            bb.body.fmt("{}.data.{} = {};\n", name, variant->type()->as<VariantType>()->op_name(variant->index()), arg);
+        bb.body.fmt("{}.tag = {};\n", name, variant->index());
     } else if (auto variant_index = def->isa<VariantIndex>()) {
 #if 0
         convert(func_impls_, variant_index->type()) << " " << def_name << ";" << endl;

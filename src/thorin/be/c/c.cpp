@@ -68,7 +68,6 @@ private:
 
     const std::string var_name(const Def*);
     const std::string get_lang() const;
-    bool is_texture_type(const Type*);
 
     std::string type_name(const Type*);
     std::string array_name(const DefiniteArrayType*);
@@ -333,18 +332,6 @@ std::string CCodeGen::prepare(const Scope& scope) {
             continue;
         }
         if (needs_comma) func_impls_.fmt(", ");
-
-        // TODO
-#if 0
-        if (is_texture_type(param->type())) {
-            auto pointee = convert(param->type()->as<PtrType>()->pointee());
-            type_decls_.fmt("texture<{}, cudaTextureType1D, cudaReadModeElementType> {};\n", pointee, param->name());
-            // TODO
-            //insert(param, param->name());
-            // skip arrays bound to texture memory
-            continue;
-        }
-#endif
 
         if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param)) {
             // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
@@ -784,10 +771,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         emit_unsafe(load->mem());
         auto ptr = emit(load->ptr());
         func_impls_.fmt("{} {};\n", convert(load->out_val()->type()), name);
-        bb.body.fmt("{} = ", name);
-        if (!is_texture_type(load->ptr()->type()))
-            bb.body << "*";
-        bb.body.fmt("{};\n", ptr);
+        bb.body.fmt("{} = *{};\n", name, ptr);
     } else if (auto store = def->isa<Store>()) {
         emit_unsafe(store->mem());
         bb.body.fmt("*{} = {};\n", emit(store->ptr()), emit(store->val()));
@@ -801,15 +785,10 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto lea = def->isa<LEA>()) {
         auto ptr = emit(lea->ptr());
         auto index = emit(lea->index());
-        if (is_texture_type(lea->type())) { // handle texture fetches
-            func_impls_.fmt("{} {};\n", convert(lea->ptr_pointee()), name);
-            bb.body.fmt("{} = tex1Dfetch({}, {});\n", name, ptr, index);
-        } else {
-            func_impls_.fmt("{} {};\n", convert(lea->type()), name);
-            bb.body.fmt("{} = &{}", name, ptr);
-            emit_access(bb.body, lea->ptr_pointee(), lea->index(), "->");
-            bb.body.fmt(";\n");
-        }
+        func_impls_.fmt("{} {};\n", convert(lea->type()), name);
+        bb.body.fmt("{} = &{}", name, ptr);
+        emit_access(bb.body, lea->ptr_pointee(), lea->index(), "->");
+        bb.body.fmt(";\n");
     } else if (auto assembly = def->isa<Assembly>()) {
 #if 0
         size_t out_size = assembly->type()->num_ops() - 1;
@@ -1043,16 +1022,6 @@ const std::string CCodeGen::get_lang() const {
         case Lang::CUDA:   return "CUDA";
         case Lang::OpenCL: return "OpenCL";
     }
-}
-
-bool CCodeGen::is_texture_type(const Type* type) {
-    if (auto ptr = type->isa<PtrType>()) {
-        if (ptr->addr_space()==AddrSpace::Texture) {
-            assert(lang_ == Lang::CUDA && "Textures currently only supported in CUDA");
-            return true;
-        }
-    }
-    return false;
 }
 
 inline std::string make_identifier(const std::string& str) {

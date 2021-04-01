@@ -63,12 +63,6 @@ private:
     std::string convert(const Type*);
     Stream& emit_debug_info(Stream&, const Def*);
 
-    Stream& emit_aggop_defs(const Def*);
-    Stream& emit_aggop_decl(const Type*);
-    Stream& emit_addr_space(Stream&, const Type*);
-    Stream& emit_string(const Global*);
-    Stream& emit_temporaries(const Def*);
-
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
 
@@ -156,6 +150,14 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (type->isa<FnType>()) {
         assert(false && "todo");
     } else if (auto ptr = type->isa<PtrType>()) {
+        if (lang_ == Lang::OpenCL) {
+            switch (ptr->addr_space()) {
+                default:
+                case AddrSpace::Generic:                  break;
+                case AddrSpace::Global: s << "__global "; break;
+                case AddrSpace::Shared: s << "__local ";  break;
+            }
+        }
         s.fmt("{}*", convert(ptr->pointee()));
     } else if (auto array = type->isa<DefiniteArrayType>()) {
         name = array_name(array);
@@ -931,147 +933,6 @@ Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {
     if (debug_ && !def->loc().file.empty())
         return s.fmt("#line {} \"{}\"\n", def->loc().begin.row, def->loc().file);
     return s;
-}
-
-Stream& CCodeGen::emit_addr_space(Stream& s, const Type* type) {
-    if (auto ptr = type->isa<PtrType>()) {
-        if (lang_ == Lang::OpenCL) {
-            switch (ptr->addr_space()) {
-                default:
-                case AddrSpace::Generic:                  break;
-                case AddrSpace::Global: s << "__global "; break;
-                case AddrSpace::Shared: s << "__local ";  break;
-            }
-        }
-    }
-
-    return s;
-}
-
-Stream& CCodeGen::emit_string(const Global* global) {
-    if (auto str_array = global->init()->isa<DefiniteArray>()) {
-        if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
-            if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
-                if (primtype->primtype_tag() == PrimType_pu8) {
-                    std::string str = "\"";
-                    for (auto op : str_array->ops().skip_back())
-                        str += handle_string_character(op->as<PrimLit>()->pu8_value());
-                    str += '"';
-                    // TODO
-                    //insert(global, str);
-                }
-            }
-        }
-    }
-
-    return type_decls_;
-}
-
-Stream& CCodeGen::emit_aggop_defs(const Def*) {
-#if 0
-    if (lookup(def) || is_unit(def))
-        return func_impls_;
-
-    // look for nested array
-    if (auto array = def->isa<DefiniteArray>()) {
-        for (auto op : array->ops())
-            emit_aggop_defs(op);
-        if (lookup(def))
-            return func_impls_;
-        emit(array).endl();
-    }
-
-    // look for nested struct
-    if (auto agg = def->isa<Aggregate>()) {
-        for (auto op : agg->ops())
-            emit_aggop_defs(op);
-        if (lookup(def))
-            return func_impls_;
-        emit(agg).endl();
-    }
-
-    // look for nested variants
-    if (auto variant = def->isa<Variant>()) {
-        for (auto op : variant->ops())
-            emit_aggop_defs(op);
-        if (lookup(def))
-            return func_impls_;
-        emit(variant).endl();
-    }
-
-    // emit declarations for bottom - required for nested data structures
-    if (def->isa<Bottom>())
-        emit(def).endl();
-
-    return func_impls_;
-#endif
-    THORIN_UNREACHABLE;
-}
-
-Stream& CCodeGen::emit_aggop_decl(const Type*) {
-#if 0
-    if (lookup(type) || type == world().unit())
-        return type_decls_;
-
-    if (auto ptr = type->isa<PtrType>())
-        emit_aggop_decl(ptr->pointee());
-
-    if (auto array = type->isa<IndefiniteArrayType>())
-        emit_aggop_decl(array->elem_type());
-
-    if (auto fn = type->isa<FnType>())
-        for (auto type : fn->ops())
-            emit_aggop_decl(type);
-
-    // look for nested array
-    if (auto array = type->isa<DefiniteArrayType>()) {
-        emit_aggop_decl(array->elem_type());
-        convert(type_decls_, array).endl();
-        insert(type, array_name(array));
-    }
-
-    // look for nested tuple
-    if (auto tuple = type->isa<TupleType>()) {
-        for (auto op : tuple->ops())
-            emit_aggop_decl(op);
-        convert(type_decls_, tuple).endl();
-        insert(type, tuple_name(tuple));
-    }
-
-    // look for nested struct
-    if (auto struct_type = type->isa<StructType>()) {
-        for (auto op : struct_type->ops())
-            emit_aggop_decl(op);
-        convert(type_decls_, struct_type).endl();
-        insert(type, struct_type->name().str());
-    }
-
-    // look for nested variants
-    if (auto variant = type->isa<VariantType>()) {
-        for (auto op : variant->ops())
-            emit_aggop_decl(op);
-        convert(type_decls_, variant).endl();
-        insert(type, variant->name().str());
-    }
-
-    return type_decls_;
-#endif
-    THORIN_UNREACHABLE;
-}
-
-Stream& CCodeGen::emit_temporaries(const Def*) {
-#if 0
-    // emit definitions of inlined elements, skip match
-    if (!def->isa<PrimOp>() || !is_from_match(def->as<PrimOp>()))
-        emit_aggop_defs(def);
-
-    // emit temporaries for arguments
-    if (def->order() >= 1 || is_mem(def) || is_unit(def) || lookup(def) || def->isa<PrimLit>())
-        return func_impls_;
-
-    return emit(def).endl();
-#endif
-    THORIN_UNREACHABLE;
 }
 
 void CCodeGen::emit_c_int() {

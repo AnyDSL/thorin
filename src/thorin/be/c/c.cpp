@@ -467,7 +467,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("case {}: goto {};\n", value, label);
         }
 
-        bb.tail.fmt("default: goto {};\n", emit(cont->arg(1)));
+        bb.tail.fmt("default: goto {};", emit(cont->arg(1)));
         bb.tail.fmt("\b\n}}");
     } else if (cont->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
@@ -766,26 +766,16 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return emit_constant(primlit);
     } else if (auto variant = def->isa<Variant>()) {
         func_impls_.fmt("{} {};\n", convert(variant->type()), name);
-        if (auto arg = emit_unsafe(variant->op(0)); !arg.empty())
-            bb.body.fmt("{}.data.{} = {};\n", name, variant->type()->as<VariantType>()->op_name(variant->index()), arg);
+        if (auto value = emit_unsafe(variant->value()); !value.empty())
+            bb.body.fmt("{}.data.{} = {};\n", name, variant->type()->as<VariantType>()->op_name(variant->index()), value);
         bb.body.fmt("{}.tag = {};\n", name, variant->index());
     } else if (auto variant_index = def->isa<VariantIndex>()) {
-#if 0
-        convert(func_impls_, variant_index->type()) << " " << def_name << ";" << endl;
-        func_impls_ << def_name << " = ";
-        emit(variant_index->op(0)) << ".tag" << ";";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+        func_impls_.fmt("{} {};\n", convert(variant_index->type()), name);
+        bb.body.fmt("{} = {}.tag;\n", name, emit(variant_index->op(0)));
     } else if (auto variant_extract = def->isa<VariantExtract>()) {
-#if 0
-        convert(func_impls_, variant_extract->type()) << " " << def_name << ";" << endl;
-        func_impls_ << def_name << " = ";
+        func_impls_.fmt("{} {};\n", convert(variant_extract->type()), name);
         auto variant_type = variant_extract->value()->type()->as<VariantType>();
-        emit(variant_extract->op(0)) << ".data." << variant_type->op_name(variant_extract->index()) << ";";
-        insert(def, def_name);
-        return func_impls_;
-#endif
+        bb.body.fmt("{} = {}.data.{};\n", name, emit(variant_extract->value()), variant_type->op_name(variant_extract->index()));
     } else if (auto bottom = def->isa<Bottom>()) {
         func_impls_.fmt("{} {}; // bottom\n", convert(bottom->type()), name);
     } else if (auto load = def->isa<Load>()) {

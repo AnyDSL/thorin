@@ -696,7 +696,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             bb.body.fmt("{} = {}->e;\n", name, src);
         } else if (s_ptr && d_ptr && s_ptr->addr_space() == d_ptr->addr_space()) {
             bb.body.fmt("{} = ({}) {};\n", name, d_t, src);
-        } else if (auto cast = conv->isa<Cast>()) {
+        } else if (conv->isa<Cast>()) {
             auto s_prim = s_type->as<PrimType>();
             auto d_prim = d_type->as<PrimType>();
 
@@ -707,7 +707,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             } else {
                 bb.body.fmt("{} = ({}) {};\n", name, d_t, src);
             }
-        } else if (auto bitcast = conv->isa<Bitcast>()) {
+        } else if (conv->isa<Bitcast>()) {
             if (lang_ == Lang::OpenCL) {
                 // OpenCL explicitly supports type punning via unions (6.4.4.1)
                 bb.body.fmt("union {{\t\n");

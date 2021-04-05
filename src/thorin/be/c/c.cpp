@@ -749,6 +749,8 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
                     bb.body.fmt(" = {}\n;", value);
                 }
             }
+        } else {
+            return "";
         }
     } else if (auto primlit = def->isa<PrimLit>()) {
         return emit_constant(primlit);

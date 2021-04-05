@@ -529,7 +529,13 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     //if (debug())
         //irbuilder.SetCurrentDebugLocation(llvm::DebugLoc::get(def->loc().begin.row, def->loc().begin.row, discope));
 
-    if (auto bin = def->isa<BinOp>()) {
+    if (false) {}
+    else if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
+    else if (auto store = def->isa<Store>())         return emit_store(irbuilder, store);
+    else if (auto lea = def->isa<LEA>())             return emit_lea(irbuilder, lea);
+    else if (auto assembly = def->isa<Assembly>())   return emit_assembly(irbuilder, assembly);
+    else if (def->isa<Enter>())                      return emit_unsafe(def->op(0));
+    else if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
         llvm::Value* rhs = emit(bin->rhs());
         const char* name = bin->name().c_str();
@@ -570,9 +576,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                     default: THORIN_UNREACHABLE;
                 }
             }
-        }
-
-        if (auto arithop = bin->isa<ArithOp>()) {
+        } else if (auto arithop = bin->isa<ArithOp>()) {
             auto type = arithop->type();
             bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
 
@@ -589,9 +593,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                     case ArithOp_shl:
                     case ArithOp_shr: THORIN_UNREACHABLE;
                 }
-            }
-
-            if (is_type_s(type) || is_type_bool(type)) {
+            } else if (is_type_s(type) || is_type_bool(type)) {
                 switch (arithop->arithop_tag()) {
                     case ArithOp_add: return irbuilder.CreateAdd (lhs, rhs, name, false, q);
                     case ArithOp_sub: return irbuilder.CreateSub (lhs, rhs, name, false, q);
@@ -604,8 +606,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                     case ArithOp_shl: return irbuilder.CreateShl (lhs, rhs, name, false, q);
                     case ArithOp_shr: return irbuilder.CreateAShr(lhs, rhs, name);
                 }
-            }
-            if (is_type_u(type) || is_type_bool(type)) {
+            } else if (is_type_u(type) || is_type_bool(type)) {
                 switch (arithop->arithop_tag()) {
                     case ArithOp_add: return irbuilder.CreateAdd (lhs, rhs, name, q, false);
                     case ArithOp_sub: return irbuilder.CreateSub (lhs, rhs, name, q, false);
@@ -620,9 +621,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                 }
             }
         }
-    }
-
-    if (auto conv = def->isa<ConvOp>()) {
+    } else if (auto conv = def->isa<ConvOp>()) {
         auto from = emit(conv->from());
         auto src_type = conv->from()->type();
         auto dst_type = conv->type();
@@ -631,12 +630,10 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         if (conv->isa<Cast>()) {
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
                 return irbuilder.CreatePointerCast(from, to);
-            }
-            if (src_type->isa<PtrType>()) {
+            } else if (src_type->isa<PtrType>()) {
                 assert(is_type_i(dst_type) || is_type_bool(dst_type));
                 return irbuilder.CreatePtrToInt(from, to);
-            }
-            if (dst_type->isa<PtrType>()) {
+            } else if (dst_type->isa<PtrType>()) {
                 assert(is_type_i(src_type) || is_type_bool(src_type));
                 return irbuilder.CreateIntToPtr(from, to);
             }
@@ -647,19 +644,15 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             if (is_type_f(src) && is_type_f(dst)) {
                 assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
                 return irbuilder.CreateFPCast(from, to);
-            }
-            if (is_type_f(src)) {
+            } else if (is_type_f(src)) {
                 if (is_type_s(dst))
                     return irbuilder.CreateFPToSI(from, to);
                 return irbuilder.CreateFPToUI(from, to);
-            }
-            if (is_type_f(dst)) {
+            } else if (is_type_f(dst)) {
                 if (is_type_s(src))
                     return irbuilder.CreateSIToFP(from, to);
                 return irbuilder.CreateUIToFP(from, to);
-            }
-
-            if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
+            } else if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
                 if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
                     return irbuilder.CreateTrunc(from, to);
             } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
@@ -671,13 +664,10 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             }
 
             assert(false && "unsupported cast");
-        }
-
-        if (conv->isa<Bitcast>())
+        } else if (conv->isa<Bitcast>()) {
             return emit_bitcast(irbuilder, conv->from(), dst_type);
-    }
-
-    if (auto select = def->isa<Select>()) {
+        }
+    } else if (auto select = def->isa<Select>()) {
         if (def->type()->isa<FnType>())
             return nullptr;
 
@@ -685,19 +675,13 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         llvm::Value* tval = emit(select->tval());
         llvm::Value* fval = emit(select->fval());
         return irbuilder.CreateSelect(cond, tval, fval);
-    }
-
-    if (auto align_of = def->isa<AlignOf>()) {
+    } else if (auto align_of = def->isa<AlignOf>()) {
         auto type = convert(align_of->of());
         return irbuilder.getInt64(module().getDataLayout().getABITypeAlignment(type));
-    }
-
-    if (auto size_of = def->isa<SizeOf>()) {
+    } else if (auto size_of = def->isa<SizeOf>()) {
         auto type = convert(size_of->of());
         return irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
-    }
-
-    if (auto array = def->isa<DefiniteArray>()) {
+    } else if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
 
         // Try to emit it as a constant first
@@ -725,12 +709,9 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         }
 
         return irbuilder.CreateLoad(alloca);
-    }
-
-    if (auto array = def->isa<IndefiniteArray>())
+    } else if (auto array = def->isa<IndefiniteArray>()) {
         return llvm::UndefValue::get(convert(array->type()));
-
-    if (auto agg = def->isa<Aggregate>()) {
+    } else if (auto agg = def->isa<Aggregate>()) {
         assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>() || def->isa<Closure>());
         if (is_unit(agg)) return nullptr;
 
@@ -762,9 +743,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         }
 
         return llvm_agg;
-    }
-
-    if (auto aggop = def->isa<AggOp>()) {
+    } else if (auto aggop = def->isa<AggOp>()) {
         auto llvm_agg = emit_unsafe(aggop->agg());
         auto llvm_idx = emit(aggop->index());
 
@@ -791,11 +770,11 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
-            if (aggop->agg()->type()->isa<ArrayType>())
+            if (aggop->agg()->type()->isa<ArrayType>()) {
                 return irbuilder.CreateLoad(copy_to_alloca_or_global());
-
-            if (extract->agg()->type()->isa<VectorType>())
+            } else if (extract->agg()->type()->isa<VectorType>()) {
                 return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
+            }
 
             // tuple/struct
             if (is_mem(extract)) return nullptr;
@@ -818,19 +797,16 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             auto p = copy_to_alloca();
             irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
             return irbuilder.CreateLoad(p.first);
-        }
-        if (insert->agg()->type()->isa<VectorType>())
+        } else if (insert->agg()->type()->isa<VectorType>()) {
             return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
+        }
         // tuple/struct
         return irbuilder.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
-    }
-
-    if (auto variant_index = def->isa<VariantIndex>()) {
+    } else if (auto variant_index = def->isa<VariantIndex>()) {
         auto llvm_value = emit(variant_index->op(0));
         auto tag_value = irbuilder.CreateExtractValue(llvm_value, { 1 });
         return irbuilder.CreateIntCast(tag_value, convert(variant_index->type()), false);
-    }
-    if (auto variant_extract = def->isa<VariantExtract>()) {
+    } else if (auto variant_extract = def->isa<VariantExtract>()) {
         auto variant_value = variant_extract->op(0);
         auto llvm_value    = emit(variant_value);
         auto target_type   = variant_value->type()->op(variant_extract->index());
@@ -844,8 +820,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(convert(target_type), addr_space));
             return irbuilder.CreateLoad(payload_addr);
         });
-    }
-    if (auto variant_ctor = def->isa<Variant>()) {
+    } else if (auto variant_ctor = def->isa<Variant>()) {
         auto llvm_type = convert(variant_ctor->type());
         auto tag_value = irbuilder.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
 
@@ -863,9 +838,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             }
             return irbuilder.CreateLoad(alloca);
         });
-    }
-
-    if (auto primlit = def->isa<PrimLit>()) {
+    } else if (auto primlit = def->isa<PrimLit>()) {
         llvm::Type* llvm_type = convert(primlit->type());
         Box box = primlit->value();
 
@@ -883,35 +856,22 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
             case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
         }
-    }
-
-    if (auto bottom = def->isa<Bottom>())
+    } else if (auto bottom = def->isa<Bottom>()) {
         return llvm::UndefValue::get(convert(bottom->type()));
-
-    if (auto alloc = def->isa<Alloc>()) {
+    } else if (auto alloc = def->isa<Alloc>()) {
         emit_unsafe(alloc->mem());
         return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
-    }
-
-    if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
-    if (auto store = def->isa<Store>())         return emit_store(irbuilder, store);
-    if (auto lea = def->isa<LEA>())             return emit_lea(irbuilder, lea);
-    if (auto assembly = def->isa<Assembly>())   return emit_assembly(irbuilder, assembly);
-    if (def->isa<Enter>())                      return emit_unsafe(def->op(0));
-
-    if (auto slot = def->isa<Slot>())
+    } else if (auto slot = def->isa<Slot>()) {
         return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
-
-    if (auto vector = def->isa<Vector>()) {
+    } else if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
             vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world().literal_pu32(i, vector->loc())));
 
         return vec;
-    }
-
-    if (auto global = def->isa<Global>())
+    } else if (auto global = def->isa<Global>()) {
         return emit_global(global);
+    }
 
     THORIN_UNREACHABLE;
 }

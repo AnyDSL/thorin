@@ -46,10 +46,11 @@ public:
 
     const char* file_ext() const override { return ".ll"; }
     void emit_stream(std::ostream& stream) override;
-    using ModuleAndContext = std::pair<
-        std::unique_ptr<llvm::Module>&,
-        std::unique_ptr<llvm::LLVMContext>&>;
-    ModuleAndContext emit_module();
+    // Note: This moves the context and module of the class,
+    // rendering the current CodeGen object invalid.
+    std::pair<
+        std::unique_ptr<llvm::Module>,
+        std::unique_ptr<llvm::LLVMContext>> emit_module();
     llvm::Function* prepare(const Scope&);
     virtual void prepare(Continuation*, llvm::Function*);
     llvm::Value* emit_bb(BB&, const Def* def);

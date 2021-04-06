@@ -272,7 +272,10 @@ void CodeGen::emit_stream(std::ostream& stream) {
     emit_module().first->print(llvm_stream, nullptr);
 }
 
-CodeGen::ModuleAndContext CodeGen::emit_module() {
+std::pair<
+    std::unique_ptr<llvm::Module>,
+    std::unique_ptr<llvm::LLVMContext>>
+CodeGen::emit_module() {
     if (debug()) {
         module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
         // Darwin only supports dwarf2
@@ -298,7 +301,7 @@ CodeGen::ModuleAndContext CodeGen::emit_module() {
 #endif
     optimize();
 
-    return ModuleAndContext { module_, context_ };
+    return std::pair { std::move(module_), std::move(context_) };
 }
 
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {

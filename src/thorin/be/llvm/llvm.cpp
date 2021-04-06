@@ -47,14 +47,14 @@ CodeGen::CodeGen(
     llvm::CallingConv::ID kernel_calling_convention,
     int opt, bool debug)
     : thorin::CodeGen(world, debug)
-    , context_(new llvm::LLVMContext())
-    , module_(new llvm::Module(world.name(), *context_))
+    , context_(std::make_unique<llvm::LLVMContext>())
+    , module_(std::make_unique<llvm::Module>(world.name(), context()))
     , opt_(opt)
     , dibuilder_(module())
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new Runtime(context(), module()))
+    , runtime_(std::make_unique<Runtime>(context(), module()))
 {}
 
 void CodeGen::optimize() {
@@ -269,10 +269,10 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
 
 void CodeGen::emit_stream(std::ostream& stream) {
     llvm::raw_os_ostream llvm_stream(stream);
-    emit_module()->print(llvm_stream, nullptr);
+    emit_module().first->print(llvm_stream, nullptr);
 }
 
-std::unique_ptr<llvm::Module>& CodeGen::emit_module() {
+CodeGen::ModuleAndContext CodeGen::emit_module() {
     if (debug()) {
         module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
         // Darwin only supports dwarf2
@@ -298,7 +298,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit_module() {
 #endif
     optimize();
 
-    return module_;
+    return ModuleAndContext { module_, context_ };
 }
 
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {

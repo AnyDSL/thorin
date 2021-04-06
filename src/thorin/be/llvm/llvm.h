@@ -46,7 +46,10 @@ public:
 
     const char* file_ext() const override { return ".ll"; }
     void emit_stream(std::ostream& stream) override;
-    std::unique_ptr<llvm::Module>& emit_module();
+    using ModuleAndContext = std::pair<
+        std::unique_ptr<llvm::Module>&,
+        std::unique_ptr<llvm::LLVMContext>&>;
+    ModuleAndContext emit_module();
     llvm::Function* prepare(const Scope&);
     virtual void prepare(Continuation*, llvm::Function*);
     llvm::Value* emit_bb(BB&, const Def* def);
@@ -103,8 +106,12 @@ private:
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
     void emit_phi_arg(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
+    // Note: The module and context have to be stored as pointers, so
+    // that ownership of the module can be moved to the JIT (LLVM currently
+    // has no std::move or std::swap implementation for modules and contexts).
     std::unique_ptr<llvm::LLVMContext> context_;
     std::unique_ptr<llvm::Module> module_;
+
     int opt_;
 
 protected:

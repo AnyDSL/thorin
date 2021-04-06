@@ -49,8 +49,8 @@ public:
     // Note: This moves the context and module of the class,
     // rendering the current CodeGen object invalid.
     std::pair<
-        std::unique_ptr<llvm::Module>,
-        std::unique_ptr<llvm::LLVMContext>> emit_module();
+        std::unique_ptr<llvm::LLVMContext>,
+        std::unique_ptr<llvm::Module>> emit_module();
     llvm::Function* prepare(const Scope&);
     virtual void prepare(Continuation*, llvm::Function*);
     llvm::Value* emit_bb(BB&, const Def* def);

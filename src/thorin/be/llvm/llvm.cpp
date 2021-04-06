@@ -269,12 +269,10 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
 
 void CodeGen::emit_stream(std::ostream& stream) {
     llvm::raw_os_ostream llvm_stream(stream);
-    emit_module().first->print(llvm_stream, nullptr);
+    emit_module().second->print(llvm_stream, nullptr);
 }
 
-std::pair<
-    std::unique_ptr<llvm::Module>,
-    std::unique_ptr<llvm::LLVMContext>>
+std::pair<std::unique_ptr<llvm::LLVMContext>, std::unique_ptr<llvm::Module>>
 CodeGen::emit_module() {
     if (debug()) {
         module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
@@ -301,7 +299,10 @@ CodeGen::emit_module() {
 #endif
     optimize();
 
-    return std::pair { std::move(module_), std::move(context_) };
+    // We need to delete the runtime at this point, since the ownership of
+    // the context and module is handed away.
+    runtime_.reset();
+    return std::pair { std::move(context_), std::move(module_) };
 }
 
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {

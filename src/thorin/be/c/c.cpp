@@ -912,11 +912,14 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
         // TODO: This should go in favor of a prepare pass that rewrites the kernel parameters
         if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param)) {
             // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
-            s << "__global " << convert(param->type()) << "* " << param->unique_name() << "_";
+            s << "__global " << convert(param->type()) << "*";
+            if (!is_proto) s.fmt(" {}_", param->unique_name());
         } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto array_size = config->as<HLSKernelConfig>()->param_size(param);
             assert(array_size > 0);
-            s.fmt("{} {}[{}]", convert(pointee_or_elem_type(param->type()->as<PtrType>())), param->unique_name(), array_size);
+            s.fmt("{} {}[{}]",
+                convert(pointee_or_elem_type(param->type()->as<PtrType>())),
+                !is_proto ? param->unique_name() : "", array_size);
         } else {
             std::string qualifier;
             if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
@@ -925,7 +928,8 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
             {
                 qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
             }
-            s << convert(param->type()) << qualifier << " " << param->unique_name();
+            s.fmt("{}{}", convert(param->type()), qualifier);
+            if (!is_proto) s.fmt(" {}", param->unique_name());
         }
         needs_comma = true;
     }

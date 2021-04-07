@@ -949,7 +949,7 @@ void CCodeGen::emit_c_int() {
     world().cleanup();
 
     for (auto cont : world().continuations()) {
-        if (!cont->is_imported() && !cont->is_exported())
+        if (!cont->is_external())
             continue;
         assert(cont->is_returning());
         emit_fun_decl(cont);

@@ -306,13 +306,13 @@ CodeGen::emit_module() {
 }
 
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
-    std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+    std::string name = continuation->is_external() ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
     // set dll storage class for MSVC
     if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
-        if (continuation->empty()) {
+        if (continuation->is_imported()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
         } else if (continuation->is_exported()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
@@ -321,7 +321,7 @@ llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
 #endif
 
     // set linkage
-    if (continuation->empty() || continuation->is_exported())
+    if (continuation->is_external())
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
@@ -1173,7 +1173,7 @@ Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* cont
         args[j++] = emit(continuation->arg(i));
     }
     auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_exported();
+    callee->make_external();
     irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);
     return ret;

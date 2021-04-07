@@ -157,10 +157,6 @@ void Continuation::set_all_true_filter() {
     filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
 
-bool Continuation::is_exported() const { return attributes().visibility == Visibility::Exported; }
-bool Continuation::is_imported() const { return attributes().visibility == Visibility::Imported; }
-bool Continuation::is_internal() const { return attributes().visibility == Visibility::Internal; }
-bool Continuation::is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")                 attributes().intrinsic = Intrinsic::CUDA;

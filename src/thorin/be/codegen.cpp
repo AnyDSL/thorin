@@ -100,7 +100,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
             return;
 
         imported->set_name(continuation->unique_name());
-        imported->make_exported();
+        imported->make_external();
         continuation->set_name(continuation->unique_name());
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)

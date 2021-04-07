@@ -646,8 +646,8 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         } else if (s_ptr && d_ptr && s_ptr->addr_space() == d_ptr->addr_space()) {
             bb.body.fmt("{} = ({}) {};\n", name, d_t, src);
         } else if (conv->isa<Cast>()) {
-            auto s_prim = s_type->as<PrimType>();
-            auto d_prim = d_type->as<PrimType>();
+            auto s_prim = s_type->isa<PrimType>();
+            auto d_prim = d_type->isa<PrimType>();
 
             if (lang_ == Lang::CUDA && s_prim && (s_prim->primtype_tag() == PrimType_pf16 || s_prim->primtype_tag() == PrimType_qf16)) {
                 bb.body.fmt("{} = __half2float({});\n", name, src);

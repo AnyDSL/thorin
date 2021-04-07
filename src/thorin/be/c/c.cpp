@@ -53,6 +53,7 @@ public:
     std::string emit_constant(const Def*);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
+    std::string emit_fun_head(Continuation*, bool = false);
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
     void prepare(Continuation*, const std::string&);
@@ -288,90 +289,34 @@ inline const Type* ret_type(const FnType* fn_type) {
     return fn_type->table().tuple_type(types);
 }
 
+static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
+    auto elem_type = ptr_type->as<PtrType>()->pointee();
+    if (auto array_type = elem_type->isa<ArrayType>())
+        elem_type = array_type->elem_type();
+    return elem_type;
+}
+
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();
-    auto name = (cont->is_exported() || cont->empty()) ? cont->name() : cont->unique_name();
 
-    // Emit function qualifiers
-    if (cont->is_exported()) {
-        auto config = kernel_config_.find(cont);
-        switch (lang_) {
-            default: break;
-            case Lang::CUDA:
-                func_impls_ << "__global__ ";
-                if (config != kernel_config_.end()) {
-                    auto block = config->second->as<GPUKernelConfig>()->block_size();
-                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                        func_impls_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
-                }
-                break;
-            case Lang::OpenCL:
-                func_impls_ << "__kernel ";
-                if (config != kernel_config_.end()) {
-                    auto block = config->second->as<GPUKernelConfig>()->block_size();
-                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                        func_impls_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
-                }
-                break;
-        }
-    } else if (lang_ == Lang::CUDA) {
-        func_impls_ << "__device__ ";
-    } else {
-        func_impls_ << "static ";
-    }
-
-    func_impls_ << convert(ret_type(cont->type())) << " " << name << "(";
-
+    // Place parameters in map and gather HLS pragmas
     std::string hls_pragmas;
-    auto config = cont->is_exported() && kernel_config_.count(cont)
-        ? kernel_config_.find(cont)->second.get() : nullptr;
-
-    // emit and store all first-order params
-    bool needs_comma = false;
-    for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
-        auto param = cont->param(i);
-        if (is_mem(param) || is_unit(param) || param->order() > 0) {
-            defs_[param] = {};
-            continue;
-        }
-        if (needs_comma) func_impls_.fmt(", ");
-
-        if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param)) {
-            // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
-            func_impls_ << "__global " << convert(param->type()) << "* " << param->unique_name() << "_";
-        } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
-            // HLS requires to annotate the array size at compile-time
-            auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-            auto ptr_type = param->type()->as<PtrType>();
-            auto elem_type = ptr_type->pointee();
-            if (auto array_type = elem_type->isa<ArrayType>())
-                elem_type = array_type->elem_type();
-            assert(array_size > 0);
-            func_impls_ << convert(elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+    for (auto param : cont->params()) {
+        defs_[param] = param->unique_name();
+        if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
+            auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
             if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
                 hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
-        } else {
-            std::string qualifier;
-            if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
-                config && config->as<GPUKernelConfig>()->has_restrict() &&
-                param->type()->isa<PtrType>())
-            {
-                qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
-            }
-#if 0
-            emit_addr_space(func_impls_, param->type());
-#endif
-            func_impls_ << convert(param->type()) << qualifier << " " << param->unique_name();
         }
-        defs_[param] = param->unique_name();
-        needs_comma = true;
     }
-    func_impls_.fmt(") {{");
 
+    func_impls_.fmt("{} {{", emit_fun_head(cont));
     if (!hls_pragmas.empty())
         func_impls_.fmt("\n{}", hls_pragmas);
     func_impls_.fmt("\t\n");
+
     // Load OpenCL structs from buffers
+    // TODO: See above
     for (auto param : cont->params()) {
         if (is_mem(param) || is_unit(param) || param->order() > 0)
             continue;
@@ -445,20 +390,18 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
     } else if (cont->callee() == world().branch()) {
         auto c = emit(cont->arg(0));
-        auto t = emit(cont->arg(1));
-        auto f = emit(cont->arg(2));
+        auto t = cont->arg(1)->unique_name();
+        auto f = cont->arg(2)->unique_name();
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::Match) {
         bb.tail.fmt("switch ({}) {{\t\n", emit(cont->arg(0)));
 
         for (size_t i = 2; i < cont->num_args(); i++) {
             auto arg = cont->arg(i)->as<Tuple>();
-            auto value = emit(arg->op(0));
-            auto label = emit(arg->op(1));
-            bb.tail.fmt("case {}: goto {};\n", value, label);
+            bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), arg->op(1)->unique_name());
         }
 
-        bb.tail.fmt("default: goto {};", emit(cont->arg(1)));
+        bb.tail.fmt("default: goto {};", cont->arg(1)->unique_name());
         bb.tail.fmt("\b\n}}");
     } else if (cont->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
@@ -468,7 +411,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             if (auto arg = emit_unsafe(cont->arg(i)); !arg.empty())
                 bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
-        bb.tail.fmt("goto {};", emit(callee));
+        bb.tail.fmt("goto {};", callee->unique_name());
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
 #if 0
         if (callee->intrinsic() == Intrinsic::Reserve) {
@@ -717,9 +660,10 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return "alignof(" + convert(align_of->of()) + ")";
     } else if (auto size_of = def->isa<SizeOf>()) {
         return "sizeof(" + convert(size_of->of()) + ")";
+    } else if (def->isa<IndefiniteArray>()) {
+        func_impls_.fmt("{} {}; // indefinite array: bottom\n", convert(def->type()), name);
     } else if (def->isa<Aggregate>() || def->isa<DefiniteArray>()) {
         func_impls_.fmt("{} {};\n", convert(def->type()), name);
-        bb.body.fmt("// aggregate or def array {}", def->type());
         for (size_t i = 0, n = def->num_ops(); i < n; ++i) {
             auto op = emit(def->op(i));
             bb.body << name;
@@ -897,26 +841,80 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     return name;
 }
 
-std::string CCodeGen::emit_fun_decl(Continuation* cont) {
-    if (cont->is_exported() || cont->is_imported()) {
-        // Create a prototype for functions that are imported or exported
-        std::vector<std::string> args;
-        for (auto param : cont->params()) {
-            if (is_mem(param) || is_unit(param) || param->order() > 0)
-                continue;
-            args.push_back(convert(param->type()));
+std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
+    StringStream s;
+
+    // Emit function qualifiers
+    auto config = cont->is_exported() && kernel_config_.count(cont)
+        ? kernel_config_.find(cont)->second.get() : nullptr;
+    if (cont->is_exported()) {
+        auto config = kernel_config_.find(cont);
+        switch (lang_) {
+            default: break;
+            case Lang::CUDA:
+                s << "__global__ ";
+                if (!is_proto && config != kernel_config_.end()) {
+                    auto block = config->second->as<GPUKernelConfig>()->block_size();
+                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                        s.fmt("__launch_bounds__ ({} * {} * {})", std::get<0>(block), std::get<1>(block), std::get<2>(block));
+                }
+                break;
+            case Lang::OpenCL:
+                s << "__kernel ";
+                if (!is_proto && config != kernel_config_.end()) {
+                    auto block = config->second->as<GPUKernelConfig>()->block_size();
+                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                        s.fmt("__attribute__((reqd_work_group_size({} * {} * {})))", std::get<0>(block), std::get<1>(block), std::get<2>(block));
+                }
+                break;
         }
-        auto ret_type = cont->ret_param()->type()->as<FnType>();
-        std::vector<const Type*> ret_types;
-        for (auto op : ret_type->ops()) {
-            if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0)
-                continue;
-            ret_types.push_back(op);
-        }
-        func_decls_.fmt("{} {}({, });\n", convert(world().tuple_type(ret_types)), cont->name(), args);
-        return cont->name();
+    } else if (lang_ == Lang::CUDA) {
+        s << "__device__ ";
+    } else if (cont->is_internal()) {
+        s << "static ";
     }
-    return cont->unique_name();
+
+    s.fmt("{} {}(",
+        convert(ret_type(cont->type())),
+        cont->is_internal() ? cont->unique_name() : cont->name());
+
+    // Emit and store all first-order params
+    bool needs_comma = false;
+    for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
+        auto param = cont->param(i);
+        if (is_mem(param) || is_unit(param) || param->order() > 0) {
+            defs_[param] = {};
+            continue;
+        }
+        if (needs_comma) s.fmt(", ");
+
+        // TODO: This should go in favor of a prepare pass that rewrites the kernel parameters
+        if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param)) {
+            // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
+            s << "__global " << convert(param->type()) << "* " << param->unique_name() << "_";
+        } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
+            auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+            assert(array_size > 0);
+            s.fmt("{} {}[{}]", convert(pointee_or_elem_type(param->type()->as<PtrType>())), param->unique_name(), array_size);
+        } else {
+            std::string qualifier;
+            if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
+                config && config->as<GPUKernelConfig>()->has_restrict() &&
+                param->type()->isa<PtrType>())
+            {
+                qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
+            }
+            s << convert(param->type()) << qualifier << " " << param->unique_name();
+        }
+        needs_comma = true;
+    }
+    s << ")";
+    return s.str();
+}
+
+std::string CCodeGen::emit_fun_decl(Continuation* cont) {
+    func_decls_.fmt("{};\n", emit_fun_head(cont, true));
+    return cont->is_internal() ? cont->unique_name() : cont->name();
 }
 
 Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {

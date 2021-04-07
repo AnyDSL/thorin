@@ -217,15 +217,6 @@ std::string CCodeGen::convert(const Type* type) {
  */
 
 void CCodeGen::emit_module() {
-    if (lang_ == Lang::CUDA) {
-        for (auto x : std::array {'x', 'y', 'z'}) {
-            func_decls_.fmt("__device__ inline int threadIdx_{}() {{ return threadIdx.{}; }}\n", x, x);
-            func_decls_.fmt("__device__ inline int blockIdx_{}() {{ return blockIdx.{}; }}\n", x, x);
-            func_decls_.fmt("__device__ inline int blockDim_{}() {{ return blockDim.{}; }}\n", x, x);
-            func_decls_.fmt("__device__ inline int gridDim_{}() {{ return gridDim.{}; }}\n", x, x);
-        }
-    }
-
     Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
 
     if (lang_ == Lang::OpenCL) {
@@ -263,6 +254,17 @@ void CCodeGen::emit_module() {
 
     stream_ << type_decls_.str();
     stream_.endl() << func_decls_.str();
+
+    if (lang_ == Lang::CUDA) {
+        stream_.endl();
+        for (auto x : std::array {'x', 'y', 'z'}) {
+            stream_.fmt("__device__ inline int threadIdx_{}() {{ return threadIdx.{}; }}\n", x, x);
+            stream_.fmt("__device__ inline int blockIdx_{}() {{ return blockIdx.{}; }}\n", x, x);
+            stream_.fmt("__device__ inline int blockDim_{}() {{ return blockDim.{}; }}\n", x, x);
+            stream_.fmt("__device__ inline int gridDim_{}() {{ return gridDim.{}; }}\n", x, x);
+        }
+    }
+
     stream_.endl() << func_impls_.str();
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)

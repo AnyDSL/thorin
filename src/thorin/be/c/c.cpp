@@ -940,7 +940,8 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
 }
 
 std::string CCodeGen::emit_fun_decl(Continuation* cont) {
-    func_decls_.fmt("{};\n", emit_fun_head(cont, true));
+    if (cont->cc() != CC::Device)
+        func_decls_.fmt("{};\n", emit_fun_head(cont, true));
     return cont->is_internal() ? cont->unique_name() : cont->name();
 }
 

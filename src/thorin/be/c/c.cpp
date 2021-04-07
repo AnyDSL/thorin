@@ -219,10 +219,10 @@ std::string CCodeGen::convert(const Type* type) {
 void CCodeGen::emit_module() {
     if (lang_ == Lang::CUDA) {
         for (auto x : std::array {'x', 'y', 'z'}) {
-            func_decls_.fmt("__device__ inline int threadIdx_{}() { return threadIdx.{}; }\n", x, x);
-            func_decls_.fmt("__device__ inline int blockIdx_{}() { return blockIdx.{}; }\n", x, x);
-            func_decls_.fmt("__device__ inline int blockDim_{}() { return blockDim.{}; }\n", x, x);
-            func_decls_.fmt("__device__ inline int gridDim_{}() { return gridDim.{}; }\n", x, x);
+            func_decls_.fmt("__device__ inline int threadIdx_{}() {{ return threadIdx.{}; }}\n", x, x);
+            func_decls_.fmt("__device__ inline int blockIdx_{}() {{ return blockIdx.{}; }}\n", x, x);
+            func_decls_.fmt("__device__ inline int blockDim_{}() {{ return blockDim.{}; }}\n", x, x);
+            func_decls_.fmt("__device__ inline int gridDim_{}() {{ return gridDim.{}; }}\n", x, x);
         }
     }
 

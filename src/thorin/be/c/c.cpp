@@ -82,6 +82,7 @@ private:
     bool use_channels_ = false;
     bool use_align_of_ = false;
     bool use_memcpy_ = false;
+    bool use_malloc_ = false;
     bool debug_;
     int primop_counter = 0;
 
@@ -243,6 +244,8 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
         if (use_memcpy_)
             stream_.fmt("#include <string.h>\n"); // for 'memcpy'
+        if (use_malloc_)
+            stream_.fmt("#include <stdlib.h>\n"); // for 'malloc'
         stream_.fmt("\n");
     }
 
@@ -778,8 +781,21 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return "";
     } else if (auto slot = def->isa<Slot>()) {
         emit_unsafe(slot->frame());
-        func_impls_.fmt("{} {}_slot;\n", convert(slot->alloced_type()), name);
-        func_impls_.fmt("{}* {} = &{}_slot;\n", convert(slot->alloced_type()), name, name);
+        auto t = convert(slot->alloced_type());
+        func_impls_.fmt("{} {}_slot;\n", t, name);
+        func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
+    } else if (auto alloc = def->isa<Alloc>()) {
+        use_malloc_ = true;
+        emit_unsafe(alloc->mem());
+        auto t = convert(alloc->alloced_type());
+        func_impls_.fmt("{}* {};\n", t, name);
+
+        if (auto array = alloc->alloced_type()->isa<IndefiniteArrayType>()) {
+            auto extra = emit(alloc->extra());
+            bb.body.fmt("{} = malloc(sizeof({}) * {});\n", name, t, extra);
+        } else {
+            bb.body.fmt("{} = malloc(sizeof({}));\n", name, t);
+        }
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
     } else if (auto lea = def->isa<LEA>()) {

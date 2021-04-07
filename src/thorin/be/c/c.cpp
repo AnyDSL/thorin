@@ -258,7 +258,7 @@ void CCodeGen::emit_module() {
     }
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
-        stream_.fmt("extern \"C\" {{\t\n");
+        stream_.fmt("extern \"C\" {{\n");
     }
 
     stream_ << type_decls_.str();

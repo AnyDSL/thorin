@@ -877,7 +877,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
                     if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                        s.fmt("__launch_bounds__ ({} * {} * {})", std::get<0>(block), std::get<1>(block), std::get<2>(block));
+                        s.fmt("__launch_bounds__({} * {} * {}) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                 }
                 break;
             case Lang::OpenCL:
@@ -885,7 +885,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
                     if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
-                        s.fmt("__attribute__((reqd_work_group_size({} * {} * {})))", std::get<0>(block), std::get<1>(block), std::get<2>(block));
+                        s.fmt("__attribute__((reqd_work_group_size({} * {} * {}))) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                 }
                 break;
         }

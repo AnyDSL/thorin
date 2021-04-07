@@ -1008,6 +1008,7 @@ static inline bool is_const_primop(const Def* def) {
     return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
 }
 
+// TODO do we need this?
 const std::string CCodeGen::var_name(const Def* def) {
     if (is_const_primop(def))
         return def->unique_name() + "_" + std::to_string(primop_counter++);
@@ -1035,10 +1036,11 @@ inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
+// TODO do we need this?
 std::string CCodeGen::type_name(const Type* type) {
     if (type->is_nominal())
         return type->as<NominalType>()->name().str();
-    return make_identifier(convert(type));
+    return make_identifier(convert(type)); // TODO especially this invocation of convert looks scary
 }
 
 std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {

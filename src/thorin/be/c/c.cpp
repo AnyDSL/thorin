@@ -715,6 +715,9 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         func_impls_.fmt("{} {};\n", convert(load->out_val()->type()), name);
         bb.body.fmt("{} = *{};\n", name, ptr);
     } else if (auto store = def->isa<Store>()) {
+        // TODO: IndefiniteArray should be removed
+        if (store->val()->isa<IndefiniteArray>())
+            return "";
         emit_unsafe(store->mem());
         bb.body.fmt("*{} = {};\n", emit(store->ptr()), emit(store->val()));
         return "";

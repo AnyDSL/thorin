@@ -351,6 +351,24 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
     }
 }
 
+inline std::string make_identifier(const std::string& str) {
+    auto copy = str;
+    // Transform non-alphanumeric characters
+    std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) {
+        if (c == '*') return 'p';
+        if (!std::isalnum(c)) return '_';
+        return c;
+    });
+    // First character must be a letter or '_'
+    if (!std::isalpha(copy[0]) && copy[0] != '_')
+        copy.insert(copy.begin(), '_');
+    return copy;
+}
+
+inline std::string label_name(const Def* def) {
+    return make_identifier(def->as_continuation()->unique_name());
+}
+
 void CCodeGen::finalize(const Scope&) {
     func_impls_.fmt("}}\n\n");
 }
@@ -358,7 +376,7 @@ void CCodeGen::finalize(const Scope&) {
 void CCodeGen::finalize(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     if (cont != entry_)
-        func_impls_.fmt("{}: \t", cont->unique_name());
+        func_impls_.fmt("{}: \t", label_name(cont));
     func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
@@ -390,18 +408,18 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
     } else if (cont->callee() == world().branch()) {
         auto c = emit(cont->arg(0));
-        auto t = cont->arg(1)->unique_name();
-        auto f = cont->arg(2)->unique_name();
+        auto t = label_name(cont->arg(1));
+        auto f = label_name(cont->arg(2));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::Match) {
         bb.tail.fmt("switch ({}) {{\t\n", emit(cont->arg(0)));
 
         for (size_t i = 2; i < cont->num_args(); i++) {
             auto arg = cont->arg(i)->as<Tuple>();
-            bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), arg->op(1)->unique_name());
+            bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), label_name(arg->op(1)));
         }
 
-        bb.tail.fmt("default: goto {};", cont->arg(1)->unique_name());
+        bb.tail.fmt("default: goto {};", label_name(cont->arg(1)));
         bb.tail.fmt("\b\n}}");
     } else if (cont->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
@@ -411,7 +429,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             if (auto arg = emit_unsafe(cont->arg(i)); !arg.empty())
                 bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
-        bb.tail.fmt("goto {};", callee->unique_name());
+        bb.tail.fmt("goto {};", label_name(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
 #if 0
         if (callee->intrinsic() == Intrinsic::Reserve) {
@@ -505,7 +523,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }
         }
-        bb.tail.fmt("goto {};", ret_cont->unique_name());
+        bb.tail.fmt("goto {};", label_name(ret_cont));
     } else {
         THORIN_UNREACHABLE;
     }
@@ -1035,16 +1053,6 @@ const std::string CCodeGen::get_lang() const {
         case Lang::CUDA:   return "CUDA";
         case Lang::OpenCL: return "OpenCL";
     }
-}
-
-inline std::string make_identifier(const std::string& str) {
-    auto copy = str;
-    std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) {
-        if (c == ' ') return '_';
-        if (c == '*') return 'p';
-        return c;
-    });
-    return copy;
 }
 
 // TODO do we need this?

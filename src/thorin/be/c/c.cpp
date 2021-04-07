@@ -409,10 +409,9 @@ void CCodeGen::finalize(const Scope&) {
 
 void CCodeGen::finalize(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    if (cont == entry_)
-        func_impls_.fmt("goto {};\b\n", cont->unique_name());
-    func_impls_.fmt("{}: \t{{\t\n{}{}{}\b\n}}\b\n",
-        cont->unique_name(), bb.head.str(), bb.body.str(), bb.tail.str());
+    if (cont != entry_)
+        func_impls_.fmt("{}: \t", cont->unique_name());
+    func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {

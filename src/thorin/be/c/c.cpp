@@ -717,20 +717,15 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return "alignof(" + convert(align_of->of()) + ")";
     } else if (auto size_of = def->isa<SizeOf>()) {
         return "sizeof(" + convert(size_of->of()) + ")";
-    } else if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
-        for (auto op : array->ops())
-            emit(op);
-        func_impls_.fmt("{} {};\n", convert(array->type()), name);
-        bb.body.fmt("{} = {{ {{\t\n", name);
-        bb.body.range(array->ops(), ", ", [&] (const Def* op) { bb.body.fmt("{}", emit(op)); });
-        bb.body.fmt("\b\n }} }};\n");
-    } else if (auto agg = def->isa<Aggregate>()) {
-        for (auto op : agg->ops())
-            emit(op);
-        func_impls_.fmt("{} {};\n", convert(agg->type()), name);
-        bb.body.fmt("{} = {{\t\n", name);
-        bb.body.range(agg->ops(), ",\n", [&] (const Def* op) { bb.body.fmt("{}", emit(op)); });
-        bb.body.fmt("\b\n}};\n");
+    } else if (def->isa<Aggregate>() || def->isa<DefiniteArray>()) {
+        func_impls_.fmt("{} {};\n", convert(def->type()), name);
+        bb.body.fmt("// aggregate or def array {}", def->type());
+        for (size_t i = 0, n = def->num_ops(); i < n; ++i) {
+            auto op = emit(def->op(i));
+            bb.body << name;
+            emit_access(bb.body, def->type(), world().literal(thorin::pu64{i}));
+            bb.body.fmt(" = {};\n", op);
+        }
     } else if (auto agg_op = def->isa<AggOp>()) {
         if (auto agg = emit_unsafe(agg_op->agg()); !agg.empty()) {
             emit(agg_op->index());

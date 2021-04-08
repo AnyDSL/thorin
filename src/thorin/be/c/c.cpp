@@ -68,10 +68,6 @@ private:
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
 
-    const std::string var_name(const Def*);
-    const std::string get_lang() const;
-
-    std::string type_name(const Type*);
     std::string array_name(const DefiniteArrayType*);
     std::string tuple_name(const TupleType*);
 
@@ -86,7 +82,6 @@ private:
     bool use_memcpy_ = false;
     bool use_malloc_ = false;
     bool debug_;
-    int primop_counter = 0;
 
     Stream& stream_;
     StringStream func_impls_;
@@ -95,6 +90,16 @@ private:
 
     friend class CEmit;
 };
+
+static inline const std::string lang_as_string(Lang lang) {
+    switch (lang) {
+        default:
+        case Lang::C99:    return "C99";
+        case Lang::HLS:    return "HLS";
+        case Lang::CUDA:   return "CUDA";
+        case Lang::OpenCL: return "OpenCL";
+    }
+}
 
 static inline bool is_string_type(const Type* type) {
     if (auto array = type->isa<DefiniteArrayType>())
@@ -163,8 +168,7 @@ std::string CCodeGen::convert(const Type* type) {
         s.rangei(tuple->ops(), "\n", [&](size_t i) { s.fmt("{} e{};", convert(tuple->op(i)), i); });
         s.fmt("\b\n}} {};\n", name);
     } else if (auto variant = type->isa<VariantType>()) {
-        name = type_name(variant);
-        types_[variant] = name;
+        types_[variant] = name = variant->name().str();
         auto tag_type =
             variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
             variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
@@ -186,8 +190,7 @@ std::string CCodeGen::convert(const Type* type) {
         s.fmt("{} tag;", convert(tag_type));
         s.fmt("\b\n}} {};", name);
     } else if (auto struct_type = type->isa<StructType>()) {
-        name = type_name(struct_type);
-        types_[struct_type] = name;
+        types_[struct_type] = name = struct_type->name().str();
         s.fmt("typedef struct {{\t\n");
         s.rangei(struct_type->ops(), "\n", [&](size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
         s.fmt("\b\n}} {};\n", name);
@@ -608,7 +611,7 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
 }
 
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
-    auto name = var_name(def);
+    auto name = def->unique_name();
 
     if (auto bin = def->isa<BinOp>()) {
         auto a = emit(bin->lhs());
@@ -848,7 +851,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)
-            world().wdef(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);
+            world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
         std::string prefix;
         switch (lang_) {
@@ -1056,40 +1059,12 @@ static inline bool is_const_primop(const Def* def) {
     return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
 }
 
-// TODO do we need this?
-const std::string CCodeGen::var_name(const Def* def) {
-    if (is_const_primop(def))
-        return def->unique_name() + "_" + std::to_string(primop_counter++);
-    else
-        return def->unique_name();
-}
-
-const std::string CCodeGen::get_lang() const {
-    switch (lang_) {
-        default:
-        case Lang::C99:    return "C99";
-        case Lang::HLS:    return "HLS";
-        case Lang::CUDA:   return "CUDA";
-        case Lang::OpenCL: return "OpenCL";
-    }
-}
-
-// TODO do we need this?
-std::string CCodeGen::type_name(const Type* type) {
-    if (type->is_nominal())
-        return type->as<NominalType>()->name().str();
-    return make_identifier(convert(type)); // TODO especially this invocation of convert looks scary
-}
-
 std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {
-    return "array_" + std::to_string(array_type->dim()) + "_" + type_name(array_type->elem_type());
+    return "array_" + std::to_string(array_type->gid());
 }
 
 std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
-    std::string name = "tuple";
-    for (auto op : tuple_type->ops())
-        name += "_" + type_name(op);
-    return name;
+    return "tuple_" + std::to_string(tuple_type->gid());
 }
 
 //------------------------------------------------------------------------------

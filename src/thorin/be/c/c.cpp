@@ -62,6 +62,7 @@ public:
 
 private:
     std::string convert(const Type*);
+    std::string addr_space_prefix(AddrSpace);
     Stream& emit_debug_info(Stream&, const Def*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
@@ -151,15 +152,7 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (type->isa<FnType>()) {
         assert(false && "todo");
     } else if (auto ptr = type->isa<PtrType>()) {
-        if (lang_ == Lang::OpenCL) {
-            switch (ptr->addr_space()) {
-                default:
-                case AddrSpace::Generic:                  break;
-                case AddrSpace::Global: s << "__global "; break;
-                case AddrSpace::Shared: s << "__local ";  break;
-            }
-        }
-        s.fmt("{}*", convert(ptr->pointee()));
+        s.fmt("{}{}*", addr_space_prefix(ptr->addr_space()), convert(ptr->pointee()));
     } else if (auto array = type->isa<DefiniteArrayType>()) {
         name = array_name(array);
         auto elem_type = convert(array->elem_type());
@@ -209,6 +202,27 @@ std::string CCodeGen::convert(const Type* type) {
         assert(!s.str().empty());
         type_decls_ << s.str();
         return types_[type] = name;
+    }
+}
+
+std::string CCodeGen::addr_space_prefix(AddrSpace addr_space) {
+    if (lang_ == Lang::OpenCL) {
+        switch (addr_space) {
+            default:
+            case AddrSpace::Generic: return "";
+            case AddrSpace::Global:  return "__global ";
+            case AddrSpace::Shared:  return "__local ";
+        }
+    } else if (lang_ == Lang::CUDA) {
+        switch (addr_space) {
+            default:
+            case AddrSpace::Global:
+            case AddrSpace::Generic: return "";
+            case AddrSpace::Shared:  return "__shared ";
+        }
+    } else {
+        assert(lang_ != Lang::C99 || addr_space == AddrSpace::Generic);
+        return "";
     }
 }
 
@@ -433,29 +447,23 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
         bb.tail.fmt("goto {};", label_name(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
-#if 0
         if (callee->intrinsic() == Intrinsic::Reserve) {
             if (!cont->arg(1)->isa<PrimLit>())
-                world().EDEF(cont->arg(1), "reserve_shared: couldn't extract memory size");
+                world().edef(cont->arg(1), "reserve_shared: couldn't extract memory size");
 
-            switch (lang_) {
-                case Lang::CUDA:   bb.tail.fmt("__shared__ "); break;
-                case Lang::OpenCL: bb.tail.fmt("__local ");    break;
-                default:                                        break;
+            auto ret_cont = cont->arg(2)->as_continuation();
+            auto elem_type = ret_cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+            func_impls_.fmt("{}{} {}_reserved[{}];\n",
+                addr_space_prefix(AddrSpace::Shared), convert(elem_type),
+                cont->unique_name(), emit_constant(cont->arg(1)));
+            if (lang_ == Lang::HLS) {
+                func_impls_.fmt("#pragma HLS dependence variable={}_reserved inter false\n", cont->unique_name());
+                func_impls_.fmt("#pragma HLS data_pack  variable={}_reserved\n", cont->unique_name());
             }
-
-            auto cont = cont->arg(2)->as_cont();
-            auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-            auto name = "reserver_" + cont->param(1)->unique_name();
-            convert(bb.tail, elem_type) << " " << name << "[";
-            emit(cont->arg(1)) << "];" << endl;
-            // store_phi:
-            bb.tail << "p" << cont->param(1)->unique_name() << " = " << name << ";";
-            if (lang_ == Lang::HLS)
-                bb.tail << endl
-                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
-                            << "#pragma HLS data_pack  variable=" << name;
+            bb.tail.fmt("p_{} = {}_reserved;", ret_cont->param(1)->unique_name(), cont->unique_name());
+            bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
+#if 0
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
             // cast to cont to get unique name of "for index"
             auto body = cont->arg(4)->as_cont();
@@ -488,12 +496,16 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail << "return;" << endl;
             else
                 emit(cont->arg(5));
+#endif
+            THORIN_UNREACHABLE;
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
+#if 0
             bb.tail << "goto l" << callee->gid() << ";" << endl;
+#endif
+            THORIN_UNREACHABLE;
         } else {
             THORIN_UNREACHABLE;
         }
-#endif
     } else if (auto callee = cont->callee()->isa_continuation()) { // function/closure call
         auto ret_cont = (*std::find_if(cont->args().begin(), cont->args().end(), [] (const Def* arg) {
             return arg->isa_continuation();

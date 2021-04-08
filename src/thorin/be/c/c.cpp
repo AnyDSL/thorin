@@ -51,6 +51,7 @@ public:
 
     std::string emit_bb(BB&, const Def*);
     std::string emit_constant(const Def*);
+    std::string emit_bottom(const Type*);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -177,7 +178,7 @@ std::string CCodeGen::convert(const Type* type) {
         s.fmt("typedef struct {{\t\n");
 
         // This is required because we have zero-sized types but C/C++ do not
-        if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
+        if (variant->has_payload()) {
             s.fmt("union {{\t\n");
             s.rangei(variant->ops(), "\n", [&] (size_t i) {
                 if (is_type_unit(variant->op(i)))
@@ -192,7 +193,7 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (auto struct_type = type->isa<StructType>()) {
         types_[struct_type] = name = struct_type->name().str();
         s.fmt("typedef struct {{\t\n");
-        s.rangei(struct_type->ops(), "\n", [&](size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
+        s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
         s.fmt("\b\n}} {};\n", name);
         if (struct_type->name().str().find("channel_") != std::string::npos) use_channels_ = true;
     } else {
@@ -547,12 +548,26 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 }
 
 std::string CCodeGen::emit_constant(const Def* def) {
-    if (def->isa<Aggregate>() || def->isa<DefiniteArray>()) {
-        auto is_agg = def->isa<Aggregate>();
+    if (is_unit(def)) return "";
+    else if (def->isa<Bottom>()) {
+        return emit_bottom(def->type());
+    } else if (def->isa<Aggregate>()) {
+        auto is_array = def->isa<DefiniteArray>();
         StringStream s;
-        s.fmt(is_agg ? "{{\t\n" : "{{ {{ ");
-        s.range(def->ops(), is_agg ? ",\n" : ", ", [&] (const Def* op) { s << emit_constant(op); });
-        s.fmt(is_agg ? "\b\n}}" : "}} }}");
+        s.fmt(is_array ? "{{ {{ " : "{{\t\n");
+        s.range(def->ops(), is_array ? ", " : ",\n", [&] (const Def* op) { s << emit_constant(op); });
+        s.fmt(is_array ? "}} }}" : "\b\n}}");
+        return s.str();
+    } else if (auto variant = def->isa<Variant>()) {
+        auto variant_type = variant->type()->as<VariantType>();
+        StringStream s;
+        if (variant_type->has_payload()) {
+            if (auto value = emit_constant(variant->value()); !value.empty())
+                s.fmt("{{ {{ {} }}, ", value); 
+            else
+                s.fmt("{{ {{ {} }}, ", emit_constant(world().bottom(variant->value()->type())));
+        }
+        s.fmt("{} }}", variant->index());
         return s.str();
     } else if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_tag()) {
@@ -588,6 +603,38 @@ std::string CCodeGen::emit_constant(const Def* def) {
     }
 }
 
+std::string CCodeGen::emit_bottom(const Type* type) {
+    if (auto definite_array = type->isa<DefiniteArrayType>()) {
+        StringStream s;
+        s << "{ ";
+        auto op = emit_bottom(definite_array->elem_type());
+        for (size_t i = 0, n = definite_array->dim(); i < n; ++i) {
+            s << op;
+            if (i != n - 1)
+                s << ", ";
+        }
+        s << " }";
+        return s.str();
+    } else if (type->isa<StructType>() || type->isa<TupleType>()) {
+        StringStream s;
+        s << "{ ";
+        s.range(type->ops(), ", ", [&] (const Type* op) { s << emit_bottom(op); });
+        s << " }";
+        return s.str();
+    } else if (auto variant_type = type->isa<VariantType>()) {
+        if (variant_type->has_payload()) {
+            auto non_unit = *std::find_if(variant_type->ops().begin(), variant_type->ops().end(),
+                [] (const Type* op) { return !is_type_unit(op); });
+            return "{ { " + emit_bottom(non_unit) + " }, 0 }";
+        }
+        return "{ 0 }";
+    } else if (type->isa<PtrType>() || type->isa<PrimType>()) {
+        return "0";
+    } else {
+        THORIN_UNREACHABLE;
+    }
+}
+
 void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, const std::string_view& prefix) {
     if (agg_type->isa<DefiniteArrayType>()) {
         s.fmt("{}e[{}]", prefix, emit(index));
@@ -610,8 +657,20 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
     }
 }
 
+static inline bool is_const_primop(const Def* def) {
+    return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
+}
+
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     auto name = def->unique_name();
+
+    if (is_const_primop(def)) {
+        // Constants will be emitted only once, so they must be placed
+        // at the top of the file, as globals.
+        auto const_value = emit_constant(def);
+        func_decls_.fmt("static const {} {} = {};\n", convert(def->type()), name, const_value);
+        return name;
+    }
 
     if (auto bin = def->isa<BinOp>()) {
         auto a = emit(bin->lhs());
@@ -697,7 +756,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         return "sizeof(" + convert(size_of->of()) + ")";
     } else if (def->isa<IndefiniteArray>()) {
         func_impls_.fmt("{} {}; // indefinite array: bottom\n", convert(def->type()), name);
-    } else if (def->isa<Aggregate>() || def->isa<DefiniteArray>()) {
+    } else if (def->isa<Aggregate>()) {
         func_impls_.fmt("{} {};\n", convert(def->type()), name);
         for (size_t i = 0, n = def->num_ops(); i < n; ++i) {
             auto op = emit(def->op(i));
@@ -742,8 +801,6 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         func_impls_.fmt("{} {};\n", convert(variant_extract->type()), name);
         auto variant_type = variant_extract->value()->type()->as<VariantType>();
         bb.body.fmt("{} = {}.data.{};\n", name, emit(variant_extract->value()), variant_type->op_name(variant_extract->index()));
-    } else if (auto bottom = def->isa<Bottom>()) {
-        func_impls_.fmt("{} {}; // bottom\n", convert(bottom->type()), name);
     } else if (auto load = def->isa<Load>()) {
         emit_unsafe(load->mem());
         auto ptr = emit(load->ptr());
@@ -1053,10 +1110,6 @@ std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 
     s.fmt("{}{}{}{}", float_mode, pref, t, suf);
     return s.str();
-}
-
-static inline bool is_const_primop(const Def* def) {
-    return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
 }
 
 std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {

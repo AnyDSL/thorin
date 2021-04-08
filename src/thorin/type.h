@@ -143,6 +143,8 @@ private:
 public:
     const NominalType* stub(TypeTable&) const override;
 
+    bool has_payload() const;
+
     friend class TypeTable;
 };
 

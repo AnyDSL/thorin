@@ -86,6 +86,10 @@ bool FnType::is_returning() const {
     return ret;
 }
 
+bool VariantType::has_payload() const {
+    return !std::all_of(ops().begin(), ops().end(), is_type_unit);
+}
+
 bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
 
 //------------------------------------------------------------------------------

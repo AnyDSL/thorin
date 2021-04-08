@@ -218,7 +218,7 @@ std::string CCodeGen::addr_space_prefix(AddrSpace addr_space) {
             default:
             case AddrSpace::Global:
             case AddrSpace::Generic: return "";
-            case AddrSpace::Shared:  return "__shared ";
+            case AddrSpace::Shared:  return "__shared__ ";
         }
     } else {
         assert(lang_ != Lang::C99 || addr_space == AddrSpace::Generic);
@@ -460,7 +460,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 func_impls_.fmt("#pragma HLS dependence variable={}_reserved inter false\n", cont->unique_name());
                 func_impls_.fmt("#pragma HLS data_pack  variable={}_reserved\n", cont->unique_name());
             }
-            bb.tail.fmt("p_{} = {}_reserved;", ret_cont->param(1)->unique_name(), cont->unique_name());
+            bb.tail.fmt("p_{} = {}_reserved;\n", ret_cont->param(1)->unique_name(), cont->unique_name());
             bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
 #if 0

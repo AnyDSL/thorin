@@ -158,7 +158,8 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (type->isa<FnType>()) {
         assert(false && "todo");
     } else if (auto ptr = type->isa<PtrType>()) {
-        s.fmt("{}{}*", addr_space_prefix(ptr->addr_space()), convert(ptr->pointee()));
+        // CUDA supports generic pointers, so there is no need to annotate them (moreover, annotating them triggers a bug in NVCC 11)
+        s.fmt("{}{}*", lang_ != Lang::CUDA ? addr_space_prefix(ptr->addr_space()) : "", convert(ptr->pointee()));
     } else if (auto array = type->isa<DefiniteArrayType>()) {
         name = array_name(array);
         auto elem_type = convert(array->elem_type());

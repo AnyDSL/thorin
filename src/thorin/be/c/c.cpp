@@ -110,7 +110,7 @@ static inline bool is_string_type(const Type* type) {
     return false;
 }
 
-static std::string handle_string_character(char c) {
+static std::string escape(char c) {
     switch (c) {
         case '\a': return "\\a";
         case '\b': return "\\b";
@@ -564,7 +564,7 @@ std::string CCodeGen::emit_constant(const Def* def) {
         StringStream s;
         if (variant_type->has_payload()) {
             if (auto value = emit_constant(variant->value()); !value.empty())
-                s.fmt("{{ {{ {} }}, ", value); 
+                s.fmt("{{ {{ {} }}, ", value);
             else
                 s.fmt("{{ {{ {} }}, ", emit_constant(world().bottom(variant->value()->type())));
         }
@@ -771,10 +771,9 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             if (auto extract = def->isa<Extract>()) {
                 if (is_mem(extract) || extract->type()->isa<FrameType>())
                     return "";
+
                 func_impls_.fmt("{} {};\n", convert(extract->type()), name);
                 bb.body.fmt("{} = {}", name, agg);
-                if (!extract->agg()->isa<MemOp>() && !extract->agg()->isa<Assembly>())
-                    emit_access(bb.body, extract->agg()->type(), extract->index());
                 bb.body.fmt(";\n");
             } else if (auto insert = def->isa<Insert>()) {
                 if (auto value = emit_unsafe(insert->value()); !value.empty()) {
@@ -825,7 +824,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         auto t = convert(alloc->alloced_type());
         func_impls_.fmt("{}* {};\n", t, name);
 
-        if (auto array = alloc->alloced_type()->isa<IndefiniteArrayType>()) {
+        if (alloc->alloced_type()->isa<IndefiniteArrayType>()) {
             auto extra = emit(alloc->extra());
             bb.body.fmt("{} = malloc(sizeof({}) * {});\n", name, t, extra);
         } else {
@@ -840,72 +839,34 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         bb.body.fmt("{} = &{}", name, ptr);
         emit_access(bb.body, lea->ptr_pointee(), lea->index(), "->");
         bb.body.fmt(";\n");
-    } else if (auto assembly = def->isa<Assembly>()) {
-#if 0
-        size_t out_size = assembly->type()->num_ops() - 1;
-        Array<std::string> outputs(out_size, std::string(""));
-        for (auto use : assembly->uses()) {
-            auto extract = use->as<Extract>();
-            size_t index = primlit_value<unsigned>(extract->index());
-            if (index == 0)
-                continue;   // skip the mem
+    } else if (auto ass = def->isa<Assembly>()) {
+        if (ass->is_alignstack() || ass->is_inteldialect())
+            world().wdef(ass, "stack alignment and inteldialect flags unsupported for C output");
 
-            assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
-            auto name = var_name(extract);
-            outputs[index - 1] = name;
-            convert(func_impls_, assembly->type()->op(index)) << " " << name << ";" << endl;
-        }
-        // some outputs that were originally there might have been pruned because
-        // they are not used but we still need them as operands for the asm
-        // statement so we need to generate them here
-        for (size_t i = 0; i < out_size; ++i) {
-            if (outputs[i] == "") {
-                auto name = var_name(assembly) + "_" + std::to_string(i + 1);
-                convert(func_impls_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
-                outputs[i] = name;
+        emit_unsafe(ass->mem());
+        size_t num_inputs = ass->num_inputs();
+        auto inputs = Array<std::string>(num_inputs);
+        for (size_t i = 0; i != num_inputs; ++i)
+            inputs[i] = emit(ass->input(i));
+
+        std::vector<std::string> outputs;
+        if (auto tup = ass->type()->isa<TupleType>()) {
+            for (size_t i = 1, e = tup->num_ops(); i != e; ++i) {
+                auto name = ass->out(i)->unique_name();
+                func_impls_.fmt("{} {};\n", convert(tup->op(i)), name);
+                outputs.emplace_back(name);
+                defs_[ass->out(i)] = name;
             }
         }
 
-        // emit temporaries
-        for (auto op : assembly->ops())
-            emit_temporaries(op);
+        std::string asm_template;
+        for (auto c : ass->asm_template())
+            asm_template += escape(c);
 
-        func_impls_ << "asm ";
-        if (assembly->has_sideeffects())
-            func_impls_ << "volatile ";
-        if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WDEF(assembly, "stack alignment and inteldialect flags unsupported for C output");
-        func_impls_ << "(\"";
-        for (auto c : assembly->asm_template())
-            func_impls_ << handle_string_character(c);
-        func_impls_ << "\"";
-
-        // emit the outputs
-        const char* separator = " : ";
-        const auto& output_constraints = assembly->output_constraints();
-        for (size_t i = 0; i < output_constraints.size(); ++i) {
-            func_impls_ << separator << "\"" << output_constraints[i] << "\"("
-                << outputs[i] << ")";
-            separator = ", ";
-        }
-
-        // emit the inputs
-        separator = output_constraints.empty() ? " :: " : " : ";
-        auto input_constraints = assembly->input_constraints();
-        for (size_t i = 0; i < input_constraints.size(); ++i) {
-            func_impls_ << separator << "\"" << input_constraints[i] << "\"(";
-            emit(assembly->op(i + 1)) << ")";
-            separator = ", ";
-        }
-
-        // emit the clobbers
-        separator = input_constraints.empty() ? output_constraints.empty() ? " ::: " : " :: " : " : ";
-        for (auto clob : assembly->clobbers()) {
-            func_impls_ << separator << "\"" << clob << "\"";
-            separator = ", ";
-        }
-        return func_impls_ << ");";
-#endif
+        bb.body.fmt("asm {}(\"{}\"\t\n", ass->has_sideeffects() ? "volatile " : "", asm_template);
+        bb.body.fmt(": ").rangei(ass->output_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass->output_constraints()[i], outputs[i]); }).endl();
+        bb.body.fmt(": ").rangei(ass-> input_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass-> input_constraints()[i],  inputs[i]); }).endl();
+        bb.body.fmt(": {, });\b\n", ass->clobbers());
     } else if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)

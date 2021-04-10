@@ -1001,10 +1001,10 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
 
     size_t num_inputs = assembly->num_inputs();
     auto input_values = Array<llvm::Value*>(num_inputs);
-    auto input_types = Array<llvm::Type*>(num_inputs);
+    auto input_types  = Array<llvm::Type* >(num_inputs);
     for (size_t i = 0; i != num_inputs; ++i) {
         input_values[i] = emit(assembly->input(i));
-        input_types[i] = convert(assembly->input(i)->type());
+        input_types [i] = convert(assembly->input(i)->type());
     }
 
     auto fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);

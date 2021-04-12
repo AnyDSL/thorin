@@ -774,6 +774,8 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
 
                 func_impls_.fmt("{} {};\n", convert(extract->type()), name);
                 bb.body.fmt("{} = {}", name, agg);
+                if (!extract->agg()->isa<MemOp>() && !extract->agg()->isa<Assembly>())
+                    emit_access(bb.body, extract->agg()->type(), extract->index());
                 bb.body.fmt(";\n");
             } else if (auto insert = def->isa<Insert>()) {
                 if (auto value = emit_unsafe(insert->value()); !value.empty()) {

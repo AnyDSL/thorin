@@ -585,11 +585,11 @@ std::string CCodeGen::emit_constant(const Def* def) {
                     [](double v) { return std::isinf(v); },
                     [](double v) { return std::isnan(v); });
         }
-        THORIN_UNREACHABLE;
-    } else {
-        // This is not a constant
-        THORIN_UNREACHABLE;
+    } else if (auto global = def->isa<Global>()) {
+        // TODO this doesn't do the trick
+        return emit_constant(global->init());
     }
+
     THORIN_UNREACHABLE;
 }
 

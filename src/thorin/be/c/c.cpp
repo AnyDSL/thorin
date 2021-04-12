@@ -590,6 +590,7 @@ std::string CCodeGen::emit_constant(const Def* def) {
         // This is not a constant
         THORIN_UNREACHABLE;
     }
+    THORIN_UNREACHABLE;
 }
 
 std::string CCodeGen::emit_bottom(const Type* type) {
@@ -858,24 +859,32 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             s = std::regex_replace(s, std::regex(esc), subst);
         }
 
+        // TODO maybe we only want to this conversion for certain C dialects?
         s = std::regex_replace(s, std::regex("(%)([[:alpha:]])"),  "%%$2");   // %eax -> %%eax
         s = std::regex_replace(s, std::regex("(\\$)([[:digit:]])"), "%$2");   // $1 -> %1, $$1 -> $%1
         s = std::regex_replace(s, std::regex("(\\$%)([[:digit:]])"), "$$$2"); // $%1 -> $$1
 
+        // TODO we probably want to have a smarter way of doing this
+        auto conv = [&](std::string constr) {
+            constr = std::regex_replace(constr, std::regex("\\{|\\}"),  ""); // remove braces
+            constr = std::regex_replace(constr, std::regex("rax"),  "a");
+            constr = std::regex_replace(constr, std::regex("rbx"),  "b");
+            constr = std::regex_replace(constr, std::regex("rcx"),  "c");
+            constr = std::regex_replace(constr, std::regex("rdx"),  "d");
+            constr = std::regex_replace(constr, std::regex("rsi"),  "S");
+            constr = std::regex_replace(constr, std::regex("rdi"),  "D");
+            // TODO more cases
+            return constr;
+        };
+
+        auto oconstrs = ass->output_constraints();
+        auto iconstrs = ass-> input_constraints();
+        auto clobbers = ass->clobbers();
+
         bb.body.fmt("asm {}(\"{}\"\t\n", ass->has_sideeffects() ? "volatile " : "", s);
-        bb.body.fmt(": ").rangei(ass->output_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass->output_constraints()[i], outputs[i]); }).fmt(" /* outputs */\n");
-        bb.body.fmt(": ").rangei(ass-> input_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass-> input_constraints()[i],  inputs[i]); }).fmt(" /* inputs */\n");
-        bb.body.fmt(": ").rangei(ass->          clobbers(), ", ", [&](size_t i) {
-            auto clob = ass->clobbers()[i];
-            assert(!clob.empty());
-            if (clob[0] == '{') {
-                std::replace(clob.begin(), clob.end(), '{', '\"');
-                std::replace(clob.begin(), clob.end(), '}', '\"');
-            } else {
-                clob = std::string("\"") + clob + std::string("\"");
-            }
-            bb.body << clob;
-        }).fmt("/* clobbers */\b\n);\n");
+        bb.body.fmt(": ").rangei(oconstrs, ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", conv(oconstrs[i]), outputs[i]); }).fmt(" /* outputs */\n");
+        bb.body.fmt(": ").rangei(iconstrs, ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", conv(iconstrs[i]),  inputs[i]); }).fmt(" /* inputs */\n");
+        bb.body.fmt(": ").rangei(clobbers, ", ", [&](size_t i) { bb.body.fmt("\"{}\"",      conv(clobbers[i])            ); }).fmt(" /* clobbers */\b\n);\n");
     } else if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)

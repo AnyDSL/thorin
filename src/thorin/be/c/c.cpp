@@ -10,10 +10,11 @@
 #include "thorin/util/stream.h"
 #include "c.h"
 
+#include <cctype>
 #include <cmath>
+#include <regex>
 #include <sstream>
 #include <type_traits>
-#include <cctype>
 #include <variant>
 
 namespace thorin::c {
@@ -108,19 +109,6 @@ static inline bool is_string_type(const Type* type) {
             if (primtype->primtype_tag() == PrimType_pu8)
                 return true;
     return false;
-}
-
-static std::string escape(char c) {
-    switch (c) {
-        case '\a': return "\\a";
-        case '\b': return "\\b";
-        case '\f': return "\\f";
-        case '\n': return "\\n";
-        case '\r': return "\\r";
-        case '\t': return "\\t";
-        case '\v': return "\\v";
-        default:   return std::string(1, c);
-    }
 }
 
 /*
@@ -861,14 +849,33 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             }
         }
 
-        std::string asm_template;
-        for (auto c : ass->asm_template())
-            asm_template += escape(c);
+        auto s = ass->asm_template();
 
-        bb.body.fmt("asm {}(\"{}\"\t\n", ass->has_sideeffects() ? "volatile " : "", asm_template);
-        bb.body.fmt(": ").rangei(ass->output_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass->output_constraints()[i], outputs[i]); }).endl();
-        bb.body.fmt(": ").rangei(ass-> input_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass-> input_constraints()[i],  inputs[i]); }).endl();
-        bb.body.fmt(": {, });\b\n", ass->clobbers());
+        // escape chars
+        for (auto [esc, subst] : {std::pair("\a", "\\a"), std::pair("\b", "\\b"),
+                                  std::pair("\f", "\\f"), std::pair("\n", "\\n"),
+                                  std::pair("\r", "\\r"), std::pair("\t", "\\t"), std::pair("\v", "\\v")}) {
+            s = std::regex_replace(s, std::regex(esc), subst);
+        }
+
+        s = std::regex_replace(s, std::regex("(%)([[:alpha:]])"),  "%%$2");   // %eax -> %%eax
+        s = std::regex_replace(s, std::regex("(\\$)([[:digit:]])"), "%$2");   // $1 -> %1, $$1 -> $%1
+        s = std::regex_replace(s, std::regex("(\\$%)([[:digit:]])"), "$$$2"); // $%1 -> $$1
+
+        bb.body.fmt("asm {}(\"{}\"\t\n", ass->has_sideeffects() ? "volatile " : "", s);
+        bb.body.fmt(": ").rangei(ass->output_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass->output_constraints()[i], outputs[i]); }).fmt(" /* outputs */\n");
+        bb.body.fmt(": ").rangei(ass-> input_constraints(), ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", ass-> input_constraints()[i],  inputs[i]); }).fmt(" /* inputs */\n");
+        bb.body.fmt(": ").rangei(ass->          clobbers(), ", ", [&](size_t i) {
+            auto clob = ass->clobbers()[i];
+            assert(!clob.empty());
+            if (clob[0] == '{') {
+                std::replace(clob.begin(), clob.end(), '{', '\"');
+                std::replace(clob.begin(), clob.end(), '}', '\"');
+            } else {
+                clob = std::string("\"") + clob + std::string("\"");
+            }
+            bb.body << clob;
+        }).fmt("/* clobbers */\b\n);\n");
     } else if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)

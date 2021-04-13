@@ -179,7 +179,7 @@ std::string CCodeGen::convert(const Type* type) {
         }
 
         s.fmt("{} tag;", convert(tag_type));
-        s.fmt("\b\n}} {};", name);
+        s.fmt("\b\n}} {};\n", name);
     } else if (auto struct_type = type->isa<StructType>()) {
         types_[struct_type] = name = struct_type->name().str();
         s.fmt("typedef struct {{\t\n");

@@ -65,6 +65,7 @@ public:
 private:
     std::string convert(const Type*);
     std::string addr_space_prefix(AddrSpace);
+    std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
@@ -216,6 +217,14 @@ std::string CCodeGen::addr_space_prefix(AddrSpace addr_space) {
     } else {
         assert(lang_ != Lang::C99 || addr_space == AddrSpace::Generic);
         return "";
+    }
+}
+
+std::string CCodeGen::device_prefix() {
+    switch (lang_) {
+        default:           return "";
+        case Lang::CUDA:   return "__device__ ";
+        case Lang::OpenCL: return "__constant ";
     }
 }
 
@@ -597,15 +606,7 @@ std::string CCodeGen::emit_constant(const Def* def) {
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
-        std::string prefix;
-        if (!global->is_mutable())
-            prefix = "const ";
-        switch (lang_) {
-            default:                                   break;
-            case Lang::CUDA:   prefix += "__device__ "; break;
-            case Lang::OpenCL: prefix += "__constant "; break;
-        }
-
+        std::string prefix = device_prefix() + (global->is_mutable() ? "" : "const ");
         func_decls_.fmt("{}{} {}", prefix, convert(global->alloced_type()), global->unique_name());
         if (global->init()->isa<Bottom>())
             func_decls_.fmt("; // bottom\n");
@@ -694,7 +695,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         // Constants will be emitted only once, so they must be placed
         // at the top of the file, as globals.
         auto const_value = emit_constant(def);
-        func_decls_.fmt("static const {} {} = {};\n", convert(def->type()), name, const_value);
+        func_decls_.fmt("static {}const {} {} = {};\n", device_prefix(), convert(def->type()), name, const_value);
         return name;
     }
 

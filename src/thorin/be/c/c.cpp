@@ -893,14 +893,14 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             s = std::regex_replace(s, std::regex(esc), subst);
         }
 
-        // TODO maybe we only want to this conversion for certain C dialects?
+        // TODO maybe we only want to do this conversion for certain C dialects?
         s = std::regex_replace(s, std::regex("(%)([[:alpha:]])"),  "%%$2");   // %eax -> %%eax
         s = std::regex_replace(s, std::regex("(\\$)([[:digit:]])"), "%$2");   // $1 -> %1, $$1 -> $%1
         s = std::regex_replace(s, std::regex("(\\$%)([[:digit:]])"), "$$$2"); // $%1 -> $$1
 
         // TODO we probably want to have a smarter way of doing this
         auto conv = [&](std::string constr) {
-            constr = std::regex_replace(constr, std::regex("\\{|\\}"),  ""); // remove braces
+            constr = std::regex_replace(constr, std::regex("\\{|\\}"), ""); // remove braces
             constr = std::regex_replace(constr, std::regex("rax"),  "a");
             constr = std::regex_replace(constr, std::regex("rbx"),  "b");
             constr = std::regex_replace(constr, std::regex("rcx"),  "c");

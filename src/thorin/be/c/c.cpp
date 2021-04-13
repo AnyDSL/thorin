@@ -536,20 +536,27 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     }
 }
 
+static inline bool is_definite_to_indefinite_array_cast(const PtrType* from, const PtrType* to) {
+    return
+        from->pointee()->isa<DefiniteArrayType>() &&
+        to->pointee()->isa<IndefiniteArrayType>() &&
+        from->pointee()->as<ArrayType>()->elem_type() ==
+        to->pointee()->as<ArrayType>()->elem_type();
+}
+
 std::string CCodeGen::emit_constant(const Def* def) {
+    StringStream s;
     if (is_unit(def)) return "";
     else if (def->isa<Bottom>()) {
         return emit_bottom(def->type());
     } else if (def->isa<Aggregate>()) {
         auto is_array = def->isa<DefiniteArray>();
-        StringStream s;
         s.fmt(is_array ? "{{ {{ " : "{{\t\n");
         s.range(def->ops(), is_array ? ", " : ",\n", [&] (const Def* op) { s << emit_constant(op); });
-        s.fmt(is_array ? "}} }}" : "\b\n}}");
+        s.fmt(is_array ? " }} }}" : "\b\n}}");
         return s.str();
     } else if (auto variant = def->isa<Variant>()) {
         auto variant_type = variant->type()->as<VariantType>();
-        StringStream s;
         if (variant_type->has_payload()) {
             if (auto value = emit_constant(variant->value()); !value.empty())
                 s.fmt("{{ {{ {} }}, ", value);
@@ -586,8 +593,37 @@ std::string CCodeGen::emit_constant(const Def* def) {
                     [](double v) { return std::isnan(v); });
         }
     } else if (auto global = def->isa<Global>()) {
-        // TODO this doesn't do the trick
-        return emit_constant(global->init());
+        assert(!global->init()->isa_continuation());
+        if (global->is_mutable() && lang_ != Lang::C99)
+            world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
+
+        std::string prefix;
+        if (!global->is_mutable())
+            prefix = "const ";
+        switch (lang_) {
+            default:                                   break;
+            case Lang::CUDA:   prefix += "__device__ "; break;
+            case Lang::OpenCL: prefix += "__constant "; break;
+        }
+
+        func_decls_.fmt("{}{} {}", prefix, convert(global->alloced_type()), global->unique_name());
+        if (global->init()->isa<Bottom>())
+            func_decls_.fmt("; // bottom\n");
+        else
+            func_decls_.fmt(" = {};\n", emit_constant(global->init()));
+        s.fmt("&{}", global->unique_name());
+        return s.str();
+    } else if (auto bitcast = def->isa<Bitcast>()) {
+        // Only pointer casts are supported: Bitcasts between constant integers or floating-point values
+        // of the same bitwidth should have been resolved during constant folding.
+        auto from = bitcast->from()->type()->as<PtrType>();
+        auto to   = bitcast->type()->as<PtrType>();
+        assert(bitcast->type()->isa<PtrType>() && bitcast->from()->type()->isa<PtrType>());
+        if (is_definite_to_indefinite_array_cast(from, to))
+            s.fmt("({})->e", emit_constant(bitcast->from()));
+        else
+            s.fmt("({}){}", convert(bitcast->type()), emit_constant(bitcast->from()));
+        return s.str();
     }
 
     THORIN_UNREACHABLE;
@@ -704,10 +740,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         auto d_t = convert(d_type);
 
         func_impls_.fmt("{} {};\n", d_t, name);
-        if (s_ptr && s_ptr->pointee()->isa<DefiniteArrayType>() &&
-            d_ptr && d_ptr->pointee()->isa<IndefiniteArrayType>() &&
-            s_ptr->pointee()->as<ArrayType>()->elem_type() ==
-            d_ptr->pointee()->as<ArrayType>()->elem_type()) {
+        if (s_ptr && d_ptr && is_definite_to_indefinite_array_cast(s_ptr, d_ptr)) {
             bb.body.fmt("{} = {}->e;\n", name, src);
         } else if (s_ptr && d_ptr && s_ptr->addr_space() == d_ptr->addr_space()) {
             bb.body.fmt("{} = ({}) {};\n", name, d_t, src);
@@ -885,24 +918,6 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         bb.body.fmt(": ").rangei(oconstrs, ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", conv(oconstrs[i]), outputs[i]); }).fmt(" /* outputs */\n");
         bb.body.fmt(": ").rangei(iconstrs, ", ", [&](size_t i) { bb.body.fmt("\"{}\" ({})", conv(iconstrs[i]),  inputs[i]); }).fmt(" /* inputs */\n");
         bb.body.fmt(": ").rangei(clobbers, ", ", [&](size_t i) { bb.body.fmt("\"{}\"",      conv(clobbers[i])            ); }).fmt(" /* clobbers */\b\n);\n");
-    } else if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_continuation());
-        if (global->is_mutable() && lang_ != Lang::C99)
-            world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
-
-        std::string prefix;
-        switch (lang_) {
-            default:                                   break;
-            case Lang::CUDA:   prefix = "__device__ "; break;
-            case Lang::OpenCL: prefix = "__constant "; break;
-        }
-
-        func_decls_.fmt("{}{} {}_slot", prefix, convert(global->alloced_type()), name);
-        if (global->init()->isa<Bottom>())
-            func_decls_.fmt("; // bottom\n");
-        else
-            func_decls_.fmt(" = {};\n", emit_constant(global->init()));
-        func_decls_.fmt("{}{} {} = &{}_slot;\n", prefix, convert(global->type()), name, name);
     } else if (auto select = def->isa<Select>()) {
         auto cond = emit(select->cond());
         auto tval = emit(select->tval());

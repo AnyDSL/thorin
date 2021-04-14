@@ -607,12 +607,12 @@ std::string CCodeGen::emit_constant(const Def* def) {
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
         std::string prefix = device_prefix() + (global->is_mutable() ? "" : "const ");
-        func_decls_.fmt("{}{} {}", prefix, convert(global->alloced_type()), global->unique_name());
+        func_decls_.fmt("{}{} g_{}", prefix, convert(global->alloced_type()), global->unique_name());
         if (global->init()->isa<Bottom>())
             func_decls_.fmt("; // bottom\n");
         else
             func_decls_.fmt(" = {};\n", emit_constant(global->init()));
-        s.fmt("&{}", global->unique_name());
+        s.fmt("&g_{}", global->unique_name());
         return s.str();
     } else if (auto bitcast = def->isa<Bitcast>()) {
         // Only pointer casts are supported: Bitcasts between constant integers or floating-point values
@@ -695,7 +695,10 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         // Constants will be emitted only once, so they must be placed
         // at the top of the file, as globals.
         auto const_value = emit_constant(def);
-        func_decls_.fmt("static {}const {} {} = {};\n", device_prefix(), convert(def->type()), name, const_value);
+        const char* qualifier = "const";
+        if (auto global = def->isa<Global>(); global && global->is_mutable())
+            qualifier = "";
+        func_decls_.fmt("static {}{} {} {} = {};\n", device_prefix(), qualifier, convert(def->type()), name, const_value);
         return name;
     }
 

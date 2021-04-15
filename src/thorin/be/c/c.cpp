@@ -465,46 +465,30 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("p_{} = {}_reserved;\n", ret_cont->param(1)->unique_name(), cont->unique_name());
             bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
-#if 0
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
-            // cast to cont to get unique name of "for index"
-            auto body = cont->arg(4)->as_cont();
-            if (lang_ == Lang::OpenCL) {
-                if (cont->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
-                    bb.tail << "#pragma ii ";
-                    emit(cont->arg(1)) << endl;
-                } else {
-                    bb.tail << "#pragma ii 1"<< endl;
-                }
-            }
-            bb.tail << "for (i" << callee->gid() << " = ";
-            emit(cont->arg(2));
-            bb.tail << "; i" << callee->gid() << " < ";
-            emit(cont->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
-            if (lang_ == Lang::HLS) {
-                if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
-                    bb.tail << "#pragma HLS PIPELINE II=";
-                    emit(cont->arg(1)) << endl;
-                } else {
-                    bb.tail << "#pragma HLS PIPELINE"<< endl;
-                }
-            }
-            // emit body and "for index" as the "body parameter"
-            bb.tail << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
-            emit(body);
-            // emit "continue" with according label used for goto
-            bb.tail << down << endl << "l" << cont->arg(6)->gid() << ": continue;" << endl << "}" << endl;
-            if (cont->arg(5) == ret_param)
-                bb.tail << "return;" << endl;
-            else
-                emit(cont->arg(5));
-#endif
-            THORIN_UNREACHABLE;
+
+            std::string interval;
+            if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0)
+                interval = emit_constant(cont->arg(1));
+
+            auto begin = emit(cont->arg(2));
+            auto end   = emit(cont->arg(3));
+            if (lang_ == Lang::OpenCL)
+                bb.tail.fmt("#pragma ii {}\n", !interval.empty() ? interval : "1");
+            bb.tail.fmt("for (int i{} = {}; i{} < {}; i{}++) {{\t\n",
+                callee->gid(), begin, callee->gid(), end, callee->gid());
+            if (lang_ == Lang::HLS)
+                bb.tail.fmt("#pragma HLS PIPELINE II{}{}\n", interval.empty() ? "" : "=", interval);
+
+            auto body = cont->arg(4)->as_continuation();
+            bb.tail.fmt("p_{} = i{};\n", body->param(1)->unique_name(), callee->gid());
+            bb.tail.fmt("goto {};\n", label_name(body));
+
+            // Emit a label that can be used by the "pipeline_continue()" intrinsic.
+            bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(cont->arg(6)));
+            bb.tail.fmt("goto {};", label_name(cont->arg(5)));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
-#if 0
-            bb.tail << "goto l" << callee->gid() << ";" << endl;
-#endif
-            THORIN_UNREACHABLE;
+            bb.tail.fmt("goto {};", label_name(callee));
         } else {
             THORIN_UNREACHABLE;
         }

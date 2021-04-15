@@ -22,6 +22,8 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_ = &builder;
     builder_->capability(spv::Capability::CapabilityShader);
     builder_->capability(spv::Capability::CapabilityLinkage);
+    builder_->capability(spv::Capability::CapabilityVariablePointers);
+    builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
 
     structure_loops();
     structure_flow();
@@ -30,154 +32,14 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 
-    builder_->finish(out);
-    builder_ = nullptr;
-}
-
-SpvType CodeGen::convert(const Type* type) {
-    if (auto spv_type = types_.lookup(type)) return *spv_type;
-
-    assert(!type->isa<MemType>());
-    SpvType spv_type;
-    switch (type->tag()) {
-        // Boolean types are typically packed intelligently when declaring in local variables, however with vanilla Vulkan 1.0 they can only be represented via 32-bit integers
-        // Using extensions, we could use 16 or 8-bit ints instead
-        // We can also pack them inside structures using bit-twiddling tricks, if the need arises
-        case PrimType_bool:                                                             spv_type.id = builder_->declare_bool_type(); spv_type.size = 4; spv_type.alignment = 4; break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_ps32: case PrimType_qs32:                                         spv_type.id = builder_->declare_int_type(32, true ); spv_type.size = 4; spv_type.alignment = 4; break;
-        case PrimType_pu32: case PrimType_qu32:                                         spv_type.id = builder_->declare_int_type(32, false); spv_type.size = 4; spv_type.alignment = 4; break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pf16: case PrimType_qf16:                                         assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pf32: case PrimType_qf32:                                         spv_type.id = builder_->declare_float_type(32); spv_type.size = 4; spv_type.alignment = 4; break;
-        case PrimType_pf64: case PrimType_qf64:                                         assert(false && "TODO: look into capabilities to enable this");
-        case Node_PtrType: {
-            auto ptr = type->as<PtrType>();
-            spv::StorageClass storage_class;
-            switch (ptr->addr_space()) {
-                case AddrSpace::Function: storage_class = spv::StorageClassFunction; break;
-                case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;  break;
-                default:
-                    assert(false && "This address space is not supported");
-                    break;
-            }
-            SpvType element = convert(ptr->pointee());
-            spv_type.id = builder_->declare_ptr_type(storage_class, element.id);
-            break;
+    for (auto& cont : world().continuations()) {
+        if (cont->is_exported()) {
+            // TODO create entry point
         }
-        case Node_IndefiniteArrayType: {
-            assert(false && "TODO");
-            // auto array = type->as<IndefiniteArrayType>();
-            // return types_[type] = spv_type;
-            THORIN_UNREACHABLE;
-        }
-        case Node_DefiniteArrayType: {
-            auto array = type->as<DefiniteArrayType>();
-            SpvType element = convert(array->elem_type());
-            SpvId size = builder_->constant(convert(world().type_pu32()).id, { (uint32_t) array->dim() });
-            spv_type.id = builder_->declare_array_type(element.id, size);
-            spv_type.size = element.size * array->dim();
-            spv_type.alignment = element.alignment;
-            break;
-        }
-
-        case Node_ClosureType:
-        case Node_FnType: {
-            // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
-            std::unique_ptr<SpvType> ret;
-            std::vector<SpvId> ops;
-            for (auto op : fn->ops()) {
-                if (op->isa<MemType>() || op == world().unit()) continue;
-                auto fn = op->isa<FnType>();
-                if (fn && !op->isa<ClosureType>()) {
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<SpvType> ret_types;
-                    for (auto fn_op : fn->ops()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
-                        ret_types.push_back(convert(fn_op));
-                    }
-                    if (ret_types.empty())          ret = std::make_unique<SpvType>( SpvType { { builder_->void_type }, 0, 1} );
-                    else if (ret_types.size() == 1) ret = std::make_unique<SpvType>(ret_types.back());
-                    else                            assert(false && "Didn't we refactor this out yet by making functions single-argument ?");
-                } else
-                    ops.push_back(convert(op).id);
-            }
-            assert(ret);
-
-            if (type->tag() == Node_FnType) {
-                return types_[type] = { builder_->declare_fn_type(ops, ret->id), 0, 0 };
-            }
-
-            assert(false && "TODO: handle closure mess");
-            THORIN_UNREACHABLE;
-        }
-
-        case Node_StructType: {
-            std::vector<SpvId> types;
-            for (auto elem : type->as<StructType>()->ops()) {
-                auto member_type = convert(elem);
-                types.push_back(member_type.id);
-                spv_type.size += member_type.size;
-
-                // TODO handle alignment for real
-                assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
-                spv_type.alignment = 4;
-            }
-            if (spv_type.size == 0)
-                spv_type.alignment = 1;
-            spv_type.id = builder_->declare_struct_type(types);
-            builder_->name(spv_type.id, type->to_string());
-            break;
-        }
-
-        case Node_TupleType: {
-            std::vector<SpvId> types;
-            for (auto elem : type->as<TupleType>()->ops()){
-                auto member_type = convert(elem);
-                types.push_back(member_type.id);
-                spv_type.size += member_type.size;
-
-                // TODO handle alignment for real
-                assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
-                spv_type.alignment = 4;
-            }
-            if (spv_type.size == 0)
-                spv_type.alignment = 1;
-            spv_type.id = builder_->declare_struct_type(types);
-            builder_->name(spv_type.id, type->to_string());
-            break;
-        }
-
-        case Node_VariantType: {
-            assert(type->num_ops() > 0 && "empty variants not supported");
-            std::vector<SpvId> payload_type;
-            for (auto elem : type->as<VariantType>()->ops()){
-                auto member_type = convert(elem);
-                payload_type.push_back(member_type.id);
-                spv_type.size += member_type.size;
-
-                // TODO handle alignment for real
-                assert(member_type.alignment == 4 || (member_type.size == 0 && member_type.alignment == 1));
-                spv_type.alignment = 4;
-            }
-            if (spv_type.size == 0)
-                spv_type.alignment = 1;
-            spv_type.payload_id = builder_->declare_struct_type(payload_type);
-            builder_->name(spv_type.payload_id, type->to_string() + "_payload");
-
-            std::vector<SpvId> with_tag = { convert(world().type_pu32()).id, spv_type.payload_id};
-            spv_type.id = builder_->declare_struct_type(with_tag);
-            builder_->name(spv_type.id, type->to_string());
-            break;
-        }
-
-        default:
-            THORIN_UNREACHABLE;
     }
 
-    return types_[type] = spv_type;
+    builder_->finish(out);
+    builder_ = nullptr;
 }
 
 void CodeGen::emit(const thorin::Scope& scope) {
@@ -187,7 +49,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     FnBuilder fn;
     fn.scope = &scope;
     fn.file_builder = builder_;
-    fn.fn_type = convert(entry_->type()).id;
+    fn.fn_type = convert(entry_->type()).type_id;
     fn.fn_ret_type = get_codom_type(entry_);
 
     current_fn_ = &fn;
@@ -215,10 +77,10 @@ void CodeGen::emit(const thorin::Scope& scope) {
                 if (is_mem(param) || is_unit(param)) {
                     // Nothing
                 } else if (param->order() == 0) {
-                    auto param_t = convert(param->type());
+                    auto& param_t = convert(param->type());
                     fn.header.op(spv::Op::OpFunctionParameter, 3);
                     auto id = builder_->generate_fresh_id();
-                    fn.header.ref_id(param_t.id);
+                    fn.header.ref_id(param_t.type_id);
                     fn.header.ref_id(id);
                     fn.params[param] = id;
                 }
@@ -231,7 +93,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     // OpPhi requires the full list of predecessors (values, labels)
                     // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
                     // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
-                    bb->phis_map[param] = { convert(param->type()).id, builder_->generate_fresh_id(), {} };
+                    bb->phis_map[param] = {convert(param->type()).type_id, builder_->generate_fresh_id(), {} };
                 }
             }
         }
@@ -259,7 +121,7 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
         if (op->isa<MemType>() || is_type_unit(op))
             continue;
         assert(op->order() == 0);
-        types.push_back(convert(op).id);
+        types.push_back(convert(op).type_id);
     }
     if (types.empty())
         return builder_->void_type;
@@ -465,8 +327,8 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs(), bb);
         SpvId rhs = emit(bin->rhs(), bb);
-        SpvType result_types = convert(def->type());
-        SpvId result_type = result_types.id;
+        ConvertedType& result_types = convert(def->type());
+        SpvId result_type = result_types.type_id;
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -568,7 +430,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
     } else if (auto primlit = def->isa<PrimLit>()) {
         Box box = primlit->value();
-        auto type = convert(def->type()).id;
+        auto type = convert(def->type()).type_id;
         SpvId constant;
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     constant = bb->file_builder.bool_constant(type, box.get_bool()); break;
@@ -595,31 +457,31 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             return val;
         }
     } else if (auto variant = def->isa<Variant>()) {
-        auto struct_type = def->type()->as<VariantType>();
-        std::vector<SpvId> elements;
-        elements.resize(struct_type->num_ops());
-        size_t x = 0;
-        for (auto& e : struct_type->ops()) {
-            if (x == variant->index())
-                elements[x] = emit(variant->value(), bb);
-            else
-                elements[x] = bb->undef(convert(e).id);
-            x++;
-        }
-        auto payload = bb->composite(convert(variant->type()).payload_id, elements);
-        auto tag = builder_->constant(convert(world().type_pu32()).id, { static_cast<uint32_t>(variant->index()) });
+        auto variant_type = def->type()->as<VariantType>();
+        auto& variant_datatype = (ProductDatatype&) convert(variant_type).datatype;
+
+        auto payload_arr = bb->variable(variant_datatype.elements_types[1]->type_id, spv::StorageClassFunction);
+        auto& converted_payload_type = convert(variant_type->op(variant->index()));
+        converted_payload_type.datatype->emit_serialization(*bb, payload_arr, emit(variant->value(), bb));
+        auto payload = bb->load(variant_datatype.elements_types[1]->type_id, payload_arr);
+
+        auto tag = builder_->constant(convert(world().type_pu32()).type_id, {static_cast<uint32_t>(variant->index()) });
         std::vector<SpvId> with_tag = { tag, payload };
-        return bb->composite(convert(variant->type()).id, with_tag);
+        return bb->composite(convert(variant->type()).type_id, with_tag);
     } else if (auto vextract = def->isa<VariantExtract>()) {
         auto variant_type = vextract->value()->type()->as<VariantType>();
+        auto& variant_datatype = (ProductDatatype&) convert(variant_type).datatype;
 
-        auto target_type = convert(def->type());
-        auto payload = bb->extract(convert(variant_type).payload_id, emit(vextract->value(), bb), {1});
+        auto& target_type = convert(def->type());
 
-        return bb->extract(target_type.id, payload, { static_cast<uint32_t>(vextract->index()) });
+        auto payload_arr = bb->variable(variant_datatype.elements_types[1]->type_id, spv::StorageClassFunction);
+        auto payload = bb->extract(variant_datatype.elements_types[1]->type_id, emit(vextract->value(), bb), {1});
+        bb->store(payload, payload_arr);
+
+        return target_type.datatype->emit_deserialization(*bb, payload_arr);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
-        return bb->extract(convert(world().type_pu32()).id, value, { 0 });
+        return bb->extract(convert(world().type_pu32()).type_id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
         std::vector<SpvId> elements;
         elements.resize(tuple->num_ops());
@@ -627,7 +489,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         for (auto& e : tuple->ops()) {
             elements[x++] = emit(e, bb);
         }
-        return bb->composite(convert(tuple->type()).id, elements);
+        return bb->composite(convert(tuple->type()).type_id, elements);
     } else if (auto structagg = def->isa<StructAgg>()) {
         std::vector<SpvId> elements;
         elements.resize(structagg->num_ops());
@@ -635,7 +497,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         for (auto& e : structagg->ops()) {
             elements[x++] = emit(e, bb);
         }
-        return bb->composite(convert(structagg->type()).id, elements);
+        return bb->composite(convert(structagg->type()).type_id, elements);
     }
     assertf(false, "Incomplete emit(def) definition");
 }

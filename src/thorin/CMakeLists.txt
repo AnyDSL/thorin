@@ -108,6 +108,7 @@ if(SPIRV_ENABLED)
         be/spirv/spirv.cpp
         be/spirv/spirv.h
         be/spirv/spirv_transform.cpp
+        be/spirv/spirv_datatypes.cpp
     )
 endif()
 

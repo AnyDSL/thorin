@@ -63,15 +63,14 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
 }
 
 void NVVMCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
-    // append required metadata
     auto annotation = module().getOrInsertNamedMetadata("nvvm.annotations");
-    auto& irbuilder = *cont2bb_[continuation].second;
+    auto int64_type = llvm::IntegerType::get(context(), 64);
 
     const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
         llvm::Metadata* annotation_values[] = {
             llvm::ValueAsMetadata::get(target),
             llvm::MDString::get(context(), name),
-            llvm::ConstantAsMetadata::get(irbuilder.getInt64(val))
+            llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(int64_type, val, true))
         };
         llvm::MDNode* result = llvm::MDNode::get(context(), annotation_values);
         annotation->addOperand(result);
@@ -80,7 +79,7 @@ void NVVMCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function*
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
-        auto global = emit_global_variable(irbuilder.getInt64Ty(), param->name(), 1);
+        auto global = emit_global_variable(int64_type, param->name(), 1);
         metadata_[param] = append_metadata(global, "texture", 1);
     };
 

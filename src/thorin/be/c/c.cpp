@@ -477,8 +477,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail.fmt("#pragma ii {}\n", !interval.empty() ? interval : "1");
             bb.tail.fmt("for (int i{} = {}; i{} < {}; i{}++) {{\t\n",
                 callee->gid(), begin, callee->gid(), end, callee->gid());
-            if (lang_ == Lang::HLS)
-                bb.tail.fmt("#pragma HLS PIPELINE II{}{}\n", interval.empty() ? "" : "=", interval);
+            if (lang_ == Lang::HLS) {
+                bb.tail << "#pragma HLS PIPELINE";
+                if (!interval.empty())
+                    bb.tail.fmt(" II={}", interval);
+                bb.tail.fmt("\n");
+            }
 
             auto body = cont->arg(4)->as_continuation();
             bb.tail.fmt("p_{} = i{};\n", body->param(1)->unique_name(), callee->gid());

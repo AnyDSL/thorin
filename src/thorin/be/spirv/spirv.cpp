@@ -49,7 +49,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     FnBuilder fn;
     fn.scope = &scope;
     fn.file_builder = builder_;
-    fn.fn_type = convert(entry_->type()).type_id;
+    fn.fn_type = convert(entry_->type())->type_id;
     fn.fn_ret_type = get_codom_type(entry_);
 
     current_fn_ = &fn;
@@ -77,10 +77,10 @@ void CodeGen::emit(const thorin::Scope& scope) {
                 if (is_mem(param) || is_unit(param)) {
                     // Nothing
                 } else if (param->order() == 0) {
-                    auto& param_t = convert(param->type());
+                    auto param_t = convert(param->type());
                     fn.header.op(spv::Op::OpFunctionParameter, 3);
                     auto id = builder_->generate_fresh_id();
-                    fn.header.ref_id(param_t.type_id);
+                    fn.header.ref_id(param_t->type_id);
                     fn.header.ref_id(id);
                     fn.params[param] = id;
                 }
@@ -93,7 +93,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     // OpPhi requires the full list of predecessors (values, labels)
                     // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
                     // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
-                    bb->phis_map[param] = {convert(param->type()).type_id, builder_->generate_fresh_id(), {} };
+                    bb->phis_map[param] = {convert(param->type())->type_id, builder_->generate_fresh_id(), {} };
                 }
             }
         }
@@ -121,7 +121,7 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
         if (op->isa<MemType>() || is_type_unit(op))
             continue;
         assert(op->order() == 0);
-        types.push_back(convert(op).type_id);
+        types.push_back(convert(op)->type_id);
     }
     if (types.empty())
         return builder_->void_type;
@@ -327,8 +327,8 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs(), bb);
         SpvId rhs = emit(bin->rhs(), bb);
-        ConvertedType& result_types = convert(def->type());
-        SpvId result_type = result_types.type_id;
+        ConvertedType* result_types = convert(def->type());
+        SpvId result_type = result_types->type_id;
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -430,7 +430,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
     } else if (auto primlit = def->isa<PrimLit>()) {
         Box box = primlit->value();
-        auto type = convert(def->type()).type_id;
+        auto type = convert(def->type())->type_id;
         SpvId constant;
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     constant = bb->file_builder.bool_constant(type, box.get_bool()); break;
@@ -458,30 +458,30 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
     } else if (auto variant = def->isa<Variant>()) {
         auto variant_type = def->type()->as<VariantType>();
-        auto& variant_datatype = (ProductDatatype&) convert(variant_type).datatype;
+        auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
 
-        auto payload_arr = bb->variable(variant_datatype.elements_types[1]->type_id, spv::StorageClassFunction);
-        auto& converted_payload_type = convert(variant_type->op(variant->index()));
-        converted_payload_type.datatype->emit_serialization(*bb, payload_arr, emit(variant->value(), bb));
-        auto payload = bb->load(variant_datatype.elements_types[1]->type_id, payload_arr);
+        auto payload_arr = bb->variable(variant_datatype->elements_types[1]->type_id, spv::StorageClassFunction);
+        auto converted_payload_type = convert(variant_type->op(variant->index()));
+        converted_payload_type->datatype->emit_serialization(*bb, payload_arr, emit(variant->value(), bb));
+        auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
 
-        auto tag = builder_->constant(convert(world().type_pu32()).type_id, {static_cast<uint32_t>(variant->index()) });
+        auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index()) });
         std::vector<SpvId> with_tag = { tag, payload };
-        return bb->composite(convert(variant->type()).type_id, with_tag);
+        return bb->composite(convert(variant->type())->type_id, with_tag);
     } else if (auto vextract = def->isa<VariantExtract>()) {
         auto variant_type = vextract->value()->type()->as<VariantType>();
-        auto& variant_datatype = (ProductDatatype&) convert(variant_type).datatype;
+        auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
 
-        auto& target_type = convert(def->type());
+        auto target_type = convert(def->type());
 
-        auto payload_arr = bb->variable(variant_datatype.elements_types[1]->type_id, spv::StorageClassFunction);
-        auto payload = bb->extract(variant_datatype.elements_types[1]->type_id, emit(vextract->value(), bb), {1});
+        auto payload_arr = bb->variable(variant_datatype->elements_types[1]->type_id, spv::StorageClassFunction);
+        auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
         bb->store(payload, payload_arr);
 
-        return target_type.datatype->emit_deserialization(*bb, payload_arr);
+        return target_type->datatype->emit_deserialization(*bb, payload_arr);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
-        return bb->extract(convert(world().type_pu32()).type_id, value, { 0 });
+        return bb->extract(convert(world().type_pu32())->type_id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
         std::vector<SpvId> elements;
         elements.resize(tuple->num_ops());
@@ -489,7 +489,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         for (auto& e : tuple->ops()) {
             elements[x++] = emit(e, bb);
         }
-        return bb->composite(convert(tuple->type()).type_id, elements);
+        return bb->composite(convert(tuple->type())->type_id, elements);
     } else if (auto structagg = def->isa<StructAgg>()) {
         std::vector<SpvId> elements;
         elements.resize(structagg->num_ops());
@@ -497,7 +497,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         for (auto& e : structagg->ops()) {
             elements[x++] = emit(e, bb);
         }
-        return bb->composite(convert(structagg->type()).type_id, elements);
+        return bb->composite(convert(structagg->type())->type_id, elements);
     }
     assertf(false, "Incomplete emit(def) definition");
 }

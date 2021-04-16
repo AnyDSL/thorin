@@ -16,9 +16,7 @@ struct ConvertedType {
     SpvId type_id { 0 };
     std::unique_ptr<Datatype> datatype;
 
-    // TODO: delete
-    // SpvId payload_id { 0 };
-
+    ConvertedType(CodeGen* cg) : code_gen(cg) {}
     bool is_known_size() { return datatype != nullptr; }
 };
 
@@ -47,7 +45,7 @@ public:
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
 
-    ConvertedType& convert(const Type*);
+    ConvertedType* convert(const Type*);
 protected:
     void structure_loops();
     void structure_flow();
@@ -61,7 +59,7 @@ protected:
     builder::SpvFileBuilder* builder_ = nullptr;
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
-    TypeMap<ConvertedType> types_;
+    TypeMap<std::unique_ptr<ConvertedType>> types_;
     DefMap<SpvId> defs_;
 
 };
@@ -72,8 +70,8 @@ protected:
 /// logical addressing mode.
 struct Datatype {
 public:
-    ConvertedType& type;
-    Datatype(ConvertedType& type) : type(type) {}
+    ConvertedType* type;
+    Datatype(ConvertedType* type) : type(type) {}
 
     virtual size_t serialized_size() = 0;
     virtual void emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) = 0;
@@ -85,7 +83,7 @@ struct ScalarDatatype : public Datatype {
     int type_tag;
     size_t size_in_bytes;
     size_t alignment;
-    ScalarDatatype(ConvertedType& type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes);
+    ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes);
 
     size_t serialized_size() override { return size_in_bytes / 4; };
     SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) override;
@@ -93,12 +91,12 @@ struct ScalarDatatype : public Datatype {
 };
 
 struct DefiniteArrayDatatype : public Datatype {
-    ConvertedType& element_type;
+    ConvertedType* element_type;
     size_t length;
 
-    DefiniteArrayDatatype(ConvertedType& type, ConvertedType& element_type, size_t length);
+    DefiniteArrayDatatype(ConvertedType* type, ConvertedType* element_type, size_t length);
 
-    size_t serialized_size() override { return element_type.datatype->serialized_size(); };
+    size_t serialized_size() override { return element_type->datatype->serialized_size(); };
     SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) override;
     void emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) override;
 };
@@ -107,7 +105,7 @@ struct ProductDatatype : public Datatype {
     std::vector<ConvertedType*> elements_types;
     size_t total_size = 0;
 
-    ProductDatatype(ConvertedType& type, const std::vector<ConvertedType*>&& elements_types);
+    ProductDatatype(ConvertedType* type, const std::vector<ConvertedType*>&& elements_types);
 
     size_t serialized_size() override { return total_size; };
     SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) override;

@@ -139,7 +139,13 @@ private:
     Select(const Def* cond, const Def* tval, const Def* fval, Debug dbg)
         : PrimOp(Node_Select, tval->type(), {cond, tval, fval}, dbg)
     {
-        assert(is_type_bool(cond->type()));
+        if (!is_type_bool(cond->type())) {
+            assert(cond->type()->isa<VectorExtendedType>());
+            auto vec_cond = cond->type()->as<VectorExtendedType>();
+            assert(is_type_bool(vec_cond->element()));
+        } else {
+            assert(is_type_bool(cond->type()));
+        }
         assert(tval->type() == fval->type() && "types of both values must be equal");
         assert(!tval->type()->isa<FnType>() && "must not be a function");
     }
@@ -508,12 +514,7 @@ public:
     const Def* index() const { return op(1); }
     const VectorType* type() const { return PrimOp::type()->as<VectorType>(); }
     const VectorType* ptr_type() const { return ptr()->type()->as<VectorType>(); } ///< Returns the PtrType from @p ptr().
-    const Type* ptr_pointee() const {
-        if (auto ptr_vector = ptr_type()->isa<VectorExtendedType>())
-            return ptr_vector->element()->as<PtrType>()->pointee();
-        else
-            return ptr_type()->as<PtrType>()->pointee();
-    }        ///< Returns the type referenced by @p ptr().
+    const Type* ptr_pointee() const; ///< Returns the type referenced by @p ptr().
 
     friend class World;
 };

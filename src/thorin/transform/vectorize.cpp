@@ -113,7 +113,7 @@ ContinuationSet Vectorizer::DivergenceAnalysis::successors(Continuation * cont) 
     } else {
         ContinuationSet continues;
         for (auto node : cont->succs())
-            if (!node->is_intrinsic())
+            if (!(node->is_intrinsic() || node->is_imported()))
                 continues.emplace(node);
         return continues;
     }
@@ -122,7 +122,7 @@ ContinuationSet Vectorizer::DivergenceAnalysis::successors(Continuation * cont) 
 ContinuationSet Vectorizer::DivergenceAnalysis::predecessors(Continuation * cont) {
     ContinuationSet nodes;
     for (auto pre : cont->preds())
-        if (!pre->is_intrinsic())
+        if (!(pre->is_intrinsic() || pre->is_imported()))
             nodes.emplace(pre);
     for (auto it : loopExits) {
         if (nodes.contains(it.first))
@@ -181,7 +181,7 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
         if (changed) {
             reachableBy[cont] = mydom;
             for (auto succ : cont->succs()) {
-                if (!succ->is_intrinsic())
+                if (!(succ->is_intrinsic() || succ->is_imported()))
                     queue.push(succ);
             }
         }
@@ -243,7 +243,7 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
         if (changed || done.emplace(cont).second) {
             dominatedBy[cont] = mydom;
             for (auto succ : cont->succs()) {
-                if (!succ->is_intrinsic())
+                if (!(succ->is_intrinsic() || succ->is_imported()))
                     queue.push(succ);
             }
         }
@@ -286,7 +286,7 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
         auto mydom = dominatedBy[cont];
 
         for (auto succ : cont->succs()) {
-            if (succ->is_intrinsic())
+            if (succ->is_intrinsic() || succ->is_imported())
                 continue;
 #ifdef DUMP_LOOP_ANALYSIS
             succ->dump();
@@ -372,13 +372,23 @@ void Vectorizer::DivergenceAnalysis::run() {
         Continuation *cont = pop(queue);
 
         if (cont->succs().size() > 1) {
-            if (cont->callee()->isa<Continuation>() && cont->callee()->as<Continuation>()->is_intrinsic()) {
+            int num_relevant = 0;
+            for (auto succ : cont->succs()) {
+                if (succ->is_imported())
+                    continue;
+                num_relevant++;
+            }
+            if (num_relevant > 1 && cont->callee()->isa<Continuation>() && cont->callee()->as<Continuation>()->is_intrinsic()) {
                 splitNodes.emplace(cont);
 #ifdef DUMP_DIV_ANALYSIS
                 cont->dump();
-            } else {
+            } else if (num_relevant > 1) {
                 std::cerr << "Multiple successors in non-intrinsic node\n";
                 cont->dump();
+                for (auto succ : cont->succs()) {
+                    succ->dump();
+                }
+                std::cerr << "Of which " << num_relevant << " are cosidered\n";
 #endif
             }
         }
@@ -406,7 +416,7 @@ void Vectorizer::DivergenceAnalysis::run() {
         ContinuationSet Joins;
 
         for (auto succ : split->succs()) {
-            if (succ->is_intrinsic())
+            if (succ->is_intrinsic() ||  succ->is_imported())
                 continue;
             queue.push(succ);
             LabelMap[succ] = succ;
@@ -855,7 +865,7 @@ const Def* Vectorizer::widen(const Def* old_def) {
                 any_vector = true;
         }
 
-        if (any_vector && (old_primop->isa<BinOp>() || old_primop->isa<Access>())) {
+        if (any_vector && (old_primop->isa<BinOp>() || old_primop->isa<Select>() || old_primop->isa<StructAgg>() || old_primop->isa<Access>())) {
             for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
                 if (nops[i]->type()->isa<VectorExtendedType>())
                     continue;
@@ -881,16 +891,22 @@ const Def* Vectorizer::widen(const Def* old_def) {
 
         const Def* new_primop;
 
+        /*if (old_primop->isa<StructAgg>()) {
+            old_primop->dump();
+            nops.dump();
+            std::cerr << "\n";
+        }*/
+
         if (old_primop->isa<PrimLit>()) {
             assert(false && "Primlits are uniform");
         } else {
             new_primop = old_primop->rebuild(nops, type);
         }
         if (old_def->isa<Slot>()) {
-            old_primop->dump();
+            /*old_primop->dump();
             old_primop->type()->dump();
             new_primop->dump();
-            new_primop->type()->dump();
+            new_primop->type()->dump();*/
             assert(new_primop->type() == type);
             assert(new_primop->type()->isa<VectorExtendedType>());
         }
@@ -959,6 +975,22 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                 de.set("llvm.sqrt.v8f32");
             else if (de.name() == "llvm.sqrt.f64")
                 de.set("llvm.sqrt.v8f64");
+            else if (de.name() == "llvm.sin.f32")
+                de.set("llvm.sin.v8f32");
+            else if (de.name() == "llvm.sin.f64")
+                de.set("llvm.sin.v8f64");
+            else if (de.name() == "llvm.cos.f32")
+                de.set("llvm.cos.v8f32");
+            else if (de.name() == "llvm.cos.f64")
+                de.set("llvm.cos.v8f64");
+            else if (de.name() == "llvm.minnum.f32")
+                de.set("llvm.minnum.v8f32");
+            else if (de.name() == "llvm.minnum.f64")
+                de.set("llvm.minnum.v8f64");
+            else if (de.name() == "llvm.floor.f32")
+                de.set("llvm.floor.v8f32");
+            else if (de.name() == "llvm.floor.f64")
+                de.set("llvm.floor.v8f64");
             else {
                 std::cerr << "Not supported: " << de.name() << "\n";
                 assert(false && "Import not supported in vectorize.");
@@ -1267,8 +1299,6 @@ bool Vectorizer::run() {
 #ifdef DUMP_VECTORIZER
                 Scope(vectorized).dump();
 #endif
-                //Scope(vectorized).dump();
-
                 {
     //Task 3: Linearize divergent controll flow
                 llvm::TimeRegion lin_time(time_lin);
@@ -1323,6 +1353,11 @@ bool Vectorizer::run() {
                         }
                         assert(join_old);
                         for (auto join_it : joins_old) {
+                            if(!div_analysis_->reachableBy[join_old].contains(join_it)) {
+                                join_it->dump();
+                                join_old->dump();
+                                std::cerr << "Going to fail\n";
+                            }
                             assert(div_analysis_->reachableBy[join_old].contains(join_it));
                         }
                         join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());

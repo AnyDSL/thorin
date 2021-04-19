@@ -85,13 +85,19 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
         ptrtype = type->as<PtrType>();
     }
 
-    if (auto tuple = ptr_pointee()->isa<TupleType>()) {
+    inner_type = ptr_pointee();
+
+    if (auto vec_type = inner_type->isa<VectorExtendedType>()) {
+        inner_type = vec_type->element();
+    }
+
+    if (auto tuple = inner_type->isa<TupleType>()) {
         inner_type = get(tuple->ops(), index);
-    } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
+    } else if (auto array = inner_type->isa<ArrayType>()) {
         inner_type = array->elem_type();
-    } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
+    } else if (auto struct_type = inner_type->isa<StructType>()) {
         inner_type = get(struct_type->ops(), index);
-    } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
+    } else if (auto prim_type = inner_type->isa<PrimType>()) {
         assert(prim_type->length() > 1);
         inner_type = world.prim_type(prim_type->primtype_tag());
     } else {
@@ -110,6 +116,14 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
             set_type(world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space()));
         }
     }
+}
+
+const Type* LEA::ptr_pointee() const {
+    if (auto ptr_vector = ptr_type()->isa<VectorExtendedType>()) {
+        auto& world = op(1)->world();
+        return world.vec_type(ptr_vector->element()->as<PtrType>()->pointee(), ptr_vector->length());
+    } else
+        return ptr_type()->as<PtrType>()->pointee();
 }
 
 Known::Known(const Def* def, Debug dbg)

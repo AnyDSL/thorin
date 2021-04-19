@@ -320,10 +320,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {
-        if (current_mask) {
-            current_mask->dump();
-            scope.dump();
-        }
         assert(current_mask == nullptr);
         entry_ = scope.entry();
         assert(entry_->is_returning());
@@ -930,6 +926,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* rhs = lookup(bin->rhs());
         const char* name = bin->name().c_str();
 
+        if (lhs->getType()->isVectorTy() && !rhs->getType()->isVectorTy())
+            rhs = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(lhs->getType())->getNumElements(), rhs);
+        if (rhs->getType()->isVectorTy() && !lhs->getType()->isVectorTy())
+            lhs = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(rhs->getType())->getNumElements(), lhs);
+
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
             if (auto vec_type = type->isa<VectorExtendedType>())
@@ -1107,6 +1108,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* cond = lookup(select->cond());
         llvm::Value* tval = lookup(select->tval());
         llvm::Value* fval = lookup(select->fval());
+
+        if (cond->getType()->isVectorTy() && !tval->getType()->isVectorTy())
+            tval = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(cond->getType())->getNumElements(), tval);
+        if (cond->getType()->isVectorTy() && !fval->getType()->isVectorTy())
+            fval = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(cond->getType())->getNumElements(), fval);
+
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
@@ -1206,8 +1213,20 @@ llvm::Value* CodeGen::emit(const Def* def) {
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);
         } else {
-            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
-                llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+            for (size_t i = 0, e = agg->num_ops(), r = 0; i < e; i++) {
+                auto insertval = lookup(agg->op(i));
+                if(insertval->getType() != llvm_agg->getType()->getStructElementType(r)) {
+                    assert(insertval->getType()->isStructTy());
+                    for (unsigned j = 0; j < insertval->getType()->getStructNumElements(); j++) {
+                        auto inval = irbuilder_.CreateExtractValue(insertval, { unsigned(j) });
+                        llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, inval, { unsigned(r) });
+                        r++;
+                    }
+                } else {
+                    llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, insertval, { unsigned(r) });
+                    r++;
+                }
+            }
         }
 
         return llvm_agg;
@@ -1261,8 +1280,110 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
             if (!complex_vector && extract->agg()->type()->isa<VectorType>())
                 return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
-            // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(thorin_idx)});
+
+
+            /*if (!aggop->agg()->type()->isa<VectorExtendedType>() &&
+                    llvm_agg->getType()->getStructNumElements() != aggop->agg()->type()->num_ops()) {
+                std::cerr << "Extract Issue\n";
+                aggop->agg()->type()->dump();
+                llvm_agg->getType()->dump();
+                thorin_idx->dump();
+                unsigned r = 0;
+                unsigned cursize = 0;
+                for (unsigned i = 0, e = aggop->agg()->num_ops(); i < e; i++) {
+                    auto interntype = aggop->agg()->type();
+                    interntype->dump();
+                    auto converted_type = convert(interntype);
+                    if (converted_type->isStructTy()) {
+                        if (cursize != 0)
+                            assert(cursize == converted_type->getStructNumElements());
+                        else
+                            cursize = converted_type->getStructNumElements();
+                    } else {
+                        if (cursize != 0)
+                            assert(cursize == 1);
+                        else
+                            cursize = 1;
+                    }
+                    r += cursize;
+                }
+
+                auto rval = irbuilder_.CreateExtractValue(llvm_agg, {r});
+
+                std::cerr << "Trying extract\n";
+                aggop->agg()->type()->dump();
+                aggop->type()->dump();
+                llvm_value->getType()->dump();
+                std::cerr << "Indeces " << thorin_idx << " " << r << " " << cursize << "\n";
+                rval->getType()->dump();
+
+                rval->getType()->dump();
+
+                assert(rval->getType() == convert(aggop->type()));
+                return rval;
+            }*/
+
+            if (aggop->type()->isa<VectorExtendedType>() &&
+                    aggop->type()->as<VectorExtendedType>()->element()->isa<NominalType>()) {
+                std::cerr << "Issue\n";
+
+                auto structtype = aggop->agg()->type()->as<VectorExtendedType>()->element()->isa<StructType>();
+                assert(structtype);
+                //structtype->dump();
+                //std::cerr << "elems\n";
+                //for (int i = 0; i < structtype->num_ops(); i++) {
+                    //structtype->op(i)->dump();
+                //}
+                //std::cerr << "elems end\n";
+                //llvm_agg->getType()->dump();
+                aggop->type()->dump();
+
+                assert(thorin_idx->isa<PrimLit>());
+                unsigned idx_val = thorin_idx->as<PrimLit>()->qu32_value();
+
+                //thorin_idx->dump();
+                //llvm_idx->dump();
+
+                //std::cerr << "index " << idx_val << "\n";
+
+                unsigned start = 0;
+                unsigned len = convert(structtype->op(0))->getStructNumElements();
+                for (unsigned i = 0; i < idx_val; i++) {
+                    start += len;
+                    len = convert(structtype->op(i))->getStructNumElements();
+                }
+
+                //std::cerr << "start " << start << " len " << len << "\n";
+
+                auto newtype = convert(aggop->type());
+                newtype->dump();
+                llvm::Value* insertval = llvm::UndefValue::get(newtype);
+
+                for (unsigned i = 0; i < len; i++) {
+                    auto e = irbuilder_.CreateExtractValue(llvm_agg, {i + start});
+                    //e->getType()->dump();
+                    insertval = irbuilder_.CreateInsertValue(insertval, e, {i});
+                }
+
+                //insertval->dump();
+                //assert(insertval->getType() == convert(aggop->type()) && "Type missmatch");
+
+                return insertval;
+            }
+
+            auto r = irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(thorin_idx)});
+            if(r->getType() != convert(aggop->type())) {
+                std::cerr << "Problem\n";
+                aggop->dump();
+                aggop->agg()->dump();
+                llvm_agg->dump();
+                llvm_agg->getType()->dump();
+                r->dump();
+                r->getType()->dump();
+                convert(aggop->type())->dump();
+            }
+            assert(r->getType() == convert(aggop->type()) && "Type missmatch");
+            return r;
         }
 
         auto insert = def->as<Insert>();
@@ -1271,7 +1392,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (insert->agg()->type()->isa<ArrayType>()) {
             auto p = copy_to_alloca();
             irbuilder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
-            return irbuilder_.CreateLoad(p.first);
+            auto r = irbuilder_.CreateLoad(p.first);
+            assert(r->getType() == convert(aggop->type()));
+            return r;
         }
         if (insert->agg()->type()->isa<VectorType>())
             return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
@@ -1417,6 +1540,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto seq_vector = llvm::ConstantVector::get(llvm::makeArrayRef<llvm::Constant*>(args, vector_width));
             auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
             if (space->getType()->getPointerElementType()->isStructTy()) {
+                assert(space->getType() == convert(slot->type()));
                 return space;
                 //return irbuilder_.CreatePointerCast(space, convert(slot->type()));
 
@@ -1439,7 +1563,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return target;
 #endif
             } else {
-                return irbuilder_.CreateInBoundsGEP(space, {zero, seq_vector});
+                auto r = irbuilder_.CreateInBoundsGEP(space, {zero, seq_vector});
+                if(r->getType() != convert(slot->type())) {
+                    //pass;
+                }
+                return r;
             }
         } else
             THORIN_UNREACHABLE;
@@ -1527,6 +1655,12 @@ llvm::Value* CodeGen::emit_load(const Load* load) {
         auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
         loadval->setAlignment(llvm::MaybeAlign(align).getValue());
         result = loadval;
+        if(result->getType() != convert(load->type()->op(1))) {
+            load->ptr()->dump();
+            convert(load->type()->op(1))->dump();
+            result->getType()->dump();
+            assert(false);
+        }
     }
     return result;
 }
@@ -1581,14 +1715,17 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
         llvm::Value *storeval;
         llvm::Value *value = lookup(store->val());
         auto align = llvm::MaybeAlign(module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType())).getValue();
+        //if (value->getType()->isVectorTy() && !ptr->getType()->isVectorTy()) {
+        //    auto vector_width = llvm::cast<llvm::FixedVectorType>(value->getType())->getNumElements();
+        //    ptr = irbuilder_.CreateVectorSplat(vector_width, ptr);
+        //}
+        if (value->getType() != ptr->getType()->getPointerElementType()) {
+            ptr = irbuilder_.CreatePointerCast(ptr, llvm::PointerType::get(value->getType(), ptr->getType()->getPointerAddressSpace()));
+        }
+        assert (value->getType()->isVectorTy() == ptr->getType()->getPointerElementType()->isVectorTy());
         if (current_mask && value->getType()->isVectorTy()) {
             storeval = irbuilder_.CreateMaskedStore(value, ptr, align, current_mask);
         } else {
-            if (value->getType() != ptr->getType()->getPointerElementType()) {
-                assert(false);
-                ptr = irbuilder_.CreatePointerCast(ptr, llvm::PointerType::get(value->getType(), ptr->getType()->getPointerAddressSpace()));
-            }
-
             auto storeval_align = irbuilder_.CreateStore(value, ptr);
             storeval_align->setAlignment(align);
             storeval = storeval_align;
@@ -1599,12 +1736,68 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
-        return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
+    auto lea_ptr = lookup(lea->ptr());
+    auto pointee = lea->ptr_pointee();
+    if (auto vec = pointee->isa<VectorExtendedType>())
+        pointee = vec->element();
+    if (pointee->isa<TupleType>() || pointee->isa<StructType>()) {
+        assert(lea_ptr->getType() == convert(lea->ptr()->type()));
+        //auto lea_target_type = convert(lea->type());
+        auto index = primlit_value<u32>(lea->index());
+
+        unsigned offset = 0;
+        //convert(pointee->op(0))->dump();
+        auto testob = convert(pointee->op(0));
+        unsigned size;
+        if (llvm::isa<llvm::StructType>(testob))
+            size = testob->getStructNumElements();
+        else
+            size = 1;
+
+        for (unsigned i = 1; i <= index; i++) {
+            // get current element size
+            offset += size;
+            auto testob = convert(pointee->op(i));
+            if (llvm::isa<llvm::StructType>(testob))
+                size = testob->getStructNumElements();
+            else
+                size = 1;
+        }
+
+        std::cerr << "offset " << offset << " size " << size << "\n";
+
+        //auto target_type = lea->type()->as<PtrType>()->pointee();
+
+        /*for (unsigned i = 0; i < size; i++) {
+            auto element_type = target_type->op(i);
+            element_type->dump();
+            auto element_ptr_type = convert(world_.ptr_type(element_type));
+            element_ptr_type->dump();
+            auto r = irbuilder_.CreateStructGEP(element_ptr_type, lea_ptr, {0, i + offset});
+            r->dump();
+        }*/
+
+        auto r = irbuilder_.CreateStructGEP(lea_ptr->getType()->getPointerElementType(), lea_ptr, index);
+        r->getType()->dump();
+        convert(lea->type())->dump();
+        assert(r->getType() == convert(lea->type()));
+        return r;
+    }
+
+    if (lea->ptr_pointee()->isa<VectorExtendedType>() && lea->ptr_pointee()->as<VectorExtendedType>()->element()->isa<StructType>()) {
+        assert(false);
+    }
 
     assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
-    llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
-    return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
+    auto index = lookup(lea->index());
+    llvm::Value* zero = irbuilder_.getInt64(0);
+    if (lea->type()->isa<VectorExtendedType>() && !lea->index()->type()->isa<VectorExtendedType>()) {
+        index = irbuilder_.CreateVectorSplat(lea->type()->as<VectorExtendedType>()->length(), index);
+        zero = irbuilder_.CreateVectorSplat(lea->type()->as<VectorExtendedType>()->length(), zero);
+    }
+    llvm::Value* args[2] = { zero, index };
+    auto r = irbuilder_.CreateInBoundsGEP(lea_ptr, args);
+    return r;
 }
 
 llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
@@ -1685,7 +1878,6 @@ llvm::Type* CodeGen::convert(const Type* type) {
             auto element_type = type->as<VectorExtendedType>()->element();
             if (auto ptr_type = element_type->isa<PtrType>()) {
                 llvm_type = convert(world().vec_type(ptr_type->pointee(), vector_width));
-                llvm_type->dump();
                 llvm_type = llvm::PointerType::get(llvm_type, convert_addr_space(ptr_type->addr_space()));
                 return types_[type] = llvm_type;
             }
@@ -1702,7 +1894,6 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 return types_[type] = llvm_type;
             }
             if (llvm_type->isPointerTy() && !llvm::VectorType::isValidElementType(llvm_type->getPointerElementType())) {
-                assert(false);
                 auto flatten_type = flatten(llvm_type);
                 llvm::Type *newelements[flatten_type.size()];
 

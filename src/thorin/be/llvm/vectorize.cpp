@@ -236,7 +236,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         }
 
         llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, true, retVec);
+        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, llvm::CloneFunctionChangeType::ClonedModule, retVec);
 
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);

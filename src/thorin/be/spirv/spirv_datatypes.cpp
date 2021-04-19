@@ -1,4 +1,5 @@
 #include "thorin/be/spirv/spirv.h"
+#include "thorin/util/stream.h"
 
 namespace thorin::spirv {
 
@@ -22,6 +23,7 @@ void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, SpvId output, Spv
 
 DefiniteArrayDatatype::DefiniteArrayDatatype(ConvertedType* type, ConvertedType* element_type, size_t length) : Datatype(type), element_type(element_type), length(length) {
     assert(element_type->datatype.get() != nullptr);
+    assert(length > 0 && "Array lengths of zero are not supported");
 }
 
 SpvId DefiniteArrayDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) {
@@ -51,6 +53,7 @@ ProductDatatype::ProductDatatype(ConvertedType* type, const std::vector<Converte
 }
 
 SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) {
+    assert(total_size > 0 && "It doesn't make sense to de-serialize Unit!");
     SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     std::vector<SpvId> indices;
     std::vector<SpvId> elements;
@@ -64,6 +67,7 @@ SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) 
     return bb.composite(type->type_id, elements);
 }
 void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) {
+    assert(total_size > 0 && "It doesn't make sense to serialize Unit!");
     SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     std::vector<SpvId> indices;
     size_t offset = 0;
@@ -79,6 +83,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
 
     assert(!type->isa<MemType>());
     ConvertedType* converted = types_.emplace(type, std::make_unique<ConvertedType>(this) ).first->second.get();
+    converted->src_type = type;
     switch (type->tag()) {
         // Boolean types are typically packed intelligently when declaring in local variables, however with vanilla Vulkan 1.0 they can only be represented via 32-bit integers
         // Using extensions, we could use 16 or 8-bit ints instead
@@ -166,28 +171,27 @@ ConvertedType* CodeGen::convert(const Type* type) {
             break;
         }
 
-        case Node_StructType: {
-            std::vector<ConvertedType*> types;
-            std::vector<SpvId> spv_types;
-            for (auto elem : type->as<StructType>()->ops()) {
-                auto member_type = convert(elem);
-                types.push_back(member_type);
-                spv_types.push_back(member_type->type_id);
-            }
-            converted->type_id = builder_->declare_struct_type(spv_types);
-            builder_->name(converted->type_id, type->to_string());
-            converted->datatype = std::make_unique<ProductDatatype>(converted, std::move(types));
-            break;
-        }
-
+        case Node_StructType:
         case Node_TupleType: {
             std::vector<ConvertedType*> types;
             std::vector<SpvId> spv_types;
-            for (auto elem : type->as<TupleType>()->ops()){
-                auto member_type = convert(elem);
-                types.push_back(member_type);
-                spv_types.push_back(member_type->type_id);
+            size_t total_serialized_size = 0;
+            for (auto member_type : type->ops()) {
+                if (member_type == world().unit() || member_type == world().mem_type()) {
+                    outf("skipped one");
+                    continue;
+                }
+                auto converted_member_type = convert(member_type);
+                types.push_back(converted_member_type);
+                spv_types.push_back(converted_member_type->type_id);
+                total_serialized_size = converted_member_type->datatype->serialized_size();
             }
+            if (total_serialized_size == 0) {
+                outf("this one is void");
+                converted->type_id = builder_->void_type;
+                break;
+            }
+
             converted->type_id = builder_->declare_struct_type(spv_types);
             builder_->name(converted->type_id, type->to_string());
             converted->datatype = std::make_unique<ProductDatatype>(converted, std::move(types));
@@ -200,26 +204,35 @@ ConvertedType* CodeGen::convert(const Type* type) {
             ConvertedType* converted_tag_type = convert(tag_type);
 
             size_t max_serialized_size = 0;
-            //std::vector<ConvertedType*> types;
-            //std::vector<SpvId> spv_types;
-            for (auto elem : type->as<VariantType>()->ops()){
-                auto member_type = convert(elem);
-
-                if (member_type->datatype->serialized_size() > max_serialized_size)
-                    max_serialized_size = member_type->datatype->serialized_size();
+            for (auto member_type : type->as<VariantType>()->ops()) {
+                if (member_type == world().unit() || member_type == world().mem_type()) {
+                    outf("skipped one");
+                    continue;
+                }
+                auto converted_member_type = convert(member_type);
+                if (converted_member_type->datatype->serialized_size() > max_serialized_size)
+                    max_serialized_size = converted_member_type->datatype->serialized_size();
             }
 
-            auto payload_type = world().definite_array_type(world().type_pu32(), max_serialized_size);
-            auto* converted_payload_type = convert(payload_type);
+            if (max_serialized_size > 0) {
+                auto payload_type = world().definite_array_type(world().type_pu32(), max_serialized_size);
+                auto* converted_payload_type = convert(payload_type);
 
-            std::vector<SpvId> spv_pair = {converted_tag_type->type_id, converted_payload_type->type_id };
-            converted->type_id = builder_->declare_struct_type(spv_pair);
-
-            // auto oh_god_why = std::vector<ConvertedType*> ( &converted_tag_type, &converted_payload_type );
-
-            converted->datatype = std::make_unique<ProductDatatype>(converted, std::vector<ConvertedType*> { converted_tag_type, converted_payload_type });
+                std::vector<SpvId> spv_pair = {converted_tag_type->type_id, converted_payload_type->type_id};
+                converted->type_id = builder_->declare_struct_type(spv_pair);
+                converted->datatype = std::make_unique<ProductDatatype>(converted, std::vector<ConvertedType*>{ converted_tag_type, converted_payload_type });
+            } else {
+                // We keep this useless level of struct so the rest of the code doesn't need a special path to extract the tag
+                std::vector<SpvId> spv_singleton = { converted_tag_type->type_id };
+                converted->type_id = builder_->declare_struct_type(spv_singleton);
+                converted->datatype = std::make_unique<ProductDatatype>(converted, std::vector<ConvertedType*>{ converted_tag_type });
+            }
             builder_->name(converted->type_id, type->to_string());
             break;
+        }
+
+        case Node_MemType: {
+            assert(false && "TODO: get arround this");
         }
 
         default:

@@ -460,25 +460,41 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto variant_type = def->type()->as<VariantType>();
         auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
 
-        auto payload_arr = bb->variable(variant_datatype->elements_types[1]->type_id, spv::StorageClassFunction);
-        auto converted_payload_type = convert(variant_type->op(variant->index()));
-        converted_payload_type->datatype->emit_serialization(*bb, payload_arr, emit(variant->value(), bb));
-        auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
+        if (variant_datatype->elements_types.size() > 1) {
+            auto ptr_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
+            auto payload_arr = bb->variable(ptr_type, spv::StorageClassFunction);
+            auto converted_payload_type = convert(variant_type->op(variant->index()));
 
-        auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index()) });
-        std::vector<SpvId> with_tag = { tag, payload };
-        return bb->composite(convert(variant->type())->type_id, with_tag);
+            auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
+            auto ptr_arr = bb->ptr_access_chain(convert(world().type_pu32())->type_id, payload_arr, zero, { zero });
+
+            converted_payload_type->datatype->emit_serialization(*bb, ptr_arr, emit(variant->value(), bb));
+            auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
+
+            auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index())});
+            std::vector<SpvId> with_tag = {tag, payload};
+            return bb->composite(convert(variant->type())->type_id, with_tag);
+        } else {
+            // Zero-sized payload case
+            auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index())});
+            std::vector<SpvId> with_tag = { tag };
+            return bb->composite(convert(variant->type())->type_id, with_tag);
+        }
     } else if (auto vextract = def->isa<VariantExtract>()) {
         auto variant_type = vextract->value()->type()->as<VariantType>();
         auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
 
         auto target_type = convert(def->type());
 
-        auto payload_arr = bb->variable(variant_datatype->elements_types[1]->type_id, spv::StorageClassFunction);
+        assert(variant_datatype->elements_types.size() > 1 && "Can't extract zero-sized datatypes");
+        auto ptr_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
+        auto payload_arr = bb->variable(ptr_type, spv::StorageClassFunction);
         auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
         bb->store(payload, payload_arr);
 
-        return target_type->datatype->emit_deserialization(*bb, payload_arr);
+        auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
+        auto ptr_arr = bb->ptr_access_chain(convert(world().type_pu32())->type_id, payload_arr, zero, { zero });
+        return target_type->datatype->emit_deserialization(*bb, ptr_arr);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
         return bb->extract(convert(world().type_pu32())->type_id, value, { 0 });

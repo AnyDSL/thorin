@@ -12,7 +12,8 @@ class CodeGen;
 struct Datatype;
 
 struct ConvertedType {
-    CodeGen* code_gen;
+    spirv::CodeGen* code_gen;
+    const thorin::Type* src_type;
     SpvId type_id { 0 };
     std::unique_ptr<Datatype> datatype;
 

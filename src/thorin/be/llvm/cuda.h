@@ -7,9 +7,9 @@ namespace thorin {
 
 class CUDACodeGen : public CodeGen {
 public:
-    CUDACodeGen(World& world, const Cont2Config&);
+    CUDACodeGen(World& world, const Cont2Config&, int opt, bool debug);
 
-    void emit(std::ostream& stream, int opt, bool debug) override;
+    void emit(std::ostream& stream) override;
 
 protected:
     virtual std::string get_alloc_name() const override { return "malloc"; }

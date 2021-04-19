@@ -461,12 +461,13 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
 
         if (variant_datatype->elements_types.size() > 1) {
-            auto ptr_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
-            auto payload_arr = bb->variable(ptr_type, spv::StorageClassFunction);
+            auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
+            auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
+            auto payload_arr = bb->variable(alloc_type, spv::StorageClassFunction);
             auto converted_payload_type = convert(variant_type->op(variant->index()));
 
             auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
-            auto ptr_arr = bb->ptr_access_chain(convert(world().type_pu32())->type_id, payload_arr, zero, { zero });
+            auto ptr_arr = bb->ptr_access_chain(ptr_type, payload_arr, zero, { zero });
 
             converted_payload_type->datatype->emit_serialization(*bb, ptr_arr, emit(variant->value(), bb));
             auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
@@ -487,13 +488,14 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto target_type = convert(def->type());
 
         assert(variant_datatype->elements_types.size() > 1 && "Can't extract zero-sized datatypes");
-        auto ptr_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
-        auto payload_arr = bb->variable(ptr_type, spv::StorageClassFunction);
+        auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
+        auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
+        auto payload_arr = bb->variable(alloc_type, spv::StorageClassFunction);
         auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
         bb->store(payload, payload_arr);
 
         auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
-        auto ptr_arr = bb->ptr_access_chain(convert(world().type_pu32())->type_id, payload_arr, zero, { zero });
+        auto ptr_arr = bb->ptr_access_chain(ptr_type, payload_arr, zero, { zero });
         return target_type->datatype->emit_deserialization(*bb, ptr_arr);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);

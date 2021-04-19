@@ -11,7 +11,8 @@ ScalarDatatype::ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in
 }
 
 SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) {
-    auto loaded = bb.load(type->type_id, input);
+    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    auto loaded = bb.load(u32_tid, input);
     return bb.bitcast(type->type_id, loaded);
 }
 

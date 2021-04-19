@@ -79,6 +79,18 @@ void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, SpvId output, Sp
 }
 
 ConvertedType* CodeGen::convert(const Type* type) {
+    // Spir-V requires each primitive type to be "unique", it doesn't allow for example two 32-bit signed integer types.
+    // Therefore we must enforce that precise/quick types map to the same thing.
+    switch (type->tag()) {
+#define THORIN_Q_TYPE(T, M) \
+    case PrimType_##T: \
+        type = world().prim_type(PrimType_p##M, 1); \
+        break;
+#include "thorin/tables/primtypetable.h"
+#undef THORIN_Q_TYPE
+        default: break;
+    }
+
     if (auto iter = types_.find(type); iter != types_.end()) return iter->second.get();
 
     assert(!type->isa<MemType>());
@@ -88,27 +100,31 @@ ConvertedType* CodeGen::convert(const Type* type) {
         // Boolean types are typically packed intelligently when declaring in local variables, however with vanilla Vulkan 1.0 they can only be represented via 32-bit integers
         // Using extensions, we could use 16 or 8-bit ints instead
         // We can also pack them inside structures using bit-twiddling tricks, if the need arises
+        // Note: this only affects storing booleans inside structures, for regular variables the actual spir-v bool type is used.
         case PrimType_bool:
             converted->type_id = builder_->declare_bool_type();
             converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
             break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_ps32: case PrimType_qs32:
+        case PrimType_ps8:  assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_pu8:  assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_ps16: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_pu16: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_ps32:
             converted->type_id = builder_->declare_int_type(32, true );
             converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
             break;
-        case PrimType_pu32: case PrimType_qu32:
+        case PrimType_pu32:
             converted->type_id = builder_->declare_int_type(32, false);
             converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
             break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pf16: case PrimType_qf16:                                         assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pf32: case PrimType_qf32:
+        case PrimType_ps64: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_pu64: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_pf16: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_pf32:
             converted->type_id = builder_->declare_float_type(32);
             converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
             break;
-        case PrimType_pf64: case PrimType_qf64:                                         assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_pf64: assert(false && "TODO: look into capabilities to enable this");
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
             spv::StorageClass storage_class;

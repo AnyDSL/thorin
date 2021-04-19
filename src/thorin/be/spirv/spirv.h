@@ -37,6 +37,8 @@ struct FnBuilder : public builder::SpvFnBuilder {
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
     ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;
+
+    explicit FnBuilder(builder::SpvFileBuilder& file_builder) : builder::SpvFnBuilder(file_builder) {}
 };
 
 class CodeGen : public thorin::CodeGen {

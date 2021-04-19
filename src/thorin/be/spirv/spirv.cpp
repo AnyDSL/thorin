@@ -46,7 +46,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
 
-    FnBuilder fn;
+    FnBuilder fn(*builder_);
     fn.scope = &scope;
     fn.file_builder = builder_;
     fn.fn_type = convert(entry_->type())->type_id;
@@ -463,7 +463,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         if (variant_datatype->elements_types.size() > 1) {
             auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
             auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
-            auto payload_arr = bb->variable(alloc_type, spv::StorageClassFunction);
+            auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
             auto converted_payload_type = convert(variant_type->op(variant->index()));
 
             auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
@@ -490,7 +490,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         assert(variant_datatype->elements_types.size() > 1 && "Can't extract zero-sized datatypes");
         auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
         auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
-        auto payload_arr = bb->variable(alloc_type, spv::StorageClassFunction);
+        auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
         auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
         bb->store(payload, payload_arr);
 

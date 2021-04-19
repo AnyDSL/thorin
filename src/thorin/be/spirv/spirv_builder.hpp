@@ -106,15 +106,6 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
-    SpvId variable(SpvId type, spv::StorageClass storage_class) {
-        op(spv::Op::OpVariable, 4);
-        ref_id(type);
-        auto id = generate_fresh_id();
-        ref_id(id);
-        literal_int(storage_class);
-        return id;
-    }
-
     SpvId bitcast(SpvId target_type, SpvId value) {
         op(spv::Op::OpBitcast, 4);
         auto id = generate_fresh_id();
@@ -207,13 +198,32 @@ private:
 };
 
 struct SpvFnBuilder {
-public:
+    explicit SpvFnBuilder(SpvFileBuilder& file_builder)
+    : file_builder(file_builder)
+    {}
+
+    SpvFileBuilder& file_builder;
+
     SpvId fn_type;
     SpvId fn_ret_type;
     std::vector<SpvBasicBlockBuilder*> bbs_to_emit;
 
     // Contains OpFunctionParams
     SpvSectionBuilder header;
+
+    SpvSectionBuilder variables;
+
+    SpvId variable(SpvId type, spv::StorageClass storage_class) {
+        variables.op(spv::Op::OpVariable, 4);
+        variables.ref_id(type);
+        auto id = generate_fresh_id();
+        variables.ref_id(id);
+        variables.literal_int(storage_class);
+        return id;
+    }
+
+private:
+    SpvId generate_fresh_id();
 };
 
 struct SpvFileBuilder {
@@ -322,9 +332,16 @@ struct SpvFileBuilder {
         for (auto w : fn_builder.header.data_)
             fn_defs.data_.push_back(w);
 
+        bool first = true;
         for (auto& bb : fn_builder.bbs_to_emit) {
             fn_defs.op(spv::Op::OpLabel, 2);
             fn_defs.ref_id(bb->label);
+
+            if (first) {
+                for (auto w : fn_builder.variables.data_)
+                    fn_defs.data_.push_back(w);
+                first = false;
+            }
 
             for (auto& phi : bb->phis) {
                 fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
@@ -423,6 +440,10 @@ public:
 };
 
 inline SpvId SpvBasicBlockBuilder::generate_fresh_id() {
+    return file_builder.generate_fresh_id();
+}
+
+inline SpvId SpvFnBuilder::generate_fresh_id() {
     return file_builder.generate_fresh_id();
 }
 

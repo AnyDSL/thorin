@@ -241,7 +241,32 @@ private:
     SpvId generate_fresh_id();
 };
 
+inline bool operator==(const SpvId &a, const SpvId &b) { return a.id == b.id; }
+
 struct SpvFileBuilder {
+    enum UniqueTypeTag {
+        NONE,
+        FN_TYPE
+    };
+
+    struct UniqueTypeKey {
+        UniqueTypeTag tag;
+        std::vector<SpvId> members;
+
+        bool operator==(const UniqueTypeKey &b) const {
+            return tag == b.tag && members == b.members;
+        }
+    };
+
+    struct UniqueTypeKeyHasher {
+        size_t operator() (const UniqueTypeKey& key) const {
+            size_t acc = 0;
+            for (auto id : key.members)
+                acc ^= std::hash<uint32_t>{}(id.id);
+            return std::hash<size_t>{}(key.tag) ^ acc;
+        }
+    };
+
     SpvFileBuilder()
     : void_type(declare_void_type())
     {}
@@ -299,12 +324,17 @@ struct SpvFileBuilder {
     }
 
     SpvId declare_fn_type(std::vector<SpvId> dom, SpvId codom) {
+        auto key = UniqueTypeKey { FN_TYPE, dom };
+        key.members.push_back(codom);
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+
         types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
         types_constants.ref_id(codom);
         for (auto arg : dom)
             types_constants.ref_id(arg);
+        unique_decls[key] = id;
         return id;
     }
 
@@ -410,6 +440,9 @@ private:
     SpvSectionBuilder types_constants;
     SpvSectionBuilder fn_decls;
     SpvSectionBuilder fn_defs;
+
+    // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
+    std::unordered_map<UniqueTypeKey, SpvId, UniqueTypeKeyHasher> unique_decls;
 
     SpvId declare_void_type() {
         types_constants.op(spv::Op::OpTypeVoid, 2);

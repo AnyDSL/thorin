@@ -134,13 +134,27 @@ ConvertedType* CodeGen::convert(const Type* type) {
             switch (ptr->addr_space()) {
                 case AddrSpace::Function: storage_class = spv::StorageClassFunction;     break;
                 case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;      break;
-                case AddrSpace::Push   :  storage_class = spv::StorageClassPushConstant; break;
+                case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant; break;
+                case AddrSpace::Global: {
+                    storage_class = spv::StorageClassPhysicalStorageBuffer;
+                    // TODO datatype code for stuffing into push constants
+                    break;
+                }
+                case AddrSpace::Generic: {
+                    world().WLOG("Passing a generic pointer to a SPIR-V module. SpirV doesn't know about these, and so this will be passed as a 64 bit integer. Tread carefully !");
+                    ConvertedType* conv_u64 = convert(world().type_pu64());
+                    converted->type_id = conv_u64->type_id;
+                    goto ptr_done;
+                }
                 default:
                     assert(false && "This address space is not supported");
                     break;
             }
-            ConvertedType* element = convert(ptr->pointee());
-            converted->type_id = builder_->declare_ptr_type(storage_class, element->type_id);
+            {
+                ConvertedType* element = convert(ptr->pointee());
+                converted->type_id = builder_->declare_ptr_type(storage_class, element->type_id);
+            }
+            ptr_done:
             break;
         }
         case Node_IndefiniteArrayType: {

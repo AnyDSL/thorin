@@ -21,7 +21,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder::SpvFileBuilder builder;
     builder_ = &builder;
     builder_->capability(spv::Capability::CapabilityShader);
-    builder_->capability(spv::Capability::CapabilityLinkage);
+    // builder_->capability(spv::Capability::CapabilityLinkage);
     builder_->capability(spv::Capability::CapabilityVariablePointers);
     builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
 
@@ -51,28 +51,31 @@ void CodeGen::emit_stream(std::ostream& out) {
             fn_builder.bbs_to_emit.push_back(bb);
 
             // iterate on cont type and extract the
-            auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
+            auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Push))->type_id;
             auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
             auto ptr_arr = bb->ptr_access_chain(ptr_type, push_constant_ptr, zero, { zero });
             size_t offset = 0;
             std::vector<SpvId> args;
-            for (size_t i = 0; i < cont->num_ops(); i++) {
-                auto op = cont->op(i);
-                auto op_type = op->type();
-                if (op_type == world().unit() || op_type == world().mem_type() || op_type->isa<FnType>()) continue;
-                assert(op_type->order() == 0);
-                auto converted = convert(op_type);
+            for (size_t i = 0; i < cont->num_params(); i++) {
+                auto param = cont->param(i);
+                auto param_type = param->type();
+                if (param_type == world().unit() || param_type == world().mem_type() || param_type->isa<FnType>()) continue;
+                assert(param_type->order() == 0);
+                auto converted = convert(param_type);
                 assert(converted->datatype != nullptr);
-                SpvId arg = converted->datatype->emit_deserialization(*bb, ptr_arr);
+                SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, ptr_arr);
                 args.push_back(arg);
-                bb->ptr_access_chain(ptr_type, push_constant_ptr, bb->file_builder.constant(convert(world().type_ps32())->type_id, { (uint32_t) offset }), { });
                 offset += converted->datatype->serialized_size();
+                ptr_arr = bb->ptr_access_chain(ptr_type, ptr_arr, bb->file_builder.constant(convert(world().type_ps32())->type_id, { (uint32_t) offset }), { });
             }
 
             bb->call(builder_->void_type, callee, args);
             bb->return_void();
 
             builder_->define_function(fn_builder);
+            builder_->name(fn_builder.function_id, "entry_point_" + cont->name());
+
+            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "main", { push_constant_ptr });
         }
     }
 
@@ -150,6 +153,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     }
     
     builder_->define_function(fn);
+    builder_->name(fn.function_id, scope.entry()->name());
 }
 
 SpvId CodeGen::get_codom_type(const Continuation* fn) {
@@ -507,7 +511,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
             auto ptr_arr = bb->ptr_access_chain(ptr_type, payload_arr, zero, { zero });
 
-            converted_payload_type->datatype->emit_serialization(*bb, ptr_arr, emit(variant->value(), bb));
+            converted_payload_type->datatype->emit_serialization(*bb, spv::StorageClassFunction, ptr_arr, emit(variant->value(), bb));
             auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
 
             auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index())});
@@ -534,7 +538,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
 
         auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
         auto ptr_arr = bb->ptr_access_chain(ptr_type, payload_arr, zero, { zero });
-        return target_type->datatype->emit_deserialization(*bb, ptr_arr);
+        return target_type->datatype->emit_deserialization(*bb, spv::StorageClassFunction, ptr_arr);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
         return bb->extract(convert(world().type_pu32())->type_id, value, { 0 });

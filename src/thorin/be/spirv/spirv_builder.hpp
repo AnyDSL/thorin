@@ -365,6 +365,15 @@ struct SpvFileBuilder {
         return id;
     }
 
+    SpvId variable(SpvId type, spv::StorageClass storage_class) {
+        types_constants.op(spv::Op::OpVariable, 4);
+        types_constants.ref_id(type);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(storage_class);
+        return id;
+    }
+
     SpvId define_function(SpvFnBuilder& fn_builder) {
         fn_defs.op(spv::Op::OpFunction, 5);
         fn_defs.ref_id(fn_builder.fn_ret_type);
@@ -406,13 +415,13 @@ struct SpvFileBuilder {
         return fn_builder.function_id;
     }
 
-    SpvId variable(SpvId type, spv::StorageClass storage_class) {
-        types_constants.op(spv::Op::OpVariable, 4);
-        types_constants.ref_id(type);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.literal_int(storage_class);
-        return id;
+    void declare_entry_point(spv::ExecutionModel execution_model, SpvId entry_point, std::string name, std::vector<SpvId> interface) {
+        entry_points.op(spv::Op::OpEntryPoint, 3 + div_roundup(name.size() + 1, 4) + interface.size());
+        entry_points.literal_int(execution_model);
+        entry_points.ref_id(entry_point);
+        entry_points.literal_name(name);
+        for (auto i : interface)
+            entry_points.ref_id(i);
     }
 
     void capability(spv::Capability cap) {

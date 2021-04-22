@@ -76,8 +76,8 @@ public:
     Datatype(ConvertedType* type) : type(type) {}
 
     virtual size_t serialized_size() = 0;
-    virtual void emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) = 0;
-    virtual SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) = 0;
+    virtual void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) = 0;
+    virtual SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) = 0;
 };
 
 /// For scalar datatypes
@@ -88,8 +88,8 @@ struct ScalarDatatype : public Datatype {
     ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes);
 
     size_t serialized_size() override { return size_in_bytes / 4; };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) override;
-    void emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) override;
+    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) override;
+    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) override;
 };
 
 struct DefiniteArrayDatatype : public Datatype {
@@ -99,8 +99,8 @@ struct DefiniteArrayDatatype : public Datatype {
     DefiniteArrayDatatype(ConvertedType* type, ConvertedType* element_type, size_t length);
 
     size_t serialized_size() override { return element_type->datatype->serialized_size(); };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) override;
-    void emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) override;
+    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) override;
+    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) override;
 };
 
 struct ProductDatatype : public Datatype {
@@ -110,8 +110,8 @@ struct ProductDatatype : public Datatype {
     ProductDatatype(ConvertedType* type, const std::vector<ConvertedType*>&& elements_types);
 
     size_t serialized_size() override { return total_size; };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, SpvId input) override;
-    void emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) override;
+    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) override;
+    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) override;
 };
 
 }

@@ -10,13 +10,13 @@ ScalarDatatype::ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in
     assert(size_in_bytes == 4);
 }
 
-SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) {
+SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
     SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     auto loaded = bb.load(u32_tid, input);
     return bb.bitcast(type->type_id, loaded);
 }
 
-void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) {
+void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
     SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     auto casted = bb.bitcast(u32_tid, data);
     bb.store(casted, output);
@@ -27,23 +27,23 @@ DefiniteArrayDatatype::DefiniteArrayDatatype(ConvertedType* type, ConvertedType*
     assert(length > 0 && "Array lengths of zero are not supported");
 }
 
-SpvId DefiniteArrayDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) {
+SpvId DefiniteArrayDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
     SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_ps32())->type_id;
     std::vector<SpvId> indices;
     std::vector<SpvId> elements;
     for (size_t i = 0; i < length; i++) {
         SpvId element_ptr = bb.ptr_access_chain(element_type->type_id, input, bb.file_builder.constant(i32_tid, { (uint32_t) (i * element_type->datatype->serialized_size()) }), indices);
-        SpvId element = element_type->datatype->emit_deserialization(bb, element_ptr);
+        SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, element_ptr);
         elements.push_back(element);
     }
     return bb.composite(type->type_id, elements);
 }
-void DefiniteArrayDatatype::emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) {
+void DefiniteArrayDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
     std::vector<SpvId> indices;
     SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_ps32())->type_id;
     for (size_t i = 0; i < length; i++) {
         SpvId element_ptr = bb.ptr_access_chain(element_type->type_id, output, bb.file_builder.constant(i32_tid, { (uint32_t) (i * element_type->datatype->serialized_size()) }), indices);
-        element_type->datatype->emit_serialization(bb, element_ptr, bb.extract(element_type->type_id, data, { (uint32_t) i }));
+        element_type->datatype->emit_serialization(bb, storage_class, element_ptr, bb.extract(element_type->type_id, data, { (uint32_t) i }));
     }
 }
 
@@ -53,29 +53,31 @@ ProductDatatype::ProductDatatype(ConvertedType* type, const std::vector<Converte
     }
 }
 
-SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, SpvId input) {
+SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
     assert(total_size > 0 && "It doesn't make sense to de-serialize Unit!");
-    SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
     std::vector<SpvId> indices;
     std::vector<SpvId> elements;
     size_t offset = 0;
     for (auto& element_type : elements_types) {
-        SpvId element_ptr = bb.ptr_access_chain(element_type->type_id, input, bb.file_builder.constant(i32_tid, { (uint32_t) offset }), indices);
-        SpvId element = element_type->datatype->emit_deserialization(bb, element_ptr);
+        SpvId element_ptr = bb.ptr_access_chain(arr_cell_tid, input, bb.file_builder.constant(u32_tid, { (uint32_t) offset }), indices);
+        SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, element_ptr);
         offset += element_type->datatype->serialized_size();
         elements.push_back(element);
     }
     return bb.composite(type->type_id, elements);
 }
-void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, SpvId output, SpvId data) {
+void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
     assert(total_size > 0 && "It doesn't make sense to serialize Unit!");
-    SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
     std::vector<SpvId> indices;
     size_t offset = 0;
     int i = 0;
     for (auto& element_type : elements_types) {
-        SpvId element_ptr = bb.ptr_access_chain(element_type->type_id, output, bb.file_builder.constant(i32_tid, { (uint32_t) offset }), indices);
-        element_type->datatype->emit_serialization(bb, element_ptr, bb.extract(element_type->type_id, data, { (uint32_t) i++ }));
+        SpvId element_ptr = bb.ptr_access_chain(arr_cell_tid, output, bb.file_builder.constant(u32_tid, { (uint32_t) offset }), indices);
+        element_type->datatype->emit_serialization(bb, storage_class, element_ptr, bb.extract(element_type->type_id, data, { (uint32_t) i++ }));
     }
 }
 
@@ -130,8 +132,9 @@ ConvertedType* CodeGen::convert(const Type* type) {
             auto ptr = type->as<PtrType>();
             spv::StorageClass storage_class;
             switch (ptr->addr_space()) {
-                case AddrSpace::Function: storage_class = spv::StorageClassFunction; break;
-                case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;  break;
+                case AddrSpace::Function: storage_class = spv::StorageClassFunction;     break;
+                case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;      break;
+                case AddrSpace::Push   :  storage_class = spv::StorageClassPushConstant; break;
                 default:
                     assert(false && "This address space is not supported");
                     break;

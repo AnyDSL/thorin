@@ -32,9 +32,47 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 
+    auto push_constant_arr_type = world().definite_array_type(world().type_pu32(), 128);
+    auto push_constant_ptr_type = builder.declare_ptr_type(spv::StorageClassPushConstant, convert(push_constant_arr_type)->type_id);
+    auto push_constant_ptr = builder_->variable(push_constant_ptr_type, spv::StorageClassPushConstant);
+
+    auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
     for (auto& cont : world().continuations()) {
         if (cont->is_exported()) {
-            // TODO create entry point
+            assert(defs_.contains(cont));
+            SpvId callee = defs_[cont];
+
+            // TODO name entry points
+            FnBuilder fn_builder(builder_);
+            fn_builder.fn_type = entry_pt_signature;
+            fn_builder.fn_ret_type = builder_->void_type;
+
+            BasicBlockBuilder* bb = fn_builder.bbs.emplace_back(std::make_unique<BasicBlockBuilder>(fn_builder)).get();
+            fn_builder.bbs_to_emit.push_back(bb);
+
+            // iterate on cont type and extract the
+            auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
+            auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
+            auto ptr_arr = bb->ptr_access_chain(ptr_type, push_constant_ptr, zero, { zero });
+            size_t offset = 0;
+            std::vector<SpvId> args;
+            for (size_t i = 0; i < cont->num_ops(); i++) {
+                auto op = cont->op(i);
+                auto op_type = op->type();
+                if (op_type == world().unit() || op_type == world().mem_type() || op_type->isa<FnType>()) continue;
+                assert(op_type->order() == 0);
+                auto converted = convert(op_type);
+                assert(converted->datatype != nullptr);
+                SpvId arg = converted->datatype->emit_deserialization(*bb, ptr_arr);
+                args.push_back(arg);
+                bb->ptr_access_chain(ptr_type, push_constant_ptr, bb->file_builder.constant(convert(world().type_ps32())->type_id, { (uint32_t) offset }), { });
+                offset += converted->datatype->serialized_size();
+            }
+
+            bb->call(builder_->void_type, callee, args);
+            bb->return_void();
+
+            builder_->define_function(fn_builder);
         }
     }
 
@@ -46,11 +84,11 @@ void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
 
-    FnBuilder fn(*builder_);
+    FnBuilder fn(builder_);
     fn.scope = &scope;
-    fn.file_builder = builder_;
     fn.fn_type = convert(entry_->type())->type_id;
     fn.fn_ret_type = get_codom_type(entry_);
+    defs_.emplace(scope.entry(), fn.function_id);
 
     current_fn_ = &fn;
 

@@ -180,6 +180,18 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
             literal_int(e);
     }
 
+    SpvId call(SpvId return_type, SpvId callee, std::vector<SpvId> arguments) {
+        op(spv::Op::OpFunctionCall, 4 + arguments.size());
+        auto id = generate_fresh_id();
+        ref_id(return_type);
+        ref_id(id);
+        ref_id(callee);
+
+        for (auto a : arguments)
+            ref_id(a);
+        return id;
+    }
+
     void return_void() {
         op(spv::Op::OpReturn, 1);
     }
@@ -198,11 +210,14 @@ private:
 };
 
 struct SpvFnBuilder {
-    explicit SpvFnBuilder(SpvFileBuilder& file_builder)
+    explicit SpvFnBuilder(SpvFileBuilder* file_builder)
     : file_builder(file_builder)
-    {}
+    {
+        function_id = generate_fresh_id();
+    }
 
-    SpvFileBuilder& file_builder;
+    SpvFileBuilder* file_builder;
+    SpvId function_id;
 
     SpvId fn_type;
     SpvId fn_ret_type;
@@ -283,7 +298,7 @@ struct SpvFileBuilder {
         return id;
     }
 
-    SpvId declare_fn_type(std::vector<SpvId>& dom, SpvId codom) {
+    SpvId declare_fn_type(std::vector<SpvId> dom, SpvId codom) {
         types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
@@ -323,8 +338,7 @@ struct SpvFileBuilder {
     SpvId define_function(SpvFnBuilder& fn_builder) {
         fn_defs.op(spv::Op::OpFunction, 5);
         fn_defs.ref_id(fn_builder.fn_ret_type);
-        auto id = generate_fresh_id();
-        fn_defs.ref_id(id);
+        fn_defs.ref_id(fn_builder.function_id);
         fn_defs.data_.push_back(spv::FunctionControlMaskNone);
         fn_defs.ref_id(fn_builder.fn_type);
 
@@ -359,6 +373,15 @@ struct SpvFileBuilder {
         }
 
         fn_defs.op(spv::Op::OpFunctionEnd, 1);
+        return fn_builder.function_id;
+    }
+
+    SpvId variable(SpvId type, spv::StorageClass storage_class) {
+        types_constants.op(spv::Op::OpVariable, 4);
+        types_constants.ref_id(type);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(storage_class);
         return id;
     }
 
@@ -444,7 +467,7 @@ inline SpvId SpvBasicBlockBuilder::generate_fresh_id() {
 }
 
 inline SpvId SpvFnBuilder::generate_fresh_id() {
-    return file_builder.generate_fresh_id();
+    return file_builder->generate_fresh_id();
 }
 
 }

@@ -31,14 +31,13 @@ struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {
-    const Scope* scope;
-    builder::SpvFileBuilder* file_builder;
+    const Scope* scope = nullptr;
     std::vector<std::unique_ptr<BasicBlockBuilder>> bbs;
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
     ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;
 
-    explicit FnBuilder(builder::SpvFileBuilder& file_builder) : builder::SpvFnBuilder(file_builder) {}
+    explicit FnBuilder(builder::SpvFileBuilder* file_builder) : builder::SpvFnBuilder(file_builder) {}
 };
 
 class CodeGen : public thorin::CodeGen {

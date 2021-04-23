@@ -369,6 +369,8 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
     }
 }
 
+constexpr SpvId spv_none { 0 };
+
 SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs(), bb);
@@ -562,6 +564,23 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             elements[x++] = emit(e, bb);
         }
         return bb->composite(convert(structagg->type())->type_id, elements);
+    } else if (auto access = def->isa<Access>()) {
+        std::vector<uint32_t> operands;
+        auto ptr_type = access->ptr()->type()->as<PtrType>();
+        if (ptr_type->addr_space() == AddrSpace::Global) {
+            operands.push_back(spv::MemoryAccessAlignedMask);
+            operands.push_back( 4 ); // TODO: SPIR-V docs say to consult client API for valid values.
+        }
+        if (auto load = def->isa<Load>()) {
+            return bb->load(convert(load->out_val_type())->type_id, emit(load->ptr(), bb), operands);
+        } else if (auto store = def->isa<Store>()) {
+            bb->store(emit(store->val(), bb), emit(store->ptr(), bb), operands);
+            return spv_none;
+        } else THORIN_UNREACHABLE;
+    } else if (auto lea = def->isa<LEA>()) {
+        auto type = convert(lea->ptr_type());
+        auto offset = emit(lea->index(), bb);
+        return bb->ptr_access_chain(type->type_id, emit(lea->ptr(), bb), offset, {});
     }
     assertf(false, "Incomplete emit(def) definition");
 }

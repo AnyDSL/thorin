@@ -156,19 +156,23 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
-    SpvId load(SpvId target_type, SpvId pointer) {
-        op(spv::Op::OpLoad, 4);
+    SpvId load(SpvId target_type, SpvId pointer, std::vector<uint32_t> operands = {}) {
+        op(spv::Op::OpLoad, 4 + operands.size());
         auto id = generate_fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(pointer);
+        for (auto op : operands)
+            literal_int(op);
         return id;
     }
 
-    void store(SpvId value, SpvId pointer) {
-        op(spv::Op::OpStore, 3);
+    void store(SpvId value, SpvId pointer, std::vector<uint32_t> operands = {}) {
+        op(spv::Op::OpStore, 3 + operands.size());
         ref_id(pointer);
         ref_id(value);
+        for (auto op : operands)
+            literal_int(op);
     }
 
     SpvId binop(spv::Op op_, SpvId result_type, SpvId lhs, SpvId rhs) {

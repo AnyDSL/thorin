@@ -115,6 +115,35 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    /// Change bit-width
+    SpvId u_convert(SpvId target_type, SpvId value) {
+        op(spv::Op::OpUConvert, 4);
+        auto id = generate_fresh_id();
+        ref_id(target_type);
+        ref_id(id);
+        ref_id(value);
+        return id;
+    }
+
+    /// Change bit-width
+    SpvId s_convert(SpvId target_type, SpvId value) {
+        op(spv::Op::OpSConvert, 4);
+        auto id = generate_fresh_id();
+        ref_id(target_type);
+        ref_id(id);
+        ref_id(value);
+        return id;
+    }
+
+    SpvId convert_u_ptr(SpvId target_type, SpvId value) {
+        op(spv::Op::OpConvertUToPtr, 4);
+        auto id = generate_fresh_id();
+        ref_id(target_type);
+        ref_id(id);
+        ref_id(value);
+        return id;
+    }
+
     SpvId ptr_access_chain(SpvId target_type, SpvId base, SpvId element, std::vector<SpvId> indexes) {
         op(spv::Op::OpPtrAccessChain, 5 + indexes.size());
         auto id = generate_fresh_id();

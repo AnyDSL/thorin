@@ -22,6 +22,26 @@ void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass
     bb.store(casted, output);
 }
 
+SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
+    assert(type->src_type->as<PtrType>()->addr_space() == AddrSpace::Global && "Only buffer device address (global memory) pointers supported");
+    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    SpvId u64_tid = type->code_gen->convert(type->code_gen->world().type_pu64())->type_id;
+    SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
+
+    auto input2 = bb.ptr_access_chain(arr_cell_tid, input, bb.file_builder.constant(u32_tid, { (uint32_t) 1 }), { });
+    auto upper = bb.u_convert(u64_tid, bb.load(u32_tid, input));
+    auto lower = bb.u_convert(u64_tid, bb.load(u32_tid, input2));
+
+    SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
+    auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32), lower);
+
+    return bb.convert_u_ptr(type->type_id, merged);
+}
+
+void PtrDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
+    assert(false && "TODO");
+}
+
 DefiniteArrayDatatype::DefiniteArrayDatatype(ConvertedType* type, ConvertedType* element_type, size_t length) : Datatype(type), element_type(element_type), length(length) {
     assert(element_type->datatype.get() != nullptr);
     assert(length > 0 && "Array lengths of zero are not supported");
@@ -137,7 +157,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
                 case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant; break;
                 case AddrSpace::Global: {
                     storage_class = spv::StorageClassPhysicalStorageBuffer;
-                    // TODO datatype code for stuffing into push constants
+                    converted->datatype = std::make_unique<PtrDatatype>(converted);
                     break;
                 }
                 case AddrSpace::Generic: {
@@ -151,17 +171,18 @@ ConvertedType* CodeGen::convert(const Type* type) {
                     break;
             }
             {
-                ConvertedType* element = convert(ptr->pointee());
+                const Type* pointee = ptr->pointee();
+                while (auto arr = pointee->isa<IndefiniteArrayType>())
+                    pointee = arr->elem_type();
+                ConvertedType* element = convert(pointee);
                 converted->type_id = builder_->declare_ptr_type(storage_class, element->type_id);
             }
             ptr_done:
             break;
         }
         case Node_IndefiniteArrayType: {
-            assert(false && "TODO");
-            // auto array = type->as<IndefiniteArrayType>();
-            // return types_[type] = spv_type;
-            THORIN_UNREACHABLE;
+            world().ELOG("Using indefinite types directly is not permitted - they may only be pointed to");
+            std::abort();
         }
         case Node_DefiniteArrayType: {
             auto array = type->as<DefiniteArrayType>();

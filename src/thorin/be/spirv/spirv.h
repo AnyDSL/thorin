@@ -92,6 +92,15 @@ struct ScalarDatatype : public Datatype {
     void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) override;
 };
 
+struct PtrDatatype : public Datatype {
+    static constexpr size_t bitwidth = 64;
+    PtrDatatype(ConvertedType* type) : Datatype(type) {}
+
+    size_t serialized_size() override { return bitwidth / 32; };
+    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) override;
+    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) override;
+};
+
 struct DefiniteArrayDatatype : public Datatype {
     ConvertedType* element_type;
     size_t length;

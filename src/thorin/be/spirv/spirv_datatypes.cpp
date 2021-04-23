@@ -6,17 +6,20 @@ namespace thorin::spirv {
 ScalarDatatype::ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes)
 : Datatype(type), type_tag(type_tag), size_in_bytes(size_in_bytes), alignment(alignment_in_bytes)
 {
-    /// currently limited to 32-bit
-    assert(size_in_bytes == 4);
+
 }
 
 SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
+    /// currently limited to 32-bit
+    assert(size_in_bytes == 4);
     SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     auto loaded = bb.load(u32_tid, input);
     return bb.bitcast(type->type_id, loaded);
 }
 
 void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
+    /// currently limited to 32-bit
+    assert(size_in_bytes == 4);
     SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     auto casted = bb.bitcast(u32_tid, data);
     bb.store(casted, output);
@@ -126,12 +129,18 @@ ConvertedType* CodeGen::convert(const Type* type) {
         // Note: this only affects storing booleans inside structures, for regular variables the actual spir-v bool type is used.
         case PrimType_bool:
             converted->type_id = builder_->declare_bool_type();
-            converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
+            converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 1, 1);
             break;
         case PrimType_ps8:  assert(false && "TODO: look into capabilities to enable this");
         case PrimType_pu8:  assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_ps16: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pu16: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_ps16:
+            converted->type_id = builder_->declare_int_type(16, true);
+            converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 2, 2);
+            break;
+        case PrimType_pu16:
+            converted->type_id = builder_->declare_int_type(16, false);
+            converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 2, 2);
+            break;
         case PrimType_ps32:
             converted->type_id = builder_->declare_int_type(32, true );
             converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
@@ -140,8 +149,14 @@ ConvertedType* CodeGen::convert(const Type* type) {
             converted->type_id = builder_->declare_int_type(32, false);
             converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 4, 4);
             break;
-        case PrimType_ps64: assert(false && "TODO: look into capabilities to enable this");
-        case PrimType_pu64: assert(false && "TODO: look into capabilities to enable this");
+        case PrimType_ps64:
+            converted->type_id = builder_->declare_int_type(64, true);
+            converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 8, 8);
+            break;
+        case PrimType_pu64:
+            converted->type_id = builder_->declare_int_type(64, false);
+            converted->datatype = std::make_unique<ScalarDatatype>(converted, type->tag(), 8, 8);
+            break;
         case PrimType_pf16: assert(false && "TODO: look into capabilities to enable this");
         case PrimType_pf32:
             converted->type_id = builder_->declare_float_type(32);

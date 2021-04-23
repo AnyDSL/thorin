@@ -21,9 +21,12 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder::SpvFileBuilder builder;
     builder_ = &builder;
     builder_->capability(spv::Capability::CapabilityShader);
-    // builder_->capability(spv::Capability::CapabilityLinkage);
     builder_->capability(spv::Capability::CapabilityVariablePointers);
     builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
+    builder_->capability(spv::Capability::CapabilityInt16);
+    builder_->capability(spv::Capability::CapabilityInt64);
+
+    builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
 
     structure_loops();
     structure_flow();
@@ -119,11 +122,11 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     // Nothing
                 } else if (param->order() == 0) {
                     auto param_t = convert(param->type());
-                    fn.header.op(spv::Op::OpFunctionParameter, 3);
-                    auto id = builder_->generate_fresh_id();
-                    fn.header.ref_id(param_t->type_id);
-                    fn.header.ref_id(id);
+                    auto id = fn.parameter(param_t->type_id);
                     fn.params[param] = id;
+                    if (param->type()->isa<PtrType>()) {
+                        builder_->decorate(id, spv::DecorationAliased);
+                    }
                 }
             }
         } else {

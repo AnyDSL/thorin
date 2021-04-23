@@ -257,6 +257,14 @@ struct SpvFnBuilder {
 
     SpvSectionBuilder variables;
 
+    SpvId parameter(SpvId param_type) {
+        header.op(spv::Op::OpFunctionParameter, 3);
+        auto id = generate_fresh_id();
+        header.ref_id(param_type);
+        header.ref_id(id);
+        return id;
+    }
+
     SpvId variable(SpvId type, spv::StorageClass storage_class) {
         variables.op(spv::Op::OpVariable, 4);
         variables.ref_id(type);
@@ -374,6 +382,12 @@ struct SpvFileBuilder {
         for (auto arg : elements)
             types_constants.ref_id(arg);
         return id;
+    }
+
+    void decorate(SpvId target, spv::Decoration decoration) {
+        annotations.op(spv::Op::OpDecorate, 3);
+        annotations.ref_id(target);
+        annotations.literal_int(decoration);
     }
 
     SpvId bool_constant(SpvId type, bool value) {

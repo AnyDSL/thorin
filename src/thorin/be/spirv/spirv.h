@@ -87,7 +87,7 @@ struct ScalarDatatype : public Datatype {
     size_t alignment;
     ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes);
 
-    size_t serialized_size() override { return size_in_bytes / 4; };
+    size_t serialized_size() override { return (size_in_bytes + 3) / 4; };
     SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) override;
     void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) override;
 };

@@ -181,9 +181,9 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
 
         for (auto arg : continuation->args()) {
             assert(arg->order() == 0);
+            auto val = emit(arg, bb);
             if (is_mem(arg) || is_unit(arg))
                 continue;
-            auto val = emit(arg, bb);
             values.emplace_back(val);
         }
 
@@ -284,8 +284,9 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         int index = -1;
         for (auto& arg : continuation->args()) {
             index++;
+            auto val = emit(arg, bb);
             if (is_mem(arg) || is_unit(arg)) continue;
-            bb->args[arg] = emit(arg, bb);
+            bb->args[arg] = val;
             auto* param = callee->param(index);
             auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
             phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);

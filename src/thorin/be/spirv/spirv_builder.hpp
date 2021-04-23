@@ -379,7 +379,7 @@ struct SpvFileBuilder {
         return id;
     }
 
-    SpvId declare_struct_type(std::vector<SpvId>& elements) {
+    SpvId declare_struct_type(std::vector<SpvId> elements) {
         types_constants.op(spv::Op::OpTypeStruct, 2 + elements.size());
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
@@ -388,10 +388,21 @@ struct SpvFileBuilder {
         return id;
     }
 
-    void decorate(SpvId target, spv::Decoration decoration) {
-        annotations.op(spv::Op::OpDecorate, 3);
+    void decorate(SpvId target, spv::Decoration decoration, std::vector<uint32_t> extra = {}) {
+        annotations.op(spv::Op::OpDecorate, 3 + extra.size());
         annotations.ref_id(target);
         annotations.literal_int(decoration);
+        for (auto e : extra)
+            annotations.literal_int(e);
+    }
+
+    void decorate_member(SpvId target, uint32_t member, spv::Decoration decoration, std::vector<uint32_t> extra = {}) {
+        annotations.op(spv::Op::OpMemberDecorate, 4 + extra.size());
+        annotations.ref_id(target);
+        annotations.literal_int(member);
+        annotations.literal_int(decoration);
+        for (auto e : extra)
+            annotations.literal_int(e);
     }
 
     SpvId bool_constant(SpvId type, bool value) {

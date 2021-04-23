@@ -35,9 +35,15 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 
-    auto push_constant_arr_type = world().definite_array_type(world().type_pu32(), 128);
-    auto push_constant_ptr_type = builder.declare_ptr_type(spv::StorageClassPushConstant, convert(push_constant_arr_type)->type_id);
-    auto push_constant_ptr = builder_->variable(push_constant_ptr_type, spv::StorageClassPushConstant);
+    auto push_constant_arr_type = convert(world().definite_array_type(world().type_pu32(), 128))->type_id;
+    auto push_constant_struct_type = builder.declare_struct_type({ push_constant_arr_type });
+    auto push_constant_struct_ptr_type = builder.declare_ptr_type(spv::StorageClassPushConstant, push_constant_struct_type);
+    builder.name(push_constant_struct_type, "[i32 * 128]");
+    builder.decorate(push_constant_struct_type, spv::DecorationBlock);
+    builder.decorate_member(push_constant_struct_type, 0, spv::DecorationOffset, { 0 });
+    builder.decorate(push_constant_arr_type, spv::DecorationArrayStride, { 4 });
+    auto push_constant_struct_ptr = builder_->variable(push_constant_struct_ptr_type, spv::StorageClassPushConstant);
+    builder.name(push_constant_struct_ptr, "push_constant_data");
 
     auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
     for (auto& cont : world().continuations()) {
@@ -54,10 +60,10 @@ void CodeGen::emit_stream(std::ostream& out) {
             BasicBlockBuilder* bb = fn_builder.bbs.emplace_back(std::make_unique<BasicBlockBuilder>(fn_builder)).get();
             fn_builder.bbs_to_emit.push_back(bb);
 
-            // iterate on cont type and extract the
+            // iterate on cont type and extract the arguments
             auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Push))->type_id;
             auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
-            auto ptr_arr = bb->ptr_access_chain(ptr_type, push_constant_ptr, zero, { zero });
+            auto ptr_arr = bb->ptr_access_chain(ptr_type, push_constant_struct_ptr, zero, { zero, zero });
             size_t offset = 0;
             std::vector<SpvId> args;
             for (size_t i = 0; i < cont->num_params(); i++) {
@@ -79,7 +85,7 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->define_function(fn_builder);
             builder_->name(fn_builder.function_id, "entry_point_" + cont->name());
 
-            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", { push_constant_ptr });
+            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", { push_constant_struct_ptr });
 
             auto block = config->second->as<GPUKernelConfig>()->block_size();
             std::vector<uint32_t> local_size = {

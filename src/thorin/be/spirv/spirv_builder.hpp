@@ -471,6 +471,14 @@ struct SpvFileBuilder {
             entry_points.ref_id(i);
     }
 
+    void execution_mode(SpvId entry_point, spv::ExecutionMode execution_mode, std::vector<uint32_t> payloads) {
+        entry_points.op(spv::Op::OpExecutionMode, 3 + payloads.size());
+        entry_points.ref_id(entry_point);
+        entry_points.literal_int(execution_mode);
+        for (auto d : payloads)
+            entry_points.literal_int(d);
+    }
+
     void capability(spv::Capability cap) {
         capabilities.op(spv::Op::OpCapability, 2);
         capabilities.data_.push_back(cap);

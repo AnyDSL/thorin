@@ -13,8 +13,8 @@ namespace thorin {
 
 namespace thorin::spirv {
 
-CodeGen::CodeGen(thorin::World& world, Cont2Config&, bool debug)
-    : thorin::CodeGen(world, debug)
+CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
+    : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
 {}
 
 void CodeGen::emit_stream(std::ostream& out) {
@@ -42,10 +42,11 @@ void CodeGen::emit_stream(std::ostream& out) {
     auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
     for (auto& cont : world().continuations()) {
         if (cont->is_exported()) {
-            assert(defs_.contains(cont));
+            assert(defs_.contains(cont) && kernel_config_.contains(cont));
+            auto config = kernel_config_.find(cont);
+
             SpvId callee = defs_[cont];
 
-            // TODO name entry points
             FnBuilder fn_builder(builder_);
             fn_builder.fn_type = entry_pt_signature;
             fn_builder.fn_ret_type = builder_->void_type;
@@ -78,7 +79,15 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->define_function(fn_builder);
             builder_->name(fn_builder.function_id, "entry_point_" + cont->name());
 
-            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "main", { push_constant_ptr });
+            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", { push_constant_ptr });
+
+            auto block = config->second->as<GPUKernelConfig>()->block_size();
+            std::vector<uint32_t> local_size = {
+                (uint32_t) std::get<0>(block),
+                (uint32_t) std::get<1>(block),
+                (uint32_t) std::get<2>(block),
+            };
+            builder_->execution_mode(fn_builder.function_id, spv::ExecutionModeLocalSize, local_size);
         }
     }
 

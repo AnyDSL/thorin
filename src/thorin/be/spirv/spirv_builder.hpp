@@ -144,6 +144,17 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId access_chain(SpvId target_type, SpvId element, std::vector<SpvId> indexes) {
+        op(spv::Op::OpAccessChain, 4 + indexes.size());
+        auto id = generate_fresh_id();
+        ref_id(target_type);
+        ref_id(id);
+        ref_id(element);
+        for (auto index : indexes)
+            ref_id(index);
+        return id;
+    }
+
     SpvId ptr_access_chain(SpvId target_type, SpvId base, SpvId element, std::vector<SpvId> indexes) {
         op(spv::Op::OpPtrAccessChain, 5 + indexes.size());
         auto id = generate_fresh_id();

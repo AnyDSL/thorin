@@ -9,31 +9,39 @@ ScalarDatatype::ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in
 
 }
 
-SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
+/// All serialization/deserialization methods use this so into a macro it goes
+#define serialization_types \
+SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id; \
+SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
+
+SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) {
     /// currently limited to 32-bit
     assert(size_in_bytes == 4);
-    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
-    auto loaded = bb.load(u32_tid, input);
+    serialization_types;
+    auto cell = bb.access_chain(arr_cell_tid, array, { base_offset });
+    auto loaded = bb.load(u32_tid, cell);
     return bb.bitcast(type->type_id, loaded);
 }
 
-void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
+void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) {
     /// currently limited to 32-bit
     assert(size_in_bytes == 4);
-    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    serialization_types;
+    auto cell = bb.access_chain(arr_cell_tid, array, { base_offset });
     auto casted = bb.bitcast(u32_tid, data);
-    bb.store(casted, output);
+    bb.store(casted, cell);
 }
 
-SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
+SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) {
     assert(type->src_type->as<PtrType>()->addr_space() == AddrSpace::Global && "Only buffer device address (global memory) pointers supported");
-    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
+    serialization_types;
     SpvId u64_tid = type->code_gen->convert(type->code_gen->world().type_pu64())->type_id;
-    SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
 
-    auto input2 = bb.ptr_access_chain(arr_cell_tid, input, bb.file_builder.constant(u32_tid, { (uint32_t) 1 }), { });
-    auto upper = bb.u_convert(u64_tid, bb.load(u32_tid, input));
-    auto lower = bb.u_convert(u64_tid, bb.load(u32_tid, input2));
+    auto cell0 = bb.access_chain(arr_cell_tid, array, { base_offset });
+    auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.constant(u32_tid, { (uint32_t) 1 })) });
+
+    auto upper = bb.u_convert(u64_tid, bb.load(u32_tid, cell0));
+    auto lower = bb.u_convert(u64_tid, bb.load(u32_tid, cell1));
 
     SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
     auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32), lower);
@@ -41,7 +49,7 @@ SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass
     return bb.convert_u_ptr(type->type_id, merged);
 }
 
-void PtrDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
+void PtrDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) {
     assert(false && "TODO");
 }
 
@@ -50,57 +58,60 @@ DefiniteArrayDatatype::DefiniteArrayDatatype(ConvertedType* type, ConvertedType*
     assert(length > 0 && "Array lengths of zero are not supported");
 }
 
-SpvId DefiniteArrayDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
-    SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_ps32())->type_id;
+SpvId DefiniteArrayDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) {
+    serialization_types;
     std::vector<SpvId> indices;
     std::vector<SpvId> elements;
+    SpvId offset = base_offset;
+    SpvId stride = bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() });
     for (size_t i = 0; i < length; i++) {
-        SpvId element_ptr = bb.ptr_access_chain(element_type->type_id, input, bb.file_builder.constant(i32_tid, { (uint32_t) (i * element_type->datatype->serialized_size()) }), indices);
-        SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, element_ptr);
+        SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, array, offset);
         elements.push_back(element);
+        offset = bb.binop(spv::OpIAdd, u32_tid, offset, stride);
     }
     return bb.composite(type->type_id, elements);
 }
-void DefiniteArrayDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
+void DefiniteArrayDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) {
+    serialization_types;
     std::vector<SpvId> indices;
-    SpvId i32_tid = type->code_gen->convert(type->code_gen->world().type_ps32())->type_id;
+    SpvId offset = base_offset;
+    SpvId stride = bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() });
     for (size_t i = 0; i < length; i++) {
-        SpvId element_ptr = bb.ptr_access_chain(element_type->type_id, output, bb.file_builder.constant(i32_tid, { (uint32_t) (i * element_type->datatype->serialized_size()) }), indices);
-        element_type->datatype->emit_serialization(bb, storage_class, element_ptr, bb.extract(element_type->type_id, data, { (uint32_t) i }));
+        element_type->datatype->emit_serialization(bb, storage_class, array, offset, bb.extract(element_type->type_id, data, { (uint32_t) i }));
+        offset = bb.binop(spv::OpIAdd, u32_tid, offset, stride);
     }
 }
 
 ProductDatatype::ProductDatatype(ConvertedType* type, const std::vector<ConvertedType*>&& elements_types) : Datatype(type), elements_types(elements_types) {
+    // Unit datatype is acceptable, but serdes methods should never be invoked.
     for (auto& element_type : elements_types) {
+        assert(element_type->datatype != nullptr);
         total_size += element_type->datatype->serialized_size();
     }
 }
 
-SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId input) {
+SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) {
     assert(total_size > 0 && "It doesn't make sense to de-serialize Unit!");
-    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
-    SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
+    serialization_types;
     std::vector<SpvId> indices;
     std::vector<SpvId> elements;
-    size_t offset = 0;
+    SpvId offset = base_offset;
     for (auto& element_type : elements_types) {
-        SpvId element_ptr = bb.ptr_access_chain(arr_cell_tid, input, bb.file_builder.constant(u32_tid, { (uint32_t) offset }), indices);
-        SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, element_ptr);
-        offset += element_type->datatype->serialized_size();
+        SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, array, offset);
+        offset = bb.binop(spv::OpIAdd, u32_tid, offset, bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() }));
         elements.push_back(element);
     }
     return bb.composite(type->type_id, elements);
 }
-void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId output, SpvId data) {
+void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) {
     assert(total_size > 0 && "It doesn't make sense to serialize Unit!");
-    SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
-    SpvId arr_cell_tid = bb.file_builder.declare_ptr_type(storage_class, u32_tid);
+    serialization_types;
     std::vector<SpvId> indices;
-    size_t offset = 0;
+    SpvId offset = base_offset;
     int i = 0;
     for (auto& element_type : elements_types) {
-        SpvId element_ptr = bb.ptr_access_chain(arr_cell_tid, output, bb.file_builder.constant(u32_tid, { (uint32_t) offset }), indices);
-        element_type->datatype->emit_serialization(bb, storage_class, element_ptr, bb.extract(element_type->type_id, data, { (uint32_t) i++ }));
+        element_type->datatype->emit_serialization(bb, storage_class, array, offset, bb.extract(element_type->type_id, data, { (uint32_t) i++ }));
+        offset = bb.binop(spv::OpIAdd, u32_tid, offset, bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() }));
     }
 }
 

@@ -38,12 +38,12 @@ void CodeGen::emit_stream(std::ostream& out) {
     auto push_constant_arr_type = convert(world().definite_array_type(world().type_pu32(), 128))->type_id;
     auto push_constant_struct_type = builder.declare_struct_type({ push_constant_arr_type });
     auto push_constant_struct_ptr_type = builder.declare_ptr_type(spv::StorageClassPushConstant, push_constant_struct_type);
-    builder.name(push_constant_struct_type, "[i32 * 128]");
+    builder.name(push_constant_struct_type, "ThorinPushConstant");
     builder.decorate(push_constant_struct_type, spv::DecorationBlock);
     builder.decorate_member(push_constant_struct_type, 0, spv::DecorationOffset, { 0 });
     builder.decorate(push_constant_arr_type, spv::DecorationArrayStride, { 4 });
     auto push_constant_struct_ptr = builder_->variable(push_constant_struct_ptr_type, spv::StorageClassPushConstant);
-    builder.name(push_constant_struct_ptr, "push_constant_data");
+    builder.name(push_constant_struct_ptr, "thorin_push_constant_data");
 
     auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
     for (auto& cont : world().continuations()) {
@@ -61,10 +61,10 @@ void CodeGen::emit_stream(std::ostream& out) {
             fn_builder.bbs_to_emit.push_back(bb);
 
             // iterate on cont type and extract the arguments
-            auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Push))->type_id;
-            auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
-            auto ptr_arr = bb->ptr_access_chain(ptr_type, push_constant_struct_ptr, zero, { zero, zero });
-            size_t offset = 0;
+            auto ptr_type = convert(world().ptr_type(world().definite_array_type(world().type_pu32(), 128), 1, 4, AddrSpace::Push))->type_id;
+            auto zero = bb->file_builder.constant(convert(world().type_pu32())->type_id, { 0 });
+            auto arr_ref = bb->access_chain(ptr_type, push_constant_struct_ptr, { zero });
+            uint32_t offset = 0;
             std::vector<SpvId> args;
             for (size_t i = 0; i < cont->num_params(); i++) {
                 auto param = cont->param(i);
@@ -73,10 +73,9 @@ void CodeGen::emit_stream(std::ostream& out) {
                 assert(param_type->order() == 0);
                 auto converted = convert(param_type);
                 assert(converted->datatype != nullptr);
-                SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, ptr_arr);
+                SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, arr_ref, bb->file_builder.constant(convert(world().type_pu32())->type_id, { offset }));
                 args.push_back(arg);
                 offset += converted->datatype->serialized_size();
-                ptr_arr = bb->ptr_access_chain(ptr_type, ptr_arr, bb->file_builder.constant(convert(world().type_ps32())->type_id, { (uint32_t) offset }), { });
             }
 
             bb->call(builder_->void_type, callee, args);
@@ -529,10 +528,9 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
             auto converted_payload_type = convert(variant_type->op(variant->index()));
 
-            auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
-            auto ptr_arr = bb->ptr_access_chain(ptr_type, payload_arr, zero, { zero });
+            auto zero = bb->file_builder.constant(convert(world().type_pu32())->type_id, { 0 });
 
-            converted_payload_type->datatype->emit_serialization(*bb, spv::StorageClassFunction, ptr_arr, emit(variant->value(), bb));
+            converted_payload_type->datatype->emit_serialization(*bb, spv::StorageClassFunction, payload_arr, zero, emit(variant->value(), bb));
             auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
 
             auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index())});
@@ -557,9 +555,8 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
         bb->store(payload, payload_arr);
 
-        auto zero = bb->file_builder.constant(convert(world().type_ps32())->type_id, { 0 });
-        auto ptr_arr = bb->ptr_access_chain(ptr_type, payload_arr, zero, { zero });
-        return target_type->datatype->emit_deserialization(*bb, spv::StorageClassFunction, ptr_arr);
+        auto zero = bb->file_builder.constant(convert(world().type_pu32())->type_id, { 0 });
+        return target_type->datatype->emit_deserialization(*bb, spv::StorageClassFunction, payload_arr, zero);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
         return bb->extract(convert(world().type_pu32())->type_id, value, { 0 });
@@ -593,6 +590,14 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             return spv_none;
         } else THORIN_UNREACHABLE;
     } else if (auto lea = def->isa<LEA>()) {
+        switch (lea->ptr_type()->addr_space()) {
+            case AddrSpace::Global:
+            case AddrSpace::Shared:
+                break;
+            default:
+                world().ELOG("LEA is only allowed in global & shared address spaces");
+                break;
+        }
         auto type = convert(lea->ptr_type());
         auto offset = emit(lea->index(), bb);
         return bb->ptr_access_chain(type->type_id, emit(lea->ptr(), bb), offset, {});

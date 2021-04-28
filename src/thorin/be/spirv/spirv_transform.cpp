@@ -150,12 +150,11 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
         for (size_t i = 0; i < cont->num_ops(); i++) {
             auto def = cont->op(i);
             if (auto dest = def->isa_continuation()) {
-                const Head* source_loop_head = ctx.def2loop[cont];
-
-                if (dest->intrinsic() == Intrinsic::Branch) {
+                if (dest->intrinsic() == Intrinsic::Branch || dest->is_imported()) {
                     continue;
                 }
 
+                const Head* source_loop_head = ctx.def2loop[cont];
                 assert(ctx.def2loop.find(dest) != ctx.def2loop.end());
                 const Head* dest_loop_head = ctx.def2loop[dest];
 

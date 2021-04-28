@@ -557,7 +557,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         return *res;
     else {
         // we emit all Thorin constants in the entry block, since they are not part of the schedule
-        if (def->is_const()) {
+        if (def->no_dep()) {
             auto bb = irbuilder_.GetInsertBlock();
             auto fn = bb->getParent();
             auto& entry = fn->getEntryBlock();

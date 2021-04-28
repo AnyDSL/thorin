@@ -138,7 +138,7 @@ undo_t SSAConstr::analyze() {
 
 undo_t SSAConstr::analyze(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->is_const() || def->isa_nom() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
+    if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
     if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return No_Undo;
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {

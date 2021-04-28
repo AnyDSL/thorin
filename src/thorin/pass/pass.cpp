@@ -102,7 +102,7 @@ void PassMan::run() {
 }
 
 const Def* PassMan::rewrite(const Def* old_def) {
-    if (old_def->is_const()) return old_def;
+    if (old_def->no_dep()) return old_def;
 
     if (auto new_def = lookup(old_def)) {
         if (old_def == *new_def)
@@ -145,7 +145,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
 }
 
 void PassMan::enqueue(const Def* def) {
-    if (def->is_const() || enqueued(def)) return;
+    if (def->no_dep() || enqueued(def)) return;
     assert(!def->isa<Proxy>() && "proxies must not occur anymore after finishing a nom with No_Undo");
 
     enqueue(def->type());

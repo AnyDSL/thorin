@@ -103,7 +103,7 @@ public:
 };
 
 void RecStreamer::run(const Def* def) {
-    if (def->is_const() || !defs.emplace(def).second) return;
+    if (def->no_dep() || !defs.emplace(def).second) return;
 
     for (auto op : def->ops()) { // for now, don't include debug info and type
         if (auto nom = op->isa_nom()) {
@@ -146,7 +146,7 @@ Stream& operator<<(Stream& s, const Def* def) {
 Stream& operator<<(Stream& s, std::pair<const Def*, const Def*> p) { return s.fmt("({}, {})", p.first, p.second); }
 
 Stream& Def::stream(Stream& s) const {
-    if (is_const()) return thorin::stream(s, this);
+    if (no_dep()) return thorin::stream(s, this);
     return s << unique_name();
 }
 

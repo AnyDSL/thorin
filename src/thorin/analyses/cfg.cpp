@@ -73,10 +73,10 @@ CFA::CFA(const Scope& scope)
 }
 
 const CFNode* CFA::node(Def* nom) {
-    auto& n = nodes_[nom];
-    if (n == nullptr)
+    auto&& n = nodes_[nom];
+    if (*n == nullptr)
         n = new CFNode(nom);
-    return n;
+    return *n;
 }
 
 CFA::~CFA() {

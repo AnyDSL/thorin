@@ -53,7 +53,7 @@ void GradEmitter::set_grad_lam_body() {
     for (size_t i = 0; i < num_vars(); ++i) {
         auto var = orig_var(i);
 
-        if (auto grad = var_to_grads_[var]) {
+        if (auto grad = *var_to_grads_[var]) {
             grads[i] = grad;
         } else {
             errf("warning: grad-gen: Failed to gen grad for {}. var of {}", i+1, grad_lam_->debug().name);
@@ -91,7 +91,7 @@ const Def* GradEmitter::emit_grad_for_var(const Def* var) {
         }
     }
 
-    return var_to_grads_[var];
+    return *var_to_grads_[var];
 }
 
 const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def* use) {
@@ -103,7 +103,7 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
                         axiom && axiom->tag() == Tag::ROp) {
 
                         auto B = emit_pullback_for_rop(app);
-                        auto op_grad = visited_.contains(app) ? var_to_grads_[app]
+                        auto op_grad = visited_.contains(app) ? *var_to_grads_[app]
                                                               : emit_grad_for_var(app);
 
                         if (!op_grad) {
@@ -119,7 +119,7 @@ const Def* GradEmitter::emit_partial_grad_for_rop_use(const Def* var, const Def*
         }
     }
 
-    return var_to_grads_[var];
+    return *var_to_grads_[var];
 }
 
 const Def* GradEmitter::emit_partial_grad_for_ret_use(const Def* var, const Def* use) {
@@ -127,7 +127,7 @@ const Def* GradEmitter::emit_partial_grad_for_ret_use(const Def* var, const Def*
         for (auto useuse : use->uses()) {
             if (useuse == orig_lam_->body()) {
                 var_to_grads_[var] = world_.lit_real(as_lit(isa_sized_type(var->type())), u64(1.0));
-                return var_to_grads_[var];
+                return *var_to_grads_[var];
             }
         }
     }
@@ -155,7 +155,7 @@ const Def* GradEmitter::emit_pullback_for_rop(const Def* op) {
             if (!use_to_pullbacks_.contains(op)) {
                 use_to_pullbacks_[op] = gen(op);
             }
-            return use_to_pullbacks_[op] ;
+            return *use_to_pullbacks_[op];
         }
     } catch(std::out_of_range&) {}
 

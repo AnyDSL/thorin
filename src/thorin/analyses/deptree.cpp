@@ -29,7 +29,7 @@ VarSet DepTree::run(Def* nom) {
     auto result = run(nom, nom);
     auto parent = root_.get();
     for (auto var : result) {
-        auto n = nom2node_[var->nom()].get();
+        auto n = nom2node_[var->nom()]->get();
         parent = n->depth() > parent->depth() ? n : parent;
     }
     node->set_parent(parent);
@@ -39,9 +39,9 @@ VarSet DepTree::run(Def* nom) {
 }
 
 VarSet DepTree::run(Def* cur_nom, const Def* def) {
-    if (def->is_const())                                         return {};
-    if (auto vars = def2vars_.lookup(def))                       return *vars;
-    if (auto nom    = def->isa_nom(); nom && cur_nom != nom) return run(nom);
+    if (def->is_const())                                   return {};
+    if (auto vars = def2vars_.lookup(def))                 return *vars;
+    if (auto nom  = def->isa_nom(); nom && cur_nom != nom) return run(nom);
 
     VarSet result;
     if (auto var = def->isa<Var>()) {

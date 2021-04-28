@@ -23,7 +23,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_->capability(spv::Capability::CapabilityShader);
     builder_->capability(spv::Capability::CapabilityVariablePointers);
     builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
-    builder_->capability(spv::Capability::CapabilityInt16);
+    // builder_->capability(spv::Capability::CapabilityInt16);
     builder_->capability(spv::Capability::CapabilityInt64);
 
     builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
@@ -535,6 +535,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
         return constant;
     } else if (auto param = def->isa<Param>()) {
+        if (is_mem(param)) return spv_none;
         if (auto param_id = current_fn_->params.lookup(param)) {
             assert((*param_id).id != 0);
             return *param_id;

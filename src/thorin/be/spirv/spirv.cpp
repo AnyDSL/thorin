@@ -28,6 +28,9 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
 
+    builder.extension("SPV_KHR_non_semantic_info");
+    non_semantic_info = builder_->extended_import("NonSemantic.DebugPrintf");
+
     structure_loops();
     structure_flow();
     // cleanup_world(world());
@@ -306,6 +309,28 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
         }
         bb->branch(current_fn_->labels[callee]);
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee->is_imported()) {
+        if (callee->name() == "spirv.nonsemantic.printf") {
+            std::vector<SpvId> args;
+            auto string = continuation->arg(1);
+            if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
+                auto arr = string->as<DefiniteArray>();
+                std::vector<char> the_string;
+                for (int i = 0; i < arr_type->dim(); i++)
+                    the_string.push_back(arr->op(i)->as<PrimLit>()->value().get_u8());
+                the_string.push_back('\0');
+                args.push_back(builder_->debug_string(the_string.data()));
+            } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
+
+            // TODO handle printing values
+
+            auto values = continuation->arg(2);
+            bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, args);
+        } else {
+            world().ELOG("This spir-v builtin isn't recognised: %s", callee->name());
+        }
+        auto next = continuation->args().back()->as_continuation();
+        emit_epilogue(next, bb);
     }
     /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);

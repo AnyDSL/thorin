@@ -64,6 +64,8 @@ protected:
     TypeMap<std::unique_ptr<ConvertedType>> types_;
     DefMap<SpvId> defs_;
     const Cont2Config& kernel_config_;
+
+    SpvId non_semantic_info;
 };
 
 /// Thorin data types are mapped to SPIR-V in non-trivial ways, this interface is used by the emission code to abstract over

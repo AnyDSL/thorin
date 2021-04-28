@@ -236,6 +236,18 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId ext_instruction(SpvId return_type, SpvId set, uint32_t instruction, std::vector<SpvId> arguments) {
+        op(spv::Op::OpExtInst, 5 + arguments.size());
+        auto id = generate_fresh_id();
+        ref_id(return_type);
+        ref_id(id);
+        ref_id(set);
+        literal_int(instruction);
+        for (auto a : arguments)
+            ref_id(a);
+        return id;
+    }
+
     void return_void() {
         op(spv::Op::OpReturn, 1);
     }
@@ -416,6 +428,14 @@ struct SpvFileBuilder {
             annotations.literal_int(e);
     }
 
+    SpvId debug_string(std::string string) {
+        debug_string_source.op(spv::Op::OpString, 2 + div_roundup(string.size() + 1, 4));
+        auto id = generate_fresh_id();
+        debug_string_source.ref_id(id);
+        debug_string_source.literal_name(string);
+        return id;
+    }
+
     SpvId bool_constant(SpvId type, bool value) {
         types_constants.op(value ? spv::Op::OpConstantTrue : spv::Op::OpConstantFalse, 3);
         auto id = generate_fresh_id();
@@ -504,6 +524,19 @@ struct SpvFileBuilder {
     void capability(spv::Capability cap) {
         capabilities.op(spv::Op::OpCapability, 2);
         capabilities.data_.push_back(cap);
+    }
+
+    void extension(std::string name) {
+        extensions.op(spv::Op::OpExtension, 1 + div_roundup(name.size() + 1, 4));
+        extensions.literal_name(name);
+    }
+
+    SpvId extended_import(std::string name) {
+        ext_inst_import.op(spv::Op::OpExtInstImport, 2 + div_roundup(name.size() + 1, 4));
+        auto id = generate_fresh_id();
+        ext_inst_import.ref_id(id);
+        ext_inst_import.literal_name(name);
+        return id;
     }
 
     spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;

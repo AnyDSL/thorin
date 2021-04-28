@@ -89,6 +89,14 @@ enum class Sort { Term, Type, Kind, Space };
 
 //------------------------------------------------------------------------------
 
+namespace Dep {
+enum : unsigned {
+    Bot,
+    Nom, Var,
+    Top = Nom | Var,
+};
+}
+
 /**
  * Base class for all @p Def%s.
  * The data layout (see @p World::alloc) looks like this:
@@ -120,6 +128,7 @@ public:
     node_t node() const { return node_; }
     const char* node_name() const;
     //@}
+
     /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Space); return type_; }
@@ -128,6 +137,7 @@ public:
     unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     //@}
+
     /// @name ops
     //@{
     template<size_t N = size_t(-1)>
@@ -151,14 +161,22 @@ public:
     /// @c true if all operands are set or @p num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
     bool is_set() const;
     /// @p Var%s and @em noms are @em not const; @p Axiom%s are always const; everything else const iff their @p extended_ops are const.
-    bool is_const() const { return const_; }
     //@}
+
     /// @name uses
     //@{
     const Uses& uses() const { return uses_; }
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     //@}
+
+    /// @name dependence checks
+    //@{
+    unsigned dep() const { return dep_; }
+    bool no_dep() const { return dep() == Dep::Bot; }
+    bool has_dep(unsigned dep) const { return (dep_ & dep) != 0; }
+    //@}
+
     /// @name split def via proj%s
     //@{
     /// Splits this @p Def into an array.
@@ -189,12 +207,14 @@ public:
         return 1;
     }
     //@}
+
     /// @name external handling
     //@{
     bool is_external() const;
     void make_external();
     void make_internal();
     //@}
+
     /// @name Debug
     //@{
     const Def* dbg() const { return dbg_; }
@@ -204,6 +224,7 @@ public:
     const Def* debug_history() const; ///< In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     std::string unique_name() const;  ///< name + "_" + gid
     //@}
+
     /// @name casts
     //@{
     /// If @c this is @em nom, it will cast constness away and perform a dynamic cast to @p T.
@@ -224,6 +245,7 @@ public:
     }
     template<class T = Def> const T* as_structural() const { return as_nom<T, true>(); }
     //@}
+
     /// @name retrieve @p Var for @em noms.
     //@{
     /// Only returns a @p Var for this @em nom if it has ever been created.
@@ -235,17 +257,20 @@ public:
     Array<const Def*> vars() { return Array<const Def*>(num_vars(), [&](auto i) { return var(i); }); }
     size_t num_vars();
     //@}
+
     /// @name rewrites last op by substituting @p var with @p arg.
     //@{
     Array<const Def*> apply(const Def* arg) const;
     Array<const Def*> apply(const Def* arg);
     //@}
+
     /// @name reduce/subst
     //@{
     const Def* reduce() const;
     /// @p rebuild%s this @p Def while using @p new_op as substitute for its @p i'th @p op
     const Def* refine(size_t i, const Def* new_op) const;
     //@}
+
     /// @name misc getters
     //@{
     fields_t fields() const { return fields_; }
@@ -258,17 +283,20 @@ public:
         return *type()->type()->type()->world_;
     }
     //@}
+
     /// @name replace
     //@{
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
     //@}
+
     /// @name virtual methods
     //@{
     virtual const Def* rebuild(World&, const Def*, Defs, const Def*) const { THORIN_UNREACHABLE; }
     virtual Def* stub(World&, const Def*, const Def*) { THORIN_UNREACHABLE; }
     virtual const Def* restructure() { return nullptr; }
     //@}
+
     ///@{ @name stream
     Stream& stream(Stream& s) const;
     Stream& stream(Stream& s, size_t max) const;
@@ -290,10 +318,10 @@ protected:
     };
     fields_t fields_;
     node_t node_;
-    unsigned nom_ :  1;
+    unsigned nom_   :  1;
     unsigned var_   :  1;
-    unsigned const_   :  1;
-    unsigned order_   : 13;
+    unsigned dep_   :  2;
+    unsigned order_ : 12;
     u32 gid_;
     u32 num_ops_;
     hash_t hash_;

@@ -829,7 +829,7 @@ const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, cons
 
     if constexpr (op == PE::known) {
         if (world.is_pe_done() || isa<Tag::PE>(PE::hlt, arg)) return world.lit_false();
-        if (arg->is_const()) return world.lit_true();
+        if (arg->no_dep()) return world.lit_true();
     } else {
         if (world.is_pe_done()) return arg;
     }

@@ -19,7 +19,7 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
     , node_(unsigned(node))
     , nom_(false)
     , var_(false)
-    , const_(true)
+    , dep_(Dep::Bot)
     , order_(0)
     , num_ops_(ops.size())
     , dbg_(dbg)
@@ -45,7 +45,7 @@ Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const De
     , node_(node)
     , nom_(true)
     , var_(false)
-    , const_(false)
+    , dep_(Dep::Nom)
     , order_(0)
     , num_ops_(num_ops)
     , dbg_(dbg)
@@ -54,7 +54,7 @@ Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const De
     gid_ = world().next_gid();
     hash_ = murmur3(gid());
     std::fill_n(ops_ptr(), num_ops, nullptr);
-    if (!type->is_const()) type->uses_.emplace(this, -1);
+    if (!type->no_dep()) type->uses_.emplace(this, -1);
 }
 
 Kind::Kind(World& world)
@@ -225,8 +225,8 @@ void Def::set_name(const std::string& n) const {
 
 void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
-        if (!op(i)->is_const()) {
-            const_ = false;
+        if (auto dep = op(i)->dep(); dep != Dep::Bot) {
+            dep_ |= dep;
             const auto& p = op(i)->uses_.emplace(this, i);
             assert_unused(p.second);
         }
@@ -234,17 +234,19 @@ void Def::finalize() {
     }
 
     if (!isa<Space>()) {
-        if (!type()->is_const()) {
-            const_ = false;
+        if (auto dep = type()->dep(); dep != Dep::Bot) {
+            dep_ |= dep;
             const auto& p = type()->uses_.emplace(this, -1);
             assert_unused(p.second);
         }
     }
 
-    if (dbg()) const_ &= dbg()->is_const();
-    if (isa<Pi>()) ++order_;
-    if (isa<Axiom>()) const_ = true;
-    if (auto var = isa<Var>()) var->nom()->var_ = true;
+    assert(!dbg() || dbg()->no_dep());
+    if (isa<Pi>())  ++order_;
+    if (auto var = isa<Var>()) {
+        var->nom()->var_ = true;
+        dep_ = Dep::Var;
+    }
 }
 
 Def* Def::set(size_t i, const Def* def) {

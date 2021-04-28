@@ -193,7 +193,7 @@ void Cleaner::verify_closedness() {
 
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             within(def->op(i));
-            assert((def->op(i)->is_const() || def->op(i)->uses_.contains(Use(def, i))) && "can't find def in op's uses");
+            assert((def->op(i)->no_dep() || def->op(i)->uses_.contains(Use(def, i))) && "can't find def in op's uses");
         }
 
         for (const auto& use : def->uses_) {
@@ -219,7 +219,7 @@ void Cleaner::clean_pe_infos() {
                 if (auto callee = app->callee()->isa_nom<Lam>()) {
                     if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                         auto next = app->arg(3);
-                        assert(app->arg(2)->is_const());
+                        assert(app->arg(2)->no_dep());
                         world().idef(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
                         return world().app(next, {app->arg(0)}, app->debug());
                     }

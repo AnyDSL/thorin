@@ -16,24 +16,26 @@ namespace thorin {
 class Stream {
 public:
     Stream(std::ostream& ostream = std::cout, const std::string& tab = {"    "}, size_t level = 0)
-        : ostream_(ostream)
+        : ostream_(&ostream)
         , tab_(tab)
         , level_(level)
     {}
 
     /// @name getters
     //@{
-    std::ostream& ostream() { return ostream_; }
+    std::ostream& ostream() { return *ostream_; }
     std::string tab() const { return tab_; }
     size_t level() const { return level_; }
     //@}
+
     /// @name modify Stream
     //@{
-    Stream& indent() { ++level_; return *this; }
-    Stream& dedent() { assert(level_ > 0); --level_; return *this; }
+    Stream& indent(size_t i = 1) { level_ += i; return *this; }
+    Stream& dedent(size_t i = 1) { assert(level_ >= i); level_ -= i; return *this; }
     Stream& endl();
     Stream& flush() { ostream().flush(); return *this; }
     //@}
+
     /// @name stream
     //@{
     /**
@@ -51,89 +53,146 @@ public:
      @endcode
      * Finally, you can use @c '\n', '\t', and '\b' to @p endl, @p indent, or @p dedent, respectively.
      */
-    template<class T, class... Args>
-    Stream& fmt(const char* s, T&& t, Args&&... args);
+    template<class T, class... Args> Stream& fmt(const char* s, T&& t, Args&&... args);
     Stream& fmt(const char* s); ///< Base case.
+    template<class R, class F, bool rangei = false> Stream& range(const R& r, const char* sep, F f);
+    template<class R, class F, bool rangei = false> Stream& range(const R& r, F f) { return range(r, ", ", f); }
+    template<class R, class F> Stream& rangei(const R& r, const char* sep, F f) { return range<R, F, true>(r, sep, f); }
+    template<class R, class F> Stream& rangei(const R& r, F f) { return range<R, F, true>(r, ", ", f); }
+    template<class R> Stream& range(const R& r, const char* sep = ", ") { return range(r, sep, [&](const auto& x) { (*this) << x; }); }
     //@}
 
-private:
+    void friend swap(Stream& a, Stream& b) {
+        using std::swap;
+        swap(a.ostream_, b.ostream_);
+        swap(a.tab_,     b.tab_);
+        swap(a.level_,   b.level_);
+    }
+
+protected:
     bool match2nd(const char* next, const char*& s, const char c);
 
-    std::ostream& ostream_;
+    std::ostream* ostream_;
     std::string tab_;
     size_t level_;
+};
+
+class StringStream : public Stream {
+public:
+    StringStream()
+        : Stream(oss_)
+    {}
+
+    std::string str() const { return oss_.str(); }
+
+    friend void swap(StringStream& a, StringStream& b) {
+        using std::swap;
+        swap((Stream&)a, (Stream&)b);
+        swap(a.oss_, b.oss_);
+        // Pointers have to be restored so that this stream
+        // still holds the ownership over its ostringstream object.
+        a.ostream_ = &a.oss_;
+        b.ostream_ = &b.oss_;
+    }
+
+private:
+    std::ostringstream oss_;
 };
 
 template<class... Args> void outf(const char* fmt, Args&&... args) { Stream(std::cout).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 template<class... Args> void errf(const char* fmt, Args&&... args) { Stream(std::cerr).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 
-template<class P>
+template<class C>
 class Streamable {
 private:
-    constexpr const P& parent() const { return *static_cast<const P*>(this); };
+    constexpr const C& child() const { return *static_cast<const C*>(this); };
 
 public:
     /// Writes to a file with name @p filename.
-    void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); parent().stream(s).endl(); }
-    /// Writes to a file named @c parent().name().
-    void write() const { write(parent().name()); }
+    void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); child().stream(s).endl(); }
+    /// Writes to a file named @c child().name().
+    void write() const { write(child().name()); }
     /// Writes to stdout.
-    void dump() const { Stream s(std::cout); parent().stream(s).endl(); }
+    void dump() const { Stream s(std::cout); child().stream(s).endl(); }
     /// Streams to string.
-    std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
+    std::string to_string() const { std::ostringstream oss; Stream s(oss); child().stream(s); return oss.str(); }
 };
 
-template<class T, class = void>  struct is_streamable                                                                               : std::false_type {};
-template<class T>                struct is_streamable<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<Stream&>()))>> : std::true_type  {};
-template<class T> static constexpr bool is_streamable_v = is_streamable<T>::value;
+#define THORIN_INSTANTIATE_STREAMABLE(T)                                    \
+    template<> void        Streamable<T>::write() const;                    \
+    template<> void        Streamable<T>::dump() const;                     \
+    template<> std::string Streamable<T>::to_string() const;
 
-template<class T> std::enable_if_t< is_streamable_v<T>, Stream&> operator<<(Stream& s, const T& t) { return t->stream(s); }
-template<class T> std::enable_if_t<!is_streamable_v<T>, Stream&> operator<<(Stream& s, const T& t) { s.ostream() << t; return s; } ///< Fallback.
+// TODO Maybe there is a nicer way to do this??? Probably, using C++20 requires ...
+// I just want to find out whether "x->stream(s)" or "x.stream(s)" are valid expressions.
+template<class T, class = void>  struct is_streamable_ptr                                                                               : std::false_type {};
+template<class T, class = void>  struct is_streamable_ref                                                                               : std::false_type {};
+template<class T>                struct is_streamable_ptr<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<Stream&>()))>> : std::true_type  {};
+template<class T>                struct is_streamable_ref<T, std::void_t<decltype(std::declval<T>(). stream(std::declval<Stream&>()))>> : std::true_type  {};
+template<class T> static constexpr bool is_streamable_ptr_v = is_streamable_ptr<T>::value;
+template<class T> static constexpr bool is_streamable_ref_v = is_streamable_ref<T>::value;
+
+template<class T> std::enable_if_t< is_streamable_ptr_v<T>, Stream&> operator<<(Stream& s, const T& x) { return x->stream(s); }
+template<class T> std::enable_if_t< is_streamable_ref_v<T>, Stream&> operator<<(Stream& s, const T& x) { return x .stream(s); }
+template<class T> std::enable_if_t<!is_streamable_ptr_v<T>
+                                && !is_streamable_ref_v<T>, Stream&> operator<<(Stream& s, const T& x) { s.ostream() << x; return s; } ///< Fallback uses @c std::ostream @c operator<<.
 
 template<class T, class... Args>
 Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     while (*s != '\0') {
         auto next = s + 1;
 
-        if (false) {
-        } else if (*s == '\n') { s++; endl();
-        } else if (*s == '\t') { s++; indent();
-        } else if (*s == '\b') { s++; dedent();
-        } else if (*s == '{') {
-            if (match2nd(next, s, '{')) continue;
-            s++; // skip opening brace '{'
+        switch (*s) {
+            case '\n': s++; endl();   break;
+            case '\t': s++; indent(); break;
+            case '\b': s++; dedent(); break;
+            case '{': {
+                if (match2nd(next, s, '{')) continue;
+                s++; // skip opening brace '{'
 
-            std::string spec;
-            while (*s != '\0' && *s != '}') spec.push_back(*s++);
-            assert(*s == '}' && "unmatched closing brace '}' in format string");
+                std::string spec;
+                while (*s != '\0' && *s != '}') spec.push_back(*s++);
+                assert(*s == '}' && "unmatched closing brace '}' in format string");
 
-            if constexpr (is_range_v<T>) {
-                const char* cur_sep = "";
-                for (const auto& elem : t) {
-                    for (auto i = cur_sep; *i != '\0'; ++i) {
-                        if (*i == '\n')
-                            this->endl();
-                        else
-                            (*this) << *i;
-                    }
-                    (*this) << elem;
-                    cur_sep = spec.c_str();
+                if constexpr (is_range_v<T>) {
+                    range(t, spec.c_str());
+                } else {
+                    (*this) << t;
                 }
-            } else {
-                (*this) << t;
-            }
 
-            ++s; // skip closing brace '}'
-            return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
-        } else if (*s == '}') {
+                ++s; // skip closing brace '}'
+                return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
+        }
+        case '}':
             if (match2nd(next, s, '}')) continue;
             assert(false && "unmatched/unescaped closing brace '}' in format string");
-        } else {
+        default:
             (*this) << *s++;
         }
     }
 
     assert(false && "invalid format string for 's'");
+}
+
+template<class R, class F, bool rangei = false>
+Stream& Stream::range(const R& r, const char* sep, F f) {
+    const char* cur_sep = "";
+    size_t j = 0;
+    for (const auto& elem : r) {
+        for (auto i = cur_sep; *i != '\0'; ++i) {
+            if (*i == '\n')
+                this->endl();
+            else
+                (*this) << *i;
+        }
+        if constexpr (rangei) {
+            f(j++);
+        } else {
+            f(elem);
+        }
+        cur_sep = sep;
+    }
+    return *this;
 }
 
 #ifdef NDEBUG

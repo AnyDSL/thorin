@@ -3,7 +3,6 @@
 #include "thorin/pass/fp/eta_conv.h"
 #include "thorin/pass/fp/scalarize.h"
 #include "thorin/pass/fp/ssa_constr.h"
-#include "thorin/pass/rw/grad_gen.h"
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
 #include "thorin/pass/rw/bound_elim.h"

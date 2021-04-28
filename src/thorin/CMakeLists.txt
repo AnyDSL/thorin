@@ -53,8 +53,6 @@ set(THORIN_SOURCES
     pass/fp/scalarize.h
     pass/fp/ssa_constr.cpp
     pass/fp/ssa_constr.h
-    pass/rw/grad_gen.cpp
-    pass/rw/grad_gen.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
     pass/rw/ret_wrap.cpp

@@ -12,23 +12,23 @@ Stream& Stream::fmt(const char* s) {
     while (*s) {
         auto next = s + 1;
 
-        if (false) {
-        } else if (*s == '\n') { s++; endl();
-        } else if (*s == '\t') { s++; indent();
-        } else if (*s == '\b') { s++; dedent();
-        } else if (*s == '{') {
-            if (match2nd(next, s, '{')) continue;
+        switch (*s) {
+            case '\n': s++; endl();   break;
+            case '\t': s++; indent(); break;
+            case '\b': s++; dedent(); break;
+            case '{':
+                if (match2nd(next, s, '{')) continue;
 
-            while (*s && *s != '}') s++;
+                while (*s && *s != '}') s++;
 
-            assert(*s != '}' && "invalid format string for 'streamf': missing argument(s)");
-            assert(false && "invalid format string for 'streamf': missing closing brace and argument");
-
-        } else if (*s == '}') {
-            if (match2nd(next, s, '}')) continue;
-            assert(false && "unmatched/unescaped closing brace '}' in format string");
-        } else {
-            (*this) << *s++;
+                assert(*s != '}' && "invalid format string for 'streamf': missing argument(s)");
+                assert(false && "invalid format string for 'streamf': missing closing brace and argument");
+                break;
+            case '}':
+                if (match2nd(next, s, '}')) continue;
+                assert(false && "unmatched/unescaped closing brace '}' in format string");
+            default:
+                (*this) << *s++;
         }
     }
     return *this;

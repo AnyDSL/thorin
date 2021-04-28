@@ -39,21 +39,21 @@ const Def* CopyProp::rewrite(const Def* def) {
     if (!changed) return def;
 
     auto&& prop_lam = var2prop_[var_lam];
-    if (*prop_lam == nullptr || (*prop_lam)->num_vars() != types.size()) {
+    if (prop_lam == nullptr || prop_lam->num_vars() != types.size()) {
         auto prop_dom = world().sigma(types);
         auto new_type = world().pi(prop_dom, var_lam->codom());
         prop_lam = var_lam->stub(world(), new_type, var_lam->dbg());
-        keep_.emplace(*prop_lam); // don't try to propagate again
-        world().DLOG("var_lam => prop_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), *prop_lam, prop_dom);
+        keep_.emplace(prop_lam); // don't try to propagate again
+        world().DLOG("var_lam => prop_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), prop_lam, prop_dom);
 
         size_t j = 0;
         Array<const Def*> new_vars(app->num_args(), [&](size_t i) {
-            return keep_.contains(var_lam->var(i)) ? (*prop_lam)->var(j++) : args[i];
+            return keep_.contains(var_lam->var(i)) ? prop_lam->var(j++) : args[i];
         });
-        (*prop_lam)->set(var_lam->apply(world().tuple(new_vars)));
+        prop_lam->set(var_lam->apply(world().tuple(new_vars)));
     }
 
-    return app->world().app(*prop_lam, new_args, app->dbg());
+    return app->world().app(prop_lam, new_args, app->dbg());
 }
 
 undo_t CopyProp::analyze(const Def* def) {

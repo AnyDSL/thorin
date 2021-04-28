@@ -78,16 +78,16 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 
 const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     auto&& lam2phixys = lam2phixys_[mem_lam];
-    if (lam2phixys->empty()) return app;
+    if (lam2phixys.empty()) return app;
 
     insert<Lam2Info>(mem_lam); // create undo
     auto& phi_lam = mem2phi_.emplace(mem_lam, nullptr).first->second;
 
     std::vector<const Def*> types;
-    for (auto i = lam2phixys->begin(), e = lam2phixys->end(); i != e;) {
+    for (auto i = lam2phixys.begin(), e = lam2phixys.end(); i != e;) {
         auto sloxy = *i;
         if (keep_.contains(sloxy)) {
-            i = lam2phixys->erase(i);
+            i = lam2phixys.erase(i);
             phi_lam = nullptr;
         } else {
             types.emplace_back(get_sloxy_type(sloxy));
@@ -95,7 +95,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         }
     }
 
-    size_t num_phixys = lam2phixys->size();
+    size_t num_phixys = lam2phixys.size();
     if (num_phixys == 0) return app;
 
     if (phi_lam == nullptr) {
@@ -110,7 +110,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         size_t i = 0;
         Array<const Def*> traxy_ops(2*num_phixys + 1);
         traxy_ops[0] = phi_lam->var();
-        for (auto phixy : *lam2phixys) {
+        for (auto phixy : lam2phixys) {
             traxy_ops[2*i + 1] = phixy;
             traxy_ops[2*i + 2] = phi_lam->var(num_mem_vars + i);
             ++i;
@@ -123,7 +123,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }
 
-    auto phi = lam2phixys->begin();
+    auto phi = lam2phixys.begin();
     Array<const Def*> args(num_phixys, [&](auto) { return get_val(cur_lam, *phi++); });
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
@@ -153,7 +153,7 @@ undo_t SSAConstr::analyze(const Def* def) {
         auto [sloxy, mem_lam] = split_phixy(phixy);
         auto&& phixys = lam2phixys_[mem_lam];
 
-        if (phixys->emplace(sloxy).second) {
+        if (phixys.emplace(sloxy).second) {
             auto&& [_, undo, __] = insert<Lam2Info>(mem_lam);
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, undo);
             return undo;

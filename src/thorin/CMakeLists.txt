@@ -55,8 +55,6 @@ set(THORIN_SOURCES
     pass/fp/ssa_constr.h
     pass/rw/closure_conv.cpp
     pass/rw/closure_conv.h
-    pass/rw/grad_gen.cpp
-    pass/rw/grad_gen.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
     pass/rw/ret_wrap.cpp

@@ -29,7 +29,7 @@ VarSet DepTree::run(Def* nom) {
     auto result = run(nom, nom);
     auto parent = root_.get();
     for (auto var : result) {
-        auto n = nom2node_[var->nom()]->get();
+        auto n = nom2node_[var->nom()].get();
         parent = n->depth() > parent->depth() ? n : parent;
     }
     node->set_parent(parent);

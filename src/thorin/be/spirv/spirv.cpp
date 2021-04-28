@@ -322,7 +322,9 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
                 args.push_back(builder_->debug_string(the_string.data()));
             } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
 
-            // TODO handle printing values
+            for (int i = 2; i < continuation->num_args() - 1; i++) {
+                args.push_back(emit(continuation->arg(i), bb));
+            }
 
             auto values = continuation->arg(2);
             bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, args);

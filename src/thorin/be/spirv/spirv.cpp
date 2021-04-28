@@ -77,6 +77,10 @@ void CodeGen::emit_stream(std::ostream& out) {
                 auto converted = convert(param_type);
                 assert(converted->datatype != nullptr);
                 SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, arr_ref, bb->file_builder.constant(convert(world().type_pu32())->type_id, { offset }));
+                std::vector<SpvId> printf_args;
+                printf_args.push_back(builder_->debug_string("arg " + std::to_string((int)i) + " = %ul\n"));
+                printf_args.push_back(arg);
+                bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, printf_args);
                 args.push_back(arg);
                 offset += converted->datatype->serialized_size();
             }
@@ -529,8 +533,14 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             case PrimType_pu16: case PrimType_qu16: assertf(false, "not implemented yet");
             case PrimType_ps32: case PrimType_qs32: constant = bb->file_builder.constant(type, { static_cast<unsigned int>(box.get_s32()) }); break;
             case PrimType_pu32: case PrimType_qu32: constant = bb->file_builder.constant(type, { static_cast<unsigned int>(box.get_u32()) }); break;
-            case PrimType_ps64: case PrimType_qs64: assertf(false, "not implemented yet");
-            case PrimType_pu64: case PrimType_qu64: assertf(false, "not implemented yet");
+            case PrimType_ps64: case PrimType_qs64:
+            case PrimType_pu64: case PrimType_qu64: {
+                uint64_t value = static_cast<uint64_t>(box.get_u64());
+                uint64_t upper = value >> 32U;
+                uint64_t lower = value & 0xFFFFFFFFU;
+                constant = bb->file_builder.constant(type, { (uint32_t) lower, (uint32_t) upper });
+                break;
+            }
             case PrimType_pf16: case PrimType_qf16: assertf(false, "not implemented yet");
             case PrimType_pf32: case PrimType_qf32: assertf(false, "not implemented yet");
             case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
@@ -629,6 +639,8 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto type = convert(lea->ptr_type());
         auto offset = emit(lea->index(), bb);
         return bb->ptr_access_chain(type->type_id, emit(lea->ptr(), bb), offset, {});
+    } else if (auto bitcast = def->isa<Bitcast>()) {
+        return bb->bitcast(convert(bitcast->type())->type_id, emit(bitcast->from(), bb));
     }
     assertf(false, "Incomplete emit(def) definition");
 }

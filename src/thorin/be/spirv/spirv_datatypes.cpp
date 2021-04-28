@@ -40,11 +40,11 @@ SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass
     auto cell0 = bb.access_chain(arr_cell_tid, array, { base_offset });
     auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.constant(u32_tid, { (uint32_t) 1 })) });
 
-    auto upper = bb.u_convert(u64_tid, bb.load(u32_tid, cell0));
-    auto lower = bb.u_convert(u64_tid, bb.load(u32_tid, cell1));
+    auto lower = bb.u_convert(u64_tid, bb.load(u32_tid, cell0));
+    auto upper = bb.u_convert(u64_tid, bb.load(u32_tid, cell1));
 
     SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
-    auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32), lower);
+    auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, lower, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32));
 
     return bb.convert_u_ptr(type->type_id, merged);
 }

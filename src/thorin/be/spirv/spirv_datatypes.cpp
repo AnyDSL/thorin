@@ -46,13 +46,6 @@ SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass
     SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
     auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, lower, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32));
 
-    std::vector<SpvId> printf_args;
-    printf_args.push_back(bb.file_builder.debug_string("lower  = %ul\nupper = %ul\nmerged = %ul\n"));
-    printf_args.push_back(lower);
-    printf_args.push_back(upper);
-    printf_args.push_back(merged);
-    bb.ext_instruction(bb.file_builder.void_type, bb.fn_builder.cg->non_semantic_info, 1, printf_args);
-
     return bb.convert_u_ptr(type->type_id, merged);
 }
 

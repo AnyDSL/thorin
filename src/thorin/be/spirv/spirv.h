@@ -10,6 +10,7 @@ using SpvId = builder::SpvId;
 
 class CodeGen;
 struct Datatype;
+struct PtrDatatype;
 
 struct ConvertedType {
     spirv::CodeGen* code_gen;
@@ -26,18 +27,20 @@ struct FnBuilder;
 struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
     explicit BasicBlockBuilder(FnBuilder& fn_builder);
 
+    FnBuilder& fn_builder;
     std::unordered_map<const Param*, Phi> phis_map;
     DefMap<SpvId> args;
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {
+    CodeGen* cg;
     const Scope* scope = nullptr;
     std::vector<std::unique_ptr<BasicBlockBuilder>> bbs;
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
     ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;
 
-    explicit FnBuilder(builder::SpvFileBuilder* file_builder) : builder::SpvFnBuilder(file_builder) {}
+    explicit FnBuilder(CodeGen* cg, builder::SpvFileBuilder* file_builder) : builder::SpvFnBuilder(file_builder), cg(cg) {}
 };
 
 class CodeGen : public thorin::CodeGen {
@@ -66,6 +69,8 @@ protected:
     const Cont2Config& kernel_config_;
 
     SpvId non_semantic_info;
+
+    friend PtrDatatype;
 };
 
 /// Thorin data types are mapped to SPIR-V in non-trivial ways, this interface is used by the emission code to abstract over

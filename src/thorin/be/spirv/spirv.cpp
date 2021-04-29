@@ -56,7 +56,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
             SpvId callee = defs_[cont];
 
-            FnBuilder fn_builder(builder_);
+            FnBuilder fn_builder(this, builder_);
             fn_builder.fn_type = entry_pt_signature;
             fn_builder.fn_ret_type = builder_->void_type;
 
@@ -77,10 +77,6 @@ void CodeGen::emit_stream(std::ostream& out) {
                 auto converted = convert(param_type);
                 assert(converted->datatype != nullptr);
                 SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, arr_ref, bb->file_builder.constant(convert(world().type_pu32())->type_id, { offset }));
-                std::vector<SpvId> printf_args;
-                printf_args.push_back(builder_->debug_string("arg " + std::to_string((int)i) + " = %ul\n"));
-                printf_args.push_back(arg);
-                bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, printf_args);
                 args.push_back(arg);
                 offset += converted->datatype->serialized_size();
             }
@@ -111,7 +107,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
 
-    FnBuilder fn(builder_);
+    FnBuilder fn(this, builder_);
     fn.scope = &scope;
     fn.fn_type = convert(entry_->type())->type_id;
     fn.fn_ret_type = get_codom_type(entry_);
@@ -336,7 +332,8 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             world().ELOG("This spir-v builtin isn't recognised: %s", callee->name());
         }
         auto next = continuation->args().back()->as_continuation();
-        emit_epilogue(next, bb);
+        bb->branch(current_fn_->bbs_map[next]->label);
+        //emit_epilogue(next, bb);
     }
     /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);
@@ -615,6 +612,9 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         }
         return bb->composite(convert(structagg->type())->type_id, elements);
     } else if (auto access = def->isa<Access>()) {
+        // emit dependent operations first
+        emit(access->mem(), bb);
+
         std::vector<uint32_t> operands;
         auto ptr_type = access->ptr()->type()->as<PtrType>();
         if (ptr_type->addr_space() == AddrSpace::Global) {
@@ -641,12 +641,84 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         return bb->ptr_access_chain(type->type_id, emit(lea->ptr(), bb), offset, {});
     } else if (auto bitcast = def->isa<Bitcast>()) {
         return bb->bitcast(convert(bitcast->type())->type_id, emit(bitcast->from(), bb));
+    } else if (auto aggop = def->isa<AggOp>()) {
+        auto spv_agg = emit(aggop->agg(), bb);
+        auto agg_type = convert(aggop->agg()->type())->type_id;
+
+        bool mem = false;
+        if (auto tt = aggop->agg()->type()->isa<TupleType>(); tt && tt->op(0)->isa<MemType>()) mem = true;
+
+        auto copy_to_alloca = [&] (SpvId target_type) {
+            world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
+            auto agg_ptr_type = builder_->declare_ptr_type(spv::StorageClassFunction, agg_type);
+
+            auto variable = bb->fn_builder.variable(agg_ptr_type, spv::StorageClassFunction);
+            bb->store(spv_agg, variable);
+
+            auto cell_ptr_type = builder_->declare_ptr_type(spv::StorageClassFunction, target_type);
+            auto cell = bb->access_chain(cell_ptr_type, variable, { emit(aggop->index(), bb)} );
+            return std::make_pair(variable, cell);
+        };
+        /*auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
+            if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
+                auto global = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
+                global->setLinkage(llvm::GlobalValue::InternalLinkage);
+                global->setInitializer(constant);
+                return irbuilder.CreateInBoundsGEP(global, { irbuilder.getInt64(0), llvm_idx });
+            }
+            return copy_to_alloca().second;
+        };*/
+
+        if (auto extract = aggop->isa<Extract>()) {
+            auto target_type = convert(extract->type())->type_id;
+            auto constant_index = aggop->index()->isa<PrimLit>();
+
+            // skip if the index is a constant
+            if (aggop->agg()->type()->isa<ArrayType>() && constant_index == nullptr) {
+                return bb->load(target_type, copy_to_alloca(target_type).second);
+            }
+
+            // TODO: evaluate what to do with those
+            // if (extract->agg()->type()->isa<VectorType>())
+            //     return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
+
+            // tuple/struct
+            if (is_mem(extract)) return spv_none;
+
+            // index *must* be constant
+            assert(constant_index != nullptr);
+            uint32_t index = constant_index->value().get_u32();
+
+            unsigned offset = 0;
+            if (mem) {
+                if (aggop->agg()->type()->num_ops() == 2) return spv_agg;
+                offset = 1;
+            }
+
+            return bb->extract(target_type, spv_agg, { index - offset });
+        }
+
+        THORIN_UNREACHABLE;
+        /*auto insert = def->as<Insert>();
+        auto value = emit(insert->value());
+
+        // TODO deal with mem - but I think for now this case shouldn't happen
+
+        if (insert->agg()->type()->isa<ArrayType>()) {
+            auto p = copy_to_alloca();
+            irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
+            return irbuilder.CreateLoad(p.first);
+        }
+        if (insert->agg()->type()->isa<VectorType>())
+            return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
+        // tuple/struct
+        return irbuilder.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});*/
     }
     assertf(false, "Incomplete emit(def) definition");
 }
 
 BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
-: builder::SpvBasicBlockBuilder(*fn_builder.file_builder) {
+: builder::SpvBasicBlockBuilder(*fn_builder.file_builder), fn_builder(fn_builder) {
     label = file_builder.generate_fresh_id();
 }
 

@@ -713,6 +713,8 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
         return irbuilder.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});*/
+    } else if (def->isa<Bottom>()) {
+        return bb->undef(convert(def->type())->type_id);
     }
     assertf(false, "Incomplete emit(def) definition");
 }

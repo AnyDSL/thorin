@@ -106,6 +106,18 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId insert(SpvId target_type, SpvId object, SpvId composite, std::vector<uint32_t> indices) {
+        op(spv::Op::OpCompositeInsert, 5 + indices.size());
+        ref_id(target_type);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        ref_id(object);
+        ref_id(composite);
+        for (auto i : indices)
+            literal_int(i);
+        return id;
+    }
+
     SpvId bitcast(SpvId target_type, SpvId value) {
         op(spv::Op::OpBitcast, 4);
         auto id = generate_fresh_id();

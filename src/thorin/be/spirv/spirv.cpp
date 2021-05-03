@@ -659,22 +659,17 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             auto cell = bb->access_chain(cell_ptr_type, variable, { emit(aggop->index(), bb)} );
             return std::make_pair(variable, cell);
         };
-        /*auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
-            if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
-                auto global = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
-                global->setLinkage(llvm::GlobalValue::InternalLinkage);
-                global->setInitializer(constant);
-                return irbuilder.CreateInBoundsGEP(global, { irbuilder.getInt64(0), llvm_idx });
-            }
-            return copy_to_alloca().second;
-        };*/
 
         if (auto extract = aggop->isa<Extract>()) {
+            if (is_mem(extract)) return spv_none;
+
             auto target_type = convert(extract->type())->type_id;
             auto constant_index = aggop->index()->isa<PrimLit>();
 
             // skip if the index is a constant
             if (aggop->agg()->type()->isa<ArrayType>() && constant_index == nullptr) {
+                assert(aggop->agg()->type()->isa<DefiniteArrayType>());
+                assert(!is_mem(extract));
                 return bb->load(target_type, copy_to_alloca(target_type).second);
             }
 
@@ -683,7 +678,6 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             //     return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
 
             // tuple/struct
-            if (is_mem(extract)) return spv_none;
 
             // index *must* be constant
             assert(constant_index != nullptr);
@@ -696,23 +690,31 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             }
 
             return bb->extract(target_type, spv_agg, { index - offset });
-        }
+        } else if (auto insert = def->isa<Insert>()) {
+            auto value = emit(insert->value(), bb);
+            auto constant_index = aggop->index()->isa<PrimLit>();
 
-        THORIN_UNREACHABLE;
-        /*auto insert = def->as<Insert>();
-        auto value = emit(insert->value());
+            // TODO deal with mem - but I think for now this case shouldn't happen
 
-        // TODO deal with mem - but I think for now this case shouldn't happen
+            if (insert->agg()->type()->isa<ArrayType>() && constant_index == nullptr) {
+                assert(aggop->agg()->type()->isa<DefiniteArrayType>());
+                auto [variable, cell] = copy_to_alloca(agg_type);
+                bb->store(value, cell);
+                return bb->load(agg_type, variable);
+            }
 
-        if (insert->agg()->type()->isa<ArrayType>()) {
-            auto p = copy_to_alloca();
-            irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
-            return irbuilder.CreateLoad(p.first);
-        }
-        if (insert->agg()->type()->isa<VectorType>())
-            return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
-        // tuple/struct
-        return irbuilder.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});*/
+            // TODO: evaluate what to do with those
+            //if (insert->agg()->type()->isa<VectorType>())
+            //    return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
+
+            // tuple/struct
+
+            // index *must* be constant
+            assert(constant_index != nullptr);
+            uint32_t index = constant_index->value().get_u32();
+
+            return bb->insert(agg_type, value, spv_agg, { index });
+        } else THORIN_UNREACHABLE;
     } else if (def->isa<Bottom>()) {
         return bb->undef(convert(def->type())->type_id);
     }

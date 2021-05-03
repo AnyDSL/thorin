@@ -129,8 +129,6 @@ ConvertedType* CodeGen::convert(const Type* type) {
     }
 
     if (auto iter = types_.find(type); iter != types_.end()) return iter->second.get();
-
-    assert(!type->isa<MemType>());
     ConvertedType* converted = types_.emplace(type, std::make_unique<ConvertedType>(this) ).first->second.get();
     converted->src_type = type;
     switch (type->tag()) {
@@ -313,7 +311,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
         }
 
         case Node_MemType: {
-            assert(false && "TODO: get arround this");
+            assert(false && "MemType cannot be converted to SPIR-V");
         }
 
         default:

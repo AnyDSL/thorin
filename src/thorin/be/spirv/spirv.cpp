@@ -231,9 +231,8 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto fbb = current_fn_->labels[continuation->arg(2)->as_continuation()];
         bb->selection_merge(merge_bb,spv::SelectionControlMaskNone);
         bb->branch_conditional(cond, tbb, fbb);
-    } /*else if (continuation->callee()->isa<Continuation>() &&
-               continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
-        auto val = emit(continuation->arg(0));
+    } else if (continuation->callee()->isa<Continuation>() && continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+        /*auto val = emit(continuation->arg(0));
         auto otherwise_bb = cont2bb(continuation->arg(1)->as_continuation());
         auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
         for (size_t i = 2; i < continuation->num_args(); i++) {
@@ -241,11 +240,11 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
             auto case_bb    = cont2bb(arg->op(1)->as_continuation());
             match->addCase(case_const, case_bb);
-        }
+        }*/
+        THORIN_UNREACHABLE;
     } else if (continuation->callee()->isa<Bottom>()) {
-        irbuilder.CreateUnreachable();
-    } */
-    else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
+        bb->unreachable();
+    }  else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
         auto merge_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.merge_target)]->label;
         auto continue_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.continue_target)]->label;
         bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
@@ -333,39 +332,37 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
         auto next = continuation->args().back()->as_continuation();
         bb->branch(current_fn_->bbs_map[next]->label);
-        //emit_epilogue(next, bb);
-    }
-    /*else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
-        auto ret_continuation = emit_intrinsic(irbuilder, continuation);
-        irbuilder.CreateBr(cont2bb(ret_continuation));
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+        THORIN_UNREACHABLE;
+        //auto ret_continuation = emit_intrinsic(irbuilder, continuation);
+        //irbuilder.CreateBr(cont2bb(ret_continuation));
     } else { // function/closure call
         // put all first-order args into an array
-        std::vector<llvm::Value*> args;
+        std::vector<SpvId> args;
         const Def* ret_arg = nullptr;
         for (auto arg : continuation->args()) {
             if (arg->order() == 0) {
-                if (auto val = emit_unsafe(arg))
-                    args.push_back(val);
+                auto arg_type = arg->type();
+                if (arg_type == world().unit() || arg_type == world().mem_type()) continue;
+                args.push_back(emit(arg, bb));
             } else {
                 assert(!ret_arg);
                 ret_arg = arg;
             }
         }
 
-        llvm::CallInst* call = nullptr;
+        auto ret_type = get_codom_type(continuation);
+
+        SpvId call_result;
         if (auto callee = continuation->callee()->isa_continuation()) {
-            call = irbuilder.CreateCall(emit(callee), args);
-            if (callee->is_exported())
-                call->setCallingConv(kernel_calling_convention_);
-            else if (callee->cc() == CC::Device)
-                call->setCallingConv(device_calling_convention_);
-            else
-                call->setCallingConv(function_calling_convention_);
+            call_result = bb->call(ret_type, emit(callee, bb), args);
         } else {
             // must be a closure
-            auto closure = emit(callee);
-            args.push_back(irbuilder.CreateExtractValue(closure, 1));
-            call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
+            THORIN_UNREACHABLE;
+
+            // auto closure = emit(callee);
+            // args.push_back(irbuilder.CreateExtractValue(closure, 1));
+            // call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -381,33 +378,35 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
 
         if (n == 0) {
-            irbuilder.CreateBr(cont2bb(succ));
+            bb->branch(current_fn_->labels[succ]);
         } else if (n == 1) {
-            irbuilder.CreateBr(cont2bb(succ));
-            emit_phi_arg(irbuilder, last_param, call);
+            bb->branch(current_fn_->labels[succ]);
+
+            auto& phi = current_fn_->bbs_map[succ]->phis_map[last_param];
+            phi.preds.emplace_back(call_result, current_fn_->labels[continuation]);
         } else {
-            Array<llvm::Value*> extracts(n);
+            Array<SpvId> extracts(n);
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                 auto param = succ->param(i);
                 if (is_mem(param) || is_unit(param))
                     continue;
-                extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
+                extracts[j] = bb->extract(convert(param->type())->type_id, call_result, { (uint32_t) j });
                 j++;
             }
 
-            irbuilder.CreateBr(cont2bb(succ));
+            bb->branch(current_fn_->labels[succ]);
 
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                 auto param = succ->param(i);
                 if (is_mem(param) || is_unit(param))
                     continue;
-                emit_phi_arg(irbuilder, param, extracts[j]);
+
+                auto& phi = current_fn_->bbs_map[succ]->phis_map[param];
+                phi.preds.emplace_back(extracts[j], current_fn_->labels[continuation]);
+
                 j++;
             }
         }
-    }*/
-    else {
-        assert(false && "epilogue not implemented for this");
     }
 }
 

@@ -256,10 +256,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
             std::vector<SpvId> spv_types;
             size_t total_serialized_size = 0;
             for (auto member_type : type->ops()) {
-                if (member_type == world().unit() || member_type == world().mem_type()) {
-                    outf("skipped one");
-                    continue;
-                }
+                if (member_type == world().unit() || member_type == world().mem_type()) continue;
                 auto converted_member_type = convert(member_type);
                 types.push_back(converted_member_type);
                 spv_types.push_back(converted_member_type->type_id);
@@ -284,10 +281,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
 
             size_t max_serialized_size = 0;
             for (auto member_type : type->as<VariantType>()->ops()) {
-                if (member_type == world().unit() || member_type == world().mem_type()) {
-                    outf("skipped one");
-                    continue;
-                }
+                if (member_type == world().unit() || member_type == world().mem_type()) continue;
                 auto converted_member_type = convert(member_type);
                 if (converted_member_type->datatype->serialized_size() > max_serialized_size)
                     max_serialized_size = converted_member_type->datatype->serialized_size();

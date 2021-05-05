@@ -308,30 +308,8 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
         }
         bb->branch(current_fn_->labels[callee]);
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee->is_imported()) {
-        if (callee->name() == "spirv.nonsemantic.printf") {
-            std::vector<SpvId> args;
-            auto string = continuation->arg(1);
-            if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
-                auto arr = string->as<DefiniteArray>();
-                std::vector<char> the_string;
-                for (int i = 0; i < arr_type->dim(); i++)
-                    the_string.push_back(arr->op(i)->as<PrimLit>()->value().get_u8());
-                the_string.push_back('\0');
-                args.push_back(builder_->debug_string(the_string.data()));
-            } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
-
-            for (int i = 2; i < continuation->num_args() - 1; i++) {
-                args.push_back(emit(continuation->arg(i), bb));
-            }
-
-            auto values = continuation->arg(2);
-            bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, args);
-        } else {
-            world().ELOG("This spir-v builtin isn't recognised: %s", callee->name());
-        }
-        auto next = continuation->args().back()->as_continuation();
-        bb->branch(current_fn_->bbs_map[next]->label);
+    } else if (auto builtin = continuation->callee()->isa_continuation(); builtin->is_imported()) {
+        emit_builtin(continuation, builtin, bb);
     } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         THORIN_UNREACHABLE;
         //auto ret_continuation = emit_intrinsic(irbuilder, continuation);
@@ -718,6 +696,32 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         return bb->undef(convert(def->type())->type_id);
     }
     assertf(false, "Incomplete emit(def) definition");
+}
+
+void CodeGen::emit_builtin(const Continuation* source_cont, const Continuation* builtin, BasicBlockBuilder* bb) {
+    if (builtin->name() == "spirv.nonsemantic.printf") {
+        std::vector<SpvId> args;
+        auto string = source_cont->arg(1);
+        if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
+            auto arr = string->as<DefiniteArray>();
+            std::vector<char> the_string;
+            for (int i = 0; i < arr_type->dim(); i++)
+                the_string.push_back(arr->op(i)->as<PrimLit>()->value().get_u8());
+            the_string.push_back('\0');
+            args.push_back(builder_->debug_string(the_string.data()));
+        } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
+
+        for (int i = 2; i < source_cont->num_args() - 1; i++) {
+            args.push_back(emit(source_cont->arg(i), bb));
+        }
+
+        auto values = source_cont->arg(2);
+        bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, args);
+    } else {
+        world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
+    }
+    auto next = source_cont->args().back()->as_continuation();
+    bb->branch(current_fn_->bbs_map[next]->label);
 }
 
 BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)

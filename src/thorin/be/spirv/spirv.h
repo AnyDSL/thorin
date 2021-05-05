@@ -58,6 +58,7 @@ protected:
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
     SpvId emit(const Def* def, BasicBlockBuilder* bb);
+    void emit_builtin(const Continuation*, const Continuation*, BasicBlockBuilder*);
 
     SpvId get_codom_type(const Continuation* fn);
 

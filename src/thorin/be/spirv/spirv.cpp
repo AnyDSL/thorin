@@ -237,32 +237,14 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
 void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
     // Handles the potential nuances of jumping to another continuation
     auto jump_to_next_cont_with_args = [&](Continuation* succ, std::vector<SpvId> args) {
-        if (args.empty()) {
-            bb->branch(current_fn_->labels[succ]);
-        } else if (args.size() == 1) {
-            bb->branch(current_fn_->labels[succ]);
-
-            int i = 0;
-            while (is_mem(succ->param(i)) || is_unit(succ->param(i))) {
-                i++;
-                assert(i < succ->num_params());
-            }
-
-            auto& phi = current_fn_->bbs_map[succ]->phis_map[succ->param(i)];
-            phi.preds.emplace_back(args[0], current_fn_->labels[continuation]);
-        } else {
-            bb->branch(current_fn_->labels[succ]);
-
-            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                auto param = succ->param(i);
-                if (is_mem(param) || is_unit(param))
-                    continue;
-
-                auto& phi = current_fn_->bbs_map[succ]->phis_map[param];
-                phi.preds.emplace_back(args[j], current_fn_->labels[continuation]);
-
-                j++;
-            }
+        bb->branch(current_fn_->labels[succ]);
+        for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+            auto param = succ->param(i);
+            if (is_mem(param) || is_unit(param))
+                continue;
+            auto& phi = current_fn_->bbs_map[succ]->phis_map[param];
+            phi.preds.emplace_back(args[j], current_fn_->labels[continuation]);
+            j++;
         }
     };
 
@@ -282,8 +264,19 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             case 1:  bb->return_value(values[0]); break;
             default: bb->return_value(bb->composite(current_fn_->fn_ret_type, values));
         }
-    }
-    else if (continuation->callee() == world().branch()) {
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+        int index = -1;
+        for (auto& arg : continuation->args()) {
+            index++;
+            auto val = emit(arg, bb);
+            if (is_mem(arg) || is_unit(arg)) continue;
+            bb->args[arg] = val;
+            auto* param = callee->param(index);
+            auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
+            phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
+        }
+        bb->branch(current_fn_->labels[callee]);
+    } else if (continuation->callee() == world().branch()) {
         auto& domtree = current_fn_->scope->b_cfg().domtree();
         auto merge_cont = domtree.idom(current_fn_->scope->f_cfg().operator[](continuation))->continuation();
         SpvId merge_bb;
@@ -369,35 +362,28 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto callee = continuation->op(0)->as_continuation();
         // TODO phis
         bb->branch(current_fn_->bbs_map[callee]->label);
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
-        int index = -1;
-        for (auto& arg : continuation->args()) {
-            index++;
-            auto val = emit(arg, bb);
-            if (is_mem(arg) || is_unit(arg)) continue;
-            bb->args[arg] = val;
-            auto* param = callee->param(index);
-            auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
-            phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
-        }
-        bb->branch(current_fn_->labels[callee]);
     } else if (auto builtin = continuation->callee()->isa_continuation(); builtin->is_imported()) {
+        // Ensure we emit previous memory operations
+        assert(is_mem(continuation->arg(0)));
+        emit(continuation->arg(0), bb);
+
         auto productions = emit_builtin(continuation, builtin, bb);
         auto succ = continuation->args().back()->as_continuation();
         jump_to_next_cont_with_args(succ, productions);
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+    } else if (auto intrinsic = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         THORIN_UNREACHABLE;
         //auto ret_continuation = emit_intrinsic(irbuilder, continuation);
         //irbuilder.CreateBr(cont2bb(ret_continuation));
     } else { // function/closure call
         // put all first-order args into an array
-        std::vector<SpvId> args;
+        std::vector<SpvId> call_args;
         const Def* ret_arg = nullptr;
         for (auto arg : continuation->args()) {
             if (arg->order() == 0) {
                 auto arg_type = arg->type();
+                auto arg_val = emit(arg, bb);
                 if (arg_type == world().unit() || arg_type == world().mem_type()) continue;
-                args.push_back(emit(arg, bb));
+                call_args.push_back(arg_val);
             } else {
                 assert(!ret_arg);
                 ret_arg = arg;
@@ -407,8 +393,8 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto ret_type = get_codom_type(continuation);
 
         SpvId call_result;
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            call_result = bb->call(ret_type, emit(callee, bb), args);
+        if (auto called_continuation = continuation->callee()->isa_continuation()) {
+            call_result = bb->call(ret_type, emit(called_continuation, bb), call_args);
         } else {
             // must be a closure
             THORIN_UNREACHABLE;

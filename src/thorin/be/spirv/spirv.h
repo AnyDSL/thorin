@@ -64,8 +64,8 @@ struct ImportedInstructions {
 struct FileBuilder : public builder::SpvFileBuilder {
     CodeGen* cg;
 
-    Builtins builtins;
-    ImportedInstructions imported_instrs;
+    std::unique_ptr<Builtins> builtins;
+    std::unique_ptr<ImportedInstructions> imported_instrs;
 
     explicit FileBuilder(CodeGen* cg);
 };
@@ -85,11 +85,11 @@ protected:
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
     SpvId emit(const Def* def, BasicBlockBuilder* bb);
-    void emit_builtin(const Continuation*, const Continuation*, BasicBlockBuilder*);
+    std::vector<SpvId> emit_builtin(const Continuation*, const Continuation*, BasicBlockBuilder*);
 
     SpvId get_codom_type(const Continuation* fn);
 
-    FileBuilder* builder_ = nullptr;
+    std::unique_ptr<FileBuilder> builder_;
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
     TypeMap<std::unique_ptr<ConvertedType>> types_;

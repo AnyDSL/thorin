@@ -121,7 +121,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
     switch (type->tag()) {
 #define THORIN_Q_TYPE(T, M) \
     case PrimType_##T: \
-        type = world().prim_type(PrimType_p##M, 1); \
+        type = world().prim_type(PrimType_p##M, type->as<VectorType>()->length()); \
         break;
 #include "thorin/tables/primtypetable.h"
 #undef THORIN_Q_TYPE
@@ -131,6 +131,14 @@ ConvertedType* CodeGen::convert(const Type* type) {
     if (auto iter = types_.find(type); iter != types_.end()) return iter->second.get();
     ConvertedType* converted = types_.emplace(type, std::make_unique<ConvertedType>(this) ).first->second.get();
     converted->src_type = type;
+
+    if (auto vec = type->isa<VectorType>(); vec && vec->length() > 1) {
+        auto component = vec->scalarize();
+        auto conv_comp = convert(component);
+        converted->type_id = builder_->declare_vector_type(conv_comp->type_id, (uint32_t)vec->length());
+        return converted;
+    }
+
     switch (type->tag()) {
         // Boolean types are typically packed intelligently when declaring in local variables, however with vanilla Vulkan 1.0 they can only be represented via 32-bit integers
         // Using extensions, we could use 16 or 8-bit ints instead

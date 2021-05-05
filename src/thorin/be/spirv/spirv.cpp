@@ -17,7 +17,7 @@ CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
     : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
 {}
 
-FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg), builtins(*this), imported_instrs(*this) {
+FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg) {
     capability(spv::Capability::CapabilityShader);
     capability(spv::Capability::CapabilityVariablePointers);
     capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
@@ -28,7 +28,36 @@ FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg), built
     memory_model = spv::MemoryModel::MemoryModelGLSL450;
 }
 
-Builtins::Builtins(FileBuilder&) {
+Builtins::Builtins(FileBuilder& builder) {
+    auto& world = builder.cg->world();
+    auto spv_uvec3_t = builder.cg->convert(world.type_pu32(3));
+    auto spv_uint_t = builder.cg->convert(world.type_pu32());
+    auto spv_uvec3_pt = builder.declare_ptr_type(spv::StorageClassInput, spv_uvec3_t->type_id);
+    auto spv_uint_pt = builder.declare_ptr_type(spv::StorageClassInput, spv_uint_t->type_id);
+
+    // workgroup_size = builder.constant(spv_uvec3_pt, spv::StorageClassInput);
+    // builder.decorate(workgroup_size, spv::DecorationBuiltIn, { spv::BuiltInWorkgroupSize });
+    // builder.name(workgroup_size, "BuiltInWorkgroupSize");
+
+    num_workgroups = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
+    builder.decorate(num_workgroups, spv::DecorationBuiltIn, { spv::BuiltInNumWorkgroups });
+    builder.name(num_workgroups, "BuiltInNumWorkgroups");
+
+    workgroup_id = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
+    builder.decorate(workgroup_id, spv::DecorationBuiltIn, { spv::BuiltInWorkgroupId });
+    builder.name(workgroup_id, "BuiltInWorkgroupId");
+
+    local_id = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
+    builder.decorate(local_id, spv::DecorationBuiltIn, { spv::BuiltInLocalInvocationId });
+    builder.name(local_id, "BuiltInLocalInvocationId");
+
+    global_id = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
+    builder.decorate(global_id, spv::DecorationBuiltIn, { spv::BuiltInGlobalInvocationId });
+    builder.name(global_id, "BuiltInGlobalInvocationId");
+
+    local_invocation_index = builder.variable(spv_uint_pt, spv::StorageClassInput);
+    builder.decorate(local_invocation_index, spv::DecorationBuiltIn, { spv::BuiltInLocalInvocationIndex });
+    builder.name(local_invocation_index, "BuiltInLocalInvocationIndex");
 }
 
 ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
@@ -37,8 +66,10 @@ ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
 }
 
 void CodeGen::emit_stream(std::ostream& out) {
-    FileBuilder builder(this);
-    builder_ = &builder;
+    builder_ = std::make_unique<FileBuilder>(this);
+
+    builder_->builtins = std::make_unique<Builtins>(*builder_);
+    builder_->imported_instrs = std::make_unique<ImportedInstructions>(*builder_);
 
     structure_loops();
     structure_flow();
@@ -48,14 +79,14 @@ void CodeGen::emit_stream(std::ostream& out) {
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 
     auto push_constant_arr_type = convert(world().definite_array_type(world().type_pu32(), 128))->type_id;
-    auto push_constant_struct_type = builder.declare_struct_type({ push_constant_arr_type });
-    auto push_constant_struct_ptr_type = builder.declare_ptr_type(spv::StorageClassPushConstant, push_constant_struct_type);
-    builder.name(push_constant_struct_type, "ThorinPushConstant");
-    builder.decorate(push_constant_struct_type, spv::DecorationBlock);
-    builder.decorate_member(push_constant_struct_type, 0, spv::DecorationOffset, { 0 });
-    builder.decorate(push_constant_arr_type, spv::DecorationArrayStride, { 4 });
+    auto push_constant_struct_type = builder_->declare_struct_type({ push_constant_arr_type });
+    auto push_constant_struct_ptr_type = builder_->declare_ptr_type(spv::StorageClassPushConstant, push_constant_struct_type);
+    builder_->name(push_constant_struct_type, "ThorinPushConstant");
+    builder_->decorate(push_constant_struct_type, spv::DecorationBlock);
+    builder_->decorate_member(push_constant_struct_type, 0, spv::DecorationOffset, { 0 });
+    builder_->decorate(push_constant_arr_type, spv::DecorationArrayStride, { 4 });
     auto push_constant_struct_ptr = builder_->variable(push_constant_struct_ptr_type, spv::StorageClassPushConstant);
-    builder.name(push_constant_struct_ptr, "thorin_push_constant_data");
+    builder_->name(push_constant_struct_ptr, "thorin_push_constant_data");
 
     auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
     for (auto& cont : world().continuations()) {
@@ -65,7 +96,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
             SpvId callee = defs_[cont];
 
-            FnBuilder fn_builder(this, builder_);
+            FnBuilder fn_builder(this, builder_.get());
             fn_builder.fn_type = entry_pt_signature;
             fn_builder.fn_ret_type = builder_->void_type;
 
@@ -96,7 +127,7 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->define_function(fn_builder);
             builder_->name(fn_builder.function_id, "entry_point_" + cont->name());
 
-            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", { push_constant_struct_ptr });
+            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", { push_constant_struct_ptr, builder_->builtins->local_id });
 
             auto block = config->second->as<GPUKernelConfig>()->block_size();
             std::vector<uint32_t> local_size = {
@@ -116,7 +147,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
 
-    FnBuilder fn(this, builder_);
+    FnBuilder fn(this, builder_.get());
     fn.scope = &scope;
     fn.fn_type = convert(entry_->type())->type_id;
     fn.fn_ret_type = get_codom_type(entry_);
@@ -163,7 +194,9 @@ void CodeGen::emit(const thorin::Scope& scope) {
                     // OpPhi requires the full list of predecessors (values, labels)
                     // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
                     // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
-                    bb->phis_map[param] = {convert(param->type())->type_id, builder_->generate_fresh_id(), {} };
+                    auto type = convert(param->type())->type_id;
+                    assert(type.id != 0);
+                    bb->phis_map[param] = { type, builder_->generate_fresh_id(), {} };
                 }
             }
         }
@@ -202,6 +235,37 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
+    // Handles the potential nuances of jumping to another continuation
+    auto jump_to_next_cont_with_args = [&](Continuation* succ, std::vector<SpvId> args) {
+        if (args.empty()) {
+            bb->branch(current_fn_->labels[succ]);
+        } else if (args.size() == 1) {
+            bb->branch(current_fn_->labels[succ]);
+
+            int i = 0;
+            while (is_mem(succ->param(i)) || is_unit(succ->param(i))) {
+                i++;
+                assert(i < succ->num_params());
+            }
+
+            auto& phi = current_fn_->bbs_map[succ]->phis_map[succ->param(i)];
+            phi.preds.emplace_back(args[0], current_fn_->labels[continuation]);
+        } else {
+            bb->branch(current_fn_->labels[succ]);
+
+            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                auto param = succ->param(i);
+                if (is_mem(param) || is_unit(param))
+                    continue;
+
+                auto& phi = current_fn_->bbs_map[succ]->phis_map[param];
+                phi.preds.emplace_back(args[j], current_fn_->labels[continuation]);
+
+                j++;
+            }
+        }
+    };
+
     if (continuation->callee() == entry_->ret_param()) {
         std::vector<SpvId> values;
 
@@ -318,7 +382,9 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
         bb->branch(current_fn_->labels[callee]);
     } else if (auto builtin = continuation->callee()->isa_continuation(); builtin->is_imported()) {
-        emit_builtin(continuation, builtin, bb);
+        auto productions = emit_builtin(continuation, builtin, bb);
+        auto succ = continuation->args().back()->as_continuation();
+        jump_to_next_cont_with_args(succ, productions);
     } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         THORIN_UNREACHABLE;
         //auto ret_continuation = emit_intrinsic(irbuilder, continuation);
@@ -707,7 +773,11 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-void CodeGen::emit_builtin(const Continuation* source_cont, const Continuation* builtin, BasicBlockBuilder* bb) {
+std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const Continuation* builtin, BasicBlockBuilder* bb) {
+    std::vector<SpvId> productions;
+    auto uvec3_t = convert(world().type_pu32(3));
+    auto u32_t = convert(world().type_pu32());
+    auto i32_t = convert(world().type_ps32());
     if (builtin->name() == "spirv.nonsemantic.printf") {
         std::vector<SpvId> args;
         auto string = source_cont->arg(1);
@@ -725,14 +795,15 @@ void CodeGen::emit_builtin(const Continuation* source_cont, const Continuation* 
         }
 
         auto values = source_cont->arg(2);
-        bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs.shader_printf, 1, args);
+        bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs->shader_printf, 1, args);
     } if (builtin->name() == "get_local_id") {
-
+        auto vector = bb->load(uvec3_t->type_id, builder_->builtins->local_id);
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        productions.push_back(bb->bitcast(i32_t->type_id, extracted));
     } else {
         world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
     }
-    auto next = source_cont->args().back()->as_continuation();
-    bb->branch(current_fn_->bbs_map[next]->label);
+    return productions;
 }
 
 BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)

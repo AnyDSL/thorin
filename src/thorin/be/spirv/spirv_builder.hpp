@@ -118,6 +118,27 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
+    SpvId vector_extract_dynamic(SpvId target_type, SpvId vector, SpvId index) {
+        op(spv::Op::OpVectorExtractDynamic, 5);
+        ref_id(target_type);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        ref_id(vector);
+        ref_id(index);
+        return id;
+    }
+
+    SpvId vector_insert_dynamic(SpvId target_type, SpvId vector, SpvId component, SpvId index) {
+        op(spv::Op::OpVectorInsertDynamic, 6);
+        ref_id(target_type);
+        auto id = generate_fresh_id();
+        ref_id(id);
+        ref_id(vector);
+        ref_id(component);
+        ref_id(index);
+        return id;
+    }
+
     SpvId bitcast(SpvId target_type, SpvId value) {
         op(spv::Op::OpBitcast, 4);
         auto id = generate_fresh_id();
@@ -420,6 +441,15 @@ struct SpvFileBuilder {
         types_constants.ref_id(id);
         for (auto arg : elements)
             types_constants.ref_id(arg);
+        return id;
+    }
+
+    SpvId declare_vector_type(SpvId component_type, uint32_t dim) {
+        types_constants.op(spv::Op::OpTypeVector, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.ref_id(component_type);
+        types_constants.literal_int(dim);
         return id;
     }
 

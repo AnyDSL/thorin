@@ -12,6 +12,9 @@ class CodeGen;
 struct Datatype;
 struct PtrDatatype;
 
+struct FileBuilder;
+struct FnBuilder;
+
 struct ConvertedType {
     spirv::CodeGen* code_gen;
     const thorin::Type* src_type;
@@ -21,8 +24,6 @@ struct ConvertedType {
     ConvertedType(CodeGen* cg) : code_gen(cg) {}
     bool is_known_size() { return datatype != nullptr; }
 };
-
-struct FnBuilder;
 
 struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
     explicit BasicBlockBuilder(FnBuilder& fn_builder);
@@ -41,6 +42,32 @@ struct FnBuilder : public builder::SpvFnBuilder {
     DefMap<SpvId> params;
 
     explicit FnBuilder(CodeGen* cg, builder::SpvFileBuilder* file_builder) : builder::SpvFnBuilder(file_builder), cg(cg) {}
+};
+
+struct Builtins {
+    SpvId workgroup_size;
+    SpvId num_workgroups;
+    SpvId workgroup_id;
+    SpvId local_id;
+    SpvId global_id;
+    SpvId local_invocation_index;
+
+    explicit Builtins(FileBuilder&);
+};
+
+struct ImportedInstructions {
+    SpvId shader_printf;
+
+    explicit ImportedInstructions(FileBuilder&);
+};
+
+struct FileBuilder : public builder::SpvFileBuilder {
+    CodeGen* cg;
+
+    Builtins builtins;
+    ImportedInstructions imported_instrs;
+
+    explicit FileBuilder(CodeGen* cg);
 };
 
 class CodeGen : public thorin::CodeGen {
@@ -62,14 +89,12 @@ protected:
 
     SpvId get_codom_type(const Continuation* fn);
 
-    builder::SpvFileBuilder* builder_ = nullptr;
+    FileBuilder* builder_ = nullptr;
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
     TypeMap<std::unique_ptr<ConvertedType>> types_;
     DefMap<SpvId> defs_;
     const Cont2Config& kernel_config_;
-
-    SpvId non_semantic_info;
 
     friend PtrDatatype;
 };

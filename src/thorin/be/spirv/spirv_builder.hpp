@@ -552,7 +552,7 @@ struct SpvFileBuilder {
     }
 
     spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
-    spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelGLSL450    ;
+    spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelSimple;
 
 private:
     std::ostream* output_ = nullptr;

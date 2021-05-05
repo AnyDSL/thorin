@@ -17,19 +17,28 @@ CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
     : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
 {}
 
-void CodeGen::emit_stream(std::ostream& out) {
-    builder::SpvFileBuilder builder;
-    builder_ = &builder;
-    builder_->capability(spv::Capability::CapabilityShader);
-    builder_->capability(spv::Capability::CapabilityVariablePointers);
-    builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
-    // builder_->capability(spv::Capability::CapabilityInt16);
-    builder_->capability(spv::Capability::CapabilityInt64);
+FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg), builtins(*this), imported_instrs(*this) {
+    capability(spv::Capability::CapabilityShader);
+    capability(spv::Capability::CapabilityVariablePointers);
+    capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
+    // capability(spv::Capability::CapabilityInt16);
+    capability(spv::Capability::CapabilityInt64);
 
-    builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
+    addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
+    memory_model = spv::MemoryModel::MemoryModelGLSL450;
+}
 
+Builtins::Builtins(FileBuilder&) {
+}
+
+ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
     builder.extension("SPV_KHR_non_semantic_info");
-    non_semantic_info = builder_->extended_import("NonSemantic.DebugPrintf");
+    shader_printf = builder.extended_import("NonSemantic.DebugPrintf");
+}
+
+void CodeGen::emit_stream(std::ostream& out) {
+    FileBuilder builder(this);
+    builder_ = &builder;
 
     structure_loops();
     structure_flow();
@@ -716,7 +725,9 @@ void CodeGen::emit_builtin(const Continuation* source_cont, const Continuation* 
         }
 
         auto values = source_cont->arg(2);
-        bb->ext_instruction(bb->file_builder.void_type, non_semantic_info, 1, args);
+        bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs.shader_printf, 1, args);
+    } if (builtin->name() == "get_local_id") {
+
     } else {
         world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
     }

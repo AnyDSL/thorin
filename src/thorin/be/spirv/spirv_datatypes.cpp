@@ -208,6 +208,11 @@ ConvertedType* CodeGen::convert(const Type* type) {
                     pointee = arr->elem_type();
                 ConvertedType* element = convert(pointee);
                 converted->type_id = builder_->declare_ptr_type(storage_class, element->type_id);
+
+                if (ptr->addr_space() == AddrSpace::Global) {
+                    assert(element->datatype && "Can only have physical pointers to known-size types");
+                    builder_->decorate(converted->type_id, spv::DecorationArrayStride, {(uint32_t) element->datatype->serialized_size()});
+                }
             }
             ptr_done:
             break;

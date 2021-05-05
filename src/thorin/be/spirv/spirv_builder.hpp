@@ -338,28 +338,31 @@ private:
     SpvId generate_fresh_id();
 };
 
-inline bool operator==(const SpvId &a, const SpvId &b) { return a.id == b.id; }
-
 struct SpvFileBuilder {
-    enum UniqueTypeTag {
+
+    enum UniqueDeclTag {
         NONE,
-        FN_TYPE
+        FN_TYPE,
+        PTR_TYPE,
+        DEF_ARR_TYPE,
+        CONSTANT,
     };
 
-    struct UniqueTypeKey {
-        UniqueTypeTag tag;
-        std::vector<SpvId> members;
+    /// Prevents duplicate declarations
+    struct UniqueDeclKey {
+        UniqueDeclTag tag;
+        std::vector<uint32_t> members;
 
-        bool operator==(const UniqueTypeKey &b) const {
+        bool operator==(const UniqueDeclKey &b) const {
             return tag == b.tag && members == b.members;
         }
     };
 
-    struct UniqueTypeKeyHasher {
-        size_t operator() (const UniqueTypeKey& key) const {
+    struct UniqueDeclKeyHasher {
+        size_t operator() (const UniqueDeclKey& key) const {
             size_t acc = 0;
             for (auto id : key.members)
-                acc ^= std::hash<uint32_t>{}(id.id);
+                acc ^= std::hash<uint32_t>{}(id);
             return std::hash<size_t>{}(key.tag) ^ acc;
         }
     };
@@ -403,26 +406,33 @@ struct SpvFileBuilder {
     }
 
     SpvId declare_ptr_type(spv::StorageClass storage_class, SpvId element_type) {
+        auto key = UniqueDeclKey { PTR_TYPE, { element_type.id, (uint32_t) storage_class } };
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpTypePointer, 4);
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
         types_constants.literal_int(storage_class);
         types_constants.ref_id(element_type);
+        unique_decls[key] = id;
         return id;
     }
 
     SpvId declare_array_type(SpvId element_type, SpvId dim) {
+        auto key = UniqueDeclKey { DEF_ARR_TYPE, { element_type.id, dim.id } };
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpTypeArray, 4);
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
         types_constants.ref_id(element_type);
         types_constants.ref_id(dim);
+        unique_decls[key] = id;
         return id;
     }
 
     SpvId declare_fn_type(std::vector<SpvId> dom, SpvId codom) {
-        auto key = UniqueTypeKey { FN_TYPE, dom };
-        key.members.push_back(codom);
+        auto key = UniqueDeclKey { FN_TYPE, {} };
+        for (auto d : dom) key.members.push_back(d.id);
+        key.members.push_back(codom.id);
         if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
 
         types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
@@ -486,13 +496,17 @@ struct SpvFileBuilder {
         return id;
     }
 
-    SpvId constant(SpvId type, std::vector<uint32_t>&& bit_pattern) {
+    SpvId constant(SpvId type, std::vector<uint32_t> bit_pattern) {
+        auto key = UniqueDeclKey { CONSTANT, bit_pattern };
+        key.members.push_back(type.id);
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpConstant, 3 + bit_pattern.size());
         auto id = generate_fresh_id();
         types_constants.ref_id(type);
         types_constants.ref_id(id);
         for (auto arg : bit_pattern)
             types_constants.data_.push_back(arg);
+        unique_decls[key] = id;
         return id;
     }
 
@@ -603,7 +617,7 @@ private:
     SpvSectionBuilder fn_defs;
 
     // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
-    std::unordered_map<UniqueTypeKey, SpvId, UniqueTypeKeyHasher> unique_decls;
+    std::unordered_map<UniqueDeclKey, SpvId, UniqueDeclKeyHasher> unique_decls;
 
     SpvId declare_void_type() {
         types_constants.op(spv::Op::OpTypeVoid, 2);

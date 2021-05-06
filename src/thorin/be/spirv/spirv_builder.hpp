@@ -318,6 +318,7 @@ struct SpvFileBuilder {
         PTR_TYPE,
         DEF_ARR_TYPE,
         CONSTANT,
+        CONSTANT_COMPOSITE,
     };
 
     /// Prevents duplicate declarations
@@ -477,7 +478,22 @@ struct SpvFileBuilder {
         types_constants.ref_id(type);
         types_constants.ref_id(id);
         for (auto arg : bit_pattern)
-            types_constants.data_.push_back(arg);
+            types_constants.literal_int(arg);
+        unique_decls[key] = id;
+        return id;
+    }
+
+    SpvId constant_composite(SpvId type, std::vector<SpvId> ops) {
+        auto key = UniqueDeclKey { CONSTANT_COMPOSITE, {} };
+        key.members.push_back(type.id);
+        for (auto op : ops) key.members.push_back(op.id);
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+        types_constants.op(spv::Op::OpConstantComposite, 3 + ops.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(type);
+        types_constants.ref_id(id);
+        for (auto op : ops)
+            types_constants.ref_id(op);
         unique_decls[key] = id;
         return id;
     }

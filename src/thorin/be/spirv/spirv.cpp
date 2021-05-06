@@ -113,11 +113,13 @@ Builtins::Builtins(FileBuilder& builder) {
     auto spv_uvec3_t = builder.cg->convert(world.type_pu32(3));
     auto spv_uint_t = builder.cg->convert(world.type_pu32());
     auto spv_uvec3_pt = builder.declare_ptr_type(spv::StorageClassInput, spv_uvec3_t->type_id);
+    auto spv_uvec3_ptp = builder.declare_ptr_type(spv::StorageClassPrivate, spv_uvec3_t->type_id);
     auto spv_uint_pt = builder.declare_ptr_type(spv::StorageClassInput, spv_uint_t->type_id);
 
-    // workgroup_size = builder.constant(spv_uvec3_pt, spv::StorageClassInput);
-    // builder.decorate(workgroup_size, spv::DecorationBuiltIn, { spv::BuiltInWorkgroupSize });
-    // builder.name(workgroup_size, "BuiltInWorkgroupSize");
+    // Because we technically can have multiple entry points, we take the easy way out and make each entry point
+    // write to a private variable the actual workgroup size for that specific kernel. Dirty, but simple.
+    workgroup_size = builder.variable(spv_uvec3_ptp, spv::StorageClassPrivate);
+    builder.name(workgroup_size, "BuiltInWorkgroupSize");
 
     num_workgroups = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
     builder.decorate(num_workgroups, spv::DecorationBuiltIn, { spv::BuiltInNumWorkgroups });
@@ -187,6 +189,21 @@ void CodeGen::emit_stream(std::ostream& out) {
             BasicBlockBuilder* bb = fn_builder.bbs.emplace_back(std::make_unique<BasicBlockBuilder>(fn_builder)).get();
             fn_builder.bbs_to_emit.push_back(bb);
 
+            auto block = config->second->as<GPUKernelConfig>()->block_size();
+            std::vector<uint32_t> local_size = {
+                    (uint32_t) std::get<0>(block),
+                    (uint32_t) std::get<1>(block),
+                    (uint32_t) std::get<2>(block),
+            };
+
+            auto spv_uvec3_t = convert(world().type_pu32(3));
+            SpvId wg_size_constant = builder_->constant_composite(spv_uvec3_t->type_id, {
+                builder_->u32_constant(local_size[0]),
+                builder_->u32_constant(local_size[1]),
+                builder_->u32_constant(local_size[2]),
+            });
+            bb->store(wg_size_constant, builder_->builtins->workgroup_size);
+
             // iterate on cont type and extract the arguments
             auto ptr_type = convert(world().ptr_type(world().definite_array_type(world().type_pu32(), 128), 1, 4, AddrSpace::Push))->type_id;
             auto zero = bb->file_builder.u32_constant(0);
@@ -211,14 +228,17 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->define_function(fn_builder);
             builder_->name(fn_builder.function_id, "entry_point_" + cont->name());
 
-            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", { push_constant_struct_ptr, builder_->builtins->local_id });
-
-            auto block = config->second->as<GPUKernelConfig>()->block_size();
-            std::vector<uint32_t> local_size = {
-                (uint32_t) std::get<0>(block),
-                (uint32_t) std::get<1>(block),
-                (uint32_t) std::get<2>(block),
+            std::vector<SpvId> interface = {
+                push_constant_struct_ptr,
+                builder_->builtins->workgroup_size,
+                builder_->builtins->num_workgroups,
+                builder_->builtins->workgroup_id,
+                builder_->builtins->local_id,
+                builder_->builtins->global_id,
+                builder_->builtins->local_invocation_index,
             };
+            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", interface);
+
             builder_->execution_mode(fn_builder.function_id, spv::ExecutionModeLocalSize, local_size);
         }
     }
@@ -930,8 +950,26 @@ std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const 
         }
 
         bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs->shader_printf, 1, args);
+    } else if (builtin->name() == "get_work_dim") {
+        THORIN_UNREACHABLE;
+    } else if (builtin->name() == "get_global_id") {
+        auto vector = bb->load(uvec3_t->type_id, builder_->builtins->global_id);
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
+    } else if (builtin->name() == "get_local_size") {
+        auto vector = bb->load(uvec3_t->type_id, builder_->builtins->workgroup_size);
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else if (builtin->name() == "get_local_id") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->local_id);
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
+    } else if (builtin->name() == "get_num_groups") {
+        auto vector = bb->load(uvec3_t->type_id, builder_->builtins->num_workgroups);
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
+    } else if (builtin->name() == "get_group_id") {
+        auto vector = bb->load(uvec3_t->type_id, builder_->builtins->workgroup_id);
         auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
         productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else {

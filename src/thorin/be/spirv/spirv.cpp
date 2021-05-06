@@ -661,7 +661,6 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
 
         if (variant_datatype->elements_types.size() > 1) {
-            auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
             auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
             auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
             auto converted_payload_type = convert(variant_type->op(variant->index()));
@@ -687,7 +686,6 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto target_type = convert(def->type());
 
         assert(variant_datatype->elements_types.size() > 1 && "Can't extract zero-sized datatypes");
-        auto ptr_type = convert(world().ptr_type(world().type_pu32(), 1, 4, AddrSpace::Function))->type_id;
         auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
         auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
         auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
@@ -909,17 +907,16 @@ std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const 
         if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
             auto arr = string->as<DefiniteArray>();
             std::vector<char> the_string;
-            for (int i = 0; i < arr_type->dim(); i++)
+            for (size_t i = 0; i < arr_type->dim(); i++)
                 the_string.push_back(arr->op(i)->as<PrimLit>()->value().get_u8());
             the_string.push_back('\0');
             args.push_back(builder_->debug_string(the_string.data()));
         } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
 
-        for (int i = 2; i < source_cont->num_args() - 1; i++) {
+        for (size_t i = 2; i < source_cont->num_args() - 1; i++) {
             args.push_back(emit(source_cont->arg(i), bb));
         }
 
-        auto values = source_cont->arg(2);
         bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs->shader_printf, 1, args);
     } else if (builtin->name() == "get_local_id") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->local_id);

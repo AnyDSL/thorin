@@ -4,10 +4,7 @@
 namespace thorin::spirv {
 
 ScalarDatatype::ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes)
-: Datatype(type), type_tag(type_tag), size_in_bytes(size_in_bytes), alignment(alignment_in_bytes)
-{
-
-}
+: Datatype(type), type_tag(type_tag), size_in_bytes(size_in_bytes), alignment(alignment_in_bytes) {}
 
 /// All serialization/deserialization methods use this so into a macro it goes
 #define serialization_types \

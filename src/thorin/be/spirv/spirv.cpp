@@ -394,7 +394,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         THORIN_UNREACHABLE;
     } else if (continuation->callee()->isa<Bottom>()) {
         bb->unreachable();
-    }  else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
+    } else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
         auto merge_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.merge_target)]->label;
         auto continue_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.continue_target)]->label;
         bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
@@ -409,21 +409,22 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         int targets = continuation->num_ops();
         assert(targets > 0);
 
+        // TODO handle dispatching to multiple targets
         assert(targets == 1);
-        auto callee = continuation->op(0)->as_continuation();
+        auto dispatch_target = continuation->op(0)->as_continuation();
         // Extract the relevant variant & expand the tuple if necessary
         auto arg = world().variant_extract(continuation->param(0), 0);
         auto extracted = emit(arg, dispatch_bb);
 
-        if (callee->param(0)->type()->equal(arg->type())) {
-            auto* param = callee->param(0);
-            auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
+        if (dispatch_target->param(0)->type()->equal(arg->type())) {
+            auto* param = dispatch_target->param(0);
+            auto& phi = current_fn_->bbs_map[dispatch_target]->phis_map[param];
             phi.preds.emplace_back(extracted, dispatch_bb->label);
         } else {
             assert(false && "TODO destructure argument");
         }
 
-        dispatch_bb->branch(current_fn_->bbs_map[callee]->label);
+        dispatch_bb->branch(current_fn_->bbs_map[dispatch_target]->label);
 
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopContinue) {
         auto loop_header = continuation->op(0)->as_continuation();
@@ -437,11 +438,11 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
 
         bb->branch(header_label);
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopMerge) {
-        // auto header_cont = continuation->op(0)->as_continuation();
 
         int targets = continuation->num_ops();
         assert(targets > 0);
 
+        // TODO handle dispatching to multiple targets
         assert(targets == 1);
         auto callee = continuation->op(0)->as_continuation();
         // TODO phis
@@ -456,8 +457,6 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         jump_to_next_cont_with_args(succ, productions);
     } else if (auto intrinsic = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         THORIN_UNREACHABLE;
-        //auto ret_continuation = emit_intrinsic(irbuilder, continuation);
-        //irbuilder.CreateBr(cont2bb(ret_continuation));
     } else { // function/closure call
         // put all first-order args into an array
         std::vector<SpvId> call_args;

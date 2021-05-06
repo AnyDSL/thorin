@@ -767,20 +767,17 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
             auto target_type = convert(extract->type())->type_id;
             auto constant_index = aggop->index()->isa<PrimLit>();
 
-            // skip if the index is a constant
+            // We have a fast-path: if the index is constant, we can simply use OpCompositeExtract
             if (aggop->agg()->type()->isa<ArrayType>() && constant_index == nullptr) {
                 assert(aggop->agg()->type()->isa<DefiniteArrayType>());
                 assert(!is_mem(extract));
                 return bb->load(target_type, copy_to_alloca(target_type).second);
             }
 
-            // TODO: evaluate what to do with those
-            // if (extract->agg()->type()->isa<VectorType>())
-            //     return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
+            if (extract->agg()->type()->isa<VectorType>())
+                return bb->vector_extract_dynamic(target_type, spv_agg, emit(extract->index(), bb));
 
-            // tuple/struct
-
-            // index *must* be constant
+            // index *must* be constant for the remaining possible cases
             assert(constant_index != nullptr);
             uint32_t index = constant_index->value().get_u32();
 
@@ -804,13 +801,10 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
                 return bb->load(agg_type, variable);
             }
 
-            // TODO: evaluate what to do with those
-            //if (insert->agg()->type()->isa<VectorType>())
-            //    return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
+            if (insert->agg()->type()->isa<VectorType>())
+                return bb->vector_insert_dynamic(agg_type, spv_agg, value, emit(insert->index(), bb));
 
-            // tuple/struct
-
-            // index *must* be constant
+            // index *must* be constant for the remaining possible cases
             assert(constant_index != nullptr);
             uint32_t index = constant_index->value().get_u32();
 

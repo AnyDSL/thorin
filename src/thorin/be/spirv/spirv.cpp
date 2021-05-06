@@ -55,18 +55,18 @@ case PrimType_##T: \
 inline const PrimType* get_primtype(World& world, PrimTypeKind kind, int bitwidth, int length) {
 #define GET_PRIMTYPE_WITH_KIND(kind) \
 switch (bitwidth) { \
-    case 8:  return world.type_p##kind##8(); \
-    case 16: return world.type_p##kind##16(); \
-    case 32: return world.type_p##kind##32(); \
-    case 64: return world.type_p##kind##64(); \
+    case 8:  return world.type_p##kind##8 (length); \
+    case 16: return world.type_p##kind##16(length); \
+    case 32: return world.type_p##kind##32(length); \
+    case 64: return world.type_p##kind##64(length); \
 }
 
 #define GET_PRIMTYPE_WITH_KIND_F(kind) \
 switch (bitwidth) { \
     case 8: world.ELOG("8-bit floats do not exist"); \
-    case 16: return world.type_p##kind##16(); \
-    case 32: return world.type_p##kind##32(); \
-    case 64: return world.type_p##kind##64(); \
+    case 16: return world.type_p##kind##16(length); \
+    case 32: return world.type_p##kind##32(length); \
+    case 64: return world.type_p##kind##64(length); \
 }
 
     switch (kind) {

@@ -13,6 +13,73 @@ namespace thorin {
 
 namespace thorin::spirv {
 
+/// Used as a dummy SSA value for emitting things like mem/unit
+/// Should never make it in the binary files !
+constexpr SpvId spv_none { 0 };
+
+// SPIR-V has 3 "kinds" of primitives, and the user may declare arbitrary bitwidths, the following helps in translation:
+enum class PrimTypeKind {
+    Signed, Unsigned, Float
+};
+inline PrimTypeKind classify_primtype(const PrimType* type) {
+    switch (type->tag()) {
+#define THORIN_QS_TYPE(T, M) THORIN_PS_TYPE(T, M)
+#define THORIN_PS_TYPE(T, M) \
+case PrimType_##T: \
+    return PrimTypeKind::Signed; \
+    break;
+#include "thorin/tables/primtypetable.h"
+#undef THORIN_QS_TYPE
+#undef THORIN_PS_TYPE
+
+#define THORIN_QU_TYPE(T, M) THORIN_PU_TYPE(T, M)
+#define THORIN_PU_TYPE(T, M) \
+case PrimType_##T: \
+    return PrimTypeKind::Unsigned; \
+    break;
+#include "thorin/tables/primtypetable.h"
+#undef THORIN_QU_TYPE
+#undef THORIN_PU_TYPE
+
+#define THORIN_QF_TYPE(T, M) THORIN_PF_TYPE(T, M)
+#define THORIN_PF_TYPE(T, M) \
+case PrimType_##T: \
+    return PrimTypeKind::Float; \
+    break;
+#include "thorin/tables/primtypetable.h"
+#undef THORIN_QF_TYPE
+#undef THORIN_PF_TYPE
+        default: THORIN_UNREACHABLE;
+    }
+}
+inline const PrimType* get_primtype(World& world, PrimTypeKind kind, int bitwidth, int length) {
+#define GET_PRIMTYPE_WITH_KIND(kind) \
+switch (bitwidth) { \
+    case 8:  return world.type_p##kind##8(); \
+    case 16: return world.type_p##kind##16(); \
+    case 32: return world.type_p##kind##32(); \
+    case 64: return world.type_p##kind##64(); \
+}
+
+#define GET_PRIMTYPE_WITH_KIND_F(kind) \
+switch (bitwidth) { \
+    case 8: world.ELOG("8-bit floats do not exist"); \
+    case 16: return world.type_p##kind##16(); \
+    case 32: return world.type_p##kind##32(); \
+    case 64: return world.type_p##kind##64(); \
+}
+
+    switch (kind) {
+        case PrimTypeKind::Signed:   GET_PRIMTYPE_WITH_KIND(s);   THORIN_UNREACHABLE;
+        case PrimTypeKind::Unsigned: GET_PRIMTYPE_WITH_KIND(u);   THORIN_UNREACHABLE;
+        case PrimTypeKind::Float:    GET_PRIMTYPE_WITH_KIND_F(f); THORIN_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
+    }
+
+#undef GET_PRIMTYPE_WITH_KIND
+#undef GET_PRIMTYPE_WITH_KIND_F
+}
+
 CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
     : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
 {}
@@ -449,8 +516,6 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
     }
 }
 
-constexpr SpvId spv_none { 0 };
-
 SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs(), bb);
@@ -677,8 +742,6 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto type = convert(lea->ptr_type());
         auto offset = emit(lea->index(), bb);
         return bb->ptr_access_chain(type->type_id, emit(lea->ptr(), bb), offset, {});
-    } else if (auto bitcast = def->isa<Bitcast>()) {
-        return bb->bitcast(convert(bitcast->type())->type_id, emit(bitcast->from(), bb));
     } else if (auto aggop = def->isa<AggOp>()) {
         auto spv_agg = emit(aggop->agg(), bb);
         auto agg_type = convert(aggop->agg()->type())->type_id;
@@ -753,6 +816,88 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
 
             return bb->insert(agg_type, value, spv_agg, { index });
         } else THORIN_UNREACHABLE;
+    } else if (auto conv = def->isa<ConvOp>()) {
+        auto src_type = conv->from()->type();
+        auto dst_type = conv->type();
+
+        auto conv_src_type = convert(src_type);
+        auto conv_dst_type = convert(dst_type);
+
+        if (auto bitcast = def->isa<Bitcast>()) {
+            if (conv_src_type->datatype->serialized_size() != conv_dst_type->datatype->serialized_size())
+                world().ELOG("Source (%) and destination (%) datatypes sizes do not match (% vs % bytes)", src_type->to_string(), dst_type->to_string(), conv_src_type->datatype->serialized_size(), conv_dst_type->datatype->serialized_size());
+
+            return bb->convert(spv::OpBitcast, convert(bitcast->type())->type_id, emit(bitcast->from(), bb));
+        } else if (auto cast = def->isa<Cast>()) {
+            // NB: all ops used here are scalar/vector agnostic
+            auto src_prim = src_type->isa<PrimType>();
+            auto dst_prim = dst_type->isa<PrimType>();
+            if (!src_prim || !dst_prim || src_prim->length() != dst_prim->length())
+                world().ELOG("Illegal cast: % to %, casts are only supported between primitives with identical vector length", src_type->to_string(), dst_type->to_string());
+
+            auto length = src_prim->length();
+
+            auto src_kind = classify_primtype(src_prim);
+            auto dst_kind = classify_primtype(dst_prim);
+            size_t src_bitwidth = conv_src_type->datatype->serialized_size();
+            size_t dst_bitwidth = conv_src_type->datatype->serialized_size();
+
+            SpvId data = emit(cast->from(), bb);
+
+            // If floating point is involved (src or dst), OpConvert*ToF and OpConvertFTo* can take care of the bit width transformation so no need for any chopping/expanding
+            if (src_kind == PrimTypeKind::Float || dst_kind == PrimTypeKind::Float) {
+                auto target_type = convert(get_primtype(world(), dst_kind, dst_bitwidth, length))->type_id;
+                switch (src_kind) {
+                    case PrimTypeKind::Signed:    data = bb->convert(spv::OpConvertSToF, target_type, data); break;
+                    case PrimTypeKind::Unsigned:  data = bb->convert(spv::OpConvertUToF, target_type, data); break;
+                    case PrimTypeKind::Float:
+                        switch (dst_kind) {
+                            case PrimTypeKind::Signed:   data = bb->convert(spv::OpConvertFToS, target_type, data); break;
+                            case PrimTypeKind::Unsigned: data = bb->convert(spv::OpConvertFToU, target_type, data); break;
+                            default: THORIN_UNREACHABLE;
+                        }
+                        break;
+                }
+            } else {
+                // we expand first and shrink last to minimize precision losses, with bitcast in the middle
+                bool needs_chopping = src_bitwidth > dst_bitwidth;
+                bool needs_expanding = src_bitwidth < dst_bitwidth;
+
+                if (needs_expanding) {
+                    auto target_type = convert(get_primtype(world(), src_kind, src_bitwidth, length))->type_id;
+                    switch (src_kind) {
+                        case PrimTypeKind::Signed:
+                            data = bb->convert(spv::OpSConvert, target_type, data);
+                            break;
+                        case PrimTypeKind::Unsigned:
+                            data = bb->convert(spv::OpUConvert, target_type, data);
+                            break;
+                        case PrimTypeKind::Float:
+                            data = bb->convert(spv::OpFConvert, target_type, data);
+                            break;
+                    }
+                }
+
+                auto expanded_bitwidth = needs_expanding ? dst_bitwidth : src_bitwidth;
+                auto bitcast_target_type = convert(get_primtype(world(), dst_kind, expanded_bitwidth, length))->type_id;
+                data = bb->convert(spv::OpBitcast, bitcast_target_type, data);
+
+                if (needs_chopping) {
+                    auto target_type = convert(get_primtype(world(), dst_kind, dst_bitwidth, length))->type_id;
+                    switch (dst_kind) {
+                        case PrimTypeKind::Signed:
+                            data = bb->convert(spv::OpSConvert, target_type, data);
+                            break;
+                        case PrimTypeKind::Unsigned:
+                            data = bb->convert(spv::OpUConvert, target_type, data);
+                            break;
+                        case PrimTypeKind::Float:
+                            data = bb->convert(spv::OpFConvert, target_type, data);
+                            break;
+                    }
+                }
+            }
+        } else THORIN_UNREACHABLE;
     } else if (def->isa<Bottom>()) {
         return bb->undef(convert(def->type())->type_id);
     }
@@ -782,10 +927,10 @@ std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const 
 
         auto values = source_cont->arg(2);
         bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs->shader_printf, 1, args);
-    } if (builtin->name() == "get_local_id") {
+    } else if (builtin->name() == "get_local_id") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->local_id);
         auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
-        productions.push_back(bb->bitcast(i32_t->type_id, extracted));
+        productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else {
         world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
     }

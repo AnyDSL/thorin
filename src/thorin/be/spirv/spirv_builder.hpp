@@ -139,37 +139,9 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
-    SpvId bitcast(SpvId target_type, SpvId value) {
-        op(spv::Op::OpBitcast, 4);
-        auto id = generate_fresh_id();
-        ref_id(target_type);
-        ref_id(id);
-        ref_id(value);
-        return id;
-    }
-
-    /// Change bit-width
-    SpvId u_convert(SpvId target_type, SpvId value) {
-        op(spv::Op::OpUConvert, 4);
-        auto id = generate_fresh_id();
-        ref_id(target_type);
-        ref_id(id);
-        ref_id(value);
-        return id;
-    }
-
-    /// Change bit-width
-    SpvId s_convert(SpvId target_type, SpvId value) {
-        op(spv::Op::OpSConvert, 4);
-        auto id = generate_fresh_id();
-        ref_id(target_type);
-        ref_id(id);
-        ref_id(value);
-        return id;
-    }
-
-    SpvId convert_u_ptr(SpvId target_type, SpvId value) {
-        op(spv::Op::OpConvertUToPtr, 4);
+    // Used for almost all conversion operations
+    SpvId convert(spv::Op op_, SpvId target_type, SpvId value) {
+        op(op_, 4);
         auto id = generate_fresh_id();
         ref_id(target_type);
         ref_id(id);

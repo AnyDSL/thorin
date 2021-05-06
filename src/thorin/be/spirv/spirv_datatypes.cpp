@@ -20,7 +20,7 @@ SpvId ScalarDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageCl
     serialization_types;
     auto cell = bb.access_chain(arr_cell_tid, array, { base_offset });
     auto loaded = bb.load(u32_tid, cell);
-    return bb.bitcast(type->type_id, loaded);
+    return bb.convert(spv::OpBitcast, type->type_id, loaded);
 }
 
 void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) {
@@ -28,7 +28,7 @@ void ScalarDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass
     assert(size_in_bytes == 4);
     serialization_types;
     auto cell = bb.access_chain(arr_cell_tid, array, { base_offset });
-    auto casted = bb.bitcast(u32_tid, data);
+    auto casted = bb.convert(spv::OpBitcast, u32_tid, data);
     bb.store(casted, cell);
 }
 
@@ -40,13 +40,13 @@ SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass
     auto cell0 = bb.access_chain(arr_cell_tid, array, { base_offset });
     auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.constant(u32_tid, { (uint32_t) 1 })) });
 
-    auto lower = bb.u_convert(u64_tid, bb.load(u32_tid, cell0));
-    auto upper = bb.u_convert(u64_tid, bb.load(u32_tid, cell1));
+    auto lower = bb.convert(spv::OpUConvert, u64_tid, bb.load(u32_tid, cell0));
+    auto upper = bb.convert(spv::OpUConvert, u64_tid, bb.load(u32_tid, cell1));
 
     SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
     auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, lower, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32));
 
-    return bb.convert_u_ptr(type->type_id, merged);
+    return bb.convert(spv::OpConvertUToPtr, type->type_id, merged);
 }
 
 void PtrDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) {

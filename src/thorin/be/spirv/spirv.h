@@ -16,32 +16,39 @@ struct FileBuilder;
 struct FnBuilder;
 
 struct ConvertedType {
+    ConvertedType(CodeGen* cg) : code_gen(cg) {}
+    ConvertedType(const ConvertedType&) = delete;
+
     spirv::CodeGen* code_gen;
     const thorin::Type* src_type;
     SpvId type_id { 0 };
     std::unique_ptr<Datatype> datatype;
 
-    ConvertedType(CodeGen* cg) : code_gen(cg) {}
     bool is_known_size() { return datatype != nullptr; }
 };
 
 struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
     explicit BasicBlockBuilder(FnBuilder& fn_builder);
+    BasicBlockBuilder(const BasicBlockBuilder&) = delete;
 
     FnBuilder& fn_builder;
+    FileBuilder& file_builder;
     std::unordered_map<const Param*, Phi> phis_map;
     DefMap<SpvId> args;
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {
+    explicit FnBuilder(CodeGen* cg, FileBuilder& file_builder);
+    FnBuilder(const FnBuilder&) = delete;
+
     CodeGen* cg;
+    FileBuilder& file_builder;
+
     const Scope* scope = nullptr;
     std::vector<std::unique_ptr<BasicBlockBuilder>> bbs;
     std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
     ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;
-
-    explicit FnBuilder(CodeGen* cg, builder::SpvFileBuilder* file_builder) : builder::SpvFnBuilder(file_builder), cg(cg) {}
 };
 
 struct Builtins {
@@ -62,12 +69,26 @@ struct ImportedInstructions {
 };
 
 struct FileBuilder : public builder::SpvFileBuilder {
+    explicit FileBuilder(CodeGen* cg);
+    FileBuilder(const FileBuilder&) = delete;
+
     CodeGen* cg;
 
     std::unique_ptr<Builtins> builtins;
     std::unique_ptr<ImportedInstructions> imported_instrs;
 
-    explicit FileBuilder(CodeGen* cg);
+    SpvId u32_t();
+    SpvId u32_constant(uint32_t);
+
+private:
+    SpvId u32_t_ { 0 };
+    /*SpvId i32_t;
+    SpvId u32_t;
+    SpvId i64_t;
+    SpvId u64_t;
+    SpvId i32_constant(int32_t);
+    SpvId i64_constant(int64_t);
+    SpvId u64_constant(uint64_t);*/
 };
 
 class CodeGen : public thorin::CodeGen {

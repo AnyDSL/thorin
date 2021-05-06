@@ -38,13 +38,12 @@ SpvId PtrDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass
     SpvId u64_tid = type->code_gen->convert(type->code_gen->world().type_pu64())->type_id;
 
     auto cell0 = bb.access_chain(arr_cell_tid, array, { base_offset });
-    auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.constant(u32_tid, { (uint32_t) 1 })) });
+    auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.u32_constant(1)) });
 
     auto lower = bb.convert(spv::OpUConvert, u64_tid, bb.load(u32_tid, cell0));
     auto upper = bb.convert(spv::OpUConvert, u64_tid, bb.load(u32_tid, cell1));
 
-    SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
-    auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, lower, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, c32));
+    auto merged = bb.binop(spv::OpBitwiseOr, u64_tid, lower, bb.binop(spv::OpShiftLeftLogical, u64_tid, upper, bb.file_builder.u32_constant(32)));
 
     return bb.convert(spv::OpConvertUToPtr, type->type_id, merged);
 }
@@ -57,12 +56,10 @@ void PtrDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClass st
     auto u64_ptr = bb.convert(spv::OpConvertPtrToU, u64_tid, data);
 
     auto cell0 = bb.access_chain(arr_cell_tid, array, { base_offset });
-    auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.constant(u32_tid, { (uint32_t) 1 })) });
-
-    SpvId c32 = bb.file_builder.constant(u32_tid, { 32 });
+    auto cell1 = bb.access_chain(arr_cell_tid, array, { bb.binop(spv::OpIAdd, u32_tid, base_offset, bb.file_builder.u32_constant(1)) });
 
     auto lower = bb.convert(spv::OpUConvert, u64_tid, u64_ptr);
-    auto upper = bb.convert(spv::OpUConvert, u64_tid, bb.binop(spv::OpShiftRightLogical, u64_tid, u64_ptr, c32));
+    auto upper = bb.convert(spv::OpUConvert, u64_tid, bb.binop(spv::OpShiftRightLogical, u64_tid, u64_ptr, bb.file_builder.u32_constant(32)));
 
     bb.store(lower, cell0);
     bb.store(upper, cell1);
@@ -78,7 +75,7 @@ SpvId DefiniteArrayDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::St
     std::vector<SpvId> indices;
     std::vector<SpvId> elements;
     SpvId offset = base_offset;
-    SpvId stride = bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() });
+    SpvId stride = bb.file_builder.u32_constant(element_type->datatype->serialized_size());
     for (size_t i = 0; i < length; i++) {
         SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, array, offset);
         elements.push_back(element);
@@ -90,7 +87,7 @@ void DefiniteArrayDatatype::emit_serialization(BasicBlockBuilder& bb, spv::Stora
     SpvId u32_tid = type->code_gen->convert(type->code_gen->world().type_pu32())->type_id;
     std::vector<SpvId> indices;
     SpvId offset = base_offset;
-    SpvId stride = bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() });
+    SpvId stride = bb.file_builder.u32_constant(element_type->datatype->serialized_size());
     for (size_t i = 0; i < length; i++) {
         element_type->datatype->emit_serialization(bb, storage_class, array, offset, bb.extract(element_type->type_id, data, { (uint32_t) i }));
         offset = bb.binop(spv::OpIAdd, u32_tid, offset, stride);
@@ -113,7 +110,7 @@ SpvId ProductDatatype::emit_deserialization(BasicBlockBuilder& bb, spv::StorageC
     SpvId offset = base_offset;
     for (auto& element_type : elements_types) {
         SpvId element = element_type->datatype->emit_deserialization(bb, storage_class, array, offset);
-        offset = bb.binop(spv::OpIAdd, u32_tid, offset, bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() }));
+        offset = bb.binop(spv::OpIAdd, u32_tid, offset, bb.file_builder.u32_constant(element_type->datatype->serialized_size()));
         elements.push_back(element);
     }
     return bb.composite(type->type_id, elements);
@@ -126,7 +123,7 @@ void ProductDatatype::emit_serialization(BasicBlockBuilder& bb, spv::StorageClas
     int i = 0;
     for (auto& element_type : elements_types) {
         element_type->datatype->emit_serialization(bb, storage_class, array, offset, bb.extract(element_type->type_id, data, { (uint32_t) i++ }));
-        offset = bb.binop(spv::OpIAdd, u32_tid, offset, bb.file_builder.constant(u32_tid, { (uint32_t) element_type->datatype->serialized_size() }));
+        offset = bb.binop(spv::OpIAdd, u32_tid, offset, bb.file_builder.u32_constant(element_type->datatype->serialized_size()));
     }
 }
 
@@ -239,8 +236,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
         case Node_DefiniteArrayType: {
             auto array = type->as<DefiniteArrayType>();
             ConvertedType* element = convert(array->elem_type());
-            SpvId size = builder_->constant(convert(world().type_pu32())->type_id, {(uint32_t) array->dim() });
-            converted->type_id = builder_->declare_array_type(element->type_id, size);
+            converted->type_id = builder_->declare_array_type(element->type_id, builder_->u32_constant(array->dim()));
             converted->datatype = std::make_unique<DefiniteArrayDatatype>(converted, element, array->dim());
             break;
         }

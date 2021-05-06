@@ -80,9 +80,12 @@ switch (bitwidth) { \
 #undef GET_PRIMTYPE_WITH_KIND_F
 }
 
-CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
-    : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
-{}
+BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
+        : builder::SpvBasicBlockBuilder(fn_builder.file_builder), fn_builder(fn_builder), file_builder(fn_builder.file_builder) {
+    label = file_builder.generate_fresh_id();
+}
+
+FnBuilder::FnBuilder(CodeGen* cg, FileBuilder& file_builder) : builder::SpvFnBuilder(&file_builder), cg(cg), file_builder(file_builder) {}
 
 FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg) {
     capability(spv::Capability::CapabilityShader);
@@ -93,6 +96,16 @@ FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg) {
 
     addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
     memory_model = spv::MemoryModel::MemoryModelGLSL450;
+}
+
+SpvId FileBuilder::u32_t() {
+    if (u32_t_.id == 0)
+        u32_t_ = cg->convert(cg->world().type_pu32())->type_id;
+    return u32_t_;
+}
+
+SpvId FileBuilder::u32_constant(uint32_t pattern) {
+    return constant(u32_t(), { pattern });
 }
 
 Builtins::Builtins(FileBuilder& builder) {
@@ -132,6 +145,10 @@ ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
     shader_printf = builder.extended_import("NonSemantic.DebugPrintf");
 }
 
+CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
+        : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
+{}
+
 void CodeGen::emit_stream(std::ostream& out) {
     builder_ = std::make_unique<FileBuilder>(this);
 
@@ -163,7 +180,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
             SpvId callee = defs_[cont];
 
-            FnBuilder fn_builder(this, builder_.get());
+            FnBuilder fn_builder(this, *builder_.get());
             fn_builder.fn_type = entry_pt_signature;
             fn_builder.fn_ret_type = builder_->void_type;
 
@@ -172,7 +189,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
             // iterate on cont type and extract the arguments
             auto ptr_type = convert(world().ptr_type(world().definite_array_type(world().type_pu32(), 128), 1, 4, AddrSpace::Push))->type_id;
-            auto zero = bb->file_builder.constant(convert(world().type_pu32())->type_id, { 0 });
+            auto zero = bb->file_builder.u32_constant(0);
             auto arr_ref = bb->access_chain(ptr_type, push_constant_struct_ptr, { zero });
             uint32_t offset = 0;
             std::vector<SpvId> args;
@@ -183,7 +200,7 @@ void CodeGen::emit_stream(std::ostream& out) {
                 assert(param_type->order() == 0);
                 auto converted = convert(param_type);
                 assert(converted->datatype != nullptr);
-                SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, arr_ref, bb->file_builder.constant(convert(world().type_pu32())->type_id, { offset }));
+                SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, arr_ref, bb->file_builder.u32_constant(offset));
                 args.push_back(arg);
                 offset += converted->datatype->serialized_size();
             }
@@ -214,7 +231,7 @@ void CodeGen::emit(const thorin::Scope& scope) {
     entry_ = scope.entry();
     assert(entry_->is_returning());
 
-    FnBuilder fn(this, builder_.get());
+    FnBuilder fn(this, *builder_.get());
     fn.scope = &scope;
     fn.fn_type = convert(entry_->type())->type_id;
     fn.fn_ret_type = get_codom_type(entry_);
@@ -659,23 +676,20 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     } else if (auto variant = def->isa<Variant>()) {
         auto variant_type = def->type()->as<VariantType>();
         auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
+        auto tag = builder_->u32_constant(variant->index());
 
         if (variant_datatype->elements_types.size() > 1) {
             auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function))->type_id;
             auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
             auto converted_payload_type = convert(variant_type->op(variant->index()));
 
-            auto zero = bb->file_builder.constant(convert(world().type_pu32())->type_id, { 0 });
-
-            converted_payload_type->datatype->emit_serialization(*bb, spv::StorageClassFunction, payload_arr, zero, emit(variant->value(), bb));
+            converted_payload_type->datatype->emit_serialization(*bb, spv::StorageClassFunction, payload_arr, bb->file_builder.u32_constant(0), emit(variant->value(), bb));
             auto payload = bb->load(variant_datatype->elements_types[1]->type_id, payload_arr);
 
-            auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index())});
             std::vector<SpvId> with_tag = {tag, payload};
             return bb->composite(convert(variant->type())->type_id, with_tag);
         } else {
             // Zero-sized payload case
-            auto tag = builder_->constant(convert(world().type_pu32())->type_id, {static_cast<uint32_t>(variant->index())});
             std::vector<SpvId> with_tag = { tag };
             return bb->composite(convert(variant->type())->type_id, with_tag);
         }
@@ -691,8 +705,7 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
         auto payload = bb->extract(variant_datatype->elements_types[1]->type_id, emit(vextract->value(), bb), {1});
         bb->store(payload, payload_arr);
 
-        auto zero = bb->file_builder.constant(convert(world().type_pu32())->type_id, { 0 });
-        return target_type->datatype->emit_deserialization(*bb, spv::StorageClassFunction, payload_arr, zero);
+        return target_type->datatype->emit_deserialization(*bb, spv::StorageClassFunction, payload_arr, bb->file_builder.u32_constant(0));
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0), bb);
         return bb->extract(convert(world().type_pu32())->type_id, value, { 0 });
@@ -926,11 +939,6 @@ std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const 
         world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
     }
     return productions;
-}
-
-BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
-: builder::SpvBasicBlockBuilder(*fn_builder.file_builder), fn_builder(fn_builder) {
-    label = file_builder.generate_fresh_id();
 }
 
 }

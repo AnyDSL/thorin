@@ -14,6 +14,9 @@
 //#define DUMP_WIDEN
 //#define DUMP_VECTORIZER
 
+//#define DBG_TIME(v, t) llvm::TimeRegion v(t)
+#define DBG_TIME(v, t) (void)(t)
+
 namespace thorin {
 
 class Vectorizer {
@@ -102,9 +105,19 @@ private:
 
 Vectorizer::DivergenceAnalysis::State
 Vectorizer::DivergenceAnalysis::getUniform(const Def * def) {
+#if 0
     (void)(def);
     return Varying;
-    //return uniform[def];
+#else
+    std::cerr << "Get uniform\n";
+    std::cerr << def << "\n";
+    if (def->isa<Tuple>() && def->op(1)->isa<Continuation>()) {
+        std::cerr << "Varying\n";
+        return Varying;
+    }
+    std::cerr << ((uniform[def] == Varying) ? "Varying" : "Uniform") << "\n";
+    return uniform[def];
+#endif
 }
 
 ContinuationSet Vectorizer::DivergenceAnalysis::successors(Continuation * cont) {
@@ -559,14 +572,13 @@ void Vectorizer::DivergenceAnalysis::run() {
             continue;*/ //TODO: in this case, we still need to communicate varying information across parameters.
         ContinuationSet joins = it.second;
         for (auto join : joins) {
-            Scope scope(join);
+            for (auto param : join->params()) {
 #ifdef DUMP_DIV_ANALYSIS
-            std::cerr << "Varying values in\n";
-            scope.dump();
+                std::cerr << "Mark param varying\n";
+                param->dump();
 #endif
-            for (auto def : scope.defs()) {
-                uniform[def] = Varying;
-                def_queue.push(def);
+                uniform[param] = Varying;
+                def_queue.push(param);
             }
         }
     }
@@ -621,25 +633,32 @@ void Vectorizer::DivergenceAnalysis::run() {
                     std::cerr << is_op << "\n";
                     std::cerr << opnum << "\n";
 #endif
-                    auto target = cont->ops()[0]->isa_continuation();
+                    auto target = cont->op(0)->isa_continuation();
                     if (is_op && target && target->is_intrinsic() && opnum == 1 && relJoins.find(cont) != relJoins.end()) {
                         ContinuationSet joins = relJoins[cont];
                         for (auto join : joins) {
-                            Scope scope(join);
+                            for (auto param : join->params()) {
 #ifdef DUMP_DIV_ANALYSIS
-                            std::cerr << "Varying values in\n";
-                            scope.dump();
+                                std::cerr << "Mark param varying\n";
+                                param->dump();
 #endif
-                            for (auto def : scope.defs()) { //TODO: only parameters are varying, not the entire continuation!
-#ifdef DUMP_DIV_ANALYSIS
-                                std::cerr << "Push def ";
-                                def->dump();
-#endif
-                                uniform[def] = Varying;
-                                def_queue.push(def);
+                                uniform[param] = Varying;
+                                def_queue.push(param);
                             }
                         }
                     } else if (target && is_op) {
+                        if (target->is_imported()) {
+                            auto actualtarget = const_cast<Continuation*>(cont->op(cont->num_ops() - 1)->isa<Continuation>());
+                            assert(actualtarget);
+                            for (auto param : actualtarget->params()) {
+#ifdef DUMP_DIV_ANALYSIS
+                                std::cerr << "Mark param varying\n";
+                                param->dump();
+#endif
+                                uniform[param] = Varying;
+                                def_queue.push(param);
+                            }
+                        }
                         for (size_t i = 1; i < cont->num_ops(); ++i) {
                             auto source_param = cont->op(i);
                             auto target_param = target->params_as_defs()[i - 1];
@@ -759,7 +778,15 @@ const Def* Vectorizer::widen(const Def* old_def) {
 #ifdef DUMP_WIDEN
         std::cout << "Uni\n";
 #endif
-        return old_def; //TODO: this def could contain a continuation inside a tuple for match cases!
+        //Make a copy!
+        Array<const Def*> nops(old_def->num_ops());
+
+        for (unsigned i = 0; i < old_def->num_ops(); i++) {
+            nops[i] = (widen(old_def->op(i))); //These should all be uniform as well.
+        }
+
+        auto r = old_def->as<PrimOp>()->rebuild(nops);
+        return r; //TODO: this def could contain a continuation inside a tuple for match cases!
     } else if (auto param = old_def->isa<Param>()) {
 #ifdef DUMP_WIDEN
         std::cout << "Param\n";
@@ -963,40 +990,53 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
         if (callee->is_imported()) {
             auto old_fn_type = callee->type()->as<FnType>();
             Array<const Type*> ops(old_fn_type->num_ops());
-            for (size_t i = 0; i < old_fn_type->num_ops(); i++)
+            bool anyvector = false;
+            for (size_t i = 0; i < old_fn_type->num_ops(); i++) {
                 ops[i] = nops[i + 1]->type(); //TODO: this feels like a bad hack. At least it's working for now.
-
+                if (ops[i]->isa<VectorExtendedType>())
+                    anyvector = true;
+            }
             Debug de = callee->debug();
-            if (de.name() == "llvm.exp.f32")
-                de.set("llvm.exp.v8f32"); //TODO: Use vectorlength to find the correct intrinsic.
-            else if (de.name() == "llvm.exp.f64")
-                de.set("llvm.exp.v8f64");
-            else if (de.name() == "llvm.sqrt.f32")
-                de.set("llvm.sqrt.v8f32");
-            else if (de.name() == "llvm.sqrt.f64")
-                de.set("llvm.sqrt.v8f64");
-            else if (de.name() == "llvm.sin.f32")
-                de.set("llvm.sin.v8f32");
-            else if (de.name() == "llvm.sin.f64")
-                de.set("llvm.sin.v8f64");
-            else if (de.name() == "llvm.cos.f32")
-                de.set("llvm.cos.v8f32");
-            else if (de.name() == "llvm.cos.f64")
-                de.set("llvm.cos.v8f64");
-            else if (de.name() == "llvm.minnum.f32")
-                de.set("llvm.minnum.v8f32");
-            else if (de.name() == "llvm.minnum.f64")
-                de.set("llvm.minnum.v8f64");
-            else if (de.name() == "llvm.floor.f32")
-                de.set("llvm.floor.v8f32");
-            else if (de.name() == "llvm.floor.f64")
-                de.set("llvm.floor.v8f64");
-            else {
-                std::cerr << "Not supported: " << de.name() << "\n";
-                assert(false && "Import not supported in vectorize.");
+
+            if (de.name().str().rfind("rv_", 0) == 0) {
+                std::cerr << "RV intrinsic: " << de.name() << "\n";
+                assert(false);
             }
 
-            ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
+            if (anyvector) {
+                if (de.name() == "llvm.exp.f32")
+                    de.set("llvm.exp.v8f32"); //TODO: Use vectorlength to find the correct intrinsic.
+                else if (de.name() == "llvm.exp.f64")
+                    de.set("llvm.exp.v8f64");
+                else if (de.name() == "llvm.sqrt.f32")
+                    de.set("llvm.sqrt.v8f32");
+                else if (de.name() == "llvm.sqrt.f64")
+                    de.set("llvm.sqrt.v8f64");
+                else if (de.name() == "llvm.sin.f32")
+                    de.set("llvm.sin.v8f32");
+                else if (de.name() == "llvm.sin.f64")
+                    de.set("llvm.sin.v8f64");
+                else if (de.name() == "llvm.cos.f32")
+                    de.set("llvm.cos.v8f32");
+                else if (de.name() == "llvm.cos.f64")
+                    de.set("llvm.cos.v8f64");
+                else if (de.name() == "llvm.minnum.f32")
+                    de.set("llvm.minnum.v8f32");
+                else if (de.name() == "llvm.minnum.f64")
+                    de.set("llvm.minnum.v8f64");
+                else if (de.name() == "llvm.floor.f32")
+                    de.set("llvm.floor.v8f32");
+                else if (de.name() == "llvm.floor.f64")
+                    de.set("llvm.floor.v8f64");
+                else {
+                    std::cerr << "Not supported: " << de.name() << "\n";
+                    assert(false && "Import not supported in vectorize.");
+                }
+
+                ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
+            } else {
+                ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
+            }
             def2def_[callee] = ntarget;
         }
     }
@@ -1232,7 +1272,7 @@ bool Vectorizer::run() {
     world_.dump();
 #endif
 
-    llvm::TimeRegion vregion(time);
+    DBG_TIME(vregion, time);
 
     for (auto continuation : world_.exported_continuations()) {
         enqueue(continuation);
@@ -1281,7 +1321,7 @@ bool Vectorizer::run() {
                 }
     //Warning: Will fail to produce meaningful results or rightout break the program if kerndef does not dominate its subprogram
                 {
-                    llvm::TimeRegion div_time(time_div);
+                    DBG_TIME(div_time, time_div);
                     div_analysis_ = new DivergenceAnalysis(kerndef);
                     div_analysis_->run();
                 }
@@ -1289,7 +1329,7 @@ bool Vectorizer::run() {
     //Task 2: Widening
                 Continuation* vectorized;
                 {
-                    llvm::TimeRegion widen_time(time_widen);
+                    DBG_TIME(widen_time, time_widen);
                     widen_setup(kerndef);
                     vectorized = widen();
                 }
@@ -1301,7 +1341,7 @@ bool Vectorizer::run() {
 #endif
                 {
     //Task 3: Linearize divergent controll flow
-                llvm::TimeRegion lin_time(time_lin);
+                DBG_TIME(lin_time, time_lin);
 
                 std::queue <Continuation*> split_queue;
                 GIDMap<Continuation*, ContinuationSet> encloses_splits;

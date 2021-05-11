@@ -220,7 +220,7 @@ ConvertedType* CodeGen::convert(const Type* type) {
 
                 if (ptr->addr_space() == AddrSpace::Global) {
                     assert(element->datatype && "Can only have physical pointers to known-size types");
-                    builder_->decorate(converted->type_id, spv::DecorationArrayStride, {(uint32_t) element->datatype->serialized_size()});
+                    builder_->decorate(converted->type_id, spv::DecorationArrayStride, {(uint32_t) (element->datatype->serialized_size() * Datatype::base_element_bytes)});
                 }
             }
             ptr_done:

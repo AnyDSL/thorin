@@ -129,6 +129,10 @@ public:
     ConvertedType* type;
     Datatype(ConvertedType* type) : type(type) {}
 
+    // Datatypes are serialized using a base element, for now it is hardcoded to use 32-bit scalar unsigned integers
+    static constexpr size_t base_element_bitwidth = 32;
+    static constexpr size_t base_element_bytes = base_element_bitwidth / 8;
+
     virtual size_t serialized_size() = 0;
     virtual SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) = 0;
     virtual void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) = 0;

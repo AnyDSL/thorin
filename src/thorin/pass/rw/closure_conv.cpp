@@ -28,7 +28,15 @@ const Def* ClosureConv::rewrite(const Def* def) {
         if (is_callee(def, i)) continue;
 
         if (auto lam = def->op(i)->isa_nom<Lam>()) {
-            convert(lam)->dump(2);
+            if (lam->debug().name == "foo") {
+                auto clos = convert(lam);
+                clos->dump(17);
+            }
+            auto t = lam->type();
+            auto u = convert(t);
+            //t->dump(2);
+            //u->dump(2);
+            //convert(lam)->dump(2);
         }
     }
 
@@ -39,12 +47,13 @@ const Sigma* ClosureConv::convert(const Pi* pi) {
     auto [i, ins] = pi2closure_.emplace(pi, nullptr);
     if (!ins) return i->second;
 
-    // [Env: *, env: Env, [...., Env] -> codom]
+    // A -> B  =>  [Env: *, env: Env, [A, Env] -> B]
     auto closure = world().nom_sigma(3);
     closure->set(0, world().kind());
     auto Env = closure->var(0_s, world().dbg("Env"));
     closure->set(1, Env);
-    closure->set(2, world().pi(merge_sigma(pi->dom(), {Env}), pi->codom()));
+    auto new_pi = world().pi({pi->dom(), Env}, pi->codom());
+    closure->set(2, new_pi);
 
     return i->second = closure;
 }
@@ -55,25 +64,27 @@ const Tuple* ClosureConv::convert(Lam* lam) {
 
     auto Closure = convert(lam->type());
 
-    // [Env: *, env: Env, [...., Env] -> codom]
     Scope scope(lam);
     const auto& free = scope.free_defs();
     size_t n = free.size();
-    Array<const Def*> Env(n);
-    Array<const Def*> env(n);
+    Array<const Def*> Envs(n);
+    Array<const Def*> envs(n);
 
     size_t i = 0;
     for (auto def : free) {
         def->dump(0);
-        Env[i] = def->type();
-        env[i] = def;
+        Envs[i] = def->type();
+        envs[i] = def;
         ++i;
     }
 
+    auto Env = world().sigma(Envs);
+    auto env = world().sigma(envs);
+
     auto pi = lam->type();
-    auto new_dom = world().pi(merge_sigma(pi->dom(), {world().sigma(Env)}), pi->codom());
-    new_dom->dump(1);
-    auto new_lam = world().nom_lam(new_dom, lam->dbg());
+    auto new_dom = world().sigma({pi->dom(), Env});
+    auto new_pi  = world().pi(new_dom, pi->codom());
+    auto new_lam = world().nom_lam(new_pi, lam->dbg());
 
     Rewriter rewriter(world(), &scope);
     i = 0;
@@ -86,7 +97,7 @@ const Tuple* ClosureConv::convert(Lam* lam) {
     new_lam->set_filter(rewriter.rewrite(lam->filter()));
     new_lam->set_body  (rewriter.rewrite(lam->body  ()));
 
-    auto closure = world().tuple(Closure, {world().sigma(Env), new_lam, world().tuple(env)})->as<Tuple>();
+    auto closure = world().tuple(Closure, {Env, env, new_lam})->as<Tuple>();
 
     return it->second = closure;
 }

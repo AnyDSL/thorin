@@ -20,13 +20,13 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config, int
 void AMDGPUCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
     auto config = kernel_config_.find(continuation);
     if (config != kernel_config_.end()) {
-        auto& irbuilder = *cont2bb_[continuation].second;
         auto block = config->second->as<GPUKernelConfig>()->block_size();
         if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0) {
             Array<llvm::Metadata*> annotation_values_wgsize(3);
-            annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(irbuilder.getInt32(std::get<0>(block)));
-            annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(irbuilder.getInt32(std::get<1>(block)));
-            annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(irbuilder.getInt32(std::get<2>(block)));
+            auto int32_type = llvm::IntegerType::get(context(), 32);
+            annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(int32_type, std::get<0>(block)));
+            annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(int32_type, std::get<1>(block)));
+            annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(int32_type, std::get<2>(block)));
             f->setMetadata(llvm::StringRef("reqd_work_group_size"), llvm::MDNode::get(context(), llvm_ref(annotation_values_wgsize)));
         }
     }

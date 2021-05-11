@@ -45,9 +45,8 @@ private:
 //------------------------------------------------------------------------------
 
 enum class Visibility : uint8_t {
-    Imported,   ///< Imported from another source
-    Exported,   ///< Exported to other modules/object files
-    Internal    ///< Internal to the module
+    Internal,   ///< Internal to the module (only visible from inside it)
+    External    ///< External to the module (either imported or exported)
 };
 
 enum class CC : uint8_t {
@@ -155,15 +154,15 @@ public:
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
-    void make_exported() { attributes().visibility = Visibility::Exported; }
-    void make_imported() { attributes().visibility = Visibility::Imported; }
+    void make_external() { attributes().visibility = Visibility::External; }
     void make_internal() { attributes().visibility = Visibility::Internal; }
     bool is_basicblock() const;
     bool is_returning() const;
-    bool is_intrinsic() const;
-    bool is_exported() const;
-    bool is_imported() const;
-    bool is_internal() const;
+    bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
+    bool is_external() const { return attributes().visibility == Visibility::External; }
+    bool is_internal() const { return attributes().visibility == Visibility::Internal; }
+    bool is_imported() const { return is_external() && empty(); }
+    bool is_exported() const { return is_external() && !empty(); }
     bool is_accelerator() const;
     void destroy_body();
 

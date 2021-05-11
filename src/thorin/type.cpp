@@ -86,6 +86,10 @@ bool FnType::is_returning() const {
     return ret;
 }
 
+bool VariantType::has_payload() const {
+    return !std::all_of(ops().begin(), ops().end(), is_type_unit);
+}
+
 bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
 
 //------------------------------------------------------------------------------
@@ -188,10 +192,11 @@ TypeTable::TypeTable()
     , fn0_  (insert<FnType   >(*this, Types()))
     , mem_  (insert<MemType  >(*this))
     , frame_(insert<FrameType>(*this))
+{
 #define THORIN_ALL_TYPE(T, M) \
-    , T##_(insert<PrimType>(*this, PrimType_##T, 1))
+    primtypes_[PrimType_##T - Begin_PrimType] = insert<PrimType>(*this, PrimType_##T, 1);
 #include "thorin/tables/primtypetable.h"
-{}
+}
 
 const Type* TypeTable::tuple_type(Types ops) {
     return ops.size() == 1 ? ops.front() : insert<TupleType>(*this, ops);

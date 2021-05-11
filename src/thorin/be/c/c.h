@@ -29,7 +29,7 @@ public:
         switch (lang_) {
             case Lang::C99:    return ".c";
             case Lang::HLS:    return ".hls";
-            case Lang::CUDA:   return ".cuda";
+            case Lang::CUDA:   return ".cu";
             case Lang::OpenCL: return ".cl";
             default: THORIN_UNREACHABLE;
         }

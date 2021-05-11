@@ -53,6 +53,10 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(continuation->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
+    // Important: Must emit the memory object otherwise the
+    // memory operations before the call to vectorize are all gone!
+    emit_unsafe(continuation->arg(0));
+
     // arguments
     auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
     const size_t num_kernel_args = continuation->num_args() - VectorizeArgs::Num;

@@ -200,7 +200,8 @@ public:
     /// Splits this @p Def into an array.
     template<size_t A> auto split(        ) const { return split<A>(   [](const Def* def) { return def; }); }
                        auto split(size_t a) const { return split   (a, [](const Def* def) { return def; }); }
-    const Def* out(size_t i, const Def* dbg = {}) const { return proj(this, num_outs(), i, dbg); }
+    const Def* out(size_t n, size_t i, const Def* dbg = {}) const { return proj(this, n, i, dbg); }
+    const Def* out(size_t i, const Def* dbg = {}) const { return out(num_outs(), i, dbg); }
     Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
     size_t num_outs() const {
         if (auto a = isa_lit(arity())) return *a;
@@ -250,10 +251,9 @@ public:
     //@{
     /// Only returns a @p Var for this @em nom if it has ever been created.
     const Var* has_var() { return var_ ? var() : nullptr; }
-    const Var* var(const Def* dbg);
-    const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
-    const Var* var();       ///< Wrapper instead of default argument for easy access in @c gdb.
-    const Def* var(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
+    const Var* var(const Def* dbg = nullptr);
+    const Def* var(size_t n, size_t i, const Def* dbg = nullptr) { return proj((const Def*) var(), n, i, dbg); }
+    const Def* var(size_t i, const Def* dbg = nullptr) { return var(num_vars(), i, dbg); }
     Array<const Def*> vars() { return Array<const Def*>(num_vars(), [&](auto i) { return var(i); }); }
     size_t num_vars();
     //@}

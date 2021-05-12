@@ -52,7 +52,8 @@ void Scope::calc_bound() const {
         enqueue(op);
 
     while (!queue.empty()) {
-        for (auto op : queue.pop()->extended_ops())
+        auto def = queue.pop();
+        for (auto op : def->extended_ops())
             enqueue(op);
     }
 

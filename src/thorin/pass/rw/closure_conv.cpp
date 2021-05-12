@@ -22,18 +22,18 @@ const Def* ClosureConv::rewrite(Def* old_nom, const Def* new_type, const Def* ne
 
 const Def* ClosureConv::rewrite(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr) return def;
+    if (cur_lam == nullptr || def->isa<Var>()) return def;
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (is_callee(def, i)) continue;
 
         if (auto lam = def->op(i)->isa_nom<Lam>()) {
-            if (lam->debug().name == "foo") {
-                auto clos = convert(lam);
-                clos->dump(17);
-            }
-            auto t = lam->type();
-            auto u = convert(t);
+            if (lam->is_basicblock()) continue;
+
+            auto clos = convert(lam);
+            clos->dump(17);
+            //auto t = lam->type();
+            //auto u = convert(t);
             //t->dump(2);
             //u->dump(2);
             //convert(lam)->dump(2);
@@ -47,12 +47,13 @@ const Sigma* ClosureConv::convert(const Pi* pi) {
     auto [i, ins] = pi2closure_.emplace(pi, nullptr);
     if (!ins) return i->second;
 
-    // A -> B  =>  [Env: *, env: Env, [A, Env] -> B]
+    // A -> B  =>  [Env: *, env: Env, [A ∘ Env] -> B]
     auto closure = world().nom_sigma(3);
     closure->set(0, world().kind());
     auto Env = closure->var(0_s, world().dbg("Env"));
     closure->set(1, Env);
-    auto new_pi = world().pi({pi->dom(), Env}, pi->codom());
+    auto new_dom = merge_sigma(pi->dom(), {Env});
+    auto new_pi = world().pi(new_dom, pi->codom());
     closure->set(2, new_pi);
 
     return i->second = closure;
@@ -70,29 +71,33 @@ const Tuple* ClosureConv::convert(Lam* lam) {
     Array<const Def*> Envs(n);
     Array<const Def*> envs(n);
 
-    size_t i = 0;
+    n = 0;
     for (auto def : free) {
-        def->dump(0);
-        Envs[i] = def->type();
-        envs[i] = def;
-        ++i;
+        if (def->has_dep(Dep::Var)) {
+            outf("free: {}/{}\n", n, def);
+            def->dump(1);
+            Envs[n] = def->type();
+            envs[n] = def;
+            ++n;
+        }
     }
 
+    Envs.shrink(n);
+    envs.shrink(n);
+
     auto Env = world().sigma(Envs);
-    auto env = world().sigma(envs);
+    auto env = world().tuple(envs);
 
     auto pi = lam->type();
-    auto new_dom = world().sigma({pi->dom(), Env});
+    auto new_dom = merge_sigma(pi->dom(), {Env});
     auto new_pi  = world().pi(new_dom, pi->codom());
     auto new_lam = world().nom_lam(new_pi, lam->dbg());
 
     Rewriter rewriter(world(), &scope);
-    i = 0;
-    for (auto def : free) {
-        if (def->isa_nom()) continue;
-        def->dump(0);
-        rewriter.old2new[def] = world().extract(new_lam->vars().back(), n, i++);
-    }
+    rewriter.old2new[lam->var()] = world().tuple(new_lam->vars().skip_back());
+
+    for (size_t i = 0; i != n; ++i)
+        rewriter.old2new[envs[i]] = new_lam->vars().back()->out(n, i);
 
     new_lam->set_filter(rewriter.rewrite(lam->filter()));
     new_lam->set_body  (rewriter.rewrite(lam->body  ()));

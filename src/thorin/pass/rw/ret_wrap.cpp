@@ -14,6 +14,7 @@ void RetWrap::enter() {
             assert(new_vars.back() == ret_var && "we assume that the last element is the ret_var");
             new_vars.back() = ret_cont;
             auto new_var = world().tuple(cur_lam->dom(), new_vars);
+            world().DLOG("{} -> {}", cur_lam->var(), new_var);
             cur_lam->set(cur_lam->apply(new_var));
         }
     }

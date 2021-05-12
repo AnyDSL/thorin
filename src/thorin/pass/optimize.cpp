@@ -17,28 +17,27 @@ namespace thorin {
 
 void optimize(World& world) {
     PassMan(world)
-    .add<ClosureConv>()
-    .run();
-    /*
-    PassMan(world)
-    .add<PartialEval>()
+    //.add<PartialEval>()
     .add<EtaConv>()
-    .add<BetaRed>()
-    .add<SSAConstr>()
-    .add<CopyProp>()
+    //.add<BetaRed>()
+    //.add<SSAConstr>()
+    //.add<CopyProp>()
     //.add<Scalerize>()
     .run();
 
-    cleanup_world(world);
-    while (partial_evaluation(world, true)); // lower2cff
-    flatten_tuples(world);
-    cleanup_world(world);
+    //cleanup_world(world);
+    //while (partial_evaluation(world, true)); // lower2cff
+    //flatten_tuples(world);
+    //cleanup_world(world);
+
+    PassMan(world)
+    .add<ClosureConv>()
+    .run();
 
     PassMan(world)
     .add<BoundElim>()
     .add<RetWrap>()
     .run();
-    */
 }
 
 }

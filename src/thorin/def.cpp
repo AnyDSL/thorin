@@ -151,9 +151,7 @@ const Var* Def::var(const Def* dbg) {
     THORIN_UNREACHABLE;
 }
 
-const Var* Def::var() { return var(nullptr); }
-const Def* Def::var(size_t i) { return var(i, nullptr); }
-size_t     Def::num_vars() { return var()->num_outs(); }
+size_t Def::num_vars() { return var()->num_outs(); }
 
 Sort Def::level() const {
     if (                isa<Space>()) return Sort::Space;
@@ -171,7 +169,7 @@ Sort Def::sort() const {
         case Node::Pi:
         case Node::Sigma:
         case Node::Join:
-        case Node::Meet: return Sort::Type;
+        case Node::Meet:  return Sort::Type;
         case Node::Global:
         case Node::Insert:
         case Node::Lam:

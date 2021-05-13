@@ -89,7 +89,6 @@ set(THORIN_SOURCES
     util/utility.h
     util/ycomp.cpp
     util/ycomp.h
-    util/type_table.h
 )
 
 if(LLVM_FOUND)

@@ -99,62 +99,64 @@ void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
-            if (!continuation->empty()) {
-                // eat calls to known continuations that are only used once
-                while (auto callee = continuation->callee()->isa_continuation()) {
-                    if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
-                        for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                            callee->param(i)->replace(continuation->arg(i));
-                        continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
-                        callee->destroy_body();
-                        todo_ = todo = true;
-                    } else
-                        break;
+            if (continuation->empty()) continue;
+
+            // eat calls to known continuations that are only used once
+            while (auto callee = continuation->callee()->isa_continuation()) {
+                if (callee == continuation) break;
+
+                if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
+                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+                        callee->param(i)->replace(continuation->arg(i));
+                    continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                    callee->destroy_body();
+                    todo_ = todo = true;
+                } else
+                    break;
+            }
+
+            // try to subsume continuations which call a parameter
+            // (that is free within that continuation) with that parameter
+            if (auto param = continuation->callee()->isa<Param>()) {
+                if (param->continuation() == continuation || continuation->is_exported())
+                    continue;
+
+                if (continuation->args() == continuation->params_as_defs()) {
+                    continuation->replace(continuation->callee());
+                    continuation->destroy_body();
+                    todo_ = todo = true;
+                    continue;
                 }
 
-                // try to subsume continuations which call a parameter
-                // (that is free within that continuation) with that parameter
-                if (auto param = continuation->callee()->isa<Param>()) {
-                    if (param->continuation() == continuation || continuation->is_exported())
-                        continue;
+                // build the permutation of the arguments
+                Array<size_t> perm(continuation->num_args());
+                bool is_permutation = true;
+                for (size_t i = 0, e = continuation->num_args(); i != e; ++i)  {
+                    auto param_it = std::find(continuation->params().begin(),
+                                                continuation->params().end(),
+                                                continuation->arg(i));
 
-                    if (continuation->args() == continuation->params_as_defs()) {
-                        continuation->replace(continuation->callee());
-                        continuation->destroy_body();
+                    if (param_it == continuation->params().end()) {
+                        is_permutation = false;
+                        break;
+                    }
+
+                    perm[i] = param_it - continuation->params().begin();
+                }
+
+                if (!is_permutation) continue;
+
+                // for every use of the continuation at a call site,
+                // permute the arguments and call the parameter instead
+                for (auto use : continuation->copy_uses()) {
+                    auto ucontinuation = use->isa_continuation();
+                    if (ucontinuation && use.index() == 0) {
+                        Array<const Def*> new_args(perm.size());
+                        for (size_t i = 0, e = perm.size(); i != e; ++i) {
+                            new_args[i] = ucontinuation->arg(perm[i]);
+                        }
+                        ucontinuation->jump(param, new_args, ucontinuation->jump_debug());
                         todo_ = todo = true;
-                        continue;
-                    }
-
-                    // build the permutation of the arguments
-                    Array<size_t> perm(continuation->num_args());
-                    bool is_permutation = true;
-                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)  {
-                        auto param_it = std::find(continuation->params().begin(),
-                                                    continuation->params().end(),
-                                                    continuation->arg(i));
-
-                        if (param_it == continuation->params().end()) {
-                            is_permutation = false;
-                            break;
-                        }
-
-                        perm[i] = param_it - continuation->params().begin();
-                    }
-
-                    if (!is_permutation) continue;
-
-                    // for every use of the continuation at a call site,
-                    // permute the arguments and call the parameter instead
-                    for (auto use : continuation->copy_uses()) {
-                        auto ucontinuation = use->isa_continuation();
-                        if (ucontinuation && use.index() == 0) {
-                            Array<const Def*> new_args(perm.size());
-                            for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                                new_args[i] = ucontinuation->arg(perm[i]);
-                            }
-                            ucontinuation->jump(param, new_args, ucontinuation->jump_debug());
-                            todo_ = todo = true;
-                        }
                     }
                 }
             }
@@ -211,7 +213,7 @@ next_continuation:;
 
 void Cleaner::rebuild() {
     Importer importer(world_);
-    importer.type_old2new_.rehash(world_.types_.capacity());
+    importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
 
 #if THORIN_ENABLE_CHECKS

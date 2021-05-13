@@ -256,15 +256,17 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         }
         return os << down << endl << "} " << tuple_name(tuple) << ";";
     } else if (auto variant = type->isa<VariantType>()) {
-        os << "typedef struct {" << up << endl << "union {" << up;
-        for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
-            os << endl;
-            // Do not emit the empty tuple ('void')
-            if (is_type_unit(variant->op(i)))
-                os << "//";
-            emit_type(os, variant->op(i)) << " " << variant->op_name(i) << ";";
+        os << "typedef struct {" << up;
+        // This is required because we have zero-sized types but C/C++ do not
+        if (!std::all_of(variant->ops().begin(), variant->ops().end(), is_type_unit)) {
+            os << endl << "union {" << up;
+            for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
+                os << endl;
+                if (!is_type_unit(variant->op(i)))
+                    emit_type(os, variant->op(i)) << " " << variant->op_name(i) << ";";
+            }
+            os << down << endl << "} data;";
         }
-        os << down << endl << "} data;";
 
         auto tag_type =
             variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
@@ -288,8 +290,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         if (is_channel_type(struct_type))
             use_channels_ = true;
         return os;
-    } else if (type->isa<Var>()) {
-        THORIN_UNREACHABLE;
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         emit_type(os, array->elem_type());
         return os;
@@ -1219,6 +1219,7 @@ void CCodeGen::emit_c_int() {
     os_ << "#endif" << endl << endl;
     os_ << "#endif /* " << guard << " */";
 }
+
 
 template <size_t> struct SizedIntType {};
 template <> struct SizedIntType<sizeof(uint16_t)> { using Type = uint16_t; };

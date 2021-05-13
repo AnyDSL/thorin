@@ -627,6 +627,23 @@ bool visit(HashSet<Key, H>& set, const Arg& key) {
 
 //------------------------------------------------------------------------------
 
+template<class T>
+struct GIDLt {
+    bool operator()(T a, T b) const { return a->gid() < b->gid(); }
+};
+
+template<class T>
+struct GIDHash {
+    static uint64_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static bool eq(T a, T b) { return a == b; }
+    static T sentinel() { return T(1); }
+};
+
+template<class Key, class Value>
+using GIDMap = thorin::HashMap<Key, Value, GIDHash<Key>>;
+template<class Key>
+using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
+
 }
 
 #endif

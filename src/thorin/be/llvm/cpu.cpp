@@ -10,8 +10,8 @@
 
 namespace thorin {
 
-CPUCodeGen::CPUCodeGen(World& world)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
 {
     llvm::InitializeNativeTarget();
     auto triple_str   = llvm::sys::getDefaultTargetTriple();

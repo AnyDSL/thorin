@@ -176,13 +176,13 @@ public:
         {}
 
 #if THORIN_ENABLE_CHECKS
+        inline int id() const { return id_; }
         inline void verify() const { assert(table_->id_ == id_); }
         inline void verify(iterator_base i) const {
             assert(table_ == i.table_ && id_ == i.id_);(void)i;
             verify();
         }
 #else
-        int id() const { return 0; }
         inline void verify() const {}
         inline void verify(iterator_base) const {}
 #endif

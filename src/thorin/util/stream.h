@@ -174,7 +174,7 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     assert(false && "invalid format string for 's'");
 }
 
-template<class R, class F, bool rangei = false>
+template<class R, class F, bool rangei>
 Stream& Stream::range(const R& r, const char* sep, F f) {
     const char* cur_sep = "";
     size_t j = 0;

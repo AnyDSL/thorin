@@ -182,7 +182,7 @@ public:
             verify();
         }
 #else
-        int id() const { return id_; }
+        int id() const { return 0; }
         inline void verify() const {}
         inline void verify(iterator_base) const {}
 #endif

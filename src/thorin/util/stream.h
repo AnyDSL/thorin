@@ -166,12 +166,14 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
         case '}':
             if (match2nd(next, s, '}')) continue;
             assert(false && "unmatched/unescaped closing brace '}' in format string");
+            break;
         default:
             (*this) << *s++;
         }
     }
 
     assert(false && "invalid format string for 's'");
+    return *this;
 }
 
 template<class R, class F, bool rangei>

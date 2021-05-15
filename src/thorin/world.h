@@ -248,6 +248,9 @@ public:
         std::abort();
     }
 
+    // Ignore log
+    void ignore() {}
+
     template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }
@@ -306,7 +309,7 @@ private:
 #ifndef NDEBUG
 #define DLOG(...) log(thorin::LogLevel::Debug,   thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
 #else
-#define DLOG(...) do {} while (false)
+#define DLOG(...) ignore()
 #endif
 
 #endif

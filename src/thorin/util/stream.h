@@ -176,7 +176,7 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     return *this;
 }
 
-template<class R, class F, bool rangei>
+template<class R, class F, bool is_rangei>
 Stream& Stream::range(const R& r, const char* sep, F f) {
     const char* cur_sep = "";
     size_t j = 0;
@@ -187,7 +187,7 @@ Stream& Stream::range(const R& r, const char* sep, F f) {
             else
                 (*this) << *i;
         }
-        if constexpr (rangei) {
+        if constexpr (is_rangei) {
             f(j++);
         } else {
             f(elem);

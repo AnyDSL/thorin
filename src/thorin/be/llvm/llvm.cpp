@@ -401,6 +401,18 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     }
 }
 
+void CodeGen::finalize(const Scope& scope) {
+    std::vector<const Def*> to_remove;
+    for (auto& [def, value] : defs_) {
+        // These do not have scope dependencies in Thorin, but they translate to LLVM alloca loads
+        // which should never be reused outside of the function they were defined in, so we erase them
+        if (auto variant = def->isa<Variant>(); variant && !variant->value()->has_dep(Dep::Param))
+            to_remove.push_back(def);
+    }
+    for (auto& def : to_remove)
+        defs_.erase(def);
+}
+
 void CodeGen::emit_epilogue(Continuation* continuation) {
     auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
     auto& irbuilder = *ptr_irbuilder;

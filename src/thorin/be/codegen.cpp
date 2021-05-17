@@ -23,7 +23,7 @@ static void get_kernel_configs(
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
         for (auto exported : exported_continuations) {
-            if (exported->name() == continuation->name())
+            if (exported->unique_name() == continuation->unique_name())
                 imported = exported;
         }
         if (!imported) continue;
@@ -99,12 +99,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
         if (imported == nullptr)
             return;
 
-        imported->set_name(continuation->unique_name());
         imported->make_external();
-        continuation->set_name(continuation->unique_name());
-
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->set_name(continuation->param(i)->unique_name());
+            imported->param(i)->set_name(continuation->param(i)->name());
 
         kernels.emplace_back(continuation);
     });

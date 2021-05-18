@@ -552,7 +552,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     else if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
         llvm::Value* rhs = emit(bin->rhs());
-        const char* name = bin->name().c_str();
+        auto name = bin->name();
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();

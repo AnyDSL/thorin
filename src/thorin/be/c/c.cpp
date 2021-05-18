@@ -656,7 +656,7 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
     } else if (agg_type->isa<IndefiniteArrayType>()) {
         s.fmt("[{}]", emit(index));
     } else if (agg_type->isa<TupleType>()) {
-        s.fmt("{}e{}", prefix, emit(index));
+        s.fmt("{}e{}", prefix, emit_constant(index));
     } else if (agg_type->isa<StructType>()) {
         s.fmt("{}{}", prefix, agg_type->as<StructType>()->op_name(primlit_value<size_t>(index)));
     } else if (agg_type->isa<VectorType>()) {

@@ -294,9 +294,7 @@ CodeGen::emit_module() {
     rv::lowerIntrinsics(module());
 #endif
 
-#if THORIN_ENABLE_CHECKS
-    llvm::verifyModule(module());
-#endif
+    verify();
     optimize();
 
     // We need to delete the runtime at this point, since the ownership of

@@ -126,7 +126,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
     assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
     auto next = cur->arg(3);
 
-    if (cur->arg(2)->has_dep(Dep::Param)) {
+    if (!cur->arg(2)->has_dep(Dep::Param)) {
         auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
         world().idef(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
         cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug

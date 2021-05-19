@@ -65,6 +65,7 @@ public:
 private:
     std::string convert(const Type*);
     std::string addr_space_prefix(AddrSpace);
+    std::string constructor_prefix(const Type*);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
 
@@ -218,6 +219,13 @@ std::string CCodeGen::addr_space_prefix(AddrSpace addr_space) {
         assert(lang_ != Lang::C99 || addr_space == AddrSpace::Generic);
         return "";
     }
+}
+
+std::string CCodeGen::constructor_prefix(const Type* type) {
+    auto type_name = convert(type);
+    if (lang_ == Lang::C99 || lang_ == Lang::OpenCL)
+        return "(" + type_name + ")";
+    return type_name;
 }
 
 std::string CCodeGen::device_prefix() {
@@ -548,12 +556,14 @@ std::string CCodeGen::emit_constant(const Def* def) {
         return emit_bottom(def->type());
     } else if (def->isa<Aggregate>()) {
         auto is_array = def->isa<DefiniteArray>();
-        s.fmt(is_array ? "{{ {{ " : "{{\t\n");
-        s.range(def->ops(), is_array ? ", " : ",\n", [&] (const Def* op) { s << emit_constant(op); });
-        s.fmt(is_array ? " }} }}" : "\b\n}}");
+        s.fmt("{} ", constructor_prefix(def->type()));
+        s.fmt(is_array ? "{{ {{ " : "{{ ");
+        s.range(def->ops(), ", ", [&] (const Def* op) { s << emit_constant(op); });
+        s.fmt(is_array ? " }} }}" : " }}");
         return s.str();
     } else if (auto variant = def->isa<Variant>()) {
         auto variant_type = variant->type()->as<VariantType>();
+        s.fmt("{} ", constructor_prefix(variant_type));
         if (variant_type->has_payload()) {
             if (auto value = emit_constant(variant->value()); !value.empty())
                 s.fmt("{{ {{ {} }}, ", value);
@@ -679,16 +689,8 @@ static inline bool is_const_primop(const Def* def) {
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     auto name = def->unique_name();
 
-    if (is_const_primop(def)) {
-        // Constants will be emitted only once, so they must be placed
-        // at the top of the file, as globals.
-        auto const_value = emit_constant(def);
-        const char* qualifier = "const";
-        if (auto global = def->isa<Global>(); global && global->is_mutable())
-            qualifier = "";
-        func_decls_.fmt("static {}{} {} {} = {};\n", device_prefix(), qualifier, convert(def->type()), name, const_value);
-        return name;
-    }
+    if (is_const_primop(def))
+        return emit_constant(def);
 
     if (auto bin = def->isa<BinOp>()) {
         auto a = emit(bin->lhs());

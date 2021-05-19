@@ -399,7 +399,7 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     }
 }
 
-void CodeGen::finalize(const Scope& scope) {
+void CodeGen::finalize(const Scope&) {
     std::vector<const Def*> to_remove;
     for (auto& [def, value] : defs_) {
         // These do not have scope dependencies in Thorin, but they translate to LLVM alloca loads

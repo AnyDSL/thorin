@@ -59,6 +59,7 @@ protected:
     mutable hash_t hash_ = 0;
     mutable bool nominal_  = false;
     int order_ = 0;
+    size_t gid_;
 
 private:
     virtual const Type* vrebuild(TypeTable& to, Types ops) const = 0;
@@ -66,7 +67,6 @@ private:
     mutable TypeTable* table_;
 
     int tag_;
-    size_t gid_;
     thorin::Array<const Type*> ops_;
 
     friend TypeTable;
@@ -89,12 +89,13 @@ public:
 /// a name that uniquely identifies them).
 class NominalType : public Type {
 protected:
-    NominalType(TypeTable& table, int tag, Symbol name, size_t size)
+    NominalType(TypeTable& table, int tag, Symbol name, size_t size, size_t gid)
         : Type(table, tag, thorin::Array<const Type*>(size))
         , name_(name)
         , op_names_(size)
     {
         nominal_ = true;
+        gid_ = gid;
     }
 
     Symbol name_;
@@ -124,8 +125,8 @@ public:
 
 class StructType : public NominalType {
 private:
-    StructType(TypeTable& table, Symbol name, size_t size)
-        : NominalType(table, Node_StructType, name, size)
+    StructType(TypeTable& table, Symbol name, size_t size, size_t gid)
+        : NominalType(table, Node_StructType, name, size, gid)
     {}
 
 public:
@@ -136,8 +137,8 @@ public:
 
 class VariantType : public NominalType {
 private:
-    VariantType(TypeTable& table, Symbol name, size_t size)
-        : NominalType(table, Node_VariantType, name, size)
+    VariantType(TypeTable& table, Symbol name, size_t size, size_t gid)
+        : NominalType(table, Node_VariantType, name, size, gid)
     {}
 
 public:

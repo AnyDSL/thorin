@@ -203,14 +203,14 @@ const Type* TypeTable::tuple_type(Types ops) {
 }
 
 const StructType* TypeTable::struct_type(Symbol name, size_t size) {
-    auto type = new StructType(*this, name, size);
+    auto type = new StructType(*this, name, size, types_.size());
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;
 }
 
 const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
-    auto type = new VariantType(*this, name, size);
+    auto type = new VariantType(*this, name, size, types_.size());
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;

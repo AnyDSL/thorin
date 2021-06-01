@@ -73,6 +73,7 @@ protected:
     virtual void emit_fun_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
 
+    virtual llvm::Value* emit_mathop  (llvm::IRBuilder<>&, const MathOp*);
     virtual llvm::Value* emit_load    (llvm::IRBuilder<>&, const Load*);
     virtual llvm::Value* emit_store   (llvm::IRBuilder<>&, const Store*);
     virtual llvm::Value* emit_lea     (llvm::IRBuilder<>&, const LEA*);

@@ -9,6 +9,8 @@
 #include <unistd.h>
 #endif
 
+#include <cmath>
+
 #include "thorin/def.h"
 #include "thorin/primop.h"
 #include "thorin/continuation.h"
@@ -799,6 +801,59 @@ const Def* World::size_of(const Type* type, Debug dbg) {
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
     return cse(new SizeOf(bottom(type, dbg), dbg));
+}
+
+/*
+ * mathematical operations
+ */
+
+const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
+    switch (tag) {
+        case MathOp_sin: return sin(args[0], dbg);
+        case MathOp_cos: return cos(args[0], dbg);
+        default:
+            THORIN_UNREACHABLE;
+    }
+}
+
+const Def* World::sin(const Def* arg, Debug dbg) {
+    assert(is_type_f(arg->type()));
+    if (auto lit = arg->isa<PrimLit>()) {
+        switch (lit->primtype_tag()) {
+            case PrimType_qf16:
+            case PrimType_pf16:
+                return literal(lit->primtype_tag(), Box(half_float::sin(lit->value().get_f16())), dbg);
+            case PrimType_qf32:
+            case PrimType_pf32:
+                return literal(lit->primtype_tag(), Box(std::sin(lit->value().get_f32())), dbg);
+            case PrimType_qf64:
+            case PrimType_pf64:
+                return literal(lit->primtype_tag(), Box(std::sin(lit->value().get_f64())), dbg);
+            default:
+                THORIN_UNREACHABLE;
+        }
+    }
+    return cse(new MathOp(MathOp_sin, arg->type(), { arg }, dbg));
+}
+
+const Def* World::cos(const Def* arg, Debug dbg) {
+    assert(is_type_f(arg->type()));
+    if (auto lit = arg->isa<PrimLit>()) {
+        switch (lit->primtype_tag()) {
+            case PrimType_qf16:
+            case PrimType_pf16:
+                return literal(lit->primtype_tag(), Box(half_float::cos(lit->value().get_f16())), dbg);
+            case PrimType_qf32:
+            case PrimType_pf32:
+                return literal(lit->primtype_tag(), Box(std::cos(lit->value().get_f32())), dbg);
+            case PrimType_qf64:
+            case PrimType_pf64:
+                return literal(lit->primtype_tag(), Box(std::cos(lit->value().get_f64())), dbg);
+            default:
+                THORIN_UNREACHABLE;
+        }
+    }
+    return cse(new MathOp(MathOp_cos, arg->type(), { arg }, dbg));
 }
 
 /*

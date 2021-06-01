@@ -195,6 +195,7 @@ const Def* Bottom        ::vrebuild(World& to, Defs,     const Type* t) const { 
 const Def* Top           ::vrebuild(World& to, Defs,     const Type* t) const { return to.top(t, debug()); }
 const Def* Cast          ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], debug()); }
 const Def* Cmp           ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
+const Def* MathOp        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.mathop(mathop_tag(), ops, debug()); }
 const Def* Enter         ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], debug()); }
 const Def* Extract       ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], debug()); }
 const Def* Global        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], is_mutable(), debug()); }
@@ -263,6 +264,14 @@ const char* Cmp::op_name() const {
     switch (tag()) {
 #define THORIN_CMP(op) case Cmp_##op: return #op;
 #include "thorin/tables/cmptable.h"
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+const char* MathOp::op_name() const {
+    switch (tag()) {
+#define THORIN_MATHOP(op) case MathOp_##op: return #op;
+#include "thorin/tables/mathoptable.h"
         default: THORIN_UNREACHABLE;
     }
 }

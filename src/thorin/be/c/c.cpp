@@ -79,6 +79,7 @@ private:
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
+    bool use_math_ = false;
     bool use_fp_64_ = false;
     bool use_fp_16_ = false;
     bool use_channels_ = false;
@@ -262,6 +263,8 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <string.h>\n"); // for 'memcpy'
         if (use_malloc_)
             stream_.fmt("#include <stdlib.h>\n"); // for 'malloc'
+        if (use_math_)
+            stream_.fmt("#include <math.h>\n"); // for 'cos'/'sin'/...
         stream_.fmt("\n");
     }
 
@@ -723,6 +726,24 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
 
         func_impls_.fmt("{} {};\n", convert(bin->type()), name);
         bb.body.fmt("{} = {} {} {};\n", name, a, op, b);
+    } else if (auto mathop = def->isa<MathOp>()) {
+        use_math_ = true;
+        auto make_key = [] (MathOpTag tag, unsigned bitwidth) {
+            assert(bitwidth < 256);
+            return (static_cast<unsigned>(tag) << 8) | bitwidth;
+        };
+        static const std::unordered_map<unsigned, std::string> function_names = {
+            { make_key(MathOp_cos, 32), "cosf" },
+            { make_key(MathOp_cos, 64), "cos"  },
+            { make_key(MathOp_sin, 32), "sinf" },
+            { make_key(MathOp_sin, 64), "sin"  },
+        };
+        int bitwidth = num_bits(mathop->type()->primtype_tag());
+        assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);
+        func_impls_.fmt("{} {};\n", convert(mathop->type()), name);
+        func_impls_.fmt("{} = {}(", name, function_names.at(make_key(mathop->mathop_tag(), bitwidth)));
+        func_impls_.range(mathop->ops(), ", ", [&](const Def* op) { func_impls_ << emit(op); });
+        func_impls_.fmt(");\n");
     } else if (auto conv = def->isa<ConvOp>()) {
         auto s_type = conv->from()->type();
         auto d_type = conv->type();

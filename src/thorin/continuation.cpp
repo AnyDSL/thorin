@@ -159,24 +159,24 @@ void Continuation::set_all_true_filter() {
 
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
 void Continuation::set_intrinsic() {
-    if      (name() == "cuda")                 attributes().intrinsic = Intrinsic::CUDA;
-    else if (name() == "nvvm")                 attributes().intrinsic = Intrinsic::NVVM;
-    else if (name() == "opencl")               attributes().intrinsic = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")               attributes().intrinsic = Intrinsic::AMDGPU;
-    else if (name() == "hls")                  attributes().intrinsic = Intrinsic::HLS;
-    else if (name() == "parallel")             attributes().intrinsic = Intrinsic::Parallel;
-    else if (name() == "fibers")               attributes().intrinsic = Intrinsic::Fibers;
-    else if (name() == "spawn")                attributes().intrinsic = Intrinsic::Spawn;
-    else if (name() == "sync")                 attributes().intrinsic = Intrinsic::Sync;
-    else if (name() == "vectorize")            attributes().intrinsic = Intrinsic::Vectorize;
-    else if (name() == "pe_info")              attributes().intrinsic = Intrinsic::PeInfo;
-    else if (name() == "pipeline")             attributes().intrinsic = Intrinsic::Pipeline;
-    else if (name() == "reserve_shared")       attributes().intrinsic = Intrinsic::Reserve;
-    else if (name() == "atomic")               attributes().intrinsic = Intrinsic::Atomic;
-    else if (name() == "atomic_load")          attributes().intrinsic = Intrinsic::AtomicLoad;
-    else if (name() == "atomic_store")         attributes().intrinsic = Intrinsic::AtomicStore;
-    else if (name() == "cmpxchg")              attributes().intrinsic = Intrinsic::CmpXchg;
-    else if (name() == "undef")                attributes().intrinsic = Intrinsic::Undef;
+    if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
+    else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
+    else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")         attributes().intrinsic = Intrinsic::AMDGPU;
+    else if (name() == "hls")            attributes().intrinsic = Intrinsic::HLS;
+    else if (name() == "parallel")       attributes().intrinsic = Intrinsic::Parallel;
+    else if (name() == "fibers")         attributes().intrinsic = Intrinsic::Fibers;
+    else if (name() == "spawn")          attributes().intrinsic = Intrinsic::Spawn;
+    else if (name() == "sync")           attributes().intrinsic = Intrinsic::Sync;
+    else if (name() == "vectorize")      attributes().intrinsic = Intrinsic::Vectorize;
+    else if (name() == "pe_info")        attributes().intrinsic = Intrinsic::PeInfo;
+    else if (name() == "pipeline")       attributes().intrinsic = Intrinsic::Pipeline;
+    else if (name() == "reserve_shared") attributes().intrinsic = Intrinsic::Reserve;
+    else if (name() == "atomic")         attributes().intrinsic = Intrinsic::Atomic;
+    else if (name() == "atomic_load")    attributes().intrinsic = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")   attributes().intrinsic = Intrinsic::AtomicStore;
+    else if (name() == "cmpxchg")        attributes().intrinsic = Intrinsic::CmpXchg;
+    else if (name() == "undef")          attributes().intrinsic = Intrinsic::Undef;
     else world().ELOG("unsupported thorin intrinsic '{}'", name());
 }
 

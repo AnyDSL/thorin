@@ -162,6 +162,11 @@ public:
     const Def* align_of(const Type* type, Debug dbg = {});
     const Def* size_of(const Type* type, Debug dbg = {});
 
+    // mathematical functions
+    const Def* mathop(MathOpTag, Defs, Debug = {});
+    const Def* sin(const Def*, Debug = {});
+    const Def* cos(const Def*, Debug = {});
+
     // memory stuff
 
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});

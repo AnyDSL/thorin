@@ -629,6 +629,8 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                 }
             }
         }
+    } else if (auto mathop = def->isa<MathOp>()) {
+        return emit_mathop(irbuilder, mathop);
     } else if (auto conv = def->isa<ConvOp>()) {
         auto from = emit(conv->from());
         auto src_type = conv->from()->type();
@@ -958,6 +960,38 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
     auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
     return new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+}
+
+static inline std::string intrinsic_suffix(const thorin::PrimType* type) {
+    switch (type->primtype_tag()) {
+        // TODO: Do something for half I suppose
+        case PrimType_qf32:
+        case PrimType_pf32:
+            return "f32";
+        case PrimType_qf64:
+        case PrimType_pf64:
+            return "f64";
+        default:
+            THORIN_UNREACHABLE;
+    }
+}
+
+llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* mathop) {
+    static const std::unordered_map<MathOpTag, std::string> intrinsic_prefixes = {
+        { MathOp_sin, "llvm.sin." },
+        { MathOp_cos, "llvm.cos." }
+        // TODO: Add more
+    };
+    if (mathop->num_ops() == 1) {
+        // Unary mathematical operations
+        auto arg = emit(mathop->op(0));
+        auto fn_type = llvm::FunctionType::get(arg->getType(), { arg->getType() }, false);
+        auto prefix = intrinsic_prefixes.at(mathop->mathop_tag());
+        auto suffix = intrinsic_suffix(mathop->type());
+        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(prefix + suffix, fn_type).getCallee()->stripPointerCasts());
+        return irbuilder.CreateCall(fn, { arg });
+    } else
+        THORIN_UNREACHABLE;
 }
 
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {

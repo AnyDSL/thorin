@@ -807,53 +807,205 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  * mathematical operations
  */
 
-const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
-    switch (tag) {
-        case MathOp_sin: return sin(args[0], dbg);
-        case MathOp_cos: return cos(args[0], dbg);
+template <class F>
+const Def* World::transcendental(MathOpTag tag, const Def* arg, Debug dbg, F&& f) {
+    assert(is_type_f(arg->type()));
+    if (auto lit = arg->isa<PrimLit>()) {
+        switch (lit->primtype_tag()) {
+            case PrimType_qf16:
+            case PrimType_pf16:
+                return literal(lit->primtype_tag(), Box(f(lit->value().get_f16())), dbg);
+            case PrimType_qf32:
+            case PrimType_pf32:
+                return literal(lit->primtype_tag(), Box(f(lit->value().get_f32())), dbg);
+            case PrimType_qf64:
+            case PrimType_pf64:
+                return literal(lit->primtype_tag(), Box(f(lit->value().get_f64())), dbg);
+            default:
+                THORIN_UNREACHABLE;
+        }
+    }
+    return cse(new MathOp(tag, arg->type(), { arg }, dbg));
+}
+
+template <class F>
+const Def* World::transcendental(MathOpTag tag, const Def* left, const Def* right, Debug dbg, F&& f) {
+    assert(left->type() == right->type());
+    assert(is_type_f(left->type()));
+    if (auto [left_lit, right_lit] = std::pair { left->isa<PrimLit>(), right->isa<PrimLit>() }; left_lit && right_lit) {
+        switch (left_lit->primtype_tag()) {
+            case PrimType_qf16:
+            case PrimType_pf16:
+                return literal(left_lit->primtype_tag(), Box(f(left_lit->value().get_f16(), right_lit->value().get_f16())), dbg);
+            case PrimType_qf32:
+            case PrimType_pf32:
+                return literal(left_lit->primtype_tag(), Box(f(left_lit->value().get_f32(), right_lit->value().get_f32())), dbg);
+            case PrimType_qf64:
+            case PrimType_pf64:
+                return literal(left_lit->primtype_tag(), Box(f(left_lit->value().get_f64(), right_lit->value().get_f64())), dbg);
+            default:
+                THORIN_UNREACHABLE;
+        }
+    }
+    return cse(new MathOp(tag, left->type(), { left, right }, dbg));
+}
+
+template <class F>
+inline bool float_predicate(const PrimLit* lit, F&& f) {
+    switch (lit->primtype_tag()) {
+        case PrimType_qf16:
+        case PrimType_pf16:
+            return f(lit->value().get_f16());
+        case PrimType_qf32:
+        case PrimType_pf32:
+            return f(lit->value().get_f32());
+        case PrimType_qf64:
+        case PrimType_pf64:
+            return f(lit->value().get_f64());
         default:
             THORIN_UNREACHABLE;
     }
 }
 
-const Def* World::sin(const Def* arg, Debug dbg) {
-    assert(is_type_f(arg->type()));
-    if (auto lit = arg->isa<PrimLit>()) {
-        switch (lit->primtype_tag()) {
-            case PrimType_qf16:
-            case PrimType_pf16:
-                return literal(lit->primtype_tag(), Box(half_float::sin(lit->value().get_f16())), dbg);
-            case PrimType_qf32:
-            case PrimType_pf32:
-                return literal(lit->primtype_tag(), Box(std::sin(lit->value().get_f32())), dbg);
-            case PrimType_qf64:
-            case PrimType_pf64:
-                return literal(lit->primtype_tag(), Box(std::sin(lit->value().get_f64())), dbg);
-            default:
-                THORIN_UNREACHABLE;
+const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
+    // Folding rules are only valid for fast-math floating-point types
+    // No attempt to simplify mathematical expressions will be attempted otherwise
+    if (tag == MathOp_copysign) {
+        auto has_signbit = [] (auto x) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) {
+                return half_float::signbit(x);
+            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+                return std::signbit(x);
+            }
+            THORIN_UNREACHABLE;
+        };
+        if (is_type_qf(args[1]->type()) && args[1]->isa<PrimLit>()) {
+            // - copysign(x, <known-constant>) => -x if signbit(<known_constant>) or x otherwise
+            return float_predicate(args[1]->as<PrimLit>(), has_signbit) ? arithop_minus(args[0], dbg) : args[0];
         }
-    }
-    return cse(new MathOp(MathOp_sin, arg->type(), { arg }, dbg));
-}
-
-const Def* World::cos(const Def* arg, Debug dbg) {
-    assert(is_type_f(arg->type()));
-    if (auto lit = arg->isa<PrimLit>()) {
-        switch (lit->primtype_tag()) {
-            case PrimType_qf16:
-            case PrimType_pf16:
-                return literal(lit->primtype_tag(), Box(half_float::cos(lit->value().get_f16())), dbg);
-            case PrimType_qf32:
-            case PrimType_pf32:
-                return literal(lit->primtype_tag(), Box(std::cos(lit->value().get_f32())), dbg);
-            case PrimType_qf64:
-            case PrimType_pf64:
-                return literal(lit->primtype_tag(), Box(std::cos(lit->value().get_f64())), dbg);
-            default:
-                THORIN_UNREACHABLE;
+        return transcendental(MathOp_copysign, args[0], args[1], dbg, [] (auto x, auto y) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) {
+                return half_float::copysign(x, y);
+            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+                return std::copysign(x, y);
+            }
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_pow) {
+        if (is_type_qf(args[1]->type()) &&
+            args[1]->isa<PrimLit>() &&
+            float_predicate(args[1]->as<PrimLit>(), [] (auto x) { return x == decltype(x)(0.5); }))
+        {
+            // - pow(x, 0.5) => sqrt(x)
+            return sqrt(args[0], dbg);
         }
+        return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) {
+                return half_float::pow(x, y);
+            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+                return std::pow(x, y);
+            }
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_atan2) {
+        assert(args.size() == 2);
+        if (is_type_qf(args[0]->type())) {
+            // - atan2(sin(x), cos(x)) => x
+            if (args[0]->isa<MathOp>() && args[0]->as<MathOp>()->mathop_tag() == MathOp_sin &&
+                args[1]->isa<MathOp>() && args[1]->as<MathOp>()->mathop_tag() == MathOp_cos &&
+                args[0]->op(0) == args[1]->op(0))
+                return args[0]->op(0);
+        }
+        return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) {
+                return half_float::atan2(x, y);
+            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+                return std::atan2(x, y);
+            }
+            THORIN_UNREACHABLE;
+        });
+    } else {
+        if (is_type_qf(args[0]->type())) {
+            // - acos(cos(x)) => x
+            // - asin(sin(x)) => x
+            // - atan(tan(x)) => x
+            if (args[0]->isa<MathOp>()) {
+                auto other_tag = args[0]->as<MathOp>()->mathop_tag();
+                switch (tag) {
+                    case MathOp_acos: if (other_tag == MathOp_cos) return args[0]->op(0); break;
+                    case MathOp_asin: if (other_tag == MathOp_sin) return args[0]->op(0); break;
+                    case MathOp_atan: if (other_tag == MathOp_tan) return args[0]->op(0); break;
+                    default: break;
+                }
+            }
+            // - sqrt(x * x) => x
+            // - cbrt(x * x * x) => x
+            if (args[0]->isa<ArithOp>()) {
+                auto is_square = [] (const Def* x) -> const Def* {
+                    if (auto arithop = x->isa<ArithOp>(); arithop && arithop->arithop_tag() == ArithOp_mul)
+                        return x->op(0) == x->op(1) ? x->op(0) : nullptr;
+                    return nullptr;
+                };
+                auto is_cube = [&] (const Def* x) -> const Def* {
+                    if (auto arithop = x->isa<ArithOp>(); arithop && arithop->arithop_tag() == ArithOp_mul) {
+                        if (auto lhs = is_square(arithop->op(0)); lhs == arithop->op(1)) return lhs;
+                        if (auto rhs = is_square(arithop->op(1)); rhs == arithop->op(0)) return rhs;
+                    }
+                    return nullptr;
+                };
+                switch (tag) {
+                    case MathOp_sqrt: if (auto x = is_square(args[0])) return x; break;
+                    case MathOp_cbrt: if (auto x = is_cube(args[0]))   return x; break;
+                    default: break;
+                }
+            }
+        }
+        return transcendental(tag, args[0], dbg, [&] (auto arg) {
+            using T = decltype(arg);
+            if constexpr (std::is_same_v<T, half>) {
+                switch (tag) {
+                    case MathOp_fabs:  return half_float::fabs(arg);
+                    case MathOp_cos:   return half_float::cos(arg);
+                    case MathOp_sin:   return half_float::sin(arg);
+                    case MathOp_tan:   return half_float::tan(arg);
+                    case MathOp_acos:  return half_float::acos(arg);
+                    case MathOp_asin:  return half_float::asin(arg);
+                    case MathOp_atan:  return half_float::atan(arg);
+                    case MathOp_sqrt:  return half_float::sqrt(arg);
+                    case MathOp_cbrt:  return half_float::cbrt(arg);
+                    case MathOp_exp:   return half_float::exp(arg);
+                    case MathOp_exp2:  return half_float::exp2(arg);
+                    case MathOp_log:   return half_float::log(arg);
+                    case MathOp_log2:  return half_float::log2(arg);
+                    case MathOp_log10: return half_float::log10(arg);
+                    default: break;
+                }
+            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+                switch (tag) {
+                    case MathOp_fabs:  return std::fabs(arg);
+                    case MathOp_cos:   return std::cos(arg);
+                    case MathOp_sin:   return std::sin(arg);
+                    case MathOp_tan:   return std::tan(arg);
+                    case MathOp_acos:  return std::acos(arg);
+                    case MathOp_asin:  return std::asin(arg);
+                    case MathOp_atan:  return std::atan(arg);
+                    case MathOp_sqrt:  return std::sqrt(arg);
+                    case MathOp_cbrt:  return std::cbrt(arg);
+                    case MathOp_exp:   return std::exp(arg);
+                    case MathOp_exp2:  return std::exp2(arg);
+                    case MathOp_log:   return std::log(arg);
+                    case MathOp_log2:  return std::log2(arg);
+                    case MathOp_log10: return std::log10(arg);
+                    default: break;
+                }
+            }
+            THORIN_UNREACHABLE;
+        });
     }
-    return cse(new MathOp(MathOp_cos, arg->type(), { arg }, dbg));
 }
 
 /*

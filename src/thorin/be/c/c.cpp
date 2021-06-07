@@ -733,10 +733,26 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             return (static_cast<unsigned>(tag) << 8) | bitwidth;
         };
         static const std::unordered_map<unsigned, std::string> function_names = {
-            { make_key(MathOp_cos, 32), "cosf" },
-            { make_key(MathOp_cos, 64), "cos"  },
-            { make_key(MathOp_sin, 32), "sinf" },
-            { make_key(MathOp_sin, 64), "sin"  },
+#define MATH_FUNCTION(name) \
+            { make_key(MathOp_##name, 32), #name "f" }, \
+            { make_key(MathOp_##name, 64), #name },
+            MATH_FUNCTION(fabs)
+            MATH_FUNCTION(copysign)
+            MATH_FUNCTION(cos)
+            MATH_FUNCTION(sin)
+            MATH_FUNCTION(tan)
+            MATH_FUNCTION(acos)
+            MATH_FUNCTION(asin)
+            MATH_FUNCTION(atan)
+            MATH_FUNCTION(atan2)
+            MATH_FUNCTION(sqrt)
+            MATH_FUNCTION(cbrt)
+            MATH_FUNCTION(pow)
+            MATH_FUNCTION(exp)
+            MATH_FUNCTION(exp2)
+            MATH_FUNCTION(log)
+            MATH_FUNCTION(log2)
+            MATH_FUNCTION(log10)
         };
         int bitwidth = num_bits(mathop->type()->primtype_tag());
         assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);

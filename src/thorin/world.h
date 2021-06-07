@@ -164,8 +164,25 @@ public:
 
     // mathematical functions
     const Def* mathop(MathOpTag, Defs, Debug = {});
-    const Def* sin(const Def*, Debug = {});
-    const Def* cos(const Def*, Debug = {});
+
+    const Def* fabs (const Def* x, Debug dbg = {}) { return mathop(MathOp_fabs,  { x }, dbg); }
+    const Def* cos  (const Def* x, Debug dbg = {}) { return mathop(MathOp_cos,   { x }, dbg); }
+    const Def* sin  (const Def* x, Debug dbg = {}) { return mathop(MathOp_sin,   { x }, dbg); }
+    const Def* tan  (const Def* x, Debug dbg = {}) { return mathop(MathOp_tan,   { x }, dbg); }
+    const Def* acos (const Def* x, Debug dbg = {}) { return mathop(MathOp_acos,  { x }, dbg); }
+    const Def* asin (const Def* x, Debug dbg = {}) { return mathop(MathOp_asin,  { x }, dbg); }
+    const Def* atan (const Def* x, Debug dbg = {}) { return mathop(MathOp_atan,  { x }, dbg); }
+    const Def* sqrt (const Def* x, Debug dbg = {}) { return mathop(MathOp_sqrt,  { x }, dbg); }
+    const Def* cbrt (const Def* x, Debug dbg = {}) { return mathop(MathOp_cbrt,  { x }, dbg); }
+    const Def* exp  (const Def* x, Debug dbg = {}) { return mathop(MathOp_exp,   { x }, dbg); }
+    const Def* exp2 (const Def* x, Debug dbg = {}) { return mathop(MathOp_exp2,  { x }, dbg); }
+    const Def* log  (const Def* x, Debug dbg = {}) { return mathop(MathOp_log,   { x }, dbg); }
+    const Def* log2 (const Def* x, Debug dbg = {}) { return mathop(MathOp_log2,  { x }, dbg); }
+    const Def* log10(const Def* x, Debug dbg = {}) { return mathop(MathOp_log10, { x }, dbg); }
+
+    const Def* atan2   (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_atan2,    { x, y }, dbg); }
+    const Def* pow     (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_pow,      { x, y }, dbg); }
+    const Def* copysign(const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_copysign, { x, y }, dbg); }
 
     // memory stuff
 
@@ -280,7 +297,9 @@ private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
-    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+    template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
+    template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
+    template <class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     struct State {
         LogLevel min_level = LogLevel::Error;

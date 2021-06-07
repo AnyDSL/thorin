@@ -930,15 +930,16 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
         });
     } else {
         if (is_type_qf(args[0]->type())) {
-            // - acos(cos(x)) => x
-            // - asin(sin(x)) => x
-            // - atan(tan(x)) => x
+            // - cos(acos(x)) => x
+            // - sin(asin(x)) => x
+            // - tan(atan(x)) => x
+            // Note: The other way around (i.e. `acos(cos(x)) => x`) is not always true
             if (args[0]->isa<MathOp>()) {
                 auto other_tag = args[0]->as<MathOp>()->mathop_tag();
                 switch (tag) {
-                    case MathOp_acos: if (other_tag == MathOp_cos) return args[0]->op(0); break;
-                    case MathOp_asin: if (other_tag == MathOp_sin) return args[0]->op(0); break;
-                    case MathOp_atan: if (other_tag == MathOp_tan) return args[0]->op(0); break;
+                    case MathOp_cos: if (other_tag == MathOp_acos) return args[0]->op(0); break;
+                    case MathOp_sin: if (other_tag == MathOp_asin) return args[0]->op(0); break;
+                    case MathOp_tan: if (other_tag == MathOp_atan) return args[0]->op(0); break;
                     default: break;
                 }
             }

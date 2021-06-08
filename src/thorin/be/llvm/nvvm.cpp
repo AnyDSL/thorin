@@ -245,6 +245,35 @@ Continuation* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Cont
     return emit_reserve_shared(irbuilder, continuation);
 }
 
+llvm::Value* NVVMCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* mathop) {
+    auto make_key = [] (MathOpTag tag, unsigned bitwidth) { return (static_cast<unsigned>(tag) << 16) | bitwidth; };
+    static const std::unordered_map<unsigned, std::string> libdevice_functions = {
+#define MATH_FUNCTION(name) \
+        { make_key(MathOp_##name, 32), "__nv_" #name "f" }, \
+        { make_key(MathOp_##name, 64), "__nv_" #name },
+        MATH_FUNCTION(fabs)
+        MATH_FUNCTION(copysign)
+        MATH_FUNCTION(cos)
+        MATH_FUNCTION(sin)
+        MATH_FUNCTION(tan)
+        MATH_FUNCTION(acos)
+        MATH_FUNCTION(asin)
+        MATH_FUNCTION(atan)
+        MATH_FUNCTION(atan2)
+        MATH_FUNCTION(sqrt)
+        MATH_FUNCTION(cbrt)
+        MATH_FUNCTION(pow)
+        MATH_FUNCTION(exp)
+        MATH_FUNCTION(exp2)
+        MATH_FUNCTION(log)
+        MATH_FUNCTION(log2)
+        MATH_FUNCTION(log10)
+#undef MATH_FUNCTION
+    };
+    auto key = make_key(mathop->mathop_tag(), num_bits(mathop->type()->primtype_tag()));
+    return call_math_function(irbuilder, mathop, libdevice_functions.at(key));
+}
+
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)
         return module().getGlobalVariable(param->name(), true);

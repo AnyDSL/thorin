@@ -1007,6 +1007,10 @@ llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* ma
     } else
         THORIN_UNREACHABLE;
 
+    return call_math_function(irbuilder, mathop, function_name);
+}
+
+llvm::Value* CodeGen::call_math_function(llvm::IRBuilder<>& irbuilder, const MathOp* mathop, const std::string& function_name) {
     if (mathop->num_ops() == 1) {
         // Unary mathematical operations
         auto arg = emit(mathop->op(0));
@@ -1020,8 +1024,8 @@ llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* ma
         auto fn_type = llvm::FunctionType::get(left->getType(), { left->getType(), right->getType() }, false);
         auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
         return irbuilder.CreateCall(fn, { left, right });
-    } else
-        THORIN_UNREACHABLE;
+    }
+    THORIN_UNREACHABLE;
 }
 
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {

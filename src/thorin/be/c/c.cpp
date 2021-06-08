@@ -728,10 +728,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         bb.body.fmt("{} = {} {} {};\n", name, a, op, b);
     } else if (auto mathop = def->isa<MathOp>()) {
         use_math_ = true;
-        auto make_key = [] (MathOpTag tag, unsigned bitwidth) {
-            assert(bitwidth < 256);
-            return (static_cast<unsigned>(tag) << 8) | bitwidth;
-        };
+        auto make_key = [] (MathOpTag tag, unsigned bitwidth) { return (static_cast<unsigned>(tag) << 16) | bitwidth; };
         static const std::unordered_map<unsigned, std::string> function_names = {
 #define MATH_FUNCTION(name) \
             { make_key(MathOp_##name, 32), #name "f" }, \
@@ -753,6 +750,7 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             MATH_FUNCTION(log)
             MATH_FUNCTION(log2)
             MATH_FUNCTION(log10)
+#undef MATH_FUNCTION
         };
         int bitwidth = num_bits(mathop->type()->primtype_tag());
         assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);

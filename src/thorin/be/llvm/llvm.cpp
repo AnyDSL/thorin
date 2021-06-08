@@ -964,7 +964,6 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
 
 static inline std::string intrinsic_suffix(const thorin::PrimType* type) {
     switch (type->primtype_tag()) {
-        // TODO: Do something for half I suppose
         case PrimType_qf32:
         case PrimType_pf32:
             return "f32";
@@ -979,38 +978,47 @@ static inline std::string intrinsic_suffix(const thorin::PrimType* type) {
 llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* mathop) {
     static const std::unordered_map<MathOpTag, std::string> intrinsic_prefixes = {
         { MathOp_copysign, "llvm.copysign." },
-        { MathOp_fabs, "llvm.fabs." },
-        { MathOp_cos, "llvm.cos." },
-        { MathOp_sin, "llvm.sin." },
-        // TODO: The commented out lines here do not have an intrinsic in LLVM
-        // { MathOp_tan, "llvm.tan." },
-        // { MathOp_acos, "llvm.acos." },
-        // { MathOp_asin, "llvm.asin." },
-        // { MathOp_atan, "llvm.atan." },
-        // { MathOp_atan2, "llvm.atan2." },
-        { MathOp_sqrt, "llvm.sqrt." },
-        // { MathOp_cbrt, "llvm.cbrt." },
-        { MathOp_pow, "llvm.pow." },
-        { MathOp_exp, "llvm.exp." },
-        { MathOp_exp2, "llvm.exp2." },
-        { MathOp_log, "llvm.log." },
-        { MathOp_log2, "llvm.log2." },
-        { MathOp_log10, "llvm.log10." }
+        { MathOp_fabs,     "llvm.fabs." },
+        { MathOp_cos,      "llvm.cos." },
+        { MathOp_sin,      "llvm.sin." },
+        { MathOp_sqrt,     "llvm.sqrt." },
+        { MathOp_pow,      "llvm.pow." },
+        { MathOp_exp,      "llvm.exp." },
+        { MathOp_exp2,     "llvm.exp2." },
+        { MathOp_log,      "llvm.log." },
+        { MathOp_log2,     "llvm.log2." },
+        { MathOp_log10,    "llvm.log10." }
     };
-    auto prefix = intrinsic_prefixes.at(mathop->mathop_tag());
-    auto suffix = intrinsic_suffix(mathop->type());
+    static const std::unordered_map<MathOpTag, std::string> math_function_prefix = {
+        { MathOp_tan,   "tan" },
+        { MathOp_acos,  "acos" },
+        { MathOp_asin,  "asin" },
+        { MathOp_atan,  "atan" },
+        { MathOp_atan2, "atan2" },
+        { MathOp_cbrt,  "cbrt" },
+    };
+
+    std::string function_name;
+    if (auto it = intrinsic_prefixes.find(mathop->mathop_tag()); it != intrinsic_prefixes.end()) {
+        function_name = it->second + intrinsic_suffix(mathop->type());
+    } else if (auto it = math_function_prefix.find(mathop->mathop_tag()); it != math_function_prefix.end()) {
+        auto primtype_tag = mathop->type()->as<PrimType>()->primtype_tag();
+        function_name = it->second + ((primtype_tag == PrimType_qf32 || primtype_tag == PrimType_pf32) ? "f" : "");
+    } else
+        THORIN_UNREACHABLE;
+
     if (mathop->num_ops() == 1) {
         // Unary mathematical operations
         auto arg = emit(mathop->op(0));
         auto fn_type = llvm::FunctionType::get(arg->getType(), { arg->getType() }, false);
-        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(prefix + suffix, fn_type).getCallee()->stripPointerCasts());
+        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
         return irbuilder.CreateCall(fn, { arg });
     } else if (mathop->num_ops() == 2) {
         // Binary mathematical operations
         auto left = emit(mathop->op(0));
         auto right = emit(mathop->op(1));
         auto fn_type = llvm::FunctionType::get(left->getType(), { left->getType(), right->getType() }, false);
-        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(prefix + suffix, fn_type).getCallee()->stripPointerCasts());
+        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
         return irbuilder.CreateCall(fn, { left, right });
     } else
         THORIN_UNREACHABLE;

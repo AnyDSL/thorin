@@ -870,27 +870,25 @@ inline bool float_predicate(const PrimLit* lit, F&& f) {
 const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
     // Folding rules are only valid for fast-math floating-point types
     // No attempt to simplify mathematical expressions will be attempted otherwise
-    if (tag == MathOp_copysign) {
-        auto has_signbit = [] (auto x) {
-            using T = decltype(x);
-            if constexpr (std::is_same_v<T, half>) {
-                return half_float::signbit(x);
-            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
-                return std::signbit(x);
-            }
-            THORIN_UNREACHABLE;
-        };
+    auto signbit = [] (auto x) {
+        using T = decltype(x);
+        if constexpr (std::is_same_v<T, half>) return half_float::signbit(x);
+        else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::signbit(x);
+        THORIN_UNREACHABLE;
+    };
+    if (tag == MathOp_signbit) {
+        if (is_type_qf(args[0]->type()) && args[0]->isa<PrimLit>())
+            return literal_bool(float_predicate(args[0]->as<PrimLit>(), signbit), dbg);
+        return cse(new MathOp(tag, type_bool(), { args[0] }, dbg));
+    } else if (tag == MathOp_copysign) {
         if (is_type_qf(args[1]->type()) && args[1]->isa<PrimLit>()) {
             // - copysign(x, <known-constant>) => -x if signbit(<known_constant>) or x otherwise
-            return float_predicate(args[1]->as<PrimLit>(), has_signbit) ? arithop_minus(args[0], dbg) : args[0];
+            return float_predicate(args[1]->as<PrimLit>(), signbit) ? arithop_minus(args[0], dbg) : args[0];
         }
         return transcendental(MathOp_copysign, args[0], args[1], dbg, [] (auto x, auto y) {
             using T = decltype(x);
-            if constexpr (std::is_same_v<T, half>) {
-                return half_float::copysign(x, y);
-            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
-                return std::copysign(x, y);
-            }
+            if constexpr (std::is_same_v<T, half>) return half_float::copysign(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::copysign(x, y);
             THORIN_UNREACHABLE;
         });
     } else if (tag == MathOp_pow) {
@@ -903,15 +901,11 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
         }
         return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) {
             using T = decltype(x);
-            if constexpr (std::is_same_v<T, half>) {
-                return half_float::pow(x, y);
-            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
-                return std::pow(x, y);
-            }
+            if constexpr (std::is_same_v<T, half>) return half_float::pow(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::pow(x, y);
             THORIN_UNREACHABLE;
         });
     } else if (tag == MathOp_atan2) {
-        assert(args.size() == 2);
         if (is_type_qf(args[0]->type())) {
             // - atan2(sin(x), cos(x)) => x
             if (args[0]->isa<MathOp>() && args[0]->as<MathOp>()->mathop_tag() == MathOp_sin &&
@@ -919,13 +913,24 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
                 args[0]->op(0) == args[1]->op(0))
                 return args[0]->op(0);
         }
-        return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) {
+        return transcendental(MathOp_atan2, args[0], args[1], dbg, [] (auto x, auto y) {
             using T = decltype(x);
-            if constexpr (std::is_same_v<T, half>) {
-                return half_float::atan2(x, y);
-            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
-                return std::atan2(x, y);
-            }
+            if constexpr (std::is_same_v<T, half>) return half_float::atan2(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::atan2(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_fmin) {
+        return transcendental(MathOp_fmin, args[0], args[1], dbg, [] (auto x, auto y) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::fmin(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::fmin(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_fmax) {
+        return transcendental(MathOp_fmax, args[0], args[1], dbg, [] (auto x, auto y) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::fmax(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::fmax(x, y);
             THORIN_UNREACHABLE;
         });
     } else {
@@ -970,6 +975,9 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
             if constexpr (std::is_same_v<T, half>) {
                 switch (tag) {
                     case MathOp_fabs:  return half_float::fabs(arg);
+                    case MathOp_round: return half_float::round(arg);
+                    case MathOp_floor: return half_float::floor(arg);
+                    case MathOp_ceil:  return half_float::ceil(arg);
                     case MathOp_cos:   return half_float::cos(arg);
                     case MathOp_sin:   return half_float::sin(arg);
                     case MathOp_tan:   return half_float::tan(arg);
@@ -988,6 +996,9 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
             } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
                 switch (tag) {
                     case MathOp_fabs:  return std::fabs(arg);
+                    case MathOp_round: return std::round(arg);
+                    case MathOp_floor: return std::floor(arg);
+                    case MathOp_ceil:  return std::ceil(arg);
                     case MathOp_cos:   return std::cos(arg);
                     case MathOp_sin:   return std::sin(arg);
                     case MathOp_tan:   return std::tan(arg);

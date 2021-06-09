@@ -56,6 +56,12 @@ llvm::Value* AMDGPUCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const Math
         { make_key(MathOp_##name, 64), "__ocml_" #name "_f64" },
         MATH_FUNCTION(fabs)
         MATH_FUNCTION(copysign)
+        MATH_FUNCTION(signbit)
+        MATH_FUNCTION(round)
+        MATH_FUNCTION(floor)
+        MATH_FUNCTION(ceil)
+        MATH_FUNCTION(fmin)
+        MATH_FUNCTION(fmax)
         MATH_FUNCTION(cos)
         MATH_FUNCTION(sin)
         MATH_FUNCTION(tan)
@@ -74,7 +80,11 @@ llvm::Value* AMDGPUCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const Math
 #undef MATH_FUNCTION
     };
     auto key = make_key(mathop->mathop_tag(), num_bits(mathop->type()->primtype_tag()));
-    return call_math_function(irbuilder, mathop, ocml_functions.at(key));
+    auto res = call_math_function(irbuilder, mathop, ocml_functions.at(key));
+    // `__ocml_signbit_f32` and `__ocml_signbit_f64` both return integers, and not booleans
+    if (mathop->mathop_tag() == MathOp_signbit)
+        res = irbuilder.CreateIntCast(res, llvm::Type::getInt1Ty(context()), false, "signbit");
+    return res;
 }
 
 Continuation* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {

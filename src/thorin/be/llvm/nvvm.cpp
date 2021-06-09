@@ -253,6 +253,13 @@ llvm::Value* NVVMCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp
         { make_key(MathOp_##name, 64), "__nv_" #name },
         MATH_FUNCTION(fabs)
         MATH_FUNCTION(copysign)
+        { make_key(MathOp_signbit, 32), "__nv_signbitf" },
+        { make_key(MathOp_signbit, 64), "__nv_signbitd" },
+        MATH_FUNCTION(round)
+        MATH_FUNCTION(floor)
+        MATH_FUNCTION(ceil)
+        MATH_FUNCTION(fmin)
+        MATH_FUNCTION(fmax)
         MATH_FUNCTION(cos)
         MATH_FUNCTION(sin)
         MATH_FUNCTION(tan)
@@ -271,7 +278,11 @@ llvm::Value* NVVMCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp
 #undef MATH_FUNCTION
     };
     auto key = make_key(mathop->mathop_tag(), num_bits(mathop->type()->primtype_tag()));
-    return call_math_function(irbuilder, mathop, libdevice_functions.at(key));
+    auto res = call_math_function(irbuilder, mathop, libdevice_functions.at(key));
+    // `__nv_signbitf` and `__nv_signbitd` both return integers, and not booleans
+    if (mathop->mathop_tag() == MathOp_signbit)
+        res = irbuilder.CreateIntCast(res, llvm::Type::getInt1Ty(context()), false, "signbit");
+    return res;
 }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {

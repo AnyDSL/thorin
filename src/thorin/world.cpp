@@ -906,13 +906,6 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
             THORIN_UNREACHABLE;
         });
     } else if (tag == MathOp_atan2) {
-        if (is_type_qf(args[0]->type())) {
-            // - atan2(sin(x), cos(x)) => x
-            if (args[0]->isa<MathOp>() && args[0]->as<MathOp>()->mathop_tag() == MathOp_sin &&
-                args[1]->isa<MathOp>() && args[1]->as<MathOp>()->mathop_tag() == MathOp_cos &&
-                args[0]->op(0) == args[1]->op(0))
-                return args[0]->op(0);
-        }
         return transcendental(MathOp_atan2, args[0], args[1], dbg, [] (auto x, auto y) {
             using T = decltype(x);
             if constexpr (std::is_same_v<T, half>) return half_float::atan2(x, y);

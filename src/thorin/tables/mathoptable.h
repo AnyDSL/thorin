@@ -4,7 +4,6 @@
 
 THORIN_MATHOP(fabs)
 THORIN_MATHOP(copysign)
-THORIN_MATHOP(signbit)
 THORIN_MATHOP(round)
 THORIN_MATHOP(floor)
 THORIN_MATHOP(ceil)

@@ -876,11 +876,7 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
         else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::signbit(x);
         THORIN_UNREACHABLE;
     };
-    if (tag == MathOp_signbit) {
-        if (is_type_qf(args[0]->type()) && args[0]->isa<PrimLit>())
-            return literal_bool(float_predicate(args[0]->as<PrimLit>(), signbit), dbg);
-        return cse(new MathOp(tag, type_bool(), { args[0] }, dbg));
-    } else if (tag == MathOp_copysign) {
+    if (tag == MathOp_copysign) {
         if (is_type_qf(args[1]->type()) && args[1]->isa<PrimLit>()) {
             // - copysign(x, <known-constant>) => -x if signbit(<known_constant>) or x otherwise
             return float_predicate(args[1]->as<PrimLit>(), signbit) ? arithop_minus(args[0], dbg) : args[0];

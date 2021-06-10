@@ -1009,16 +1009,6 @@ llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* ma
     } else if (auto it = math_function_prefix.find(mathop->mathop_tag()); it != math_function_prefix.end()) {
         auto primtype_tag = mathop->type()->as<PrimType>()->primtype_tag();
         function_name = it->second + ((primtype_tag == PrimType_qf32 || primtype_tag == PrimType_pf32) ? "f" : "");
-    } else if (mathop->mathop_tag() == MathOp_signbit) {
-        // Extract the sign bit manually, since LLVM has no intrinsic for this
-        // Note: This assumes the IEEE-754 representation for floating-point numbers.
-        auto arg = emit(mathop->op(0));
-        auto bitwidth = num_bits(mathop->type()->primtype_tag());
-        auto target_type = llvm::Type::getIntNTy(context(), bitwidth);
-        auto arg_as_int = irbuilder.CreateBitCast(arg, target_type);
-        auto mask = llvm::ConstantInt::get(target_type, static_cast<uint64_t>(-1) << (bitwidth - 1));
-        auto zero = llvm::Constant::getNullValue(target_type);
-        return irbuilder.CreateICmpNE(irbuilder.CreateAnd(arg_as_int, mask), zero, "signbit");
     } else
         THORIN_UNREACHABLE;
 

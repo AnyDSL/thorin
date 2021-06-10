@@ -735,9 +735,6 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             { make_key(MathOp_##name, 64), #name },
             MATH_FUNCTION(fabs)
             MATH_FUNCTION(copysign)
-            // In C, `signbit` is a macro, so the same name can be used for floats and doubles
-            { make_key(MathOp_signbit, 32), "signbit" },
-            { make_key(MathOp_signbit, 64), "signbit" },
             MATH_FUNCTION(round)
             MATH_FUNCTION(floor)
             MATH_FUNCTION(ceil)

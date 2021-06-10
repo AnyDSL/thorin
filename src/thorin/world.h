@@ -166,7 +166,6 @@ public:
     const Def* mathop(MathOpTag, Defs, Debug = {});
 
     const Def* fabs   (const Def* x, Debug dbg = {}) { return mathop(MathOp_fabs,    { x }, dbg); }
-    const Def* signbit(const Def* x, Debug dbg = {}) { return mathop(MathOp_signbit, { x }, dbg); }
     const Def* round  (const Def* x, Debug dbg = {}) { return mathop(MathOp_round,   { x }, dbg); }
     const Def* ceil   (const Def* x, Debug dbg = {}) { return mathop(MathOp_ceil,    { x }, dbg); }
     const Def* floor  (const Def* x, Debug dbg = {}) { return mathop(MathOp_floor,   { x }, dbg); }

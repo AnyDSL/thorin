@@ -18,9 +18,24 @@
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/ScalarEvolution.h>
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>
-#include <llvm/Passes/PassBuilder.h>
-#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Config/llvm-config.h>
+#include <llvm/IR/Dominators.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Passes/PassBuilder.h>
+
+#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/EarlyCSE.h>
+#include <llvm/Transforms/Scalar/LICM.h>
+#include <llvm/Transforms/Scalar/SCCP.h>
+#include <llvm/Transforms/Scalar/SROA.h>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
+#include <llvm/Transforms/Utils.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/FixIrreducible.h>
+#include <llvm/Transforms/Utils/LCSSA.h>
+#include <llvm/Transforms/Utils/Mem2Reg.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
@@ -91,18 +106,31 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         llvm::errs() << "Broken module:\n";
         abort();
     }
+    llvm::PassBuilder PB;
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    LAM.registerPass([&] { return llvm::FunctionAnalysisManagerLoopProxy(FAM); });
+    FAM.registerPass([&] { return llvm::LoopAnalysisManagerFunctionProxy(LAM); });
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
 
     // ensure proper loop forms
-    llvm::legacy::FunctionPassManager pm(module_.get());
-    pm.add(llvm::createCFGSimplificationPass());
-    pm.add(llvm::createSROAPass());
-    pm.add(llvm::createEarlyCSEPass());
-    pm.add(llvm::createSCCPPass());
-    pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
-    pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
-    pm.add(llvm::createLICMPass());
-    pm.add(llvm::createLCSSAPass());
-    pm.run(*kernel_func);
+    llvm::FunctionPassManager FPM;
+    FPM.addPass(llvm::SimplifyCFGPass());
+    FPM.addPass(llvm::SROA());
+    FPM.addPass(llvm::EarlyCSEPass());
+    FPM.addPass(llvm::SCCPPass());
+    FPM.addPass(llvm::FixIrreduciblePass()); // make all loops reducible (has to run first!)
+    FPM.addPass(llvm::PromotePass()); // CNSPass relies on mem2reg for now
+
+    llvm::LoopPassManager LPM;
+    LPM.addPass(llvm::LICMPass());
+    FPM.addPass(llvm::RequireAnalysisPass<llvm::OptimizationRemarkEmitterAnalysis, llvm::Function>());
+    FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
+
+    FPM.addPass(llvm::LCSSAPass());
+
+    FPM.run(*kernel_func, FAM);
 
     // vectorize function
     auto simd_kernel_func = simd_kernel_call->getCalledFunction();
@@ -131,13 +159,6 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     rv::Region funcRegionWrapper(funcRegion);
     rv::VectorizationInfo vec_info(funcRegionWrapper, target_mapping);
 
-    llvm::FunctionAnalysisManager FAM;
-    llvm::ModuleAnalysisManager MAM;
-
-    llvm::PassBuilder PB;
-    PB.registerFunctionAnalyses(FAM);
-    PB.registerModuleAnalyses(MAM);
-
     llvm::TargetIRAnalysis ir_analysis;
     llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func, FAM);
     llvm::TargetLibraryAnalysis lib_analysis;
@@ -155,7 +176,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         }
 
         llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, false, retVec);
+        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, true, retVec);
 
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
@@ -170,19 +191,17 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         rv::addSleefResolver(config, platform_info);
 
         rv::VectorizerInterface vectorizer(platform_info, config);
+        {
+            llvm::DominatorTree dom_tree(*kernel_func);
+            llvm::LoopInfo loop_info(dom_tree);
+            LoopExitCanonicalizer canonicalizer(loop_info);
+            canonicalizer.canonicalize(*kernel_func);
+        }
 
-        llvm::DominatorTree dom_tree(*kernel_func);
-        llvm::PostDominatorTree pdom_tree;
-        pdom_tree.recalculate(*kernel_func);
-        llvm::LoopInfo loop_info(dom_tree);
-        llvm::ScalarEvolutionAnalysis SEA;
-        auto SE = SEA.run(*kernel_func, FAM);
-
-        llvm::MemoryDependenceAnalysis MDA;
-        auto MD = MDA.run(*kernel_func, FAM);
-
-        LoopExitCanonicalizer canonicalizer(loop_info);
-        canonicalizer.canonicalize(*kernel_func);
+        llvm::PassBuilder PB;
+        llvm::FunctionAnalysisManager FAM;
+        PB.registerFunctionAnalyses(FAM);
+        FAM.getResult<llvm::LoopAnalysis>(vec_info.getScalarFunction());
 
         vectorizer.analyze(vec_info, FAM);
 
@@ -197,7 +216,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // inline kernel
     llvm::InlineFunctionInfo info;
-    llvm::InlineFunction(simd_kernel_call, info);
+    llvm::InlineFunction(*simd_kernel_call, info);
 
     // remove vectorized function
     if (simd_kernel_func->hasNUses(0))

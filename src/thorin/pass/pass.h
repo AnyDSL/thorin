@@ -3,6 +3,8 @@
 
 #include "thorin/world.h"
 
+#include "thorin/analyses/scope.h"
+
 namespace thorin {
 
 class PassMan;

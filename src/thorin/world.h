@@ -119,6 +119,10 @@ public:
     /// Same as @p cn/@p pi but adds a @p mem @p Var to each @p Pi
     const Pi* cn_mem(const Def* dom, const Def* dbg = {}) { return cn({ type_mem(), dom }, dbg); }
     const Pi* cn_mem_ret(const Def* dom, const Def* ret_dom, const Def* dbg = {}) { return cn({type_mem(), dom, cn_mem(ret_dom)}, dbg); }
+    const Pi* cn_mem_flat(const Def* domain, const Def* codomain, const Def* dbg = {});
+    const Pi* cn_mem_half_flat(const Def* domain, const Def* codomain, const Def* dbg = {});
+    const Pi* pi_mem(const Def* domain, const Def* codomain, const Def* dbg = {}) { auto d = sigma({type_mem(), domain}); return pi(d, sigma({type_mem(), codomain}), dbg); }
+    const Pi* fn_mem(const Def* domain, const Def* codomain, const Def* dbg = {}) { return cn({type_mem(), domain, cn_mem(codomain)}, dbg); }
     //@}
 
     /// @name Lam%bda
@@ -368,8 +372,8 @@ public:
 
     /// @name AD
     //@{
-    const Def* op_grad(const Def* fn, const Def* dbg = {});
     const Def* type_tangent_vector(const Def* primal_type, const Def* dbg = {});
+    const Def* op_rev_diff(const Def* fn, const Def* dbg = {});
     //@}
 
     /// @name helpers
@@ -622,7 +626,6 @@ private:
         const Axiom* atomic_;
         const Axiom* lift_;
         const Axiom* bitcast_;
-        const Axiom* grad_;
         const Axiom* lea_;
         const Axiom* load_;
         const Axiom* slot_;
@@ -632,6 +635,7 @@ private:
         const Axiom* type_ptr_;
         const Axiom* type_real_;
         const Axiom* type_tangent_vector_;
+        const Axiom* op_rev_diff_;
         std::string name_;
         Externals externals_;
         Sea defs_;

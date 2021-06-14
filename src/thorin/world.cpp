@@ -16,6 +16,7 @@
 #include "thorin/rewrite.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
+#include "tables.h"
 
 namespace thorin {
 
@@ -179,15 +180,6 @@ World::World(const std::string& name)
         auto ptr = type_ptr(T, as);
         type->set_codom(pi({mem, nat}, sigma({mem, ptr})));
         data_.slot_ = axiom(nullptr, type, Tag::Slot, 0, dbg("slot"));
-    } { // type_tangent_vector: * -> *
-        data_.type_tangent_vector_ = axiom(normalize_tangent, pi(kind(), kind()), Tag::TangentVector, 0, dbg("tangent"));
-    } { // grad: [T: *, R: *] -> (T -> R) -> T -> tangent T
-        auto type = nom_pi(kind(), {kind(), kind()});
-        auto T = type->var(0, dbg("T"));
-        auto R = type->var(1, dbg("R"));
-        auto tangent_T = type_tangent_vector(T);
-        type->set_codom(pi(pi(T, R), pi(T, tangent_T)));
-        data_.grad_ = axiom(nullptr, type, Tag::Grad, 0, dbg("∇"));
     } { // atomic: [T: *, R: *] -> T -> R
         auto type = nom_pi(kind(), {kind(), kind()});
         auto T = type->var(0, dbg("T"));
@@ -225,6 +217,20 @@ World::World(const std::string& name)
         rs_pi->set_codom(is_os_pi);
 
         data_.lift_ = axiom(normalize_lift, rs_pi, Tag::Lift, 0, dbg("lift"));
+    } { // type_tangent_vector: Π*. *
+        data_.type_tangent_vector_ = axiom(normalize_tangent, pi(kind(), kind()), Tag::TangentVector, 0, dbg("tangent"));
+    } { // op_rev_diff: Π[I:*.O:*]. ΠI. O
+        // I can't figure out how to give it the correct type…
+        // pullback assumes that:
+        //     I = Π[mem, T₁, …, Tₙ, Π[mem, R₁, …, Rₙ].⊥].⊥
+        //     O = Π[mem, T₁, …, Tₙ, Π[mem, R₁, …, Rₙ, Π[mem, R'₁, …, R'ₙ, ΠT'.⊥].⊥].⊥].⊥
+        // where
+        //     α' = type_tangent_vector(α)
+        auto type = nom_pi(kind(), { kind(), kind() });
+        auto I = type->var(0, dbg("I"));
+        auto O = type->var(1, dbg("O"));
+        type->set_codom(pi(I, O));
+        data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, dbg("rev_diff"));
     }
 }
 
@@ -294,6 +300,95 @@ const Def* World::tuple(Defs ops, const Def* dbg) {
     }
 
     return t;
+}
+
+const Pi* World::cn_mem_half_flat(const Def* dom, const Def* codom, const Def* dbg) {
+    auto ret = cn(sigma({ type_mem(), codom }));
+
+    if (dom->isa<Sigma>()) {
+        auto size = dom->num_ops() + 2;
+        Array<const Def*> defs(size);
+        for (size_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = cn(ret);
+            } else {
+                defs[i] = dom->op(i);
+            }
+        }
+
+        return cn(defs);
+    }
+
+    if (auto a = dom->isa<Arr>()) {
+        auto size = a->shape()->as<Lit>()->get<uint8_t>() + 2;
+        Array<const Def*> defs(size);
+        for (uint8_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = ret;
+            } else {
+                defs[i] = a->body();
+            }
+        }
+
+        return cn(defs);
+    }
+
+    return cn(merge(type_mem(), {dom, ret}), dbg);
+}
+
+const Pi* World::cn_mem_flat(const Def* dom, const Def* codom, const Def* dbg) {
+    auto ret = cn(sigma({ type_mem(), codom }));
+    if (codom->isa<Sigma>()) {
+        ret = cn(merge_sigma(type_mem(), codom->ops())) ;
+    }
+    if (auto a = codom->isa<Arr>()) {
+        auto size = a->shape()->as<Lit>()->get<uint8_t>() + 1;
+        Array<const Def*> defs(size);
+        for (uint8_t i = 0; i < size - 1; ++i) {
+            defs[i + 1] = a->body();
+        }
+        defs.front() = type_mem();
+        ret = cn(defs);
+    }
+
+
+    if (dom->isa<Sigma>()) {
+        auto size = dom->num_ops() + 2;
+        Array<const Def*> defs(size);
+        for (size_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = ret;
+            } else {
+                defs[i] = dom->op(i);
+            }
+        }
+
+        return cn(defs);
+    }
+
+    if (auto a = dom->isa<Arr>()) {
+        auto size = a->shape()->as<Lit>()->get<uint8_t>() + 2;
+        Array<const Def*> defs(size);
+        for (uint8_t i = 0; i < size; ++i) {
+            if (i == 0) {
+                defs[i] = type_mem();
+            } else if (i == size - 1) {
+                defs[i] = ret;
+            } else {
+                defs[i] = a->body();
+            }
+        }
+
+        return cn(defs);
+    }
+
+    return cn(merge(type_mem(), {dom, ret}), dbg);
 }
 
 const Def* World::tuple(const Def* type, Defs ops, const Def* dbg) {
@@ -625,23 +720,6 @@ const Def* World::gid2def(u32 gid) {
 
 #endif
 
-const Def* World::op_grad(const Def* /*fn*/, const Def* /*dbg*/) {
-#if 0
-    if (fn->type()->isa<Pi>()) {
-        auto ds_fn = cps2ds(fn);
-        auto ds_pi = ds_fn->type()->as<Pi>();
-        auto to_grad = app(data_.op_grad_, {ds_pi->dom(), ds_pi->codom()}, dbg);
-        auto grad = app(to_grad, ds_fn, dbg);
-        return ds2cps(grad);
-    }
-#endif
-    THORIN_UNREACHABLE;
-}
-
-const Def* World::type_tangent_vector(const Def* primal_type, const Def* dbg) {
-    return app(data_.type_tangent_vector_, primal_type, dbg);
-}
-
 /*
  * helpers
  */
@@ -690,6 +768,39 @@ void World::visit(VisitFn f) const {
             noms.push(nom);
     }
 }
+
+/*
+ * misc
+ */
+
+const Def* World::op_rev_diff(const Def* fn, const Def* dbg){
+    if (auto pi = fn->type()->isa<Pi>()) {
+        assert(pi->is_cn());
+
+        auto dom = sigma(pi->dom()->ops().skip_front().skip_back());
+        auto codom = sigma(pi->dom()->ops().back()->as<Pi>()->dom()->ops().skip_front());
+        auto tan_dom = type_tangent_vector(dom);
+        auto tan_codom = type_tangent_vector(codom);
+
+        auto src_cn = cn_mem_flat(dom, codom);
+        auto dst_cn = cn_mem_flat(dom, sigma({ codom, cn_mem_half_flat(tan_codom, tan_dom) }));
+
+        auto mk_pullback = app(data_.op_rev_diff_, {src_cn, dst_cn}, this->dbg("mk_φ"));
+        auto pullback = app(mk_pullback, fn, dbg);
+
+        return pullback;
+    }
+
+    return nullptr;
+}
+
+const Def* World::type_tangent_vector(const Def* primal_type, const Def* dbg) {
+    return app(data_.type_tangent_vector_, primal_type, dbg);
+}
+
+/*
+ * misc
+ */
 
 const char* World::level2string(LogLevel level) {
     switch (level) {

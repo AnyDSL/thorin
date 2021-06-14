@@ -40,9 +40,7 @@ set(THORIN_SOURCES
     be/c.cpp
     be/c.h
     pass/optimize.cpp
-    pass/optimize.h
     pass/pass.cpp
-    pass/pass.h
     pass/fp/eta_conv.cpp
     pass/fp/eta_conv.h
     pass/fp/beta_red.cpp
@@ -53,6 +51,8 @@ set(THORIN_SOURCES
     pass/fp/scalarize.h
     pass/fp/ssa_constr.cpp
     pass/fp/ssa_constr.h
+    pass/rw/auto_diff.cpp
+    pass/rw/auto_diff.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
     pass/rw/ret_wrap.cpp

@@ -195,7 +195,6 @@ const Def* AutoDiffCtx::emit_primal(const Def* def) {
 }
 
 const Def* AutoDiffCtx::emit_rop_primal(const Axiom* axiom) {
-    THORIN_BREAK;
     auto op = ROp(axiom->flags());
 
     auto type = world_.nom_pi(world_.kind(), {world_.type_nat(), world_.type_nat()});
@@ -456,8 +455,6 @@ void AutoDiffer::fill_grad(const Def* def, const Def* cur_grad) {
                     fill_grad(app->arg(i), grads[i]);
                 }
                 */
-
-                THORIN_BREAK;
             } else {
                 auto grads = world_.app(pb, cur_grad, world_.dbg("∇" + app->callee()->name()));
                 for (size_t i = 0; i < app->num_args(); ++i) {
@@ -544,12 +541,10 @@ const Def* AutoDiff::rewrite(const Def* def) {
                     src_to_dst[src_var] = i == e - 1 ? ret_lam : dst_var;
                 }
 
-                THORIN_BREAK;
                 auto ctx = AutoDiffCtx{world, src_to_dst};
                 auto primal = ctx.emit_primal(src_lam->body());
                 dst_lam->set_filter(src_lam->filter());
                 dst_lam->set_body(primal);
-                THORIN_BREAK;
 
                 auto differ = AutoDiffer{world, pb_grad, src_to_dst};
 
@@ -567,7 +562,6 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 pb_lam->set_filter(world.lit_true());
                 pb_lam->set_body(world.app(pb_lam->ret_var(), {pb_lam->mem_var(), world.tuple(grads)}));
 
-                THORIN_BREAK;
                 return dst_lam;
             }
         }
@@ -576,4 +570,4 @@ const Def* AutoDiff::rewrite(const Def* def) {
     return def;
 }
 
-} // namespace thorin
+}

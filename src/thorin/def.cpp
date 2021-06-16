@@ -293,7 +293,7 @@ std::string Def::unique_name() const { return (isa_nom() ? std::string{} : std::
 
 void Def::replace(Tracker with) const {
     world().DLOG("replace: {} -> {}", this, with);
-    assert(type() == with->type());
+    //assert(type() == with->type());
     assert(!is_replaced());
 
     if (this != with) {

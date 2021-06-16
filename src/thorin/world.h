@@ -485,13 +485,11 @@ private:
     template<class T, class... Args>
     const T* unify(size_t num_ops, Args&&... args) {
         auto def = arena_.allocate<T>(num_ops, args...);
-#ifndef NDEBUG
-        if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
-#endif
         assert(!def->isa_nom());
         auto [i, inserted] = data_.defs_.emplace(def);
         if (inserted) {
 #ifndef NDEBUG
+            if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
             for (auto op : def->ops()) {
                 if (state_.use_breakpoints.contains(op->gid())) THORIN_BREAK;
             }

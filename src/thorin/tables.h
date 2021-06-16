@@ -22,7 +22,7 @@ using nat_t    = u64;
     m(Axiom, axiom)                                                           \
     m(Lit, lit)                                                               \
     m(Nat, nat)                                                               \
-    m(Var, var)                                                           \
+    m(Var, var)                                                               \
     m(Global, global)
 
 #define THORIN_TAG(m)                                               \
@@ -34,7 +34,7 @@ using nat_t    = u64;
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)     \
     m(Atomic, atomic)                                               \
     m(Lift, lift)                                                   \
-    m(Grad, grad) m(TangentVector, tangent_vector)
+    m(RevDiff, rev_diff) m(TangentVector, tangent_vector)
 
 namespace WMode {
 enum : nat_t {

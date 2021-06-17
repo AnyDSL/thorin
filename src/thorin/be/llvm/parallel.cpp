@@ -13,6 +13,9 @@ enum {
 };
 
 Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    // Emit memory dependencies up to this point
+    emit_unsafe(continuation->arg(PAR_ARG_MEM));
+
     // arguments
     assert(continuation->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
     auto num_threads = emit(continuation->arg(PAR_ARG_NUMTHREADS));
@@ -100,6 +103,9 @@ enum {
 };
 
 Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    // Emit memory dependencies up to this point
+    emit_unsafe(continuation->arg(FIB_ARG_MEM));
+
     // arguments
     assert(continuation->num_args() >= FIB_NUM_ARGS && "required arguments are missing");
     auto num_threads = emit(continuation->arg(FIB_ARG_NUMTHREADS));
@@ -184,6 +190,10 @@ enum {
 
 Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
+
+    // Emit memory dependencies up to this point
+    emit_unsafe(continuation->arg(FIB_ARG_MEM));
+
     auto kernel = continuation->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_continuation();
     const size_t num_kernel_args = continuation->num_args() - SPAWN_NUM_ARGS;
 
@@ -258,6 +268,10 @@ enum {
 
 Continuation* CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
+
+    // Emit memory dependencies up to this point
+    emit_unsafe(continuation->arg(FIB_ARG_MEM));
+
     auto id = emit(continuation->arg(SYNC_ARG_ID));
     runtime_->sync_thread(irbuilder, id);
     return continuation->arg(SYNC_ARG_RETURN)->as_continuation();

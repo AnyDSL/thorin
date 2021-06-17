@@ -881,7 +881,7 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
             // - copysign(x, <known-constant>) => -x if signbit(<known_constant>) or x otherwise
             return float_predicate(args[1]->as<PrimLit>(), signbit) ? arithop_minus(args[0], dbg) : args[0];
         }
-        return transcendental(MathOp_copysign, args[0], args[1], dbg, [] (auto x, auto y) {
+        return transcendental(MathOp_copysign, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
             using T = decltype(x);
             if constexpr (std::is_same_v<T, half>) return half_float::copysign(x, y);
             else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::copysign(x, y);
@@ -895,28 +895,28 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
             // - pow(x, 0.5) => sqrt(x)
             return sqrt(args[0], dbg);
         }
-        return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) {
+        return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
             using T = decltype(x);
             if constexpr (std::is_same_v<T, half>) return half_float::pow(x, y);
             else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::pow(x, y);
             THORIN_UNREACHABLE;
         });
     } else if (tag == MathOp_atan2) {
-        return transcendental(MathOp_atan2, args[0], args[1], dbg, [] (auto x, auto y) {
+        return transcendental(MathOp_atan2, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
             using T = decltype(x);
             if constexpr (std::is_same_v<T, half>) return half_float::atan2(x, y);
             else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::atan2(x, y);
             THORIN_UNREACHABLE;
         });
     } else if (tag == MathOp_fmin) {
-        return transcendental(MathOp_fmin, args[0], args[1], dbg, [] (auto x, auto y) {
+        return transcendental(MathOp_fmin, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
             using T = decltype(x);
             if constexpr (std::is_same_v<T, half>) return half_float::fmin(x, y);
             else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::fmin(x, y);
             THORIN_UNREACHABLE;
         });
     } else if (tag == MathOp_fmax) {
-        return transcendental(MathOp_fmax, args[0], args[1], dbg, [] (auto x, auto y) {
+        return transcendental(MathOp_fmax, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
             using T = decltype(x);
             if constexpr (std::is_same_v<T, half>) return half_float::fmax(x, y);
             else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::fmax(x, y);
@@ -959,7 +959,7 @@ const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
                 }
             }
         }
-        return transcendental(tag, args[0], dbg, [&] (auto arg) {
+        return transcendental(tag, args[0], dbg, [&] (auto arg) -> decltype(arg) {
             using T = decltype(arg);
             if constexpr (std::is_same_v<T, half>) {
                 switch (tag) {

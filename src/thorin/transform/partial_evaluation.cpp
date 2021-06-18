@@ -82,6 +82,7 @@ public:
         return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
     }
 
+    // TODO looks unused
     bool has_free_params(Continuation* continuation) {
         Scope scope(continuation);
         return scope.has_free_params();
@@ -101,9 +102,11 @@ public:
         while (!queue.empty()) {
             auto def = queue.pop();
 
-            if (def->isa<Param>())
+            if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
                 return top_level_[continuation] = false;
             if (auto free_cn = def->isa_continuation()) {
+                // if we have a non-top level continuation in scope as a free variable,
+                // then it must be bound by some outer continuation, and so we aren't top-level
                 if (!is_top_level(free_cn))
                     return top_level_[continuation] = false;
             } else {

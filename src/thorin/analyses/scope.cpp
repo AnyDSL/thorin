@@ -39,6 +39,8 @@ void Scope::run() {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
+                // when a continuation is part of this scope, we also enqueue its params, and we assert those to be unique
+                // TODO most likely redundant once params have the continuation in their ops
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);
                     assert_unused(p.second);
@@ -92,7 +94,6 @@ const ParamSet& Scope::free_params() const {
 
         for (auto def : free())
             enqueue(def);
-
         while (!queue.empty()) {
             for (auto op : queue.pop()->ops())
                 enqueue(op);

@@ -22,6 +22,9 @@ const Def* Rewriter::instantiate(const Def* odef) {
     return old2new[odef] = odef;
 }
 
+/// Mangles a continuation's scope
+/// @p args has the size of the original continuation, a null entry means the parameter remains, non-null substitutes it in scope and removes it from the signature
+/// @p lift lists defs that should be replaced by a fresh param, to be appended at the end of the signature
 Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
     , args_(args)
@@ -69,6 +72,7 @@ Continuation* Mangler::mangle() {
         if (auto def = args_[i])
             def2def_[old_param] = def;
         else {
+            // we recreate params that aren't specialized
             auto new_param = new_entry()->param(j++);
             def2def_[old_param] = new_param;
             new_param->set_name(old_param->name());
@@ -160,6 +164,9 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
         }
 
         if (substitute) {
+            // Q: why not always change to the mangled continuation ?
+            // A: if you drop a parameter it is replaced by some def (likely a free param), which will be identical for all recursive calls, since they live in the same scope (that's how scopes work)
+            // so if there originally was a recursive call that specified the to-be-dropped parameter to something else, we need to call the unmangled original to preserve semantics
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
             return new_continuation->jump(new_entry(), args, old_continuation->debug()); // TODO debug
         }
@@ -172,7 +179,7 @@ const Def* Mangler::mangle(const Def* old_def) {
     if (auto new_def = def2def_.lookup(old_def))
         return *new_def;
     else if (!within(old_def))
-        return old_def;
+        return old_def;  // we leave free variables alone
     else if (auto old_continuation = old_def->isa_continuation()) {
         auto new_continuation = mangle_head(old_continuation);
         mangle_body(old_continuation, new_continuation);

@@ -15,6 +15,7 @@
 #include <regex>
 #include <sstream>
 #include <type_traits>
+#include <unordered_map>
 #include <variant>
 
 namespace thorin::c {

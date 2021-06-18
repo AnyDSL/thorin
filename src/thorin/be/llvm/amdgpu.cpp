@@ -1,5 +1,7 @@
 #include "thorin/be/llvm/amdgpu.h"
 
+#include <unordered_map>
+
 #include "thorin/primop.h"
 #include "thorin/world.h"
 

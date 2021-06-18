@@ -35,7 +35,6 @@ class CondEval {
 public:
     CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
         : callee_(callee)
-        , args_(args)
         , top_level_(top_level)
     {
         assert(callee->filter().empty() || callee->filter().size() == args.size());
@@ -82,12 +81,6 @@ public:
         return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
     }
 
-    // TODO looks unused
-    bool has_free_params(Continuation* continuation) {
-        Scope scope(continuation);
-        return scope.has_free_params();
-    }
-
     bool is_top_level(Continuation* continuation) {
         auto p = top_level_.emplace(continuation, true);
         if (!p.second)
@@ -120,7 +113,6 @@ public:
 
 private:
     Continuation* callee_;
-    Defs args_;
     Def2Def old2new_;
     ContinuationMap<bool>& top_level_;
 };

@@ -117,34 +117,6 @@ Continuation* Mangler::mangle_head(Continuation* old_continuation) {
 void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_continuation) {
     assert(!old_continuation->empty());
 
-    // fold branch and match
-    // TODO find a way to factor this out in continuation.cpp
-    if (auto callee = old_continuation->callee()->isa_continuation()) {
-        switch (callee->intrinsic()) {
-            case Intrinsic::Branch: {
-                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
-                    auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
-                    return new_continuation->jump(mangle(cont), {}, old_continuation->debug()); // TODO debug
-                }
-                break;
-            }
-            case Intrinsic::Match:
-                if (old_continuation->num_args() == 2)
-                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->debug()); // TODO debug
-
-                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
-                    for (size_t i = 2; i < old_continuation->num_args(); i++) {
-                        auto new_arg = mangle(old_continuation->arg(i));
-                        if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
-                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->debug()); // TODO debug
-                    }
-                }
-                break;
-            default:
-                break;
-        }
-    }
-
     Array<const Def*> nops(old_continuation->num_ops());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(old_continuation->op(i));

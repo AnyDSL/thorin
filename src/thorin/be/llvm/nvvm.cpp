@@ -1,6 +1,7 @@
 #include "thorin/be/llvm/nvvm.h"
 
 #include <sstream>
+#include <unordered_map>
 
 #include <llvm/ADT/Triple.h>
 #include <llvm/IR/Function.h>

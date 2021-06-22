@@ -757,6 +757,8 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             MATH_FUNCTION(log10)
 #undef MATH_FUNCTION
         };
+        for (auto op : mathop->ops())
+            emit(op);
         int bitwidth = num_bits(mathop->type()->primtype_tag());
         assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);
         func_impls_.fmt("{} {};\n", convert(mathop->type()), name);

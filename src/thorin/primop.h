@@ -38,9 +38,6 @@ protected:
     virtual bool equal(const PrimOp* other) const;
     virtual const Def* vrebuild(World&, Defs, const Type*) const { return nullptr; } //  = 0;
 
-    /// Is @p def the @p i^th result of a @p T @p PrimOp?
-    template<int i, class T> inline static const T* is_out(const Def* def);
-
 private:
     hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
 
@@ -628,8 +625,6 @@ public:
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Type* alloced_type() const { return out_ptr_type()->pointee(); }
-    static const Alloc* is_out_mem(const Def* def) { return is_out<0, Alloc>(def); }
-    static const Alloc* is_out_ptr(const Def* def) { return is_out<1, Alloc>(def); }
 
 private:
     const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -660,8 +655,6 @@ public:
     const Def* out_val() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     const Type* out_val_type() const { return type()->op(1); }
-    static const Load* is_out_mem(const Def* def) { return is_out<0, Load>(def); }
-    static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
 
 private:
     const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -696,8 +689,6 @@ public:
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     bool has_multiple_outs() const override { return true; }
     const Def* out_frame() const { return out(1); }
-    static const Enter* is_out_mem(const Def* def) { return is_out<0, Enter>(def); }
-    static const Enter* is_out_frame(const Def* def) { return is_out<1, Enter>(def); }
 
     friend class World;
 };
@@ -743,19 +734,6 @@ inline Assembly::Flags operator|(Assembly::Flags lhs, Assembly::Flags rhs) { ret
 inline Assembly::Flags operator&(Assembly::Flags lhs, Assembly::Flags rhs) { return static_cast<Assembly::Flags>(static_cast<int>(lhs) & static_cast<int>(rhs)); }
 inline Assembly::Flags operator|=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs | rhs; }
 inline Assembly::Flags operator&=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs & rhs; }
-
-//------------------------------------------------------------------------------
-
-template<int i, class T>
-const T* PrimOp::is_out(const Def* def) {
-    if (auto extract = def->isa<Extract>()) {
-        if (is_primlit(extract->index(), i)) {
-            if (auto res = extract->agg()->isa<T>())
-                return res;
-        }
-    }
-    return nullptr;
-}
 
 //------------------------------------------------------------------------------
 

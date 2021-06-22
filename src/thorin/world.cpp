@@ -1034,8 +1034,6 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
-    if (auto e = Enter::is_out_mem(mem))
-        return e;
     return cse(new Enter(mem, dbg));
 }
 

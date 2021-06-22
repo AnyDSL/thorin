@@ -138,7 +138,6 @@ std::unique_ptr<std::pair<Continuation*, const Def*>> has_hls_callee(Continuatio
 }
 
 void hls_kernel_launch(World& world, DeviceParams& device_params) {
-    std::cout << "*** called ***"<< endl;
 
     Continuation* opencl = nullptr;
     const size_t base_opencl_param_num = 6;
@@ -203,7 +202,6 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                     // extracting hls kernels' arguments
                     // preparing OpenCL args
                     for (size_t index = hls_free_vars_offset; index < basic_block->num_args(); ++index) {
-                        //auto kernel = basic_block->arg(1)->as<Global>()->init()->as_continuation();
                         auto kernel = basic_block->arg(2)->as<Global>()->init()->as_continuation();
                         auto kernel_param =  kernel->param(index - hls_free_vars_offset + 2);
                         // determining the correct location of OpenCL arguments by comparing kernels params with
@@ -238,7 +236,6 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
     });
 
     debug_verify(world);
-    std::cout << endl << "************ MODULE *************" << endl;
     world.dump();
     world.cleanup();
 }

@@ -39,10 +39,7 @@ private:
 
 class Filter : public Def {
 private:
-    Filter(const Defs defs, Debug dbg) : Def(Node_Filter, nullptr, defs.size(), dbg) {
-        for (int i = 0; i < defs.size(); i++)
-            set_op(i, defs[i]);
-    }
+    Filter(World& world, const Defs defs, Debug dbg);
 
 public:
     size_t size() const { return num_ops(); }

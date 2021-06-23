@@ -1132,7 +1132,7 @@ const Param* World::param(const Type* type, Continuation* continuation, size_t i
 }
 
 const Filter* World::filter(const Defs defs, Debug dbg) {
-    return new Filter(defs, dbg);
+    return new Filter(*this, defs, dbg);
 }
 
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {

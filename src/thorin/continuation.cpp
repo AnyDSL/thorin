@@ -95,6 +95,11 @@ const App* App::with(const Def* ncallee, const Defs nargs) const {
 
 //------------------------------------------------------------------------------
 
+Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs.size(), dbg) {
+    for (int i = 0; i < defs.size(); i++)
+        set_op(i, defs[i]);
+}
+
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
     return world().filter(ops().cut(indices), debug());
 }

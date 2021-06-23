@@ -221,6 +221,7 @@ public:
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }
+    const Filter* filter(const Defs, Debug dbg = {});
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -300,7 +301,6 @@ public:
 
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
-    const Filter* filter(const Defs, Debug dbg = {});
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);

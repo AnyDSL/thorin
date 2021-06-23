@@ -65,7 +65,7 @@ public:
     const Defs args() const { return ops().skip_front(); }
 
     Continuation* using_continuation() const {
-        assertf(num_uses() > 1, "not used");
+        assertf(num_uses() > 0, "not used");
         assertf(num_uses() <= 1, "currently app nodes should not be reused");
         return copy_uses()[0]->as_continuation(); // todo don't copy
     }
@@ -188,10 +188,8 @@ public:
     const App* maybe_body() const { return op(0)->isa<App>(); }
     bool has_body() const;
     void set_body(const App* app) {
+        unset_op(0);
         set_op(0, app);
-#ifdef THORIN_ENABLE_CHECKS
-        verify();
-#endif
     }
     void destroy_body();
 
@@ -211,10 +209,8 @@ public:
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
     void set_filter(const Filter* f) {
-        set_op(0, f);
-#ifdef THORIN_ENABLE_CHECKS
-        verify();
-#endif
+        unset_op(1);
+        set_op(1, f);
     }
     void destroy_filter();
     const Filter* all_true_filter() const;

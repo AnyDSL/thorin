@@ -63,7 +63,7 @@ void App::jump(const Def* callee, Defs args, Debug dbg) {
     resize(1 + args.size());
     set_op(0, callee);
     for (int i = 0; i < args.size(); i++)
-        set_op(i, args[1 + i]);
+        set_op(i + 1, args[i]);
 
     verify();
 }
@@ -107,7 +107,7 @@ Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug
 {
     params_.reserve(fn->num_ops());
     set_op(0, world().bottom(world().bottom_type()));
-    set_filter(world().filter({}, dbg));
+    set_op(1, world().filter({}, dbg));
 }
 
 Continuation* Continuation::stub() const {
@@ -159,6 +159,7 @@ const Param* Continuation::ret_param() const {
 bool Continuation::has_body() const { return !op(0)->isa<Bottom>(); }
 
 void Continuation::destroy_body() {
+    unset_op(0);
     set_op(0, world().bottom(world().bottom_type()));
 }
 

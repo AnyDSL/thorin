@@ -294,10 +294,12 @@ bool Continuation::is_returning() const { return type()->is_returning(); }
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     set_body(world().app(callee, args));
+    verify();
 }
 
 void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
     set_body(world().app(world().branch(), {cond, t, f}, dbg));
+    verify();
 }
 
 void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
@@ -310,6 +312,7 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
         args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
 
     set_body(world().app(world().match(val->type(), patterns.size()), args, dbg));
+    verify();
 }
 
 /// Rewrites the App to a mangled version of the callee
@@ -370,7 +373,7 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
             auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
             if (auto app = def->isa<App>()) {
                 auto ucont = app->using_continuation();
-                if (func(ucont))
+                if (ucont && func(ucont))
                     return true;
             }
         }

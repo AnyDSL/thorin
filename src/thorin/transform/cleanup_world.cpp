@@ -200,6 +200,7 @@ void Cleaner::eliminate_params() {
                 if (!ocontinuation->filter()->is_empty())
                     ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
                 ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
+                ncontinuation->verify();
                 ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->copy_uses()) {
@@ -258,6 +259,8 @@ void Cleaner::within(const Def* def) {
         assert_unused(world().primops().contains(primop));
     else if (auto continuation = def->isa_continuation())
         assert_unused(world().continuations().contains(continuation));
+    else if (def->isa<App>() || def->isa<Filter>())
+        {}
     else
         within(def->as<Param>()->continuation());
 }

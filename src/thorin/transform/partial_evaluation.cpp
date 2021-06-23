@@ -147,7 +147,11 @@ bool PartialEvaluator::run() {
         auto continuation = pop(queue_);
 
         bool force_fold = false;
-        const Def* callee_def = continuation->body();
+
+        if (!continuation->has_body())
+            continue;
+        auto body = continuation->body();
+        const Def* callee_def = continuation->body()->callee();
 
         if (auto run = callee_def->isa<Run>()) {
             force_fold = true;
@@ -161,8 +165,7 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                auto body = callee->body();
-                Call call(continuation->num_ops());
+                Call call(body->num_ops());
                 call.callee() = callee;
 
                 CondEval cond_eval(callee, body->args(), top_level_);

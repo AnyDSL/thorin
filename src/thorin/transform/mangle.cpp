@@ -99,6 +99,8 @@ Continuation* Mangler::mangle() {
 
     new_entry()->set_body(mangle_body(old_entry()->body()));
 
+    new_entry()->verify();
+
     return new_entry();
 }
 

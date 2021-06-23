@@ -197,7 +197,10 @@ public:
     void verify() const {
         if (!has_body())
             assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
-        if (has_body()) body()->verify();
+        if (has_body()) {
+            body()->verify();
+            assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
+        }
     }
     // Continuation* update_op(size_t i, const Def* def);
     // Continuation* update_callee(const Def* def) { return update_op(0, def); }

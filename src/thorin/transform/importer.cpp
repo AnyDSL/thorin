@@ -113,6 +113,7 @@ const Def* Importer::import(Tracker odef) {
     else
         ncontinuation->destroy_body();
     ncontinuation->set_filter(nops[1]->as<Filter>());
+    ncontinuation->verify();
     assert(!ncontinuation->is_replaced());
     return ncontinuation;
 }

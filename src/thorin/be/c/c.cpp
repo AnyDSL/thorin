@@ -763,9 +763,9 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
         int bitwidth = num_bits(mathop->type()->primtype_tag());
         assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);
         func_impls_.fmt("{} {};\n", convert(mathop->type()), name);
-        func_impls_.fmt("{} = {}(", name, function_names.at(make_key(mathop->mathop_tag(), bitwidth)));
-        func_impls_.range(mathop->ops(), ", ", [&](const Def* op) { func_impls_ << emit(op); });
-        func_impls_.fmt(");\n");
+        bb.body.fmt("{} = {}(", name, function_names.at(make_key(mathop->mathop_tag(), bitwidth)));
+        bb.body.range(mathop->ops(), ", ", [&](const Def* op) { bb.body << emit(op); });
+        bb.body.fmt(");\n");
     } else if (auto conv = def->isa<ConvOp>()) {
         auto s_type = conv->from()->type();
         auto d_type = conv->type();

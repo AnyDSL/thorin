@@ -101,10 +101,18 @@ const Def* Importer::import(Tracker odef) {
         return def_old2new_[oprimop] = nprimop;
     }
 
-    auto ocontinuation = odef->as_continuation();
+    if (auto oapp = odef->isa<App>()) {
+        auto napp = world().app(nops.front(), nops.skip_front(), odef->debug());
+        return def_old2new_[oapp] = napp;
+    }
+
     assert(ncontinuation && &ncontinuation->world() == &world());
-    if (size > 0)
-        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->debug()); // TODO debug
+    auto napp = nops[0]->isa<App>();
+    if (napp)
+        ncontinuation->set_body(napp);
+    else
+        ncontinuation->destroy_body();
+    ncontinuation->set_filter(nops[1]->as<Filter>());
     assert(!ncontinuation->is_replaced());
     return ncontinuation;
 }

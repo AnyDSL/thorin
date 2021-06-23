@@ -33,7 +33,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     , defs_(scope.defs().capacity())
     , def2def_(scope.defs().capacity())
 {
-    assert(!old_entry()->empty());
+    assert(old_entry()->has_body());
     assert(args.size() == old_entry()->num_params());
 
     // TODO correctly deal with continuations here
@@ -83,28 +83,28 @@ Continuation* Mangler::mangle() {
         def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
 
     // mangle filter
-    if (!old_entry()->filter().empty()) {
-        Array<const Def*> new_filter(new_entry()->num_params());
+    if (!old_entry()->filter()->is_empty()) {
+        Array<const Def*> new_conditions(new_entry()->num_params());
         size_t j = 0;
         for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
             if (args_[i] == nullptr)
-                new_filter[j++] = mangle(old_entry()->filter(i));
+                new_conditions[j++] = mangle(old_entry()->filter()->condition(i));
         }
 
         for (size_t e = new_entry()->num_params(); j != e; ++j)
-            new_filter[j] = world().literal_bool(false, Debug{});
+            new_conditions[j] = world().literal_bool(false, Debug{});
 
-        new_entry()->set_filter(new_filter);
+        new_entry()->set_filter(world().filter(new_conditions, old_entry()->filter()->debug()));
     }
 
-    mangle_body(old_entry(), new_entry());
+    new_entry()->set_body(mangle_body(old_entry()->body()));
 
     return new_entry();
 }
 
 Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
-    assert(!old_continuation->empty());
+    assert(old_continuation->has_body());
     Continuation* new_continuation = old_continuation->stub();
     def2def_[old_continuation] = new_continuation;
 
@@ -114,15 +114,13 @@ Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     return new_continuation;
 }
 
-void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_continuation) {
-    assert(!old_continuation->empty());
-
-    Array<const Def*> nops(old_continuation->num_ops());
+const App* Mangler::mangle_body(const App* old_body) {
+    Array<const Def*> nops(old_body->num_ops());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
-        nops[i] = mangle(old_continuation->op(i));
+        nops[i] = mangle(old_body->op(i));
 
-    Defs nargs(nops.skip_front()); // new args of new_continuation
-    auto ntarget = nops.front();   // new target of new_continuation
+    Defs nargs(nops.skip_front()); // new args of body
+    auto ntarget = nops.front();   // new target of body
 
     // check whether we can optimize tail recursion
     if (ntarget == old_entry()) {
@@ -140,11 +138,11 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
             // A: if you drop a parameter it is replaced by some def (likely a free param), which will be identical for all recursive calls, since they live in the same scope (that's how scopes work)
             // so if there originally was a recursive call that specified the to-be-dropped parameter to something else, we need to call the unmangled original to preserve semantics
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            return new_continuation->jump(new_entry(), args, old_continuation->debug()); // TODO debug
+            return world().app(new_entry(), args, old_body->debug()); // TODO debug
         }
     }
 
-    new_continuation->jump(ntarget, nargs, old_continuation->debug()); // TODO debug
+    return world().app(ntarget, nargs, old_body->debug()); // TODO debug
 }
 
 const Def* Mangler::mangle(const Def* old_def) {
@@ -154,7 +152,8 @@ const Def* Mangler::mangle(const Def* old_def) {
         return old_def;  // we leave free variables alone
     else if (auto old_continuation = old_def->isa_continuation()) {
         auto new_continuation = mangle_head(old_continuation);
-        mangle_body(old_continuation, new_continuation);
+        if (old_continuation->has_body())
+            new_continuation->set_body(mangle_body(old_continuation->body()));
         return new_continuation;
     } else if (auto param = old_def->isa<Param>()) {
         assert(within(param->continuation()));

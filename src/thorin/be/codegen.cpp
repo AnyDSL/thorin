@@ -13,7 +13,7 @@ namespace thorin {
 static void get_kernel_configs(
     Importer& importer,
     const std::vector<Continuation*>& kernels,
-    Cont2Config& kernel_config,
+    Cont2Config& kernel_configs,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
@@ -29,9 +29,10 @@ static void get_kernel_configs(
         if (!imported) continue;
 
         visit_uses(continuation, [&] (Continuation* use) {
+            assert(use->has_body());
             auto config = use_callback(use, imported);
             if (config) {
-                auto p = kernel_config.emplace(imported, std::move(config));
+                auto p = kernel_configs.emplace(imported, std::move(config));
                 assert_unused(p.second && "single kernel config entry expected");
             }
             return false;
@@ -41,7 +42,7 @@ static void get_kernel_configs(
     }
 }
 
-static const Continuation* get_alloc_call(const Def* def) {
+static const App* get_alloc_call(const Def* def) {
     // look through casts
     while (auto conv_op = def->isa<ConvOp>())
         def = conv_op->op(0);
@@ -53,7 +54,7 @@ static const Continuation* get_alloc_call(const Def* def) {
     if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());
-    auto call = use.def()->isa_continuation();
+    auto call = use.def()->isa<App>();
     if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->callee();
@@ -111,11 +112,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
+                auto app = use->body();
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
                 DefSet allocs;
-                for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
-                    auto arg = use->arg(i);
+                for (size_t i = LaunchArgs::Num, e = app->num_args(); has_restrict && i != e; ++i) {
+                    auto arg = app->arg(i);
                     if (!arg->type()->isa<PtrType>()) continue;
                     auto alloc = get_alloc_call(arg);
                     if (!alloc) has_restrict = false;
@@ -123,7 +125,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
                     has_restrict &= p.second;
                 }
 
-                auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+                auto it_config = app->arg(LaunchArgs::Config)->as<Tuple>();
                 if (it_config->op(0)->isa<PrimLit>() &&
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
@@ -141,9 +143,10 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     // get the HLS kernel configurations
     if (!importers_[HLS].world().empty()) {
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+            auto app = use->body();
             HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
-                auto arg = use->arg(i);
+            for (size_t i = 3, e = app->num_args(); i != e; ++i) {
+                auto arg = app->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);

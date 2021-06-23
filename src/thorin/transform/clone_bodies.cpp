@@ -22,9 +22,10 @@ void clone_bodies(World& world) {
                 first = false; // re-use the initial continuation as first clone
             } else {
                 auto ncontinuation = clone(scope);
-                if (auto ucontinuation = use->isa_continuation())
-                    ucontinuation->update_op(use.index(), ncontinuation);
-                else {
+                if (auto uapp = use->isa<App>()) {
+                    auto napp = uapp->with_different_op(use.index(), ncontinuation);
+                    uapp->replace(napp);
+                } else {
                     auto primop = use->as<PrimOp>();
                     Array<const Def*> nops(primop->num_ops());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());

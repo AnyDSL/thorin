@@ -161,6 +161,18 @@ private:
     friend class TypeTable;
 };
 
+/// The type of App nodes.
+class BottomType : public Type {
+private:
+    BottomType(TypeTable& table)
+            : Type(table, Node_BotType, {})
+    {}
+
+    const Type* vrebuild(TypeTable& to, Types ops) const override;
+
+    friend class TypeTable;
+};
+
 /// The type of a stack frame.
 class FrameType : public Type {
 private:
@@ -379,6 +391,7 @@ public:
     const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }
 #include "thorin/tables/primtypetable.h"
     const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
+    const BottomType* bottom_type() const { return bottom_ty_; }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
     const PtrType* ptr_type(const Type* pointee, size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic);
@@ -395,6 +408,7 @@ public:
         swap(t1.types_, t2.types_);
         swap(t1.unit_,  t2.unit_);
         swap(t1.fn0_,   t2.fn0_);
+        swap(t1.bottom_ty_,   t2.bottom_ty_);
         swap(t1.mem_,   t2.mem_);
         swap(t1.frame_, t2.frame_);
         std::swap_ranges(t1.primtypes_, t1.primtypes_ + Num_PrimTypes, t2.primtypes_);
@@ -417,6 +431,7 @@ private:
 
     const TupleType* unit_; ///< tuple().
     const FnType* fn0_;
+    const BottomType* bottom_ty_;
     const MemType* mem_;
     const FrameType* frame_;
     const PrimType* primtypes_[Num_PrimTypes];

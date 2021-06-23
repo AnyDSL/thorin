@@ -312,18 +312,6 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     THORIN_UNREACHABLE;
 }
 
-bool is_from_match(const PrimOp* primop) {
-    bool from_match = true;
-    for (auto& use : primop->uses()) {
-        if (auto continuation = use.def()->isa<Continuation>()) {
-            auto callee = continuation->callee()->isa<Continuation>();
-            if (callee && callee->intrinsic() == Intrinsic::Match) continue;
-        }
-        from_match = false;
-    }
-    return from_match;
-}
-
 const Type* Closure::environment_type(World& world) {
     // We assume that ptrs are <= 64 bits, if they're not, god help you
     return world.type_qu64();

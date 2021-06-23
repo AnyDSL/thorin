@@ -12,10 +12,11 @@ void force_inline(Scope& scope, int threshold) {
         todo = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
-                if (!callee->empty() && !scope.contains(callee)) {
+            assert(continuation->has_body() && "cfg assumed to not contain conts with no body");
+            if (auto callee = continuation->body()->callee()->isa_continuation()) {
+                if (callee->has_body() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
+                    continuation->jump(drop(callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
                     todo = true;
                 }
             }
@@ -27,8 +28,9 @@ void force_inline(Scope& scope, int threshold) {
 
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto continuation = n->continuation();
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            if (!callee->empty() && !scope.contains(callee))
+        assert(continuation->has_body() && "cfg assumed to not contain conts with no body");
+        if (auto callee = continuation->body()->callee()->isa_continuation()) {
+            if (callee->has_body() && !scope.contains(callee))
                 scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
         }
     }
@@ -50,7 +52,7 @@ void inliner(World& world) {
     };
 
     auto is_candidate = [&] (Continuation* continuation) -> Scope* {
-        if (!continuation->empty() && continuation->order() > 1) {
+        if (continuation->has_body() && continuation->order() > 1) {
             auto scope = get_scope(continuation);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops
@@ -70,13 +72,14 @@ void inliner(World& world) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
+            assert(continuation->has_body() && "cfg assumed to not contain conts with no body");
+            if (auto callee = continuation->body()->callee()->isa_continuation()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
                 world.DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
                     world.DLOG("- here: {}", continuation);
-                    continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
+                    continuation->jump(drop(*callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
                     dirty = true;
                 }
             }

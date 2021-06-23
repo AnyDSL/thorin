@@ -24,22 +24,62 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
-        : Def(Node_Param, type, 0, dbg)
-        , continuation_(continuation)
-        , index_(index)
-    {}
+    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
 
 public:
-    Continuation* continuation() const { return continuation_; }
+    Continuation* continuation() const { return op(0)->as_continuation(); }
     size_t index() const { return index_; }
 
 private:
-    Continuation* const continuation_;
     const size_t index_;
 
     friend class World;
     friend class Continuation;
+};
+
+class Filter : public Def {
+private:
+    Filter(const Defs defs, Debug dbg) : Def(Node_Filter, nullptr, defs.size(), dbg) {
+        for (int i = 0; i < defs.size(); i++)
+            set_op(i, defs[i]);
+    }
+
+public:
+    size_t size() const { return num_ops(); }
+    const Def* condition(size_t i) const { return op(i); }
+    bool is_empty() const { return num_ops() == 0; }
+
+    const Filter* cut(ArrayRef<size_t> indices) const;
+
+    friend class World;
+};
+
+class App : public Def {
+private:
+    App(const Def* callee, const Defs args, Debug dbg);
+
+public:
+    const Def* callee() const { return op(0); }
+    const Def* arg(size_t i) const { return op(1 + i); }
+    const size_t num_args() const { return num_ops() - 1; }
+    const Defs args() const { return ops().skip_front(); }
+
+    Continuation* using_continuation() const {
+        assertf(num_uses() > 1, "not used");
+        assertf(num_uses() <= 1, "currently app nodes should not be reused");
+        return copy_uses()[0]->as_continuation(); // todo don't copy
+    }
+
+    /// Returns a mutated copy of this App, ops-based because the callers of this rely on Use.index
+    /// callee/args versions could be written later if necessary
+    const App* with_different_op(size_t, const Def*) const;
+    const App* with_different_ops(const Defs) const;
+    const App* with(const Def* ncallee, const Defs nargs) const;
+
+    void jump(const Def* callee, Defs args, Debug dbg = {});
+    void verify() const;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
@@ -100,15 +140,12 @@ public:
     };
 
 private:
-    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
-        : Def(Node_Continuation, fn, 0, dbg)
-        , attributes_(attributes)
-    {
-        params_.reserve(fn->num_ops());
-    }
+    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:
+    const FnType* type() const { return Def::type()->as<FnType>(); }
+
     Continuation* stub() const;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
@@ -118,14 +155,17 @@ public:
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     const Param* ret_param() const;
-    const Def* callee() const;
-    Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
-    const Def* arg(size_t i) const { return args()[i]; }
-    const FnType* type() const { return Def::type()->as<FnType>(); }
-    const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
-    const FnType* arg_fn_type() const;
-    size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
+
+    // const Def* callee() const;
+    // Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
+    // const Def* arg(size_t i) const { return args()[i]; }
+    // const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
+
+    // TODO only used in parallel.cpp to create a dummy value, should be refactored in something cleaner
+    const FnType* arg_fn_type() const;
+
+    // size_t num_args() const { return args().size(); }
     Attributes& attributes() { return attributes_; }
     const Attributes& attributes() const { return attributes_; }
     Intrinsic intrinsic() const { return attributes().intrinsic; }
@@ -138,9 +178,21 @@ public:
     bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
     bool is_external() const { return attributes().visibility == Visibility::External; }
     bool is_internal() const { return attributes().visibility == Visibility::Internal; }
-    bool is_imported() const { return is_external() && empty(); }
-    bool is_exported() const { return is_external() && !empty(); }
+    bool is_imported() const { return is_external() && !has_body(); } // todo shouldn't we assert that imported => !has_body and ditto for exported ?
+    bool is_exported() const { return is_external() && has_body(); }
     bool is_accelerator() const;
+
+    /// assumes there is a body
+    const App* body() const { return op(0)->as<App>(); }
+    /// does not assume there is a body
+    const App* maybe_body() const { return op(0)->isa<App>(); }
+    bool has_body() const;
+    void set_body(const App* app) {
+        set_op(0, app);
+#ifdef THORIN_ENABLE_CHECKS
+        verify();
+#endif
+    }
     void destroy_body();
 
     // terminate
@@ -149,26 +201,35 @@ public:
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     void verify() const {
-#if THORIN_ENABLE_CHECKS
-        auto c = callee_fn_type();
-        auto a = arg_fn_type();
-        assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
+        if (!has_body())
+            assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
+        if (has_body()) body()->verify();
+    }
+    // Continuation* update_op(size_t i, const Def* def);
+    // Continuation* update_callee(const Def* def) { return update_op(0, def); }
+    // Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
+
+    const Filter* filter() const { return op(1)->as<Filter>(); }
+    void set_filter(const Filter* f) {
+        set_op(0, f);
+#ifdef THORIN_ENABLE_CHECKS
+        verify();
 #endif
     }
-    Continuation* update_op(size_t i, const Def* def);
-    Continuation* update_callee(const Def* def) { return update_op(0, def); }
-    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
-    void set_filter(Defs defs) {
+    void destroy_filter();
+    const Filter* all_true_filter() const;
+
+    /*void set_filter(Defs defs) {
         assertf(defs.empty() || num_params() == defs.size(), "expected {} - got {}", num_params(), defs.size());
         filter_ = defs;
     }
     void set_all_true_filter();
     void destroy_filter() { filter_.shrink(0); }
     Defs filter() const { return filter_; }
-    const Def* filter(size_t i) const { return filter_[i]; }
+    const Def* filter(size_t i) const { return filter_[i]; }*/
 
     std::vector<const Param*> params_;
-    Array<const Def*> filter_; ///< used during @p partial_evaluation
+    // Array<const Def*> filter_; ///< used during @p partial_evaluation
     Attributes attributes_;
 
     friend class Cleaner;
@@ -182,6 +243,7 @@ bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)
 bool is_passed_to_accelerator(Continuation*, bool include_globals = true);
 bool is_passed_to_intrinsic(Continuation*, Intrinsic, bool include_globals = true);
 
+// TODO can probably be nuked in favour of the App node now
 struct Call {
     struct Hash {
         static uint64_t hash(const Call& call) { return call.hash(); }

@@ -43,7 +43,7 @@ void Cleaner::eliminate_tail_rec() {
         bool recursive = false;
         for (auto use : entry->uses()) {
             if (scope.contains(use)) {
-                if (use.index() != 0 || !use->isa<Continuation>()) {
+                if (use.index() != 0 || !use->isa<App>()) {
                     only_tail_calls = false;
                     break;
                 } else {
@@ -61,7 +61,7 @@ void Cleaner::eliminate_tail_rec() {
 
                 for (auto use : entry->uses()) {
                     if (scope.contains(use)) {
-                        auto arg = use->as_continuation()->arg(i);
+                        auto arg = use->as<App>()->arg(i);
                         if (!arg->isa<Bottom>() && arg != args[i]) {
                             args[i] = nullptr;
                             break;
@@ -98,16 +98,18 @@ void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
-            if (continuation->empty()) continue;
+            if (!continuation->has_body()) continue;
+            auto body = continuation->body();
 
             // eat calls to known continuations that are only used once
-            while (auto callee = continuation->callee()->isa_continuation()) {
+            while (auto callee = body->callee()->isa_continuation()) {
                 if (callee == continuation) break;
 
-                if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
-                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                        callee->param(i)->replace(continuation->arg(i));
-                    continuation->jump(callee->callee(), callee->args(), callee->debug()); // TODO debug
+                if (callee->num_uses() == 1 && callee->has_body() && !callee->is_exported()) {
+                    auto callee_body = callee->body();
+                    for (size_t i = 0, e = body->num_args(); i != e; ++i)
+                        callee->param(i)->replace(body->arg(i));
+                    continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
                     callee->destroy_body();
                     todo_ = todo = true;
                 } else
@@ -116,24 +118,24 @@ void Cleaner::eta_conversion() {
 
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
-            if (auto param = continuation->callee()->isa<Param>()) {
+            if (auto param = body->callee()->isa<Param>()) {
                 if (param->continuation() == continuation || continuation->is_exported())
                     continue;
 
-                if (continuation->args() == continuation->params_as_defs()) {
-                    continuation->replace(continuation->callee());
+                if (body->args() == continuation->params_as_defs()) {
+                    continuation->replace(body->callee());
                     continuation->destroy_body();
                     todo_ = todo = true;
                     continue;
                 }
 
                 // build the permutation of the arguments
-                Array<size_t> perm(continuation->num_args());
+                Array<size_t> perm(body->num_args());
                 bool is_permutation = true;
-                for (size_t i = 0, e = continuation->num_args(); i != e; ++i)  {
+                for (size_t i = 0, e = body->num_args(); i != e; ++i)  {
                     auto param_it = std::find(continuation->params().begin(),
                                                 continuation->params().end(),
-                                                continuation->arg(i));
+                                                body->arg(i));
 
                     if (param_it == continuation->params().end()) {
                         is_permutation = false;
@@ -148,11 +150,12 @@ void Cleaner::eta_conversion() {
                 // for every use of the continuation at a call site,
                 // permute the arguments and call the parameter instead
                 for (auto use : continuation->copy_uses()) {
-                    auto ucontinuation = use->isa_continuation();
+                    auto uapp = use->isa<App>();
+                    auto ucontinuation = uapp->using_continuation();
                     if (ucontinuation && use.index() == 0) {
                         Array<const Def*> new_args(perm.size());
                         for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                            new_args[i] = ucontinuation->arg(perm[i]);
+                            new_args[i] = uapp->arg(perm[i]);
                         }
                         ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
                         todo_ = todo = true;
@@ -168,7 +171,8 @@ void Cleaner::eliminate_params() {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (!ocontinuation->empty() && !ocontinuation->is_exported()) {
+        if (ocontinuation->has_body() && !ocontinuation->is_exported()) {
+            auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
                 if (use.index() != 0 || !use->isa_continuation())
                     goto next_continuation;
@@ -192,15 +196,16 @@ void Cleaner::eliminate_params() {
                     ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
                 }
 
-                if (!ocontinuation->filter().empty())
-                    ncontinuation->set_filter(ocontinuation->filter().cut(proxy_idx));
-                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->debug());
+                if (!ocontinuation->filter()->is_empty())
+                    ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
+                ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
                 ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->copy_uses()) {
-                    auto ucontinuation = use->as_continuation();
+                    auto ubody = use->as<App>();
                     assert(use.index() == 0);
-                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->debug());
+                    auto ucontinuation = ubody->using_continuation();
+                    ucontinuation->jump(ncontinuation, ubody->args().cut(proxy_idx), ucontinuation->debug());
                 }
 
                 todo_ = true;
@@ -256,12 +261,14 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
-    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->arg(3);
-    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    assert(cur->has_body());
+    auto body = cur->body();
+    assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = body->arg(3);
+    auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    world_.idef(cur->callee(), "pe_info was not constant: {}: {}", msg->as_string(), cur->arg(2));
-    cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug
+    world_.idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
+    cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
     todo_ = true;
 
     // always re-insert into queue because we've changed cur's jump
@@ -283,10 +290,12 @@ void Cleaner::clean_pe_infos() {
     while (!queue.empty()) {
         auto continuation = pop(queue);
 
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            if (callee->intrinsic() == Intrinsic::PeInfo) {
-                clean_pe_info(queue, continuation);
-                continue;
+        if (continuation->has_body()) {
+            if (auto body = continuation->body()->isa<App>()) {
+                if (auto callee = body->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
+                    clean_pe_info(queue, continuation);
+                    continue;
+                }
             }
         }
 

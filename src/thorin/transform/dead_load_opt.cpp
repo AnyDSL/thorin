@@ -9,9 +9,10 @@ static void dead_load_opt(const Scope& scope) {
     auto& world = scope.world();
     for (auto n : scope.f_cfg().post_order()) {
         auto continuation = n->continuation();
+        assert(continuation->has_body() && "cfg assumed to not contain conts with no body");
 
         Tracker mem;
-        for (auto arg : continuation->args()) {
+        for (auto arg : continuation->body()->args()) {
             if (is_mem(arg)) {
                 mem = arg;
                 break;

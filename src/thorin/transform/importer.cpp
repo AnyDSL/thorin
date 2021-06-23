@@ -45,6 +45,14 @@ const Def* Importer::import(Tracker odef) {
         return nparam;
     }
 
+    if (auto ofilter = odef->isa<Filter>()) {
+        Array<const Def*> new_conditions(ofilter->num_ops());
+        for (size_t i = 0, e = ofilter->size(); i != e; ++i)
+            new_conditions[i] = import(ofilter->condition(i));
+        auto nfilter = world().filter(new_conditions, ofilter->debug());
+        return nfilter;
+    }
+
     Continuation* ncontinuation = nullptr;
     if (auto ocontinuation = odef->isa_continuation()) { // create stub in new world
         // TODO maybe we want to deal with intrinsics in a more streamlined way
@@ -63,10 +71,12 @@ const Def* Importer::import(Tracker odef) {
 
         def_old2new_[ocontinuation] = ncontinuation;
 
-        if (ocontinuation->num_ops() > 0 && ocontinuation->callee() == ocontinuation->world().branch()) {
-            auto cond = import(ocontinuation->arg(0));
+        if (ocontinuation->has_body() && ocontinuation->body()->callee() == ocontinuation->world().branch()) {
+            auto app = ocontinuation->body();
+            auto cond = import(app->arg(0));
+            // TODO check if this folding stuff makes sense here and isn't redundant
             if (auto lit = cond->isa<PrimLit>()) {
-                auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
+                auto callee = import(lit->value().get_bool() ? app->arg(1) : app->arg(2));
                 ncontinuation->jump(callee, {}, ocontinuation->debug()); // TODO debug
 
                 assert(!ncontinuation->is_replaced());
@@ -74,11 +84,7 @@ const Def* Importer::import(Tracker odef) {
             }
         }
 
-        auto old_profile = ocontinuation->filter();
-        Array<const Def*> new_profile(old_profile.size());
-        for (size_t i = 0, e = old_profile.size(); i != e; ++i)
-            new_profile[i] = import(old_profile[i]);
-        ncontinuation->set_filter(new_profile);
+        ncontinuation->set_filter(import(ocontinuation->filter())->as<Filter>());
     }
 
     size_t size = odef->num_ops();

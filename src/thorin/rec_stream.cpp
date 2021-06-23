@@ -34,9 +34,11 @@ void RecStreamer::run(const Def* def) {
         }
     }
 
-    if (auto cont = def->isa_continuation())
-        s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->callee(), cont->args());
-    else if (!def->no_dep() && !def->isa<Param>())
+    if (auto cont = def->isa_continuation()) {
+        assert(cont->has_body());
+        s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->body()->callee(), cont->body()->args());
+        run(cont->body());
+    } else if (!def->no_dep() && !def->isa<Param>())
         def->stream_let(s);
 }
 
@@ -45,12 +47,12 @@ void RecStreamer::run() {
         auto cont = conts.pop();
         s.endl().endl();
 
-        if (!cont->empty()) {
+        if (cont->has_body()) {
             s.fmt("{}: {} = {{\t\n", cont->unique_name(), cont->type());
-            run(cont);
+            run(cont->body()); // TODO app node
             s.fmt("\b\n}}");
         } else {
-            s.fmt("{}: {} = {{ <unset> }}", cont->unique_name(), cont->type());
+            s.fmt("{}: {} = {{ <no body> }}", cont->unique_name(), cont->type());
         }
     }
 }
@@ -89,7 +91,11 @@ Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
         return s.fmt("{}[{}]", param->unique_name(), param->continuation());
     } else if (auto cont = isa<Continuation>()) {
-        return s.fmt("{}({, })", cont->callee(), cont->args());
+        assert(false);
+        assert(cont->has_body());
+        return s.fmt("{}({, })", cont->body()->callee(), cont->body()->args());
+    } else if (auto app = isa<App>()) {
+        return s.fmt("{}({, })", app->callee(), app->args());
     } else if (auto lit = isa<PrimLit>()) {
         // print i8 as ints
         switch (lit->tag()) {

@@ -37,7 +37,7 @@ public:
         : callee_(callee)
         , top_level_(top_level)
     {
-        assert(callee->filter().empty() || callee->filter().size() == args.size());
+        assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
@@ -78,7 +78,7 @@ public:
     }
 
     const Def* filter(size_t i) {
-        return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
+        return callee_->filter()->is_empty() ? world().literal_bool(false, {}) : callee_->filter()->condition(i);
     }
 
     bool is_top_level(Continuation* continuation) {
@@ -118,13 +118,15 @@ private:
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
-    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->arg(3);
+    assert(cur->has_body());
+    auto body = cur->body();
+    assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = body->arg(3);
 
-    if (!cur->arg(2)->has_dep(Dep::Param)) {
-        auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-        world().idef(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
-        cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug
+    if (!body->arg(2)->has_dep(Dep::Param)) {
+        auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+        world().idef(body->callee(), "pe_info: {}: {}", msg->as_string(), body->arg(2));
+        cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
@@ -145,9 +147,9 @@ bool PartialEvaluator::run() {
         auto continuation = pop(queue_);
 
         bool force_fold = false;
-        auto callee_def = continuation->callee();
+        const Def* callee_def = continuation->body();
 
-        if (auto run = continuation->callee()->isa<Run>()) {
+        if (auto run = callee_def->isa<Run>()) {
             force_fold = true;
             callee_def = run->def();
         }
@@ -158,16 +160,17 @@ bool PartialEvaluator::run() {
                 continue;
             }
 
-            if (!callee->empty()) {
+            if (callee->has_body()) {
+                auto body = callee->body();
                 Call call(continuation->num_ops());
                 call.callee() = callee;
 
-                CondEval cond_eval(callee, continuation->args(), top_level_);
+                CondEval cond_eval(callee, body->args(), top_level_);
 
                 bool fold = false;
                 for (size_t i = 0, e = call.num_args(); i != e; ++i) {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
-                        call.arg(i) = continuation->arg(i);
+                        call.arg(i) = body->arg(i);
                         fold = true;
                     } else
                         call.arg(i) = nullptr;

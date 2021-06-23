@@ -40,6 +40,7 @@ const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { retu
 const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
+const Type* BottomType         ::vrebuild(TypeTable& to, Types    ) const { return to.bottom_type(); }
 const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.prim_type(primtype_tag(), length()); }
 
 const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
@@ -140,8 +141,9 @@ bool PtrType::equal(const Type* other) const {
 
 Stream& Type::stream(Stream& s) const {
     if (false) {}
-    else if (isa<  MemType>()) return s.fmt("mem");
-    else if (isa<FrameType>()) return s.fmt("frame");
+    else if (isa<BottomType>()) return s.fmt("!!");
+    else if (isa<   MemType>()) return s.fmt("mem");
+    else if (isa< FrameType>()) return s.fmt("frame");
     else if (auto t = isa<DefiniteArrayType>()) {
         return s.fmt("[{} x {}]", t->dim(), t->elem_type());
     } else if (auto t = isa<FnType>()) {
@@ -188,10 +190,11 @@ Stream& Type::stream(Stream& s) const {
 //------------------------------------------------------------------------------
 
 TypeTable::TypeTable()
-    : unit_ (insert<TupleType>(*this, Types()))
-    , fn0_  (insert<FnType   >(*this, Types()))
-    , mem_  (insert<MemType  >(*this))
-    , frame_(insert<FrameType>(*this))
+    : unit_     (insert<TupleType >(*this, Types()))
+    , fn0_      (insert<FnType    >(*this, Types()))
+    , bottom_ty_(insert<BottomType>(*this))
+    , mem_      (insert<MemType   >(*this))
+    , frame_    (insert<FrameType >(*this))
 {
 #define THORIN_ALL_TYPE(T, M) \
     primtypes_[PrimType_##T - Begin_PrimType] = insert<PrimType>(*this, PrimType_##T, 1);

@@ -18,8 +18,8 @@ public:
         // create a new continuation for every continuation taking a function as parameter
         std::vector<std::pair<Continuation*, Continuation*>> converted;
         for (auto continuation : world_.copy_continuations()) {
-            // do not convert empty continuations or intrinsics, except graph intrinsics
-            if (continuation->empty() || continuation->is_intrinsic()) {
+            // do not convert empty continuations or intrinsics
+            if (!continuation->has_body() || continuation->is_intrinsic()) {
                 new_defs_[continuation] = continuation;
                 continue;
             }
@@ -31,14 +31,15 @@ public:
                     new_continuation->set_intrinsic();
 
                 new_defs_[continuation] = new_continuation;
-                if (!continuation->empty()) {
+                if (continuation->has_body()) {
+                    auto body = continuation->body();
                     for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                         new_defs_[continuation->param(i)] = new_continuation->param(i);
                     // copy existing call from old continuation
-                    new_continuation->jump(continuation->callee(), continuation->args(), continuation->debug());
+                    new_continuation->jump(body->callee(), body->args(), continuation->debug());
                     converted.emplace_back(continuation, new_continuation);
                 }
-            } else if (!continuation->empty()) {
+            } else if (continuation->has_body()) {
                 converted.emplace_back(continuation, continuation);
             }
         }
@@ -57,14 +58,16 @@ public:
     }
 
     void convert_jump(Continuation* continuation) {
+        assert(continuation->has_body());
+        auto body = continuation->body();
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
-        auto callee = continuation->callee()->isa_continuation();
+        auto callee = body->callee()->isa_continuation();
         if (callee == continuation) return;
         if (!callee || !callee->is_intrinsic()) {
-            Array<const Def*> new_args(continuation->num_args());
-            for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                new_args[i] = convert(continuation->arg(i));
-            continuation->jump(convert(continuation->callee(), true), new_args, continuation->debug());
+            Array<const Def*> new_args(body->num_args());
+            for (size_t i = 0, e = body->num_args(); i != e; ++i)
+                new_args[i] = convert(body->arg(i));
+            continuation->jump(convert(body->callee(), true), new_args, continuation->debug());
         }
     }
 
@@ -78,7 +81,7 @@ public:
             for (auto& op : ops) op = convert(op);
             return new_defs_[def] = primop->rebuild(ops, convert(primop->type()));
         } else if (auto continuation = def->isa_continuation()) {
-            if (continuation->empty())
+            if (!continuation->has_body())
                 return continuation;
             convert_jump(continuation);
             if (as_callee)
@@ -93,7 +96,7 @@ public:
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));
                 auto continuation = def->isa_continuation();
-                return continuation && (continuation->empty() || continuation->is_intrinsic());
+                return continuation && (!continuation->has_body() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
             auto lifted = lift(scope, free_vars);

@@ -300,6 +300,8 @@ public:
 
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    const Filter* filter(const Defs, Debug dbg = {});
+    const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
@@ -324,8 +326,12 @@ private:
     Continuation* end_scope_;
     std::shared_ptr<Stream> stream_;
 
+    friend class Mangler;
     friend class Cleaner;
     friend class Continuation;
+    friend class Filter;
+    friend class App;
+    friend class Importer;
     friend void Def::replace(Tracker) const;
 };
 

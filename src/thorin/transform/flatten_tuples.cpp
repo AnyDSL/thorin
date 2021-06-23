@@ -37,7 +37,9 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     if (args[0]->isa_continuation()) {
         auto dropped = drop(Call(args));
-        cont->jump(dropped->callee(), dropped->args(), args[0]->debug());
+        assert(dropped->has_body());
+        auto dapp = dropped->body();
+        cont->jump(dapp->callee(), dapp->args(), args[0]->debug());
     } else {
         jump(cont, args);
     }
@@ -46,12 +48,15 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
 
 static void inline_calls(Continuation* cont) {
     for (auto use : cont->copy_uses()) {
-        auto ucont = use->isa_continuation();
-        if (!ucont || use.index() != 0) continue;
+        auto app = use->isa<App>();
+        if (!app || use.index() != 0) continue;
 
-        Array<const Def*> args(ucont->num_args() + 1);
-        for (size_t i = 0, e = ucont->num_args(); i != e; ++i) args[i + 1] = ucont->arg(i);
-        args[0] = ucont->callee();
+        auto ucont = app->using_continuation();
+        assert(ucont->has_body());
+
+        Array<const Def*> args(app->num_args() + 1);
+        for (size_t i = 0, e = app->num_args(); i != e; ++i) args[i + 1] = app->arg(i);
+        args[0] = app->callee();
         try_inline(ucont, args);
     }
 }
@@ -173,7 +178,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto cont : world.copy_continuations()) {
             // do not change the signature of intrinsic/external functions
-            if (cont->empty() ||
+            if (!cont->has_body() ||
                 cont->is_intrinsic() ||
                 cont->is_exported() ||
                 is_passed_to_accelerator(cont))
@@ -197,7 +202,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            if (def->empty()) continue;
+            if (def->empty()) continue; // todo: can this be a continuation ?
 
             auto new_cont = wrap_pair.second->as_continuation();
             auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);

@@ -153,6 +153,7 @@ void Cleaner::eta_conversion() {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
                         auto ucontinuation = uapp->using_continuation();
+                        if (!ucontinuation) continue;
                         Array<const Def*> new_args(perm.size());
                         for (size_t i = 0, e = perm.size(); i != e; ++i) {
                             new_args[i] = uapp->arg(perm[i]);
@@ -205,6 +206,7 @@ void Cleaner::eliminate_params() {
                     auto ubody = use->as<App>();
                     assert(use.index() == 0);
                     auto ucontinuation = ubody->using_continuation();
+                    if (!ucontinuation) continue; // orphan app
                     ucontinuation->jump(ncontinuation, ubody->args().cut(proxy_idx), ucontinuation->debug());
                 }
 

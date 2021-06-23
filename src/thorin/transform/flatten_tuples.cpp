@@ -52,6 +52,7 @@ static void inline_calls(Continuation* cont) {
         if (!app || use.index() != 0) continue;
 
         auto ucont = app->using_continuation();
+        if (!ucont) continue; // orphan app
         assert(ucont->has_body());
 
         Array<const Def*> args(app->num_args() + 1);

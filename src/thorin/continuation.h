@@ -65,9 +65,8 @@ public:
     const Defs args() const { return ops().skip_front(); }
 
     Continuation* using_continuation() const {
-        assertf(num_uses() > 0, "not used");
         assertf(num_uses() <= 1, "currently app nodes should not be reused");
-        return copy_uses()[0]->as_continuation(); // todo don't copy
+        return num_uses() == 0 ? nullptr : copy_uses()[0]->as_continuation(); // todo don't copy
     }
 
     /// Returns a mutated copy of this App, ops-based because the callers of this rely on Use.index

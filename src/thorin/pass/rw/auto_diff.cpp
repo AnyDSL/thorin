@@ -530,6 +530,7 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 auto pb_pi = dst_pi->doms().back()->as<Pi>();
                 auto pb_lam = world.nom_lam(pb_pi, world.dbg("pullback_" + src_lam->name()));
                 auto [pb_mem, pb_grad, pb_ret] = pb_lam->var()->split<3>();
+                auto pr = pb_lam->ret_var(world.dbg("pb_ret"));
 
                 auto ret_pi = src_pi->doms().back()->as<Pi>();
                 auto ret_lam = world.nom_lam(ret_pi, world.dbg("wrapper"));
@@ -555,12 +556,13 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 Array<const Def*> ret_body_args{num_ret_body_args,
                     [&](auto i) { return i < num_ret_body_args - 1 ? ret_lam->var(i) : pb_lam; }};
                 ret_lam->set_filter(world.lit_true());
-                ret_lam->set_body(world.app(dst_lam->ret_var(world.dbg("return")), ret_body_args));
+                ret_lam->set_body(world.app(dst_lam/*->ret_var(world.dbg("return"))*/, ret_body_args));
 
+                // TODO: what if multidimensional output?
                 auto num_grads = src_lam->num_vars() - 2;
                 Array<const Def*> grads{num_grads, [&](auto i) { return differ.grad(dst_lam->var(i + 1)); }};
                 pb_lam->set_filter(world.lit_true());
-                pb_lam->set_body(world.app(pb_lam->ret_var(), {pb_lam->mem_var(), world.tuple(grads)}));
+                pb_lam->set_body(world.app(pb_lam->ret_var(world.dbg("pb_ret")), {pb_lam->mem_var(), world.tuple(grads), ret_lam}));
 
                 return dst_lam;
             }

@@ -57,7 +57,8 @@ CFA::CFA(const Scope& scope)
             }
         };
 
-        queue.push(src);
+        if (src->has_body())
+            queue.push(src->body());
 
         while (!queue.empty()) {
             auto def = pop(queue);

@@ -38,7 +38,9 @@ void RecStreamer::run(const Def* def) {
         assert(cont->has_body());
         s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->body()->callee(), cont->body()->args());
         run(cont->body());
-    } else if (!def->no_dep() && !def->isa<Param>())
+    } else if (auto app = def->isa<App>())
+        s.fmt("{}({, })", app->callee(), app->args());
+    else if (!def->no_dep() && !def->isa<Param>())
         def->stream_let(s);
 }
 
@@ -90,12 +92,10 @@ Stream& Def::stream(Stream& s, size_t max) const {
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
         return s.fmt("{}[{}]", param->unique_name(), param->continuation());
-    } else if (auto cont = isa<Continuation>()) {
-        assert(false);
-        assert(cont->has_body());
-        return s.fmt("{}({, })", cont->body()->callee(), cont->body()->args());
-    } else if (auto app = isa<App>()) {
-        return s.fmt("{}({, })", app->callee(), app->args());
+    } else if (isa<Continuation>()) {
+        assertf(false, "A continuation node cannot be found here");
+    } else if (isa<App>()) {
+        assertf(false, "An app node cannot be found here");
     } else if (auto lit = isa<PrimLit>()) {
         // print i8 as ints
         switch (lit->tag()) {

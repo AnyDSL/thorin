@@ -50,7 +50,9 @@ void RecStreamer::run() {
         s.endl().endl();
 
         if (cont->has_body()) {
-            s.fmt("{}: {} = {{\t\n", cont->unique_name(), cont->type());
+            std::vector<std::string> param_names;
+            for (auto param : cont->params()) param_names.push_back(param->unique_name());
+            s.fmt("{}: {} = ({, }) => {{\t\n", cont->unique_name(), cont->type(), param_names);
             run(cont->body()); // TODO app node
             s.fmt("\b\n}}");
         } else {
@@ -91,7 +93,7 @@ Stream& Def::stream(Stream& s, size_t max) const {
 
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
-        return s.fmt("{}[{}]", param->unique_name(), param->continuation());
+        return s.fmt("{}.{}", param->continuation(), param->unique_name());
     } else if (isa<Continuation>()) {
         assertf(false, "A continuation node cannot be found here");
     } else if (isa<App>()) {
@@ -129,7 +131,7 @@ Stream& Def::stream_let(Stream& s) const {
 
 Stream& World::stream(Stream& s) const {
     RecStreamer rec(s, std::numeric_limits<size_t>::max());
-    s << "module '" << name();
+    s << "module '" << name() << "'";
 
     for (auto cont : continuations()) {
         if (cont->is_exported()) {

@@ -785,7 +785,7 @@ const Def* World::op_rev_diff(const Def* fn, const Def* dbg){
         auto src_cn = cn_mem_flat(dom, codom);
         auto dst_cn = cn_mem_flat(dom, sigma({ codom, cn_mem_half_flat(tan_codom, tan_dom) }));
 
-        auto mk_pullback = app(data_.op_rev_diff_, {src_cn, dst_cn}, this->dbg("mk_φ"));
+        auto mk_pullback = app(data_.op_rev_diff_, {src_cn, dst_cn}, this->dbg("mk_pullback"));
         auto pullback = app(mk_pullback, fn, dbg);
 
         return pullback;

@@ -20,8 +20,7 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
-    , dep_(tag == Node_Continuation ? Dep::Cont  : // TODO shouldnt the continuation itself now be free of dep ?
-           tag == Node_App          ? Dep::Cont  :
+    , dep_(tag == Node_Continuation ? Dep::Cont  :
            tag == Node_Param        ? Dep::Param :
                                       Dep::Bot   )
 {}

@@ -1,12 +1,15 @@
 set(THORIN_SOURCES
     continuation.cpp
     continuation.h
+    debug.cpp
+    debug.h
     def.cpp
     def.h
     enums.cpp
     enums.h
     primop.cpp
     primop.h
+    rec_stream.cpp
     type.cpp
     type.h
     world.cpp
@@ -27,8 +30,11 @@ set(THORIN_SOURCES
     analyses/scope.h
     analyses/verify.cpp
     analyses/verify.h
-    be/c.cpp
-    be/c.h
+    be/codegen.cpp
+    be/codegen.h
+    be/emitter.h
+    be/c/c.cpp
+    be/c/c.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h
@@ -49,6 +55,8 @@ set(THORIN_SOURCES
     transform/hoist_enters.h
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
+    transform/flatten_vectors.cpp
+    transform/flatten_vectors.h
     transform/importer.cpp
     transform/importer.h
     transform/inliner.cpp
@@ -61,13 +69,10 @@ set(THORIN_SOURCES
     transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
-    transform/rewrite_flow_graphs.cpp
-    transform/rewrite_flow_graphs.h
     transform/split_slots.cpp
     transform/split_slots.h
     transform/vectorize.cpp
     transform/vectorize.h
-    util/args.h
     util/array.h
     util/cast.h
     util/hash.h
@@ -75,36 +80,24 @@ set(THORIN_SOURCES
     util/indexmap.h
     util/indexset.h
     util/iterator.h
-    util/location.cpp
-    util/location.h
-    util/log.cpp
-    util/log.h
     util/stream.cpp
     util/stream.h
     util/symbol.cpp
     util/symbol.h
     util/types.h
     util/utility.h
-    util/ycomp.cpp
-    util/ycomp.h
-)
+    )
 
 if(LLVM_FOUND)
     list(APPEND THORIN_SOURCES
         be/llvm/cpu.cpp
         be/llvm/cpu.h
-        be/llvm/cuda.cpp
-        be/llvm/cuda.h
-        be/llvm/hls.cpp
-        be/llvm/hls.h
         be/llvm/llvm.cpp
         be/llvm/llvm.h
         be/llvm/amdgpu.cpp
         be/llvm/amdgpu.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
-        be/llvm/opencl.cpp
-        be/llvm/opencl.h
         be/llvm/parallel.cpp
         be/llvm/runtime.inc
         be/llvm/runtime.cpp

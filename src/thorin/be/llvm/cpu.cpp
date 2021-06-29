@@ -8,7 +8,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 
-namespace thorin {
+namespace thorin::llvm {
 
 CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
@@ -39,8 +39,8 @@ CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug)
     assert(target && "can't create target for target architecture");
     llvm::TargetOptions options;
     machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, llvm::None));
-    module_->setDataLayout(machine_->createDataLayout());
-    module_->setTargetTriple(triple_str);
+    module().setDataLayout(machine_->createDataLayout());
+    module().setTargetTriple(triple_str);
 }
 
 }

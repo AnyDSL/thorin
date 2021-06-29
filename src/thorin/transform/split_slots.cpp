@@ -4,12 +4,11 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/split_slots.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
 struct IndexHash {
-    static uint64_t hash(u32 u) { return u; }
+    static hash_t hash(u32 u) { return u; } // TODO bad hash function
     static bool eq(u32 a, u32 b) { return a == b; }
     static u32 sentinel() { return 0xFFFFFFFF; }
 };
@@ -59,7 +58,7 @@ static bool can_split(const Slot* slot) {
     // only accept LEAs with constant indices and loads and stores
     for (auto use : slot->uses()) {
         if (auto lea = use->isa<LEA>()) {
-            if (!is_const(lea->index()))
+            if (!lea->index()->no_dep())
                 return false;
         } else if (!use->isa<Store>() && !use->isa<Load>()) {
             return false;
@@ -71,6 +70,8 @@ static bool can_split(const Slot* slot) {
 
 static bool split_slots(const Scope& scope) {
     bool todo = false;
+    // TODO
+#if 0
     for (const auto& block : schedule(scope, Schedule::Late)) {
         for (auto primop : block) {
             if (auto slot = primop->isa<Slot>()) {
@@ -81,6 +82,7 @@ static bool split_slots(const Scope& scope) {
             }
         }
     }
+#endif
     return todo;
 }
 

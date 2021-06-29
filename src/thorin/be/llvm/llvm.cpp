@@ -35,1900 +35,103 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/amdgpu.h"
-#include "thorin/be/llvm/cpu.h"
-#include "thorin/be/llvm/cuda.h"
-#include "thorin/be/llvm/hls.h"
-#include "thorin/be/llvm/nvvm.h"
-#include "thorin/be/llvm/opencl.h"
-#include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
-namespace thorin {
+namespace thorin::llvm {
 
-CodeGen::CodeGen(World& world,
-                 llvm::CallingConv::ID function_calling_convention,
-                 llvm::CallingConv::ID device_calling_convention,
-                 llvm::CallingConv::ID kernel_calling_convention,
-                 int opt, bool debug)
-    : world_(world)
-    , context_(new llvm::LLVMContext())
-    , module_(new llvm::Module(world.name(), *context_))
-    , irbuilder_(*context_)
-    , dibuilder_(*module_.get())
+CodeGen::CodeGen(
+    World& world,
+    llvm::CallingConv::ID function_calling_convention,
+    llvm::CallingConv::ID device_calling_convention,
+    llvm::CallingConv::ID kernel_calling_convention,
+    int opt, bool debug)
+    : thorin::CodeGen(world, debug)
+    , context_(std::make_unique<llvm::LLVMContext>())
+    , module_(std::make_unique<llvm::Module>(world.name(), context()))
+    , opt_(opt)
+    , dibuilder_(module())
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new Runtime(*context_, *module_.get(), irbuilder_))
-    , opt_(opt)
-    , debug_(debug)
+    , runtime_(std::make_unique<Runtime>(context(), module()))
 {}
 
-Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
-    auto callee = continuation->callee()->as_continuation();
-    switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:      return emit_atomic(continuation);
-        case Intrinsic::AtomicLoad:  return emit_atomic_load(continuation);
-        case Intrinsic::AtomicStore: return emit_atomic_store(continuation);
-        case Intrinsic::CmpXchg:     return emit_cmpxchg(continuation);
-        case Intrinsic::Reserve:     return emit_reserve(continuation);
-        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
-        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
-        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
-        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
-        case Intrinsic::HLS:         return emit_hls(continuation);
-        case Intrinsic::Parallel:    return emit_parallel(continuation);
-        case Intrinsic::Fibers:      return emit_fibers(continuation);
-        case Intrinsic::Spawn:       return emit_spawn(continuation);
-        case Intrinsic::Sync:        return emit_sync(continuation);
-#if THORIN_ENABLE_RV
-        case Intrinsic::Vectorize:   return emit_vectorize_continuation(continuation);
-        case Intrinsic::Sequence:    return emit_sequence_continuation(continuation);
-#else
-        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
-        case Intrinsic::Sequence:    throw std::runtime_error("rebuild with RV support");
-#endif
-        default: THORIN_UNREACHABLE;
-    }
-}
+void CodeGen::optimize() {
+    llvm::PassBuilder PB;
+    llvm::PassBuilder::OptimizationLevel opt_level;
 
-static Array<llvm::Type*> flatten (llvm::Type* orig_type) {
-    if (orig_type->isStructTy()) {
-        std::vector<llvm::Type*> new_elements;
-        for (unsigned i = 0; i < orig_type->getStructNumElements(); i++) {
-            auto struct_element = orig_type->getStructElementType(i);
-            for (auto felem : flatten(struct_element)) {
-                new_elements.push_back(felem);
-            }
-        }
-        return Array<llvm::Type*>(new_elements);
-    } else if (orig_type->isArrayTy()) {
-        std::vector<llvm::Type*> new_elements;
-        for (unsigned i = 0; i < orig_type->getArrayNumElements(); i++) {
-                new_elements.push_back(orig_type->getArrayElementType());
-        }
-        return Array<llvm::Type*>(new_elements);
-    } else if (orig_type->isPointerTy()) {
-        auto pointee = orig_type->getPointerElementType();
-        auto addrspace = orig_type->getPointerAddressSpace();
-        auto flattened_pointee = flatten(pointee);
-        std::vector<llvm::Type*> new_elements;
-        for (unsigned i = 0; i < flattened_pointee.size(); i++) {
-            new_elements.push_back(llvm::PointerType::get(flattened_pointee[i], addrspace));
-        }
-        return Array<llvm::Type*>(new_elements);
-    }
-    return Array<llvm::Type*> {orig_type};
-}
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    llvm::CGSCCAnalysisManager CGAM;
+    llvm::ModuleAnalysisManager MAM;
 
-Continuation* CodeGen::emit_hls(Continuation* continuation) {
-    std::vector<llvm::Value*> args(continuation->num_args()-3);
-    Continuation* ret = nullptr;
-    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
-        if (auto cont = continuation->arg(i)->isa_continuation()) {
-            ret = cont;
-            continue;
-        }
-        args[j++] = emit(continuation->arg(i));
-    }
-    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_exported();
-    irbuilder_.CreateCall(emit_function_decl(callee), args);
-    assert(ret);
-    return ret;
-}
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
-    thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
-}
-
-Continuation* CodeGen::emit_atomic(Continuation* continuation) {
-    assert(continuation->num_args() == 7 && "required arguments are missing");
-    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
-    u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
-    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
-    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
-                        (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
-    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
-        EDEF(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
-    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
-        EDEF(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
-    auto ptr = lookup(continuation->arg(2));
-    auto val = lookup(continuation->arg(3));
-    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(6)->as_continuation();
-    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(align).getValue(), order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
-Continuation* CodeGen::emit_atomic_load(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto ptr = lookup(continuation->arg(1));
-    u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(4)->as_continuation();
-    auto load = irbuilder_.CreateLoad(convert(continuation->type()), ptr); //TODO: MemOp or not?
-    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    load->setAlignment(llvm::MaybeAlign(align).getValue());
-    load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), load);
-    return cont;
-}
-
-Continuation* CodeGen::emit_atomic_store(Continuation* continuation) {
-    assert(continuation->num_args() == 6 && "required arguments are missing");
-    auto ptr = lookup(continuation->arg(1));
-    auto val = lookup(continuation->arg(2));
-    u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(5)->as_continuation();
-    auto store = irbuilder_.CreateStore(val, ptr);
-    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    store->setAlignment(llvm::MaybeAlign(align).getValue());
-    store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    return cont;
-}
-
-Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
-    assert(continuation->num_args() == 7 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
-    auto ptr  = lookup(continuation->arg(1));
-    auto cmp  = lookup(continuation->arg(2));
-    auto val  = lookup(continuation->arg(3));
-    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(6)->as_continuation();
-    auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(align).getValue(), order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
-    emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
-    emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
-    return cont;
-}
-
-Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    EDEF(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
-    THORIN_UNREACHABLE;
-}
-
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
-    assert(continuation->num_args() == 3 && "required arguments are missing");
-    if (!continuation->arg(1)->isa<PrimLit>())
-        EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
-    auto cont = continuation->arg(2)->as_continuation();
-    auto type = convert(cont->param(1)->type());
-    // construct array type
-    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-    auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
-    auto name = continuation->unique_name();
-    // NVVM doesn't allow '.' in global identifier
-    std::replace(name.begin(), name.end(), '.', '_');
-    auto global = emit_global_variable(smem_type, name, 3, init_undef);
-    auto call = irbuilder_.CreatePointerCast(global, type);
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
-llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
-    auto from = lookup(val);
-    auto src_type = val->type();
-    auto to = convert(dst_type);
-    if (from->getType()->isAggregateType() || to->isAggregateType())
-        EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
-    if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
-        return irbuilder_.CreatePointerCast(from, to);
-
-    if (auto dst_vector = dst_type->isa<VectorExtendedType>()) {
-        if (!src_type->isa<VectorExtendedType>()) {
-            auto inner_type = convert(dst_vector->element());
-            auto first_element = irbuilder_.CreateBitCast(from, inner_type);
-
-            llvm::Constant* args[dst_vector->length()];
-            for (size_t i = 0; i < dst_vector->length(); i++) {
-                args[i] = irbuilder_.getInt32(i);
-            }
-            auto seq_vector = llvm::ConstantVector::get(llvm::makeArrayRef<llvm::Constant*>(args, dst_vector->length()));
-
-            auto ptr = irbuilder_.CreateInBoundsGEP(first_element, seq_vector);
-            return ptr;
-        }
+    switch (opt()) {
+        case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
+        case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
+        case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
+        case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
+        default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
     }
 
-    return irbuilder_.CreateBitCast(from, to);
-}
+    if (opt() == 3) {
+        llvm::ModulePassManager module_pass_manager;
 
-llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
-    return llvm::cast<llvm::FunctionType>(convert(continuation->type()));
-}
+        //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
+        llvm::CGSCCPassManager MainCGPipeline;
+        MainCGPipeline.addPass(llvm::InlinerPass());
+        module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
+              createDevirtSCCRepeatedPass(
+                std::move(MainCGPipeline), 4)));
 
-llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
-    if (auto f = thorin::find(fcts_, continuation))
-        return f;
+        llvm::FunctionPassManager function_pass_manager;
+        function_pass_manager.addPass(llvm::ADCEPass());
+        module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
 
-    std::string name = (continuation->is_exported() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
-
-#ifdef _MSC_VER
-    // set dll storage class for MSVC
-    if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
-        if (continuation->empty()) {
-            f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
-        } else if (continuation->is_exported()) {
-            f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
-        }
-    }
-#endif
-
-    // set linkage
-    if (continuation->empty() || continuation->is_exported())
-        f->setLinkage(llvm::Function::ExternalLinkage);
-    else
-        f->setLinkage(llvm::Function::InternalLinkage);
-
-    // set calling convention
-    if (continuation->is_exported()) {
-        f->setCallingConv(kernel_calling_convention_);
-        emit_function_decl_hook(continuation, f);
-    } else {
-        if (continuation->cc() == CC::Device)
-            f->setCallingConv(device_calling_convention_);
-        else
-            f->setCallingConv(function_calling_convention_);
+        module_pass_manager.run(module(), MAM);
     }
 
-    return fcts_[continuation] = f;
-}
-
-std::unique_ptr<llvm::Module>& CodeGen::emit() {
-    if (debug()) {
-        module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-        // Darwin only supports dwarf2
-        if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
-            module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
-    }
-
-    Scope::for_each(world_, [&] (const Scope& scope) { assert(current_mask == nullptr); emit(scope); });
-
-    if (debug()) dibuilder_.finalize();
-
-#if THORIN_ENABLE_RV
-    for (auto [width, fct, call] : vec_todo_)
-        emit_vectorize(width, fct, call);
-    vec_todo_.clear();
-
-    for (const auto& call : seq_todo_)
-        emit_sequence(call);
-    seq_todo_.clear();
-
-    rv::lowerIntrinsics(*module_);
-#endif
-
-#if THORIN_ENABLE_CHECKS
-    llvm::verifyModule(*module_);
-#endif
-    optimize();
-
-    return module_;
-}
-
-void CodeGen::emit(const Scope& scope) {
-    entry_ = scope.entry();
-    assert(entry_->is_returning());
-    llvm::Function* fct = emit_function_decl(entry_);
-
-    llvm::DIScope* discope = dicompile_unit_;
-    if (debug()) {
-        auto src_file = llvm::sys::path::filename(entry_->location().filename());
-        auto src_dir = llvm::sys::path::parent_path(entry_->location().filename());
-        auto difile = dibuilder_.createFile(src_file, src_dir);
-        auto disub_program = dibuilder_.createFunction(
-            discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
-            dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-            entry_->location().front_line(),
-            llvm::DINode::FlagPrototyped,
-            llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
-        fct->setSubprogram(disub_program);
-        discope = disub_program;
-    }
-
-    // map params
-    auto arg = fct->arg_begin();
-    for (auto param : entry_->params()) {
-        if (is_mem(param) || is_unit(param))
-            continue;
-        if (param->order() == 0) {
-            auto argv = &*arg;
-            auto value = map_param(fct, argv, param);
-            if (value == argv) {
-                arg->setName(param->unique_name()); // use param
-                params_[param] = &*arg++;
-            } else {
-                params_[param] = value;             // use provided value
-            }
-        }
-    }
-
-    Schedule schedule(scope);
-    bb2continuation_.clear();
-
-    for (const auto& block : schedule) {
-        auto continuation = block.continuation();
-        // map all bb-like continuations to llvm bb stubs
-        if (continuation->intrinsic() != Intrinsic::EndScope) {
-            auto bb = bb2continuation_[continuation] = llvm::BasicBlock::Create(*context_, continuation->name().c_str(), fct);
-
-            // create phi node stubs (for all continuations different from entry)
-            if (entry_ != continuation) {
-                for (auto param : continuation->params()) {
-                    if (!is_mem(param) && !is_unit(param)) {
-                        auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str(), bb);
-                        phis_[param] = phi;
-                    }
-                }
-            }
-        }
-    }
-
-    auto oldStartBB = fct->begin();
-    auto startBB = llvm::BasicBlock::Create(*context_, fct->getName() + "_start", fct, &*oldStartBB);
-    irbuilder_.SetInsertPoint(startBB);
-    if (debug())
-        irbuilder_.SetCurrentDebugLocation(llvm::DILocation::get(irbuilder_.getContext(), entry_->location().front_line(), entry_->location().front_col(), discope));
-    emit_function_start(startBB, entry_);
-    irbuilder_.CreateBr(&*oldStartBB);
-
-    for (auto& block : schedule) {
-        auto continuation = block.continuation();
-        if (continuation->intrinsic() == Intrinsic::EndScope)
-            continue;
-        assert(continuation == entry_ || continuation->is_basicblock());
-        irbuilder_.SetInsertPoint(bb2continuation_[continuation]);
-
-        for (auto primop : block) {
-            if (debug())
-                irbuilder_.SetCurrentDebugLocation(llvm::DILocation::get(irbuilder_.getContext(), primop->location().front_line(), primop->location().front_col(), discope));
-
-            if (primop->type()->order() >= 1) {
-                // ignore higher-order primops which come from a match intrinsic
-                if (is_from_match(primop)) continue;
-                THORIN_UNREACHABLE;
-            }
-
-            auto llvm_value = emit(primop);
-            primops_[primop] = llvm_value;
-        }
-
-        if (debug())
-            irbuilder_.SetCurrentDebugLocation(llvm::DILocation::get(irbuilder_.getContext(), continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
-        emit_epilogue(continuation);
-    }
-
-    // add missing arguments to phis_
-    for (const auto& p : phis_) {
-        auto param = p.first;
-        auto phi = p.second;
-
-        for (const auto& peek : param->peek()) {
-            assert(peek.from());
-            if (!bb2continuation_[peek.from()]) {
-                //param->dump();
-                //param->continuation()->dump();
-                //peek.from()->dump();
-                //peek.from is unreachable, so we skip it.
-                //TODO: This is an artifact from the way in which the vectorizer deals with stacked branches.
-                continue;
-            }
-            assert(bb2continuation_[peek.from()]);
-
-            phi->addIncoming(lookup(peek.def()), bb2continuation_[peek.from()]);
-        }
-    }
-
-        //At the end of a block, we should have reset the current mask.
-        assert(current_mask == nullptr);
-
-    params_.clear();
-    phis_.clear();
-    primops_.clear();
-}
-
-void CodeGen::emit_epilogue(Continuation* continuation) {
-    if (continuation->callee() == entry_->ret_param()) { // return
-        size_t num_args = continuation->num_args();
-        if (num_args == 0) irbuilder_.CreateRetVoid();
-        else {
-            Array<llvm::Value*> values(num_args);
-            Array<llvm::Type*> args(num_args);
-
-            size_t n = 0;
-            for (auto arg : continuation->args()) {
-                if (!is_mem(arg) && !is_unit(arg)) {
-                    auto val = lookup(arg);
-                    values[n] = val;
-                    args[n++] = val->getType();
-                }
-            }
-
-            if (n == 0) irbuilder_.CreateRetVoid();
-            else if (n == 1) irbuilder_.CreateRet(values[0]);
-            else {
-                values.shrink(n);
-                args.shrink(n);
-                llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(*context_, llvm_ref(args)));
-
-                for (size_t i = 0; i != n; ++i)
-                    agg = irbuilder_.CreateInsertValue(agg, values[i], { unsigned(i) });
-
-                irbuilder_.CreateRet(agg);
-            }
-        }
-    } else if (continuation->callee() == world().branch()) {
-        auto cond = lookup(continuation->arg(0));
-        auto tbb = bb2continuation_[continuation->arg(1)->as_continuation()];
-        auto fbb = bb2continuation_[continuation->arg(2)->as_continuation()];
-        irbuilder_.CreateCondBr(cond, tbb, fbb);
-    } else if (continuation->callee()->isa<Continuation>() &&
-                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
-        auto val = lookup(continuation->arg(0));
-        auto otherwise_bb = bb2continuation_[continuation->arg(1)->as_continuation()];
-        auto match = irbuilder_.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
-        for (size_t i = 2; i < continuation->num_args(); i++) {
-            auto arg = continuation->arg(i)->as<Tuple>();
-            auto case_const = llvm::cast<llvm::ConstantInt>(lookup(arg->op(0)));
-            auto case_bb    = bb2continuation_[arg->op(1)->as_continuation()];
-            match->addCase(case_const, case_bb);
-        }
-    } else if (continuation->callee()->isa<Continuation>() &&
-               continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated) {
-        auto mask = continuation->arg(1);
-        auto target_bb = bb2continuation_[continuation->arg(2)->as_continuation()];
-        auto over_bb = bb2continuation_[continuation->arg(3)->as_continuation()];
-
-        if (!over_bb) {
-            continuation->dump();
-            continuation->dump_jump();
-            continuation->arg(3)->dump();
-            assert(false);
-        }
-
-        if (mask->isa<Vector>()) { //TODO: check for other constants than <n x true>!
-            current_mask = nullptr;
-            irbuilder_.CreateBr(target_bb);
-        } else {
-            current_mask = lookup(mask);
-            llvm::Value *any_set = irbuilder_.CreateOrReduce(current_mask);
-            assert(over_bb);
-            irbuilder_.CreateCondBr(any_set, target_bb, over_bb);
-        }
-    } else if (continuation->callee()->isa<Bottom>()) {
-        irbuilder_.CreateUnreachable();
-    } else {
-        auto callee = continuation->callee();
-        bool terminated = false;
-        if (auto callee_continuation = callee->isa_continuation()) {
-            if (callee_continuation->is_basicblock()) {
-                // ordinary jump
-                irbuilder_.CreateBr(bb2continuation_[callee_continuation]);
-                terminated = true;
-            } else if (callee_continuation->is_intrinsic()) {
-                // intrinsic call
-                auto ret_continuation = emit_intrinsic(continuation);
-                irbuilder_.CreateBr(bb2continuation_[ret_continuation]);
-                terminated = true;
-            }
-        }
-
-        // function/closure call
-        if (!terminated) {
-            // put all first-order args into an array
-            std::vector<llvm::Value*> args;
-            const Def* ret_arg = nullptr;
-            for (auto arg : continuation->args()) {
-                if (arg->order() == 0) {
-                    if (!is_mem(arg) && !is_unit(arg))
-                        args.push_back(lookup(arg));
-                } else {
-                    assert(!ret_arg);
-                    ret_arg = arg;
-                }
-            }
-
-            llvm::CallInst* call = nullptr;
-            if (auto callee_continuation = callee->isa_continuation()) {
-                call = irbuilder_.CreateCall(emit_function_decl(callee_continuation), args);
-                if (callee_continuation->is_exported())
-                    call->setCallingConv(kernel_calling_convention_);
-                else if (callee_continuation->cc() == CC::Device)
-                    call->setCallingConv(device_calling_convention_);
-                else
-                    call->setCallingConv(function_calling_convention_);
-            } else {
-                // must be a closure
-                auto closure = lookup(callee);
-                args.push_back(irbuilder_.CreateExtractValue(closure, 1));
-                llvm::Value* function = irbuilder_.CreateExtractValue(closure, 0);
-                llvm::FunctionType* ft = llvm::dyn_cast<llvm::FunctionType>(function->getType());
-                call = irbuilder_.CreateCall(ft, function, args);
-            }
-
-            // must be call + continuation --- call + return has been removed by codegen_prepare
-            auto succ = ret_arg->as_continuation();
-
-            size_t n = 0;
-            const Param* last_param = nullptr;
-            for (auto param : succ->params()) {
-                if (is_mem(param) || is_unit(param))
-                    continue;
-                last_param = param;
-                n++;
-            }
-
-            if (n == 0) {
-                irbuilder_.CreateBr(bb2continuation_[succ]);
-            } else if (n == 1) {
-                irbuilder_.CreateBr(bb2continuation_[succ]);
-                emit_result_phi(last_param, call);
-            } else {
-                Array<llvm::Value*> extracts(n);
-                for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                    auto param = succ->param(i);
-                    if (is_mem(param) || is_unit(param))
-                        continue;
-                    extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
-                    j++;
-                }
-
-                irbuilder_.CreateBr(bb2continuation_[succ]);
-
-                for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                    auto param = succ->param(i);
-                    if (is_mem(param) || is_unit(param))
-                        continue;
-                    emit_result_phi(param, extracts[j]);
-                    j++;
-                }
-            }
-        }
-    }
-}
-
-void CodeGen::emit(std::ostream& stream) {
-    llvm::raw_os_ostream llvm_stream(stream);
-    emit()->print(llvm_stream, nullptr);
+    llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
+    builder_passes.run(module(), MAM);
 }
 
 void CodeGen::verify() const {
 #if THORIN_ENABLE_CHECKS
-    if (llvm::verifyModule(*module_, &llvm::errs())) {
-        module_->print(llvm::errs(), nullptr, false, true);
+    if (llvm::verifyModule(module(), &llvm::errs())) {
+        module().print(llvm::errs(), nullptr, false, true);
         llvm::errs() << "Broken module:\n";
         abort();
     }
 #endif
 }
 
-void CodeGen::optimize() {
-    // TODO why is here a special case for opt() == 0?
-    if (opt() != 0) {
-        llvm::PassBuilder PB;
-        llvm::PassBuilder::OptimizationLevel opt_level;
-
-        llvm::LoopAnalysisManager LAM;
-        llvm::FunctionAnalysisManager FAM;
-        llvm::CGSCCAnalysisManager CGAM;
-        llvm::ModuleAnalysisManager MAM;
-
-        PB.registerModuleAnalyses(MAM);
-        PB.registerCGSCCAnalyses(CGAM);
-        PB.registerFunctionAnalyses(FAM);
-        PB.registerLoopAnalyses(LAM);
-        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-        switch (opt()) {
-            case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
-            case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
-            case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
-            case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
-            default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
-        }
-
-        if (opt() == 3) {
-            llvm::ModulePassManager module_pass_manager;
-
-            //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
-            llvm::CGSCCPassManager MainCGPipeline;
-            MainCGPipeline.addPass(llvm::InlinerPass());
-            module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
-                  createDevirtSCCRepeatedPass(
-                    std::move(MainCGPipeline), 4)));
-
-            llvm::FunctionPassManager function_pass_manager;
-            function_pass_manager.addPass(llvm::ADCEPass());
-            module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
-
-            module_pass_manager.run(*module_, MAM);
-        }
-
-        llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
-        builder_passes.run(*module_, MAM);
-    }
-}
-
-llvm::Value* CodeGen::lookup(const Def* def) {
-    if (def == nullptr)
-        return nullptr;
-    if (auto primop = def->isa<PrimOp>()) {
-        if (auto res = thorin::find(primops_, primop))
-            return res;
-        else {
-            // we emit all Thorin constants in the entry block, since they are not part of the schedule
-            if (is_const(primop)) {
-                auto bb = irbuilder_.GetInsertBlock();
-                auto fn = bb->getParent();
-                auto& entry = fn->getEntryBlock();
-
-                auto dbg = irbuilder_.getCurrentDebugLocation();
-                auto ip = irbuilder_.saveAndClearIP();
-                irbuilder_.SetInsertPoint(entry.getTerminator());
-                auto llvm_value = emit(primop);
-                irbuilder_.restoreIP(ip);
-                irbuilder_.SetCurrentDebugLocation(dbg);
-                return primops_[primop] = llvm_value;
-            }
-
-            auto llvm_value = emit(def);
-            return primops_[primop] = llvm_value;
-        }
-    }
-
-    if (auto param = def->isa<Param>()) {
-        auto i = params_.find(param);
-        if (i != params_.end())
-            return i->second;
-
-        assert(phis_.find(param) != phis_.end());
-        return thorin::find(phis_, param);
-    }
-
-    if (auto continuation = def->isa_continuation())
-        return emit_function_decl(continuation);
-
-    THORIN_UNREACHABLE;
-}
-
-llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
-    // Emit the alloca in the entry block
-    auto entry = &irbuilder_.GetInsertBlock()->getParent()->getEntryBlock();
-    auto layout = module_->getDataLayout();
-    llvm::AllocaInst* alloca;
-    if (entry->empty())
-        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
-    else
-        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
-    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)).getValue());
-    return alloca;
-}
-
-llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
-    auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
-    auto alloced_type = convert(type);
-    llvm::CallInst* void_ptr;
-    auto layout = module_->getDataLayout();
-    if (auto array = type->isa<IndefiniteArrayType>()) {
-        assert(extra);
-        auto size = irbuilder_.CreateAdd(
-                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
-                irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(extra), irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-        llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
-        void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
-    } else {
-        llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)) };
-        void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
-    }
-
-    return irbuilder_.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
-}
-
-llvm::Value *CodeGen::createComplexCast(llvm::Value *source, llvm::Type *target_type, size_t offset) {
-    auto layout = module_->getDataLayout();
-    auto source_type = source->getType(); // {max_align, [n x i8]}
-
-    size_t source_type_size = layout.getTypeAllocSize(source_type);
-    size_t target_type_size = layout.getTypeAllocSize(target_type);
-    size_t max_align = layout.getTypeAllocSize(source_type->getStructElementType(0));
-
-    assert(source_type_size >= target_type_size);
-
-    if (target_type->isAggregateType()) {
-        if (llvm::isa<llvm::StructType>(target_type)) {
-            auto target_type_struct = llvm::dyn_cast<llvm::StructType>(target_type);
-            auto struct_layout = layout.getStructLayout(target_type_struct);
-            llvm::Value *buffer = llvm::UndefValue::get(target_type_struct);
-            for (unsigned k = 0; k < target_type_struct->getNumElements(); k++) {
-                auto element_type = target_type_struct->getElementType(k);
-                auto element_offset = struct_layout->getElementOffset(k);
-                auto converted = createComplexCast(source, element_type, offset + element_offset);
-                assert(converted->getType() == element_type);
-                buffer = irbuilder_.CreateInsertValue(buffer, converted, { k });
-            }
-            return buffer;
-        } else if (llvm::isa<llvm::ArrayType>(target_type)) {
-            assert(false && "not yet implemented");
-        } else {
-            assert(false && "these should be the only relevant aggregate types");
-        }
-    } else {
-        if (offset < max_align) { //Contained in first element.
-            source = irbuilder_.CreateExtractValue(source, { 0 });
-            auto source_type = source->getType();
-            size_t source_type_size = layout.getTypeAllocSize(source_type);
-            auto equal_sized_int_source = llvm::IntegerType::get(module_->getContext(), source_type_size * 8);
-            auto equal_sized_int_target = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
-            if (source_type != equal_sized_int_source)
-                source = irbuilder_.CreateBitCast(source, equal_sized_int_source);
-            if (offset != 0)
-                source = irbuilder_.CreateLShr(source, offset * 8);
-            source = irbuilder_.CreateTrunc(source, equal_sized_int_target);
-            if (target_type != equal_sized_int_target)
-                source = irbuilder_.CreateBitCast(source, target_type);
-            return source;
-        } else { //Contained in second element.
-            source = irbuilder_.CreateExtractValue(source, { 1 });
-            unsigned int offset_back = offset - max_align;
-            auto element_type = source->getType()->getArrayElementType();
-            unsigned int element_type_size = layout.getTypeAllocSize(element_type);
-
-            assert(offset_back % element_type_size == 0 && "Smaller types not supported as of now");
-            assert(target_type_size % element_type_size == 0 && "Smaller types not supported as of now");
-
-            auto build = irbuilder_.CreateExtractValue(source, { offset_back / element_type_size });
-            if (layout.getTypeAllocSize(build->getType()) < target_type_size) {
-                auto equal_sized_int = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
-
-                build = irbuilder_.CreateZExt(build, equal_sized_int);
-
-                for (unsigned int k = element_type_size; k < target_type_size; k += element_type_size) {
-                    auto nextelem = irbuilder_.CreateExtractValue(source, { (offset_back + k) / element_type_size });
-                    nextelem = irbuilder_.CreateZExt(nextelem, equal_sized_int);
-                    nextelem = irbuilder_.CreateShl(nextelem, k * 8);
-                    build = irbuilder_.CreateOr(build, nextelem);
-                }
-
-                if (target_type != equal_sized_int)
-                    build = irbuilder_.CreateBitCast(build, target_type);
-            }
-            if (build->getType() != target_type) { //TODO: sizes might differ!
-                build = irbuilder_.CreateBitCast(build, target_type); //TODO: there might be aggregates involved here?
-            }
-
-            return build;
-        }
-    }
-
-    THORIN_UNREACHABLE;
-}
-
-llvm::Value *CodeGen::createComplexBackCast(llvm::Value *source, llvm::Value *target, size_t offset) {
-    auto layout = module_->getDataLayout();
-    auto source_type = source->getType();
-    auto target_type = target->getType();
-
-    size_t source_type_size = layout.getTypeAllocSize(source_type);
-    size_t target_type_size = layout.getTypeAllocSize(target_type);
-    size_t max_align = layout.getTypeAllocSize(target_type->getStructElementType(0));
-
-    assert(source_type_size <= target_type_size);
-
-    if (source_type->isAggregateType()) {
-        if (llvm::isa<llvm::StructType>(source_type)) {
-            auto source_type_struct = llvm::dyn_cast<llvm::StructType>(source_type);
-            auto struct_layout = layout.getStructLayout(source_type_struct);
-            llvm::Value *buffer = target;
-            for (unsigned k = 0; k < source_type_struct->getNumElements(); k++) {
-                auto element_offset = struct_layout->getElementOffset(k);
-                auto element = irbuilder_.CreateExtractValue(source, { k });
-                buffer = createComplexBackCast(element, buffer, offset + element_offset);
-            }
-            return buffer;
-        } else if (llvm::isa<llvm::ArrayType>(source_type)) {
-            assert(false && "not yet implemented");
-        } else {
-            assert(false && "these should be the only relevant aggregate types");
-        }
-    } else {
-        if (offset < max_align) { //Contained in first element.
-            target_type = target_type->getStructElementType(0);
-            target_type_size = layout.getTypeAllocSize(target_type);
-            auto equal_sized_int_source = llvm::IntegerType::get(module_->getContext(), source_type_size * 8);
-            auto equal_sized_int_target = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
-            if (source_type != equal_sized_int_source)
-                source = irbuilder_.CreateBitCast(source, equal_sized_int_source);
-            source = irbuilder_.CreateZExt(source, equal_sized_int_target);
-            if (offset != 0)
-                source = irbuilder_.CreateShl(source, offset * 8);
-            if (target_type != equal_sized_int_target)
-                source = irbuilder_.CreateBitCast(source, target_type);
-            if (source_type_size != target_type_size) {
-                auto oldvalue = irbuilder_.CreateExtractValue(target, { 0 });
-                oldvalue = irbuilder_.CreateAnd(oldvalue, ((1 << target_type_size) - 1) ^ (((1 << source_type_size) - 1) << offset));
-                source = irbuilder_.CreateOr(oldvalue, source);
-            }
-            target = irbuilder_.CreateInsertValue(target, source, { 0 });
-            return target;
-        } else { //Contained in second element.
-            unsigned int offset_back = offset - max_align;
-
-            auto build = irbuilder_.CreateExtractValue(target, { 1 });
-            auto element_type = build->getType()->getArrayElementType();
-            unsigned int element_type_size = layout.getTypeAllocSize(element_type);
-
-            assert(offset_back % element_type_size == 0 && "Smaller types not supported as of now");
-            assert(source_type_size % element_type_size == 0 && "Smaller types not supported as of now");
-
-            if (element_type_size < source_type_size) {
-                auto equal_sized_int_source = llvm::IntegerType::get(module_->getContext(), source_type_size * 8);
-                auto equal_sized_int_target = llvm::IntegerType::get(module_->getContext(), target_type_size * 8);
-
-                if (source->getType() != equal_sized_int_source)
-                    source = irbuilder_.CreateBitCast(source, equal_sized_int_source);
-
-                if (equal_sized_int_source < equal_sized_int_target)
-                    source = irbuilder_.CreateZExt(source, equal_sized_int_target);
-
-                for (unsigned int k = 0; k < source_type_size; k += element_type_size) {
-                    auto nextelem = irbuilder_.CreateLShr(source, k * 8);
-                    if (nextelem->getType() != element_type)
-                        nextelem = irbuilder_.CreateTrunc(nextelem, element_type);
-                    build = irbuilder_.CreateInsertValue(build, nextelem, { (offset_back + k) / element_type_size });
-                }
-            } else if (source->getType() != element_type) {
-                source = irbuilder_.CreateBitCast(source, element_type);
-                build = irbuilder_.CreateInsertValue(build, source, { offset_back / element_type_size });
-            } else {
-                build = irbuilder_.CreateInsertValue(build, source, { offset_back / element_type_size });
-            }
-
-            target = irbuilder_.CreateInsertValue(target, build, { 1 });
-
-            return target;
-        }
-    }
-
-    THORIN_UNREACHABLE;
-}
-
-llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto bin = def->isa<BinOp>()) {
-        llvm::Value* lhs = lookup(bin->lhs());
-        llvm::Value* rhs = lookup(bin->rhs());
-        const char* name = bin->name().c_str();
-
-        if (lhs->getType()->isVectorTy() && !rhs->getType()->isVectorTy())
-            rhs = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(lhs->getType())->getNumElements(), rhs);
-        if (rhs->getType()->isVectorTy() && !lhs->getType()->isVectorTy())
-            lhs = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(rhs->getType())->getNumElements(), lhs);
-
-        if (auto cmp = bin->isa<Cmp>()) {
-            auto type = cmp->lhs()->type();
-            if (auto vec_type = type->isa<VectorExtendedType>())
-                type = vec_type->element();
-            if (is_type_s(type)) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateICmpSGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateICmpSGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
-                }
-            } else if (is_type_u(type) || is_type_bool(type)) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateICmpUGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateICmpUGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
-                }
-            } else if (is_type_f(type)) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateFCmpOGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
-                }
-            } else if (type->isa<PtrType>()) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    default: THORIN_UNREACHABLE;
-                }
-            }
-        }
-
-        if (auto arithop = bin->isa<ArithOp>()) {
-            const Type* type = arithop->type();
-            if (auto typevec = type->isa<VectorExtendedType>())
-                type = typevec->element(); // TODO: this should only be a quickfix, I guess?
-            bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
-
-            if (is_type_f(type)) {
-                switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
-                    case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
-                    case ArithOp_mul: return irbuilder_.CreateFMul(lhs, rhs, name);
-                    case ArithOp_div: return irbuilder_.CreateFDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateFRem(lhs, rhs, name);
-                    case ArithOp_and:
-                    case ArithOp_or:
-                    case ArithOp_xor:
-                    case ArithOp_shl:
-                    case ArithOp_shr: THORIN_UNREACHABLE;
-                }
-            }
-
-            if (is_type_s(type) || is_type_bool(type)) {
-                switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
-                    case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
-                    case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, false, q);
-                    case ArithOp_div: return irbuilder_.CreateSDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateSRem(lhs, rhs, name);
-                    case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                    case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                    case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, false, q);
-                    case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
-                }
-            }
-            if (is_type_u(type) || is_type_bool(type)) {
-                switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
-                    case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
-                    case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, q, false);
-                    case ArithOp_div: return irbuilder_.CreateUDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateURem(lhs, rhs, name);
-                    case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                    case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                    case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, q, false);
-                    case ArithOp_shr: return irbuilder_.CreateLShr(lhs, rhs, name);
-                }
-            }
-        }
-    }
-
-    if (auto conv = def->isa<ConvOp>()) {
-        auto from = lookup(conv->from());
-        auto src_type = conv->from()->type();
-        auto dst_type = conv->type();
-        auto to = convert(dst_type);
-
-        if (conv->isa<Cast>()) {
-            if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
-                return irbuilder_.CreatePointerCast(from, to);
-            }
-            if (src_type->isa<PtrType>()) {
-                assert(is_type_i(dst_type) || is_type_bool(dst_type));
-                return irbuilder_.CreatePtrToInt(from, to);
-            }
-            if (dst_type->isa<PtrType>()) {
-                assert(is_type_i(src_type) || is_type_bool(src_type));
-                return irbuilder_.CreateIntToPtr(from, to);
-            }
-
-            const PrimType *src, *dst;
-
-            if (auto src_vector = src_type->isa<VectorExtendedType>()) {
-                auto dst_vector = dst_type->as<VectorExtendedType>();
-
-                src = src_vector->element()->as<PrimType>(); //TODO: These might also be pointers!
-                dst = dst_vector->element()->as<PrimType>();
-            } else {
-                src = src_type->as<PrimType>();
-                assert(!dst_type->isa<VectorExtendedType>() && "Should implement this.");
-                dst = dst_type->as<PrimType>();
-            }
-
-            if (is_type_f(src) && is_type_f(dst)) {
-                assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
-                return irbuilder_.CreateFPCast(from, to);
-            }
-            if (is_type_f(src)) {
-                if (is_type_s(dst))
-                    return irbuilder_.CreateFPToSI(from, to);
-                return irbuilder_.CreateFPToUI(from, to);
-            }
-            if (is_type_f(dst)) {
-                if (is_type_s(src))
-                    return irbuilder_.CreateSIToFP(from, to);
-                return irbuilder_.CreateUIToFP(from, to);
-            }
-
-            if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
-                if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
-                    return irbuilder_.CreateTrunc(from, to);
-            } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
-                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
-                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
-            } else if (is_type_i(src) && is_type_i(dst)) {
-                assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
-                return from;
-            }
-
-            assert(false && "unsupported cast");
-        }
-
-        if (conv->isa<Bitcast>()) {
-            if (dst_type->isa<PtrType>() && dst_type->as<PtrType>()->is_vector()) {
-                return emit_bitcast(conv->from(), dst_type->as<PtrType>()->scalarize());
-                auto to = convert(dst_type);
-                auto payload_value = lookup(conv->from());
-                return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
-                    irbuilder_.CreateStore(payload_value, alloca);
-                    auto addr_space = alloca->getType()->getPointerAddressSpace();
-                    auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(to, addr_space));
-                    return irbuilder_.CreateLoad(convert(def->type()), payload_addr);
-                });
-            } else {
-              return emit_bitcast(conv->from(), dst_type);
-            }
-        }
-    }
-
-    if (auto select = def->isa<Select>()) {
-        if (def->type()->isa<FnType>())
-            return nullptr;
-
-        llvm::Value* cond = lookup(select->cond());
-        llvm::Value* tval = lookup(select->tval());
-        llvm::Value* fval = lookup(select->fval());
-
-        if (cond->getType()->isVectorTy() && !tval->getType()->isVectorTy())
-            tval = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(cond->getType())->getNumElements(), tval);
-        if (cond->getType()->isVectorTy() && !fval->getType()->isVectorTy())
-            fval = irbuilder_.CreateVectorSplat(llvm::cast<llvm::FixedVectorType>(cond->getType())->getNumElements(), fval);
-
-        return irbuilder_.CreateSelect(cond, tval, fval);
-    }
-
-    if (auto align_of = def->isa<AlignOf>()) {
-        auto type = convert(align_of->of());
-        return irbuilder_.getInt64(module_->getDataLayout().getABITypeAlignment(type));
-    }
-
-    if (auto size_of = def->isa<SizeOf>()) {
-        auto type = convert(size_of->of());
-        return irbuilder_.getInt64(module_->getDataLayout().getTypeAllocSize(type));
-    }
-
-    if (auto array = def->isa<DefiniteArray>()) {
-        auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
-
-        // Try to emit it as a constant first
-        Array<llvm::Constant*> consts(array->num_ops());
-        bool all_consts = true;
-        for (size_t i = 0, n = consts.size(); i != n; ++i) {
-            auto llvm_array_op = emit(array->op(i));
-            assert(llvm_array_op->getType() == convert(array->op(i)->type()));
-            consts[i] = llvm::dyn_cast<llvm::Constant>(llvm_array_op);
-            if (!consts[i]) {
-                all_consts = false;
-                break;
-            }
-        }
-        if (all_consts)
-            return llvm::ConstantArray::get(type, llvm_ref(consts));
-
-        WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
-        auto alloca = emit_alloca(type, array->name().str());
-
-        u64 i = 0;
-        llvm::Value* args[2] = { irbuilder_.getInt64(0), nullptr };
-        for (auto op : array->ops()) {
-            args[1] = irbuilder_.getInt64(i++);
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name().c_str());
-            irbuilder_.CreateStore(lookup(op), gep);
-        }
-
-        return irbuilder_.CreateLoad(convert(def->type()), alloca);
-    }
-
-    if (auto array = def->isa<IndefiniteArray>())
-        return llvm::UndefValue::get(convert(array->type()));
-
-    if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>() || def->isa<Closure>());
-        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
-
-        if (def->isa<Vector>()) {
-            //TODO: Complex element types can happen here, this is not good!
-            //Use ComplexCast here?
-            for (size_t i = 0, e = agg->num_ops(); i != e; ++i) {
-                auto inner_element = lookup(agg->op(i));
-                if (!llvm::VectorType::isValidElementType(inner_element->getType())) {
-                    auto flatten_type = flatten(inner_element->getType());
-
-                    for (unsigned elem_index = 0; elem_index < flatten_type.size(); elem_index++) {
-                        llvm::Value *llvm_element;
-                        if (llvm::isa<llvm::StructType>(inner_element->getType()->getStructElementType(elem_index))) {
-                            llvm_element = irbuilder_.CreateExtractValue(inner_element, { elem_index, 0 });
-                        } else {
-                            llvm_element = irbuilder_.CreateExtractValue(inner_element, { elem_index });
-                        }
-                        assert(llvm_element->getType() == flatten_type[elem_index]);
-
-                        auto vector_target = irbuilder_.CreateExtractValue(llvm_agg, { elem_index });
-                        vector_target = irbuilder_.CreateInsertElement(vector_target, llvm_element, irbuilder_.getInt32(i));
-                        llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, vector_target, { elem_index });
-                    }
-
-                    //for element in struct_type
-                    //TODO: go through the elements and produce good inserts.
-                    //llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, inner_element, irbuilder_.getInt32(i));
-                    //assert(false);
-                } else {
-                    llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, inner_element, irbuilder_.getInt32(i));
-                }
-            }
-        } else if (auto closure = def->isa<Closure>()) {
-            auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
-            auto val = agg->op(1);
-            llvm::Value* env = nullptr;
-            if (is_thin(closure->op(1)->type())) {
-                if (is_type_unit(val->type())) {
-                    env = emit(world_.bottom(Closure::environment_type(world_)));
-                } else {
-                    env = emit(world_.cast(Closure::environment_type(world_), val));
-                }
-            } else {
-                WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
-                auto alloc = emit_alloc(val->type(), nullptr);
-                auto llvm_val = emit(val);
-                irbuilder_.CreateStore(llvm_val, alloc);
-                env = irbuilder_.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
-            }
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);
-        } else {
-            for (size_t i = 0, e = agg->num_ops(), r = 0; i < e; i++) {
-                auto insertval = lookup(agg->op(i));
-                if(insertval->getType() != llvm_agg->getType()->getStructElementType(r)) {
-                    assert(insertval->getType()->isStructTy());
-                    for (unsigned j = 0; j < insertval->getType()->getStructNumElements(); j++) {
-                        auto inval = irbuilder_.CreateExtractValue(insertval, { unsigned(j) });
-                        llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, inval, { unsigned(r) });
-                        r++;
-                    }
-                } else {
-                    llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, insertval, { unsigned(r) });
-                    r++;
-                }
-            }
-        }
-
-        return llvm_agg;
-    }
-
-    if (auto aggop = def->isa<AggOp>()) {
-        auto llvm_agg = lookup(aggop->agg());
-        const Def *thorin_idx;
-        bool complex_vector;
-        if (auto index_tuple = aggop->index()->isa<Tuple>()) {
-            thorin_idx = index_tuple->op(1); //TODO: This should work fine with the way loads are generated right now.
-            complex_vector = true;
-        } else {
-            thorin_idx = aggop->index();
-            complex_vector = false;
-        }
-        auto llvm_idx = lookup(thorin_idx);
-
-        auto copy_to_alloca = [&] () {
-            WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name().str());
-            irbuilder_.CreateStore(llvm_agg, alloca);
-
-            llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args);
-            return std::make_pair(alloca, gep);
-        };
-        auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
-            if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
-                auto global = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
-                global->setLinkage(llvm::GlobalValue::InternalLinkage);
-                global->setInitializer(constant);
-                return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), llvm_idx });
-            }
-            return copy_to_alloca().second;
-        };
-
-        if (auto extract = aggop->isa<Extract>()) {
-            // Assemblys with more than two outputs are MemOps and have tuple type
-            // and thus need their own rule here because the standard MemOp rule does not work
-            if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(thorin_idx) != 0)
-                    return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(thorin_idx) - 1});
-            }
-
-            if (auto memop = extract->agg()->isa<MemOp>())
-                return lookup(memop);
-
-            if (aggop->agg()->type()->isa<ArrayType>())
-                return irbuilder_.CreateLoad(convert(def->type()), copy_to_alloca_or_global());
-
-            if (!complex_vector && extract->agg()->type()->isa<VectorType>())
-                return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
-
-
-            /*if (!aggop->agg()->type()->isa<VectorExtendedType>() &&
-                    llvm_agg->getType()->getStructNumElements() != aggop->agg()->type()->num_ops()) {
-                std::cerr << "Extract Issue\n";
-                aggop->agg()->type()->dump();
-                llvm_agg->getType()->dump();
-                thorin_idx->dump();
-                unsigned r = 0;
-                unsigned cursize = 0;
-                for (unsigned i = 0, e = aggop->agg()->num_ops(); i < e; i++) {
-                    auto interntype = aggop->agg()->type();
-                    interntype->dump();
-                    auto converted_type = convert(interntype);
-                    if (converted_type->isStructTy()) {
-                        if (cursize != 0)
-                            assert(cursize == converted_type->getStructNumElements());
-                        else
-                            cursize = converted_type->getStructNumElements();
-                    } else {
-                        if (cursize != 0)
-                            assert(cursize == 1);
-                        else
-                            cursize = 1;
-                    }
-                    r += cursize;
-                }
-
-                auto rval = irbuilder_.CreateExtractValue(llvm_agg, {r});
-
-                std::cerr << "Trying extract\n";
-                aggop->agg()->type()->dump();
-                aggop->type()->dump();
-                llvm_value->getType()->dump();
-                std::cerr << "Indeces " << thorin_idx << " " << r << " " << cursize << "\n";
-                rval->getType()->dump();
-
-                rval->getType()->dump();
-
-                assert(rval->getType() == convert(aggop->type()));
-                return rval;
-            }*/
-
-            if (aggop->type()->isa<VectorExtendedType>() &&
-                    aggop->type()->as<VectorExtendedType>()->element()->isa<NominalType>()) {
-                std::cerr << "Issue\n";
-
-                auto structtype = aggop->agg()->type()->as<VectorExtendedType>()->element()->isa<StructType>();
-                assert(structtype);
-                //structtype->dump();
-                //std::cerr << "elems\n";
-                //for (int i = 0; i < structtype->num_ops(); i++) {
-                    //structtype->op(i)->dump();
-                //}
-                //std::cerr << "elems end\n";
-                //llvm_agg->getType()->dump();
-                aggop->type()->dump();
-
-                assert(thorin_idx->isa<PrimLit>());
-                unsigned idx_val = thorin_idx->as<PrimLit>()->qu32_value();
-
-                //thorin_idx->dump();
-                //llvm_idx->dump();
-
-                //std::cerr << "index " << idx_val << "\n";
-
-                unsigned start = 0;
-                unsigned len = convert(structtype->op(0))->getStructNumElements();
-                for (unsigned i = 0; i < idx_val; i++) {
-                    start += len;
-                    len = convert(structtype->op(i))->getStructNumElements();
-                }
-
-                //std::cerr << "start " << start << " len " << len << "\n";
-
-                auto newtype = convert(aggop->type());
-                newtype->dump();
-                llvm::Value* insertval = llvm::UndefValue::get(newtype);
-
-                for (unsigned i = 0; i < len; i++) {
-                    auto e = irbuilder_.CreateExtractValue(llvm_agg, {i + start});
-                    //e->getType()->dump();
-                    insertval = irbuilder_.CreateInsertValue(insertval, e, {i});
-                }
-
-                //insertval->dump();
-                //assert(insertval->getType() == convert(aggop->type()) && "Type missmatch");
-
-                return insertval;
-            }
-
-            auto r = irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(thorin_idx)});
-            if(r->getType() != convert(aggop->type())) {
-                std::cerr << "Problem\n";
-                aggop->dump();
-                aggop->agg()->dump();
-                llvm_agg->dump();
-                llvm_agg->getType()->dump();
-                r->dump();
-                r->getType()->dump();
-                convert(aggop->type())->dump();
-            }
-            assert(r->getType() == convert(aggop->type()) && "Type missmatch");
-            return r;
-        }
-
-        auto insert = def->as<Insert>();
-        auto value = lookup(insert->value());
-
-        if (insert->agg()->type()->isa<ArrayType>()) {
-            auto p = copy_to_alloca();
-            irbuilder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
-            auto r = irbuilder_.CreateLoad(convert(def->type()), p.first);
-            assert(r->getType() == convert(aggop->type()));
-            return r;
-        }
-        if (insert->agg()->type()->isa<VectorType>())
-            return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
-        // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(thorin_idx)});
-    }
-
-    if (auto variant_index = def->isa<VariantIndex>()) {
-        auto llvm_value = lookup(variant_index->op(0));
-        auto tag_value = irbuilder_.CreateExtractValue(llvm_value, { 1 });
-        return irbuilder_.CreateIntCast(tag_value, convert(variant_index->type()), false);
-    }
-    if (auto variant_extract = def->isa<VariantExtract>()) {
-        auto variant_value = variant_extract->op(0);
-        auto llvm_value    = lookup(variant_value);
-        auto payload_value = irbuilder_.CreateExtractValue(llvm_value, { 0 });
-
-        if (auto vec_type = variant_value->type()->isa<VectorExtendedType>()) { //TODO: the included type might be more complex then what's currently implemented.
-            auto vector_width = vec_type->length();
-
-            auto target_type_thorin = world_.vec_type(vec_type->element()->op(variant_extract->index()), vector_width);
-            auto target_type = convert(target_type_thorin);
-
-            auto inner_target_type = convert(vec_type->element()->op(variant_extract->index()));
-            llvm::Value* target = llvm::UndefValue::get(target_type);
-            for (size_t lane = 0; lane < vector_width; lane++) {
-                auto inner_value = irbuilder_.CreateExtractElement(payload_value, lane);
-
-                //TODO: For some reason, I can have floats and ints mixed up at this point.
-                //auto target_value = createComplexCast(inner_value, inner_target_type, 0);
-                //target = irbuilder_.CreateInsertValue(target, target_value, lane);
-                llvm::Value *target_value = nullptr;
-                if (inner_value->getType() == inner_target_type)
-                    target_value = inner_value;
-                else
-                    target_value = irbuilder_.CreateBitCast(inner_value, inner_target_type);
-
-                target = irbuilder_.CreateInsertElement(target, target_value, lane);
-            }
-            return target;
-        } else {
-        auto target_type = convert(variant_value->type()->op(variant_extract->index()));
-#if 1
-        auto target_value = createComplexCast(payload_value, target_type, 0);
-        return target_value;
-#else
-        return create_tmp_alloca(payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
-            irbuilder_.CreateStore(payload_value, alloca);
-            auto addr_space = alloca->getType()->getPointerAddressSpace();
-            auto payload_addr = irbuilder_.CreatePointerCast(alloca, llvm::PointerType::get(target_type, addr_space));
-            return irbuilder_.CreateLoad(payload_addr);
-        });
-#endif
-        }
-    }
-    if (auto variant_ctor = def->isa<Variant>()) {
-        auto llvm_type = convert(variant_ctor->type());
-
-        llvm::Value* tag_value = irbuilder_.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
-        auto payload_value = lookup(variant_ctor->op(0));
-#if 1
-        llvm::Value *target_value = nullptr;
-        if (payload_value->getType() != llvm_type->getStructElementType(0)) {
-            target_value = llvm::UndefValue::get(llvm_type->getStructElementType(0));
-            target_value = createComplexBackCast(payload_value, target_value, 0);
-        } else { //payload_value.getType == buffer->getStructElementType(0)
-            target_value = payload_value;
-        }
-
-        if (llvm::isa<llvm::VectorType>(target_value->getType())) {
-            auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(target_value->getType());
-            assert(llvm_vector_type && "Scalable vector?");
-            size_t vector_width = llvm_vector_type->getNumElements();
-
-            tag_value = irbuilder_.CreateVectorSplat(vector_width, tag_value);
-        }
-
-        llvm::Value *buffer = llvm::UndefValue::get(llvm_type);
-        buffer = irbuilder_.CreateInsertValue(buffer, target_value, { 0 });
-        buffer = irbuilder_.CreateInsertValue(buffer, tag_value, { 1 });
-        return buffer;
-#else
-        return create_tmp_alloca(llvm_type, [&] (llvm::AllocaInst* alloca) {
-            auto tag_addr = irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(1) });
-            irbuilder_.CreateStore(tag_value, tag_addr);
-
-            auto payload_addr = irbuilder_.CreatePointerCast(
-                irbuilder_.CreateInBoundsGEP(alloca, { irbuilder_.getInt32(0), irbuilder_.getInt32(0) }),
-                llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
-            irbuilder_.CreateStore(payload_value, payload_addr);
-
-            return irbuilder_.CreateLoad(alloca);
-        });
-#endif
-    }
-
-    if (auto primlit = def->isa<PrimLit>()) {
-        llvm::Type* llvm_type = convert(primlit->type());
-        Box box = primlit->value();
-
-        switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     return irbuilder_. getInt1(box.get_bool());
-            case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(box. get_s8());
-            case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(box. get_u8());
-            case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(box.get_s16());
-            case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(box.get_u16());
-            case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(box.get_s32());
-            case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
-            case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
-            case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
-            case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
-            case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
-            case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
-        }
-    }
-
-    if (auto bottom = def->isa<Bottom>())
-        return llvm::UndefValue::get(convert(bottom->type()));
-
-    if (auto alloc = def->isa<Alloc>()) {
-        return emit_alloc(alloc->alloced_type(), alloc->extra());
-    }
-
-    if (auto load = def->isa<Load>())           return emit_load(load);
-    if (auto store = def->isa<Store>())         return emit_store(store);
-    if (auto lea = def->isa<LEA>())             return emit_lea(lea);
-    if (auto assembly = def->isa<Assembly>())   return emit_assembly(assembly);
-    if (def->isa<Enter>())                      return nullptr;
-
-    if (auto slot = def->isa<Slot>()) {
-        if (auto ptr = slot->type()->isa<PtrType>())
-            return emit_alloca(convert(ptr->pointee()), slot->unique_name());
-        else if (auto vec = slot->type()->isa<VectorExtendedType>()) {
-            auto element = vec->element()->as<PtrType>()->pointee();
-            auto vector_width = vec->length();
-            auto vec_elements = world_.vec_type(element, vector_width);
-            auto space = emit_alloca(convert(vec_elements), slot->unique_name());
-            llvm::Constant* args[vector_width];
-            for (size_t i = 0; i < vector_width; i++) {
-                args[i] = irbuilder_.getInt32(i);
-            }
-            auto seq_vector = llvm::ConstantVector::get(llvm::makeArrayRef<llvm::Constant*>(args, vector_width));
-            auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
-            if (space->getType()->getPointerElementType()->isStructTy()) {
-                assert(space->getType() == convert(slot->type()));
-                return space;
-                //return irbuilder_.CreatePointerCast(space, convert(slot->type()));
-
-#if 0
-                llvm::Value* target = llvm::UndefValue::get(convert(slot->type()));
-
-                target->getType()->dump();
-                target->getType()->getPointerElementType()->dump();
-                space->getType()->dump();
-                space->getType()->getPointerElementType()->dump();
-
-                /*auto structType = space->getType()->getPointerElementType();
-                for (unsigned i = 0; i < structType->getStructNumElements(); i++) {
-                    auto splat = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(i));
-                    auto gep = irbuilder_.CreateInBoundsGEP(space, {zero, splat, seq_vector});
-                    gep->getType()->dump();
-                    target = irbuilder_.CreateInsertValue(target, gep, {i});
-                }*/
-
-                return target;
-#endif
-            } else {
-                auto r = irbuilder_.CreateInBoundsGEP(space, {zero, seq_vector});
-                if(r->getType() != convert(slot->type())) {
-                    assert(false);
-                }
-                return r;
-            }
-        } else
-            THORIN_UNREACHABLE;
-    }
-
-    if (auto vector = def->isa<Vector>()) {
-        llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
-        for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i, vector->location())));
-
-        return vec;
-    }
-
-    if (auto global = def->isa<Global>())
-        return emit_global(global);
-
-    THORIN_UNREACHABLE;
-}
-
-llvm::Value* CodeGen::emit_global(const Global* global) {
-    llvm::Value* val;
-    if (auto continuation = global->init()->isa_continuation())
-        val = fcts_[continuation];
-    else {
-        auto llvm_type = convert(global->alloced_type());
-        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
-        var->setConstant(!global->is_mutable());
-        var->setLinkage(llvm::GlobalValue::InternalLinkage);
-        if (global->init()->isa<Bottom>())
-            var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
-        else {
-            auto llvm_init = emit(global->init());
-            var->setInitializer(llvm::cast<llvm::Constant>(llvm_init));
-        }
-        val = var;
-    }
-    return val;
-}
-
-llvm::Value* CodeGen::emit_load(const Load* load) {
-    auto ptr = lookup(load->ptr());
-    llvm::Value* result;
-    if (ptr->getType()->isVectorTy()) {
-        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-        auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(ptr->getType());
-        assert(llvm_vector_type && "Scalable vector?");
-        auto llvm_element_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_vector_type->getElementType());
-        auto llvm_element_type = llvm_element_pointer_type->getElementType();
-
-        if (!llvm::VectorType::isValidElementType(llvm_element_type)) {
-            //don't generate a vector of structs, but a struct of vectors in this case.
-
-            auto target_type = convert(load->type()->op(1));
-            size_t vector_width = llvm_vector_type->getNumElements();
-
-            auto flatten_type = flatten(llvm_element_type);
-            llvm::Type *newelements[flatten_type.size()];
-            for (unsigned i = 0; i < flatten_type.size(); i++)
-                newelements[i] = flatten_type[i];
-            auto castet_element_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
-
-            auto castet_pointer_type = llvm::PointerType::get(castet_element_type, llvm_element_pointer_type->getAddressSpace());
-            auto castet_pointer_type_vector = llvm::FixedVectorType::get(castet_pointer_type, vector_width);
-
-            auto castet_pointer = irbuilder_.CreatePointerCast(ptr, castet_pointer_type_vector);
-
-            llvm::Value *newgeps[flatten_type.size()];
-            for (unsigned i = 0; i < flatten_type.size(); i++) {
-                auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
-                auto splat = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(i));
-                auto innergep = irbuilder_.CreateInBoundsGEP(castet_pointer, {zero, splat});
-                newgeps[i] = innergep;
-            }
-
-            result = llvm::UndefValue::get(target_type);
-            for (unsigned i = 0; i < flatten_type.size(); i++) {
-                auto gep = newgeps[i];
-                auto gather = irbuilder_.CreateMaskedGather(gep, llvm::MaybeAlign(align).getValue());
-                result = irbuilder_.CreateInsertValue(result, gather, i);
-            }
-        } else {
-            auto gather = irbuilder_.CreateMaskedGather(ptr, llvm::MaybeAlign(align).getValue());
-            result = gather;
-        }
-    } else {
-        auto loadval = irbuilder_.CreateLoad(convert(load->type()->op(1)), ptr);
-        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-        loadval->setAlignment(llvm::MaybeAlign(align).getValue());
-        result = loadval;
-        if(result->getType() != convert(load->type()->op(1))) {
-            load->ptr()->dump();
-            convert(load->type()->op(1))->dump();
-            result->getType()->dump();
-            assert(false);
-        }
-    }
-    return result;
-}
-
-llvm::Value* CodeGen::emit_store(const Store* store) {
-    auto ptr = lookup(store->ptr());
-    llvm::Value* result;
-    if (ptr->getType()->isVectorTy()) {
-        auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-        auto llvm_vector_type = llvm::dyn_cast<llvm::FixedVectorType>(ptr->getType());
-        assert(llvm_vector_type && "Scalable vector?");
-        auto llvm_element_pointer_type = llvm::dyn_cast<llvm::PointerType>(llvm_vector_type->getElementType());
-        auto llvm_element_type = llvm_element_pointer_type->getElementType();
-
-        if (!llvm::VectorType::isValidElementType(llvm_element_type)) {
-            unsigned vector_width = store->ptr()->type()->as<VectorExtendedType>()->length();
-            auto llvm_value = lookup(store->val());
-
-            auto flatten_type = flatten(llvm_element_type);
-            llvm::Type *newelements[flatten_type.size()];
-            for (unsigned i = 0; i < flatten_type.size(); i++)
-                newelements[i] = flatten_type[i];
-            auto castet_element_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
-
-            auto castet_pointer_type = llvm::PointerType::get(castet_element_type, llvm_element_pointer_type->getAddressSpace());
-            auto castet_pointer_type_vector = llvm::FixedVectorType::get(castet_pointer_type, vector_width);
-
-            auto castet_pointer = irbuilder_.CreatePointerCast(ptr, castet_pointer_type_vector);
-
-            llvm::Value *newgeps[flatten_type.size()];
-            for (unsigned i = 0; i < flatten_type.size(); i++) {
-                auto zero = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(0));
-                auto splat = irbuilder_.CreateVectorSplat(vector_width, irbuilder_.getInt32(i));
-                auto innergep = irbuilder_.CreateInBoundsGEP(castet_pointer, {zero, splat});
-                newgeps[i] = innergep;
-            }
-
-            for (unsigned i = 0; i < flatten_type.size(); i++) {
-                auto llvm_element = irbuilder_.CreateExtractValue(llvm_value, { i });
-
-                auto gep = newgeps[i];
-                auto scatter = irbuilder_.CreateMaskedScatter(llvm_element, gep, llvm::MaybeAlign(align).getValue(), current_mask);
-                result = scatter;
-            }
-            //By this point, result only contains the last scatter that was generated, but this shoult be fine.
-        } else {
-            auto align = module_->getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-            auto scatter = irbuilder_.CreateMaskedScatter(lookup(store->val()), ptr, llvm::MaybeAlign(align).getValue(), current_mask);
-            result = scatter;
-        }
-    } else {
-        llvm::Value *storeval;
-        llvm::Value *value = lookup(store->val());
-        auto align = llvm::MaybeAlign(module_->getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType())).getValue();
-        //if (value->getType()->isVectorTy() && !ptr->getType()->isVectorTy()) {
-        //    auto vector_width = llvm::cast<llvm::FixedVectorType>(value->getType())->getNumElements();
-        //    ptr = irbuilder_.CreateVectorSplat(vector_width, ptr);
-        //}
-        if (value->getType() != ptr->getType()->getPointerElementType()) {
-            ptr = irbuilder_.CreatePointerCast(ptr, llvm::PointerType::get(value->getType(), ptr->getType()->getPointerAddressSpace()));
-        }
-        assert (value->getType()->isVectorTy() == ptr->getType()->getPointerElementType()->isVectorTy());
-        if (current_mask && value->getType()->isVectorTy()) {
-            storeval = irbuilder_.CreateMaskedStore(value, ptr, align, current_mask);
-        } else {
-            auto storeval_align = irbuilder_.CreateStore(value, ptr);
-            storeval_align->setAlignment(align);
-            storeval = storeval_align;
-        }
-        result = storeval;
-    }
-    return result;
-}
-
-llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    auto lea_ptr = lookup(lea->ptr());
-    auto pointee = lea->ptr_pointee();
-    if (auto vec = pointee->isa<VectorExtendedType>())
-        pointee = vec->element();
-    if (pointee->isa<TupleType>() || pointee->isa<StructType>()) {
-        assert(lea_ptr->getType() == convert(lea->ptr()->type()));
-        //auto lea_target_type = convert(lea->type());
-        auto index = primlit_value<u32>(lea->index());
-
-        unsigned offset = 0;
-        //convert(pointee->op(0))->dump();
-        auto testob = convert(pointee->op(0));
-        unsigned size;
-        if (llvm::isa<llvm::StructType>(testob))
-            size = testob->getStructNumElements();
-        else
-            size = 1;
-
-        for (unsigned i = 1; i <= index; i++) {
-            // get current element size
-            offset += size;
-            auto testob = convert(pointee->op(i));
-            if (llvm::isa<llvm::StructType>(testob))
-                size = testob->getStructNumElements();
-            else
-                size = 1;
-        }
-
-        //std::cerr << "offset " << offset << " size " << size << "\n";
-
-        llvm::Value* r = irbuilder_.CreateStructGEP(lea_ptr->getType()->getPointerElementType(), lea_ptr, index);
-
-        if (auto ptrtype = lea->type()->isa<PtrType>()) {
-            auto target_type = ptrtype->pointee();
-            if(r->getType() != convert(lea->type())) {
-                std::cerr << "Fixing!\n";
-                //Try to use offset and index instead.
-                //This is bad!
-                r = llvm::UndefValue::get(convert(target_type));
-                for (unsigned i = 0; i < size; i++) {
-                    auto element_type = target_type->op(i);
-                    auto element_ptr_type = convert(world_.ptr_type(element_type));
-                    auto r2 = irbuilder_.CreateStructGEP(element_ptr_type, lea_ptr, i + offset);
-                    r = irbuilder_.CreateInsertElement(r, r2, irbuilder_.getInt32(i));
-                }
-                assert(false);
-            }
-        }
-
-        assert(r->getType() == convert(lea->type()));
-
-        return r;
-    }
-
-    if (lea->ptr_pointee()->isa<VectorExtendedType>() && lea->ptr_pointee()->as<VectorExtendedType>()->element()->isa<StructType>()) {
-        assert(false);
-    }
-
-    assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
-    auto index = lookup(lea->index());
-    llvm::Value* zero = irbuilder_.getInt64(0);
-    if (lea->type()->isa<VectorExtendedType>())
-        zero = irbuilder_.CreateVectorSplat(lea->type()->as<VectorExtendedType>()->length(), zero);
-    if (lea->type()->isa<VectorExtendedType>() && !lea->index()->type()->isa<VectorExtendedType>())
-        index = irbuilder_.CreateVectorSplat(lea->type()->as<VectorExtendedType>()->length(), index);
-    llvm::Value* args[2] = { zero, index };
-    auto r = irbuilder_.CreateInBoundsGEP(lea_ptr, args);
-    return r;
-}
-
-llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
-    auto out_type = assembly->type();
-    llvm::Type* res_type;
-
-    if (out_type->isa<TupleType>()) {
-        if (out_type->num_ops() == 2)
-            res_type = convert(assembly->type()->op(1));
-        else
-            res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
-    } else {
-        res_type = llvm::Type::getVoidTy(*context_);
-    }
-
-    size_t num_inputs = assembly->num_inputs();
-    auto input_values = Array<llvm::Value*>(num_inputs);
-    auto input_types = Array<llvm::Type*>(num_inputs);
-    for (size_t i = 0; i != num_inputs; ++i) {
-        input_values[i] = lookup(assembly->input(i));
-        input_types[i] = convert(assembly->input(i)->type());
-    }
-
-    auto fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
-
-    std::string constraints;
-    for (auto con : assembly->output_constraints())
-        constraints += con + ",";
-    for (auto con : assembly->input_constraints())
-        constraints += con + ",";
-    for (auto clob : assembly->clobbers())
-        constraints += "~{" + clob + "},";
-    // clang always marks those registers as clobbered, so we will do so as well
-    constraints += "~{dirflag},~{fpsr},~{flags}";
-
-    if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        EDEF(assembly, "constraints and input and output types of inline assembly do not match");
-
-    auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
-            assembly->has_sideeffects(), assembly->is_alignstack(),
-            assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
-    return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
-}
-
-unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
-    switch (addr_space) {
-        case AddrSpace::Generic:  return 0;
-        case AddrSpace::Global:   return 1;
-        case AddrSpace::Texture:  return 2;
-        case AddrSpace::Shared:   return 3;
-        case AddrSpace::Constant: return 4;
-        default:                  THORIN_UNREACHABLE;
-    }
-}
+/*
+ * convert thorin Type -> llvm Type
+ */
 
 llvm::Type* CodeGen::convert(const Type* type) {
-    if (auto llvm_type = thorin::find(types_, type))
-        return llvm_type;
+    if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->tag()) {
-        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
-        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = irbuilder_.getHalfTy();   break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
+        case PrimType_bool:                                                             llvm_type = llvm::Type::getInt1Ty  (context()); break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::Type::getInt8Ty  (context()); break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::Type::getInt16Ty (context()); break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::Type::getInt32Ty (context()); break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = llvm::Type::getInt64Ty (context()); break;
+        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = llvm::Type::getHalfTy  (context()); break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = llvm::Type::getFloatTy (context()); break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context()); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
             llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
-            break;
-        }
-        case Node_VecType: {
-            size_t vector_width = type->as<VectorExtendedType>()->length();
-            auto element_type = type->as<VectorExtendedType>()->element();
-            llvm_type = convert(element_type);
-            if (!llvm::VectorType::isValidElementType(llvm_type)) {
-                auto flatten_type = flatten(llvm_type);
-                llvm::Type *newelements[flatten_type.size()];
-                for (unsigned i = 0; i < flatten_type.size(); i++) {
-                    auto element = flatten_type[i];
-                    newelements[i] = llvm::FixedVectorType::get(element, vector_width);
-                }
-
-                llvm_type = llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size()));
-                return types_[type] = llvm_type;
-            }
-            if (llvm_type->isPointerTy() && !llvm::VectorType::isValidElementType(llvm_type->getPointerElementType())) {
-                auto flatten_type = flatten(llvm_type);
-                llvm::Type *newelements[flatten_type.size()];
-
-                for (unsigned i = 0; i < flatten_type.size(); i++) {
-                    auto element = flatten_type[i];
-                    assert(element->isPointerTy());
-                    newelements[i] = llvm::FixedVectorType::get(element->getPointerElementType(), vector_width);
-                }
-                llvm_type = llvm::PointerType::get(
-                        llvm::StructType::create(llvm::makeArrayRef<llvm::Type*>(newelements, flatten_type.size())),
-                        llvm_type->getPointerAddressSpace()
-                        );
-
-                return types_[type] = llvm_type;
-            }
             break;
         }
         case Node_IndefiniteArrayType: {
@@ -1957,9 +160,9 @@ llvm::Type* CodeGen::convert(const Type* type) {
                         if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
                         ret_types.push_back(convert(fn_op));
                     }
-                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(*context_);
+                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
                     else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(*context_, ret_types);
+                    else                            ret = llvm::StructType::get(context(), ret_types);
                 } else
                     ops.push_back(convert(op));
             }
@@ -1970,17 +173,17 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 return types_[type] = llvm_type;
             }
 
-            auto env_type = convert(Closure::environment_type(world_));
+            auto env_type = convert(Closure::environment_type(world()));
             ops.push_back(env_type);
             auto fn_type = llvm::FunctionType::get(ret, ops, false);
             auto ptr_type = llvm::PointerType::get(fn_type, 0);
-            llvm_type = llvm::StructType::get(*context_, { ptr_type, env_type });
+            llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
             return types_[type] = llvm_type;
         }
 
         case Node_StructType: {
             auto struct_type = type->as<StructType>();
-            auto llvm_struct = llvm::StructType::create(*context_);
+            auto llvm_struct = llvm::StructType::create(context());
 
             // important: memoize before recursing into element types to avoid endless recursion
             assert(!types_.contains(struct_type) && "type already converted");
@@ -1998,16 +201,17 @@ llvm::Type* CodeGen::convert(const Type* type) {
             Array<llvm::Type*> llvm_types(tuple->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(tuple->op(i));
-            llvm_type = llvm::StructType::get(*context_, llvm_ref(llvm_types));
+            llvm_type = llvm::StructType::get(context(), llvm_ref(llvm_types));
             return types_[tuple] = llvm_type;
         }
 
+        case Node_VariantVectorType:
         case Node_VariantType: {
             assert(type->num_ops() > 0);
             // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
-            size_t max_align = 0, max_size = 0, min_size = 0;
+            size_t max_align = 0, max_size = 0;
 
-            auto layout = module_->getDataLayout();
+            auto layout = module().getDataLayout();
             llvm::Type* max_align_type;
             for (auto op : type->ops()) {
                 auto op_type = convert(op);
@@ -2015,50 +219,27 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 size_t align = layout.getABITypeAlignment(op_type);
                 // Favor types that are not empty
                 if (align > max_align || (align == max_align && max_align_type->isEmptyTy())) {
-                    while (op_type->isAggregateType()) {
-                        if (llvm::isa<llvm::StructType>(op_type) && op_type->getStructNumElements() > 0) {
-                            op_type = op_type->getStructElementType(0);
-                        } else if (llvm::isa<llvm::StructType>(op_type) && op_type->getStructNumElements() == 0) {
-                            break;
-                        } else if (llvm::isa<llvm::ArrayType>(op_type))
-                            op_type = op_type->getArrayElementType();
-                        else
-                            THORIN_UNREACHABLE;
-                    }
-                    //size_t align_new = layout.getABITypeAlignment(op_type);
                     max_align_type = op_type;
                     max_align = align;
                 }
                 max_size = std::max(max_size, size);
-
-                size  = layout.getTypeAllocSize(op_type); //Might have changed.
-                if (min_size == 0 || (min_size > size && size > 0))
-                    min_size = size;
             }
 
             auto rem_size = max_size - layout.getTypeAllocSize(max_align_type);
-            auto rem_type = irbuilder_.getInt8Ty();
-            if (rem_size % 8 == 0 && min_size >= 8) {
-                rem_size /= 8;
-                rem_type = irbuilder_.getInt64Ty();
-            } else if (rem_size % 4 == 0 && min_size >= 4) {
-                rem_size /= 4;
-                rem_type = irbuilder_.getInt32Ty();
-            } else if (rem_size % 2 == 0 && min_size >= 2) {
-                rem_size /= 2;
-                rem_type = irbuilder_.getInt16Ty();
-            }
             auto union_type = rem_size > 0
-                    ? llvm::StructType::get(*context_, llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(rem_type, rem_size)})
-                    : llvm::StructType::get(*context_,  llvm::ArrayRef<llvm::Type*> { max_align_type });
+                    ? llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type, llvm::ArrayType::get(llvm::Type::getInt8Ty(context()), rem_size)})
+                    : llvm::StructType::get(context(), llvm::ArrayRef<llvm::Type*> { max_align_type });
 
-            auto tag_type =
-                    type->num_ops() < (UINT64_C(1) << 8) ? irbuilder_.getInt8Ty() :
-                    type->num_ops() < (UINT64_C(1) << 16) ? irbuilder_.getInt16Ty() :
-                    type->num_ops() < (UINT64_C(1) << 32) ? irbuilder_.getInt32Ty() :
-                    irbuilder_.getInt64Ty();
+            auto tag_type = type->num_ops() < (1_u64 <<  8) ? llvm::Type::getInt8Ty (context()) :
+                            type->num_ops() < (1_u64 << 16) ? llvm::Type::getInt16Ty(context()) :
+                            type->num_ops() < (1_u64 << 32) ? llvm::Type::getInt32Ty(context()) :
+                                                              llvm::Type::getInt64Ty(context());
 
-            return llvm::StructType::get(*context_, { union_type, tag_type });
+            return llvm::StructType::get(context(), { union_type, tag_type });
+        }
+
+        case Node_VecType: {
+            assert(false && "This should have been removed prior to hitting this step in the compilation.");
         }
 
         default:
@@ -2072,219 +253,1001 @@ llvm::Type* CodeGen::convert(const Type* type) {
     return types_[type] = llvm_type;
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
-    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
-    return new llvm::GlobalVariable(*module_, type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
+    return llvm::cast<llvm::FunctionType>(convert(continuation->type()));
 }
 
-void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
-    auto head = llvm::BasicBlock::Create(*context_, "head", entry);
-    auto body = llvm::BasicBlock::Create(*context_, "body", entry);
-    auto exit = llvm::BasicBlock::Create(*context_, "exit", entry);
+unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
+    switch (addr_space) {
+        case AddrSpace::Generic:  return 0;
+        case AddrSpace::Global:   return 1;
+        case AddrSpace::Texture:  return 2;
+        case AddrSpace::Shared:   return 3;
+        case AddrSpace::Constant: return 4;
+        default:                  THORIN_UNREACHABLE;
+    }
+}
+
+/*
+ * emit
+ */
+
+void CodeGen::emit_stream(std::ostream& stream) {
+    llvm::raw_os_ostream llvm_stream(stream);
+    emit_module().second->print(llvm_stream, nullptr);
+}
+
+std::pair<std::unique_ptr<llvm::LLVMContext>, std::unique_ptr<llvm::Module>>
+CodeGen::emit_module() {
+    if (debug()) {
+        module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+        // Darwin only supports dwarf2
+        if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+            module().addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+        dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world().name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
+    }
+
+    Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
+
+    if (debug()) dibuilder_.finalize();
+
+#if THORIN_ENABLE_RV
+    for (auto [width, fct, call] : vec_todo_)
+        emit_vectorize(width, fct, call);
+    vec_todo_.clear();
+
+    rv::lowerIntrinsics(module());
+#endif
+
+#if THORIN_ENABLE_CHECKS
+    llvm::verifyModule(module());
+#endif
+    optimize();
+
+    // We need to delete the runtime at this point, since the ownership of
+    // the context and module is handed away.
+    runtime_.reset();
+    return std::pair { std::move(context_), std::move(module_) };
+}
+
+llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
+    std::string name = continuation->is_external() ? continuation->name() : continuation->unique_name();
+    auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
+
+#ifdef _MSC_VER
+    // set dll storage class for MSVC
+    if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
+        if (continuation->is_imported()) {
+            f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
+        } else if (continuation->is_exported()) {
+            f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+        }
+    }
+#endif
+
+    // set linkage
+    if (continuation->is_external())
+        f->setLinkage(llvm::Function::ExternalLinkage);
+    else
+        f->setLinkage(llvm::Function::InternalLinkage);
+
+    // set calling convention
+    if (continuation->is_exported()) {
+        f->setCallingConv(kernel_calling_convention_);
+        emit_fun_decl_hook(continuation, f);
+    } else {
+        if (continuation->cc() == CC::Device)
+            f->setCallingConv(device_calling_convention_);
+        else
+            f->setCallingConv(function_calling_convention_);
+    }
+
+    return f;
+}
+
+llvm::Function* CodeGen::prepare(const Scope& scope) {
+    auto fct = llvm::cast<llvm::Function>(emit(scope.entry()));
+
+    discope_ = dicompile_unit_;
+    if (debug()) {
+        auto src_file = llvm::sys::path::filename(entry_->loc().file);
+        auto src_dir = llvm::sys::path::parent_path(entry_->loc().file);
+        auto difile = dibuilder_.createFile(src_file, src_dir);
+        auto disub_program = dibuilder_.createFunction(
+            discope_, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
+            dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
+            entry_->loc().begin.row,
+            llvm::DINode::FlagPrototyped,
+            llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
+        fct->setSubprogram(disub_program);
+        discope_ = disub_program;
+    }
+
+    return fct;
+}
+
+void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
+    // map all bb-like continuations to llvm bb stubs and handle params/phis
+    auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
+    auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
+    assert(succ);
+    auto& irbuilder = *i->second.second;
+    irbuilder.SetInsertPoint(bb);
+
+    if (debug())
+        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc(llvm::DILocation::get(context(), cont->loc().begin.row, cont->loc().begin.col, discope_)));
+
+    if (entry_ == cont) {
+        auto arg = fct->arg_begin();
+        for (auto param : entry_->params()) {
+            if (is_mem(param) || is_unit(param)) {
+                defs_[param] = nullptr;
+            } else if (param->order() == 0) {
+                auto argv = &*arg;
+                auto value = map_param(fct, argv, param);
+                if (value == argv) {
+                    arg->setName(param->unique_name()); // use param
+                    defs_[param] = &*arg++;
+                } else {
+                    defs_[param] = value;               // use provided value
+                }
+            }
+        }
+    } else {
+        for (auto param : cont->params()) {
+            if (is_mem(param) || is_unit(param)) {
+                defs_[param] = nullptr;
+            } else {
+                // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
+                auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
+                defs_[param] = phi;
+            }
+        }
+    }
+}
+
+void CodeGen::emit_epilogue(Continuation* continuation) {
+    auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
+    auto& irbuilder = *ptr_irbuilder;
+
+    if (continuation->callee() == entry_->ret_param()) { // return
+        std::vector<llvm::Value*> values;
+        std::vector<llvm::Type *> types;
+
+        for (auto arg : continuation->args()) {
+            if (auto val = emit_unsafe(arg)) {
+                values.emplace_back(val);
+                types.emplace_back(val->getType());
+            }
+        }
+
+        switch (values.size()) {
+            case 0:  irbuilder.CreateRetVoid();      break;
+            case 1:  irbuilder.CreateRet(values[0]); break;
+            default:
+                llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), types));
+
+                for (size_t i = 0, e = values.size(); i != e; ++i)
+                    agg = irbuilder.CreateInsertValue(agg, values[i], { unsigned(i) });
+
+                irbuilder.CreateRet(agg);
+        }
+    } else if (continuation->callee() == world().branch()) {
+        auto cond = emit(continuation->arg(0));
+        auto tbb = cont2bb(continuation->arg(1)->as_continuation());
+        auto fbb = cont2bb(continuation->arg(2)->as_continuation());
+        irbuilder.CreateCondBr(cond, tbb, fbb);
+    } else if (continuation->callee()->isa<Continuation>() &&
+                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+        auto val = emit(continuation->arg(0));
+        auto otherwise_bb = cont2bb(continuation->arg(1)->as_continuation());
+        auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
+        for (size_t i = 2; i < continuation->num_args(); i++) {
+            auto arg = continuation->arg(i)->as<Tuple>();
+            auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
+            auto case_bb    = cont2bb(arg->op(1)->as_continuation());
+            match->addCase(case_const, case_bb);
+        }
+    } else if (continuation->callee()->isa<Continuation>() &&
+                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated) {
+        auto mask = continuation->arg(1);
+        auto target_bb = cont2bb(continuation->arg(2)->as_continuation());
+        auto over_bb = cont2bb(continuation->arg(3)->as_continuation());
+        assert(target_bb);
+        if (mask->isa<Vector>()) {
+            current_mask = nullptr;
+            assert(target_bb == over_bb);
+            irbuilder.CreateBr(target_bb);
+        } else {
+            current_mask = emit(mask);
+            llvm::Value *any_set = irbuilder.CreateOrReduce(current_mask);
+            assert(over_bb);
+            irbuilder.CreateCondBr(any_set, target_bb, over_bb);
+        }
+    } else if (continuation->callee()->isa<Bottom>()) {
+        irbuilder.CreateUnreachable();
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+        for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
+            if (auto val = emit_unsafe(continuation->arg(i))) emit_phi_arg(irbuilder, callee->param(i), val);
+        }
+        irbuilder.CreateBr(cont2bb(callee));
+    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+        auto ret_continuation = emit_intrinsic(irbuilder, continuation);
+        irbuilder.CreateBr(cont2bb(ret_continuation));
+    } else { // function/closure call
+        // put all first-order args into an array
+        std::vector<llvm::Value*> args;
+        const Def* ret_arg = nullptr;
+        for (auto arg : continuation->args()) {
+            if (arg->order() == 0) {
+                if (auto val = emit_unsafe(arg))
+                    args.push_back(val);
+            } else {
+                assert(!ret_arg);
+                ret_arg = arg;
+            }
+        }
+
+        llvm::CallInst* call = nullptr;
+        if (auto callee = continuation->callee()->isa_continuation()) {
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(convert(callee->type())), emit(callee), args);
+            if (callee->is_exported())
+                call->setCallingConv(kernel_calling_convention_);
+            else if (callee->cc() == CC::Device)
+                call->setCallingConv(device_calling_convention_);
+            else
+                call->setCallingConv(function_calling_convention_);
+        } else {
+            // must be a closure
+            auto closure = emit(callee);
+            args.push_back(irbuilder.CreateExtractValue(closure, 1));
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(convert(callee->type())), irbuilder.CreateExtractValue(closure, 0), args);
+        }
+
+        // must be call + continuation --- call + return has been removed by codegen_prepare
+        auto succ = ret_arg->as_continuation();
+
+        size_t n = 0;
+        const Param* last_param = nullptr;
+        for (auto param : succ->params()) {
+            if (is_mem(param) || is_unit(param))
+                continue;
+            last_param = param;
+            n++;
+        }
+
+        if (n == 0) {
+            irbuilder.CreateBr(cont2bb(succ));
+        } else if (n == 1) {
+            irbuilder.CreateBr(cont2bb(succ));
+            emit_phi_arg(irbuilder, last_param, call);
+        } else {
+            Array<llvm::Value*> extracts(n);
+            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                auto param = succ->param(i);
+                if (is_mem(param) || is_unit(param))
+                    continue;
+                extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
+                j++;
+            }
+
+            irbuilder.CreateBr(cont2bb(succ));
+
+            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                auto param = succ->param(i);
+                if (is_mem(param) || is_unit(param))
+                    continue;
+                emit_phi_arg(irbuilder, param, extracts[j]);
+                j++;
+            }
+        }
+    }
+
+    // new insert point is just before the terminator for all other instructions we have to add later on
+    irbuilder.SetInsertPoint(bb->getTerminator());
+}
+
+llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
+    auto& irbuilder = *bb.second;
+
+    if (debug())
+        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc(llvm::DILocation::get(context(), def->loc().begin.row, def->loc().begin.col, discope_)));
+
+    if (false) {}
+    else if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
+    else if (auto store = def->isa<Store>())         return emit_store(irbuilder, store);
+    else if (auto lea = def->isa<LEA>())             return emit_lea(irbuilder, lea);
+    else if (auto assembly = def->isa<Assembly>())   return emit_assembly(irbuilder, assembly);
+    else if (def->isa<Enter>())                      return emit_unsafe(def->op(0));
+    else if (auto bin = def->isa<BinOp>()) {
+        llvm::Value* lhs = emit(bin->lhs());
+        llvm::Value* rhs = emit(bin->rhs());
+        const char* name = bin->name().c_str();
+
+        if (auto cmp = bin->isa<Cmp>()) {
+            auto type = cmp->lhs()->type();
+            if (is_type_s(type)) {
+                switch (cmp->cmp_tag()) {
+                    case Cmp_eq: return irbuilder.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt: return irbuilder.CreateICmpSGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder.CreateICmpSGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder.CreateICmpSLT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder.CreateICmpSLE(lhs, rhs, name);
+                }
+            } else if (is_type_u(type) || is_type_bool(type)) {
+                switch (cmp->cmp_tag()) {
+                    case Cmp_eq: return irbuilder.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt: return irbuilder.CreateICmpUGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder.CreateICmpUGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder.CreateICmpULT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder.CreateICmpULE(lhs, rhs, name);
+                }
+            } else if (is_type_f(type)) {
+                switch (cmp->cmp_tag()) {
+                    case Cmp_eq: return irbuilder.CreateFCmpOEQ(lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateFCmpUNE(lhs, rhs, name);
+                    case Cmp_gt: return irbuilder.CreateFCmpOGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder.CreateFCmpOGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder.CreateFCmpOLT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder.CreateFCmpOLE(lhs, rhs, name);
+                }
+            } else if (type->isa<PtrType>()) {
+                switch (cmp->cmp_tag()) {
+                    case Cmp_eq: return irbuilder.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return irbuilder.CreateICmpNE (lhs, rhs, name);
+                    default: THORIN_UNREACHABLE;
+                }
+            }
+        } else if (auto arithop = bin->isa<ArithOp>()) {
+            auto type = arithop->type();
+            bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
+
+            if (is_type_f(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_add: return irbuilder.CreateFAdd(lhs, rhs, name);
+                    case ArithOp_sub: return irbuilder.CreateFSub(lhs, rhs, name);
+                    case ArithOp_mul: return irbuilder.CreateFMul(lhs, rhs, name);
+                    case ArithOp_div: return irbuilder.CreateFDiv(lhs, rhs, name);
+                    case ArithOp_rem: return irbuilder.CreateFRem(lhs, rhs, name);
+                    case ArithOp_and:
+                    case ArithOp_or:
+                    case ArithOp_xor:
+                    case ArithOp_shl:
+                    case ArithOp_shr: THORIN_UNREACHABLE;
+                }
+            } else if (is_type_s(type) || is_type_bool(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_add: return irbuilder.CreateAdd (lhs, rhs, name, false, q);
+                    case ArithOp_sub: return irbuilder.CreateSub (lhs, rhs, name, false, q);
+                    case ArithOp_mul: return irbuilder.CreateMul (lhs, rhs, name, false, q);
+                    case ArithOp_div: return irbuilder.CreateSDiv(lhs, rhs, name);
+                    case ArithOp_rem: return irbuilder.CreateSRem(lhs, rhs, name);
+                    case ArithOp_and: return irbuilder.CreateAnd (lhs, rhs, name);
+                    case ArithOp_or:  return irbuilder.CreateOr  (lhs, rhs, name);
+                    case ArithOp_xor: return irbuilder.CreateXor (lhs, rhs, name);
+                    case ArithOp_shl: return irbuilder.CreateShl (lhs, rhs, name, false, q);
+                    case ArithOp_shr: return irbuilder.CreateAShr(lhs, rhs, name);
+                }
+            } else if (is_type_u(type) || is_type_bool(type)) {
+                switch (arithop->arithop_tag()) {
+                    case ArithOp_add: return irbuilder.CreateAdd (lhs, rhs, name, q, false);
+                    case ArithOp_sub: return irbuilder.CreateSub (lhs, rhs, name, q, false);
+                    case ArithOp_mul: return irbuilder.CreateMul (lhs, rhs, name, q, false);
+                    case ArithOp_div: return irbuilder.CreateUDiv(lhs, rhs, name);
+                    case ArithOp_rem: return irbuilder.CreateURem(lhs, rhs, name);
+                    case ArithOp_and: return irbuilder.CreateAnd (lhs, rhs, name);
+                    case ArithOp_or:  return irbuilder.CreateOr  (lhs, rhs, name);
+                    case ArithOp_xor: return irbuilder.CreateXor (lhs, rhs, name);
+                    case ArithOp_shl: return irbuilder.CreateShl (lhs, rhs, name, q, false);
+                    case ArithOp_shr: return irbuilder.CreateLShr(lhs, rhs, name);
+                }
+            }
+        }
+    } else if (auto conv = def->isa<ConvOp>()) {
+        auto from = emit(conv->from());
+        auto src_type = conv->from()->type();
+        auto dst_type = conv->type();
+        auto to = convert(dst_type);
+
+        if (conv->isa<Cast>()) {
+            if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
+                return irbuilder.CreatePointerCast(from, to);
+            } else if (src_type->isa<PtrType>()) {
+                assert(is_type_i(dst_type) || is_type_bool(dst_type));
+                return irbuilder.CreatePtrToInt(from, to);
+            } else if (dst_type->isa<PtrType>()) {
+                assert(is_type_i(src_type) || is_type_bool(src_type));
+                return irbuilder.CreateIntToPtr(from, to);
+            }
+
+            auto src = src_type->as<PrimType>();
+            auto dst = dst_type->as<PrimType>();
+
+            if (is_type_f(src) && is_type_f(dst)) {
+                assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
+                return irbuilder.CreateFPCast(from, to);
+            } else if (is_type_f(src)) {
+                if (is_type_s(dst))
+                    return irbuilder.CreateFPToSI(from, to);
+                return irbuilder.CreateFPToUI(from, to);
+            } else if (is_type_f(dst)) {
+                if (is_type_s(src))
+                    return irbuilder.CreateSIToFP(from, to);
+                return irbuilder.CreateUIToFP(from, to);
+            } else if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
+                if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
+                    return irbuilder.CreateTrunc(from, to);
+            } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
+                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder.CreateSExt(from, to);
+                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder.CreateZExt(from, to);
+            } else if (is_type_i(src) && is_type_i(dst)) {
+                assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
+                return from;
+            }
+
+            assert(false && "unsupported cast");
+        } else if (conv->isa<Bitcast>()) {
+            return emit_bitcast(irbuilder, conv->from(), dst_type);
+        }
+    } else if (auto select = def->isa<Select>()) {
+        if (def->type()->isa<FnType>())
+            return nullptr;
+
+        llvm::Value* cond = emit(select->cond());
+        llvm::Value* tval = emit(select->tval());
+        llvm::Value* fval = emit(select->fval());
+        return irbuilder.CreateSelect(cond, tval, fval);
+    } else if (auto align_of = def->isa<AlignOf>()) {
+        auto type = convert(align_of->of());
+        return irbuilder.getInt64(module().getDataLayout().getABITypeAlignment(type));
+    } else if (auto size_of = def->isa<SizeOf>()) {
+        auto type = convert(size_of->of());
+        return irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
+    } else if (auto array = def->isa<DefiniteArray>()) {
+        auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
+
+        // Try to emit it as a constant first
+        Array<llvm::Constant*> consts(array->num_ops());
+        bool all_consts = true;
+        for (size_t i = 0, n = consts.size(); i != n; ++i) {
+            consts[i] = llvm::dyn_cast<llvm::Constant>(emit(array->op(i)));
+            if (!consts[i]) {
+                all_consts = false;
+                break;
+            }
+        }
+        if (all_consts)
+            return llvm::ConstantArray::get(type, llvm_ref(consts));
+
+        world().wdef(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
+        auto alloca = emit_alloca(irbuilder, type, array->name());
+
+        u64 i = 0;
+        llvm::Value* args[2] = { irbuilder.getInt64(0), nullptr };
+        for (auto op : array->ops()) {
+            args[1] = irbuilder.getInt64(i++);
+            auto gep = irbuilder.CreateInBoundsGEP(alloca, args, op->name().c_str());
+            irbuilder.CreateStore(emit(op), gep);
+        }
+
+        return irbuilder.CreateLoad(type, alloca);
+    } else if (auto array = def->isa<IndefiniteArray>()) {
+        return llvm::UndefValue::get(convert(array->type()));
+    } else if (auto agg = def->isa<Aggregate>()) {
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>() || def->isa<Closure>());
+        if (is_unit(agg)) return nullptr;
+
+        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
+        if (def->isa<Vector>()) {
+            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
+                llvm_agg = irbuilder.CreateInsertElement(llvm_agg, emit(agg->op(i)), irbuilder.getInt32(i));
+        } else if (auto closure = def->isa<Closure>()) {
+            auto closure_fn = irbuilder.CreatePointerCast(emit(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
+            auto val = agg->op(1);
+            llvm::Value* env = nullptr;
+            if (is_thin(closure->op(1)->type())) {
+                if (is_type_unit(val->type())) {
+                    env = emit(world().bottom(Closure::environment_type(world())));
+                } else {
+                    env = emit(world().cast(Closure::environment_type(world()), val));
+                }
+            } else {
+                world().wdef(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
+                auto alloc = emit_alloc(irbuilder, val->type(), nullptr);
+                irbuilder.CreateStore(emit(val), alloc);
+                env = irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world())));
+            }
+            llvm_agg = irbuilder.CreateInsertValue(llvm_agg, closure_fn, 0);
+            llvm_agg = irbuilder.CreateInsertValue(llvm_agg, env, 1);
+        } else {
+            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
+                llvm_agg = irbuilder.CreateInsertValue(llvm_agg, emit(agg->op(i)), { unsigned(i) });
+        }
+
+        return llvm_agg;
+    } else if (auto aggop = def->isa<AggOp>()) {
+        auto llvm_agg = emit_unsafe(aggop->agg());
+        auto llvm_idx = emit(aggop->index());
+
+        bool mem = false;
+        if (auto tt = aggop->agg()->type()->isa<TupleType>(); tt && tt->op(0)->isa<MemType>()) mem = true;
+
+        auto copy_to_alloca = [&] () {
+            world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
+            auto alloca = emit_alloca(irbuilder, llvm_agg->getType(), aggop->name());
+            irbuilder.CreateStore(llvm_agg, alloca);
+
+            llvm::Value* args[2] = { irbuilder.getInt64(0), llvm_idx };
+            auto gep = irbuilder.CreateInBoundsGEP(alloca, args);
+            return std::make_pair(alloca, gep);
+        };
+        auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
+            if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
+                auto global = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
+                global->setLinkage(llvm::GlobalValue::InternalLinkage);
+                global->setInitializer(constant);
+                return irbuilder.CreateInBoundsGEP(global, { irbuilder.getInt64(0), llvm_idx });
+            }
+            return copy_to_alloca().second;
+        };
+
+        if (auto extract = aggop->isa<Extract>()) {
+            if (aggop->agg()->type()->isa<ArrayType>()) {
+                return irbuilder.CreateLoad(convert(extract->type()), copy_to_alloca_or_global());
+            } else if (extract->agg()->type()->isa<VectorType>()) {
+                return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
+            }
+
+            // tuple/struct
+            if (is_mem(extract)) return nullptr;
+
+            unsigned offset = 0;
+            if (mem) {
+                if (aggop->agg()->type()->num_ops() == 2) return llvm_agg;
+                offset = 1;
+            }
+
+            return irbuilder.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - offset});
+        }
+
+        auto insert = def->as<Insert>();
+        auto value = emit(insert->value());
+
+        // TODO deal with mem - but I think for now this case shouldn't happen
+
+        if (insert->agg()->type()->isa<ArrayType>()) {
+            auto p = copy_to_alloca();
+            irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
+            return irbuilder.CreateLoad(convert(insert->type()), p.first);
+        } else if (insert->agg()->type()->isa<VectorType>()) {
+            return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
+        }
+        // tuple/struct
+        return irbuilder.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
+    } else if (auto variant_index = def->isa<VariantIndex>()) {
+        auto llvm_value = emit(variant_index->op(0));
+        auto tag_value = irbuilder.CreateExtractValue(llvm_value, { 1 });
+        return irbuilder.CreateIntCast(tag_value, convert(variant_index->type()), false);
+    } else if (auto variant_extract = def->isa<VariantExtract>()) {
+        auto variant_value = variant_extract->op(0);
+        auto llvm_value    = emit(variant_value);
+        auto target_type   = variant_value->type()->op(variant_extract->index());
+        if (is_type_unit(target_type))
+            return nullptr;
+
+        auto payload_value = irbuilder.CreateExtractValue(llvm_value, { 0 });
+        return create_tmp_alloca(irbuilder, payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
+            irbuilder.CreateStore(payload_value, alloca);
+            auto addr_space = alloca->getType()->getPointerAddressSpace();
+            auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(convert(target_type), addr_space));
+            return irbuilder.CreateLoad(convert(variant_extract->type()), payload_addr);
+        });
+    } else if (auto variant_ctor = def->isa<Variant>()) {
+        auto llvm_type = convert(variant_ctor->type());
+        auto tag_value = irbuilder.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
+
+        return create_tmp_alloca(irbuilder, llvm_type, [&] (llvm::AllocaInst* alloca) {
+            auto tag_addr = irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(1) });
+            irbuilder.CreateStore(tag_value, tag_addr);
+
+            // Do not store anything if the payload is unit
+            if (!is_type_unit(variant_ctor->op(0)->type())) {
+                auto payload_value = emit(variant_ctor->op(0));
+                auto payload_addr = irbuilder.CreatePointerCast(
+                    irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
+                    llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
+                irbuilder.CreateStore(payload_value, payload_addr);
+            }
+            return irbuilder.CreateLoad(convert(variant_ctor->type()), alloca);
+        });
+    } else if (auto primlit = def->isa<PrimLit>()) {
+        llvm::Type* llvm_type = convert(primlit->type());
+        Box box = primlit->value();
+
+        switch (primlit->primtype_tag()) {
+            case PrimType_bool:                     return irbuilder. getInt1(box.get_bool());
+            case PrimType_ps8:  case PrimType_qs8:  return irbuilder. getInt8(box. get_s8());
+            case PrimType_pu8:  case PrimType_qu8:  return irbuilder. getInt8(box. get_u8());
+            case PrimType_ps16: case PrimType_qs16: return irbuilder.getInt16(box.get_s16());
+            case PrimType_pu16: case PrimType_qu16: return irbuilder.getInt16(box.get_u16());
+            case PrimType_ps32: case PrimType_qs32: return irbuilder.getInt32(box.get_s32());
+            case PrimType_pu32: case PrimType_qu32: return irbuilder.getInt32(box.get_u32());
+            case PrimType_ps64: case PrimType_qs64: return irbuilder.getInt64(box.get_s64());
+            case PrimType_pu64: case PrimType_qu64: return irbuilder.getInt64(box.get_u64());
+            case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
+            case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
+            case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
+        }
+    } else if (auto bottom = def->isa<Bottom>()) {
+        return llvm::UndefValue::get(convert(bottom->type()));
+    } else if (auto alloc = def->isa<Alloc>()) {
+        emit_unsafe(alloc->mem());
+        return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
+    } else if (auto slot = def->isa<Slot>()) {
+        return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
+    } else if (auto vector = def->isa<Vector>()) {
+        llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
+        for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
+            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world().literal_pu32(i, vector->loc())));
+
+        return vec;
+    } else if (auto global = def->isa<Global>()) {
+        return emit_global(global);
+    }
+
+    THORIN_UNREACHABLE;
+}
+
+void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
+    llvm::cast<llvm::PHINode>(defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
+}
+
+/*
+ * emit: special overridable methods
+ */
+
+llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type, const Def* extra) {
+    auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
+    auto alloced_type = convert(type);
+    llvm::CallInst* void_ptr;
+    auto layout = module().getDataLayout();
+    if (auto array = type->isa<IndefiniteArrayType>()) {
+        assert(extra);
+        auto size = irbuilder.CreateAdd(
+                irbuilder.getInt64(layout.getTypeAllocSize(alloced_type)),
+                irbuilder.CreateMul(irbuilder.CreateIntCast(emit(extra), irbuilder.getInt64Ty(), false),
+                                     irbuilder.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
+        llvm::Value* malloc_args[] = { irbuilder.getInt32(0), size };
+        void_ptr = irbuilder.CreateCall(llvm_malloc, malloc_args);
+    } else {
+        llvm::Value* malloc_args[] = { irbuilder.getInt32(0), irbuilder.getInt64(layout.getTypeAllocSize(alloced_type)) };
+        void_ptr = irbuilder.CreateCall(llvm_malloc, malloc_args);
+    }
+
+    return irbuilder.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
+}
+
+llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, const std::string& name) {
+    // Emit the alloca in the entry block
+    auto entry = &irbuilder.GetInsertBlock()->getParent()->getEntryBlock();
+    auto layout = module().getDataLayout();
+    llvm::AllocaInst* alloca;
+    if (entry->empty())
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
+    else
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
+    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)).valueOrOne());
+    return alloca;
+}
+
+llvm::Value* CodeGen::emit_bitcast(llvm::IRBuilder<>& irbuilder, const Def* val, const Type* dst_type) {
+    auto from = emit(val);
+    auto src_type = val->type();
+    auto to = convert(dst_type);
+    if (from->getType()->isAggregateType() || to->isAggregateType())
+        world().edef(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
+    if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
+        return irbuilder.CreatePointerCast(from, to);
+    return irbuilder.CreateBitCast(from, to);
+}
+
+llvm::Value* CodeGen::emit_global(const Global* global) {
+    llvm::Value* val;
+    if (auto continuation = global->init()->isa_continuation())
+        val = emit(continuation);
+    else {
+        auto llvm_type = convert(global->alloced_type());
+        auto var = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
+        var->setConstant(!global->is_mutable());
+        var->setLinkage(llvm::GlobalValue::InternalLinkage);
+        if (global->init()->isa<Bottom>())
+            var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
+        else
+            var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+        val = var;
+    }
+    return val;
+}
+
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
+    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
+    return new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+}
+
+llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
+    emit_unsafe(load->mem());
+    auto ptr = emit(load->ptr());
+    if (auto vectype = load->out_val_type()->isa<VectorType>(); vectype && vectype->is_vector()) {
+        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
+        auto result = irbuilder.CreateMaskedGather(ptr, llvm::MaybeAlign(align).valueOrOne());
+        return result;
+    } else {
+        auto result = irbuilder.CreateLoad(convert(load->out_val_type()), ptr);
+        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+        result->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+        return result;
+    }
+}
+
+llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* store) {
+    emit_unsafe(store->mem());
+    auto ptr = emit(store->ptr());
+    if (auto vectype = store->val()->type()->isa<VectorType>(); vectype && vectype->is_vector()) {
+        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
+        auto result = irbuilder.CreateMaskedScatter(emit(store->val()), ptr, llvm::MaybeAlign(align).valueOrOne());
+        return nullptr;
+    } else {
+        auto result = irbuilder.CreateStore(emit(store->val()), ptr);
+        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+        result->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+        return nullptr;
+    }
+}
+
+llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
+    if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
+        return irbuilder.CreateStructGEP(convert(lea->ptr_pointee()), emit(lea->ptr()), primlit_value<u32>(lea->index()));
+
+    assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
+    llvm::Value* args[2] = { irbuilder.getInt64(0), emit(lea->index()) };
+    return irbuilder.CreateInBoundsGEP(emit(lea->ptr()), args);
+}
+
+llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
+    emit_unsafe(assembly->mem());
+    auto out_type = assembly->type();
+    llvm::Type* res_type;
+    bool mem_only = false;
+
+    if (out_type->isa<TupleType>()) {
+        if (out_type->num_ops() == 2)
+            res_type = convert(assembly->type()->op(1));
+        else
+            res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
+    } else {
+        res_type = llvm::Type::getVoidTy(context());
+        mem_only = true;
+    }
+
+    size_t num_inputs = assembly->num_inputs();
+    auto input_values = Array<llvm::Value*>(num_inputs);
+    auto input_types  = Array<llvm::Type* >(num_inputs);
+    for (size_t i = 0; i != num_inputs; ++i) {
+        input_values[i] = emit(assembly->input(i));
+        input_types [i] = convert(assembly->input(i)->type());
+    }
+
+    auto fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
+
+    std::string constraints;
+    for (auto con : assembly->output_constraints())
+        constraints += con + ",";
+    for (auto con : assembly->input_constraints())
+        constraints += con + ",";
+    for (auto clob : assembly->clobbers())
+        constraints += "~{" + clob + "},";
+    // clang always marks those registers as clobbered, so we will do so as well
+    constraints += "~{dirflag},~{fpsr},~{flags}";
+
+    if (!llvm::InlineAsm::Verify(fn_type, constraints))
+        world().edef(assembly, "constraints and input and output types of inline assembly do not match");
+
+    auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
+            assembly->has_sideeffects(), assembly->is_alignstack(),
+            assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
+    auto res = irbuilder.CreateCall(asm_expr, llvm_ref(input_values));
+
+    return mem_only ? nullptr : res;
+}
+
+/*
+ * emit intrinsic
+ */
+
+Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    auto callee = continuation->callee()->as_continuation();
+    switch (callee->intrinsic()) {
+        case Intrinsic::Atomic:      return emit_atomic(irbuilder, continuation);
+        case Intrinsic::AtomicLoad:  return emit_atomic_load(irbuilder, continuation);
+        case Intrinsic::AtomicStore: return emit_atomic_store(irbuilder, continuation);
+        case Intrinsic::CmpXchg:     return emit_cmpxchg(irbuilder, continuation);
+        case Intrinsic::Reserve:     return emit_reserve(irbuilder, continuation);
+        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
+        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
+        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
+        case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
+        case Intrinsic::HLS:         return emit_hls(irbuilder, continuation);
+        case Intrinsic::Parallel:    return emit_parallel(irbuilder, continuation);
+        case Intrinsic::Fibers:      return emit_fibers(irbuilder, continuation);
+        case Intrinsic::Spawn:       return emit_spawn(irbuilder, continuation);
+        case Intrinsic::Sync:        return emit_sync(irbuilder, continuation);
+#if THORIN_ENABLE_RV
+        case Intrinsic::Vectorize:   return emit_vectorize_continuation(irbuilder, continuation);
+#else
+        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
+#endif
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->num_args() == 7 && "required arguments are missing");
+    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
+    u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
+    auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
+    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
+                        (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
+    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
+        world().edef(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
+    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
+        world().edef(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
+    auto ptr = emit(continuation->arg(2));
+    auto val = emit(continuation->arg(3));
+    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)order_tag;
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(6)->as_continuation();
+    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(align), order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_phi_arg(irbuilder, cont->param(1), call);
+    return cont;
+}
+
+Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->num_args() == 5 && "required arguments are missing");
+    auto ptr = emit(continuation->arg(1));
+    u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)tag;
+    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(4)->as_continuation();
+    auto load = irbuilder.CreateLoad(convert(continuation->arg(1)->type()->as<PtrType>()->pointee()), ptr);
+    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    load->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+    load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_phi_arg(irbuilder, cont->param(1), load);
+    return cont;
+}
+
+Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->num_args() == 6 && "required arguments are missing");
+    auto ptr = emit(continuation->arg(1));
+    auto val = emit(continuation->arg(2));
+    u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)tag;
+    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(5)->as_continuation();
+    auto store = irbuilder.CreateStore(val, ptr);
+    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    store->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+    store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    return cont;
+}
+
+Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->num_args() == 7 && "required arguments are missing");
+    if (!is_type_i(continuation->arg(3)->type()))
+        world().edef(continuation->arg(3), "cmpxchg only supported for integer types");
+    auto ptr  = emit(continuation->arg(1));
+    auto cmp  = emit(continuation->arg(2));
+    auto val  = emit(continuation->arg(3));
+    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)order_tag;
+    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(6)->as_continuation();
+    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
+    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(align), order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
+    emit_phi_arg(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
+    return cont;
+}
+
+Continuation* CodeGen::emit_reserve(llvm::IRBuilder<>&, const Continuation* continuation) {
+    world().edef(continuation, "reserve_shared: only allowed in device code"); // TODO debug
+    THORIN_UNREACHABLE;
+}
+
+Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Continuation* continuation, bool init_undef) {
+    assert(continuation->num_args() == 3 && "required arguments are missing");
+    if (!continuation->arg(1)->isa<PrimLit>())
+        world().edef(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+    auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
+    auto cont = continuation->arg(2)->as_continuation();
+    auto type = convert(cont->param(1)->type());
+    // construct array type
+    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+    auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
+    auto name = continuation->unique_name();
+    // NVVM doesn't allow '.' in global identifier
+    std::replace(name.begin(), name.end(), '.', '_');
+    auto global = emit_global_variable(smem_type, name, 3, init_undef);
+    auto call = irbuilder.CreatePointerCast(global, type);
+    emit_phi_arg(irbuilder, cont->param(1), call);
+    return cont;
+}
+
+/*
+ * backend-specific stuff
+ */
+
+Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    std::vector<llvm::Value*> args(continuation->num_args()-3);
+    Continuation* ret = nullptr;
+    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
+        if (auto cont = continuation->arg(i)->isa_continuation()) {
+            ret = cont;
+            continue;
+        }
+        args[j++] = emit(continuation->arg(i));
+    }
+    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
+    callee->make_external();
+    irbuilder.CreateCall(emit_fun_decl(callee), args);
+    assert(ret);
+    return ret;
+}
+
+/*
+ * helpers
+ */
+
+void CodeGen::create_loop(llvm::IRBuilder<>& irbuilder, llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
+    auto head = llvm::BasicBlock::Create(context(), "head", entry);
+    auto body = llvm::BasicBlock::Create(context(), "body", entry);
+    auto exit = llvm::BasicBlock::Create(context(), "exit", entry);
     // create loop phi and connect init value
-    auto loop_counter = llvm::PHINode::Create(irbuilder_.getInt32Ty(), 2U, "parallel_loop_phi", head);
-    loop_counter->addIncoming(lower, irbuilder_.GetInsertBlock());
+    auto loop_counter = llvm::PHINode::Create(irbuilder.getInt32Ty(), 2U, "parallel_loop_phi", head);
+    loop_counter->addIncoming(lower, irbuilder.GetInsertBlock());
     // connect head
-    irbuilder_.CreateBr(head);
-    irbuilder_.SetInsertPoint(head);
-    auto cond = irbuilder_.CreateICmpSLT(loop_counter, upper);
-    assert(exit);
-    irbuilder_.CreateCondBr(cond, body, exit);
-    irbuilder_.SetInsertPoint(body);
+    irbuilder.CreateBr(head);
+    irbuilder.SetInsertPoint(head);
+    auto cond = irbuilder.CreateICmpSLT(loop_counter, upper);
+    irbuilder.CreateCondBr(cond, body, exit);
+    irbuilder.SetInsertPoint(body);
 
     // add instructions to the loop body
     fun(loop_counter);
 
     // inc loop counter
-    loop_counter->addIncoming(irbuilder_.CreateAdd(loop_counter, increment), body);
-    irbuilder_.CreateBr(head);
-    irbuilder_.SetInsertPoint(exit);
+    loop_counter->addIncoming(irbuilder.CreateAdd(loop_counter, increment), body);
+    irbuilder.CreateBr(head);
+    irbuilder.SetInsertPoint(exit);
 }
 
-llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
-    auto alloca = emit_alloca(type, "tmp_alloca");
-    auto size = irbuilder_.getInt64(module_->getDataLayout().getTypeAllocSize(type));
+llvm::Value* CodeGen::create_tmp_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
+    auto alloca = emit_alloca(irbuilder, type, "tmp_alloca");
+    auto size = irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
 
-    irbuilder_.CreateLifetimeStart(alloca, size);
+    irbuilder.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);
-    irbuilder_.CreateLifetimeEnd(alloca, size);
+    irbuilder.CreateLifetimeEnd(alloca, size);
     return result;
-}
-
-//------------------------------------------------------------------------------
-
-static void get_kernel_configs(Importer& importer,
-    const std::vector<Continuation*>& kernels,
-    Cont2Config& kernel_config,
-    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
-{
-    importer.world().opt();
-
-    auto exported_continuations = importer.world().exported_continuations();
-    for (auto continuation : kernels) {
-        // recover the imported continuation (lost after the call to opt)
-        Continuation* imported = nullptr;
-        for (auto exported : exported_continuations) {
-            if (exported->name() == continuation->name())
-                imported = exported;
-        }
-        if (!imported) continue;
-
-        visit_uses(continuation, [&] (Continuation* use) {
-            auto config = use_callback(use, imported);
-            if (config) {
-                auto p = kernel_config.emplace(imported, std::move(config));
-                assert_unused(p.second && "single kernel config entry expected");
-            }
-            return false;
-        }, true);
-
-        continuation->destroy_body();
-    }
-}
-
-static const Continuation* get_alloc_call(const Def* def) {
-    // look through casts
-    while (auto conv_op = def->isa<ConvOp>())
-        def = conv_op->op(0);
-
-    auto param = def->isa<Param>();
-    if (!param) return nullptr;
-
-    auto ret = param->continuation();
-    if (ret->num_uses() != 1) return nullptr;
-
-    auto use = *(ret->uses().begin());
-    auto call = use.def()->isa_continuation();
-    if (!call || use.index() == 0) return nullptr;
-
-    auto callee = call->callee();
-    if (callee->name() != "anydsl_alloc") return nullptr;
-
-    return call;
-}
-
-static uint64_t get_alloc_size(const Def* def) {
-    auto call = get_alloc_call(def);
-    if (!call) return 0;
-
-    // signature: anydsl_alloc(mem, i32, i64, fn(mem, &[i8]))
-    auto size = call->arg(2)->isa<PrimLit>();
-    return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
-}
-
-Backends::Backends(World& world, int opt, bool debug)
-    : cuda(world)
-    , nvvm(world)
-    , opencl(world)
-    , amdgpu(world)
-    , hls(world)
-{
-    // determine different parts of the world which need to be compiled differently
-    Scope::for_each(world, [&] (const Scope& scope) {
-        auto continuation = scope.entry();
-        Continuation* imported = nullptr;
-        if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
-            imported = cuda.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
-            imported = nvvm.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
-            imported = opencl.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
-            imported = amdgpu.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS))
-            imported = hls.import(continuation)->as_continuation();
-        else
-            return;
-
-        imported->debug().set(continuation->unique_name());
-        imported->make_exported();
-        continuation->debug().set(continuation->unique_name());
-
-        for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->debug().set(continuation->param(i)->unique_name());
-
-        kernels.emplace_back(continuation);
-    });
-
-    // get the GPU kernel configurations
-    if (!cuda.world().empty()   ||
-        !nvvm.world().empty()   ||
-        !opencl.world().empty() ||
-        !amdgpu.world().empty()) {
-        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
-            // determine whether or not this kernel uses restrict pointers
-            bool has_restrict = true;
-            DefSet allocs;
-            for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
-                auto arg = use->arg(i);
-                if (!arg->type()->isa<PtrType>()) continue;
-                auto alloc = get_alloc_call(arg);
-                if (!alloc) has_restrict = false;
-                auto p = allocs.insert(alloc);
-                has_restrict &= p.second;
-            }
-
-            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
-            if (it_config->op(0)->isa<PrimLit>() &&
-                it_config->op(1)->isa<PrimLit>() &&
-                it_config->op(2)->isa<PrimLit>()) {
-                return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> {
-                    it_config->op(0)->as<PrimLit>()->qu32_value().data(),
-                    it_config->op(1)->as<PrimLit>()->qu32_value().data(),
-                    it_config->op(2)->as<PrimLit>()->qu32_value().data()
-                }, has_restrict);
-            }
-            return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);
-        };
-        get_kernel_configs(cuda,   kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(nvvm,   kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(opencl, kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(amdgpu, kernels, kernel_config, get_gpu_config);
-    }
-
-    // get the HLS kernel configurations
-    if (!hls.world().empty()) {
-        auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
-            HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
-                auto arg = use->arg(i);
-                auto ptr_type = arg->type()->isa<PtrType>();
-                if (!ptr_type) continue;
-                auto size = get_alloc_size(arg);
-                if (size == 0)
-                    EDEF(arg, "array size is not known at compile time");
-                auto elem_type = ptr_type->pointee();
-                size_t multiplier = 1;
-                if (!elem_type->isa<PrimType>()) {
-                    if (auto array_type = elem_type->isa<ArrayType>())
-                        elem_type = array_type->elem_type();
-                }
-                if (!elem_type->isa<PrimType>()) {
-                    if (auto def_array_type = elem_type->isa<DefiniteArrayType>()) {
-                        elem_type = def_array_type->elem_type();
-                        multiplier = def_array_type->dim();
-                    }
-                }
-                auto prim_type = elem_type->isa<PrimType>();
-                if (!prim_type)
-                    EDEF(arg, "only pointers to arrays of primitive types are supported");
-                auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
-                // imported has type: fn (mem, fn (mem), ...)
-                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
-            }
-            return std::make_unique<HLSKernelConfig>(param_sizes);
-        };
-        get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
-    }
-
-    cpu_cg = std::make_unique<CPUCodeGen>(world, opt, debug);
-
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config, opt, debug);
-    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config,      debug);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config, opt, debug);
-    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config, opt, debug);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config, opt, debug);
 }
 
 //------------------------------------------------------------------------------

@@ -1,59 +1,46 @@
 #include "thorin/util/stream.h"
 
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
-
 namespace thorin {
 
-namespace detail {
-
-static unsigned int indent = 0;
-
-void inc_indent() { indent++; }
-void dec_indent() { indent--; }
-unsigned int get_indent() { return indent; }
-
-};
-
-std::string Streamable::to_string() const {
-    std::ostringstream os;
-    stream(os);
-    return os.str();
+Stream& Stream::endl() {
+    ostream() << '\n';
+    for (size_t i = 0; i != level_; ++i) ostream() << tab_;
+    return *this;
 }
 
-void Streamable::dump() const { stream(std::cout) << thorin::endl; }
-std::ostream& operator<<(std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
+Stream& Stream::fmt(const char* s) {
+    while (*s) {
+        auto next = s + 1;
 
-std::ostream& streamf(std::ostream& os, const char* fmt) {
-    while (*fmt) {
-        auto next = fmt + 1;
-        if (*fmt == '{') {
-            if (*next == '{') {
-                os << '{';
-                fmt += 2;
-                continue;
-            }
-            while (*fmt && *fmt != '}') {
-                fmt++;
-            }
-            if (*fmt == '}')
-                throw std::invalid_argument("invalid format string for 'streamf': missing argument(s); use 'catch throw' in 'gdb'");
-            else
-                throw std::invalid_argument("invalid format string for 'streamf': missing closing brace and argument; use 'catch throw' in 'gdb'");
+        switch (*s) {
+            case '\n': s++; endl();   break;
+            case '\t': s++; indent(); break;
+            case '\b': s++; dedent(); break;
+            case '{':
+                if (match2nd(next, s, '{')) continue;
 
-        } else if (*fmt == '}') {
-            if (*next == '}') {
-                os << '}';
-                fmt += 2;
-                continue;
-            }
-            // TODO give exact position
-            throw std::invalid_argument("unmatched/unescaped closing brace '}' in format string");
+                while (*s && *s != '}') s++;
+
+                assert(*s != '}' && "invalid format string for 'streamf': missing argument(s)");
+                assert(false && "invalid format string for 'streamf': missing closing brace and argument");
+                break;
+            case '}':
+                if (match2nd(next, s, '}')) continue;
+                assert(false && "unmatched/unescaped closing brace '}' in format string");
+            default:
+                (*this) << *s++;
         }
-        os << *fmt++;
     }
-    return os;
+    return *this;
+}
+
+bool Stream::match2nd(const char* next, const char*& s, const char c) {
+    if (*next == c) {
+        (*this) << c;
+        s += 2;
+        return true;
+    }
+    return false;
 }
 
 }

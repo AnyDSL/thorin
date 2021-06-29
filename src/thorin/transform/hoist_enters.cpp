@@ -3,7 +3,6 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -34,7 +33,7 @@ static void hoist_enters(const Scope& scope) {
 
 
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {
-        VLOG("cannot optimize {} - didn't find entry enter", scope.entry());
+        world.VLOG("cannot optimize {} - didn't find entry enter", scope.entry());
         return;
     }
 

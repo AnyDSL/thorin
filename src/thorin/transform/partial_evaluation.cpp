@@ -2,7 +2,6 @@
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -48,8 +47,8 @@ public:
 
     World& world() { return callee_->world(); }
     const Def* instantiate(const Def* odef) {
-        if (auto ndef = find(old2new_, odef))
-            return ndef;
+        if (auto ndef = old2new_.lookup(odef))
+            return *ndef;
 
         if (auto oprimop = odef->isa<PrimOp>()) {
             Array<const Def*> nops(oprimop->num_ops());
@@ -71,7 +70,7 @@ public:
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<FnType>()
                             || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
 
@@ -127,10 +126,10 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
     assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
     auto next = cur->arg(3);
 
-    if (is_const(cur->arg(2))) {
+    if (cur->arg(2)->has_dep(Dep::Param)) {
         auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-        IDEF(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
-        cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+        world().idef(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+        cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
@@ -211,9 +210,9 @@ bool PartialEvaluator::run() {
 
 bool partial_evaluation(World& world, bool lower2cff) {
     auto name = lower2cff ? "lower2cff" : "partial_evaluation";
-    VLOG("start {}", name);
+    world.VLOG("start {}", name);
     auto res = PartialEvaluator(world, lower2cff).run();
-    VLOG("end {}", name);
+    world.VLOG("end {}", name);
     return res;
 }
 

@@ -1,15 +1,12 @@
 #include "thorin/def.h"
 
 #include <algorithm>
-#include <iostream>
-#include <sstream>
 #include <stack>
 
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -23,22 +20,29 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
-    , contains_continuation_(false)
+    , dep_(tag == Node_Continuation ? Dep::Cont  :
+           tag == Node_Param        ? Dep::Param :
+                                      Dep::Bot   )
 {}
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(location(), unique_name()) : debug();
+    return world().track_history() ? Debug(unique_name(), loc()) : debug();
 #else
     return debug();
 #endif
 }
 
+void Def::set_name(const std::string& name) const { debug_.name = name; }
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    contains_continuation_ |= def->contains_continuation();
+    // A Param/Continuation should not have other bits than its own set.
+    // (Right now, Param doesn't have ops, but this will change in the future).
+    if (!isa_continuation() && !isa<Param>())
+        dep_ |= def->dep();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
@@ -68,31 +72,11 @@ void Def::unset_ops() {
 }
 
 std::string Def::unique_name() const {
-    std::ostringstream oss;
-    oss << name() << '_' << gid();
-    return oss.str();
+    return name() + "_" + std::to_string(gid());
 }
 
 bool is_unit(const Def* def) {
     return def->type() == def->world().unit();
-}
-
-bool is_const(const Def* def) {
-    unique_stack<DefSet> stack;
-    stack.push(def);
-
-    while (!stack.empty()) {
-        auto def = stack.pop();
-        if (def->isa<Param>()) return false;
-        if (def->isa<Hlt>()) return false;
-        if (def->isa<PrimOp>()) {
-            for (auto op : def->ops())
-                stack.push(op);
-        }
-        // continuations are always const
-    }
-
-    return true;
 }
 
 size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
@@ -131,7 +115,7 @@ bool is_minus_zero(const Def* def) {
 }
 
 void Def::replace(Tracker with) const {
-    DLOG("replace: {} -> {}", this, with);
+    world().DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
     assert(!is_replaced());
 
@@ -148,27 +132,8 @@ void Def::replace(Tracker with) const {
     }
 }
 
-void Def::dump() const {
-    auto primop = this->isa<PrimOp>();
-    if (primop && primop->num_ops() > 1)
-        primop->stream_assignment(std::cout);
-    else {
-        std::cout << this;
-        std::cout << std::endl;
-    }
-}
-
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
 Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
-std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
-#if THORIN_ENABLE_CHECKS
-void force_use_dump() {
-    Defs defs;
-    defs.dump();
-    Array<const Def*> a;
-    a.dump();
-}
-#endif
 }

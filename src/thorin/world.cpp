@@ -1,6 +1,13 @@
 #include "thorin/world.h"
 
-#include <fstream>
+// for colored output
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -13,7 +20,6 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/rewrite_flow_graphs.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
@@ -21,19 +27,11 @@
 #include "thorin/transform/split_slots.h"
 #include "thorin/transform/vectorize.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
 #else
 #define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
-#endif
-
-#if THORIN_ENABLE_CHECKS
-#define THORIN_CHECK_BREAK(gid) \
-    if (breakpoints_.find((gid)) != breakpoints_.end()) { THORIN_BREAK }
-#else
-#define THORIN_CHECK_BREAK(gid) {}
 #endif
 
 namespace thorin {
@@ -42,7 +40,7 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(std::string name)
+World::World(const std::string& name)
     : name_(name)
 {
     branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
@@ -56,6 +54,11 @@ World::~World() {
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto type = value->type()->isa<VectorExtendedType>()) {
+        auto newtype = vec_type(type_qu64(), type->length());
+        return cse(new VariantIndex(newtype, value, dbg));
+    }
+
+    if (auto type = value->type()->isa<VariantVectorType>()) {
         auto newtype = vec_type(type_qu64(), type->length());
         return cse(new VariantIndex(newtype, value, dbg));
     }
@@ -146,7 +149,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<VectorExtendedType>()->length();
+        size_t num = lvec->type()->as<VectorType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = arithop(tag, lvec->op(i), rvec->op(i), dbg);
@@ -908,22 +911,20 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
  */
 
 const Def* World::hlt(const Def* def, Debug dbg) {
-    if (pe_done_)
-        return def;
+    if (is_pe_done()) return def;
     return cse(new Hlt(def, dbg));
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
-    if (pe_done_ || def->isa<Hlt>())
+    if (is_pe_done() || def->isa<Hlt>())
         return literal_bool(false, dbg);
-    if (is_const(def))
+    if (!def->has_dep(Dep::Param))
         return literal_bool(true, dbg);
     return cse(new Known(def, dbg));
 }
 
 const Def* World::run(const Def* def, Debug dbg) {
-    if (pe_done_)
-        return def;
+    if (is_pe_done()) return def;
     return cse(new Run(def, dbg));
 }
 
@@ -932,24 +933,26 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto l = new Continuation(fn, attributes, dbg);
-    THORIN_CHECK_BREAK(l->gid());
-    continuations_.insert(l);
+    auto cont = new Continuation(fn, attributes, dbg);
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(cont->gid())) THORIN_BREAK;
+#endif
+    continuations_.insert(cont);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
-        auto p = param(op, l, i++, dbg);
-        l->params_.emplace_back(p);
+        auto p = param(op, cont, i++, dbg);
+        cont->params_.emplace_back(p);
     }
 
-    return l;
+    return cont;
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
     const Type* index_type = type;
-    if (auto vec = type->isa<VectorExtendedType>())
-        index_type = vec->element();
+    if (auto vec = type->isa<VectorType>(); vec && vec->is_vector())
+        index_type = vec->scalarize();
     arg_types[0] = type;
     arg_types[1] = fn_type();
     for (size_t i = 0; i < num_patterns; i++)
@@ -968,13 +971,64 @@ Continuation* World::predicated(const Type* type) {
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
-    THORIN_CHECK_BREAK(param->gid());
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
+#endif
     return param;
 }
 
 /*
  * misc
  */
+
+#if THORIN_ENABLE_CHECKS
+
+void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
+void World::use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
+void World::enable_history(bool flag)     { state_.track_history = flag; }
+bool World::track_history() const         { return state_.track_history; }
+
+const Def* World::gid2def(u32 gid) {
+    auto i = std::find_if(primops_.begin(), primops_.end(), [&](const Def* def) { return def->gid() == gid; });
+    if (i == primops_.end()) return nullptr;
+    return *i;
+}
+
+#endif
+
+const char* World::level2string(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return "E";
+        case LogLevel::Warn:    return "W";
+        case LogLevel::Info:    return "I";
+        case LogLevel::Verbose: return "V";
+        case LogLevel::Debug:   return "D";
+    }
+    THORIN_UNREACHABLE;
+}
+
+int World::level2color(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return 1;
+        case LogLevel::Warn:    return 3;
+        case LogLevel::Info:    return 2;
+        case LogLevel::Verbose: return 4;
+        case LogLevel::Debug:   return 4;
+    }
+    THORIN_UNREACHABLE;
+}
+
+#ifdef COLORIZE_LOG
+std::string World::colorize(const std::string& str, int color) {
+    if (isatty(fileno(stdout))) {
+        const char c = '0' + color;
+        return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
+    }
+#else
+std::string World::colorize(const std::string& str, int) {
+#endif
+    return str;
+}
 
 const Def* World::try_fold_aggregate(const Aggregate* agg) {
     const Def* from = nullptr;
@@ -1009,7 +1063,9 @@ Array<Continuation*> World::exported_continuations() const {
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
-    THORIN_CHECK_BREAK(primop->gid());
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(primop->gid())) THORIN_BREAK;
+#endif
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
@@ -1040,33 +1096,9 @@ void World::opt() {
     inliner(*this);
     hoist_enters(*this);
     dead_load_opt(*this);
-    cleanup();
-    rewrite_flow_graphs(*this);
     vectorize(*this);
+    cleanup();
     codegen_prepare(*this);
-}
-
-/*
- * stream
- */
-
-std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
-
-    for (auto primop : primops()) {
-        if (auto global = primop->isa<Global>())
-            global->stream_assignment(os);
-    }
-
-    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
-    return os;
-}
-
-void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void World::thorin() const {
-    auto filename = name() + ".thorin";
-    write_thorin(filename.c_str());
 }
 
 }

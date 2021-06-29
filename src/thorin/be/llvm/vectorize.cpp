@@ -33,11 +33,10 @@
 #include <rv/region/FunctionRegion.h>
 
 #include "thorin/primop.h"
-#include "thorin/util/log.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
-namespace thorin {
+namespace thorin::llvm {
 
 struct SequenceArgs {
     enum {
@@ -48,7 +47,7 @@ struct SequenceArgs {
     };
 };
 
-Continuation* CodeGen::emit_sequence_continuation(Continuation* continuation) {
+Continuation* CodeGen::emit_sequence_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     auto target = continuation->callee()->as_continuation();
     assert_unused(target->intrinsic() == Intrinsic::Sequence);
     assert(continuation->num_args() >= SequenceArgs::Num && "required arguments are missing");
@@ -69,15 +68,15 @@ Continuation* CodeGen::emit_sequence_continuation(Continuation* continuation) {
     for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
         auto arg = continuation->arg(i + SequenceArgs::Num);
-        auto llvm_arg = lookup(arg);
+        auto llvm_arg = emit(arg);
         if (arg->type()->isa<PtrType>())
-            llvm_arg = irbuilder_.CreateBitCast(llvm_arg, arg_types[i]);
+            llvm_arg = irbuilder.CreateBitCast(llvm_arg, arg_types[i]);
         args[i] = llvm_arg;
     }
 
-    auto kernel_func = emit_function_decl(kernel);
+    auto kernel_func = emit_fun_decl(kernel);
 
-    irbuilder_.CreateCall(kernel_func, llvm_ref(args));
+    irbuilder.CreateCall(kernel_func, llvm_ref(args));
 
     seq_todo_.emplace_back(kernel_func);
 
@@ -115,7 +114,7 @@ struct VectorizeArgs {
     };
 };
 
-Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
+Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(false && "Dropped support");
     auto target = continuation->callee()->as_continuation();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
@@ -127,32 +126,32 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_kernel_args + 1);
-    simd_args[0] = irbuilder_.getInt32Ty(); // loop index
+    simd_args[0] = irbuilder.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
         auto type = continuation->arg(i + VectorizeArgs::Num)->type();
         simd_args[i + 1] = convert(type);
     }
 
-    auto simd_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(simd_args), false);
+    auto simd_type = llvm::FunctionType::get(irbuilder.getVoidTy(), llvm_ref(simd_args), false);
     auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type).getCallee()->stripPointerCasts();
 
     // build iteration loop and wire the calls
     Array<llvm::Value*> args(num_kernel_args + 1);
-    args[0] = irbuilder_.getInt32(0);
+    args[0] = irbuilder.getInt32(0);
     for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
         auto arg = continuation->arg(i + VectorizeArgs::Num);
-        auto llvm_arg = lookup(arg);
+        auto llvm_arg = emit(arg);
         if (arg->type()->isa<PtrType>())
-            llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
+            llvm_arg = irbuilder.CreateBitCast(llvm_arg, simd_args[i + 1]);
         args[i + 1] = llvm_arg;
     }
-    auto simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
+    auto simd_kernel_call = irbuilder.CreateCall(kernel_simd_func, llvm_ref(args));
 
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        EDEF(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
+        world().edef(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
-    vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
+    vec_todo_.emplace_back(vector_length_constant, emit_fun_decl(kernel), simd_kernel_call);
 
     return continuation->arg(VectorizeArgs::Return)->as_continuation();
 }

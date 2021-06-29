@@ -5,7 +5,6 @@
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -20,7 +19,7 @@ public:
         std::vector<std::pair<Continuation*, Continuation*>> converted;
         for (auto continuation : world_.copy_continuations()) {
             // do not convert empty continuations or intrinsics, except graph intrinsics
-            if ((continuation->empty() || continuation->is_intrinsic()) && !is_graph_intrinsic(continuation)) {
+            if (continuation->empty() || continuation->is_intrinsic()) {
                 new_defs_[continuation] = continuation;
                 continue;
             }
@@ -36,7 +35,7 @@ public:
                     for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                         new_defs_[continuation->param(i)] = new_continuation->param(i);
                     // copy existing call from old continuation
-                    new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
+                    new_continuation->jump(continuation->callee(), continuation->args(), continuation->debug());
                     converted.emplace_back(continuation, new_continuation);
                 }
             } else if (!continuation->empty()) {
@@ -61,11 +60,11 @@ public:
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
         auto callee = continuation->callee()->isa_continuation();
         if (callee == continuation) return;
-        if (!callee || !callee->is_intrinsic() || is_graph_intrinsic(callee)) {
+        if (!callee || !callee->is_intrinsic()) {
             Array<const Def*> new_args(continuation->num_args());
             for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
                 new_args[i] = convert(continuation->arg(i));
-            continuation->jump(convert(continuation->callee(), true), new_args, continuation->jump_debug());
+            continuation->jump(convert(continuation->callee(), true), new_args, continuation->debug());
         }
     }
 
@@ -85,7 +84,7 @@ public:
             if (as_callee)
                 return continuation;
 
-            WLOG("slow: closure generated for '{}'", continuation);
+            world_.WLOG("slow: closure generated for '{}'", continuation);
 
             // lift the continuation from its scope
             Scope scope(continuation);
@@ -192,13 +191,6 @@ public:
             return new_types_[type] = new_type;
         else
             return new_types_[type] = world_.closure_type(new_type->ops());
-    }
-
-    bool is_graph_intrinsic(const Continuation* cont) {
-        return cont->intrinsic() == Intrinsic::CreateTask  ||
-               cont->intrinsic() == Intrinsic::CreateGraph ||
-               cont->intrinsic() == Intrinsic::CreateEdge  ||
-               cont->intrinsic() == Intrinsic::ExecuteGraph;
     }
 
 private:

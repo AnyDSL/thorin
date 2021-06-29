@@ -31,25 +31,8 @@ private:
     {}
 
 public:
-    class Peek {
-    public:
-        Peek() {}
-        Peek(const Def* def, Continuation* from)
-            : def_(def)
-            , from_(from)
-        {}
-
-        const Def* def() const { return def_; }
-        Continuation* from() const { return from_; }
-
-    private:
-        const Def* def_;
-        Continuation* from_;
-    };
-
     Continuation* continuation() const { return continuation_; }
     size_t index() const { return index_; }
-    std::vector<Peek> peek() const;
 
 private:
     Continuation* const continuation_;
@@ -62,9 +45,8 @@ private:
 //------------------------------------------------------------------------------
 
 enum class Visibility : uint8_t {
-    Imported,   ///< Imported from another source
-    Exported,   ///< Exported to other modules/object files
-    Internal    ///< Internal to the module
+    Internal,   ///< Internal to the module (only visible from inside it)
+    External    ///< External to the module (either imported or exported)
 };
 
 enum class CC : uint8_t {
@@ -84,10 +66,6 @@ enum class Intrinsic : uint8_t {
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
-    CreateGraph,                ///< Internal Flow-Graph-Backend.
-    CreateTask,                 ///< Internal Flow-Graph-Backend.
-    CreateEdge,                 ///< Internal Flow-Graph-Backend.
-    ExecuteGraph,               ///< Internal Flow-Graph-Backend.
     Vectorize,                  ///< External vectorizer.
     Sequence,                   ///< External vectorizer. emit sequenced code
     AcceleratorEnd,
@@ -129,7 +107,6 @@ private:
         , attributes_(attributes)
     {
         params_.reserve(fn->num_ops());
-        contains_continuation_ = true;
     }
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
@@ -146,9 +123,6 @@ public:
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
-    Debug& jump_debug() const { return jump_debug_; }
-    Location jump_location() const { return jump_debug(); }
-    Symbol jump_name() const { return jump_debug().name(); }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;
@@ -159,22 +133,17 @@ public:
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
-    void make_exported() { attributes().visibility = Visibility::Exported; }
-    void make_imported() { attributes().visibility = Visibility::Imported; }
+    void make_external() { attributes().visibility = Visibility::External; }
     void make_internal() { attributes().visibility = Visibility::Internal; }
     bool is_basicblock() const;
     bool is_returning() const;
-    bool is_intrinsic() const;
-    bool is_exported() const;
-    bool is_imported() const;
-    bool is_internal() const;
+    bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
+    bool is_external() const { return attributes().visibility == Visibility::External; }
+    bool is_internal() const { return attributes().visibility == Visibility::Internal; }
+    bool is_imported() const { return is_external() && empty(); }
+    bool is_exported() const { return is_external() && !empty(); }
     bool is_accelerator() const;
     void destroy_body();
-
-    std::ostream& stream_head(std::ostream&) const;
-    std::ostream& stream_jump(std::ostream&) const;
-    void dump_head() const;
-    void dump_jump() const;
 
     // terminate
 
@@ -199,9 +168,6 @@ public:
     void destroy_filter() { filter_.shrink(0); }
     Defs filter() const { return filter_; }
     const Def* filter(size_t i) const { return filter_[i]; }
-
-private:
-    mutable Debug jump_debug_;
 
     std::vector<const Param*> params_;
     Array<const Def*> filter_; ///< used during @p partial_evaluation

@@ -53,19 +53,15 @@ Vector::Vector(World& world, Defs args, Debug dbg)
     : Aggregate(Node_Vector, args, dbg)
 {
     auto inner_type = args.front()->type();
+    //if (auto primtype = inner_type->isa<PrimType>()) {
+    //    assert(primtype->length() == 1);
+    //    set_type(world.prim_type(primtype->primtype_tag(), args.size()));
+    //} else if (auto ptrtype = inner_type->isa<PtrType>()) {
+    //    assert(ptrtype->length() == 1);
+    //    set_type(world.ptr_type(ptrtype->pointee(), args.size()));
+    //} else {
     set_type(world.vec_type(inner_type, args.size()));
-#if 0
-    if (auto primtype = args.front()->type()->isa<PrimType>()) {
-        assert(primtype->length() == 1);
-        set_type(world.prim_type(primtype->primtype_tag(), args.size()));
-    } else if (auto ptr = args.front()->type()->as<PtrType>()) {
-        assert(ptr->length() == 1);
-        set_type(world.ptr_type(ptr->pointee(), args.size()));
-    } else {
-        auto inner_type = args.front()->type();
-        set_type(world.vec_type(inner_type, args.size()));
-    }
-#endif
+    //}
 }
 
 LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
@@ -77,18 +73,18 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
     const PtrType* ptrtype;
     auto index_vector = index->type()->isa<VectorType>();
 
-    if (auto typevec = type->isa<VectorExtendedType>()) {
+    if (auto typevec = type->isa<VectorType>(); typevec && typevec->is_vector()) {
         if (index_vector && index_vector->is_vector())
             assert(typevec->length() == index_vector->length());
-        ptrtype = typevec->element()->as<PtrType>();
+        ptrtype = typevec->scalarize()->as<PtrType>();
     } else {
         ptrtype = type->as<PtrType>();
     }
 
     inner_type = ptr_pointee();
 
-    if (auto vec_type = inner_type->isa<VectorExtendedType>()) {
-        inner_type = vec_type->element();
+    if (auto vec_type = inner_type->isa<VectorType>(); vec_type && vec_type->is_vector()) {
+        inner_type = vec_type->scalarize();
     }
 
     if (auto tuple = inner_type->isa<TupleType>()) {
@@ -106,10 +102,22 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 
     if (index_vector && index_vector->is_vector()) {
         inner_type = world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space());
-        auto result_type = world.vec_type(inner_type, index_vector->length());
+
+        const Type * result_type;
+        auto vector_width = index_vector->length();
+
+        if (auto primtype = inner_type->isa<PrimType>()) {
+            assert(primtype->length() == 1);
+            result_type = world.prim_type(primtype->primtype_tag(), vector_width);
+        } else if (auto ptrtype = inner_type->isa<PtrType>()) {
+            assert(ptrtype->length() == 1);
+            result_type = world.ptr_type(ptrtype->pointee(), vector_width);
+        } else {
+            result_type = world.vec_type(inner_type, vector_width);
+        }
         set_type(result_type);
     } else {
-        if (auto typevec = type->isa<VectorExtendedType>()) {
+        if (auto typevec = type->isa<VectorType>(); typevec && typevec->is_vector()) {
             inner_type = world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space());
             set_type(world.vec_type(inner_type, typevec->length()));
         } else {
@@ -119,9 +127,9 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 }
 
 const Type* LEA::ptr_pointee() const {
-    if (auto ptr_vector = ptr_type()->isa<VectorExtendedType>()) {
+    if (auto ptr_vector = ptr_type()->isa<VectorType>(); ptr_vector && ptr_vector->is_vector()) {
         auto& world = op(1)->world();
-        return world.vec_type(ptr_vector->element()->as<PtrType>()->pointee(), ptr_vector->length());
+        return world.vec_type(ptr_vector->scalarize()->as<PtrType>()->pointee(), ptr_vector->length());
     } else
         return ptr_type()->as<PtrType>()->pointee();
 }
@@ -140,8 +148,8 @@ SizeOf::SizeOf(const Def* def, Debug dbg)
 
 Slot::Slot(const Type* type, const Def* frame, Debug dbg)
     : PrimOp(Node_Slot,
-            type->isa<VectorExtendedType>() ?
-              (Type*) type->table().vec_type(type->table().ptr_type(type->as<VectorExtendedType>()->element()), type->as<VectorExtendedType>()->length()) :
+            type->isa<VectorType>() && type->as<VectorType>()->is_vector() ?
+              (Type*) type->table().vec_type(type->table().ptr_type(type->as<VectorType>()->scalarize()), type->as<VectorType>()->length()) :
               (Type*) type->table().ptr_type(type),
             {frame},
             dbg)
@@ -153,7 +161,7 @@ Global::Global(const Def* init, bool is_mutable, Debug dbg)
     : PrimOp(Node_Global, init->type()->table().ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
-    assert(is_const(init));
+    assert(!init->has_dep(Dep::Param));
 }
 
 Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg)
@@ -168,9 +176,9 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
 {
     World& w = mem->world();
     const Type* return_type;
-    if (auto ptrvec = ptr->type()->isa<VectorExtendedType>()) {
-        auto inner_type = ptrvec->element()->as<PtrType>()->pointee();
-        return_type = w.vec_type(inner_type, ptrvec->length());
+    if (auto vec_type = ptr->type()->as<VectorType>(); vec_type && vec_type->is_vector()) {
+        auto inner_type = vec_type->scalarize()->as<PtrType>()->pointee();
+        return_type = w.vec_type(inner_type, vec_type->length());
     } else {
         return_type = ptr->type()->as<PtrType>()->pointee();
     }
@@ -199,17 +207,17 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  * hash
  */
 
-uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
+hash_t PrimOp::vhash() const {
+    hash_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
     for (auto op : ops_)
         seed = hash_combine(seed, uint32_t(op->gid()));
     return seed;
 }
 
-uint64_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-uint64_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
+hash_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+hash_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+hash_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bitcast<uint64_t, Box>(value())); }
+hash_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
 //------------------------------------------------------------------------------
 
@@ -269,8 +277,8 @@ const Def* Slot          ::vrebuild(World& to, Defs ops, const Type* t) const {
     const Type *ttype;
     if (auto ptr = t->isa<PtrType>()) {
         ttype = ptr->pointee();
-    } else if (auto vec = t->isa<VectorExtendedType>()) {
-        auto inner = vec->element()->as<PtrType>();
+    } else if (auto vec = t->isa<VectorType>(); vec && vec->is_vector()) {
+        auto inner = vec->scalarize()->as<PtrType>();
         auto vec_width = vec->length();
         ttype = to.vec_type(inner->pointee(), vec_width);
     }
@@ -341,55 +349,6 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
 //------------------------------------------------------------------------------
 
 /*
- * stream
- */
-
-std::ostream& PrimOp::stream(std::ostream& os) const {
-    if (is_const(this)) {
-        if (empty())
-            return streamf(os, "{} {}", op_name(), type());
-        else
-            return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
-    } else
-        return os << unique_name();
-}
-
-std::ostream& PrimLit::stream(std::ostream& os) const {
-    os << type() << ' ';
-    auto tag = primtype_tag();
-
-    // print i8 as ints
-    switch (tag) {
-        case PrimType_qs8: return os << (int) qs8_value();
-        case PrimType_ps8: return os << (int) ps8_value();
-        case PrimType_qu8: return os << (unsigned) qu8_value();
-        case PrimType_pu8: return os << (unsigned) pu8_value();
-        default:
-            switch (tag) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << value().get_##M();
-#include "thorin/tables/primtypetable.h"
-                default: THORIN_UNREACHABLE;
-            }
-    }
-}
-
-std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
-
-std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
-}
-
-std::ostream& Assembly::stream_assignment(std::ostream& os) const {
-    streamf(os, "{} {} = asm \"{}\"", type(), unique_name(), asm_template());
-    stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
-    stream_list(os,  input_constraints(), [&](const auto&  input_constraint) { os <<  input_constraint; }, " : (", ")");
-    stream_list(os,           clobbers(), [&](const auto&           clobber) { os <<           clobber; }, " : (", ") ");
-    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
-}
-
-//------------------------------------------------------------------------------
-
-/*
  * misc
  */
 
@@ -454,8 +413,8 @@ const PtrType* Closure::environment_ptr_type(World& world) {
 const Type* Slot::alloced_type() const {
     if (auto ptr = type()->isa<PtrType>())
         return ptr->pointee();
-    else if (auto vec = type()->isa<VectorExtendedType>()) {
-        auto element = vec->element()->as<PtrType>();
+    else if (auto vec = type()->isa<VectorType>(); vec && vec->is_vector()) {
+        auto element = vec->scalarize()->as<PtrType>();
         auto vector_width = vec->length();
         return world().vec_type(element->pointee(), vector_width);
     } else

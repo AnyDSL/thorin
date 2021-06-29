@@ -73,7 +73,7 @@ public:
             return true;
         }
 
-        return (!callee_->is_exported() && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
+        return (!callee_->is_exported() && callee_->num_uses_excluding_params() == 1) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 

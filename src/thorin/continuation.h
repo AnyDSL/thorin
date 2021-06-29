@@ -223,6 +223,15 @@ public:
     Defs filter() const { return filter_; }
     const Def* filter(size_t i) const { return filter_[i]; }*/
 
+    size_t num_uses_excluding_params() const {
+        size_t c = 0;
+        for (auto use : uses()) {
+            if (!use->isa<Param>())
+                c++;
+        }
+        return c;
+    }
+
     std::vector<const Param*> params_;
     // Array<const Def*> filter_; ///< used during @p partial_evaluation
     Attributes attributes_;

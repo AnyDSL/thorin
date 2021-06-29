@@ -59,7 +59,7 @@ void inliner(World& world) {
                 for (auto& use : continuation->uses()) {
                     // note that if there was an edge from parameter to continuation,
                     // we would need to check if the use is a parameter here.
-                    if (scope->contains(use.def()))
+                    if (!use->isa<Param>() && scope->contains(use.def()))
                         return nullptr;
                 }
                 return scope;

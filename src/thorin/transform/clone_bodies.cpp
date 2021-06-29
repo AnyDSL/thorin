@@ -23,10 +23,10 @@ void clone_bodies(World& world) {
             } else {
                 auto ncontinuation = clone(scope);
                 if (auto uapp = use->isa<App>()) {
+                    if (uapp->is_replaced()) continue; // dead app node
                     auto napp = uapp->with_different_op(use.index(), ncontinuation);
                     uapp->replace(napp);
-                } else {
-                    auto primop = use->as<PrimOp>();
+                } else if (auto primop = use->isa<PrimOp>()) {
                     Array<const Def*> nops(primop->num_ops());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
                     nops[use.index()] = ncontinuation;

@@ -95,9 +95,11 @@ Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
         return s.fmt("{}.{}", param->continuation(), param->unique_name());
     } else if (isa<Continuation>()) {
-        assertf(false, "A continuation node cannot be found here");
-    } else if (isa<App>()) {
-        assertf(false, "An app node cannot be found here");
+        return s.fmt("cont {}", unique_name());
+    } else if (auto app = isa<App>()) {
+        return s.fmt("{}({, })", app->callee(), app->args());
+    } else if (isa<Filter>()) {
+        return s.fmt("filter({, })", ops());
     } else if (auto lit = isa<PrimLit>()) {
         // print i8 as ints
         switch (lit->tag()) {

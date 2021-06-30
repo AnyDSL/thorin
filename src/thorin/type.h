@@ -52,6 +52,7 @@ public:
     }
     const Type* rebuild(Types ops) const { return rebuild(table(), ops); }
     Stream& stream(Stream&) const;
+    void dump() const;
 
 protected:
     virtual hash_t vhash() const;

@@ -217,6 +217,8 @@ const Def* VariantIndex  ::vrebuild(World& to, Defs ops, const Type*  ) const { 
 const Def* VariantExtract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.variant_extract(ops[0], index(), debug()); }
 const Def* Closure       ::vrebuild(World& to, Defs ops, const Type* t) const { return to.closure(t->as<ClosureType>(), ops[0], ops[1], debug()); }
 const Def* Vector        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
+const Def* App           ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.app(ops[0], ops.skip_front(), debug()); }
+const Def* Filter        ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.filter(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());

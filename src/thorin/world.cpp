@@ -1132,11 +1132,47 @@ const Param* World::param(const Type* type, Continuation* continuation, size_t i
 }
 
 const Filter* World::filter(const Defs defs, Debug dbg) {
-    return new Filter(*this, defs, dbg);
+    return cse(new Filter(*this, defs, dbg));
 }
 
+/// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
-    return new App(callee, args, dbg);
+    if (auto continuation = callee->isa<Continuation>()) {
+        switch (continuation->intrinsic()) {
+            case Intrinsic::Branch: {
+                assert(args.size() == 3);
+                auto cond = args[0], t = args[1], f = args[2];
+                if (auto lit = cond->isa<PrimLit>())
+                    return app(lit->value().get_bool() ? t : f, {}, dbg);
+                if (t == f)
+                    return app(t, {}, dbg);
+                if (is_not(cond)) {
+                    auto inverted = cond->as<ArithOp>()->rhs();
+                    return app(branch(), {inverted, f, t}, dbg);
+                }
+                break;
+            }
+            case Intrinsic::Match:
+                if (args.size() == 2) return app(args[1], {}, dbg);
+                if (auto lit = args[0]->isa<PrimLit>()) {
+                    for (size_t i = 2; i < args.size(); i++) {
+                        if (extract(args[i], 0_s)->as<PrimLit>() == lit)
+                            return app(extract(args[i], 1), {}, dbg);
+                    }
+                    return app(args[1], {}, dbg);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    Array<const Def*> ops(1 + args.size());
+    ops[0] = callee;
+    for (size_t i = 0; i < args.size(); i++)
+        ops[i + 1] = args[i];
+
+    return cse(new App(ops, dbg));
 }
 
 /*

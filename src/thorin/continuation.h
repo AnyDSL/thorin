@@ -6,7 +6,7 @@
 #include <queue>
 
 #include "thorin/config.h"
-#include "thorin/def.h"
+#include "thorin/primop.h"
 #include "thorin/type.h"
 
 namespace thorin {
@@ -37,11 +37,13 @@ private:
     friend class Continuation;
 };
 
-class Filter : public Def {
+class Filter : public PrimOp {
 private:
     Filter(World& world, const Defs defs, Debug dbg);
 
 public:
+    const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
     size_t size() const { return num_ops(); }
     const Def* condition(size_t i) const { return op(i); }
     bool is_empty() const { return num_ops() == 0; }
@@ -51,14 +53,16 @@ public:
     friend class World;
 };
 
-class App : public Def {
+class App : public PrimOp {
 private:
-    App(const Def* callee, const Defs args, Debug dbg);
+    App(const Defs ops, Debug dbg);
 
 public:
+    const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
     const Def* callee() const { return op(0); }
     const Def* arg(size_t i) const { return op(1 + i); }
-    const size_t num_args() const { return num_ops() - 1; }
+    size_t num_args() const { return num_ops() - 1; }
     const Defs args() const { return ops().skip_front(); }
 
     Continuation* using_continuation() const {

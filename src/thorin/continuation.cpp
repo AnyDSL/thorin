@@ -20,59 +20,18 @@ Param::Param(const Type* type, Continuation* continuation, size_t index, Debug d
 
 //------------------------------------------------------------------------------
 
-App::App(const Def* callee, const Defs args, Debug dbg) : Def(Node_App, callee->world().bottom_type(), 0, dbg) {
+App::App(const Defs ops, Debug dbg) : PrimOp(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
-    assertf(callee->type()->isa<FnType>(), "callee type must be a FnType");
-#endif
-    jump(callee, args);
-}
-
-/// App node does its own folding during construction, and it only sets the ops once
-void App::jump(const Def* callee, Defs args, Debug dbg) {
-    if (auto continuation = callee->isa<Continuation>()) {
-        switch (continuation->intrinsic()) {
-            case Intrinsic::Branch: {
-                assert(args.size() == 3);
-                auto cond = args[0], t = args[1], f = args[2];
-                if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, dbg);
-                if (t == f)
-                    return jump(t, {}, dbg);
-                if (is_not(cond)) {
-                    auto inverted = cond->as<ArithOp>()->rhs();
-                    return jump(world().branch(), {inverted, f, t}, dbg);
-                }
-                break;
-            }
-            case Intrinsic::Match:
-                if (args.size() == 2) return jump(args[1], {}, dbg);
-                if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
-                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().extract(args[i], 1), {}, dbg);
-                    }
-                    return jump(args[1], {}, dbg);
-                }
-                break;
-            default:
-                break;
-        }
-    }
-
-    assertf(empty(), "can't change an app after the fact");
-    resize(1 + args.size());
-    set_op(0, callee);
-    for (int i = 0; i < args.size(); i++)
-        set_op(i + 1, args[i]);
-
     verify();
+#endif
 }
 
 void App::verify() const {
-    auto c = callee()->type()->as<FnType>(); // works for closures too, no need for a special case
-    assertf(c->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, c, c->num_ops(), num_args());
+    auto callee_type = callee()->type()->isa<FnType>(); // works for closures too, no need for a special case
+    assertf(callee_type, "callee type must be a FnType");
+    assertf(callee_type->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
     for (size_t i = 0; i < num_args(); i++) {
-        auto pt = c->op(i);
+        auto pt = callee_type->op(i);
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
@@ -95,10 +54,7 @@ const App* App::with(const Def* ncallee, const Defs nargs) const {
 
 //------------------------------------------------------------------------------
 
-Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs.size(), dbg) {
-    for (int i = 0; i < defs.size(); i++)
-        set_op(i, defs[i]);
-}
+Filter::Filter(World& world, const Defs defs, Debug dbg) : PrimOp(Node_Filter, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
     return world().filter(ops().cut(indices), debug());
@@ -293,7 +249,7 @@ bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
-    set_body(world().app(callee, args));
+    set_body(world().app(callee, args, dbg));
     verify();
 }
 

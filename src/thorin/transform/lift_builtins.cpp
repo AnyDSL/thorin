@@ -99,7 +99,10 @@ void lift_builtins(World& world) {
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (!param->isa_continuation()) {
+            if (param->isa_continuation()) {
+                // TODO: assert is actually top level
+            } else if(!param->isa<Filter>()) { // don't lift the filter
+                assert(!param->isa<App>() && "an app should not be free");
                 assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }

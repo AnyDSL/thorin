@@ -328,9 +328,10 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
         for (auto use : cont->uses()) {
             auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
             if (auto app = def->isa<App>()) {
-                auto ucont = app->using_continuation();
-                if (ucont && func(ucont))
-                    return true;
+                for (auto ucontinuation : app->using_continuations()) {
+                    if (func(ucontinuation))
+                        return true;
+                }
             }
         }
     }

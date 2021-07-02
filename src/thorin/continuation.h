@@ -65,9 +65,13 @@ public:
     size_t num_args() const { return num_ops() - 1; }
     const Defs args() const { return ops().skip_front(); }
 
-    Continuation* using_continuation() const {
-        assertf(num_uses() <= 1, "currently app nodes should not be reused");
-        return num_uses() == 0 ? nullptr : copy_uses()[0]->as_continuation(); // todo don't copy
+    Continuations using_continuations() const {
+        std::vector<Continuation*> conts;
+        for (auto use : uses()) {
+            if (auto cont = use->isa_continuation())
+                conts.push_back(cont);
+        }
+        return conts;
     }
 
     /// Returns a mutated copy of this App, ops-based because the callers of this rely on Use.index

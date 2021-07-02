@@ -51,14 +51,14 @@ static void inline_calls(Continuation* cont) {
         auto app = use->isa<App>();
         if (!app || use.index() != 0) continue;
 
-        auto ucont = app->using_continuation();
-        if (!ucont) continue; // orphan app
-        assert(ucont->has_body());
+        for (auto ucont : app->using_continuations()) {
+            assert(ucont->has_body());
 
-        Array<const Def*> args(app->num_args() + 1);
-        for (size_t i = 0, e = app->num_args(); i != e; ++i) args[i + 1] = app->arg(i);
-        args[0] = app->callee();
-        try_inline(ucont, args);
+            Array<const Def*> args(app->num_args() + 1);
+            for (size_t i = 0, e = app->num_args(); i != e; ++i) args[i + 1] = app->arg(i);
+            args[0] = app->callee();
+            try_inline(ucont, args);
+        }
     }
 }
 

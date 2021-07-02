@@ -152,14 +152,14 @@ void Cleaner::eta_conversion() {
                 for (auto use : continuation->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
-                        auto ucontinuation = uapp->using_continuation();
-                        if (!ucontinuation) continue;
-                        Array<const Def*> new_args(perm.size());
-                        for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                            new_args[i] = uapp->arg(perm[i]);
+                        for (auto ucontinuation : uapp->using_continuations()) {
+                            Array<const Def*> new_args(perm.size());
+                            for (size_t i = 0, e = perm.size(); i != e; ++i) {
+                                new_args[i] = uapp->arg(perm[i]);
+                            }
+                            ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
+                            todo_ = todo = true;
                         }
-                        ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
-                        todo_ = todo = true;
                     }
                 }
             }
@@ -204,11 +204,11 @@ void Cleaner::eliminate_params() {
                 ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->copy_uses()) {
-                    auto ubody = use->as<App>();
+                    auto uapp = use->as<App>();
                     assert(use.index() == 0);
-                    auto ucontinuation = ubody->using_continuation();
-                    if (!ucontinuation) continue; // orphan app
-                    ucontinuation->jump(ncontinuation, ubody->args().cut(proxy_idx), ucontinuation->debug());
+                    for (auto ucontinuation : uapp->using_continuations()) {
+                        ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                    }
                 }
 
                 todo_ = true;

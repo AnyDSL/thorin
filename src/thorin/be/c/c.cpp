@@ -1062,6 +1062,22 @@ void CCodeGen::emit_c_int() {
     for (auto cont : world().continuations()) {
         if (!cont->is_external())
             continue;
+
+        // Generate C types for structs used by imported or exported functions
+        for (auto op : cont->type()->ops()) {
+            if (auto fn_type = op->isa<FnType>()) {
+                // Convert the return types as well (those are embedded in return continuations)
+                for (auto other_op : fn_type->ops()) {
+                    if (!other_op->isa<FnType>())
+                        convert(other_op);
+                }
+            } else
+                convert(op);
+        }
+
+        // Generate function prototypes only for exported functions
+        if (!cont->is_exported())
+            continue;
         assert(cont->is_returning());
         emit_fun_decl(cont);
     }

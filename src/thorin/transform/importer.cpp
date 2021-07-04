@@ -55,6 +55,7 @@ const Def* Importer::import(Tracker odef) {
 
     Continuation* ncontinuation = nullptr;
     if (auto ocontinuation = odef->isa_continuation()) { // create stub in new world
+        assert(!ocontinuation->dead_);
         // TODO maybe we want to deal with intrinsics in a more streamlined way
         if (ocontinuation == ocontinuation->world().branch())
             return def_old2new_[ocontinuation] = world().branch();
@@ -101,17 +102,10 @@ const Def* Importer::import(Tracker odef) {
         return def_old2new_[oprimop] = nprimop;
     }
 
-    if (auto oapp = odef->isa<App>()) {
-        auto napp = world().app(nops.front(), nops.skip_front(), odef->debug());
-        return def_old2new_[oapp] = napp;
-    }
-
     assert(ncontinuation && &ncontinuation->world() == &world());
     auto napp = nops[0]->isa<App>();
     if (napp)
         ncontinuation->set_body(napp);
-    else
-        ncontinuation->destroy_body();
     ncontinuation->set_filter(nops[1]->as<Filter>());
     ncontinuation->verify();
     assert(!ncontinuation->is_replaced());

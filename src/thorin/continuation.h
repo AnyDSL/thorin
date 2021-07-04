@@ -195,21 +195,16 @@ public:
         unset_op(0);
         set_op(0, app);
     }
-    void destroy_body();
+
+    /// Called to kill the continuation
+    void destroy();
 
     // terminate
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    void verify() const {
-        if (!has_body())
-            assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
-        if (has_body()) {
-            body()->verify();
-            assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
-        }
-    }
+    void verify() const;
     // Continuation* update_op(size_t i, const Def* def);
     // Continuation* update_callee(const Def* def) { return update_op(0, def); }
     // Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
@@ -243,6 +238,7 @@ public:
     std::vector<const Param*> params_;
     // Array<const Def*> filter_; ///< used during @p partial_evaluation
     Attributes attributes_;
+    bool dead_;
 
     friend class Cleaner;
     friend class Scope;

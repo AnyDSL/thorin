@@ -51,7 +51,7 @@ public:
         // remove old continuations
         for (auto pair : converted) {
             if (pair.second != pair.first) {
-                pair.first->destroy_body();
+                pair.first->destroy();
                 pair.first->make_internal();
             }
         }

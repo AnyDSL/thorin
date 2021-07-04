@@ -16,6 +16,7 @@
 #include "thorin/continuation.h"
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/verify.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/closure_conversion.h"
@@ -1284,18 +1285,24 @@ const Def* World::cse_base(const PrimOp* primop) {
 void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
-    cleanup();
-    while (partial_evaluation(*this, true)); // lower2cff
-    flatten_tuples(*this);
-    clone_bodies(*this);
-    split_slots(*this);
-    closure_conversion(*this);
-    lift_builtins(*this);
-    inliner(*this);
-    hoist_enters(*this);
-    dead_load_opt(*this);
-    cleanup();
-    codegen_prepare(*this);
+#define RUN_PASS(pass) \
+{ \
+    pass; \
+    debug_verify(*this); \
+}
+
+    RUN_PASS(cleanup())
+    RUN_PASS(while (partial_evaluation(*this, true))); // lower2cff
+    RUN_PASS(flatten_tuples(*this))
+    RUN_PASS(clone_bodies(*this))
+    RUN_PASS(split_slots(*this))
+    RUN_PASS(closure_conversion(*this))
+    RUN_PASS(lift_builtins(*this))
+    RUN_PASS(inliner(*this))
+    RUN_PASS(hoist_enters(*this))
+    RUN_PASS(dead_load_opt(*this))
+    RUN_PASS(cleanup())
+    RUN_PASS(codegen_prepare(*this))
 }
 
 }

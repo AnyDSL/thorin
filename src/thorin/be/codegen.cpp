@@ -38,7 +38,7 @@ static void get_kernel_configs(
             return false;
         }, true);
 
-        continuation->destroy_body();
+        continuation->destroy();
     }
 }
 

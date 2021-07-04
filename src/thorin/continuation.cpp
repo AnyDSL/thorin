@@ -35,6 +35,9 @@ void App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
+    if (auto cont = callee()->isa_continuation()) {
+        assert(!cont->dead_);
+    }
 }
 
 const App* App::with_different_op(size_t i, const Def* d) const {
@@ -119,9 +122,11 @@ const Param* Continuation::ret_param() const {
 
 bool Continuation::has_body() const { return !op(0)->isa<Bottom>(); }
 
-void Continuation::destroy_body() {
+void Continuation::destroy() {
+    destroy_filter();
     unset_op(0);
     set_op(0, world().bottom(world().bottom_type()));
+    dead_ = true;
 }
 
 const FnType* Continuation::arg_fn_type() const {
@@ -269,6 +274,23 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
 
     set_body(world().app(world().match(val->type(), patterns.size()), args, dbg));
     verify();
+}
+
+void Continuation::verify() const {
+    if (!has_body()) {
+        assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
+        if (is_external()) {}
+        else if (dead_) {}
+        else if (intrinsic() != Intrinsic::None) {}
+        else {
+            assertf(false, "{} has no body but does not correspond to any legitimate case where that may happen", *this);
+        }
+    } else {
+        body()->verify();
+        assert(!dead_);
+        assert(intrinsic() == Intrinsic::None);
+        assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
+    }
 }
 
 /// Rewrites the App to a mangled version of the callee

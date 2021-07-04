@@ -438,8 +438,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto tbb = cont2bb(body->arg(1)->as_continuation());
         auto fbb = cont2bb(body->arg(2)->as_continuation());
         irbuilder.CreateCondBr(cond, tbb, fbb);
-    } else if (body->callee()->isa<Continuation>() &&
-                body->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+    } else if (body->callee()->isa<Continuation>() && body->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         auto val = emit(body->arg(0));
         auto otherwise_bb = cont2bb(body->arg(1)->as_continuation());
         auto match = irbuilder.CreateSwitch(val, otherwise_bb, body->num_args() - 2);
@@ -890,6 +889,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
 }
 
 void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
+    assert(defs_[param]);
     llvm::cast<llvm::PHINode>(defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 

@@ -110,7 +110,7 @@ void Cleaner::eta_conversion() {
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace(body->arg(i));
                     continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
-                    callee->destroy_body();
+                    callee->destroy();
                     todo_ = todo = true;
                 } else
                     break;
@@ -124,7 +124,7 @@ void Cleaner::eta_conversion() {
 
                 if (body->args() == continuation->params_as_defs()) {
                     continuation->replace(body->callee());
-                    continuation->destroy_body();
+                    continuation->destroy();
                     todo_ = todo = true;
                     continue;
                 }
@@ -201,7 +201,7 @@ void Cleaner::eliminate_params() {
                     ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
                 ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
                 ncontinuation->verify();
-                ocontinuation->destroy_body();
+                ocontinuation->destroy();
 
                 for (auto use : ocontinuation->copy_uses()) {
                     auto uapp = use->as<App>();
@@ -219,6 +219,8 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
+    verify(world());
+
     Importer importer(world_);
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
@@ -313,11 +315,13 @@ void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
         world_.VLOG("iteration: {}", i);
+        verify(world());
         todo_ = false;
         if (world_.is_pe_done())
             eliminate_tail_rec();
         rebuild();
         eta_conversion();
+        verify(world());
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());

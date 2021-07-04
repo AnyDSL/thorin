@@ -110,7 +110,7 @@ void Cleaner::eta_conversion() {
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace(body->arg(i));
                     continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
-                    callee->destroy();
+                    callee->destroy("cleanup: continuation only called once");
                     todo_ = todo = true;
                 } else
                     break;
@@ -124,7 +124,7 @@ void Cleaner::eta_conversion() {
 
                 if (body->args() == continuation->params_as_defs()) {
                     continuation->replace(body->callee());
-                    continuation->destroy();
+                    continuation->destroy("cleanup: calls a parameter (no perm)");
                     todo_ = todo = true;
                     continue;
                 }
@@ -201,7 +201,7 @@ void Cleaner::eliminate_params() {
                     ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
                 ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
                 ncontinuation->verify();
-                ocontinuation->destroy();
+                ocontinuation->destroy("cleanup: calls a parameter (permutated)");
 
                 for (auto use : ocontinuation->copy_uses()) {
                     auto uapp = use->as<App>();

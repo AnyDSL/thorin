@@ -119,6 +119,9 @@ void Def::replace(Tracker with) const {
     assert(type() == with->type());
     assert(!is_replaced());
 
+    auto cont = with->isa<Continuation>();
+    assert(!(cont && cont->dead_) );
+
     if (this != with) {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());

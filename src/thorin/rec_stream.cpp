@@ -38,9 +38,7 @@ void RecStreamer::run(const Def* def) {
         assert(cont->has_body());
         s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->body()->callee(), cont->body()->args());
         run(cont->body());
-    } else if (auto app = def->isa<App>())
-        s.fmt("{}({, })", app->callee(), app->args());
-    else if (!def->no_dep() && !def->isa<Param>())
+    } else if (!def->no_dep() && !def->isa<Param>())
         def->stream_let(s);
 }
 
@@ -69,7 +67,7 @@ void Def::dump(size_t max) const { Stream s(std::cout); stream(s, max).endl(); }
 void Type::dump() const { Stream s(std::cout); stream(s).endl(); }
 
 Stream& Def::stream(Stream& s) const {
-    if (isa<Param>() || no_dep()) return stream1(s);
+    if (isa<Param>() || isa<App>() || no_dep()) return stream1(s);
     return s << unique_name();
 }
 

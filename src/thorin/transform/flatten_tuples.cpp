@@ -210,7 +210,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
             def->replace(old_cont);
             if (auto cont = def->isa_continuation()) {
-                cont->destroy();
+                cont->destroy("flatten_tuples");
             }
         }
     }

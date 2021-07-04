@@ -197,7 +197,7 @@ public:
     }
 
     /// Called to kill the continuation
-    void destroy();
+    void destroy(const char*);
 
     // terminate
 
@@ -238,7 +238,7 @@ public:
     std::vector<const Param*> params_;
     // Array<const Def*> filter_; ///< used during @p partial_evaluation
     Attributes attributes_;
-    bool dead_;
+    bool dead_ = false;
 
     friend class Cleaner;
     friend class Scope;

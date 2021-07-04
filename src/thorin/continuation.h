@@ -226,10 +226,14 @@ public:
     Defs filter() const { return filter_; }
     const Def* filter(size_t i) const { return filter_[i]; }*/
 
-    size_t num_uses_excluding_params() const {
+    /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
+    /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
+    size_t actual_number_of_uses() const {
         size_t c = 0;
         for (auto use : uses()) {
-            if (!use->isa<Param>())
+            if (auto app = use->isa<App>())
+                c+= app->num_uses();
+            else if (!use->isa<Param>())
                 c++;
         }
         return c;

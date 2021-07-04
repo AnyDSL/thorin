@@ -105,12 +105,17 @@ void Cleaner::eta_conversion() {
             while (auto callee = body->callee()->isa_continuation()) {
                 if (callee == continuation) break;
 
-                if (callee->num_uses_excluding_params() == 1 && callee->has_body() && !callee->is_exported()) {
+                if (callee->actual_number_of_uses() == 1 && callee->has_body() && !callee->is_exported()) {
                     auto callee_body = callee->body();
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace(body->arg(i));
+
+                    // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
+                    // actual_number_of_uses() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
+                    assert(body->num_uses() == 1);
                     continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
                     callee->destroy("cleanup: continuation only called once");
+                    assert(body->num_uses() == 0);
                     todo_ = todo = true;
                 } else
                     break;

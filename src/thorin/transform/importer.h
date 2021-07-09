@@ -9,7 +9,7 @@ namespace thorin {
 class Importer {
 public:
     Importer(World& src)
-        : world_(src.name())
+        : world_(src)
     {
         if  (src.is_pe_done())
             world_.mark_pe_done();

@@ -41,6 +41,7 @@ set(THORIN_SOURCES
     tables/cmptable.h
     tables/nodetable.h
     tables/primtypetable.h
+    tables/mathoptable.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/clone_bodies.cpp

@@ -15,6 +15,7 @@
 #include <regex>
 #include <sstream>
 #include <type_traits>
+#include <unordered_map>
 #include <variant>
 
 namespace thorin::c {
@@ -65,6 +66,7 @@ public:
 private:
     std::string convert(const Type*);
     std::string addr_space_prefix(AddrSpace);
+    std::string constructor_prefix(const Type*);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
 
@@ -78,6 +80,7 @@ private:
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
+    bool use_math_ = false;
     bool use_fp_64_ = false;
     bool use_fp_16_ = false;
     bool use_channels_ = false;
@@ -220,6 +223,13 @@ std::string CCodeGen::addr_space_prefix(AddrSpace addr_space) {
     }
 }
 
+std::string CCodeGen::constructor_prefix(const Type* type) {
+    auto type_name = convert(type);
+    if (lang_ == Lang::C99 || lang_ == Lang::OpenCL)
+        return "(" + type_name + ")";
+    return type_name;
+}
+
 std::string CCodeGen::device_prefix() {
     switch (lang_) {
         default:           return "";
@@ -254,6 +264,8 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <string.h>\n"); // for 'memcpy'
         if (use_malloc_)
             stream_.fmt("#include <stdlib.h>\n"); // for 'malloc'
+        if (use_math_)
+            stream_.fmt("#include <math.h>\n"); // for 'cos'/'sin'/...
         stream_.fmt("\n");
     }
 
@@ -548,12 +560,14 @@ std::string CCodeGen::emit_constant(const Def* def) {
         return emit_bottom(def->type());
     } else if (def->isa<Aggregate>()) {
         auto is_array = def->isa<DefiniteArray>();
-        s.fmt(is_array ? "{{ {{ " : "{{\t\n");
-        s.range(def->ops(), is_array ? ", " : ",\n", [&] (const Def* op) { s << emit_constant(op); });
-        s.fmt(is_array ? " }} }}" : "\b\n}}");
+        s.fmt("{} ", constructor_prefix(def->type()));
+        s.fmt(is_array ? "{{ {{ " : "{{ ");
+        s.range(def->ops(), ", ", [&] (const Def* op) { s << emit_constant(op); });
+        s.fmt(is_array ? " }} }}" : " }}");
         return s.str();
     } else if (auto variant = def->isa<Variant>()) {
         auto variant_type = variant->type()->as<VariantType>();
+        s.fmt("{} ", constructor_prefix(variant_type));
         if (variant_type->has_payload()) {
             if (auto value = emit_constant(variant->value()); !value.empty())
                 s.fmt("{{ {{ {} }}, ", value);
@@ -656,7 +670,7 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
     } else if (agg_type->isa<IndefiniteArrayType>()) {
         s.fmt("[{}]", emit(index));
     } else if (agg_type->isa<TupleType>()) {
-        s.fmt("{}e{}", prefix, emit(index));
+        s.fmt("{}e{}", prefix, emit_constant(index));
     } else if (agg_type->isa<StructType>()) {
         s.fmt("{}{}", prefix, agg_type->as<StructType>()->op_name(primlit_value<size_t>(index)));
     } else if (agg_type->isa<VectorType>()) {
@@ -679,16 +693,8 @@ static inline bool is_const_primop(const Def* def) {
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     auto name = def->unique_name();
 
-    if (is_const_primop(def)) {
-        // Constants will be emitted only once, so they must be placed
-        // at the top of the file, as globals.
-        auto const_value = emit_constant(def);
-        const char* qualifier = "const";
-        if (auto global = def->isa<Global>(); global && global->is_mutable())
-            qualifier = "";
-        func_decls_.fmt("static {}{} {} {} = {};\n", device_prefix(), qualifier, convert(def->type()), name, const_value);
-        return name;
-    }
+    if (is_const_primop(def))
+        return emit_constant(def);
 
     if (auto bin = def->isa<BinOp>()) {
         auto a = emit(bin->lhs());
@@ -721,6 +727,47 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
 
         func_impls_.fmt("{} {};\n", convert(bin->type()), name);
         bb.body.fmt("{} = {} {} {};\n", name, a, op, b);
+    } else if (auto mathop = def->isa<MathOp>()) {
+        use_math_ = true;
+        auto make_key = [] (MathOpTag tag, unsigned bitwidth) { return (static_cast<unsigned>(tag) << 16) | bitwidth; };
+        static const std::unordered_map<unsigned, std::string> function_names = {
+#define MATH_FUNCTION(name) \
+            { make_key(MathOp_##name, 32), #name "f" }, \
+            { make_key(MathOp_##name, 64), #name },
+            MATH_FUNCTION(fabs)
+            MATH_FUNCTION(copysign)
+            MATH_FUNCTION(round)
+            MATH_FUNCTION(floor)
+            MATH_FUNCTION(ceil)
+            MATH_FUNCTION(fmin)
+            MATH_FUNCTION(fmax)
+            MATH_FUNCTION(cos)
+            MATH_FUNCTION(sin)
+            MATH_FUNCTION(tan)
+            MATH_FUNCTION(acos)
+            MATH_FUNCTION(asin)
+            MATH_FUNCTION(atan)
+            MATH_FUNCTION(atan2)
+            MATH_FUNCTION(sqrt)
+            MATH_FUNCTION(cbrt)
+            MATH_FUNCTION(pow)
+            MATH_FUNCTION(exp)
+            MATH_FUNCTION(exp2)
+            MATH_FUNCTION(log)
+            MATH_FUNCTION(log2)
+            MATH_FUNCTION(log10)
+#undef MATH_FUNCTION
+        };
+        for (auto op : mathop->ops())
+            emit(op);
+        int bitwidth = num_bits(mathop->type()->primtype_tag());
+        assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);
+        func_impls_.fmt("{} {};\n", convert(mathop->type()), name);
+        if (lang_ == Lang::OpenCL && bitwidth == 32)
+            bitwidth = 64; // OpenCL uses overloading
+        bb.body.fmt("{} = {}(", name, function_names.at(make_key(mathop->mathop_tag(), bitwidth)));
+        bb.body.range(mathop->ops(), ", ", [&](const Def* op) { bb.body << emit(op); });
+        bb.body.fmt(");\n");
     } else if (auto conv = def->isa<ConvOp>()) {
         auto s_type = conv->from()->type();
         auto d_type = conv->type();
@@ -1016,6 +1063,22 @@ void CCodeGen::emit_c_int() {
 
     for (auto cont : world().continuations()) {
         if (!cont->is_external())
+            continue;
+
+        // Generate C types for structs used by imported or exported functions
+        for (auto op : cont->type()->ops()) {
+            if (auto fn_type = op->isa<FnType>()) {
+                // Convert the return types as well (those are embedded in return continuations)
+                for (auto other_op : fn_type->ops()) {
+                    if (!other_op->isa<FnType>())
+                        convert(other_op);
+                }
+            } else
+                convert(op);
+        }
+
+        // Generate function prototypes only for exported functions
+        if (!cont->is_exported())
             continue;
         assert(cont->is_returning());
         emit_fun_decl(cont);

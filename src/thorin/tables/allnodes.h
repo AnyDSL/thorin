@@ -2,20 +2,8 @@
 #error "define THORIN_GLUE before including this file"
 #endif
 
-#ifndef THORIN_NODE
-#error "define THORIN_NODE before including this file"
-#endif
-
 #ifndef THORIN_PRIMTYPE
 #error "define THORIN_PRIMTYPE before including this file"
-#endif
-
-#ifndef THORIN_ARITHOP
-#error "define THORIN_ARITHOP before including this file"
-#endif
-
-#ifndef THORIN_CMP
-#error "define THORIN_CMP before including this file"
 #endif
 
 #include "thorin/tables/nodetable.h"
@@ -44,9 +32,8 @@
 #include "thorin/tables/arithoptable.h"
     THORIN_GLUE(ArithOp, Cmp)
 #include "thorin/tables/cmptable.h"
+    THORIN_GLUE(Cmp, MathOp)
+#include "thorin/tables/mathoptable.h"
 
 #undef THORIN_GLUE
-#undef THORIN_NODE
 #undef THORIN_PRIMTYPE
-#undef THORIN_ARITHOP
-#undef THORIN_CMP

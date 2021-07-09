@@ -56,6 +56,8 @@ public:
     llvm::Value* emit_bb(BB&, const Def* def);
     virtual llvm::Function* emit_fun_decl(Continuation*);
     bool is_valid(llvm::Value* value) { return value != nullptr; }
+    void finalize(const Scope&);
+    void finalize(Continuation*) {}
     void emit_epilogue(Continuation*);
 
 protected:
@@ -71,6 +73,7 @@ protected:
     virtual void emit_fun_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
 
+    virtual llvm::Value* emit_mathop  (llvm::IRBuilder<>&, const MathOp*);
     virtual llvm::Value* emit_load    (llvm::IRBuilder<>&, const Load*);
     virtual llvm::Value* emit_store   (llvm::IRBuilder<>&, const Store*);
     virtual llvm::Value* emit_lea     (llvm::IRBuilder<>&, const LEA*);
@@ -89,6 +92,8 @@ protected:
     void verify() const;
     void create_loop(llvm::IRBuilder<>&, llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
     llvm::Value* create_tmp_alloca(llvm::IRBuilder<>&, llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
+
+    llvm::Value* call_math_function(llvm::IRBuilder<>&, const MathOp*, const std::string&);
 
 private:
     Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);

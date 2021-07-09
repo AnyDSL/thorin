@@ -168,6 +168,33 @@ public:
     const Def* align_of(const Type* type, Debug dbg = {});
     const Def* size_of(const Type* type, Debug dbg = {});
 
+    // mathematical functions
+    const Def* mathop(MathOpTag, Defs, Debug = {});
+
+    const Def* fabs   (const Def* x, Debug dbg = {}) { return mathop(MathOp_fabs,    { x }, dbg); }
+    const Def* round  (const Def* x, Debug dbg = {}) { return mathop(MathOp_round,   { x }, dbg); }
+    const Def* ceil   (const Def* x, Debug dbg = {}) { return mathop(MathOp_ceil,    { x }, dbg); }
+    const Def* floor  (const Def* x, Debug dbg = {}) { return mathop(MathOp_floor,   { x }, dbg); }
+    const Def* cos    (const Def* x, Debug dbg = {}) { return mathop(MathOp_cos,     { x }, dbg); }
+    const Def* sin    (const Def* x, Debug dbg = {}) { return mathop(MathOp_sin,     { x }, dbg); }
+    const Def* tan    (const Def* x, Debug dbg = {}) { return mathop(MathOp_tan,     { x }, dbg); }
+    const Def* acos   (const Def* x, Debug dbg = {}) { return mathop(MathOp_acos,    { x }, dbg); }
+    const Def* asin   (const Def* x, Debug dbg = {}) { return mathop(MathOp_asin,    { x }, dbg); }
+    const Def* atan   (const Def* x, Debug dbg = {}) { return mathop(MathOp_atan,    { x }, dbg); }
+    const Def* sqrt   (const Def* x, Debug dbg = {}) { return mathop(MathOp_sqrt,    { x }, dbg); }
+    const Def* cbrt   (const Def* x, Debug dbg = {}) { return mathop(MathOp_cbrt,    { x }, dbg); }
+    const Def* exp    (const Def* x, Debug dbg = {}) { return mathop(MathOp_exp,     { x }, dbg); }
+    const Def* exp2   (const Def* x, Debug dbg = {}) { return mathop(MathOp_exp2,    { x }, dbg); }
+    const Def* log    (const Def* x, Debug dbg = {}) { return mathop(MathOp_log,     { x }, dbg); }
+    const Def* log2   (const Def* x, Debug dbg = {}) { return mathop(MathOp_log2,    { x }, dbg); }
+    const Def* log10  (const Def* x, Debug dbg = {}) { return mathop(MathOp_log10,   { x }, dbg); }
+
+    const Def* atan2   (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_atan2,    { x, y }, dbg); }
+    const Def* pow     (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_pow,      { x, y }, dbg); }
+    const Def* copysign(const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_copysign, { x, y }, dbg); }
+    const Def* fmin    (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_fmin,     { x, y }, dbg); }
+    const Def* fmax    (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_fmax,     { x, y }, dbg); }
+
     // memory stuff
 
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
@@ -255,6 +282,9 @@ public:
         std::abort();
     }
 
+    // Ignore log
+    void ignore() {}
+
     template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }
@@ -279,7 +309,9 @@ private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
-    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+    template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
+    template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
+    template <class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     struct State {
         LogLevel min_level = LogLevel::Error;
@@ -313,7 +345,7 @@ private:
 #ifndef NDEBUG
 #define DLOG(...) log(thorin::LogLevel::Debug,   thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
 #else
-#define DLOG(...) do {} while (false)
+#define DLOG(...) ignore()
 #endif
 
 #endif

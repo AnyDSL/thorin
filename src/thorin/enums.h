@@ -14,6 +14,7 @@ enum NodeTag {
 #define THORIN_PRIMTYPE(T) Node_PrimType_##T,
 #define THORIN_ARITHOP(op) Node_##op,
 #define THORIN_CMP(op) Node_##op,
+#define THORIN_MATHOP(op) Node_##op,
 #include "thorin/tables/allnodes.h"
 };
 
@@ -26,8 +27,9 @@ enum Markers {
 #define THORIN_PRIMTYPE(T) zzzMarker_PrimType_##T,
 #define THORIN_ARITHOP(op) zzzMarker_##op,
 #define THORIN_CMP(op) zzzMarker_##op,
+#define THORIN_MATHOP(op) zzzMarker_##op,
 #include "thorin/tables/allnodes.h"
-    End_Cmp,
+    End_MathOp,
     Begin_Node = 0,
     End_AllNodes    = End_Cmp,
 
@@ -41,6 +43,7 @@ enum Markers {
 
     Num_ArithOps    = End_ArithOp    - Begin_ArithOp,
     Num_Cmps        = End_Cmp        - Begin_Cmp,
+    Num_MathOps     = End_MathOp     - Begin_MathOp,
 
     Num_PrimTypes   = End_PrimType_qf - Begin_PrimType_bool,
 };
@@ -60,6 +63,11 @@ enum CmpTag {
 #include "thorin/tables/cmptable.h"
 };
 
+enum MathOpTag {
+#define THORIN_MATHOP(op) MathOp_##op = Node_##op,
+#include "thorin/tables/mathoptable.h"
+};
+
 inline bool is_type_ps(int tag) { return (int) Begin_PrimType_ps <= tag && tag < (int) End_PrimType_ps; }
 inline bool is_type_pu(int tag) { return (int) Begin_PrimType_pu <= tag && tag < (int) End_PrimType_pu; }
 inline bool is_type_qs(int tag) { return (int) Begin_PrimType_qs <= tag && tag < (int) End_PrimType_qs; }
@@ -77,6 +85,7 @@ inline bool is_type_f(int tag) { return is_type_pf(tag) || is_type_qf(tag); }
 inline bool is_primtype(int tag){ return (int) Begin_PrimType <= tag && tag < (int) End_PrimType; }
 inline bool is_arithop(int tag) { return (int) Begin_ArithOp <= tag && tag < (int) End_ArithOp; }
 inline bool is_cmp(int tag)     { return (int) Begin_Cmp   <= tag && tag < (int) End_Cmp; }
+inline bool is_mathop(int tag)  { return (int) Begin_MathOp <= tag && tag < (int) End_MathOp; }
 
 inline bool is_bitop(int tag) { return  tag == ArithOp_and || tag == ArithOp_or || tag == ArithOp_xor; }
 inline bool is_shift(int tag) { return  tag == ArithOp_shl || tag == ArithOp_shr; }

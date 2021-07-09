@@ -135,17 +135,17 @@ class HashTable {
 public:
     enum { MinHeapCapacity = StackCapacity*4 };
     typedef Key key_type;
-    typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
-    typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
+    typedef typename std::conditional<std::is_void_v<T>, Key, T>::type mapped_type;
+    typedef typename std::conditional<std::is_void_v<T>, Key, std::pair<Key, T>>::type value_type;
 
 private:
-    template<class K, class V>
-    struct get_key { static K& get(std::pair<K, V>& pair) { return pair.first; } };
+    static key_type& key(value_type* ptr) {
+        if constexpr (std::is_void_v<T>)
+            return *ptr;
+        else
+            return ptr->first;
+    }
 
-    template<class K>
-    struct get_key<K, void> { static K& get(K& key) { return key; } };
-
-    static key_type& key(value_type* ptr) { return get_key<Key, T>::get(*ptr); }
     static bool is_invalid(value_type* ptr) { return key(ptr) == H::sentinel(); }
     bool is_invalid(size_t i) { return is_invalid(nodes_+i); }
 
@@ -176,13 +176,13 @@ public:
         {}
 
 #if THORIN_ENABLE_CHECKS
+        inline int id() const { return id_; }
         inline void verify() const { assert(table_->id_ == id_); }
         inline void verify(iterator_base i) const {
             assert(table_ == i.table_ && id_ == i.id_);(void)i;
             verify();
         }
 #else
-        int id() const { return id_; }
         inline void verify() const {}
         inline void verify(iterator_base) const {}
 #endif

@@ -21,6 +21,7 @@ protected:
     void emit_fun_decl_hook(Continuation*, llvm::Function*) override;
     llvm::Function* emit_fun_decl(Continuation*) override;
     llvm::Value* emit_global(const Global*) override;
+    llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
     Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
     std::string get_alloc_name() const override { return "malloc"; }
 

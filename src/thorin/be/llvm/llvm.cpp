@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <llvm/ADT/Triple.h>
 #include <llvm/IR/Constant.h>
@@ -82,14 +83,7 @@ void CodeGen::optimize() {
 
     if (opt() == 3) {
         llvm::ModulePassManager module_pass_manager;
-
-        //module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass()); //Not compatible with LLVM v10
-        llvm::CGSCCPassManager MainCGPipeline;
-        MainCGPipeline.addPass(llvm::InlinerPass());
-        module_pass_manager.addPass(createModuleToPostOrderCGSCCPassAdaptor(
-              createDevirtSCCRepeatedPass(
-                std::move(MainCGPipeline), 4)));
-
+        module_pass_manager.addPass(llvm::ModuleInlinerWrapperPass());
         llvm::FunctionPassManager function_pass_manager;
         function_pass_manager.addPass(llvm::ADCEPass());
         module_pass_manager.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(function_pass_manager)));
@@ -249,7 +243,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
     if (vector_length(type) == 1)
         return types_[type] = llvm_type;
 
-    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type), false);
+    llvm_type = llvm::FixedVectorType::get(llvm_type, vector_length(type));
     return types_[type] = llvm_type;
 }
 
@@ -299,9 +293,7 @@ CodeGen::emit_module() {
     rv::lowerIntrinsics(module());
 #endif
 
-#if THORIN_ENABLE_CHECKS
-    llvm::verifyModule(module());
-#endif
+    verify();
     optimize();
 
     // We need to delete the runtime at this point, since the ownership of
@@ -375,7 +367,7 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     irbuilder.SetInsertPoint(bb);
 
     if (debug())
-        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc(llvm::DILocation::get(context(), cont->loc().begin.row, cont->loc().begin.col, discope_)));
+        irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), cont->loc().begin.row, cont->loc().begin.col, discope_));
 
     if (entry_ == cont) {
         auto arg = fct->arg_begin();
@@ -404,6 +396,18 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
             }
         }
     }
+}
+
+void CodeGen::finalize(const Scope&) {
+    std::vector<const Def*> to_remove;
+    for (auto& [def, value] : defs_) {
+        // These do not have scope dependencies in Thorin, but they translate to LLVM alloca loads
+        // which should never be reused outside of the function they were defined in, so we erase them
+        if (auto variant = def->isa<Variant>(); variant && !variant->value()->has_dep(Dep::Param))
+            to_remove.push_back(def);
+    }
+    for (auto& def : to_remove)
+        defs_.erase(def);
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
@@ -490,7 +494,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         llvm::CallInst* call = nullptr;
         if (auto callee = continuation->callee()->isa_continuation()) {
-            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(convert(callee->type())), emit(callee), args);
+            call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
             if (callee->is_exported())
                 call->setCallingConv(kernel_calling_convention_);
             else if (callee->cc() == CC::Device)
@@ -501,7 +505,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             // must be a closure
             auto closure = emit(callee);
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
-            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(convert(callee->type())), irbuilder.CreateExtractValue(closure, 0), args);
+            auto func = irbuilder.CreateExtractValue(closure, 0);
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(func->getType()), func, args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -550,8 +555,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     auto& irbuilder = *bb.second;
 
-    if (debug())
-        irbuilder.SetCurrentDebugLocation(llvm::DebugLoc(llvm::DILocation::get(context(), def->loc().begin.row, def->loc().begin.col, discope_)));
+    // TODO
+    //if (debug())
+        //irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
 
     if (false) {}
     else if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
@@ -562,7 +568,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     else if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
         llvm::Value* rhs = emit(bin->rhs());
-        const char* name = bin->name().c_str();
+        auto name = bin->name();
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -645,6 +651,8 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                 }
             }
         }
+    } else if (auto mathop = def->isa<MathOp>()) {
+        return emit_mathop(irbuilder, mathop);
     } else if (auto conv = def->isa<ConvOp>()) {
         auto from = emit(conv->from());
         auto src_type = conv->from()->type();
@@ -938,7 +946,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type*
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
-    alloca->setAlignment(llvm::MaybeAlign(layout.getABITypeAlignment(type)).valueOrOne());
+    alloca->setAlignment(layout.getABITypeAlign(type));
     return alloca;
 }
 
@@ -976,17 +984,88 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
     return new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
+static inline std::string intrinsic_suffix(const thorin::PrimType* type) {
+    switch (type->primtype_tag()) {
+        case PrimType_qf32:
+        case PrimType_pf32:
+            return "f32";
+        case PrimType_qf64:
+        case PrimType_pf64:
+            return "f64";
+        default:
+            THORIN_UNREACHABLE;
+    }
+}
+
+llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* mathop) {
+    static const std::unordered_map<MathOpTag, std::string> intrinsic_prefixes = {
+        { MathOp_copysign, "llvm.copysign." },
+        { MathOp_fabs,     "llvm.fabs." },
+        { MathOp_fmin,     "llvm.minnum." },
+        { MathOp_fmax,     "llvm.maxnum." },
+        { MathOp_round,    "llvm.round." },
+        { MathOp_floor,    "llvm.floor." },
+        { MathOp_ceil,     "llvm.ceil." },
+        { MathOp_cos,      "llvm.cos." },
+        { MathOp_sin,      "llvm.sin." },
+        { MathOp_sqrt,     "llvm.sqrt." },
+        { MathOp_pow,      "llvm.pow." },
+        { MathOp_exp,      "llvm.exp." },
+        { MathOp_exp2,     "llvm.exp2." },
+        { MathOp_log,      "llvm.log." },
+        { MathOp_log2,     "llvm.log2." },
+        { MathOp_log10,    "llvm.log10." }
+    };
+    static const std::unordered_map<MathOpTag, std::string> math_function_prefix = {
+        { MathOp_tan,   "tan" },
+        { MathOp_acos,  "acos" },
+        { MathOp_asin,  "asin" },
+        { MathOp_atan,  "atan" },
+        { MathOp_atan2, "atan2" },
+        { MathOp_cbrt,  "cbrt" },
+    };
+
+    std::string function_name;
+    if (auto it = intrinsic_prefixes.find(mathop->mathop_tag()); it != intrinsic_prefixes.end()) {
+        function_name = it->second + intrinsic_suffix(mathop->type());
+    } else if (auto it = math_function_prefix.find(mathop->mathop_tag()); it != math_function_prefix.end()) {
+        auto primtype_tag = mathop->type()->as<PrimType>()->primtype_tag();
+        function_name = it->second + ((primtype_tag == PrimType_qf32 || primtype_tag == PrimType_pf32) ? "f" : "");
+    } else
+        THORIN_UNREACHABLE;
+
+    return call_math_function(irbuilder, mathop, function_name);
+}
+
+llvm::Value* CodeGen::call_math_function(llvm::IRBuilder<>& irbuilder, const MathOp* mathop, const std::string& function_name) {
+    if (mathop->num_ops() == 1) {
+        // Unary mathematical operations
+        auto arg = emit(mathop->op(0));
+        auto fn_type = llvm::FunctionType::get(arg->getType(), { arg->getType() }, false);
+        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
+        return irbuilder.CreateCall(fn, { arg });
+    } else if (mathop->num_ops() == 2) {
+        // Binary mathematical operations
+        auto left = emit(mathop->op(0));
+        auto right = emit(mathop->op(1));
+        auto fn_type = llvm::FunctionType::get(left->getType(), { left->getType(), right->getType() }, false);
+        auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
+        return irbuilder.CreateCall(fn, { left, right });
+    }
+    THORIN_UNREACHABLE;
+}
+
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
     emit_unsafe(load->mem());
     auto ptr = emit(load->ptr());
     if (auto vectype = load->out_val_type()->isa<VectorType>(); vectype && vectype->is_vector()) {
-        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-        auto result = irbuilder.CreateMaskedGather(ptr, llvm::MaybeAlign(align).valueOrOne());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+        auto result = irbuilder.CreateMaskedGather(ptr, align);
         return result;
     } else {
         auto result = irbuilder.CreateLoad(convert(load->out_val_type()), ptr);
-        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-        result->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+        result->setAlignment(align);
         return result;
     }
 }
@@ -995,13 +1074,13 @@ llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* stor
     emit_unsafe(store->mem());
     auto ptr = emit(store->ptr());
     if (auto vectype = store->val()->type()->isa<VectorType>(); vectype && vectype->is_vector()) {
-        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getScalarType()->getPointerElementType());
-        auto result = irbuilder.CreateMaskedScatter(emit(store->val()), ptr, llvm::MaybeAlign(align).valueOrOne());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+        auto result = irbuilder.CreateMaskedScatter(emit(store->val()), ptr, align);
         return nullptr;
     } else {
         auto result = irbuilder.CreateStore(emit(store->val()), ptr);
-        auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-        result->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+        result->setAlignment(align);
         return nullptr;
     }
 }
@@ -1125,9 +1204,9 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(4)->as_continuation();
-    auto load = irbuilder.CreateLoad(convert(continuation->arg(1)->type()->as<PtrType>()->pointee()), ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    load->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+    auto load = irbuilder.CreateLoad(ptr);
+    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    load->setAlignment(align);
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), load);
     return cont;
@@ -1143,8 +1222,8 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(5)->as_continuation();
     auto store = irbuilder.CreateStore(val, ptr);
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    store->setAlignment(llvm::MaybeAlign(align).valueOrOne());
+    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    store->setAlignment(align);
     store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }

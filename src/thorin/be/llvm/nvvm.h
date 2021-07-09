@@ -23,9 +23,10 @@ protected:
     llvm::Value* map_param(llvm::Function*, llvm::Argument*, const Param*) override;
     void prepare(Continuation*, llvm::Function*) override;
 
-    llvm::Value* emit_load(llvm::IRBuilder<>&,  const Load*) override;
-    llvm::Value* emit_store(llvm::IRBuilder<>&, const Store*) override;
-    llvm::Value* emit_lea(llvm::IRBuilder<>&,   const LEA*) override;
+    llvm::Value* emit_load(llvm::IRBuilder<>&,   const Load*) override;
+    llvm::Value* emit_store(llvm::IRBuilder<>&,  const Store*) override;
+    llvm::Value* emit_lea(llvm::IRBuilder<>&,    const LEA*) override;
+    llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
 
     Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
 

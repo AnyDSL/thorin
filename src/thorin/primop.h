@@ -228,6 +228,23 @@ public:
     friend class World;
 };
 
+/// Common mathematical function such as `sin()` or `cos()`.
+class MathOp : public PrimOp {
+private:
+    MathOp(MathOpTag tag, const Type* type, Defs args, Debug dbg)
+        : PrimOp((NodeTag)tag, type, args, dbg)
+    {}
+
+    const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
+    MathOpTag mathop_tag() const { return (MathOpTag) tag(); }
+    const char* op_name() const override;
+
+    friend class World;
+};
+
 /// Base class for @p Bitcast and @p Cast.
 class ConvOp : public PrimOp {
 protected:

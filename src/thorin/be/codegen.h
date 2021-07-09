@@ -10,6 +10,8 @@ class CodeGen {
 protected:
     CodeGen(World& world, bool debug);
 public:
+    virtual ~CodeGen() {}
+
     virtual void emit_stream(std::ostream& stream) = 0;
     virtual const char* file_ext() const = 0;
 

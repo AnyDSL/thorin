@@ -179,9 +179,9 @@ Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
     return Mangler(scope, args, lift).mangle();
 }
 
-Continuation* drop(const Call& call) {
-    Scope scope(call.callee()->as_continuation());
-    return drop(scope, call.args());
+Continuation* drop(const Def* callee, const Defs specialized_args) {
+    Scope scope(callee->as_continuation());
+    return drop(scope, specialized_args);
 }
 
 //------------------------------------------------------------------------------

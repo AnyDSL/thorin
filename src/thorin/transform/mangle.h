@@ -44,7 +44,7 @@ inline Continuation* drop(const Scope& scope, Defs args) {
     return mangle(scope, args, Array<const Def*>());
 }
 
-Continuation* drop(const Call&);
+Continuation* drop(const Def* callee, const Defs specialized_args);
 
 inline Continuation* lift(const Scope& scope, Defs defs) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);

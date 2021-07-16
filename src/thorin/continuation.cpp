@@ -293,17 +293,17 @@ void Continuation::verify() const {
     }
 }
 
-/// Rewrites the App to a mangled version of the callee
-void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
-    assert(src->has_body());
-    auto obody = src->body();
+/// Rewrites the body to only keep the non-specialized arguments
+void jump_to_dropped_call(Continuation* continuation, Continuation* dropped, const Defs specialized_args) {
+    assert(continuation->has_body());
+    auto obody = continuation->body();
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = obody->num_args(); i != e; ++i) {
-        if (!call.arg(i))
+        if (!specialized_args[i])
             nargs.push_back(obody->arg(i));
     }
 
-    src->jump(dst, nargs);
+    continuation->jump(dropped, nargs);
 }
 
 #if 0

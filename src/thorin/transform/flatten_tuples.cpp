@@ -36,7 +36,7 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
 
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     if (args[0]->isa_continuation()) {
-        auto dropped = drop(Call(args));
+        auto dropped = drop(args.front(), args.skip_front());
         assert(dropped->has_body());
         auto dapp = dropped->body();
         cont->jump(dapp->callee(), dapp->args(), args[0]->debug());

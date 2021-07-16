@@ -5,6 +5,14 @@
 
 namespace thorin {
 
+struct HashApp {
+    inline static uint64_t hash(const App* app) {
+        return murmur3(uint64_t(app));
+    }
+    inline static bool eq(const App* a1, const App* a2) { return a1 == a2; }
+    inline static const App* sentinel() { return static_cast<const App*>((void*)size_t(-1)); }
+};
+
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world, bool lower2cff)
@@ -24,7 +32,7 @@ public:
 private:
     World& world_;
     bool lower2cff_;
-    HashMap<Call, Continuation*> cache_;
+    HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
     ContinuationMap<bool> top_level_;
@@ -150,7 +158,7 @@ bool PartialEvaluator::run() {
 
         if (!continuation->has_body())
             continue;
-        auto body = continuation->body();
+        const App* body = continuation->body();
         const Def* callee_def = continuation->body()->callee();
 
         if (auto run = callee_def->isa<Run>()) {
@@ -165,30 +173,29 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                Call call(body->num_ops());
-                call.callee() = callee;
-
                 CondEval cond_eval(callee, body->args(), top_level_);
 
+                std::vector<const Def*> specialize(body->num_args());
+
                 bool fold = false;
-                for (size_t i = 0, e = call.num_args(); i != e; ++i) {
+                for (size_t i = 0, e = body->num_args(); i != e; ++i) {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
-                        call.arg(i) = body->arg(i);
+                        specialize[i] = body->arg(i);
                         fold = true;
                     } else
-                        call.arg(i) = nullptr;
+                        specialize[i] = nullptr;
                 }
 
                 if (fold) {
-                    const auto& p = cache_.emplace(call, nullptr);
+                    const auto& p = cache_.emplace(body, nullptr);
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
-                        target = drop(call);
+                        target = drop(callee, specialize);
                         todo = true;
                     }
 
-                    jump_to_dropped_call(continuation, target, call);
+                    jump_to_dropped_call(continuation, target, specialize);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:

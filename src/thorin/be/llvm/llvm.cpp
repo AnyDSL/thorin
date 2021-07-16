@@ -914,7 +914,16 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         emit_unsafe(alloc->mem());
         return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
     } else if (auto slot = def->isa<Slot>()) {
-        return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
+        if (slot->type()->as<PtrType>()->is_vector()) {
+            llvm::Value * ptrvector = llvm::UndefValue::get(convert(slot->type()));
+            for (size_t i = 0; i < slot->type()->as<PtrType>()->length(); ++i) {
+                auto alloca = emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
+                ptrvector = irbuilder.CreateInsertElement(ptrvector, alloca, emit(world().literal_pu32(i, slot->loc())));
+            }
+            return ptrvector;
+        } else {
+            return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
+        }
     } else if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)

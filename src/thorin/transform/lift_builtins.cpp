@@ -96,7 +96,7 @@ void lift_builtins(World& world) {
         for (auto param : free_defs(scope)) {
             if (param->isa_continuation()) {
                 // TODO: assert is actually top level
-            } else if(!param->isa<Filter>()) { // don't lift the filter
+            } else if (!param->isa<Filter>()) { // don't lift the filter
                 assert(!param->isa<App>() && "an app should not be free");
                 assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
@@ -119,7 +119,6 @@ void lift_builtins(World& world) {
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
 
                         uapp->replace(uapp->with(ncontinuation, new_ops.skip_front()));
-                        // ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->debug()); // TODO debug
                     }
                 }
             }

@@ -3,6 +3,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/domtree.h"
+#include "thorin/analyses/verify.h"
 
 #include <llvm/Support/Timer.h>
 #include <llvm/Support/raw_ostream.h>
@@ -913,6 +914,8 @@ const Def* Vectorizer::widen(const Def* old_def) {
             nops[i] = widen(param->op(i));
             if (auto vector = nops[i]->type()->isa<VectorType>())
                 any_vector |= vector->is_vector();
+            if (nops[i]->type()->isa<VariantVectorType>())
+                any_vector = true;
         }
 
         if (any_vector) {
@@ -920,6 +923,10 @@ const Def* Vectorizer::widen(const Def* old_def) {
                 if (auto vector = nops[i]->type()->isa<VectorType>())
                     if (vector->is_vector())
                         continue;
+                if (nops[i]->type()->isa<VariantVectorType>())
+                    continue;
+                if (nops[i]->type()->isa<MemType>())
+                    continue;
 
                 //non-vector element in a vector setting needs to be extended to a vector.
                 Array<const Def*> elements(vector_width);
@@ -954,11 +961,15 @@ const Def* Vectorizer::widen(const Def* old_def) {
             nops[i] = widen(old_primop->op(i));
             if (auto vectype = nops[i]->type()->isa<VectorType>(); vectype && vectype->is_vector())
                 any_vector = true;
+            if (nops[i]->type()->isa<VariantVectorType>())
+                any_vector = true;
         }
 
         if (any_vector && (old_primop->isa<BinOp>() || old_primop->isa<Select>() || old_primop->isa<StructAgg>() || old_primop->isa<Access>())) {
             for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
                 if (auto vectype = nops[i]->type()->isa<VectorType>(); vectype && vectype->is_vector())
+                    continue;
+                if (nops[i]->type()->isa<VariantVectorType>())
                     continue;
                 if (nops[i]->type()->isa<MemType>())
                     continue;
@@ -2266,8 +2277,11 @@ bool Vectorizer::run() {
 
     //Task 4: Rewrite vectorize call
                 if (vectorized) {
+                    const Continuation* vectorized_flat = flatten_continuation(vectorized, world_);
+                    assert(vectorized_flat);
+
                     for (auto caller : cont->preds()) {
-                        Array<const Def*> args(vectorized->num_params());
+                        Array<const Def*> args(vectorized_flat->num_params());
 
                         args[0] = caller->arg(0); //mem
                         //args[1] = caller->arg(1); //width
@@ -2277,11 +2291,11 @@ bool Vectorizer::run() {
                         }
                         args[1] = world_.vector(defs, caller->arg(1)->debug_history());
 
-                        for (size_t p = 2; p < vectorized->num_params(); p++) {
+                        for (size_t p = 2; p < vectorized_flat->num_params(); p++) {
                             args[p] = caller->arg(p + 1);
                         }
 
-                        caller->jump(vectorized, args, caller->debug());
+                        caller->jump(vectorized_flat, args, caller->debug());
                     }
                 }
             }
@@ -2318,9 +2332,12 @@ bool vectorize(World& world) {
 
     //world.dump();
 
-    flatten_vectors(world);
+    //flatten_vectors(world);
+    //world.cleanup();
 
-    //world.dump();
+    world.dump();
+    debug_verify(world);
+
     world.VLOG("end vectorizer");
     return res;
 }

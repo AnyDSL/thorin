@@ -44,6 +44,8 @@ public:
     hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     virtual bool equal(const Type*) const;
 
+    virtual bool like(const Type*) const;
+
     const Type* rebuild(TypeTable& to, Types ops) const {
         assert(num_ops() == ops.size());
         if (ops.empty() && &table() == &to)
@@ -151,8 +153,8 @@ public:
 
 class VariantVectorType : public NominalType {
 private:
-    VariantVectorType(TypeTable& table, Symbol name, size_t size, size_t vector_width)
-        : NominalType(table, Node_VariantVectorType, name, size), vector_width_(vector_width)
+    VariantVectorType(TypeTable& table, Symbol name, size_t size, size_t vector_width, size_t gid)
+        : NominalType(table, Node_VariantVectorType, name, size, gid), vector_width_(vector_width)
     {}
 
     size_t vector_width_;
@@ -163,6 +165,8 @@ public:
     bool has_payload() const;
 
     size_t length() const { return vector_width_; }
+
+    bool like(const Type*) const override;
 
     friend class TypeTable;
 };
@@ -210,6 +214,8 @@ public:
     bool is_vector() const { return length_ != 1; }
     /// Rebuilds the type with vector length 1.
     const Type* scalarize() const;
+
+    bool like(const Type*) const override;
 
 private:
     size_t length_;

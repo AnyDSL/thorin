@@ -56,8 +56,7 @@ World::~World() {
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto type = value->type()->isa<VectorExtendedType>()) {
-        auto newtype = vec_type(type_qu64(), type->length());
-        return cse(new VariantIndex(newtype, value, dbg));
+        THORIN_UNREACHABLE;
     }
 
     if (auto type = value->type()->isa<VariantVectorType>()) {
@@ -74,6 +73,12 @@ const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
     if (auto type = value->type()->isa<VectorExtendedType>()) {
         auto newtype = vec_type(type->element()->as<VariantType>()->op(index), type->length());
         return cse(new VariantExtract(newtype, value, index, dbg));
+    }
+
+    if (auto type = value->type()->isa<VariantVectorType>()) {
+        auto variant = type->op(index);
+        auto variant_vec = vec_type(variant, type->length());
+        return cse(new VariantExtract(variant_vec, value, index, dbg));
     }
 
     auto type = value->type()->as<VariantType>()->op(index);
@@ -471,7 +476,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<VectorExtendedType>()->length();
+        size_t num = lvec->type()->as<VectorType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cmp(tag, lvec->op(i), rvec->op(i), dbg);
@@ -707,9 +712,10 @@ static bool fold_1_tuple(const Type* type, const Def* index) {
                 && !type->isa<ArrayType>()
                 && !type->isa<StructType>()
                 && !type->isa<VectorExtendedType>()
+                && !type->isa<VariantVectorType>()
                 && !type->isa<TupleType>()) {
-            if (auto prim_type = type->isa<PrimType>())
-                return prim_type->length() == 1;
+            if (auto vec_type = type->isa<VectorType>())
+                return !vec_type->is_vector();
             return true;
         }
     }

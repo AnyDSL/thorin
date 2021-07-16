@@ -384,6 +384,8 @@ private:
         if (auto vector = value->type()->isa<VectorExtendedType>()) {
             auto inner_type = type->as<VectorExtendedType>()->element();
             assert(vector->element()->as<VariantType>()->op(index) == inner_type);
+        } else if (auto vector = value->type()->isa<VariantVectorType>()) {
+            assert(value->type()->as<VariantVectorType>()->op(index) == type->as<VectorType>()->scalarize());
         } else {
             assert(value->type()->as<VariantType>()->op(index) == type);
         }

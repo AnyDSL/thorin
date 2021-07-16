@@ -459,9 +459,29 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto over_bb = cont2bb(continuation->arg(3)->as_continuation());
         assert(target_bb);
         if (mask->isa<Vector>()) {
-            current_mask = nullptr;
-            assert(target_bb == over_bb);
-            irbuilder.CreateBr(target_bb);
+            auto all_one = true;
+            for (auto op : mask->ops())
+                if (op != world().literal_bool(true, {}))
+                    all_one = false;
+            if (all_one) {
+                current_mask = nullptr;
+                if (target_bb != over_bb) {
+                    std::cerr << "Error, expected to match\n";
+                    target_bb->dump();
+                    over_bb->dump();
+                    mask->dump();
+                    for (auto op : mask->ops())
+                        op->dump();
+                    mask->type()->dump();
+                }
+                assert(target_bb == over_bb);
+                irbuilder.CreateBr(target_bb);
+            } else {
+                current_mask = emit(mask);
+                llvm::Value *any_set = irbuilder.CreateOrReduce(current_mask);
+                assert(over_bb);
+                irbuilder.CreateCondBr(any_set, target_bb, over_bb);
+            }
         } else {
             current_mask = emit(mask);
             llvm::Value *any_set = irbuilder.CreateOrReduce(current_mask);

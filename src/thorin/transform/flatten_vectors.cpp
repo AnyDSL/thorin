@@ -1,3 +1,4 @@
+#include "thorin/transform/flatten_vectors.h"
 #include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
@@ -43,7 +44,6 @@ Def2Def def2def;
 static const PrimOp * flatten_primop(const PrimOp *primop);
 static const Type* flatten_type(const Type *type);
 static const Type* flatten_vector_type(const VectorExtendedType *vector_type);
-static const Continuation* flatten_continuation(const Continuation* kernel);
 
 static const Type* flatten_vector_type(const VectorExtendedType *vector_type) {
     World &world = *world_;
@@ -78,23 +78,22 @@ static const Type* flatten_vector_type(const VectorExtendedType *vector_type) {
             element_types.emplace_back(result);
         }
 
-        //for (auto element : nominal_type->ops())
-            //element->dump();
-        for (auto element : element_types)
-            element->dump();
-
-        const NominalType *new_nominal_type;
+        const NominalType *new_nominal_type = nullptr;
         if (element_type->isa<StructType>()) {
             new_nominal_type = world.struct_type(nominal_type->name() + "_flat", element_types.size());
         } else if (element_type->isa<VariantType>()) {
             new_nominal_type = world.variant_vector_type(nominal_type->name() + "_flat", element_types.size(), vector_length);
+        } else {
+            element_type->dump();
+            vector_type->dump();
+            THORIN_UNREACHABLE;
         }
         assert(new_nominal_type);
         for (size_t i = 0; i < element_types.size(); ++i)
             new_nominal_type->set(i, element_types[i]);
         return new_nominal_type;
     } else if (auto tuple_type = element_type->isa<TupleType>(); tuple_type && tuple_type->num_ops() == 0) {
-        return element_type;
+        newtype = flatten_type(tuple_type);
     } else {
         element_type->dump();
         THORIN_UNREACHABLE;
@@ -108,32 +107,34 @@ static const Type* flatten_type(const Type *type) {
 
     if (auto vector = type->isa<VectorExtendedType>()) {
         return flatten_vector_type(vector);
-    } else if (auto variant = type->isa<VariantVectorType>()) {
-        auto result_variant = world.variant_vector_type(variant->name() + "_flat", variant->num_ops(), variant->length());
-        for (size_t i = 0; i < variant->num_ops(); ++i) {
-            auto old_element = variant->op(i);
-            auto result = flatten_type(old_element);
+    } else if (auto vecvariant = type->isa<VariantVectorType>()) {
+        auto vector_length = vecvariant->length();
+        auto newstruct = world.struct_type(vecvariant->name() + "_flat", vecvariant->num_ops() + 1);
+        for (size_t i = 0; i < vecvariant->num_ops(); ++i) {
+            auto op = vecvariant->op(i);
+            auto result = flatten_type(world.vec_type(op, vector_length));
             assert(result && !result->isa<VectorExtendedType>());
-            result_variant->set(i, result);
+            newstruct->set(i, result);
         }
-        return result_variant;
+        auto index_type = world.type_qu64(vector_length);
+        newstruct->set(vecvariant->num_ops(), index_type);
+        return newstruct;
     } else if (auto tuple = type->isa<TupleType>()) {
         std::vector<const Type*> element_types;
+        bool changed = false;
         for (auto old_element : tuple->ops()) {
             auto result = flatten_type(old_element);
+            changed |= (result != old_element);
             assert(result && !result->isa<VectorExtendedType>());
             element_types.emplace_back(result);
         }
-        return world.tuple_type(element_types);
-    } else if (auto ptr = type->isa<PtrType>()) {
-        if (!ptr->is_vector())
-            return type;
-        else {
-            auto pointee = ptr->pointee();
-            auto flat_element = flatten_type(world.vec_type(pointee, ptr->length()));
-            return world.ptr_type(flat_element, 1, ptr->device(), ptr->addr_space());
+        if (changed) {
+            return world.tuple_type(element_types);
+        } else {
+            return tuple;
         }
     } else
+        //The type returned here should either be a basic vector type, or should have no vector characteristics alltogether.
         return type;
 }
 
@@ -166,30 +167,55 @@ static const Def * flatten_def(const Def *def) {
 
     if (auto primop = def->isa<PrimOp>()) {
         return flatten_primop(primop);
-    } else if (auto cont = def->isa<Continuation>(); cont && cont->is_intrinsic()) {
+    } else if (auto cont = def->isa<Continuation>(); cont && (cont->is_intrinsic() || cont->empty())) {
         std::cerr << "Intrinsic: " << def->to_string() << "\n";
         Debug de = cont->debug();
         if (de.name == "predicated") {
             auto new_type = flatten_fn_type(cont->type());
-            cont->type()->dump();
-            new_type->dump();
             return world.continuation(new_type, cont->attributes(), de);
+        /*} else if (de.name == "llvm.exp.f32" ||
+                de.name == "llvm.exp.f64" ||
+                de.name == "llvm.sqrt.f32" ||
+                de.name == "llvm.sqrt.f64" ||
+                de.name == "llvm.sin.f32" ||
+                de.name == "llvm.sin.f64" ||
+                de.name == "llvm.cos.f32" ||
+                de.name == "llvm.cos.f64" ||
+                de.name == "llvm.minnum.f32" ||
+                de.name == "llvm.minnum.f64" ||
+                de.name == "llvm.floor.f32" ||
+                de.name == "llvm.floor.f64" ||
+                de.name == "llvm.exp.v8f32" ||
+                de.name == "llvm.exp.v8f64" ||
+                de.name == "llvm.sqrt.v8f32" ||
+                de.name == "llvm.sqrt.v8f64" ||
+                de.name == "llvm.sin.v8f32" ||
+                de.name == "llvm.sin.v8f64" ||
+                de.name == "llvm.cos.v8f32" ||
+                de.name == "llvm.cos.v8f64" ||
+                de.name == "llvm.minnum.v8f32" ||
+                de.name == "llvm.minnum.v8f64" ||
+                de.name == "llvm.floor.v8f32" ||
+                de.name == "llvm.floor.v8f64") {*/
         } else {
-            std::cerr << "Unknown intrinsic\n";
-            THORIN_UNREACHABLE;
+            std::cerr << "Unknown intrinsic " << de.name << "\n";
+            auto new_type = flatten_fn_type(cont->type());
+            return world.continuation(new_type, cont->attributes(), de);
         }
     } else if (auto cont = def->isa<Continuation>(); cont && !cont->is_intrinsic()) {
-        auto new_continuation = flatten_continuation(cont);
+        auto new_continuation = flatten_continuation(cont, world);
         //assert(false && "return continuation");
         return new_continuation;
+    } else if (def->isa<Param>()) {
+        assert(false && "Parameters should be handled beforehand!");
     } else {
-        std::cerr << "TODO: " << def->to_string() << "\n";
+        std::cerr << "TODO: " << def->to_string() << ": " << def->type()->to_string() << "\n";
         assert(false && "TODO");
     }
 }
 
 static const PrimOp * flatten_primop(const PrimOp *primop) {
-    //World &world = *world_;
+    World &world = *world_;
     
     std::cerr << "flatten primop "  << primop->to_string() << "\n";
 
@@ -213,73 +239,140 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
 
     if (primop->isa<PrimLit>()) {
         new_primop = primop;
-    } else if (primop->isa<LEA>()) {
-        std::cerr << "LEA\n";
-        auto vec_in = nops[1]->type()->isa<VectorType>() || nops[1]->type()->isa<VariantVectorType>();
-        auto vec_out = newtype->isa<VectorType>();
-        if (vec_in && !vec_out) {
-#if 0
-            //During flattening, this can happen, if the pointer has to be deconstructed through multiple lea instructions.
-            assert(newtype->isa<StructType>());
-            int vector_length = vec_in->length();
-            auto struct_type = newtype->as<StructType>();
-            auto ptr = nops[0];
-            std::vector<const Def*> leas;
-            std::vector<std::vector<const Def*>> inner_leas;
-            for (int i = 0; i < vector_length; ++i) {
-                auto extract_element = world.extract(nops[1], world.literal(thorin::qs32{i}));
-                auto lea = world.lea(ptr, extract_element, primop->debug());
-                leas.emplace_back(lea);
-                lea->dump();
-                lea->type()->dump();
-                std::vector<const Def*> emptyvector;
-                inner_leas.emplace_back(emptyvector);
+    } else if (auto load = primop->isa<Load>()) {
+        if (newtype->like(load->type()))
+            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+        else {
+            auto addresses = nops[1];
+            auto mem = nops[0];
+            assert(addresses->type()->isa<PtrType>());
+            auto pointee_type = addresses->type()->as<PtrType>()->pointee();
+            auto vector_width = addresses->type()->as<PtrType>()->length();
+
+            assert(vector_width > 1);
+
+            if (vector_width > 1)
+                pointee_type = world.vec_type(pointee_type, vector_width);
+
+            auto newstruct_type = newtype->op(1)->isa<StructType>();
+            assert(newstruct_type);
+
+
+            /* Better option for future consideration.
+             * Does not work with variants currently, as variants dont support lea-ing into them.
+            std::vector<const Def*> innerelements;
+            for (size_t element_index = 0; element_index < values[0]->type()->num_ops(); element_index++) {
+                auto index_splat = world.splat(world.literal_qs32(element_index));
+                auto inner_lea = world.lea(addresses, index_spalt);
+                auto load_element = world.load(mem, inner_lea);
+                innerelements.emplace_back(load_element);
             }
-            for (int element_index = 0; element_index < struct_type->num_ops(); ++element_index) {
-                auto element = struct_type->op(element_index);
-                element->dump();
-                for (int i = 0; i < vector_length; ++i) {
-                    auto element_lea = leas[i];
-                    auto inner_lea = world.lea(element_lea, world.literal(thorin::qs32(i)), primop->debug());
-                    inner_lea->dump();
-                    inner_lea->type()->dump();
-                    assert(inner_lea->type()->isa<PtrType>());
-                    assert(inner_lea->type()->as<PtrType>()->pointee() == element);
-                    inner_leas[element_index].emplace_back(inner_lea);
+            auto result_struct = world.struct_agg(newstruct_type, innerelements);
+            */
+
+            std::vector<const Def*> struct_elements;
+
+            const Def* values[vector_width];
+
+            for (size_t lane = 0; lane < vector_width; lane++) {
+                auto ext = world.extract(addresses, lane);
+                auto load = world.load(mem, ext)->as<Load>();
+                mem = load->out_mem();
+                values[lane] = load->out_val();
+            }
+
+            if (primop->op(1)->type()->isa<PtrType>() && primop->op(1)->type()->as<PtrType>()->pointee()->isa<VariantType>()) {
+                for (size_t element_index = 0; element_index < values[0]->type()->num_ops(); element_index++) {
+                    auto element = newstruct_type->op(element_index);
+                    if (!element->isa<TupleType>() || element->as<TupleType>()->num_ops()) { //TODO: This is a hack to resolve issues with []
+                        std::vector<const Def*> newelements;
+                        for (size_t lane = 0; lane < vector_width; lane++) {
+                            auto extract = world.variant_extract(values[lane], element_index);
+                            newelements.emplace_back(extract);
+                        }
+
+                        if (element->isa<VectorType>()) {
+                            auto newelement = world.vector(newelements); // This might still not work!
+                            struct_elements.emplace_back(newelement);
+                        } else if (auto structtype = element->isa<StructType>()) {
+                            std::vector<const Def*> innerelements;
+                            for (size_t element_index = 0; element_index < structtype->num_ops(); element_index++) {
+                                std::vector<const Def*> elements;
+                                for (size_t lane = 0; lane < vector_width; ++lane) {
+                                    auto element = newelements[lane];
+                                    auto extract = world.extract(element, element_index);
+                                    elements.emplace_back(extract);
+                                }
+
+                                auto newelement = world.vector(elements);
+                                innerelements.emplace_back(newelement);
+                            }
+                            struct_elements.emplace_back(world.struct_agg(structtype, innerelements));
+                        } else {
+                            THORIN_UNREACHABLE;
+                        }
+                    } else {
+                        auto extract = world.variant_extract(values[0], element_index);
+                        struct_elements.emplace_back(extract);
+                    }
+                }
+                {
+                    std::vector<const Def*> newelements;
+                    for (size_t lane = 0; lane < vector_width; lane++) {
+                        auto extract = world.variant_index(values[lane]);
+                        newelements.emplace_back(extract);
+                    }
+
+                    auto newelement = world.vector(newelements); // This might still not work!
+                    struct_elements.emplace_back(newelement);
+                }
+            } else {
+                for (size_t element_index = 0; element_index < values[0]->type()->num_ops(); element_index++) {
+                    std::vector<const Def*> newelements;
+                    for (size_t lane = 0; lane < vector_width; lane++) {
+                        auto extract = world.extract(values[lane], element_index);
+                        newelements.emplace_back(extract);
+                    }
+                    auto newelement = world.vector(newelements); // This might still not work!
+                    struct_elements.emplace_back(newelement);
                 }
             }
 
-            //TODO: Instead of this approach, I should alter the behaviour of load and store instructions to deal with those LEA results propperly.
-
-            std::vector<const Def*> newelements;
-            for i in range(vector_length) {
-                index = lea-vector[i];
-                target_element = lea(ptr, index);
-                for part in target_element {
-                    newelements[part.index] = part;
-                }
-            }
-#endif
-            assert(false);
+            auto returnstruct = world.struct_agg(newstruct_type, struct_elements);
+            auto return_tuple = world.tuple({mem, returnstruct})->as<PrimOp>();
+            new_primop = return_tuple;
+        }
+    } else if (auto var_index = primop->isa<VariantIndex>()) {
+        auto result_struct = nops[0];
+        if (result_struct->type()->isa<StructType>()) {
+            auto struct_length = result_struct->num_ops();
+            new_primop = world.extract(result_struct, struct_length - 1)->as<PrimOp>();
         } else {
             new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
-            assert(false);
         }
+    } else if (auto extract = primop->isa<Extract>()) {
+        if (nops[1]->isa<Tuple>()) {
+            assert(nops[1]->op(0)->isa<Top>());
+            nops[1] = nops[1]->op(1);
+        }
+        new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
     } else {
         new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
     }
 
     assert(new_primop);
-    if(new_primop->type() != newtype) {
+    if (!new_primop->type()->like(newtype)) {
         std::cerr << "Error\n";
         new_primop->dump();
         new_primop->type()->dump();
         newtype->dump();
+        primop->type()->dump();
 
-        std::cerr << new_primop->op_name() << "\n";
+        std::cerr << primop->op_name() << " " << new_primop->op_name() << "\n";
     }
-    assert(new_primop->type() == newtype);
+    assert(new_primop->type()->like(newtype));
 
+    std::cerr << "Mapping " << primop->to_string() << " to " << new_primop->to_string() << "\n";
     def2def[primop] = new_primop;
 
     return new_primop;
@@ -302,8 +395,14 @@ void flatten_body(const Continuation *old_continuation, Continuation *new_contin
     new_continuation->jump(ntarget, nargs, old_continuation->debug());
 }
 
-static const Continuation* flatten_continuation(const Continuation* kernel) {
-    World &world = *world_;
+const Continuation* flatten_continuation(const Continuation* kernel, World& world) {
+    //TODO: !!!
+    world_ = &world;
+
+    std::cerr << "Flatten Continuation " << kernel->to_string() << "\n";
+    Continuation *orig = const_cast<Continuation*>(kernel);
+    DUMP_BLOCK(orig);
+
     Continuation *ncontinuation;
 
     std::vector<const Type*> param_types;
@@ -319,7 +418,7 @@ static const Continuation* flatten_continuation(const Continuation* kernel) {
     auto fn_type = world.fn_type(param_types);
     ncontinuation = world.continuation(fn_type, kernel->debug_history());
 
-    def2def[kernel] = kernel;
+    def2def[kernel] = ncontinuation;
     for (size_t i = 0, j = 0, e = kernel->num_params(); i != e; ++i) {
         auto old_param = kernel->param(i);
         auto new_param = ncontinuation->param(j++);
@@ -348,30 +447,27 @@ static const Continuation* flatten_continuation(const Continuation* kernel) {
 }
 
 void flatten_vectors(World& world) {
-    //TODO: !!!
-    world_ = &world;
-
-    std::cerr << "orig\n";
-    world.dump();
+    //std::cerr << "orig\n";
+    //world.dump();
 
     std::cerr << "flattening\n";
     for (auto continuation : world.copy_continuations()) {
         if (continuation->num_params() > 1 && continuation->param(1)->type()->isa<VectorType>() && continuation->param(1)->type()->as<VectorType>()->is_vector()) {
             if (continuation->empty())
                 continue;
-            continuation->dump();
-            const Continuation* new_continuation = flatten_continuation(continuation);
-            std::cerr << "new block\n";
+            //continuation->dump();
+            const Continuation* new_continuation = flatten_continuation(continuation, world);
+            //std::cerr << "new block\n";
             Continuation *newb = const_cast<Continuation*>(new_continuation);
-            DUMP_BLOCK(newb);
-            //continuation.replace_calls(new_continuation);
+            //DUMP_BLOCK(newb);
+            continuation->replace(newb);
         }
     }
 
     world.cleanup();
 
-    std::cerr << "Done flattening\n";
-    world.dump();
+    //std::cerr << "Done flattening\n";
+    //world.dump();
 
     //TODO: fix parameters and continuations
 }

@@ -151,6 +151,60 @@ bool PtrType::equal(const Type* other) const {
 //------------------------------------------------------------------------------
 
 /*
+ * like
+ */
+
+bool Type::like(const Type* other) const {
+    if (tag() == other->tag() && num_ops() == other->num_ops()) {
+        for (size_t element_index = 0; element_index < num_ops(); ++element_index) {
+            auto element = op(element_index);
+            auto other_element = other->op(element_index);
+            if (!element->like(other_element))
+                return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool VectorType::like(const Type* other) const {
+    if (tag() == other->tag() && num_ops() == other->num_ops()) {
+        const VectorType *other_vec = other->isa<VectorType>();
+        if (!other_vec || other_vec->length() != length())
+            return false;
+        for (size_t element_index = 0; element_index < num_ops(); ++element_index) {
+            auto element = op(element_index);
+            auto other_element = other->op(element_index);
+            if (!element->like(other_element))
+                return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool VariantVectorType::like(const Type* other) const {
+    if (tag() == other->tag() && num_ops() == other->num_ops()) {
+        const VariantVectorType *other_vec = other->isa<VariantVectorType>();
+        if (!other_vec || other_vec->length() != length())
+            return false;
+        for (size_t element_index = 0; element_index < num_ops(); ++element_index) {
+            auto element = op(element_index);
+            auto other_element = other->op(element_index);
+            if (!element->like(other_element))
+                return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+//------------------------------------------------------------------------------
+
+/*
  * stream
  */
 
@@ -167,11 +221,35 @@ Stream& Type::stream(Stream& s) const {
     } else if (auto t = isa<IndefiniteArrayType>()) {
         return s.fmt("[{}]", t->elem_type());
     } else if (auto t = isa<StructType>()) {
-        return s.fmt("struct {}", t->name());
+        s.fmt("struct {} (", t->name());
+        for (size_t i = 0; i < t->num_ops(); i++) {
+            auto op = t->op(i);
+            op->stream(s);
+            if (i < t->num_ops() - 1)
+                s.fmt("; ");
+        }
+        s.fmt(")");
+        return s;
     } else if (auto t = isa<VariantType>()) {
-        return s.fmt("variant {}", t->name());
+        s.fmt("variant {} (", t->name());
+        for (size_t i = 0; i < t->num_ops(); i++) {
+            auto op = t->op(i);
+            op->stream(s);
+            if (i < t->num_ops() - 1)
+                s.fmt("; ");
+        }
+        s.fmt(")");
+        return s;
     } else if (auto t = isa<VariantVectorType>()) {
-        return s.fmt("variantvector {}x{}", t->length(), t->name());
+        s.fmt("variantvector {}x{} (", t->length(), t->name());
+        for (size_t i = 0; i < t->num_ops(); i++) {
+            auto op = t->op(i);
+            op->stream(s);
+            if (i < t->num_ops() - 1)
+                s.fmt("; ");
+        }
+        s.fmt(")");
+        return s;
     } else if (auto t = isa<TupleType>()) {
         return s.fmt("[{, }]", t->ops());
     } else if (auto t = isa<PtrType>()) {
@@ -189,7 +267,7 @@ Stream& Type::stream(Stream& s) const {
         }
         return s;
     } else if (auto t = isa<VectorExtendedType>()) {
-        s.fmt("<{} xx", t->length());
+        s.fmt("<{} xx ", t->length());
         s.fmt("{}", t->element());
         s.fmt(">");
         return s;
@@ -240,7 +318,7 @@ const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
 }
 
 const VariantVectorType* TypeTable::variant_vector_type(Symbol name, size_t size, size_t vector_width) {
-    auto type = new VariantVectorType(*this, name, size, vector_width);
+    auto type = new VariantVectorType(*this, name, size, vector_width, types_.size());
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;
@@ -267,11 +345,11 @@ const Type* TypeTable::vec_type(const Type* element, size_t length) {
         assert(ptrtype->length() == 1);
         return  ptr_type(ptrtype->pointee(), length);
     } else if (auto varianttype = element->isa<VariantType>()) {
-        auto result = variant_vector_type(varianttype->name(), varianttype->num_ops(), length);
-        for (auto i = 0; i < varianttype->num_ops(); i++) {
+        auto result = variant_vector_type(varianttype->name() + "_vec", varianttype->num_ops(), length);
+        for (size_t i = 0; i < varianttype->num_ops(); i++) {
             auto element = varianttype->op(i);
-            auto element_vector = vec_type(element, length);
-            result->set(i, element_vector);
+            //auto element_vector = vec_type(element, length);
+            result->set(i, element);
         }
         return result;
     } else {

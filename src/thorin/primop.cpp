@@ -101,20 +101,13 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
     }
 
     if (index_vector && index_vector->is_vector()) {
-        inner_type = world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space());
-
         const Type * result_type;
         auto vector_width = index_vector->length();
 
-        if (auto primtype = inner_type->isa<PrimType>()) {
-            assert(primtype->length() == 1);
-            result_type = world.prim_type(primtype->primtype_tag(), vector_width);
-        } else if (auto ptrtype = inner_type->isa<PtrType>()) {
-            assert(ptrtype->length() == 1);
-            result_type = world.ptr_type(ptrtype->pointee(), vector_width);
-        } else {
-            result_type = world.vec_type(inner_type, vector_width);
+        if (auto vectype = inner_type->isa<VectorType>()) {
+            assert(vectype->length() == 1);
         }
+        result_type = world.vec_type(world.ptr_type(inner_type, 1, ptrtype->device(), ptrtype->addr_space()), vector_width);
         set_type(result_type);
     } else {
         if (auto typevec = type->isa<VectorType>(); typevec && typevec->is_vector()) {
@@ -278,6 +271,9 @@ const Def* Slot          ::vrebuild(World& to, Defs ops, const Type* t) const {
     const Type *ttype;
     if (auto ptr = t->isa<PtrType>()) {
         ttype = ptr->pointee();
+        auto vec_width = ptr->length();
+        if (vec_width > 1)
+            ttype = to.vec_type(ttype, vec_width);
     } else if (auto vec = t->isa<VectorType>(); vec && vec->is_vector()) {
         auto inner = vec->scalarize()->as<PtrType>();
         auto vec_width = vec->length();

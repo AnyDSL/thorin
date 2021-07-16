@@ -161,11 +161,6 @@ public:
     const Param* ret_param() const;
     size_t num_params() const { return params().size(); }
 
-    // const Def* callee() const;
-    // Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
-    // const Def* arg(size_t i) const { return args()[i]; }
-    // const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
-
     // TODO only used in parallel.cpp to create a dummy value, should be refactored in something cleaner
     const FnType* arg_fn_type() const;
 
@@ -199,15 +194,10 @@ public:
     /// Called to kill the continuation
     void destroy(const char*);
 
-    // terminate
-
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     void verify() const;
-    // Continuation* update_op(size_t i, const Def* def);
-    // Continuation* update_callee(const Def* def) { return update_op(0, def); }
-    // Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
     void set_filter(const Filter* f) {
@@ -216,15 +206,6 @@ public:
     }
     void destroy_filter();
     const Filter* all_true_filter() const;
-
-    /*void set_filter(Defs defs) {
-        assertf(defs.empty() || num_params() == defs.size(), "expected {} - got {}", num_params(), defs.size());
-        filter_ = defs;
-    }
-    void set_all_true_filter();
-    void destroy_filter() { filter_.shrink(0); }
-    Defs filter() const { return filter_; }
-    const Def* filter(size_t i) const { return filter_[i]; }*/
 
     /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
@@ -240,7 +221,6 @@ public:
     }
 
     std::vector<const Param*> params_;
-    // Array<const Def*> filter_; ///< used during @p partial_evaluation
     Attributes attributes_;
     bool dead_ = false;
 

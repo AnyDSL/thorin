@@ -199,9 +199,6 @@ Continuations Continuation::succs() const {
     if (has_body())
         enqueue(body());
 
-    //for (auto arg : args())
-    //    enqueue(arg);
-
     while (!queue.empty()) {
         auto def = pop(queue);
         if (auto continuation = def->isa_continuation()) {
@@ -308,13 +305,6 @@ void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call
 
     src->jump(dst, nargs);
 }
-
-/*Continuation* Continuation::update_op(size_t i, const Def* def) {
-    Array<const Def*> new_ops(ops());
-    new_ops[i] = def;
-    jump(new_ops.front(), new_ops.skip_front());
-    return this;
-}*/
 
 #if 0
 std::ostream& Continuation::stream_head(std::ostream& os) const {

@@ -209,15 +209,15 @@ public:
 
     /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
-    size_t actual_number_of_uses() const {
-        size_t c = 0;
+    size_t can_be_inlined() const {
+        size_t used = 0;
         for (auto use : uses()) {
             if (auto app = use->isa<App>())
-                c+= app->num_uses();
+                used+= app->num_uses();
             else if (!use->isa<Param>())
-                c++;
+                used++;
         }
-        return c;
+        return used < 2;
     }
 
     std::vector<const Param*> params_;

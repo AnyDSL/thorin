@@ -81,7 +81,7 @@ public:
             return true;
         }
 
-        return (!callee_->is_exported() && callee_->actual_number_of_uses() == 1) || is_one(instantiate(filter(i)));
+        return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 

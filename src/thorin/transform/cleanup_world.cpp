@@ -105,7 +105,7 @@ void Cleaner::eta_conversion() {
             while (auto callee = body->callee()->isa_continuation()) {
                 if (callee == continuation) break;
 
-                if (callee->actual_number_of_uses() == 1 && callee->has_body() && !callee->is_exported()) {
+                if (callee->can_be_inlined() && callee->has_body() && !callee->is_exported()) {
                     auto callee_body = callee->body();
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace(body->arg(i));

@@ -169,6 +169,8 @@ static const Def * flatten_def(const Def *def) {
         return flatten_primop(primop);
     } else if (auto cont = def->isa<Continuation>(); cont && (cont->is_intrinsic() || cont->empty())) {
         std::cerr << "Intrinsic: " << def->to_string() << "\n";
+        if(cont == world.branch())
+                return cont;
         Debug de = cont->debug();
         if (de.name == "predicated") {
             auto new_type = flatten_fn_type(cont->type());

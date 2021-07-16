@@ -1089,7 +1089,7 @@ llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) 
     auto ptr = emit(load->ptr());
     if (auto vectype = load->out_val_type()->isa<VectorType>(); vectype && vectype->is_vector()) {
         auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
-        auto result = irbuilder.CreateMaskedGather(ptr, align);
+        auto result = irbuilder.CreateMaskedGather(ptr, align, current_mask);
         return result;
     } else {
         auto result = irbuilder.CreateLoad(convert(load->out_val_type()), ptr);
@@ -1104,7 +1104,7 @@ llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* stor
     auto ptr = emit(store->ptr());
     if (auto vectype = store->val()->type()->isa<VectorType>(); vectype && vectype->is_vector()) {
         auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
-        auto result = irbuilder.CreateMaskedScatter(emit(store->val()), ptr, align);
+        auto result = irbuilder.CreateMaskedScatter(emit(store->val()), ptr, align, current_mask);
         return nullptr;
     } else {
         auto result = irbuilder.CreateStore(emit(store->val()), ptr);

@@ -1542,6 +1542,9 @@ bool Vectorizer::run() {
 
                 //DUMP_BLOCK(vectorized);
 
+                //TODO: find enter if already present.
+                const Enter* enter = nullptr;
+
                 //for (auto it : div_analysis_->relJoins) {
                 while (!split_queue.empty()) {
                     Continuation* latch_old = pop(split_queue);
@@ -1667,7 +1670,8 @@ bool Vectorizer::run() {
 #ifndef OLDALLOC
                             if (cache_size && !current_frame) {
                                 auto mem = vectorized->mem_param();
-                                auto enter = world_.enter(mem)->as<Enter>();
+                                if (!enter)
+                                    enter = world_.enter(mem)->as<Enter>();
                                 current_frame = enter->out_frame();
                                 auto newmem = enter->out_mem();
                                 for (auto use : mem->copy_uses()) {
@@ -1964,7 +1968,8 @@ bool Vectorizer::run() {
 #ifndef OLDALLOC
                                 if (cache_size && !current_frame) {
                                     auto mem = vectorized->mem_param();
-                                    auto enter = world_.enter(mem)->as<Enter>();
+                                    if (!enter)
+                                        enter = world_.enter(mem)->as<Enter>();
                                     current_frame = enter->out_frame();
                                     auto newmem = enter->out_mem();
                                     for (auto use : mem->copy_uses()) {
@@ -1998,7 +2003,8 @@ bool Vectorizer::run() {
                             if (num_enclosed_splits) {
                                 if (!current_frame) {
                                     auto mem = vectorized->mem_param();
-                                    auto enter = world_.enter(mem)->as<Enter>();
+                                    if (!enter)
+                                        enter = world_.enter(mem)->as<Enter>();
                                     current_frame = enter->out_frame();
                                     auto newmem = enter->out_mem();
                                     for (auto use : mem->copy_uses()) {

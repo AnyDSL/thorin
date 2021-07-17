@@ -42,7 +42,7 @@ void Def::set_op(size_t i, const Def* def) {
     // A Param/Continuation should not have other bits than its own set.
     // (Right now, Param doesn't have ops, but this will change in the future).
     if (!isa_continuation() && !isa<Param>())
-        dep_ |= def->dep();
+        dep_ |= def->dep(); // what about unset op then ? and cascading uses ?
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
@@ -118,6 +118,9 @@ void Def::replace(Tracker with) const {
     world().DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
     assert(!is_replaced());
+
+    auto cont = with->isa<Continuation>();
+    assert(!(cont && cont->dead_) );
 
     if (this != with) {
         for (auto& use : copy_uses()) {

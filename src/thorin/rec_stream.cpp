@@ -34,9 +34,11 @@ void RecStreamer::run(const Def* def) {
         }
     }
 
-    if (auto cont = def->isa_continuation())
-        s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->callee(), cont->args());
-    else if (!def->no_dep() && !def->isa<Param>())
+    if (auto cont = def->isa_continuation()) {
+        assert(cont->has_body());
+        s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->body()->callee(), cont->body()->args());
+        run(cont->body());
+    } else if (!def->no_dep() && !def->isa<Param>())
         def->stream_let(s);
 }
 
@@ -45,12 +47,14 @@ void RecStreamer::run() {
         auto cont = conts.pop();
         s.endl().endl();
 
-        if (!cont->empty()) {
-            s.fmt("{}: {} = {{\t\n", cont->unique_name(), cont->type());
-            run(cont);
+        if (cont->has_body()) {
+            std::vector<std::string> param_names;
+            for (auto param : cont->params()) param_names.push_back(param->unique_name());
+            s.fmt("{}: {} = ({, }) => {{\t\n", cont->unique_name(), cont->type(), param_names);
+            run(cont->body()); // TODO app node
             s.fmt("\b\n}}");
         } else {
-            s.fmt("{}: {} = {{ <unset> }}", cont->unique_name(), cont->type());
+            s.fmt("{}: {} = {{ <no body> }}", cont->unique_name(), cont->type());
         }
     }
 }
@@ -60,8 +64,10 @@ void RecStreamer::run() {
 void Def::dump() const { dump(0); }
 void Def::dump(size_t max) const { Stream s(std::cout); stream(s, max).endl(); }
 
+void Type::dump() const { Stream s(std::cout); stream(s).endl(); }
+
 Stream& Def::stream(Stream& s) const {
-    if (isa<Param>() || no_dep()) return stream1(s);
+    if (isa<Param>() || isa<App>() || no_dep()) return stream1(s);
     return s << unique_name();
 }
 
@@ -87,9 +93,13 @@ Stream& Def::stream(Stream& s, size_t max) const {
 
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
-        return s.fmt("{}[{}]", param->unique_name(), param->continuation());
-    } else if (auto cont = isa<Continuation>()) {
-        return s.fmt("{}({, })", cont->callee(), cont->args());
+        return s.fmt("{}.{}", param->continuation(), param->unique_name());
+    } else if (isa<Continuation>()) {
+        return s.fmt("cont {}", unique_name());
+    } else if (auto app = isa<App>()) {
+        return s.fmt("{}({, })", app->callee(), app->args());
+    } else if (isa<Filter>()) {
+        return s.fmt("filter({, })", ops());
     } else if (auto lit = isa<PrimLit>()) {
         // print i8 as ints
         switch (lit->tag()) {
@@ -123,7 +133,7 @@ Stream& Def::stream_let(Stream& s) const {
 
 Stream& World::stream(Stream& s) const {
     RecStreamer rec(s, std::numeric_limits<size_t>::max());
-    s << "module '" << name();
+    s << "module '" << name() << "'";
 
     for (auto cont : continuations()) {
         if (cont->is_exported()) {

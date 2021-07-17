@@ -13,9 +13,10 @@ void codegen_prepare(World& world) {
         ret_cont->jump(ret_param, ret_cont->params_as_defs(), ret_param->debug());
 
         for (auto use : ret_param->copy_uses()) {
-            if (auto ucontinuation = use->isa_continuation()) {
+            if (auto uapp = use->isa<App>()) {
                 if (use.index() != 0) {
-                    ucontinuation->update_op(use.index(), ret_cont);
+                    auto napp = uapp->with_different_op(use.index(), ret_cont);
+                    uapp->replace(napp);
                     dirty = true;
                 }
             }

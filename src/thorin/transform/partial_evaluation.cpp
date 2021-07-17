@@ -5,6 +5,14 @@
 
 namespace thorin {
 
+struct HashApp {
+    inline static uint64_t hash(const App* app) {
+        return murmur3(uint64_t(app));
+    }
+    inline static bool eq(const App* a1, const App* a2) { return a1 == a2; }
+    inline static const App* sentinel() { return static_cast<const App*>((void*)size_t(-1)); }
+};
+
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world, bool lower2cff)
@@ -24,7 +32,7 @@ public:
 private:
     World& world_;
     bool lower2cff_;
-    HashMap<Call, Continuation*> cache_;
+    HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
     ContinuationMap<bool> top_level_;
@@ -35,10 +43,9 @@ class CondEval {
 public:
     CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
         : callee_(callee)
-        , args_(args)
         , top_level_(top_level)
     {
-        assert(callee->filter().empty() || callee->filter().size() == args.size());
+        assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
@@ -74,17 +81,12 @@ public:
             return true;
         }
 
-        return (!callee_->is_exported() && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
+        return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 
     const Def* filter(size_t i) {
-        return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
-    }
-
-    bool has_free_params(Continuation* continuation) {
-        Scope scope(continuation);
-        return scope.has_free_params();
+        return callee_->filter()->is_empty() ? world().literal_bool(false, {}) : callee_->filter()->condition(i);
     }
 
     bool is_top_level(Continuation* continuation) {
@@ -101,9 +103,11 @@ public:
         while (!queue.empty()) {
             auto def = queue.pop();
 
-            if (def->isa<Param>())
+            if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
                 return top_level_[continuation] = false;
             if (auto free_cn = def->isa_continuation()) {
+                // if we have a non-top level continuation in scope as a free variable,
+                // then it must be bound by some outer continuation, and so we aren't top-level
                 if (!is_top_level(free_cn))
                     return top_level_[continuation] = false;
             } else {
@@ -117,19 +121,20 @@ public:
 
 private:
     Continuation* callee_;
-    Defs args_;
     Def2Def old2new_;
     ContinuationMap<bool>& top_level_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
-    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->arg(3);
+    assert(cur->has_body());
+    auto body = cur->body();
+    assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = body->arg(3);
 
-    if (!cur->arg(2)->has_dep(Dep::Param)) {
-        auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-        world().idef(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
-        cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug
+    if (!body->arg(2)->has_dep(Dep::Param)) {
+        auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+        world().idef(body->callee(), "pe_info: {}: {}", msg->as_string(), body->arg(2));
+        cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
@@ -150,9 +155,13 @@ bool PartialEvaluator::run() {
         auto continuation = pop(queue_);
 
         bool force_fold = false;
-        auto callee_def = continuation->callee();
 
-        if (auto run = continuation->callee()->isa<Run>()) {
+        if (!continuation->has_body())
+            continue;
+        const App* body = continuation->body();
+        const Def* callee_def = continuation->body()->callee();
+
+        if (auto run = callee_def->isa<Run>()) {
             force_fold = true;
             callee_def = run->def();
         }
@@ -163,31 +172,30 @@ bool PartialEvaluator::run() {
                 continue;
             }
 
-            if (!callee->empty()) {
-                Call call(continuation->num_ops());
-                call.callee() = callee;
+            if (callee->has_body()) {
+                CondEval cond_eval(callee, body->args(), top_level_);
 
-                CondEval cond_eval(callee, continuation->args(), top_level_);
+                std::vector<const Def*> specialize(body->num_args());
 
                 bool fold = false;
-                for (size_t i = 0, e = call.num_args(); i != e; ++i) {
+                for (size_t i = 0, e = body->num_args(); i != e; ++i) {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
-                        call.arg(i) = continuation->arg(i);
+                        specialize[i] = body->arg(i);
                         fold = true;
                     } else
-                        call.arg(i) = nullptr;
+                        specialize[i] = nullptr;
                 }
 
                 if (fold) {
-                    const auto& p = cache_.emplace(call, nullptr);
+                    const auto& p = cache_.emplace(body, nullptr);
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
-                        target = drop(call);
+                        target = drop(callee, specialize);
                         todo = true;
                     }
 
-                    jump_to_dropped_call(continuation, target, call);
+                    jump_to_dropped_call(continuation, target, specialize);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:

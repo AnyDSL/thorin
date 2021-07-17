@@ -13,23 +13,25 @@ enum {
 };
 
 Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->has_body());
+    auto body = continuation->body();
     // Emit memory dependencies up to this point
-    emit_unsafe(continuation->arg(PAR_ARG_MEM));
+    emit_unsafe(body->arg(PAR_ARG_MEM));
 
     // arguments
-    assert(continuation->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
-    auto num_threads = emit(continuation->arg(PAR_ARG_NUMTHREADS));
-    auto lower = emit(continuation->arg(PAR_ARG_LOWER));
-    auto upper = emit(continuation->arg(PAR_ARG_UPPER));
-    auto kernel = continuation->arg(PAR_ARG_BODY)->as<Global>()->init()->as_continuation();
+    assert(body->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
+    auto num_threads = emit(body->arg(PAR_ARG_NUMTHREADS));
+    auto lower = emit(body->arg(PAR_ARG_LOWER));
+    auto upper = emit(body->arg(PAR_ARG_UPPER));
+    auto kernel = body->arg(PAR_ARG_BODY)->as<Global>()->init()->as_continuation();
 
-    const size_t num_kernel_args = continuation->num_args() - PAR_NUM_ARGS;
+    const size_t num_kernel_args = body->num_args() - PAR_NUM_ARGS;
 
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args + 1);
     par_args[0] = irbuilder.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = continuation->arg(i + PAR_NUM_ARGS)->type();
+        auto type = body->arg(i + PAR_NUM_ARGS)->type();
         par_args[i + 1] = convert(type);
     }
 
@@ -38,9 +40,9 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder.CreateInsertValue(closure, emit(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
+            closure = irbuilder.CreateInsertValue(closure, emit(body->arg(i + PAR_NUM_ARGS)), unsigned(i));
     } else {
-        closure = emit(continuation->arg(PAR_NUM_ARGS));
+        closure = emit(body->arg(PAR_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -89,7 +91,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
 
-    return continuation->arg(PAR_ARG_RETURN)->as_continuation();
+    return body->arg(PAR_ARG_RETURN)->as_continuation();
 }
 
 enum {
@@ -103,24 +105,26 @@ enum {
 };
 
 Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->has_body());
+    auto body = continuation->body();
     // Emit memory dependencies up to this point
-    emit_unsafe(continuation->arg(FIB_ARG_MEM));
+    emit_unsafe(body->arg(FIB_ARG_MEM));
 
     // arguments
-    assert(continuation->num_args() >= FIB_NUM_ARGS && "required arguments are missing");
-    auto num_threads = emit(continuation->arg(FIB_ARG_NUMTHREADS));
-    auto num_blocks = emit(continuation->arg(FIB_ARG_NUMBLOCKS));
-    auto num_warps = emit(continuation->arg(FIB_ARG_NUMWARPS));
-    auto kernel = continuation->arg(FIB_ARG_BODY)->as<Global>()->init()->as_continuation();
+    assert(body->num_args() >= FIB_NUM_ARGS && "required arguments are missing");
+    auto num_threads = emit(body->arg(FIB_ARG_NUMTHREADS));
+    auto num_blocks = emit(body->arg(FIB_ARG_NUMBLOCKS));
+    auto num_warps = emit(body->arg(FIB_ARG_NUMWARPS));
+    auto kernel = body->arg(FIB_ARG_BODY)->as<Global>()->init()->as_continuation();
 
-    const size_t num_kernel_args = continuation->num_args() - FIB_NUM_ARGS;
+    const size_t num_kernel_args = body->num_args() - FIB_NUM_ARGS;
 
     // build fibers-function signature
     Array<llvm::Type*> fib_args(num_kernel_args + 2);
     fib_args[0] = irbuilder.getInt32Ty(); // block index
     fib_args[1] = irbuilder.getInt32Ty(); // warp index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = continuation->arg(i + FIB_NUM_ARGS)->type();
+        auto type = body->arg(i + FIB_NUM_ARGS)->type();
         fib_args[i + 2] = convert(type);
     }
 
@@ -129,9 +133,9 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder.CreateInsertValue(closure, emit(continuation->arg(i + FIB_NUM_ARGS)), unsigned(i));
+            closure = irbuilder.CreateInsertValue(closure, emit(body->arg(i + FIB_NUM_ARGS)), unsigned(i));
     } else {
-        closure = emit(continuation->arg(FIB_NUM_ARGS));
+        closure = emit(body->arg(FIB_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -178,7 +182,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
 
-    return continuation->arg(FIB_ARG_RETURN)->as_continuation();
+    return body->arg(FIB_ARG_RETURN)->as_continuation();
 }
 
 enum {
@@ -189,18 +193,20 @@ enum {
 };
 
 Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
 
     // Emit memory dependencies up to this point
-    emit_unsafe(continuation->arg(FIB_ARG_MEM));
+    emit_unsafe(body->arg(FIB_ARG_MEM));
 
-    auto kernel = continuation->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_continuation();
-    const size_t num_kernel_args = continuation->num_args() - SPAWN_NUM_ARGS;
+    auto kernel = body->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_continuation();
+    const size_t num_kernel_args = body->num_args() - SPAWN_NUM_ARGS;
 
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args);
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = continuation->arg(i + SPAWN_NUM_ARGS)->type();
+        auto type = body->arg(i + SPAWN_NUM_ARGS)->type();
         par_args[i] = convert(type);
     }
 
@@ -210,9 +216,9 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     if (closure_type->isStructTy()) {
         closure = llvm::UndefValue::get(closure_type);
         for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = irbuilder.CreateInsertValue(closure, emit(continuation->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
+            closure = irbuilder.CreateInsertValue(closure, emit(body->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
     } else {
-        closure = emit(continuation->arg(0 + SPAWN_NUM_ARGS));
+        closure = emit(body->arg(0 + SPAWN_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -254,7 +260,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     irbuilder.SetInsertPoint(old_bb);
 
     // bind parameter of continuation to received handle
-    auto cont = continuation->arg(SPAWN_ARG_RETURN)->as_continuation();
+    auto cont = body->arg(SPAWN_ARG_RETURN)->as_continuation();
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
@@ -267,14 +273,16 @@ enum {
 };
 
 Continuation* CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
 
     // Emit memory dependencies up to this point
-    emit_unsafe(continuation->arg(FIB_ARG_MEM));
+    emit_unsafe(body->arg(FIB_ARG_MEM));
 
-    auto id = emit(continuation->arg(SYNC_ARG_ID));
+    auto id = emit(body->arg(SYNC_ARG_ID));
     runtime_->sync_thread(irbuilder, id);
-    return continuation->arg(SYNC_ARG_RETURN)->as_continuation();
+    return body->arg(SYNC_ARG_RETURN)->as_continuation();
 }
 
 }

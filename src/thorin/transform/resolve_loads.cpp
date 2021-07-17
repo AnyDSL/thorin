@@ -12,8 +12,10 @@ public:
 
     bool resolve_loads() {
         todo_ = false;
-        Scope::for_each(world_, [&] (const Scope& scope) {
+        // TODO nuke that and iterate over conts directly
+        Scope::for_each(world_, [&] (Scope& scope) {
             resolve_loads(scope);
+            scope.update();
         });
         return todo_;
     }

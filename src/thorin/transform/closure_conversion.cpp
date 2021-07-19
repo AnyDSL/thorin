@@ -51,7 +51,7 @@ public:
         for (auto pair : converted) {
             if (pair.second != pair.first) {
                 pair.first->destroy_body();
-                pair.first->make_internal();
+                world_.make_internal(pair.first);
             }
         }
     }

@@ -18,11 +18,11 @@ static void get_kernel_configs(
 {
     importer.world().opt();
 
-    auto exported_continuations = importer.world().exported_continuations();
+    auto externals = importer.world().externals();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto exported : exported_continuations) {
+        for (auto [_, exported] : externals) {
             if (exported->name() == continuation->unique_name())
                 imported = exported;
         }
@@ -101,7 +101,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
 
         // Necessary so that the names match in the original and imported worlds
         imported->set_name(continuation->unique_name());
-        imported->make_external();
+        world.make_external(imported);
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->set_name(continuation->param(i)->name());
 

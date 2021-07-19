@@ -33,10 +33,10 @@ set(Thorin_HAS_RV_SUPPORT @RV_FOUND@)
 set(AnyDSL_LLVM_LINK_SHARED @AnyDSL_LLVM_LINK_SHARED@)
 
 if(Thorin_HAS_LLVM_SUPPORT)
-    find_package(LLVM QUIET CONFIG PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@" NO_DEFAULT_PATH)
+    find_package(LLVM REQUIRED CONFIG PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@" NO_DEFAULT_PATH)
 
-    if(Thorin_HAS_RV_SUPPORT)
-        find_package(RV QUIET)
+    if(Thorin_HAS_RV_SUPPORT AND NOT TARGET RV)
+        find_package(RV REQUIRED)
     endif()
 endif()
 

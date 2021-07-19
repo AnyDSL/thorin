@@ -298,7 +298,7 @@ CodeGen::emit_module() {
 }
 
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
-    std::string name = continuation->is_external() ? continuation->name() : continuation->unique_name();
+    std::string name = world().is_external(continuation) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
@@ -313,13 +313,13 @@ llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
 #endif
 
     // set linkage
-    if (continuation->is_external())
+    if (world().is_external(continuation))
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
 
     // set calling convention
-    if (continuation->is_exported()) {
+    if (world().is_external(continuation)) {
         f->setCallingConv(kernel_calling_convention_);
         emit_fun_decl_hook(continuation, f);
     } else {
@@ -476,7 +476,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         llvm::CallInst* call = nullptr;
         if (auto callee = body->callee()->isa_continuation()) {
             call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
-            if (callee->is_exported())
+            if (world().is_external(callee))
                 call->setCallingConv(kernel_calling_convention_);
             else if (callee->cc() == CC::Device)
                 call->setCallingConv(device_calling_convention_);
@@ -1268,7 +1268,7 @@ Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* cont
         args[j++] = emit(body->arg(i));
     }
     auto callee = body->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_external();
+    world().make_external(callee);
     irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);
     return ret;

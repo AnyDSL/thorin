@@ -105,7 +105,7 @@ void Cleaner::eta_conversion() {
             while (auto callee = body->callee()->isa_continuation()) {
                 if (callee == continuation) break;
 
-                if (callee->can_be_inlined() && callee->has_body() && !callee->is_exported()) {
+                if (callee->can_be_inlined() && callee->has_body() && !world().is_external(callee)) {
                     auto callee_body = callee->body();
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace(body->arg(i));
@@ -124,7 +124,7 @@ void Cleaner::eta_conversion() {
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
             if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || continuation->is_exported())
+                if (param->continuation() == continuation || world().is_external(continuation))
                     continue;
 
                 if (body->args() == continuation->params_as_defs()) {
@@ -177,7 +177,7 @@ void Cleaner::eliminate_params() {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (ocontinuation->has_body() && !ocontinuation->is_exported()) {
+        if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
                 if (use.index() != 0 || !use->isa_continuation())
@@ -230,8 +230,10 @@ void Cleaner::rebuild() {
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
 
-    for (auto continuation : world().exported_continuations())
-        importer.import(continuation);
+    for (auto&& [_, cont] : world().externals()) {
+        auto new_cont = importer.import(cont)->as_continuation();
+        importer.world_.make_external(new_cont);
+    }
 
     swap(importer.world(), world_);
     todo_ |= importer.todo();
@@ -296,8 +298,8 @@ void Cleaner::clean_pe_infos() {
             queue.push(continuation);
     };
 
-    for (auto continuation : world().exported_continuations())
-        enqueue(continuation);
+    for (auto&& [_, cont] : world().externals())
+        enqueue(cont);
 
     while (!queue.empty()) {
         auto continuation = pop(queue);

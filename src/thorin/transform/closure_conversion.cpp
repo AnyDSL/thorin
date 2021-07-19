@@ -52,7 +52,7 @@ public:
         for (auto pair : converted) {
             if (pair.second != pair.first) {
                 pair.first->destroy("closure conversion");
-                pair.first->make_internal();
+                world_.make_internal(pair.first);
             }
         }
     }

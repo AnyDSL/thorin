@@ -74,7 +74,7 @@ public:
             return true;
         }
 
-        return (!callee_->is_exported() && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
+        return (!world().is_external(callee_) && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 
@@ -141,9 +141,9 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 bool PartialEvaluator::run() {
     bool todo = false;
 
-    for (auto continuation : world().exported_continuations()) {
-        enqueue(continuation);
-        top_level_[continuation] = true;
+    for (auto&& [_, cont] : world().externals()) {
+        enqueue(cont);
+        top_level_[cont] = true;
     }
 
     while (!queue_.empty()) {

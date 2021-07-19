@@ -175,7 +175,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
             // do not change the signature of intrinsic/external functions
             if (cont->empty() ||
                 cont->is_intrinsic() ||
-                cont->is_exported() ||
+                world.is_external(cont) ||
                 is_passed_to_accelerator(cont))
                 continue;
 

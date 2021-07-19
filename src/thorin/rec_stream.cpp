@@ -125,11 +125,9 @@ Stream& World::stream(Stream& s) const {
     RecStreamer rec(s, std::numeric_limits<size_t>::max());
     s << "module '" << name();
 
-    for (auto cont : continuations()) {
-        if (cont->is_exported()) {
-            rec.conts.push(cont);
-            rec.run();
-        }
+    for (auto&& [_, cont] : externals()) {
+        rec.conts.push(cont);
+        rec.run();
     }
 
     return s.endl();

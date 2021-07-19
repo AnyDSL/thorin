@@ -43,14 +43,7 @@ public:
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     virtual bool equal(const Type*) const;
-
-    const Type* rebuild(TypeTable& to, Types ops) const {
-        assert(num_ops() == ops.size());
-        if (ops.empty() && &table() == &to)
-            return this;
-        return vrebuild(to, ops);
-    }
-    const Type* rebuild(Types ops) const { return rebuild(table(), ops); }
+    virtual const Type* rebuild(TypeTable&, Types) const = 0;
     Stream& stream(Stream&) const;
 
 protected:
@@ -62,8 +55,6 @@ protected:
     size_t gid_;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const = 0;
-
     mutable TypeTable* table_;
 
     int tag_;
@@ -80,7 +71,7 @@ private:
     {}
 
 public:
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -102,7 +93,7 @@ protected:
     Array<Symbol> op_names_;
 
 private:
-    const Type* vrebuild(TypeTable&, Types) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
 public:
     Symbol name() const { return name_; }
@@ -156,7 +147,7 @@ private:
         : Type(table, Node_MemType, {})
     {}
 
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -168,7 +159,7 @@ private:
         : Type(table, Node_FrameType, {})
     {}
 
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -209,7 +200,7 @@ private:
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -257,7 +248,7 @@ public:
     bool equal(const Type* other) const override;
 
 private:
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -283,7 +274,7 @@ public:
     bool is_returning() const;
 
 private:
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -299,7 +290,7 @@ private:
 
 public:
     int inner_order() const { return inner_order_; }
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
 private:
     int inner_order_;
@@ -326,7 +317,7 @@ public:
     {}
 
 private:
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -345,7 +336,7 @@ public:
     }
 
 private:
-    const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     u64 dim_;
 

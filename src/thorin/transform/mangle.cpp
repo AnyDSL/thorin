@@ -15,7 +15,7 @@ const Def* Rewriter::instantiate(const Def* odef) {
         for (size_t i = 0; i != oprimop->num_ops(); ++i)
             nops[i] = instantiate(odef->op(i));
 
-        auto nprimop = oprimop->rebuild(nops);
+        auto nprimop = oprimop->rebuild(oprimop->world(), oprimop->type(), nops);
         return old2new[oprimop] = nprimop;
     }
 
@@ -189,7 +189,7 @@ const Def* Mangler::mangle(const Def* old_def) {
             nops[i] = mangle(old_primop->op(i));
 
         auto type = old_primop->type(); // TODO reduce
-        return def2def_[old_primop] = old_primop->rebuild(nops, type);
+        return def2def_[old_primop] = old_primop->rebuild(world(), type, nops);
     }
 }
 

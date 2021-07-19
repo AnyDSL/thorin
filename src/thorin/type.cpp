@@ -25,24 +25,24 @@ Type::Type(TypeTable& table, int tag, Types ops)
 //------------------------------------------------------------------------------
 
 /*
- * vrebuild
+ * rebuild
  */
 
-const Type* NominalType::vrebuild(TypeTable&, Types) const {
+const Type* NominalType::rebuild(TypeTable&, Types) const {
     THORIN_UNREACHABLE;
     return this;
 }
 
-const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
-const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
-const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
-const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
-const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.prim_type(primtype_tag(), length()); }
+const Type* TupleType          ::rebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
+const Type* DefiniteArrayType  ::rebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
+const Type* FnType             ::rebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
+const Type* ClosureType        ::rebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
+const Type* FrameType          ::rebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
+const Type* IndefiniteArrayType::rebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
+const Type* MemType            ::rebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
+const Type* PrimType           ::rebuild(TypeTable& to, Types    ) const { return to.prim_type(primtype_tag(), length()); }
 
-const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
+const Type* PtrType::rebuild(TypeTable& to, Types ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
 }
 

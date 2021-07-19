@@ -30,7 +30,7 @@ void clone_bodies(World& world) {
                     Array<const Def*> nops(primop->num_ops());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
                     nops[use.index()] = ncontinuation;
-                    primop->replace(primop->rebuild(nops));
+                    primop->replace(primop->rebuild(world, primop->type(), nops));
                 }
             }
         }

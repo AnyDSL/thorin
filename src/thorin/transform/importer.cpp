@@ -96,7 +96,7 @@ const Def* Importer::import(Tracker odef) {
     }
 
     if (auto oprimop = odef->isa<PrimOp>()) {
-        auto nprimop = oprimop->rebuild(world(), nops, ntype);
+        auto nprimop = oprimop->rebuild(world(), ntype, nops);
         todo_ |= oprimop->tag() != nprimop->tag();
         assert(!nprimop->is_replaced());
         return def_old2new_[oprimop] = nprimop;

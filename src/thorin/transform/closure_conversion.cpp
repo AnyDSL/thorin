@@ -79,7 +79,7 @@ public:
         if (auto primop = def->isa<PrimOp>()) {
             Array<const Def*> ops(primop->ops());
             for (auto& op : ops) op = convert(op);
-            return new_defs_[def] = primop->rebuild(ops, convert(primop->type()));
+            return new_defs_[def] = primop->rebuild(world_, convert(primop->type()), ops);
         } else if (auto continuation = def->isa_continuation()) {
             if (!continuation->has_body())
                 return continuation;
@@ -188,7 +188,7 @@ public:
             for (size_t i = 0, e = ops.size(); i != e; ++i)
                 struct_type->set(i, ops[i]);
         } else {
-            new_type = type->rebuild(ops);
+            new_type = type->rebuild(type->table(), ops);
         }
         if (new_type->order() <= 1)
             return new_types_[type] = new_type;

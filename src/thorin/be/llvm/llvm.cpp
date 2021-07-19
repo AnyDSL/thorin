@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <llvm/ADT/Triple.h>
 #include <llvm/IR/Constant.h>

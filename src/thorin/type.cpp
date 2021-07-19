@@ -25,27 +25,24 @@ Type::Type(TypeTable& table, int tag, Types ops)
 //------------------------------------------------------------------------------
 
 /*
- * vrebuild
+ * rebuild
  */
 
-const Type* NominalType::vrebuild(TypeTable&, Types) const {
+const Type* NominalType::rebuild(TypeTable&, Types) const {
     THORIN_UNREACHABLE;
     return this;
 }
 
-const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
-const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
-const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
-const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
-const Type* BottomType         ::vrebuild(TypeTable& to, Types    ) const { return to.bottom_type(); }
-const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.prim_type(primtype_tag(), length()); }
-
-const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
-    return to.ptr_type(ops.front(), length(), device(), addr_space());
-}
+const Type* BottomType         ::rebuild(TypeTable& t, Types  ) const { return t.bottom_type(); }
+const Type* ClosureType        ::rebuild(TypeTable& t, Types o) const { return t.closure_type(o); }
+const Type* DefiniteArrayType  ::rebuild(TypeTable& t, Types o) const { return t.definite_array_type(o[0], dim()); }
+const Type* FnType             ::rebuild(TypeTable& t, Types o) const { return t.fn_type(o); }
+const Type* FrameType          ::rebuild(TypeTable& t, Types  ) const { return t.frame_type(); }
+const Type* IndefiniteArrayType::rebuild(TypeTable& t, Types o) const { return t.indefinite_array_type(o[0]); }
+const Type* MemType            ::rebuild(TypeTable& t, Types  ) const { return t.mem_type(); }
+const Type* PrimType           ::rebuild(TypeTable& t, Types  ) const { return t.prim_type(primtype_tag(), length()); }
+const Type* PtrType            ::rebuild(TypeTable& t, Types o) const { return t.ptr_type(o.front(), length(), device(), addr_space()); }
+const Type* TupleType          ::rebuild(TypeTable& t, Types o) const { return t.tuple_type(o); }
 
 /*
  * stub

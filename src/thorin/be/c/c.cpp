@@ -15,6 +15,7 @@
 #include <regex>
 #include <sstream>
 #include <type_traits>
+#include <unordered_map>
 #include <variant>
 
 namespace thorin::c {
@@ -759,12 +760,16 @@ std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
             MATH_FUNCTION(log10)
 #undef MATH_FUNCTION
         };
+        for (auto op : mathop->ops())
+            emit(op);
         int bitwidth = num_bits(mathop->type()->primtype_tag());
         assert(function_names.count(make_key(mathop->mathop_tag(), bitwidth)) > 0);
         func_impls_.fmt("{} {};\n", convert(mathop->type()), name);
-        func_impls_.fmt("{} = {}(", name, function_names.at(make_key(mathop->mathop_tag(), bitwidth)));
-        func_impls_.range(mathop->ops(), ", ", [&](const Def* op) { func_impls_ << emit(op); });
-        func_impls_.fmt(");\n");
+        if (lang_ == Lang::OpenCL && bitwidth == 32)
+            bitwidth = 64; // OpenCL uses overloading
+        bb.body.fmt("{} = {}(", name, function_names.at(make_key(mathop->mathop_tag(), bitwidth)));
+        bb.body.range(mathop->ops(), ", ", [&](const Def* op) { bb.body << emit(op); });
+        bb.body.fmt(");\n");
     } else if (auto conv = def->isa<ConvOp>()) {
         auto s_type = conv->from()->type();
         auto d_type = conv->type();
@@ -1060,6 +1065,22 @@ void CCodeGen::emit_c_int() {
 
     for (auto cont : world().continuations()) {
         if (!cont->is_external())
+            continue;
+
+        // Generate C types for structs used by imported or exported functions
+        for (auto op : cont->type()->ops()) {
+            if (auto fn_type = op->isa<FnType>()) {
+                // Convert the return types as well (those are embedded in return continuations)
+                for (auto other_op : fn_type->ops()) {
+                    if (!other_op->isa<FnType>())
+                        convert(other_op);
+                }
+            } else
+                convert(op);
+        }
+
+        // Generate function prototypes only for exported functions
+        if (!cont->is_exported())
             continue;
         assert(cont->is_returning());
         emit_fun_decl(cont);

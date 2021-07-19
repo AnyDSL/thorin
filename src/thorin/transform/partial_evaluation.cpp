@@ -62,7 +62,7 @@ public:
             for (size_t i = 0; i != oprimop->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
-            auto nprimop = oprimop->rebuild(nops);
+            auto nprimop = oprimop->rebuild(world(), oprimop->type(), nops);
             return old2new_[oprimop] = nprimop;
         }
 

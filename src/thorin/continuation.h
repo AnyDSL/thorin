@@ -42,13 +42,11 @@ private:
     Filter(World& world, const Defs defs, Debug dbg);
 
 public:
-    const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
     size_t size() const { return num_ops(); }
     const Def* condition(size_t i) const { return op(i); }
     bool is_empty() const { return num_ops() == 0; }
-
     const Filter* cut(ArrayRef<size_t> indices) const;
+    const Def* rebuild(World&, const Type*, Defs ) const override;
 
     friend class World;
 };
@@ -58,12 +56,11 @@ private:
     App(const Defs ops, Debug dbg);
 
 public:
-    const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
     const Def* callee() const { return op(0); }
     const Def* arg(size_t i) const { return op(1 + i); }
     size_t num_args() const { return num_ops() - 1; }
     const Defs args() const { return ops().skip_front(); }
+    const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {
         std::vector<Continuation*> conts;

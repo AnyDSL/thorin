@@ -79,9 +79,6 @@ const Def* Importer::import(Tracker odef) {
         for (size_t i = 0, e = old_profile.size(); i != e; ++i)
             new_profile[i] = import(old_profile[i]);
         ncontinuation->set_filter(new_profile);
-
-        if (ocontinuation->world().is_external(ocontinuation))
-            world_.make_external(ncontinuation);
     }
 
     size_t size = odef->num_ops();

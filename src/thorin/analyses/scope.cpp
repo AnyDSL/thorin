@@ -111,8 +111,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     unique_queue<ContinuationSet> continuation_queue;
 
     for (auto&& [_, cont] : world.externals()) {
-        assert(!cont->empty() && "exported continuation must not be empty");
-        continuation_queue.push(cont);
+        if (!cont->empty()) continuation_queue.push(cont);
     }
 
     while (!continuation_queue.empty()) {

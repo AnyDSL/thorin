@@ -215,8 +215,10 @@ void Cleaner::rebuild() {
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
 
-    for (auto&& [_, cont] : world().externals())
-        importer.import(cont);
+    for (auto&& [_, cont] : world().externals()) {
+        auto new_cont = importer.import(cont)->as_continuation();
+        importer.world_.make_external(new_cont);
+    }
 
     swap(importer.world(), world_);
     todo_ |= importer.todo();

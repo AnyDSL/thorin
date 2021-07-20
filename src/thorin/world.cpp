@@ -48,8 +48,7 @@ World::World(const std::string& name) {
 }
 
 World::~World() {
-    for (auto continuation : data_.continuations_) delete continuation;
-    for (auto primop : data_.primops_) delete primop;
+    for (auto def : data_.defs_) delete def;
 }
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
@@ -1100,11 +1099,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto cont = new Continuation(fn, attributes, dbg);
-#if THORIN_ENABLE_CHECKS
-    if (state_.breakpoints.contains(cont->gid())) THORIN_BREAK;
-#endif
-    data_.continuations_.insert(cont);
+    auto cont = put<Continuation>(fn, attributes, dbg);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
@@ -1136,6 +1131,16 @@ const Param* World::param(const Type* type, Continuation* continuation, size_t i
  * misc
  */
 
+std::vector<Continuation*> World::copy_continuations() const {
+    std::vector<Continuation*> result;
+
+    for (auto def : data_.defs_) {
+        if (auto lam = def->isa_nom<Continuation>())
+            result.emplace_back(lam);
+    }
+
+    return result;
+}
 #if THORIN_ENABLE_CHECKS
 
 void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
@@ -1144,8 +1149,8 @@ void World::enable_history(bool flag)     { state_.track_history = flag; }
 bool World::track_history() const         { return state_.track_history; }
 
 const Def* World::gid2def(u32 gid) {
-    auto i = std::find_if(data_.primops_.begin(), data_.primops_.end(), [&](const Def* def) { return def->gid() == gid; });
-    if (i == data_.primops_.end()) return nullptr;
+    auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
+    if (i == data_.defs_.end()) return nullptr;
     return *i;
 }
 
@@ -1202,27 +1207,21 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
     return from && from->type() == agg->type() ? from : agg;
 }
 
-Array<Continuation*> World::copy_continuations() const {
-    Array<Continuation*> result(continuations().size());
-    std::copy(continuations().begin(), continuations().end(), result.begin());
-    return result;
-}
-
-const Def* World::cse_base(const PrimOp* primop) {
+const Def* World::cse_base(const Def* def) {
 #if THORIN_ENABLE_CHECKS
-    if (state_.breakpoints.contains(primop->gid())) THORIN_BREAK;
+    if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
-    auto i = data_.primops_.find(primop);
-    if (i != data_.primops_.end()) {
-        primop->unregister_uses();
+    auto i = data_.defs_.find(def);
+    if (i != data_.defs_.end()) {
+        def->unregister_uses();
         --Def::gid_counter_;
-        delete primop;
+        delete def;
         return *i;
     }
 
-    const auto& p = data_.primops_.insert(primop);
+    const auto& p = data_.defs_.insert(def);
     assert_unused(p.second && "hash/equal broken");
-    return primop;
+    return def;
 }
 
 /*

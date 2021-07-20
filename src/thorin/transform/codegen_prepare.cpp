@@ -13,7 +13,7 @@ void codegen_prepare(World& world) {
         ret_cont->jump(ret_param, ret_cont->params_as_defs(), ret_param->debug());
 
         for (auto use : ret_param->copy_uses()) {
-            if (auto ucontinuation = use->isa_continuation()) {
+            if (auto ucontinuation = use->isa_nom<Continuation>()) {
                 if (use.index() != 0) {
                     ucontinuation->update_op(use.index(), ret_cont);
                     dirty = true;

@@ -107,7 +107,7 @@ Continuations Continuation::preds() const {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto continuation = use->isa_continuation()) {
+        if (auto continuation = use->isa_nom<Continuation>()) {
             preds.push_back(continuation);
             continue;
         }
@@ -139,7 +139,7 @@ Continuations Continuation::succs() const {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto continuation = def->isa_continuation()) {
+        if (auto continuation = def->isa_nom<Continuation>()) {
             succs.push_back(continuation);
             continue;
         }
@@ -296,7 +296,7 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
     if (!cont->is_intrinsic()) {
         for (auto use : cont->uses()) {
             auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto continuation = def->isa_continuation())
+            if (auto continuation = def->isa_nom<Continuation>())
                 if (func(continuation))
                     return true;
         }
@@ -306,7 +306,7 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
 
 bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     return visit_uses(cont, [&] (auto continuation) {
-        if (auto callee = continuation->callee()->isa_continuation())
+        if (auto callee = continuation->callee()->template isa_nom<Continuation>())
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);

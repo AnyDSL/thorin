@@ -38,7 +38,7 @@ void Scope::run() {
         if (defs_.insert(def).second) {
             queue.push(def);
 
-            if (auto continuation = def->isa_continuation()) {
+            if (auto continuation = def->isa_nom<Continuation>()) {
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);
                     assert_unused(p.second);
@@ -127,7 +127,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto continuation = def->isa_continuation())
+            if (auto continuation = def->isa_nom<Continuation>())
                 continuation_queue.push(continuation);
             else {
                 for (auto op : def->ops())

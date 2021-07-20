@@ -10,13 +10,13 @@ namespace thorin {
 const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = old2new.lookup(odef)) return *ndef;
 
-    if (auto oprimop = odef->isa<PrimOp>()) {
-        Array<const Def*> nops(oprimop->num_ops());
-        for (size_t i = 0; i != oprimop->num_ops(); ++i)
+    if (odef->isa_structural()) {
+        Array<const Def*> nops(odef->num_ops());
+        for (size_t i = 0; i != odef->num_ops(); ++i)
             nops[i] = instantiate(odef->op(i));
 
-        auto nprimop = oprimop->rebuild(oprimop->world(), oprimop->type(), nops);
-        return old2new[oprimop] = nprimop;
+        auto nprimop = odef->rebuild(odef->world(), odef->type(), nops);
+        return old2new[odef] = nprimop;
     }
 
     return old2new[odef] = odef;
@@ -115,7 +115,7 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
     // fold branch and match
     // TODO find a way to factor this out in continuation.cpp
-    if (auto callee = old_continuation->callee()->isa_continuation()) {
+    if (auto callee = old_continuation->callee()->isa_nom<Continuation>()) {
         switch (callee->intrinsic()) {
             case Intrinsic::Branch: {
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
@@ -173,7 +173,7 @@ const Def* Mangler::mangle(const Def* old_def) {
         return *new_def;
     else if (!within(old_def))
         return old_def;
-    else if (auto old_continuation = old_def->isa_continuation()) {
+    else if (auto old_continuation = old_def->isa_nom<Continuation>()) {
         auto new_continuation = mangle_head(old_continuation);
         mangle_body(old_continuation, new_continuation);
         return new_continuation;
@@ -183,13 +183,12 @@ const Def* Mangler::mangle(const Def* old_def) {
         assert(def2def_.contains(param));
         return def2def_[param];
     } else {
-        auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->num_ops());
-        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
-            nops[i] = mangle(old_primop->op(i));
+        Array<const Def*> nops(old_def->num_ops());
+        for (size_t i = 0, e = old_def->num_ops(); i != e; ++i)
+            nops[i] = mangle(old_def->op(i));
 
-        auto type = old_primop->type(); // TODO reduce
-        return def2def_[old_primop] = old_primop->rebuild(world(), type, nops);
+        auto type = old_def->type(); // TODO reduce
+        return def2def_[old_def] = old_def->rebuild(world(), type, nops);
     }
 }
 
@@ -200,7 +199,7 @@ Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
 }
 
 Continuation* drop(const Call& call) {
-    Scope scope(call.callee()->as_continuation());
+    Scope scope(call.callee()->as_nom<Continuation>());
     return drop(scope, call.args());
 }
 

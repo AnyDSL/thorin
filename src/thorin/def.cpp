@@ -14,12 +14,28 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
+Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
+    : tag_(tag)
+    , ops_(ops.size())
+    , type_(type)
+    , debug_(dbg)
+    , gid_(gid_counter_++)
+    , nom_(false)
+    , dep_(tag == Node_Continuation ? Dep::Cont  :
+           tag == Node_Param        ? Dep::Param :
+                                      Dep::Bot   )
+{
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        set_op(i, ops[i]);
+}
+
 Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
     , ops_(size)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
+    , nom_(true)
     , dep_(tag == Node_Continuation ? Dep::Cont  :
            tag == Node_Param        ? Dep::Param :
                                       Dep::Bot   )
@@ -41,7 +57,7 @@ void Def::set_op(size_t i, const Def* def) {
     ops_[i] = def;
     // A Param/Continuation should not have other bits than its own set.
     // (Right now, Param doesn't have ops, but this will change in the future).
-    if (!isa_continuation() && !isa<Param>())
+    if (!isa_nom<Continuation>() && !isa<Param>())
         dep_ |= def->dep();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
@@ -133,7 +149,5 @@ void Def::replace(Tracker with) const {
 }
 
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
-Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
-Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 
 }

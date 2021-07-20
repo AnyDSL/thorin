@@ -45,10 +45,10 @@ enum class LogLevel { Debug, Verbose, Info, Warn, Error };
  */
 class World : public TypeTable, public Streamable<World> {
 public:
-    struct SeaHash { // TODO PrimOp -> Def
-        static hash_t hash(const PrimOp* def) { return def->hash(); }
-        static bool eq(const PrimOp* def1, const PrimOp* def2) { return def1->equal(def2); }
-        static const PrimOp* sentinel() { return (const PrimOp*)(1); }
+    struct SeaHash {
+        static hash_t hash(const Def* def) { return def->hash(); }
+        static bool eq(const Def* d1, const Def* d2) { return d1->equal(d2); }
+        static const Def* sentinel() { return (const Def*)(1); }
     };
 
     struct BreakHash {
@@ -63,7 +63,7 @@ public:
         static std::string sentinel() { return std::string(); }
     };
 
-    using Sea         = HashSet<const PrimOp*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
+    using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
     using Externals   = HashMap<std::string, Continuation*, ExternalsHash>;
 
@@ -251,10 +251,8 @@ public:
     // getters
 
     const std::string& name() const { return data_.name_; }
-    const Sea& primops() const { return data_.primops_; }
-    const ContinuationSet& continuations() const { return data_.continuations_; }
-    Array<Continuation*> copy_continuations() const;
-    bool empty() const { return continuations().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
+    const Sea& defs() const { return data_.defs_; }
+    std::vector<Continuation*> copy_continuations() const; // TODO remove this
 
     /// @name partial evaluation done?
     //@{
@@ -319,10 +317,25 @@ public:
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
-    const Def* cse_base(const PrimOp*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
+
+    /// @name put into see of nodes
+    //@{
     template <class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+    const Def* cse_base(const Def*);
+
+    template<class T, class... Args>
+    T* put(Args&&... args) {
+        auto def = new T(args...);
+#ifndef NDEBUG
+        if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
+#endif
+        auto p = data_.defs_.emplace(def);
+        assert_unused(p.second);
+        return def;
+    }
+    //@}
 
     struct State {
         LogLevel min_level = LogLevel::Error;
@@ -338,8 +351,7 @@ private:
     struct Data {
         std::string name_;
         Externals externals_;
-        ContinuationSet continuations_;
-        Sea primops_;
+        Sea defs_;
         Continuation* branch_;
         Continuation* end_scope_;
     } data_;

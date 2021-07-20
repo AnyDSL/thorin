@@ -53,7 +53,7 @@ static const Continuation* get_alloc_call(const Def* def) {
     if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());
-    auto call = use.def()->isa_continuation();
+    auto call = use.def()->isa_nom<Continuation>();
     if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->callee();
@@ -91,7 +91,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_continuation();
+                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
                 break;
             }
         }

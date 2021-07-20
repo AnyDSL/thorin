@@ -44,11 +44,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-enum class Visibility : uint8_t {
-    Internal,   ///< Internal to the module (only visible from inside it)
-    External    ///< External to the module (either imported or exported)
-};
-
 enum class CC : uint8_t {
     C,          ///< C calling convention.
     Device,     ///< Device calling convention. These are special functions only available on a particular device.
@@ -91,12 +86,10 @@ class Continuation : public Def {
 public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
-        Visibility visibility = Visibility::Internal;
         CC cc = CC::C;
 
-        Attributes() = default;
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
-        Attributes(Visibility visibility, CC cc = CC::C) : visibility(visibility), cc(cc) {}
+        Attributes(CC cc = CC::C) : cc(cc) {}
     };
 
 private:
@@ -131,15 +124,9 @@ public:
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
-    void make_external() { attributes().visibility = Visibility::External; }
-    void make_internal() { attributes().visibility = Visibility::Internal; }
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
-    bool is_external() const { return attributes().visibility == Visibility::External; }
-    bool is_internal() const { return attributes().visibility == Visibility::Internal; }
-    bool is_imported() const { return is_external() && empty(); }
-    bool is_exported() const { return is_external() && !empty(); }
     bool is_accelerator() const;
     void destroy_body();
 

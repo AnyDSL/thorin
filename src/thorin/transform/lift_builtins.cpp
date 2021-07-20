@@ -9,7 +9,7 @@ namespace thorin {
 
 void lift_pipeline(World& world) {
     for (auto cont : world.copy_continuations()) {
-        auto callee = cont->callee()->isa_continuation();
+        auto callee = cont->callee()->isa_nom<Continuation>();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && cont->num_args() == 6) {
             auto cont_type = world.fn_type({ world.mem_type() });
@@ -96,7 +96,7 @@ void lift_builtins(World& world) {
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (!param->isa_continuation()) {
+            if (!param->isa_nom<Continuation>()) {
                 assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }
@@ -104,8 +104,8 @@ void lift_builtins(World& world) {
 
         auto lifted = lift(scope, defs);
         for (auto use : cur->copy_uses()) {
-            if (auto ucontinuation = use->isa_continuation()) {
-                if (auto callee = ucontinuation->callee()->isa_continuation()) {
+            if (auto ucontinuation = use->isa_nom<Continuation>()) {
+                if (auto callee = ucontinuation->callee()->isa_nom<Continuation>()) {
                     if (callee->is_intrinsic()) {
                         auto old_ops = ucontinuation->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());

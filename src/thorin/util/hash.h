@@ -665,26 +665,6 @@ public:
     friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };
 
-//------------------------------------------------------------------------------
-
-// TODO move this somewhere else
-template<class T>
-struct GIDLt {
-    bool operator()(T a, T b) const { return a->gid() < b->gid(); }
-};
-
-template<class T>
-struct GIDHash {
-    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
-    static bool eq(T a, T b) { return a == b; }
-    static T sentinel() { return T(1); }
-};
-
-template<class Key, class Value>
-using GIDMap = thorin::HashMap<Key, Value, GIDHash<Key>>;
-template<class Key>
-using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
-
 }
 
 #endif

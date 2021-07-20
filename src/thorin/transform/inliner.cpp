@@ -12,7 +12,7 @@ void force_inline(Scope& scope, int threshold) {
         todo = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
+            if (auto callee = continuation->callee()->isa_nom<Continuation>()) {
                 if (!callee->empty() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
                     continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
@@ -27,7 +27,7 @@ void force_inline(Scope& scope, int threshold) {
 
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto continuation = n->continuation();
-        if (auto callee = continuation->callee()->isa_continuation()) {
+        if (auto callee = continuation->callee()->isa_nom<Continuation>()) {
             if (!callee->empty() && !scope.contains(callee))
                 scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
         }
@@ -70,7 +70,7 @@ void inliner(World& world) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
+            if (auto callee = continuation->callee()->isa_nom<Continuation>()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
                 world.DLOG("callee: {}", callee);

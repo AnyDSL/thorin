@@ -14,7 +14,6 @@ namespace thorin {
 
 class Continuation;
 class Def;
-class PrimOp;
 class Tracker;
 class Use;
 class World;
@@ -106,6 +105,9 @@ private:
     Def(const Def&) = delete;
 
 protected:
+    /// Constructor for a @em structural Def.
+    Def(NodeTag tag, const Type* type, Defs args, Debug dbg);
+    /// Constructor for a @em nom Def.
     Def(NodeTag tag, const Type* type, size_t size, Debug);
     virtual ~Def() {}
 
@@ -116,16 +118,43 @@ protected:
     void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:
-    NodeTag tag() const { return tag_; }
-
-    /// @name Debug
+    /// @name getters
     //@{
-    Debug debug() const { return debug_; }
-    /// In Debug build if @c World::enable_history is @c true, this thing keeps the @p gid to track a history of @p gid%s.
-    Debug debug_history() const;
-    std::string name() const { return debug().name; }
-    Loc loc() const { return debug().loc; }
-    void set_name(const std::string&) const;
+    NodeTag tag() const { return tag_; }
+    size_t gid() const { return gid_; }
+    World& world() const;
+    //@}
+
+    /// @name ops
+    //@{
+    Defs ops() const { return ops_; }
+    const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
+    size_t num_ops() const { return ops_.size(); }
+    /// Is @p def the @p i^th result of a @p T @p PrimOp?
+    template<int i, class T> inline static const T* is_out(const Def* def);
+    //@}
+
+    /// @name out
+    //@{
+    const Def* out(size_t i) const;
+    bool empty() const { return ops_.empty(); }
+    void set_op(size_t i, const Def* def);
+    void unset_op(size_t i);
+    void unset_ops();
+    virtual bool has_multiple_outs() const { return false; }
+    //@}
+
+    /// @name uses
+    //@{
+    const Uses& uses() const { return uses_; }
+    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
+    size_t num_uses() const { return uses().size(); }
+    //@}
+
+    /// @name type
+    //@{
+    const Type* type() const { return type_; }
+    int order() const { return type()->order(); }
     //@}
 
     /// @name dependence checks
@@ -135,33 +164,67 @@ public:
     bool has_dep(unsigned dep) const { return (dep_ & dep) != 0; }
     //@}
 
-    size_t num_ops() const { return ops_.size(); }
-    bool empty() const { return ops_.empty(); }
-    void set_op(size_t i, const Def* def);
-    void unset_op(size_t i);
-    void unset_ops();
-    Continuation* as_continuation() const;
-    Continuation* isa_continuation() const;
-    const Uses& uses() const { return uses_; }
-    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
-    size_t num_uses() const { return uses().size(); }
-    size_t gid() const { return gid_; }
+    /// @name Debug
+    //@{
+    Debug debug() const { return debug_; }
+    /// In Debug build if @c World::enable_history is @c true, this thing keeps the @p gid to track a history of @p gid%s.
+    Debug debug_history() const;
+    std::string name() const { return debug().name; }
+    Loc loc() const { return debug().loc; }
+    void set_name(const std::string&) const;
     std::string unique_name() const;
-    const Type* type() const { return type_; }
-    int order() const { return type()->order(); }
-    World& world() const;
-    Defs ops() const { return ops_; }
-    const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
-    void replace(Tracker) const;
-    bool is_replaced() const { return substitute_ != nullptr; }
+    //@}
 
+    /// @name casts
+    //@{
+    /// If @c this is @em nom, it will cast constness away and perform a dynamic cast to @p T.
+    template<class T = Def, bool invert = false> T* isa_nom() const {
+        if constexpr(std::is_same<T, Def>::value)
+            return nom_ ^ invert ? const_cast<Def*>(this) : nullptr;
+        else
+            return nom_ ^ invert ? const_cast<Def*>(this)->template isa<T>() : nullptr;
+    }
+
+    /// Asserts that @c this is a @em nom, casts constness away and performs a static cast to @p T (checked in Debug build).
+    template<class T = Def, bool invert = false> T* as_nom() const {
+        assert(nom_ ^ invert);
+        if constexpr(std::is_same<T, Def>::value)
+            return const_cast<Def*>(this);
+        else
+            return const_cast<Def*>(this)->template as<T>();
+    }
+
+    template<class T = Def> const T* isa_structural() const { return isa_nom<T, true>(); }
+    template<class T = Def> const T* as_structural() const { return as_nom<T, true>(); }
+    //@}
+
+    /// @name rebuild/stub
+    //@{
+    virtual const Def* rebuild(World&, const Type*, Defs) const { THORIN_UNREACHABLE; }
+    // TODO stub
+    void replace(Tracker) const;                                ///< @deprecated
+    bool is_replaced() const { return substitute_ != nullptr; } ///< @deprecated
+    //@}
+
+    /// @name hash/equal
+    //@{
+    virtual hash_t vhash() const;
+    virtual bool equal(const Def*) const;
+    hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    //@}
+
+    /// @name stream
+    //@{
     Stream& stream(Stream&) const;
     Stream& stream1(Stream&) const;
     Stream& stream_let(Stream&) const;
     Stream& stream(Stream&, size_t max) const;
+    virtual const char* op_name() const;
     void dump() const;
     void dump(size_t max) const;
-    static size_t gid_counter() { return gid_counter_; }
+    //@}
+
+    static size_t gid_counter() { return gid_counter_; } // TODO move to World
 
 private:
     const NodeTag tag_;
@@ -170,13 +233,14 @@ private:
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
+    mutable hash_t hash_ = 0; // TODO init in ctor
     const uint32_t gid_;
+    unsigned nom_ : 1;
     unsigned dep_ : 2;
 
     static size_t gid_counter_;
 
     friend class Cleaner;
-    friend class PrimOp;
     friend class Scope;
     friend class Tracker;
     friend class World;

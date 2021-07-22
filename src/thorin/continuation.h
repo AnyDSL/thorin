@@ -193,7 +193,7 @@ public:
 
     /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
-    size_t can_be_inlined() const {
+    bool can_be_inlined() const {
         size_t used = 0;
         for (auto use : uses()) {
             if (auto app = use->isa<App>())

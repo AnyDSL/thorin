@@ -23,6 +23,7 @@ void optimize(World& world) {
     .add<SSAConstr>()
     .add<CopyProp>()
     //.add<Scalerize>()
+    .add<AutoDiff>()
     .run();
 
     cleanup_world(world);

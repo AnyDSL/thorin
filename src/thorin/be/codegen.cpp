@@ -23,6 +23,7 @@ static void get_kernel_configs(
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
         for (auto [_, exported] : externals) {
+            if (!exported->has_body()) continue;
             if (exported->name() == continuation->unique_name())
                 imported = exported;
         }

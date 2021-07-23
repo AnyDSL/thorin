@@ -333,7 +333,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
     std::string hls_pragmas;
     for (auto param : cont->params()) {
         defs_[param] = param->unique_name();
-        if (lang_ == Lang::HLS && world().is_external(cont) && param->type()->isa<PtrType>()) {
+        if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
             if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
                 hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
@@ -350,7 +350,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
     for (auto param : cont->params()) {
         if (is_mem(param) || is_unit(param) || param->order() > 0)
             continue;
-        if (lang_ == Lang::OpenCL && world().is_external(cont) && is_passed_via_buffer(param))
+        if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param))
             func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
     }
     return {};
@@ -976,9 +976,9 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     StringStream s;
 
     // Emit function qualifiers
-    auto config = world().is_external(cont) && kernel_config_.count(cont)
+    auto config = cont->is_exported() && kernel_config_.count(cont)
         ? kernel_config_.find(cont)->second.get() : nullptr;
-    if (world().is_external(cont)) {
+    if (cont->is_exported()) {
         auto config = kernel_config_.find(cont);
         switch (lang_) {
             default: break;
@@ -1020,11 +1020,11 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
         if (needs_comma) s.fmt(", ");
 
         // TODO: This should go in favor of a prepare pass that rewrites the kernel parameters
-        if (lang_ == Lang::OpenCL && world().is_external(cont) && is_passed_via_buffer(param)) {
+        if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param)) {
             // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
             s << "__global " << convert(param->type()) << "*";
             if (!is_proto) s.fmt(" {}_", param->unique_name());
-        } else if (lang_ == Lang::HLS && world().is_external(cont) && param->type()->isa<PtrType>()) {
+        } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto array_size = config->as<HLSKernelConfig>()->param_size(param);
             assert(array_size > 0);
             s.fmt("{} {}[{}]",
@@ -1032,7 +1032,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 !is_proto ? param->unique_name() : "", array_size);
         } else {
             std::string qualifier;
-            if (world().is_external(cont) && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
+            if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
                 config && config->as<GPUKernelConfig>()->has_restrict() &&
                 param->type()->isa<PtrType>())
             {
@@ -1080,7 +1080,7 @@ void CCodeGen::emit_c_int() {
         }
 
         // Generate function prototypes only for exported functions
-        if (!world().is_external(cont))
+        if (!cont->is_exported())
             continue;
         assert(cont->is_returning());
         emit_fun_decl(cont);

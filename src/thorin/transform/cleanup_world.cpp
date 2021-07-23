@@ -234,7 +234,6 @@ void Cleaner::rebuild() {
 
     for (auto&& [_, cont] : world().externals()) {
         auto new_cont = importer.import(cont)->as_nom<Continuation>();
-        importer.world_.make_external(new_cont);
     }
 
     swap(importer.world(), world_);
@@ -289,8 +288,10 @@ void Cleaner::clean_pe_infos() {
             queue.push(continuation);
     };
 
-    for (auto&& [_, cont] : world().externals())
+    for (auto&& [_, cont] : world().externals()) {
+        if (!cont->has_body()) continue;
         enqueue(cont);
+    }
 
     while (!queue.empty()) {
         auto continuation = pop(queue);
@@ -317,7 +318,7 @@ void Cleaner::cleanup_fix_point() {
         todo_ = false;
         if (world_.is_pe_done())
             eliminate_tail_rec();
-        rebuild();
+        // rebuild();
         eta_conversion();
         verify(world());
         eliminate_params();

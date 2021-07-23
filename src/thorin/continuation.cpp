@@ -250,6 +250,7 @@ void Continuation::set_intrinsic() {
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
+bool Continuation::is_external() const { return world().is_external(this); }
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     set_body(world().app(callee, args, dbg));

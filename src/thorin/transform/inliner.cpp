@@ -96,6 +96,7 @@ void inliner(World& world) {
     world.VLOG("stop inliner");
     debug_verify(world);
     world.cleanup();
+
 }
 
 }

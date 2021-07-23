@@ -163,6 +163,9 @@ public:
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
+    bool is_external() const;
+    bool is_imported() const { return is_external() && !has_body(); }
+    bool is_exported() const { return is_external() && has_body(); }
     bool is_accelerator() const;
 
     /// assumes there is a body

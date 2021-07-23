@@ -112,7 +112,7 @@ void NVVMCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function*
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    if (!world().is_external(param->continuation()))
+    if (!param->continuation()->is_exported())
         return arg;
     else if (auto var = resolve_global_variable(param))
         return var;
@@ -132,7 +132,7 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun(llvm::IRBuilder<>& irbuilder
 void NVVMCodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     CodeGen::prepare(cont, fct);
 
-    if (cont != entry_ || !world().is_external(cont)) return;
+    if (cont != entry_ || !cont->is_exported()) return;
 
     auto& irbuilder = *cont2bb_[cont].second;
     // kernel needs special setup code for the arguments

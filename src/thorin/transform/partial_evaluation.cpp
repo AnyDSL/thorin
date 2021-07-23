@@ -81,7 +81,7 @@ public:
             return true;
         }
 
-        return (!world().is_external(callee_) && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
+        return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 
@@ -147,6 +147,7 @@ bool PartialEvaluator::run() {
     bool todo = false;
 
     for (auto&& [_, cont] : world().externals()) {
+        if (!cont->has_body()) continue;
         enqueue(cont);
         top_level_[cont] = true;
     }

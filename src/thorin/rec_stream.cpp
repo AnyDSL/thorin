@@ -47,6 +47,9 @@ void RecStreamer::run() {
         auto cont = conts.pop();
         s.endl().endl();
 
+        if (cont->world().is_external(cont))
+            s.fmt("extern ");
+
         if (cont->has_body()) {
             std::vector<std::string> param_names;
             for (auto param : cont->params()) param_names.push_back(param->unique_name());

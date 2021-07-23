@@ -319,7 +319,7 @@ llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
         f->setLinkage(llvm::Function::InternalLinkage);
 
     // set calling convention
-    if (world().is_external(continuation)) {
+    if (continuation->is_exported()) {
         f->setCallingConv(kernel_calling_convention_);
         emit_fun_decl_hook(continuation, f);
     } else {

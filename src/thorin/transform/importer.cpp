@@ -86,6 +86,8 @@ const Def* Importer::import(Tracker odef) {
         }
 
         ncontinuation->set_filter(import(ocontinuation->filter())->as<Filter>());
+        if (ocontinuation->is_external())
+            world().make_external(ncontinuation);
     }
 
     size_t size = odef->num_ops();

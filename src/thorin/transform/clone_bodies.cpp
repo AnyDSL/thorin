@@ -4,8 +4,13 @@
 
 namespace thorin {
 
+/*
+ * TODO rewrite
+ */
+
 // TODO merge this with lift_builtins
-void clone_bodies(World& world) {
+void clone_bodies(World& /*world*/) {
+#if 0
     std::vector<Continuation*> todo;
 
     // TODO this looks broken: I guess we should do that in post-order as in lift_builtins
@@ -35,6 +40,7 @@ void clone_bodies(World& world) {
             }
         }
     }
+#endif
 }
 
 }

@@ -27,7 +27,7 @@ private:
     Param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
 
 public:
-    Continuation* continuation() const { return op(0)->as_continuation(); }
+    Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
     size_t index() const { return index_; }
 
 private:
@@ -37,7 +37,7 @@ private:
     friend class Continuation;
 };
 
-class Filter : public PrimOp {
+class Filter : public Def {
 private:
     Filter(World& world, const Defs defs, Debug dbg);
 
@@ -51,7 +51,7 @@ public:
     friend class World;
 };
 
-class App : public PrimOp {
+class App : public Def {
 private:
     App(const Defs ops, Debug dbg);
 
@@ -65,7 +65,7 @@ public:
     Continuations using_continuations() const {
         std::vector<Continuation*> conts;
         for (auto use : uses()) {
-            if (auto cont = use->isa_continuation())
+            if (auto cont = use->isa_nom<Continuation>())
                 conts.push_back(cont);
         }
         return conts;

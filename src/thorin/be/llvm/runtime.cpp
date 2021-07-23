@@ -63,7 +63,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     auto body = continuation->body();
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = body->callee()->as_continuation();
+    auto target = body->callee()->as_nom<Continuation>();
     assert_unused(target->is_intrinsic());
     assert(body->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
@@ -182,7 +182,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
                   args, sizes, aligns, allocs, types,
                   builder.getInt32(num_kernel_args));
 
-    return body->arg(LaunchArgs::Return)->as_continuation();
+    return body->arg(LaunchArgs::Return)->as_nom<Continuation>();
 }
 
 llvm::Value* Runtime::launch_kernel(

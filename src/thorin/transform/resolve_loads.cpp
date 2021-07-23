@@ -178,8 +178,8 @@ public: \
     CACHED(contains_top, {
         if (def->isa<Top>()) {
             return true;
-        } else if (auto primop = def->isa<PrimOp>()) {
-            for (auto op : primop->ops()) {
+        } else if (def->isa_structural()) {
+            for (auto op : def->ops()) {
                 if (contains_top(op))
                     return true;
             }

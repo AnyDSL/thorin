@@ -38,7 +38,7 @@ const Def* Importer::import(Tracker odef) {
     auto ntype = import(odef->type());
 
     if (auto oparam = odef->isa<Param>()) {
-        import(oparam->continuation())->as_continuation();
+        import(oparam->continuation())->as_nom<Continuation>();
         auto nparam = def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
         assert(!nparam->is_replaced());
@@ -54,7 +54,7 @@ const Def* Importer::import(Tracker odef) {
     }
 
     Continuation* ncontinuation = nullptr;
-    if (auto ocontinuation = odef->isa_continuation()) { // create stub in new world
+    if (auto ocontinuation = odef->isa_nom<Continuation>()) { // create stub in new world
         assert(!ocontinuation->dead_);
         // TODO maybe we want to deal with intrinsics in a more streamlined way
         if (ocontinuation == ocontinuation->world().branch())
@@ -95,11 +95,11 @@ const Def* Importer::import(Tracker odef) {
         assert(&nops[i]->world() == &world());
     }
 
-    if (auto oprimop = odef->isa<PrimOp>()) {
-        auto nprimop = oprimop->rebuild(world(), ntype, nops);
-        todo_ |= oprimop->tag() != nprimop->tag();
-        assert(!nprimop->is_replaced());
-        return def_old2new_[oprimop] = nprimop;
+    if (odef->isa_structural()) {
+        auto ndef = odef->rebuild(world(), ntype, nops);
+        todo_ |= odef->tag() != ndef->tag();
+        assert(!ndef->is_replaced());
+        return def_old2new_[odef] = ndef;
     }
 
     assert(ncontinuation && &ncontinuation->world() == &world());

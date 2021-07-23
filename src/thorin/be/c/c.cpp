@@ -396,7 +396,7 @@ inline std::string make_identifier(const std::string& str) {
 }
 
 inline std::string label_name(const Def* def) {
-    return make_identifier(def->as_continuation()->unique_name());
+    return make_identifier(def->as_nom<Continuation>()->unique_name());
 }
 
 void CCodeGen::finalize(const Scope&) {
@@ -443,7 +443,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         auto t = label_name(body->arg(1));
         auto f = label_name(body->arg(2));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
-    } else if (auto callee = body->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::Match) {
+    } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(0)));
 
         for (size_t i = 2; i < body->num_args(); i++) {
@@ -455,19 +455,19 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
-    } else if (auto callee = body->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
         assert(callee->num_params() == body->num_args());
         for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
             if (auto arg = emit_unsafe(body->arg(i)); !arg.empty())
                 bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
         bb.tail.fmt("goto {};", label_name(callee));
-    } else if (auto callee = body->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
             if (!body->arg(1)->isa<PrimLit>())
                 world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
 
-            auto ret_cont = body->arg(2)->as_continuation();
+            auto ret_cont = body->arg(2)->as_nom<Continuation>();
             auto elem_type = ret_cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
             func_impls_.fmt("{}{} {}_reserved[{}];\n",
                 addr_space_prefix(AddrSpace::Shared), convert(elem_type),
@@ -498,7 +498,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail.fmt("\n");
             }
 
-            auto pbody = body->arg(4)->as_continuation();
+            auto pbody = body->arg(4)->as_nom<Continuation>();
             bb.tail.fmt("p_{} = i{};\n", pbody->param(1)->unique_name(), callee->gid());
             bb.tail.fmt("goto {};\n", label_name(pbody));
 
@@ -510,10 +510,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
             THORIN_UNREACHABLE;
         }
-    } else if (auto callee = body->callee()->isa_continuation()) { // function/closure call
+    } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
         auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
-            return arg->isa_continuation();
-        }))->as_continuation();
+            return arg->isa_nom<Continuation>();
+        }))->as_nom<Continuation>();
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
@@ -606,7 +606,7 @@ std::string CCodeGen::emit_constant(const Def* def) {
                     [](double v) { return std::isnan(v); });
         }
     } else if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_continuation());
+        assert(!global->init()->isa_nom<Continuation>());
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
@@ -689,7 +689,7 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
 }
 
 static inline bool is_const_primop(const Def* def) {
-    return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
+    return def->isa_structural() && !def->has_dep(Dep::Param);
 }
 
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
@@ -1063,9 +1063,9 @@ void CCodeGen::emit_c_int() {
     // Do not emit C interfaces for definitions that are not used
     world().cleanup();
 
-    for (auto cont : world().continuations()) {
-        if (!world().is_external(cont))
-            continue;
+    for (auto def : world().defs()) {
+        auto cont = def->isa_nom<Continuation>();
+        if (cont == nullptr || !world().is_external(cont)) continue;
 
         // Generate C types for structs used by imported or exported functions
         for (auto op : cont->type()->ops()) {

@@ -12,12 +12,7 @@ namespace thorin {
 
 class TypeTable;
 class Type;
-
-template<class To>
-using TypeMap   = GIDMap<const Type*, To>;
-using Type2Type = TypeMap<const Type*>;
-using TypeSet   = GIDSet<const Type*>;
-using Types     = ArrayRef<const Type*>;
+using Types = ArrayRef<const Type*>;
 
 /// Base class for all \p Type%s.
 class Type : public RuntimeCast<Type>, public Streamable<Type> {
@@ -428,6 +423,30 @@ private:
     const FrameType* frame_;
     const PrimType* primtypes_[Num_PrimTypes];
 };
+
+//------------------------------------------------------------------------------
+
+template<class T>
+struct GIDLt {
+    bool operator()(T a, T b) const { return a->gid() < b->gid(); }
+};
+
+template<class T>
+struct GIDHash {
+    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static bool eq(T a, T b) { return a == b; }
+    static T sentinel() { return T(1); }
+};
+
+template<class Key, class Value>
+using GIDMap = thorin::HashMap<Key, Value, GIDHash<Key>>;
+template<class Key>
+using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
+
+template<class To>
+using TypeMap   = GIDMap<const Type*, To>;
+using Type2Type = TypeMap<const Type*>;
+using TypeSet   = GIDSet<const Type*>;
 
 //------------------------------------------------------------------------------
 

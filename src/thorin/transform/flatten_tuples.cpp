@@ -35,7 +35,7 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
 }
 
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
-    if (args[0]->isa_continuation()) {
+    if (args[0]->isa_nom<Continuation>()) {
         auto dropped = drop(args.front(), args.skip_front());
         assert(dropped->has_body());
         auto dapp = dropped->body();
@@ -79,7 +79,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
     //         f = extract(b, 1)
     //         d(a, (e, f))
 
-    if (wrapped.contains(old_def)) return (*wrapped[old_def]).as_continuation();
+    if (wrapped.contains(old_def)) return (*wrapped[old_def]).as_nom<Continuation>();
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<FnType>();
@@ -132,7 +132,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
     //     wrap_d(a: W, b: X, c: Y):
     //         d(a, (b, c))
 
-    if (unwrapped.contains(new_def)) return (*unwrapped[new_def]).as_continuation();
+    if (unwrapped.contains(new_def)) return (*unwrapped[new_def]).as_nom<Continuation>();
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<FnType>();
@@ -205,18 +205,18 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
             auto def = wrap_pair.first;
             if (def->empty()) continue; // todo: can this be a continuation ?
 
-            auto new_cont = wrap_pair.second->as_continuation();
+            auto new_cont = wrap_pair.second->as_nom<Continuation>();
             auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
 
             def->replace(old_cont);
-            if (auto cont = def->isa_continuation()) {
+            if (auto cont = def->isa_nom<Continuation>()) {
                 cont->destroy("flatten_tuples");
             }
         }
     }
 
     for (auto unwrap_pair : unwrapped)
-        inline_calls(unwrap_pair.second->as_continuation());
+        inline_calls(unwrap_pair.second->as_nom<Continuation>());
 
     world.cleanup();
     debug_verify(world);

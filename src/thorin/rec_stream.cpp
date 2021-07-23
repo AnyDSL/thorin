@@ -25,7 +25,7 @@ void RecStreamer::run(const Def* def) {
     if (def->no_dep() || !defs.emplace(def).second) return;
 
     for (auto op : def->ops()) { // for now, don't include debug info and type
-        if (auto cont = op->isa_continuation()) {
+        if (auto cont = op->isa_nom<Continuation>()) {
             if (max != 0) {
                 if (conts.push(cont)) --max;
             }
@@ -34,7 +34,7 @@ void RecStreamer::run(const Def* def) {
         }
     }
 
-    if (auto cont = def->isa_continuation()) {
+    if (auto cont = def->isa_nom<Continuation>()) {
         assert(cont->has_body());
         s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->body()->callee(), cont->body()->args());
         run(cont->body());
@@ -79,7 +79,7 @@ Stream& Def::stream(Stream& s, size_t max) const {
             max -= 2;
             RecStreamer rec(s, max);
 
-            if (auto cont = isa_continuation()) {
+            if (auto cont = isa_nom<Continuation>()) {
                 rec.conts.push(cont);
                 rec.run();
             } else {
@@ -121,10 +121,9 @@ Stream& Def::stream1(Stream& s) const {
         s.fmt(": ({, })\n", ass->clobbers());
         s.fmt(": ({, })\b", ass->ops());
         return s;
-    } else if (auto primop = isa<PrimOp>()) {
-        return s.fmt("{}({, }))", primop->op_name(), ops());
     }
-    THORIN_UNREACHABLE;
+
+    return s.fmt("{}({, }))", op_name(), ops());
 }
 
 Stream& Def::stream_let(Stream& s) const {

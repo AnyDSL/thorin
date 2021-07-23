@@ -61,7 +61,7 @@ public:
         assert(continuation->has_body());
         auto body = continuation->body();
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
-        auto callee = body->callee()->isa_continuation();
+        auto callee = body->callee()->isa_nom<Continuation>();
         if (callee == continuation) return;
         if (!callee || !callee->is_intrinsic()) {
             Array<const Def*> new_args(body->num_args());
@@ -76,11 +76,7 @@ public:
         if (def->order() <= 1)
             return def;
 
-        if (auto primop = def->isa<PrimOp>()) {
-            Array<const Def*> ops(primop->ops());
-            for (auto& op : ops) op = convert(op);
-            return new_defs_[def] = primop->rebuild(world_, convert(primop->type()), ops);
-        } else if (auto continuation = def->isa_continuation()) {
+        if (auto continuation = def->isa_nom<Continuation>()) {
             if (!continuation->has_body())
                 return continuation;
             convert_jump(continuation);
@@ -95,7 +91,7 @@ public:
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));
-                auto continuation = def->isa_continuation();
+                auto continuation = def->isa_nom<Continuation>();
                 return continuation && (!continuation->has_body() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
@@ -151,6 +147,11 @@ public:
 
             auto closure_type = convert(continuation->type());
             return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
+        } else {
+            // TODO need to consider Params?
+            Array<const Def*> ops(def->ops());
+            for (auto& op : ops) op = convert(op);
+            return new_defs_[def] = def->rebuild(world_, convert(def->type()), ops);
         }
         THORIN_UNREACHABLE;
     }

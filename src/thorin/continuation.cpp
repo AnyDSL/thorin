@@ -20,7 +20,7 @@ Param::Param(const Type* type, Continuation* continuation, size_t index, Debug d
 
 //------------------------------------------------------------------------------
 
-App::App(const Defs ops, Debug dbg) : PrimOp(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
 #endif
@@ -35,7 +35,7 @@ void App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
-    if (auto cont = callee()->isa_continuation()) {
+    if (auto cont = callee()->isa_nom<Continuation>()) {
         assert(!cont->dead_);
     }
 }
@@ -57,7 +57,7 @@ const App* App::with(const Def* ncallee, const Defs nargs) const {
 
 //------------------------------------------------------------------------------
 
-Filter::Filter(World& world, const Defs defs, Debug dbg) : PrimOp(Node_Filter, world.bottom_type(), defs, dbg) {}
+Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
     return world().filter(ops().cut(indices), debug());
@@ -172,7 +172,7 @@ Continuations Continuation::preds() const {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto continuation = use->isa_continuation()) {
+        if (auto continuation = use->isa_nom<Continuation>()) {
             preds.push_back(continuation);
             continue;
         }
@@ -201,7 +201,7 @@ Continuations Continuation::succs() const {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto continuation = def->isa_continuation()) {
+        if (auto continuation = def->isa_nom<Continuation>()) {
             succs.push_back(continuation);
             continue;
         }
@@ -283,7 +283,7 @@ void Continuation::verify() const {
         else if (num_uses() == 0) {} // front-ends (ie Artic) may create such orphan continuation stubs currently, ideally these should only be tolerated until the first rebuild
         else if (intrinsic() != Intrinsic::None) {} // intrinsics don't have a body TODO: or do they ?
         else {
-            assertf(false, "{} has no body but does not correspond to any legitimate case where that may happen", *this);
+            // assertf(false, "{} has no body but does not correspond to any legitimate case where that may happen", *this);
         }
     } else {
         body()->verify();
@@ -357,7 +357,7 @@ bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuat
     return visit_uses(cont, [&] (auto continuation) {
         if (!continuation->has_body()) return false;
         auto body = continuation->body();
-        if (auto callee = body->callee()->isa_continuation())
+        if (auto callee = body->callee()->template isa_nom<Continuation>())
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);

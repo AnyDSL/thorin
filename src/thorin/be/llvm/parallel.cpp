@@ -23,7 +23,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     auto num_threads = emit(body->arg(PAR_ARG_NUMTHREADS));
     auto lower = emit(body->arg(PAR_ARG_LOWER));
     auto upper = emit(body->arg(PAR_ARG_UPPER));
-    auto kernel = body->arg(PAR_ARG_BODY)->as<Global>()->init()->as_continuation();
+    auto kernel = body->arg(PAR_ARG_BODY)->as<Global>()->init()->as_nom<Continuation>();
 
     const size_t num_kernel_args = body->num_args() - PAR_NUM_ARGS;
 
@@ -91,7 +91,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
 
-    return body->arg(PAR_ARG_RETURN)->as_continuation();
+    return body->arg(PAR_ARG_RETURN)->as_nom<Continuation>();
 }
 
 enum {
@@ -115,7 +115,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     auto num_threads = emit(body->arg(FIB_ARG_NUMTHREADS));
     auto num_blocks = emit(body->arg(FIB_ARG_NUMBLOCKS));
     auto num_warps = emit(body->arg(FIB_ARG_NUMWARPS));
-    auto kernel = body->arg(FIB_ARG_BODY)->as<Global>()->init()->as_continuation();
+    auto kernel = body->arg(FIB_ARG_BODY)->as<Global>()->init()->as_nom<Continuation>();
 
     const size_t num_kernel_args = body->num_args() - FIB_NUM_ARGS;
 
@@ -182,7 +182,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
 
-    return body->arg(FIB_ARG_RETURN)->as_continuation();
+    return body->arg(FIB_ARG_RETURN)->as_nom<Continuation>();
 }
 
 enum {
@@ -200,7 +200,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     // Emit memory dependencies up to this point
     emit_unsafe(body->arg(FIB_ARG_MEM));
 
-    auto kernel = body->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_continuation();
+    auto kernel = body->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_nom<Continuation>();
     const size_t num_kernel_args = body->num_args() - SPAWN_NUM_ARGS;
 
     // build parallel-function signature
@@ -260,7 +260,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     irbuilder.SetInsertPoint(old_bb);
 
     // bind parameter of continuation to received handle
-    auto cont = body->arg(SPAWN_ARG_RETURN)->as_continuation();
+    auto cont = body->arg(SPAWN_ARG_RETURN)->as_nom<Continuation>();
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
@@ -282,7 +282,7 @@ Continuation* CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* con
 
     auto id = emit(body->arg(SYNC_ARG_ID));
     runtime_->sync_thread(irbuilder, id);
-    return body->arg(SYNC_ARG_RETURN)->as_continuation();
+    return body->arg(SYNC_ARG_RETURN)->as_nom<Continuation>();
 }
 
 }

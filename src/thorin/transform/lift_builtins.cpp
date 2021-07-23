@@ -11,7 +11,7 @@ void lift_pipeline(World& world) {
     for (auto cont : world.copy_continuations()) {
         if (!cont->has_body()) continue;
         auto body = cont->body();
-        auto callee = body->callee()->isa_continuation();
+        auto callee = body->callee()->isa_nom<Continuation>();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && body->num_args() == 6) {
             auto cont_type = world.fn_type({ world.mem_type() });
@@ -94,7 +94,7 @@ void lift_builtins(World& world) {
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (param->isa_continuation()) {
+            if (param->isa_nom<Continuation>()) {
                 // TODO: assert is actually top level
             } else if (!param->isa<Filter>()) { // don't lift the filter
                 assert(!param->isa<App>() && "an app should not be free");
@@ -106,7 +106,7 @@ void lift_builtins(World& world) {
         auto lifted = lift(scope, defs);
         for (auto use : cur->copy_uses()) {
             if (auto uapp = use->isa<App>()) {
-                if (auto callee = uapp->callee()->isa_continuation()) {
+                if (auto callee = uapp->callee()->isa_nom<Continuation>()) {
                     if (callee->is_intrinsic()) {
                         auto old_ops = uapp->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());

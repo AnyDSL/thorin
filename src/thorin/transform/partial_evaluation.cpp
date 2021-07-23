@@ -57,13 +57,13 @@ public:
         if (auto ndef = old2new_.lookup(odef))
             return *ndef;
 
-        if (auto oprimop = odef->isa<PrimOp>()) {
-            Array<const Def*> nops(oprimop->num_ops());
-            for (size_t i = 0; i != oprimop->num_ops(); ++i)
+        if (odef->isa_structural()) {
+            Array<const Def*> nops(odef->num_ops());
+            for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
-            auto nprimop = oprimop->rebuild(world(), oprimop->type(), nops);
-            return old2new_[oprimop] = nprimop;
+            auto nprimop = odef->rebuild(world(), odef->type(), nops);
+            return old2new_[odef] = nprimop;
         }
 
         return old2new_[odef] = odef;
@@ -105,7 +105,7 @@ public:
 
             if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
                 return top_level_[continuation] = false;
-            if (auto free_cn = def->isa_continuation()) {
+            if (auto free_cn = def->isa_nom<Continuation>()) {
                 // if we have a non-top level continuation in scope as a free variable,
                 // then it must be bound by some outer continuation, and so we aren't top-level
                 if (!is_top_level(free_cn))
@@ -138,7 +138,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto continuation = next->isa_continuation()) {
+    } else if (auto continuation = next->isa_nom<Continuation>()) {
         queue_.push(continuation);
     }
 }
@@ -166,7 +166,7 @@ bool PartialEvaluator::run() {
             callee_def = run->def();
         }
 
-        if (auto callee = callee_def->isa_continuation()) {
+        if (auto callee = callee_def->isa_nom<Continuation>()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
                 eat_pe_info(continuation);
                 continue;

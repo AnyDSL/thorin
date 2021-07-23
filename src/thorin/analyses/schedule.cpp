@@ -49,8 +49,8 @@ Continuation* Scheduler::early(const Def* def) {
     if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
 
     auto result = scope().entry();
-    for (auto op : def->as<PrimOp>()->ops()) {
-        if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
+    for (auto op : def->as_structural()->ops()) {
+        if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
             auto cont = early(op);
             if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
                 result = cont;
@@ -64,7 +64,7 @@ Continuation* Scheduler::late(const Def* def) {
     if (auto cont = late_.lookup(def)) return *cont;
 
     Continuation* result = nullptr;
-    if (auto continuation = def->isa_continuation()) {
+    if (auto continuation = def->isa_nom<Continuation>()) {
         result = continuation;
     } else if (auto param = def->isa<Param>()) {
         result = param->continuation();

@@ -63,7 +63,7 @@ Vector::Vector(World& world, Defs args, Debug dbg)
 }
 
 LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
-    : PrimOp(Node_LEA, nullptr, {ptr, index}, dbg)
+    : Def(Node_LEA, nullptr, {ptr, index}, dbg)
 {
     auto& world = index->world();
     auto type = ptr_type();
@@ -82,25 +82,25 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 }
 
 Known::Known(const Def* def, Debug dbg)
-    : PrimOp(Node_Known, def->world().type_bool(), {def}, dbg)
+    : Def(Node_Known, def->world().type_bool(), {def}, dbg)
 {}
 
 AlignOf::AlignOf(const Def* def, Debug dbg)
-    : PrimOp(Node_AlignOf, def->world().type_qs64(), {def}, dbg)
+    : Def(Node_AlignOf, def->world().type_qs64(), {def}, dbg)
 {}
 
 SizeOf::SizeOf(const Def* def, Debug dbg)
-    : PrimOp(Node_SizeOf, def->world().type_qs64(), {def}, dbg)
+    : Def(Node_SizeOf, def->world().type_qs64(), {def}, dbg)
 {}
 
 Slot::Slot(const Type* type, const Def* frame, Debug dbg)
-    : PrimOp(Node_Slot, type->table().ptr_type(type), {frame}, dbg)
+    : Def(Node_Slot, type->table().ptr_type(type), {frame}, dbg)
 {
     assert(frame->type()->isa<FrameType>());
 }
 
 Global::Global(const Def* init, bool is_mutable, Debug dbg)
-    : PrimOp(Node_Global, init->type()->table().ptr_type(init->type()), {init}, dbg)
+    : Def(Node_Global, init->type()->table().ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
     assert(!init->has_dep(Dep::Param));
@@ -142,15 +142,17 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  * hash
  */
 
-hash_t PrimOp::vhash() const {
+hash_t Def::vhash() const {
+    if (isa_nom()) return murmur3(gid());
+
     hash_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
     for (auto op : ops_)
         seed = hash_combine(seed, uint32_t(op->gid()));
     return seed;
 }
 
-hash_t Variant::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-hash_t VariantExtract::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+hash_t Variant::vhash() const { return hash_combine(Def::vhash(), index()); }
+hash_t VariantExtract::vhash() const { return hash_combine(Def::vhash(), index()); }
 hash_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bitcast<uint64_t, Box>(value())); }
 hash_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
@@ -160,26 +162,28 @@ hash_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
  * equal
  */
 
-bool PrimOp::equal(const PrimOp* other) const {
+bool Def::equal(const Def* other) const {
+    if (isa_nom()) return this == other;
+
     bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
     for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->ops_[i] == other->ops_[i];
     return result;
 }
 
-bool Variant::equal(const PrimOp* other) const {
-    return PrimOp::equal(other) && other->as<Variant>()->index() == index();
+bool Variant::equal(const Def* other) const {
+    return Def::equal(other) && other->as<Variant>()->index() == index();
 }
 
-bool VariantExtract::equal(const PrimOp* other) const {
-    return PrimOp::equal(other) && other->as<VariantExtract>()->index() == index();
+bool VariantExtract::equal(const Def* other) const {
+    return Def::equal(other) && other->as<VariantExtract>()->index() == index();
 }
 
-bool PrimLit::equal(const PrimOp* other) const {
+bool PrimLit::equal(const Def* other) const {
     return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
 }
 
-bool Slot::equal(const PrimOp* other) const { return this == other; }
+bool Slot::equal(const Def* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 
@@ -244,7 +248,7 @@ const Def* IndefiniteArray::rebuild(World& w, const Type* t, Defs o) const {
  * op_name
  */
 
-const char* PrimOp::op_name() const {
+const char* Def::op_name() const {
     switch (tag()) {
 #define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
 #include "thorin/tables/nodetable.h"
@@ -294,7 +298,7 @@ std::string DefiniteArray::as_string() const {
     return res;
 }
 
-const Def* PrimOp::out(size_t i) const {
+const Def* Def::out(size_t i) const {
     assert(i == 0 || i < type()->as<TupleType>()->num_ops());
     return world().extract(this, i, debug());
 }

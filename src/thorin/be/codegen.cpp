@@ -92,7 +92,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_continuation();
+                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
                 break;
             }
         }

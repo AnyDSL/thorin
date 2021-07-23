@@ -97,12 +97,13 @@ void Cleaner::eliminate_tail_rec() {
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
-        for (auto continuation : world().continuations()) {
-            if (!continuation->has_body()) continue;
+        for (auto def : world().copy_defs()) {
+            auto continuation = def->isa_nom<Continuation>();
+            if (!continuation || !continuation->has_body()) continue;
             auto body = continuation->body();
 
             // eat calls to known continuations that are only used once
-            while (auto callee = body->callee()->isa_continuation()) {
+            while (auto callee = body->callee()->isa_nom<Continuation>()) {
                 if (callee == continuation) break;
 
                 if (callee->can_be_inlined() && callee->has_body() && !world().is_external(callee)) {
@@ -173,6 +174,7 @@ void Cleaner::eta_conversion() {
 }
 
 void Cleaner::eliminate_params() {
+    // TODO
     for (auto ocontinuation : world().copy_continuations()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
@@ -180,7 +182,7 @@ void Cleaner::eliminate_params() {
         if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_continuation())
+                if (use.index() != 0 || !use->isa_nom<Continuation>())
                     goto next_continuation;
             }
 
@@ -228,10 +230,10 @@ void Cleaner::rebuild() {
 
     Importer importer(world_);
     importer.type_old2new_.rehash(world_.types().capacity());
-    importer.def_old2new_.rehash(world_.primops().capacity());
+    importer.def_old2new_.rehash(world_.defs().capacity());
 
     for (auto&& [_, cont] : world().externals()) {
-        auto new_cont = importer.import(cont)->as_continuation();
+        auto new_cont = importer.import(cont)->as_nom<Continuation>();
         importer.world_.make_external(new_cont);
     }
 
@@ -253,25 +255,14 @@ void Cleaner::verify_closedness() {
         }
     };
 
-    for (auto primop : world().primops())
-        check(primop);
-    for (auto continuation : world().continuations()) {
-        check(continuation);
-        for (auto param : continuation->params())
-            check(param);
-    }
+    for (auto def : world().defs())
+        check(def);
 }
 
 void Cleaner::within(const Def* def) {
+    if (def->isa<Param>()) return; // TODO remove once Params are within World's sea of nodes
     assert(world().types().contains(def->type()));
-    if (auto primop = def->isa<PrimOp>())
-        assert_unused(world().primops().contains(primop));
-    else if (auto continuation = def->isa_continuation())
-        assert_unused(world().continuations().contains(continuation));
-    else if (def->isa<App>() || def->isa<Filter>())
-        {}
-    else
-        within(def->as<Param>()->continuation());
+    assert_unused(world().defs().contains(def));
 }
 
 void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
@@ -306,7 +297,7 @@ void Cleaner::clean_pe_infos() {
 
         if (continuation->has_body()) {
             if (auto body = continuation->body()->isa<App>()) {
-                if (auto callee = body->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
+                if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
                     clean_pe_info(queue, continuation);
                     continue;
                 }
@@ -346,8 +337,11 @@ void Cleaner::cleanup() {
 
     if (!world().is_pe_done()) {
         world().mark_pe_done();
-        for (auto continuation : world().continuations())
-            continuation->destroy_filter();
+        for (auto def : world().defs()) {
+            if (auto cont = def->isa_nom<Continuation>())
+                cont->destroy_filter();
+        }
+
         todo_ = true;
         cleanup_fix_point();
     }

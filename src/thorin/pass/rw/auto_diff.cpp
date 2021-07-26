@@ -138,13 +138,6 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
             // First things first, call the function.
             auto ad = j_wrap(arg);
 
-            // TODO: this assumes ℝ →  ℝ
-            auto get_result_pi = world_.cn(world_.sigma({world_.type_mem(), world_.tuple({rd_pi->dom(1), rd_pi->dom(2)})}));
-            auto get_result = world_.nom_lam(get_result_pi, world_.dbg("get_result"));
-            auto call = world_.app(rd_callee, {arg, ad, get_result});
-
-            auto y = get_result->var(1, world_.dbg("y"));
-            auto dy = get_result->var(2, world_.dbg("δy"));
             // now that we have the result, we  ....
             assert(false);
         }
@@ -152,9 +145,19 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         auto ad = j_wrap(arg);
         auto ad_mem = world_.extract(ad, (u64)0, world_.dbg("mem"));
         auto ad_arg = world_.extract(ad, (u64)1, world_.dbg("arg"));
-        auto dst = world_.app(cd, {ad_mem, ad_arg, pullbacks_[ad]});
+        auto pb = pullbacks_[ad];
+        auto pbt = pb->type()->as<Pi>();
+
+        auto wrappi = world_.cn_mem_flat(pbt->codom(), pbt->dom());
+        auto wrap = world_.nom_lam(wrappi, world_.dbg("pbwrap"));
+        wrap->set_filter(world_.lit_true());
+
+        auto pbcall = world_.app(pb, wrap->var(1, world_.dbg("dy")), world_.dbg("dx"));
+        wrap->set_body(world_.app(wrap->ret_var(), {wrap->mem_var(), pbcall}));
+
+        auto dst = world_.app(cd, {ad_mem, ad_arg, wrap});
         src_to_dst_[app] = dst;
-        pullbacks_[dst] = pullbacks_[ad];   // <-- FIXME: probably not correct in general
+        pullbacks_[dst] = pb;
         return dst;
     }
 
@@ -289,31 +292,13 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 // this should be something like `cn[:mem, r32, cn[:mem, r32]]`
                 auto& world = src_lam->world();
 
-                // Copy of the original function, augmented to return <r32, f(32)->r32>.
-                // So, for a src_lam of type `cn[:mem, r32, cn[:mem, r32]]` 
-                // we have a base_dst_pi of type `cn[:mem, r32, r32, cn[:mem, <<2:nat, r32>>]]`
-                auto base_dst_pi = app->type()->as<Pi>();
-                auto base_dst_lam = world.nom_lam(base_dst_pi, world.dbg("top_level_rev_diff_" + src_lam->name()));
-
-                // build up a copy of src_pi that wraps around base_dst_pi.
-                // We want for `A -> B` the type `A -> (B * (B -> A))`.
+                // We get for `A -> B` the type `A -> (B * (B -> A))`.
                 //  i.e. cn[:mem, A, [:mem, B]] ---> cn[:mem, A, cn[:mem, B, cn[:mem, B, A]]]
-                auto A = base_dst_pi->dom(1);
-                auto B = base_dst_pi->dom(2); // FIXME: this assumes funs from ℝ to ℝ
-                auto dst_pi = world.cn_mem_flat(A, world.sigma({B, world.pi(B, A)})); 
-                auto dst_lam = world.nom_lam(dst_pi, world.dbg("rev_diff_" + src_lam->name()));
-
-                // We now take care of this:
-                //   sq(x, δy) -> (y, δx) {    <- this is "base_dst_lam"
-                //     (y, pb) <- sq_cpy(x)    <- sq_cpy is "dst_lam"
-                //     δx <- pb(δy)
-                //     (y, δx)
-                //   }
-                //
-                base_dst_lam->set_filter(world.lit_true());
-                // sq(x, δy)
-                auto x = base_dst_lam->var(1, world.dbg("x")); // A
-                auto del_y = base_dst_lam->var(2, world.dbg("δy")); // B // FIXME: this assumes that there is only one seed value
+                auto dst_pi = app->type()->as<Pi>();
+                auto dst_lam = world.nom_lam(dst_pi, world.dbg("top_level_rev_diff_" + src_lam->name()));
+                dst_lam->set_filter(src_lam->filter());
+                auto A = dst_pi->dom(1);
+                auto B = src_lam->ret_var()->type()->as<Pi>()->dom(1);
 
                 // The actual AD, i.e. construct "sq_cpy"
                 // This is a wrapper around the chain of pullbacks
@@ -332,28 +317,7 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 dst_lam->set_filter(src_lam->filter());
                 dst_lam->set_body(differ.reverse_diff(src_lam));
 
-                // (y, pb) <- sq_cpy(x)  a bit more complicated due to cps
-                auto fnresult_and_pullback_cnpi = dst_pi->dom()->op(dst_pi->dom()->num_ops() - 1)->as<Pi>();
-                auto fnresult_and_pullback_cn = world.nom_lam(fnresult_and_pullback_cnpi, world.dbg("ypb_cn"));
-                fnresult_and_pullback_cn->set_filter(world.lit_true());
-                
-                base_dst_lam->set_body(world.app(dst_lam, {base_dst_lam->mem_var(), x, fnresult_and_pullback_cn}));
-                auto y = fnresult_and_pullback_cn->var(1, world.dbg("y"));
-                auto pb = fnresult_and_pullback_cn->var(2, world.dbg("pb"));
-
-                // δx <- pb(δy)
-                auto del_x = world.app(pb, del_y);
-
-                // return (y, δx)
-                // the top-level expects the tuple (y, δx), we just use y here as free var, pulling it in our scope
-                auto tup = world.tuple({y, del_x});
-                fnresult_and_pullback_cn->set_body(world.app(base_dst_lam->ret_var(world.dbg("top_level_return")), {fnresult_and_pullback_cn->mem_var(), tup}));
-
-
-                debug_dump(base_dst_lam);
-                debug_dump(derivative_map_lam);
-
-                return base_dst_lam;
+                return dst_lam;
             }
         }
     }

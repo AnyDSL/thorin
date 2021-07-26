@@ -238,6 +238,7 @@ World::World(const std::string& name)
         // what we basically want is an operator that looks like this:
         //   A →  B →  (A →  B →  (A × B →  B × A))
         //              \---------- Ξ ------------/
+        /*
         auto type = nom_pi(kind(), {kind(),kind()});
         auto A = type->var(0, dbg("A"));
         auto B = type->var(1, dbg("B"));
@@ -247,6 +248,20 @@ World::World(const std::string& name)
           A,
           B,
           cn({type_mem(), sigma({B, A})})
+        });
+        auto Xi = pi(cn_mem_flat(A, B), diffd);
+        type->set_codom(Xi);
+        data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, dbg("rev_diff"));
+        */
+        auto type = nom_pi(kind(), {kind(), kind()});
+        auto A = type->var(0, dbg("A"));
+        auto B = type->var(1, dbg("B"));
+
+        auto pullback = cn_mem_flat(B, A);
+        auto diffd = cn({
+          type_mem(),
+          A,
+          cn({type_mem(), B, pullback})
         });
         auto Xi = pi(cn_mem_flat(A, B), diffd);
         type->set_codom(Xi);

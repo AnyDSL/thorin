@@ -793,7 +793,6 @@ void World::visit(VisitFn f) const {
  * misc
  */
 
-// TODO: MATTHIS
 const Def* World::op_rev_diff(const Def* fn, const Def* dbg){
     if (auto pi = fn->type()->isa<Pi>()) {
         assert(pi->is_cn());
@@ -812,16 +811,6 @@ const Def* World::op_rev_diff(const Def* fn, const Def* dbg){
         auto pullback = app(mk_pullback, fn, dbg);
 
         return pullback;
-
-        /*
-        auto src_cn = cn_mem_flat(dom, codom);
-        auto dst_cn = cn_mem_flat(dom, sigma({ codom, cn_mem_half_flat(tan_codom, tan_dom) }));
-
-        auto mk_pullback = app(data_.op_rev_diff_, {src_cn, dst_cn}, this->dbg("mk_pullback"));
-        auto pullback = app(mk_pullback, fn, dbg);
-
-        return pullback;
-        */
     }
 
     return nullptr;

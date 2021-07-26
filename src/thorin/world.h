@@ -219,13 +219,23 @@ public:
     const Lit* lit_nat_1  () { return data_.lit_nat_1_;   }
     const Lit* lit_nat_max() { return data_.lit_nat_max_; }
     const Lit* lit_int      (const Def* type, u64 val, const Def* dbg = {});
-    const Lit* lit_int      (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod),                          val, dbg); }
-    const Lit* lit_int_width(nat_t width,     u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                          val, dbg); }
-    const Lit* lit_int_mod  (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod), mod == 0 ? val : (val % mod), dbg); }
+
+    /// Constructs @p Int @p Lit @p val via @p width, i.e. converts from @p width to @em internal @c mod value.
+    const Lit* lit_int_width(nat_t width, u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                          val, dbg); }
+
+    /// Constructs @p Int @p Lit @p val with @em extenral @p mod, i.e. if <code> mod == 0 </code>, it will be adjusted to @c uint_t(-1) (special case for 2^64).
+    const Lit* lit_int_mod  (nat_t mod, u64 val, const Def* dbg = {}) {
+        return lit_int(type_int(mod), mod == 0 ? val : (val % mod), dbg);
+    }
+
+    /// Constructs @p Int @p Lit @p val with @em internal @p mod, i.e. without any conversions - <code> mod = 0 </code> means 2^64.
+    /// Use this version if you directly receive an @em internal @c mod which is already converted.
+    const Lit* lit_int(nat_t mod, u64 val, const Def* dbg = {}) { return lit_int(type_int( mod), val, dbg); }
     template<class I> const Lit* lit_int(I val, const Def* dbg = {}) {
         static_assert(std::is_integral<I>());
         return lit_int(type_int(width2mod(sizeof(I)*8)), val, dbg);
     }
+
     const Lit* lit_bool(bool val) { return data_.lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return data_.lit_bool_[0]; }
     const Lit* lit_true()  { return data_.lit_bool_[1]; }

@@ -7,7 +7,6 @@
 
 namespace thorin {
 
-#define THORIN_CONV(m) m(Conv, s2s) m(Conv, u2u) m(Conv, s2r) m(Conv, u2r) m(Conv, r2s) m(Conv, r2u) m(Conv, r2r)
 // Sadly, we need to "unpack" the type
 const Def* lit_of_type(World& world, const Def* type, u64 lit) {
     // TODO: Actually implement this. For now, all functions are r32 anyways, so whatever.
@@ -30,10 +29,10 @@ public:
         , src_to_dst_{src_to_dst}
         , idpb{}
     {
-        auto idpi = world_.pi(A, A);
+        auto idpi = world_.cn_mem_flat(A, A);
         idpb = world_.nom_lam(idpi, world_.dbg("id"));
         idpb->set_filter(world_.lit_true());
-        idpb->set_body(idpb->var());
+        idpb->set_body(world_.app(idpb->ret_var(), {idpb->mem_var(), idpb->var(1, world.dbg("a"))}));
     }
 
     const Def* reverse_diff(Lam* src);
@@ -63,10 +62,7 @@ const Def* AutoDiffer::reverse_diff(Lam* src) {
     }
     auto dst = j_wrap(src->body());
 
-    // TODO: this assumes functions ℝ →  ℝ
-    auto pb_invoke = world_.app(pullbacks_[dst], initialpb_->var(1), world_.dbg("pb_invoke"));
-    initialpb_->set_body(world_.app(initialpb_->ret_var(), {initialpb_->mem_var(), pb_invoke}));
-
+    initialpb_->set_body(world_.app(pullbacks_[dst], initialpb_->var()));
     return dst;
 }
 
@@ -98,6 +94,21 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         errf("Axioms are not differentiable. Found axiom: {}", axiom);
         THORIN_UNREACHABLE;
     }
+    if (auto lam = def->isa_nom<Lam>()) {
+        auto dst = world_.nom_lam(lam->type(), world_.dbg(lam->name()));
+
+        for (size_t i = 0, e = lam->num_vars(); i < e; ++i) {
+            src_to_dst_[lam->var(i)] = dst->var(i);
+            pullbacks_[dst->var(i)] = idpb;
+        }
+        src_to_dst_[lam->var()] = dst->var();
+        pullbacks_[dst->var()] = idpb;
+        src_to_dst_[lam] = dst;
+
+        dst->set_filter(lam->filter());
+        dst->set_body(j_wrap(lam->body()));
+        return dst;
+    }
     if (auto app = def->isa<App>()) {
         auto callee = app->callee();
         auto arg = app->arg();
@@ -124,38 +135,49 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         // Handle function calls
         if (callee->type()->as<Pi>()->is_returning()) {
             // we simply recursively apply the whole autodiff pass to the thing we want to call
-            // Thus, a `cn [:mem, A, cn[:mem, B]]` becomes `cn [:mem, A, B, cn[:mem, <B, A>]`
+            // Thus, a `cn [:mem, A, cn[:mem, B]]` becomes `cn [:mem, A, cn[:mem, B, cn[:mem, B, cn[:mem, A]]]`
             // So, since call site has changed, we need a wrapper that takes care of calling
             auto rd_callee = world_.op_rev_diff(callee);
             auto rd_pi = rd_callee->type()->as<Pi>();
+            auto A = rd_pi->dom(1);
+            auto B = rd_pi->dom(2)->as<Pi>()->dom(1);
 
-            // We want to call rd_callee and store the result in dst and grab its pullback for pullbacks_
-            // Unfortunately, the call-site abstracted the pullback away, it's squished together in the
-            // function's signature, i.e. instead of `fn(f32) -> <f32, fn(f32) -> f32>` we have `fn(f32, f32) -> <f32, f32>`
-            // Thus, we need to build a wrapper that represents the pullback
-            // To this end, we leaverage the chain rule once again.
-
-            // First things first, call the function.
             auto ad = j_wrap(arg);
 
-            // now that we have the result, we  ....
-            assert(false);
+            auto [ad_mem, ad_arg, ad_ret] = ad->split<3>();
+            auto ad_ret_wrap = world_.nom_lam(world_.cn({world_.type_mem(), B, world_.cn_mem_flat(B, A)}), world_.dbg("ad_ret_wrap"));
+            auto dst = world_.app(rd_callee, {ad_mem, ad_arg, ad_ret_wrap});
+
+            // ad_ret_wrap should take care of returning properly again.
+            ad_ret_wrap->set_filter(world_.lit_true());
+            ad_ret_wrap->set_body(world_.app(ad_ret, {ad_mem, ad_ret_wrap->var(1)}));
+            src_to_dst_[app] = dst;
+
+            // last thing we need to do is grab the pullback from the callee and chain it with the one of ad
+            auto calleepbtype = world_.cn_mem_flat(B, A);
+            auto calleepb = world_.nom_lam(calleepbtype, world_.dbg("calleepb"));
+            calleepb->set_filter(world_.lit_true());
+            auto rd_callee_pb = ad_ret_wrap->var(2);
+            auto adpb = pullbacks_[ad];
+            
+            // calleepb is the thing we want, rd_callee_pb is the pb of the callee, adpb the pb of the argument
+            // The idea is to chain adpb and rd_callee_pb
+            auto middle = world_.nom_lam(world_.cn({world_.type_mem(), B}), world_.dbg("funcomp1"));
+            middle->set_filter(world_.lit_true());
+
+            calleepb->set_body(world_.app(adpb, {calleepb->mem_var(), calleepb->var(1), middle}));
+            middle->set_body(world_.app(rd_callee_pb, {middle->mem_var(), middle->var(1), calleepb->ret_var()}));
+
+            pullbacks_[dst] = calleepb;
+            return dst;
         }
         auto cd = j_wrap(callee);
         auto ad = j_wrap(arg);
         auto ad_mem = world_.extract(ad, (u64)0, world_.dbg("mem"));
         auto ad_arg = world_.extract(ad, (u64)1, world_.dbg("arg"));
         auto pb = pullbacks_[ad];
-        auto pbt = pb->type()->as<Pi>();
 
-        auto wrappi = world_.cn_mem_flat(pbt->codom(), pbt->dom());
-        auto wrap = world_.nom_lam(wrappi, world_.dbg("pbwrap"));
-        wrap->set_filter(world_.lit_true());
-
-        auto pbcall = world_.app(pb, wrap->var(1, world_.dbg("dy")), world_.dbg("dx"));
-        wrap->set_body(world_.app(wrap->ret_var(), {wrap->mem_var(), pbcall}));
-
-        auto dst = world_.app(cd, {ad_mem, ad_arg, wrap});
+        auto dst = world_.app(cd, {ad_mem, ad_arg, pb});
         src_to_dst_[app] = dst;
         pullbacks_[dst] = pb;
         return dst;
@@ -166,13 +188,17 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         auto dst = world_.tuple(ops);
         src_to_dst_[tuple] = dst;
 
-        // special care to wire up the pullbacks. TODO: this assumes functions ℝ →  ℝ
-        if(ops.size() == 2 && ops[0]->type() == world_.type_mem()) {
+        // FIXME: this obviously doesn't work in general
+        if(ops.size() == 2) {
             pullbacks_[dst] = pullbacks_[ops[1]];
         }
         else {
             // fallback
             pullbacks_[dst] = idpb;
+            for (auto i : ops) {
+                if (pullbacks_.contains(i))
+                    pullbacks_[dst] = pullbacks_[i];
+            }
         }
         return dst;
     }
@@ -185,14 +211,14 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
     }
 
     if (auto extract = def->isa<Extract>()) {
-        auto dst = world_.extract(j_wrap(extract->tuple()), j_wrap(extract->index()));
+        auto dst = world_.extract(j_wrap(extract->tuple()), extract->index());
         src_to_dst_[extract] = dst;
         pullbacks_[dst] = idpb;
         return dst;
     }
 
     if (auto insert = def->isa<Insert>()) {
-        auto dst = world_.insert(j_wrap(insert->tuple()), j_wrap(insert->index()), j_wrap(insert->value()));
+        auto dst = world_.insert(j_wrap(insert->tuple()), insert->index(), j_wrap(insert->value()));
         src_to_dst_[insert] = dst;
         pullbacks_[dst] = idpb;
         return dst;
@@ -200,10 +226,10 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
 
     if (auto lit = def->isa<Lit>()) {
         // The derivative of a literal is ZERO
-        auto zeropi = world_.pi(lit->type(), lit->type());
+        auto zeropi = world_.cn_mem_flat(lit->type(), lit->type());
         auto zeropb = world_.nom_lam(zeropi, world_.dbg("id"));
         zeropb->set_filter(world_.lit_true());
-        zeropb->set_body(ZERO(world_, lit->type()));
+        zeropb->set_body(world_.app(zeropb->ret_var(), {zeropb->mem_var(), ZERO(world_, lit->type())}));
         pullbacks_[lit] = zeropb;
         return lit;
     }
@@ -215,9 +241,14 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
 const Def* AutoDiffer::j_wrap_rop(ROp op, const Def* a, const Def* b) {
     // build up pullback type for this expression
     auto r_type = a->type();
-    auto pbpi = world_.pi(r_type, r_type);
+    auto pbpi = world_.cn_mem_flat(r_type, r_type);
     auto pb = world_.nom_lam(pbpi, world_.dbg("φ"));
     pb->set_filter(world_.lit_true());
+
+    auto middle = world_.nom_lam(world_.cn({world_.type_mem(), r_type}), world_.dbg("funcomp1"));
+    middle->set_filter(world_.lit_true());
+    auto end = world_.nom_lam(world_.cn({world_.type_mem(), r_type}), world_.dbg("funcomp2"));
+    end->set_filter(world_.lit_true());
 
     auto one = ONE(world_, r_type);
 
@@ -228,13 +259,14 @@ const Def* AutoDiffer::j_wrap_rop(ROp op, const Def* a, const Def* b) {
         // ∇(a + b) = λz.∂a(z * (1 + 0)) + ∂b(z * (0 + 1))
         case ROp::add: {
             auto dst = world_.op(ROp::add, (nat_t)0, a, b);
-            auto var = pb->var();
             pb->set_dbg(world_.dbg(pb->name() + "+"));
 
-            auto adiff = world_.app(apb, world_.op(ROp::mul, (nat_t)0, var, one));
-            auto bdiff = world_.app(bpb, world_.op(ROp::mul, (nat_t)0, var, one));
+            pb->set_body(world_.app(apb, {pb->mem_var(), world_.op(ROp::mul, (nat_t)0, pb->var(1), one), middle}));
+            middle->set_body(world_.app(bpb, {middle->mem_var(), world_.op(ROp::mul, (nat_t)0, pb->var(1), one), end}));
+            auto adiff = middle->var(1);
+            auto bdiff = end->var(1);
 
-            pb->set_body(world_.op(ROp::add, (nat_t)0, adiff, bdiff));
+            end->set_body(world_.app(pb->ret_var(), {end->mem_var(), world_.op(ROp::add, (nat_t)0, adiff, bdiff)}));
             pullbacks_[dst] = pb;
 
             return dst;
@@ -242,13 +274,14 @@ const Def* AutoDiffer::j_wrap_rop(ROp op, const Def* a, const Def* b) {
         // ∇(a - b) = λz.∂a(z * (0 + 1)) - ∂b(z * (0 + 1))
         case ROp::sub: {
             auto dst = world_.op(ROp::sub, (nat_t)0, a, b);
-            auto var = pb->var();
             pb->set_dbg(world_.dbg(pb->name() + "-"));
 
-            auto adiff = world_.app(apb, world_.op(ROp::mul, (nat_t)0, var, one));
-            auto bdiff = world_.app(bpb, world_.op(ROp::mul, (nat_t)0, var, world_.op_rminus((nat_t)0, one)));
+            pb->set_body(world_.app(apb, {pb->mem_var(), world_.op(ROp::mul, (nat_t)0, pb->var(1), one), middle}));
+            middle->set_body(world_.app(bpb, {middle->mem_var(), world_.op(ROp::mul, (nat_t)0, pb->var(1), world_.op_rminus((nat_t)0, one)), end}));
+            auto adiff = middle->var(1);
+            auto bdiff = end->var(1);
 
-            pb->set_body(world_.op(ROp::add, (nat_t)0, adiff, bdiff));
+            end->set_body(world_.app(pb->ret_var(), {end->mem_var(), world_.op(ROp::add, (nat_t)0, adiff, bdiff)}));
             pullbacks_[dst] = pb;
 
             return dst;
@@ -260,13 +293,14 @@ const Def* AutoDiffer::j_wrap_rop(ROp op, const Def* a, const Def* b) {
         //             their types from `R -> R` to `R -> ⊥`
         case ROp::mul: {
             auto dst = world_.op(ROp::mul, (nat_t)0, a, b);
-            auto var = pb->var();
             pb->set_dbg(world_.dbg(pb->name() + "*"));
 
-            auto adiff = world_.app(apb, world_.op(ROp::mul, (nat_t)0, var, b));
-            auto bdiff = world_.app(bpb, world_.op(ROp::mul, (nat_t)0, var, a));
+            pb->set_body(world_.app(apb, {pb->mem_var(), world_.op(ROp::mul, (nat_t)0, pb->var(1), b), middle}));
+            middle->set_body(world_.app(bpb, {middle->mem_var(), world_.op(ROp::mul, (nat_t)0, pb->var(1), a), end}));
+            auto adiff = middle->var(1);
+            auto bdiff = end->var(1);
 
-            pb->set_body(world_.op(ROp::add, (nat_t)0, adiff, bdiff));
+            end->set_body(world_.app(pb->ret_var(), {end->mem_var(), world_.op(ROp::add, (nat_t)0, adiff, bdiff)}));
             pullbacks_[dst] = pb;
 
             return dst;
@@ -316,6 +350,8 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 auto differ = AutoDiffer{world, derivative_map_lam, src_to_dst, A};
                 dst_lam->set_filter(src_lam->filter());
                 dst_lam->set_body(differ.reverse_diff(src_lam));
+
+                debug_dump(dst_lam);
 
                 return dst_lam;
             }

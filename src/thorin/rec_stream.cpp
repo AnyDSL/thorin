@@ -1,6 +1,7 @@
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -133,6 +134,10 @@ Stream& World::stream(Stream& s) const {
     }
 
     return s.endl();
+}
+
+Stream& Scope::stream(Stream& s) const {
+    THORIN_UNREACHABLE;
 }
 
 }

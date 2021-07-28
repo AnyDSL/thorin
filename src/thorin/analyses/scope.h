@@ -56,12 +56,9 @@ public:
     const B_CFG& b_cfg() const;
     //@}
 
-    /// @name stream
+    /// @name logging
     //@{
-    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    Stream& stream(Stream&) const ;                 ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;  ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                            ///< Dumps thorin to a file with an auto-generated file name.
+    Stream& stream(Stream&) const;                  ///< Streams thorin to file @p out.
     //@}
 
     /**

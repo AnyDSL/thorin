@@ -20,10 +20,20 @@
 #define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
 #endif
 
+#if defined(__clang__) || defined(__GNUC__)
+#define DONT_STRIP __attribute__((__used__))
+#else
+// MSVC does not seem to offer a real intrinsic for this, please update this if you know of one
+#define DONT_STRIP __declspec(dllexport)
+#endif
+
 #ifndef NDEBUG
 #define assert_unused(x) assert(x)
+// prevents removal of useful methods in debug mode
+#define DEBUG_UTIL DONT_STRIP
 #else
 #define assert_unused(x) ((void) (0 && (x)))
+#define DEBUG_UTIL
 #endif
 
 namespace thorin {

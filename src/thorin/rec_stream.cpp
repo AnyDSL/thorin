@@ -135,6 +135,4 @@ Stream& World::stream(Stream& s) const {
     return s.endl();
 }
 
-THORIN_INSTANTIATE_STREAMABLE(World)
-
 }

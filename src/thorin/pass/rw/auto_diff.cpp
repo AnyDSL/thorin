@@ -121,23 +121,14 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         THORIN_UNREACHABLE;
     }
     if (auto lam = def->isa_nom<Lam>()) {
-        auto dst = world_.nom_lam(lam->type(), world_.dbg(lam->name()));
-
-        for (size_t i = 0, e = lam->num_vars(); i < e; ++i) {
-            src_to_dst_[lam->var(i)] = dst->var(i);
-            pullbacks_[dst->var(i)] = idpb;
-        }
+        // FIXME: pb type correct? might not be able to just use idpb->type() here
+        auto old_pi = lam->type()->as<Pi>(); 
+        auto pi = world_.cn({world_.type_mem(), old_pi->doms()[1], idpb->type()});
+        auto dst = world_.nom_lam(pi, world_.dbg(lam->name()));
         src_to_dst_[lam->var()] = dst->var();
-        pullbacks_[dst->var()] = idpb;
-        src_to_dst_[lam] = dst;
-
         dst->set_filter(lam->filter());
-        dst->set_body(world_.lit_true());
         dst->set_body(j_wrap(lam->body()));
-        pullbacks_[dst] = pullbacks_[dst->body()];
-
-        auto thepb = pullbacks_[dst];
-
+        src_to_dst_[lam] = dst;
         return dst;
     }
     if (auto app = def->isa<App>()) {
@@ -163,41 +154,49 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
                 }
             }
         }
-        auto cd = j_wrap(callee);
         auto ad = j_wrap(arg);
         auto ad_mem = world_.extract(ad, (u64)0, world_.dbg("mem"));
         auto ad_arg = world_.extract(ad, (u64)1, world_.dbg("arg"));
 
-        auto cpi = cd->type()->as<Pi>();
+        auto cpi = (src_to_dst_.count(callee) ? src_to_dst_[callee]->type()->as<Pi>() : nullptr);
+        if (cpi == nullptr)
+            goto j_wrap_callee;
+        // check if our functions returns a pullback already
+        if (auto rett = cpi->doms().back()->isa<Pi>(); rett && rett->is_returning())
+        {
+            auto cd = j_wrap(callee);
 
-        if (cpi->is_basicblock()) {
-            auto dst = world_.app(cd, {ad_mem, ad_arg});
-            src_to_dst_[app] = dst;
-        }
-        else if (cpi->doms().back()->as<Pi>()->is_basicblock()) {
-            auto dst = world_.app(cd, ad);
-            src_to_dst_[app] = dst;
-        }
-        else {
-            auto dst = world_.app(cd, {ad_mem, ad_arg, pullbacks_[ad]});
-            src_to_dst_[app] = dst;
-        }
-        if (pullbacks_.count(ad) && pullbacks_.count(cd)) {
-            pullbacks_[src_to_dst_[app]] = chain(pullbacks_[ad], pullbacks_[cd]);
-        }
-        else if(pullbacks_.count(cd)) {
-            pullbacks_[src_to_dst_[app]] = pullbacks_[cd];
-        }
-        else if(pullbacks_.count(ad)) {
-            pullbacks_[src_to_dst_[app]] = pullbacks_[ad];
-        }
-        else {
-            THORIN_UNREACHABLE;
-        }
+            if (pullbacks_.count(ad)) {
+                auto dst = world_.app(cd, {ad_mem, ad_arg, pullbacks_[ad]});
+                src_to_dst_[app] = dst;
 
-        auto cdpb = pullbacks_[cd];
-        auto adpb = pullbacks_[ad];
-        return src_to_dst_[app];
+                pullbacks_[dst] = pullbacks_[ad];
+                return dst;
+            }
+            else {
+                assert(ad->num_outs() == arg->num_outs() + 1 && "Pullback must have been added here.");
+
+                auto dst = world_.app(cd, ad);
+                src_to_dst_[app] = dst;
+
+                return dst;
+            }
+        }
+j_wrap_callee:
+        if (!callee->isa_nom<Lam>() && src_to_dst_.count(callee)) {
+            auto dstcallee = src_to_dst_[callee];
+
+            auto dst = world_.app(dstcallee, {ad_mem, ad_arg, pullbacks_[ad]});
+
+            auto dstcallpb = pullbacks_[dstcallee];
+            pullbacks_[dst] = pullbacks_[ad]; // <- chain pullback of dstcallee?
+
+            return dst;
+        }
+        auto dst_callee = world_.op_rev_diff(callee);
+        auto dst = world_.app(dst_callee, ad);
+
+        return dst;
     }
 
     if (auto tuple = def->isa<Tuple>()) {
@@ -320,8 +319,6 @@ const Def* AutoDiffer::j_wrap_rop(ROp op, const Def* a, const Def* b) {
 
             end->set_body(world_.app(pb->ret_var(), {end->mem_var(), world_.op(ROp::add, (nat_t)0, adiff, bdiff)}));
             pullbacks_[dst] = pb;
-
-            debug_dump(pb);
             return dst;
         }
         // ∇(a / b) = λz.∂a ∂b

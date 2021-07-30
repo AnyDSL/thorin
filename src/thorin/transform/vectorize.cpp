@@ -1757,6 +1757,9 @@ bool Vectorizer::run() {
                             { //mem scope
                                 const Def *mem = block2mem[split];
 
+                                if (auto const_vector = split_predicates[0]->isa<Vector>())
+                                    assert(false);
+
                                 split->jump(new_jump_split, { mem, split_predicates[0], current_case, case_back }, split->debug());
                             }
 
@@ -1807,7 +1810,7 @@ bool Vectorizer::run() {
                                     if (i < split_old->num_args())
                                         predicate = split_predicates[i - 1];
                                     else {
-                                        auto true_elem = world_.one(world_.type_bool());
+                                        auto true_elem = world_.literal_bool(true, {});
                                         Array<const Def *> elements(vector_width);
                                         for (size_t i = 0; i < vector_width; i++) {
                                             elements[i] = true_elem;
@@ -1816,7 +1819,7 @@ bool Vectorizer::run() {
                                     }
 
                                     if (next_case == next_case_back) {
-                                        auto true_elem = world_.one(world_.type_bool());
+                                        auto true_elem = world_.literal_bool(true, {});
                                         Array<const Def *> elements(vector_width);
                                         for (size_t i = 0; i < vector_width; i++) {
                                             elements[i] = true_elem;
@@ -1825,6 +1828,11 @@ bool Vectorizer::run() {
                                         case_back->jump(new_jump_case, { case_back->mem_param(), one_predicate, next_case, next_case_back }, split->debug());
                                         case_back_has_jump = true;
                                     } else {
+                                        bool all_one = predicate->isa<Vector>();
+                                        for (auto op : predicate->ops())
+                                            if (op != world_.literal_bool(true, {}))
+                                                all_one = false;
+                                        assert(!all_one);
                                         case_back->jump(new_jump_case, { case_back->mem_param(), predicate, next_case, next_case_back }, split->debug());
                                         case_back_has_jump = true;
                                     }
@@ -2021,7 +2029,7 @@ bool Vectorizer::run() {
                                         block2mem[vectorized] = newmem;
                                 }
 
-                                auto false_elem = world_.zero(world_.type_bool());
+                                auto false_elem = world_.literal_bool(false, {});
                                 Array<const Def *> elements(vector_width);
                                 for (size_t i = 0; i < vector_width; i++)
                                     elements[i] = false_elem;
@@ -2121,8 +2129,28 @@ bool Vectorizer::run() {
                             }
                             assert(predicate_true->type()->isa<VectorType>() && predicate_true->type()->as<VectorType>()->is_vector());
 
+                            bool all_one = predicate_true->isa<Vector>();
+                            if (all_one)
+                                for (auto op : predicate_true->ops())
+                                    if (op != world_.literal_bool(true, {}))
+                                        all_one = false;
+                            if (all_one) {
+                                predicate_true->dump();
+                                predicate_true->type()->dump();
+                                split->dump();
+                                std::cerr << "\n";
+                            }
+                            assert(!all_one);
+
                             const Def* predicate_false = world_.arithop_not(predicate_true);
                             assert(predicate_false);
+
+                            all_one = predicate_false->isa<Vector>();
+                            if (all_one)
+                                for (auto op : predicate_false->ops())
+                                    if (op != world_.literal_bool(true, {}))
+                                        all_one = false;
+                            assert(!all_one);
 
                             Continuation * then_new_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug("branch_true_back"));
                             Continuation * else_new_back = world_.continuation(world_.fn_type({world_.mem_type()}), Debug("branch_false_back"));
@@ -2225,7 +2253,7 @@ bool Vectorizer::run() {
                                 }
                             }
 
-                            auto true_elem = world_.one(world_.type_bool());
+                            auto true_elem = world_.literal_bool(true, {});
                             Array<const Def *> elements(vector_width);
                             for (size_t i = 0; i < vector_width; i++) {
                                 elements[i] = true_elem;

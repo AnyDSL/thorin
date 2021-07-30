@@ -344,14 +344,14 @@ const Type* TypeTable::vec_type(const Type* element, size_t length) {
     } else if (auto ptrtype = element->isa<PtrType>()) {
         assert(ptrtype->length() == 1);
         return  ptr_type(ptrtype->pointee(), length);
-    } else if (auto varianttype = element->isa<VariantType>()) {
+    /*} else if (auto varianttype = element->isa<VariantType>()) {
         auto result = variant_vector_type(varianttype->name() + "_vec", varianttype->num_ops(), length);
         for (size_t i = 0; i < varianttype->num_ops(); i++) {
             auto element = varianttype->op(i);
             //auto element_vector = vec_type(element, length);
             result->set(i, element);
         }
-        return result;
+        return result;*/ //Currently disabled.
     } else {
         return insert<VectorExtendedType>(*this, element, length);
     }

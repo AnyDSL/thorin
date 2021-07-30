@@ -469,12 +469,14 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                     std::cerr << "Error, expected to match\n";
                     target_bb->dump();
                     over_bb->dump();
+                    continuation->dump();
                     mask->dump();
                     for (auto op : mask->ops())
                         op->dump();
                     mask->type()->dump();
+                    std::cerr << "\n";
                 }
-                assert(target_bb == over_bb);
+                //assert(target_bb == over_bb); //Constant propagation can result in this case triggering even if target_bb != over_bb.
                 irbuilder.CreateBr(target_bb);
             } else {
                 current_mask = emit(mask);

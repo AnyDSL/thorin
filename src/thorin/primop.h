@@ -448,7 +448,11 @@ private:
     const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const StructType* type() const { return Aggregate::type()->as<StructType>(); }
+    const Type* type() const {
+        auto aggtype = Aggregate::type();
+        assert(aggtype->isa<StructType>() || (aggtype->isa<VectorExtendedType>() && aggtype->as<VectorExtendedType>()->element()->isa<StructType>()));
+        return aggtype;
+    }
 
     friend class World;
 };

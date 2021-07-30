@@ -59,39 +59,11 @@ static const Type* flatten_vector_type(const VectorExtendedType *vector_type) {
         assert(element_vector_type->length() == 1);
         newtype = world.ptr_type(element_vector_type->pointee(), vector_length, element_vector_type->device(), element_vector_type->addr_space());
     } else if (auto nominal_type = element_type->isa<NominalType>()) {
-        std::vector<const Type*> element_types;
-        for (auto old_element : nominal_type->ops()) {
-            const Type *result = nullptr;
-
-            if (auto vectype = old_element->isa<VectorType>(); vectype && vectype->is_vector()) {
-                assert(false && "No support for stacked vectors at this point.");
-            } else if (auto primtype = old_element->isa<PrimType>()) {
-                result = world.prim_type(primtype->primtype_tag(), vector_length);
-            } else if (auto ptrtype = old_element->isa<PtrType>()) {
-                result = world.ptr_type(ptrtype->pointee(), vector_length, ptrtype->device(), ptrtype->addr_space());
-            } else {
-                result = flatten_vector_type(world.vec_type(old_element, vector_length)->as<VectorExtendedType>());
-            }
-            assert(result);
-            assert(!result->isa<VectorExtendedType>());
-            
-            element_types.emplace_back(result);
+        const StructType* aggregation_type = world.struct_type(nominal_type->name() + "_flat", vector_length);
+        for (size_t i = 0; i < vector_length; ++i) {
+            aggregation_type->set(i, nominal_type);
         }
-
-        const NominalType *new_nominal_type = nullptr;
-        if (element_type->isa<StructType>()) {
-            new_nominal_type = world.struct_type(nominal_type->name() + "_flat", element_types.size());
-        } else if (element_type->isa<VariantType>()) {
-            new_nominal_type = world.variant_vector_type(nominal_type->name() + "_flat", element_types.size(), vector_length);
-        } else {
-            element_type->dump();
-            vector_type->dump();
-            THORIN_UNREACHABLE;
-        }
-        assert(new_nominal_type);
-        for (size_t i = 0; i < element_types.size(); ++i)
-            new_nominal_type->set(i, element_types[i]);
-        return new_nominal_type;
+        return aggregation_type;
     } else if (auto tuple_type = element_type->isa<TupleType>(); tuple_type && tuple_type->num_ops() == 0) {
         newtype = flatten_type(tuple_type);
     } else {
@@ -108,16 +80,17 @@ static const Type* flatten_type(const Type *type) {
     if (auto vector = type->isa<VectorExtendedType>()) {
         return flatten_vector_type(vector);
     } else if (auto vecvariant = type->isa<VariantVectorType>()) {
+        assert(false && "Currently not applicable");
         auto vector_length = vecvariant->length();
-        auto newstruct = world.struct_type(vecvariant->name() + "_flat", vecvariant->num_ops() + 1);
+        auto varianttype = world.variant_type(vecvariant->name(), vecvariant->num_ops());
         for (size_t i = 0; i < vecvariant->num_ops(); ++i) {
             auto op = vecvariant->op(i);
-            auto result = flatten_type(world.vec_type(op, vector_length));
-            assert(result && !result->isa<VectorExtendedType>());
-            newstruct->set(i, result);
+            varianttype->set(i, op); //TODO: Find the old variant instead.
         }
-        auto index_type = world.type_qu64(vector_length);
-        newstruct->set(vecvariant->num_ops(), index_type);
+        auto newstruct = world.struct_type(vecvariant->name() + "_flat", vector_length);
+        for (size_t i = 0; i < vector_length; ++i) {
+            newstruct->set(i, varianttype);
+        }
         return newstruct;
     } else if (auto tuple = type->isa<TupleType>()) {
         std::vector<const Type*> element_types;
@@ -175,30 +148,6 @@ static const Def * flatten_def(const Def *def) {
         if (de.name == "predicated") {
             auto new_type = flatten_fn_type(cont->type());
             return world.continuation(new_type, cont->attributes(), de);
-        /*} else if (de.name == "llvm.exp.f32" ||
-                de.name == "llvm.exp.f64" ||
-                de.name == "llvm.sqrt.f32" ||
-                de.name == "llvm.sqrt.f64" ||
-                de.name == "llvm.sin.f32" ||
-                de.name == "llvm.sin.f64" ||
-                de.name == "llvm.cos.f32" ||
-                de.name == "llvm.cos.f64" ||
-                de.name == "llvm.minnum.f32" ||
-                de.name == "llvm.minnum.f64" ||
-                de.name == "llvm.floor.f32" ||
-                de.name == "llvm.floor.f64" ||
-                de.name == "llvm.exp.v8f32" ||
-                de.name == "llvm.exp.v8f64" ||
-                de.name == "llvm.sqrt.v8f32" ||
-                de.name == "llvm.sqrt.v8f64" ||
-                de.name == "llvm.sin.v8f32" ||
-                de.name == "llvm.sin.v8f64" ||
-                de.name == "llvm.cos.v8f32" ||
-                de.name == "llvm.cos.v8f64" ||
-                de.name == "llvm.minnum.v8f32" ||
-                de.name == "llvm.minnum.v8f64" ||
-                de.name == "llvm.floor.v8f32" ||
-                de.name == "llvm.floor.v8f64") {*/
         } else {
             std::cerr << "Unknown intrinsic " << de.name << "\n";
             auto new_type = flatten_fn_type(cont->type());
@@ -241,123 +190,140 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
 
     if (primop->isa<PrimLit>()) {
         new_primop = primop;
-    } else if (auto load = primop->isa<Load>()) {
-        if (newtype->like(load->type()))
+    } else if (auto store = primop->isa<Store>()) {
+        if (store->val()->type() == nops[2]->type() &&
+            store->ptr()->type() == nops[1]->type())
             new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
         else {
-            auto addresses = nops[1];
             auto mem = nops[0];
+            auto addresses = nops[1];
+            auto values = nops[2];
+            
+            std::cerr << "addresses " << addresses->type()->to_string() << "\n";
+            std::cerr << "values " << values->type()->to_string() << "\n";
+
             assert(addresses->type()->isa<PtrType>());
             auto pointee_type = addresses->type()->as<PtrType>()->pointee();
             auto vector_width = addresses->type()->as<PtrType>()->length();
 
-            assert(vector_width > 1);
+            std::cerr << "pointee_type " << pointee_type->to_string() << "\n";
+            std::cerr << "vector_width " << vector_width << "\n";
 
-            if (vector_width > 1)
-                pointee_type = world.vec_type(pointee_type, vector_width);
+            const Store* lane_store = nullptr;
 
-            auto newstruct_type = newtype->op(1)->isa<StructType>();
-            assert(newstruct_type);
+            for (auto lane = 0; lane < vector_width; ++lane) {
+                auto ext = world.extract(addresses, lane);
+                auto value = world.extract(values, lane);
 
+                std::cerr << "value " << lane << " :" << value->type()->to_string() << "\n";
+                std::cerr << "address " << lane << " :" << ext->type()->to_string() << "\n";
 
-            /* Better option for future consideration.
-             * Does not work with variants currently, as variants dont support lea-ing into them.
-            std::vector<const Def*> innerelements;
-            for (size_t element_index = 0; element_index < values[0]->type()->num_ops(); element_index++) {
-                auto index_splat = world.splat(world.literal_qs32(element_index));
-                auto inner_lea = world.lea(addresses, index_spalt);
-                auto load_element = world.load(mem, inner_lea);
-                innerelements.emplace_back(load_element);
+                lane_store = world.store(mem, ext, value)->as<Store>();
+
+                mem = lane_store->out_mem();
             }
-            auto result_struct = world.struct_agg(newstruct_type, innerelements);
-            */
 
-            std::vector<const Def*> struct_elements;
+            new_primop = lane_store;
+        }
+    } else if (auto load = primop->isa<Load>()) {
+        if (newtype->like(load->type()))
+            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+        else {
+            assert(newtype->isa<TupleType>());
+            auto structtype = newtype->as<TupleType>()->op(1);
 
-            const Def* values[vector_width];
+            auto addresses = nops[1];
+            auto mem = nops[0];
 
+            assert(addresses->type()->isa<PtrType>());
+
+            auto pointee_type = addresses->type()->as<PtrType>()->pointee();
+            auto vector_width = addresses->type()->as<PtrType>()->length();
+
+            assert(vector_width > 1);
+            pointee_type = world.vec_type(pointee_type, vector_width);
+
+            std::vector<const Def*> values;
             for (size_t lane = 0; lane < vector_width; lane++) {
                 auto ext = world.extract(addresses, lane);
                 auto load = world.load(mem, ext)->as<Load>();
                 mem = load->out_mem();
-                values[lane] = load->out_val();
+                values.emplace_back(load->out_val());
             }
 
-            if (primop->op(1)->type()->isa<PtrType>() && primop->op(1)->type()->as<PtrType>()->pointee()->isa<VariantType>()) {
-                for (size_t element_index = 0; element_index < values[0]->type()->num_ops(); element_index++) {
-                    auto element = newstruct_type->op(element_index);
-                    if (!element->isa<TupleType>() || element->as<TupleType>()->num_ops()) { //TODO: This is a hack to resolve issues with []
-                        std::vector<const Def*> newelements;
-                        for (size_t lane = 0; lane < vector_width; lane++) {
-                            auto extract = world.variant_extract(values[lane], element_index);
-                            newelements.emplace_back(extract);
-                        }
-
-                        if (element->isa<VectorType>()) {
-                            auto newelement = world.vector(newelements); // This might still not work!
-                            struct_elements.emplace_back(newelement);
-                        } else if (auto structtype = element->isa<StructType>()) {
-                            std::vector<const Def*> innerelements;
-                            for (size_t element_index = 0; element_index < structtype->num_ops(); element_index++) {
-                                std::vector<const Def*> elements;
-                                for (size_t lane = 0; lane < vector_width; ++lane) {
-                                    auto element = newelements[lane];
-                                    auto extract = world.extract(element, element_index);
-                                    elements.emplace_back(extract);
-                                }
-
-                                auto newelement = world.vector(elements);
-                                innerelements.emplace_back(newelement);
-                            }
-                            struct_elements.emplace_back(world.struct_agg(structtype, innerelements));
-                        } else {
-                            THORIN_UNREACHABLE;
-                        }
-                    } else {
-                        auto extract = world.variant_extract(values[0], element_index);
-                        struct_elements.emplace_back(extract);
-                    }
-                }
-                {
-                    std::vector<const Def*> newelements;
-                    for (size_t lane = 0; lane < vector_width; lane++) {
-                        auto extract = world.variant_index(values[lane]);
-                        newelements.emplace_back(extract);
-                    }
-
-                    auto newelement = world.vector(newelements); // This might still not work!
-                    struct_elements.emplace_back(newelement);
-                }
-            } else {
-                for (size_t element_index = 0; element_index < values[0]->type()->num_ops(); element_index++) {
-                    std::vector<const Def*> newelements;
-                    for (size_t lane = 0; lane < vector_width; lane++) {
-                        auto extract = world.extract(values[lane], element_index);
-                        newelements.emplace_back(extract);
-                    }
-                    auto newelement = world.vector(newelements); // This might still not work!
-                    struct_elements.emplace_back(newelement);
-                }
-            }
-
-            auto returnstruct = world.struct_agg(newstruct_type, struct_elements);
+            auto returnstruct = world.struct_agg(structtype, values);
             auto return_tuple = world.tuple({mem, returnstruct})->as<PrimOp>();
+
             new_primop = return_tuple;
         }
     } else if (auto var_index = primop->isa<VariantIndex>()) {
         auto result_struct = nops[0];
         if (result_struct->type()->isa<StructType>()) {
-            auto struct_length = result_struct->num_ops();
-            new_primop = world.extract(result_struct, struct_length - 1)->as<PrimOp>();
+            auto vector_width = result_struct->num_ops();
+            std::vector<const Def*> elements;
+            for (size_t lane = 0; lane < vector_width; ++lane) {
+                auto element = world.extract(result_struct, lane);
+                auto element_variant_index = world.variant_index(element);
+                elements.emplace_back(element_variant_index);
+            }
+            new_primop = world.vector(elements)->as<PrimOp>();
+        } else {
+            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+        }
+    } else if (auto var_extract = primop->isa<VariantExtract>()) {
+        auto result_struct = nops[0];
+        if (result_struct->type()->isa<StructType>()) {
+            size_t variant_index = var_extract->index();
+            auto vector_width = result_struct->num_ops();
+            std::vector<const Def*> elements;
+            for (size_t lane = 0; lane < vector_width; ++lane) {
+                auto element = world.extract(result_struct, lane);
+                auto element_variant_extract = world.variant_extract(element, variant_index);
+                elements.emplace_back(element_variant_extract);
+            }
+            new_primop = world.vector(elements)->as<PrimOp>(); //TODO: This might require additional lowering.
         } else {
             new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
         }
     } else if (auto extract = primop->isa<Extract>()) {
         if (nops[1]->isa<Tuple>()) {
             assert(nops[1]->op(0)->isa<Top>());
-            nops[1] = nops[1]->op(1);
+            auto index = nops[1]->op(1);
+            size_t vector_width = primop->op(0)->type()->as<VectorType>()->length();
+            std::cerr << "width " << vector_width << "\n";
+            std::vector<const Def*> elements;
+            nops[0]->type()->dump();
+            for (size_t i = 0; i < vector_width; ++i) {
+                auto element = world.extract(nops[0], i);
+                auto extract_result  = world.extract(element, index);
+                elements.emplace_back(extract_result);
+            }
+            new_primop = world.vector(elements)->as<PrimOp>();
+        } else {
+            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
         }
-        new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+    } else if (auto agg = primop->isa<StructAgg>()) {
+        if (newtype->like(agg->type())) {
+            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+        } else {
+            auto element_type = newtype->op(0);
+            size_t vector_width = primop->type()->as<VectorType>()->length();
+            element_type->dump();
+            assert(element_type->isa<StructType>());
+
+            std::vector<const Def*> rebuild_struct_elements;
+            for (size_t lane = 0; lane < vector_width; ++lane) {
+                std::vector<const Def*> inner_elements;
+                for (size_t element_index = 0; element_index < element_type->num_ops(); ++element_index) {
+                    auto element = nops[element_index];
+                    auto inner_element = world.extract(element, lane);
+                    inner_elements.emplace_back(inner_element);
+                }
+                auto lane_element = world.struct_agg(element_type, inner_elements);
+                rebuild_struct_elements.emplace_back(lane_element);
+            }
+            new_primop = world.struct_agg(newtype, rebuild_struct_elements)->as<PrimOp>();
+        }
     } else {
         new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
     }
@@ -452,7 +418,7 @@ void flatten_vectors(World& world) {
     //std::cerr << "orig\n";
     //world.dump();
 
-    std::cerr << "flattening\n";
+    //std::cerr << "flattening\n";
     for (auto continuation : world.copy_continuations()) {
         if (continuation->num_params() > 1 && continuation->param(1)->type()->isa<VectorType>() && continuation->param(1)->type()->as<VectorType>()->is_vector()) {
             if (continuation->empty())

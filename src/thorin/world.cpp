@@ -56,7 +56,9 @@ World::~World() {
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto type = value->type()->isa<VectorExtendedType>()) {
-        THORIN_UNREACHABLE;
+        assert(type->element()->isa<VariantType>());
+        auto newtype = vec_type(type_qu64(), type->length());
+        return cse(new VariantIndex(newtype, value, dbg));
     }
 
     if (auto type = value->type()->isa<VariantVectorType>()) {
@@ -71,6 +73,7 @@ const Def* World::variant_index(const Def* value, Debug dbg) {
 
 const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
     if (auto type = value->type()->isa<VectorExtendedType>()) {
+        assert(type->element()->isa<VariantType>());
         auto newtype = vec_type(type->element()->as<VariantType>()->op(index), type->length());
         return cse(new VariantExtract(newtype, value, index, dbg));
     }

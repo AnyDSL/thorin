@@ -233,7 +233,8 @@ void Cleaner::rebuild() {
     importer.def_old2new_.rehash(world_.defs().capacity());
 
     for (auto&& [_, cont] : world().externals()) {
-        auto new_cont = importer.import(cont)->as_nom<Continuation>();
+        if (cont->is_exported())
+            importer.import(cont);
     }
 
     swap(importer.world(), world_);

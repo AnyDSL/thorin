@@ -300,10 +300,9 @@ void CCodeGen::emit_module() {
 }
 
 inline bool is_passed_via_buffer(const Param* param) {
-    return
-        param->type()->isa<DefiniteArrayType>() ||
-        param->type()->isa<StructType>() ||
-        param->type()->isa<TupleType>();
+    return param->type()->isa<DefiniteArrayType>()
+        || param->type()->isa<StructType>()
+        || param->type()->isa<TupleType>();
 }
 
 inline const Type* ret_type(const FnType* fn_type) {

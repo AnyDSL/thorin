@@ -48,7 +48,7 @@ private:
     World& world_;
     Def2Def src_to_dst_;
     Lam* idpb;
-    DefMap<Lam*> pullbacks_;  // <- maps a *copied* src term to its pullback function
+    DefMap<const Def*> pullbacks_;  // <- maps a *copied* src term to its pullback function
 };
 
 Lam* AutoDiffer::chain(Lam* a, Lam* b) {
@@ -86,7 +86,8 @@ const Def* AutoDiffer::reverse_diff(Lam* src) {
         if(src_param == src->ret_var() || src_param == src->mem_var()) {
             continue;
         }
-        pullbacks_[src_to_dst_[src_param]] = idpb;
+        auto dst = src_to_dst_[src_param];
+        pullbacks_[dst] = idpb;
     }
     auto dst = j_wrap(src->body());
     return dst;
@@ -126,9 +127,13 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         auto pi = world_.cn({world_.type_mem(), old_pi->doms()[1], idpb->type()});
         auto dst = world_.nom_lam(pi, world_.dbg(lam->name()));
         src_to_dst_[lam->var()] = dst->var();
+        pullbacks_[dst->var()] = dst->var(dst->num_vars() - 1);
         dst->set_filter(lam->filter());
-        dst->set_body(j_wrap(lam->body()));
+
+        auto bdy = j_wrap(lam->body());
+        dst->set_body(bdy);
         src_to_dst_[lam] = dst;
+        pullbacks_[dst] = pullbacks_[bdy];
         return dst;
     }
     if (auto app = def->isa<App>()) {
@@ -159,42 +164,39 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
         auto ad_arg = world_.extract(ad, (u64)1, world_.dbg("arg"));
 
         auto cpi = (src_to_dst_.count(callee) ? src_to_dst_[callee]->type()->as<Pi>() : nullptr);
-        if (cpi == nullptr)
-            goto j_wrap_callee;
-        // check if our functions returns a pullback already
-        if (auto rett = cpi->doms().back()->isa<Pi>(); rett && rett->is_returning())
-        {
-            auto cd = j_wrap(callee);
+        if(cpi != nullptr) {
+            // check if our functions returns a pullback already
+            if (auto rett = cpi->doms().back()->isa<Pi>(); rett && rett->is_returning()) {
+                auto cd = j_wrap(callee);
 
-            if (pullbacks_.count(ad)) {
-                auto dst = world_.app(cd, {ad_mem, ad_arg, pullbacks_[ad]});
-                src_to_dst_[app] = dst;
+                if (pullbacks_.count(ad)) {
+                    auto dst = world_.app(cd, {ad_mem, ad_arg, pullbacks_[ad]});
+                    src_to_dst_[app] = dst;
 
-                pullbacks_[dst] = pullbacks_[ad];
-                return dst;
-            }
-            else {
-                assert(ad->num_outs() == arg->num_outs() + 1 && "Pullback must have been added here.");
+                    pullbacks_[dst] = pullbacks_[ad];
+                    return dst;
+                }
+                else {
+                    assert(ad->num_outs() == arg->num_outs() + 1 && "Pullback must have been added here.");
 
-                auto dst = world_.app(cd, ad);
-                src_to_dst_[app] = dst;
+                    auto dst = world_.app(cd, ad);
+                    src_to_dst_[app] = dst;
 
-                return dst;
+                    return dst;
+                }
             }
         }
-j_wrap_callee:
         if (!callee->isa_nom<Lam>() && src_to_dst_.count(callee)) {
             auto dstcallee = src_to_dst_[callee];
 
             auto dst = world_.app(dstcallee, {ad_mem, ad_arg, pullbacks_[ad]});
-
-            auto dstcallpb = pullbacks_[dstcallee];
             pullbacks_[dst] = pullbacks_[ad]; // <- chain pullback of dstcallee?
 
             return dst;
         }
         auto dst_callee = world_.op_rev_diff(callee);
         auto dst = world_.app(dst_callee, ad);
+        pullbacks_[dst] = pullbacks_[ad];
 
         return dst;
     }
@@ -227,9 +229,10 @@ j_wrap_callee:
     }
 
     if (auto extract = def->isa<Extract>()) {
-        auto dst = world_.extract(j_wrap(extract->tuple()), extract->index());
+        auto jtup = j_wrap(extract->tuple());
+        auto dst = world_.extract_unsafe(jtup, extract->index());
         src_to_dst_[extract] = dst;
-        pullbacks_[dst] = idpb;
+        pullbacks_[dst] = pullbacks_[jtup]; // <- FIXME: This must not be idpb lmao
         return dst;
     }
 

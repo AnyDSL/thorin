@@ -31,7 +31,7 @@ public:
     * The root node is a @p Head without any CFNode%s but further children and @p depth_ -1.
     * Thus, the forest is pooled into a tree.
     */
-    class Base : public RuntimeCast<Base>, public Streamable<LoopTree<forward>> {
+    class Base : public RuntimeCast<Base>, public Streamable<LoopTree<forward>::Base> {
     public:
         enum class Node { Head, Leaf };
 

@@ -38,8 +38,8 @@ const Def* Importer::import(Tracker odef) {
     auto ntype = import(odef->type());
 
     if (auto oparam = odef->isa<Param>()) {
-        import(oparam->continuation())->as_continuation();
-        auto nparam = def_old2new_[oparam];
+        auto ncont = import(oparam->continuation())->as_continuation();
+        auto nparam = ncont->param(oparam->index());
         assert(nparam && &nparam->world() == &world_);
         assert(!nparam->is_replaced());
         return nparam;
@@ -89,7 +89,7 @@ const Def* Importer::import(Tracker odef) {
     }
 
     if (auto oprimop = odef->isa<PrimOp>()) {
-        auto nprimop = oprimop->rebuild(world(), nops, ntype);
+        auto nprimop = oprimop->rebuild(world(), ntype, nops);
         todo_ |= oprimop->tag() != nprimop->tag();
         assert(!nprimop->is_replaced());
         return def_old2new_[oprimop] = nprimop;

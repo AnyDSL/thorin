@@ -193,7 +193,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
     } else if (auto store = primop->isa<Store>()) {
         if (store->val()->type() == nops[2]->type() &&
             store->ptr()->type() == nops[1]->type())
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         else {
             auto mem = nops[0];
             auto addresses = nops[1];
@@ -227,7 +227,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
         }
     } else if (auto load = primop->isa<Load>()) {
         if (newtype->like(load->type()))
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         else {
             assert(newtype->isa<TupleType>());
             auto structtype = newtype->as<TupleType>()->op(1);
@@ -268,7 +268,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             }
             new_primop = world.vector(elements)->as<PrimOp>();
         } else {
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         }
     } else if (auto var_extract = primop->isa<VariantExtract>()) {
         auto result_struct = nops[0];
@@ -283,7 +283,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             }
             new_primop = world.vector(elements)->as<PrimOp>(); //TODO: This might require additional lowering.
         } else {
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         }
     } else if (auto extract = primop->isa<Extract>()) {
         if (nops[1]->isa<Tuple>()) {
@@ -300,11 +300,11 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             }
             new_primop = world.vector(elements)->as<PrimOp>();
         } else {
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         }
     } else if (auto agg = primop->isa<StructAgg>()) {
         if (newtype->like(agg->type())) {
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         } else {
             auto element_type = newtype->op(0);
             size_t vector_width = primop->type()->as<VectorType>()->length();
@@ -326,7 +326,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
         }
     } else if (auto agg = primop->isa<Vector>()) {
         if (newtype->like(agg->type())) {
-            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         } else {
             auto element_type = newtype->op(0);
             size_t vector_width = primop->type()->as<VectorType>()->length();
@@ -341,7 +341,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             new_primop = world.struct_agg(newtype, rebuild_struct_elements)->as<PrimOp>();
         }
     } else {
-        new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+        new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
     }
 
     assert(new_primop);

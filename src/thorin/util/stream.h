@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 
+#include "thorin/util/utility.h"
 #include "thorin/util/iterator.h"
 
 namespace thorin {
@@ -109,19 +110,12 @@ private:
 
 public:
     /// Writes to a file with name @p filename.
-    void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); child().stream(s).endl(); }
-    /// Writes to a file named @c child().name().
-    void write() const { write(child().name()); }
+    DEBUG_UTIL void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); child().stream(s).endl(); }
     /// Writes to stdout.
-    void dump() const { Stream s(std::cout); child().stream(s).endl(); }
+    DEBUG_UTIL void dump() const { Stream s(std::cout); child().stream(s).endl(); }
     /// Streams to string.
-    std::string to_string() const { std::ostringstream oss; Stream s(oss); child().stream(s); return oss.str(); }
+    DEBUG_UTIL std::string to_string() const { std::ostringstream oss; Stream s(oss); child().stream(s); return oss.str(); }
 };
-
-#define THORIN_INSTANTIATE_STREAMABLE(T)                                    \
-    template<> void        Streamable<T>::write() const;                    \
-    template<> void        Streamable<T>::dump() const;                     \
-    template<> std::string Streamable<T>::to_string() const;
 
 // TODO Maybe there is a nicer way to do this??? Probably, using C++20 requires ...
 // I just want to find out whether "x->stream(s)" or "x.stream(s)" are valid expressions.

@@ -802,7 +802,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
                     Array<const Def*> args(agg->num_ops());
                     std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
                     args[primlit_value<u64>(lit)] = value;
-                    return aggregate->rebuild(args);
+                    return aggregate->rebuild(*this, aggregate->type(), args);
                 } else
                     return bottom(agg->type(), dbg);
             }

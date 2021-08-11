@@ -263,6 +263,8 @@ public:
     //@{
     Stream& stream(Stream&) const;
     Stream& stream() { return *stream_; }
+    /// Writes to a file named @c name().
+    DEBUG_UTIL void write() const { Streamable<World>::write(name()); }
     LogLevel min_level() const { return state_.min_level; }
 
     void set(LogLevel min_level) { state_.min_level = min_level; }

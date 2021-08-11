@@ -847,71 +847,71 @@ const Def* Vectorizer::widen(const Def* old_def) {
             nops[i] = (widen(old_def->op(i))); //These should all be uniform as well.
         }
 
-        auto r = old_def->as<PrimOp>()->rebuild(nops);
+        auto r = old_def->as<PrimOp>()->rebuild(world_, old_def->type(), nops);
         return r; //TODO: this def could contain a continuation inside a tuple for match cases!
-    } else if (auto param = old_def->isa<Param>()) {
+    } else if (auto extract = old_def->isa<Param>()) {
 #ifdef DUMP_WIDEN
         std::cout << "Param\n";
 #endif
-        widen(param->continuation());
-        assert(def2def_.contains(param));
-        return def2def_[param];
-    } else if (auto param = old_def->isa<Extract>()) {
+        widen(extract->continuation());
+        assert(def2def_.contains(extract));
+        return def2def_[extract];
+    } else if (auto extract = old_def->isa<Extract>()) {
 #ifdef DUMP_WIDEN
         std::cout << "Extract\n";
 #endif
-        Array<const Def*> nops(param->num_ops());
+        Array<const Def*> nops(extract->num_ops());
 
-        nops[0] = widen(param->op(0));
+        nops[0] = widen(extract->op(0));
         if (auto vectype = nops[0]->type()->isa<VectorType>(); vectype && vectype->is_vector())
-            nops[1] = world_.tuple({world_.top(param->op(1)->type()), param->op(1)});
+            nops[1] = world_.tuple({world_.top(extract->op(1)->type()), extract->op(1)});
         else
-            nops[1] = param->op(1);
+            nops[1] = extract->op(1);
 
-        auto type = widen(param->type());
+        auto type = widen(extract->type());
         const Def* new_primop;
-        if (param->isa<PrimLit>()) {
+        if (extract->isa<PrimLit>()) {
             assert(false && "This should not be reachable!");
             Array<const Def*> elements(vector_width);
             for (size_t i = 0; i < vector_width; i++) {
-                elements[i] = param;
+                elements[i] = extract;
             }
-            new_primop = world_.vector(elements, param->debug_history());
+            new_primop = world_.vector(elements, extract->debug_history());
         } else {
-            new_primop = param->rebuild(nops, type);
+            new_primop = extract->as<PrimOp>()->rebuild(world_, type, nops);
         }
         assert(new_primop);
-        return def2def_[param] = new_primop;
-    } else if (auto param = old_def->isa<VariantExtract>()) {
+        return def2def_[extract] = new_primop;
+    } else if (auto varextract = old_def->isa<VariantExtract>()) {
 #ifdef DUMP_WIDEN
         std::cout << "VarExtract\n";
 #endif
-        Array<const Def*> nops(param->num_ops());
+        Array<const Def*> nops(varextract->num_ops());
 
-        nops[0] = widen(param->op(0));
+        nops[0] = widen(varextract->op(0));
 
-        auto type = widen(param->type());
+        auto type = widen(varextract->type());
         const Def* new_primop;
-        if (param->isa<PrimLit>()) {
+        if (varextract->isa<PrimLit>()) {
             assert(false && "This should not be reachable!");
             Array<const Def*> elements(vector_width);
             for (size_t i = 0; i < vector_width; i++) {
-                elements[i] = param;
+                elements[i] = varextract;
             }
-            new_primop = world_.vector(elements, param->debug_history());
+            new_primop = world_.vector(elements, varextract->debug_history());
         } else {
-            new_primop = param->rebuild(nops, type);
+            new_primop = varextract->as<PrimOp>()->rebuild(world_, type, nops);
         }
         assert(new_primop);
-        return def2def_[param] = new_primop;
-    } else if (auto param = old_def->isa<ArithOp>()) {
+        return def2def_[varextract] = new_primop;
+    } else if (auto arithop = old_def->isa<ArithOp>()) {
 #ifdef DUMP_WIDEN
         std::cout << "Arith\n";
 #endif
-        Array<const Def*> nops(param->num_ops());
+        Array<const Def*> nops(arithop->num_ops());
         bool any_vector = false;
-        for (size_t i = 0, e = param->num_ops(); i != e; ++i) {
-            nops[i] = widen(param->op(i));
+        for (size_t i = 0, e = arithop->num_ops(); i != e; ++i) {
+            nops[i] = widen(arithop->op(i));
             if (auto vector = nops[i]->type()->isa<VectorType>())
                 any_vector |= vector->is_vector();
             if (nops[i]->type()->isa<VariantVectorType>())
@@ -919,7 +919,7 @@ const Def* Vectorizer::widen(const Def* old_def) {
         }
 
         if (any_vector) {
-            for (size_t i = 0, e = param->num_ops(); i != e; ++i) {
+            for (size_t i = 0, e = arithop->num_ops(); i != e; ++i) {
                 if (auto vector = nops[i]->type()->isa<VectorType>())
                     if (vector->is_vector())
                         continue;
@@ -937,19 +937,19 @@ const Def* Vectorizer::widen(const Def* old_def) {
             }
         }
 
-        auto type = widen(param->type());
+        auto type = widen(arithop->type());
         const Def* new_primop;
-        if (param->isa<PrimLit>()) {
+        if (arithop->isa<PrimLit>()) {
             Array<const Def*> elements(vector_width);
             for (size_t i = 0; i < vector_width; i++) {
-                elements[i] = param;
+                elements[i] = arithop;
             }
-            new_primop = world_.vector(elements, param->debug_history());
+            new_primop = world_.vector(elements, arithop->debug_history());
         } else {
-            new_primop = param->rebuild(nops, type);
+            new_primop = arithop->as<PrimOp>()->rebuild(world_, type, nops);
         }
         assert(new_primop);
-        return def2def_[param] = new_primop;
+        return def2def_[arithop] = new_primop;
     } else {
 #ifdef DUMP_WIDEN
         std::cout << "Primop\n";
@@ -996,7 +996,7 @@ const Def* Vectorizer::widen(const Def* old_def) {
         if (old_primop->isa<PrimLit>()) {
             assert(false && "Primlits are uniform");
         } else {
-            new_primop = old_primop->rebuild(nops, type);
+            new_primop = old_primop->rebuild(world_, type, nops);
         }
         if (old_def->isa<Slot>()) {
             assert(new_primop->type() == type);

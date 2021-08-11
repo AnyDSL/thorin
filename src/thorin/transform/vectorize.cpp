@@ -21,7 +21,7 @@
 #define DUMP_BLOCK(block) { \
                     Stream s(std::cout); \
                     RecStreamer rec(s, std::numeric_limits<size_t>::max()); \
-                    for (auto& block : schedule(Scope(block))) { \
+                    for (auto& block : schedule(Scope(const_cast<Continuation*>(block)))) { \
                         rec.conts.push(block); \
                         rec.run(); \
                     } \
@@ -2369,7 +2369,7 @@ bool vectorize(World& world) {
     //flatten_vectors(world);
     //world.cleanup();
 
-    world.dump();
+    //world.dump();
     debug_verify(world);
 
     world.VLOG("end vectorizer");

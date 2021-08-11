@@ -382,10 +382,10 @@ private:
         : PrimOp(Node_VariantExtract, type, {value}, dbg), index_(index)
     {
         if (auto vector = value->type()->isa<VectorExtendedType>()) {
-            auto inner_type = type->as<VectorExtendedType>()->element();
+            auto inner_type = type->as<VectorType>()->scalarize();
             assert(vector->element()->as<VariantType>()->op(index) == inner_type);
         } else if (auto vector = value->type()->isa<VariantVectorType>()) {
-            assert(value->type()->as<VariantVectorType>()->op(index) == type->as<VectorType>()->scalarize());
+            assert(vector->op(index) == type->as<VectorType>()->scalarize());
         } else {
             assert(value->type()->as<VariantType>()->op(index) == type);
         }
@@ -437,7 +437,7 @@ private:
             auto struct_type = vector_type->element()->as<StructType>();
             assert(struct_type->num_ops() == args.size());
             for (size_t i = 0, e = args.size(); i != e; ++i)
-                assert(struct_type->op(i) == args[i]->type()->as<VectorExtendedType>()->element());
+                assert(struct_type->op(i) == args[i]->type()->as<VectorType>()->scalarize());
         } else {
             THORIN_UNREACHABLE;
         }

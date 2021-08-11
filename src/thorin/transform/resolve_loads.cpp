@@ -88,9 +88,13 @@ public:
             for (auto use : frame->uses()) {
                 // All the slots allocated at that point contain bottom
                 assert(use->isa<Slot>());
-                if (auto ptr = use->type()->isa<PtrType>())
-                    mapping[use.def()] = world_.bottom(ptr->pointee());
-                else if (auto vec = use->type()->isa<VectorExtendedType>()) {
+                if (auto ptr = use->type()->isa<PtrType>()) {
+                    auto element = ptr->pointee();
+                    auto vec_width = ptr->length();
+                    if (vec_width > 1)
+                        element = world_.vec_type(element, vec_width);
+                    mapping[use.def()] = world_.bottom(element);
+                } else if (auto vec = use->type()->isa<VectorExtendedType>()) {
                     auto ptr = vec->element()->as<PtrType>();
                     auto vec_width = vec->length();
                     auto pointee_vec = world_.vec_type(ptr->pointee(), vec_width);
@@ -115,9 +119,13 @@ public:
                 return mapping[alloc] = global->init();
         }
         // Nothing is known about this allocation yet
-        if (auto ptr = alloc->type()->isa<PtrType>())
-            return mapping[alloc] = world_.top(ptr->pointee(), alloc->debug());
-        else if (auto vec = alloc->type()->isa<VectorExtendedType>()) {
+        if (auto ptr = alloc->type()->isa<PtrType>()) {
+            auto element = ptr->pointee();
+            auto vec_width = ptr->length();
+            if (vec_width > 1)
+                element = world_.vec_type(element, vec_width);
+            return mapping[alloc] = world_.top(element, alloc->debug());
+        } else if (auto vec = alloc->type()->isa<VectorExtendedType>()) {
             auto ptr = vec->element()->as<PtrType>();
             auto vec_width = vec->length();
             auto pointee_vec = world_.vec_type(ptr->pointee(), vec_width);

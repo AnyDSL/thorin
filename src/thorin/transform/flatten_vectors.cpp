@@ -132,7 +132,7 @@ static const FnType* flatten_fn_type(const FnType *fntype) {
 static const Def * flatten_def(const Def *def) {
     World &world = *world_;
     
-    std::cerr << "flatten def "  << def->to_string() << "\n";
+    //std::cerr << "flatten def "  << def->to_string() << "\n";
 
     auto replacement = def2def[def];
     if (replacement)
@@ -141,7 +141,7 @@ static const Def * flatten_def(const Def *def) {
     if (auto primop = def->isa<PrimOp>()) {
         return flatten_primop(primop);
     } else if (auto cont = def->isa<Continuation>(); cont && (cont->is_intrinsic() || cont->empty())) {
-        std::cerr << "Intrinsic: " << def->to_string() << "\n";
+        //std::cerr << "Intrinsic: " << def->to_string() << "\n";
         if(cont == world.branch())
                 return cont;
         Debug de = cont->debug();
@@ -149,7 +149,7 @@ static const Def * flatten_def(const Def *def) {
             auto new_type = flatten_fn_type(cont->type());
             return world.continuation(new_type, cont->attributes(), de);
         } else {
-            std::cerr << "Unknown intrinsic " << de.name << "\n";
+            //std::cerr << "Unknown intrinsic " << de.name << "\n";
             auto new_type = flatten_fn_type(cont->type());
             return world.continuation(new_type, cont->attributes(), de);
         }
@@ -168,7 +168,7 @@ static const Def * flatten_def(const Def *def) {
 static const PrimOp * flatten_primop(const PrimOp *primop) {
     World &world = *world_;
     
-    std::cerr << "flatten primop "  << primop->to_string() << "\n";
+    //std::cerr << "flatten primop "  << primop->to_string() << "\n";
 
     auto replacement = def2def[primop];
     if (replacement)
@@ -199,15 +199,15 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             auto addresses = nops[1];
             auto values = nops[2];
             
-            std::cerr << "addresses " << addresses->type()->to_string() << "\n";
-            std::cerr << "values " << values->type()->to_string() << "\n";
+            //std::cerr << "addresses " << addresses->type()->to_string() << "\n";
+            //std::cerr << "values " << values->type()->to_string() << "\n";
 
             assert(addresses->type()->isa<PtrType>());
             auto pointee_type = addresses->type()->as<PtrType>()->pointee();
             auto vector_width = addresses->type()->as<PtrType>()->length();
 
-            std::cerr << "pointee_type " << pointee_type->to_string() << "\n";
-            std::cerr << "vector_width " << vector_width << "\n";
+            //std::cerr << "pointee_type " << pointee_type->to_string() << "\n";
+            //std::cerr << "vector_width " << vector_width << "\n";
 
             const Store* lane_store = nullptr;
 
@@ -215,8 +215,8 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
                 auto ext = world.extract(addresses, lane);
                 auto value = world.extract(values, lane);
 
-                std::cerr << "value " << lane << " :" << value->type()->to_string() << "\n";
-                std::cerr << "address " << lane << " :" << ext->type()->to_string() << "\n";
+                //std::cerr << "value " << lane << " :" << value->type()->to_string() << "\n";
+                //std::cerr << "address " << lane << " :" << ext->type()->to_string() << "\n";
 
                 lane_store = world.store(mem, ext, value)->as<Store>();
 
@@ -259,7 +259,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
     } else if (auto var_index = primop->isa<VariantIndex>()) {
         auto result_struct = nops[0];
         if (result_struct->type()->isa<StructType>()) {
-            auto vector_width = result_struct->num_ops();
+            auto vector_width = result_struct->type()->num_ops();
             std::vector<const Def*> elements;
             for (size_t lane = 0; lane < vector_width; ++lane) {
                 auto element = world.extract(result_struct, lane);
@@ -274,7 +274,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
         auto result_struct = nops[0];
         if (result_struct->type()->isa<StructType>()) {
             size_t variant_index = var_extract->index();
-            auto vector_width = result_struct->num_ops();
+            auto vector_width = result_struct->type()->num_ops();
             std::vector<const Def*> elements;
             for (size_t lane = 0; lane < vector_width; ++lane) {
                 auto element = world.extract(result_struct, lane);
@@ -290,9 +290,9 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             assert(nops[1]->op(0)->isa<Top>());
             auto index = nops[1]->op(1);
             size_t vector_width = primop->op(0)->type()->as<VectorType>()->length();
-            std::cerr << "width " << vector_width << "\n";
+            //std::cerr << "width " << vector_width << "\n";
             std::vector<const Def*> elements;
-            nops[0]->type()->dump();
+            //nops[0]->type()->dump();
             for (size_t i = 0; i < vector_width; ++i) {
                 auto element = world.extract(nops[0], i);
                 auto extract_result  = world.extract(element, index);
@@ -308,7 +308,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
         } else {
             auto element_type = newtype->op(0);
             size_t vector_width = primop->type()->as<VectorType>()->length();
-            element_type->dump();
+            //element_type->dump();
             assert(element_type->isa<StructType>());
 
             std::vector<const Def*> rebuild_struct_elements;
@@ -321,6 +321,22 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
                 }
                 auto lane_element = world.struct_agg(element_type, inner_elements);
                 rebuild_struct_elements.emplace_back(lane_element);
+            }
+            new_primop = world.struct_agg(newtype, rebuild_struct_elements)->as<PrimOp>();
+        }
+    } else if (auto agg = primop->isa<Vector>()) {
+        if (newtype->like(agg->type())) {
+            new_primop = primop->rebuild(nops, newtype)->as<PrimOp>();
+        } else {
+            auto element_type = newtype->op(0);
+            size_t vector_width = primop->type()->as<VectorType>()->length();
+            //element_type->dump();
+            assert(element_type->isa<VariantType>());
+
+            std::vector<const Def*> rebuild_struct_elements;
+            for (size_t lane = 0; lane < vector_width; ++lane) {
+                auto element = nops[lane];
+                rebuild_struct_elements.emplace_back(element);
             }
             new_primop = world.struct_agg(newtype, rebuild_struct_elements)->as<PrimOp>();
         }
@@ -340,14 +356,14 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
     }
     assert(new_primop->type()->like(newtype));
 
-    std::cerr << "Mapping " << primop->to_string() << " to " << new_primop->to_string() << "\n";
+    //std::cerr << "Mapping " << primop->to_string() << " to " << new_primop->to_string() << "\n";
     def2def[primop] = new_primop;
 
     return new_primop;
 }
 
 void flatten_body(const Continuation *old_continuation, Continuation *new_continuation) {
-    std::cerr << "Flattening " << old_continuation->to_string() << " into " << new_continuation->to_string() << "\n";
+    //std::cerr << "Flattening " << old_continuation->to_string() << " into " << new_continuation->to_string() << "\n";
     assert(!old_continuation->empty());
 
     Array<const Def*>nops(old_continuation->num_ops());
@@ -367,9 +383,9 @@ const Continuation* flatten_continuation(const Continuation* kernel, World& worl
     //TODO: !!!
     world_ = &world;
 
-    std::cerr << "Flatten Continuation " << kernel->to_string() << "\n";
+    //std::cerr << "Flatten Continuation " << kernel->to_string() << "\n";
     Continuation *orig = const_cast<Continuation*>(kernel);
-    DUMP_BLOCK(orig);
+    //DUMP_BLOCK(orig);
 
     Continuation *ncontinuation;
 

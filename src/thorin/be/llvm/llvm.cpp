@@ -454,10 +454,15 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
     } else if (continuation->callee()->isa<Continuation>() &&
                 continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Predicated) {
+
+        auto mem = continuation->arg(0);
         auto mask = continuation->arg(1);
         auto target_bb = cont2bb(continuation->arg(2)->as_continuation());
         auto over_bb = cont2bb(continuation->arg(3)->as_continuation());
         assert(target_bb);
+
+        emit_unsafe(mem);
+
         if (mask->isa<Vector>()) {
             auto all_one = true;
             for (auto op : mask->ops())

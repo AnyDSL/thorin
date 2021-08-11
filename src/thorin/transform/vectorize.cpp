@@ -2311,11 +2311,8 @@ bool Vectorizer::run() {
 
     //Task 4: Rewrite vectorize call
                 if (vectorized) {
-                    const Continuation* vectorized_flat = flatten_continuation(vectorized, world_);
-                    assert(vectorized_flat);
-
                     for (auto caller : cont->preds()) {
-                        Array<const Def*> args(vectorized_flat->num_params());
+                        Array<const Def*> args(vectorized->num_params());
 
                         args[0] = caller->arg(0); //mem
                         //args[1] = caller->arg(1); //width
@@ -2325,11 +2322,11 @@ bool Vectorizer::run() {
                         }
                         args[1] = world_.vector(defs, caller->arg(1)->debug_history());
 
-                        for (size_t p = 2; p < vectorized_flat->num_params(); p++) {
+                        for (size_t p = 2; p < vectorized->num_params(); p++) {
                             args[p] = caller->arg(p + 1);
                         }
 
-                        caller->jump(vectorized_flat, args, caller->debug());
+                        caller->jump(vectorized, args, caller->debug());
                     }
                 }
             }
@@ -2362,11 +2359,12 @@ bool Vectorizer::run() {
 bool vectorize(World& world) {
     world.VLOG("start vectorizer");
     //world.dump();
-    auto res = Vectorizer(world).run();
+    bool res = Vectorizer(world).run();
 
     //world.dump();
 
-    //flatten_vectors(world);
+    if (!res)
+        flatten_vectors(world);
     //world.cleanup();
 
     //world.dump();

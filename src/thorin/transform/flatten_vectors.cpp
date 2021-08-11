@@ -10,7 +10,7 @@
 #define DUMP_BLOCK(block) { \
                     Stream s(std::cout); \
                     RecStreamer rec(s, std::numeric_limits<size_t>::max()); \
-                    for (auto& block : schedule(Scope(block))) { \
+                    for (auto& block : schedule(Scope(const_cast<Continuation*>(block)))) { \
                         rec.conts.push(block); \
                         rec.run(); \
                     } \
@@ -36,18 +36,25 @@ public:
     DefSet defs;
 };
 
-//TODO: !!!
-static World* world_;
+class Flatten {
+    Def2Def def2def;
+    World& world;
 
-Def2Def def2def;
+    const Type* flatten_type(const Type*);
+    const Type* flatten_vector_type(const VectorExtendedType*);
+    const FnType* flatten_fn_type(const FnType *);
 
-static const PrimOp * flatten_primop(const PrimOp *primop);
-static const Type* flatten_type(const Type *type);
-static const Type* flatten_vector_type(const VectorExtendedType *vector_type);
+    const PrimOp* flatten_primop(const PrimOp*);
+    const Def * flatten_def(const Def *);
+    const Continuation* flatten_continuation(const Continuation*);
+    void flatten_body(const Continuation *, Continuation *);
 
-static const Type* flatten_vector_type(const VectorExtendedType *vector_type) {
-    World &world = *world_;
+public:
+    Flatten(World &world) : world(world) {};
+    bool run();
+};
 
+const Type* Flatten::flatten_vector_type(const VectorExtendedType *vector_type) {
     auto vector_length = vector_type->length();
     auto element_type = vector_type->element();
 
@@ -74,9 +81,7 @@ static const Type* flatten_vector_type(const VectorExtendedType *vector_type) {
     return newtype;
 }
 
-static const Type* flatten_type(const Type *type) {
-    World &world = *world_;
-
+const Type* Flatten::flatten_type(const Type *type) {
     if (auto vector = type->isa<VectorExtendedType>()) {
         return flatten_vector_type(vector);
     } else if (auto vecvariant = type->isa<VariantVectorType>()) {
@@ -112,9 +117,7 @@ static const Type* flatten_type(const Type *type) {
 }
 
 
-static const FnType* flatten_fn_type(const FnType *fntype) {
-    World &world = *world_;
-
+const FnType* Flatten::flatten_fn_type(const FnType *fntype) {
     std::vector<const Type*> arg_types;
     for (auto op : fntype->ops()) {
         const Type* result = nullptr;
@@ -129,9 +132,7 @@ static const FnType* flatten_fn_type(const FnType *fntype) {
     return world.fn_type(arg_types);
 }
 
-static const Def * flatten_def(const Def *def) {
-    World &world = *world_;
-    
+const Def * Flatten::flatten_def(const Def *def) {
     //std::cerr << "flatten def "  << def->to_string() << "\n";
 
     auto replacement = def2def[def];
@@ -154,7 +155,7 @@ static const Def * flatten_def(const Def *def) {
             return world.continuation(new_type, cont->attributes(), de);
         }
     } else if (auto cont = def->isa<Continuation>(); cont && !cont->is_intrinsic()) {
-        auto new_continuation = flatten_continuation(cont, world);
+        auto new_continuation = flatten_continuation(cont);
         //assert(false && "return continuation");
         return new_continuation;
     } else if (def->isa<Param>()) {
@@ -165,9 +166,7 @@ static const Def * flatten_def(const Def *def) {
     }
 }
 
-static const PrimOp * flatten_primop(const PrimOp *primop) {
-    World &world = *world_;
-    
+const PrimOp * Flatten::flatten_primop(const PrimOp *primop) {
     //std::cerr << "flatten primop "  << primop->to_string() << "\n";
 
     auto replacement = def2def[primop];
@@ -203,7 +202,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
             //std::cerr << "values " << values->type()->to_string() << "\n";
 
             assert(addresses->type()->isa<PtrType>());
-            auto pointee_type = addresses->type()->as<PtrType>()->pointee();
+            //auto pointee_type = addresses->type()->as<PtrType>()->pointee();
             auto vector_width = addresses->type()->as<PtrType>()->length();
 
             //std::cerr << "pointee_type " << pointee_type->to_string() << "\n";
@@ -211,7 +210,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
 
             const Store* lane_store = nullptr;
 
-            for (auto lane = 0; lane < vector_width; ++lane) {
+            for (size_t lane = 0; lane < vector_width; ++lane) {
                 auto ext = world.extract(addresses, lane);
                 auto value = world.extract(values, lane);
 
@@ -256,7 +255,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
 
             new_primop = return_tuple;
         }
-    } else if (auto var_index = primop->isa<VariantIndex>()) {
+    } else if (primop->isa<VariantIndex>()) {
         auto result_struct = nops[0];
         if (result_struct->type()->isa<StructType>()) {
             auto vector_width = result_struct->type()->num_ops();
@@ -285,7 +284,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
         } else {
             new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         }
-    } else if (auto extract = primop->isa<Extract>()) {
+    } else if (primop->isa<Extract>()) {
         if (nops[1]->isa<Tuple>()) {
             assert(nops[1]->op(0)->isa<Top>());
             auto index = nops[1]->op(1);
@@ -362,7 +361,7 @@ static const PrimOp * flatten_primop(const PrimOp *primop) {
     return new_primop;
 }
 
-void flatten_body(const Continuation *old_continuation, Continuation *new_continuation) {
+void Flatten::flatten_body(const Continuation *old_continuation, Continuation *new_continuation) {
     //std::cerr << "Flattening " << old_continuation->to_string() << " into " << new_continuation->to_string() << "\n";
     assert(!old_continuation->empty());
 
@@ -379,12 +378,9 @@ void flatten_body(const Continuation *old_continuation, Continuation *new_contin
     new_continuation->jump(ntarget, nargs, old_continuation->debug());
 }
 
-const Continuation* flatten_continuation(const Continuation* kernel, World& world) {
-    //TODO: !!!
-    world_ = &world;
-
+const Continuation* Flatten::flatten_continuation(const Continuation* kernel) {
     //std::cerr << "Flatten Continuation " << kernel->to_string() << "\n";
-    Continuation *orig = const_cast<Continuation*>(kernel);
+    //Continuation *orig = const_cast<Continuation*>(kernel);
     //DUMP_BLOCK(orig);
 
     Continuation *ncontinuation;
@@ -430,30 +426,40 @@ const Continuation* flatten_continuation(const Continuation* kernel, World& worl
     return ncontinuation;
 }
 
-void flatten_vectors(World& world) {
+bool Flatten::run() {
+    bool unchanged = true;
     //std::cerr << "orig\n";
     //world.dump();
 
     //std::cerr << "flattening\n";
     for (auto continuation : world.copy_continuations()) {
         if (continuation->num_params() > 1 && continuation->param(1)->type()->isa<VectorType>() && continuation->param(1)->type()->as<VectorType>()->is_vector()) {
-            if (continuation->empty())
+            if (continuation->empty() || !continuation->is_returning())
                 continue;
-            //continuation->dump();
-            const Continuation* new_continuation = flatten_continuation(continuation, world);
+            const Continuation* new_continuation = flatten_continuation(continuation);
             //std::cerr << "new block\n";
             Continuation *newb = const_cast<Continuation*>(new_continuation);
             //DUMP_BLOCK(newb);
             continuation->replace(newb);
+            unchanged = false;
         }
     }
 
-    world.cleanup();
+    //world.cleanup();
 
     //std::cerr << "Done flattening\n";
     //world.dump();
 
-    //TODO: fix parameters and continuations
+    return unchanged;
+}
+
+bool flatten_vectors(World& world) {
+    world.VLOG("start flatten");
+
+    bool res = Flatten(world).run();
+
+    world.VLOG("end flatten");
+    return res;
 }
 
 }

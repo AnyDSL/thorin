@@ -1021,16 +1021,22 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
 }
 
 static inline std::string intrinsic_suffix(const thorin::PrimType* type) {
+    std::string suffix = "";
+    if (type->is_vector())
+        suffix += "v" + std::to_string(type->length());
     switch (type->primtype_tag()) {
         case PrimType_qf32:
         case PrimType_pf32:
-            return "f32";
+            suffix += "f32";
+            break;
         case PrimType_qf64:
         case PrimType_pf64:
-            return "f64";
+            suffix += "f64";
+            break;
         default:
             THORIN_UNREACHABLE;
     }
+    return suffix;
 }
 
 llvm::Value* CodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* mathop) {

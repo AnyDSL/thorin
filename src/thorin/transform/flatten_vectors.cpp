@@ -38,6 +38,7 @@ public:
 
 class Flatten {
     Def2Def def2def;
+    Type2Type type2type;
     World& world;
 
     const Type* flatten_type(const Type*);
@@ -82,8 +83,12 @@ const Type* Flatten::flatten_vector_type(const VectorExtendedType *vector_type) 
 }
 
 const Type* Flatten::flatten_type(const Type *type) {
+    auto flattened = type2type[type];
+    if (flattened)
+        return flattened;
+
     if (auto vector = type->isa<VectorExtendedType>()) {
-        return flatten_vector_type(vector);
+        return type2type[type] = flatten_vector_type(vector);
     } else if (auto vecvariant = type->isa<VariantVectorType>()) {
         assert(false && "Currently not applicable");
         auto vector_length = vecvariant->length();
@@ -96,7 +101,7 @@ const Type* Flatten::flatten_type(const Type *type) {
         for (size_t i = 0; i < vector_length; ++i) {
             newstruct->set(i, varianttype);
         }
-        return newstruct;
+        return type2type[type] = newstruct;
     } else if (auto tuple = type->isa<TupleType>()) {
         std::vector<const Type*> element_types;
         bool changed = false;
@@ -107,13 +112,13 @@ const Type* Flatten::flatten_type(const Type *type) {
             element_types.emplace_back(result);
         }
         if (changed) {
-            return world.tuple_type(element_types);
+            return type2type[type] = world.tuple_type(element_types);
         } else {
-            return tuple;
+            return type2type[type] = tuple;
         }
     } else
         //The type returned here should either be a basic vector type, or should have no vector characteristics alltogether.
-        return type;
+        return type2type[type] = type;
 }
 
 
@@ -322,6 +327,20 @@ const PrimOp * Flatten::flatten_primop(const PrimOp *primop) {
                 rebuild_struct_elements.emplace_back(lane_element);
             }
             new_primop = world.struct_agg(newtype, rebuild_struct_elements)->as<PrimOp>();
+        }
+    } else if (auto variant = primop->isa<Variant>()) {
+        if (newtype->isa<StructType>()) {
+            auto element_type = newtype->op(0);
+            size_t vector_width = primop->type()->as<VectorType>()->length();
+            std::vector<const Def*> rebuild_struct_elements;
+            for (size_t lane = 0; lane < vector_width; ++lane) {
+                auto inner_element = world.extract(nops[0], lane);
+                auto lane_element = world.variant(element_type, inner_element, variant->index());
+                rebuild_struct_elements.emplace_back(lane_element);
+            }
+            new_primop = world.struct_agg(newtype, rebuild_struct_elements)->as<PrimOp>();
+        } else {
+            new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         }
     } else if (auto agg = primop->isa<Vector>()) {
         if (newtype->like(agg->type())) {

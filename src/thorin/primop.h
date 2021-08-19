@@ -336,8 +336,8 @@ private:
             assert(variant_type->op(index) == value->type());
         else if (auto vec_type = type->isa<VectorExtendedType>()) {
             auto variant_type = vec_type->element()->as<VariantType>();
-            auto value_vector_type = value->type()->as<VectorExtendedType>();
-            auto value_type = value_vector_type->element();
+            auto value_vector_type = value->type()->as<VectorType>();
+            auto value_type = value_vector_type->scalarize();
             assert(variant_type->op(index) == value_type);
         }
     }

@@ -220,6 +220,8 @@ public:
     //@{
     const Def* dbg() const { return dbg_; }
     Debug debug() const { return dbg_; }
+    std::string name() const { return debug().name; }
+    Loc loc() const { return debug().loc; }
     void set_dbg(const Def* dbg) const { dbg_ = dbg; }
     void set_name(const std::string&) const;
     const Def* debug_history() const; ///< In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.

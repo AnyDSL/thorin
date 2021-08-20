@@ -290,8 +290,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
-        if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->debug().loc.begin.row, entry_->debug().loc.begin.col, discope));
+        if (debug) {
+            auto di_loc = llvm::DILocation::get(discope->getContext(), entry_->loc().begin.row, entry_->loc().begin.col, discope);
+            irbuilder_.SetCurrentDebugLocation(di_loc);
+        }
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
@@ -304,8 +306,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             irbuilder_.SetInsertPoint(bb2lam[lam]);
 
             for (auto def : block) {
-                if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->debug().loc.begin.row, def->debug().loc.begin.col, discope));
+                if (debug) {
+                    auto di_loc = llvm::DILocation::get(discope->getContext(), def->loc().begin.row, def->loc().begin.col, discope);
+                    irbuilder_.SetCurrentDebugLocation(di_loc);
+                }
 
                 if (def->isa<Var>())          continue;
                 if (def->type()->isa<Bot>())  continue;
@@ -339,8 +343,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug) {
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->body()->as<App>()->debug().loc.begin.row,
-                                                                       lam->body()->as<App>()->debug().loc.begin.col, discope));
+                auto di_loc = llvm::DILocation::get(discope->getContext(), lam->loc().begin.row, lam->loc().begin.col, discope);
+                irbuilder_.SetCurrentDebugLocation(di_loc);
             }
 
             if (lam->body()->as<App>()->callee() == ret_var) { // return
@@ -433,7 +437,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         // must be a closure
                         auto closure = lookup(callee);
                         args.push_back(irbuilder_.CreateExtractValue(closure, 1));
-                        call = irbuilder_.CreateCall(irbuilder_.CreateExtractValue(closure, 0), args);
+                        auto callee = irbuilder_.CreateExtractValue(closure, 0);
+                        auto ft = llvm::cast<llvm::FunctionType>(callee->getType());
+                        call = irbuilder_.CreateCall(ft, callee, args);
                     }
 
                     // must be call + lam --- call + return has been removed by codegen_prepare

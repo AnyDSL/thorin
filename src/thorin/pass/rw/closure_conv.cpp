@@ -4,7 +4,8 @@
 
 namespace thorin {
 
-const Def* ClosureConv::rewrite(Def* old_nom, const Def* new_type, const Def* new_dbg) {
+const Def* ClosureConv::rewrite(Def* old_nom, const Def*, const Def* ) {
+#if 0
     if (old_nom->type() != new_type) {
         auto new_nom = old_nom->stub(world(), new_type, new_dbg);
         new_nom->set(old_nom->apply(proxy(old_nom->var()->type(), {new_nom->var()}, 0)));
@@ -17,6 +18,7 @@ const Def* ClosureConv::rewrite(Def* old_nom, const Def* new_type, const Def* ne
         return new_nom;
     }
 
+#endif
     return old_nom;
 }
 
@@ -24,26 +26,29 @@ const Def* ClosureConv::rewrite(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
     if (cur_lam == nullptr || def->isa<Var>()) return def;
 
-    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (is_callee(def, i)) continue;
+    size_t n = def->num_ops();
+    Array<const Def*> new_ops(n);
 
-        if (auto lam = def->op(i)->isa_nom<Lam>()) {
-            if (lam->is_basicblock()) continue;
-
-            auto clos = convert(lam);
-            clos->dump(17);
-            //auto t = lam->type();
-            //auto u = convert(t);
-            //t->dump(2);
-            //u->dump(2);
-            //convert(lam)->dump(2);
-        }
+    for (size_t i = 0; i != n; ++i) {
+        auto op = def->op(i);
+        if (auto lam = op->isa_nom<Lam>())
+            new_ops[i] = close(lam);
+        else if (auto pi = op->isa<Pi>())
+            new_ops[i] = close(pi);
+        else
+            new_ops[i] = op;
     }
 
-    return def;
+    if (auto app = def->isa<App>()) {
+        auto [Env, env, f] = new_ops[0]->split<3>();
+        new_ops[1] = merge_tuple(new_ops[1], {env});
+        new_ops[0] = f;
+    }
+
+    return def->rebuild(world(), def->type(), new_ops, def->dbg());
 }
 
-const Sigma* ClosureConv::convert(const Pi* pi) {
+const Sigma* ClosureConv::close(const Pi* pi) {
     auto [i, ins] = pi2closure_.emplace(pi, nullptr);
     if (!ins) return i->second;
 
@@ -59,11 +64,11 @@ const Sigma* ClosureConv::convert(const Pi* pi) {
     return i->second = closure;
 }
 
-const Tuple* ClosureConv::convert(Lam* lam) {
+const Tuple* ClosureConv::close(Lam* lam) {
     auto [it, ins] = lam2closure_.emplace(lam, nullptr);
     if (!ins) return it->second;
 
-    auto Closure = convert(lam->type());
+    auto Closure = close(lam->type());
 
     Scope scope(lam);
     const auto& free = scope.free_defs();

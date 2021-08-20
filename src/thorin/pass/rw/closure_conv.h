@@ -15,8 +15,8 @@ private:
     const Def* rewrite(Def*, const Def* type, const Def*) override;
     const Def* rewrite(const Def*) override;
 
-    const Tuple* convert(Lam*);
-    const Sigma* convert(const Pi*);
+    const Tuple* close(Lam*);
+    const Sigma* close(const Pi*);
 
     GIDMap<const Pi*, const Sigma*> pi2closure_;
     LamMap<const Tuple*> lam2closure_;

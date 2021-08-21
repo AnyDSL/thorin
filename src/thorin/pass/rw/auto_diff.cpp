@@ -100,7 +100,7 @@ const Def* AutoDiffer::reverse_diff(Lam* src) {
 //                            pb_x receives a value that was differentiated with respect to x.
 //                  Thus, the "initial" pullback for parameters must be the identity function.
 // Here is a very brief example of what should happen in `j_wrap` and `j_wrap_rop`:
-//  
+//
 //      SOURCE             |  PRIMAL VERSION OF SOURCE
 //   ----------------------+-----------------------------------------------------------------------
 //     // x is parameter   | // <x,x'> is parameter. x' should be something like λz.z
@@ -123,7 +123,7 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
     }
     if (auto lam = def->isa_nom<Lam>()) {
         // FIXME: pb type correct? might not be able to just use idpb->type() here
-        auto old_pi = lam->type()->as<Pi>(); 
+        auto old_pi = lam->type()->as<Pi>();
         auto pi = world_.cn({world_.type_mem(), old_pi->doms()[1], idpb->type()});
         auto dst = world_.nom_lam(pi, world_.dbg(lam->name()));
         src_to_dst_[lam->var()] = dst->var();
@@ -364,7 +364,7 @@ const Def* AutoDiff::rewrite(const Def* def) {
                 dst_lam->set_body(world.lit_true());
                 dst_lam->set_body(differ.reverse_diff(src_lam));
 
-                debug_dump(dst_lam);
+                //debug_dump(dst_lam);
 
                 return dst_lam;
             }

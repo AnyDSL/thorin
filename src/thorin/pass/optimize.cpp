@@ -32,7 +32,7 @@ void optimize(World& world) {
     cleanup_world(world);
 
     PassMan(world)
-    .add<BoundElim>()
+    //.add<BoundElim>()
     .add<RetWrap>()
     .run();
 }

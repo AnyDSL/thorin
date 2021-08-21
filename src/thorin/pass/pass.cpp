@@ -62,7 +62,7 @@ void PassMan::run() {
 
     auto externals = std::vector(world().externals().begin(), world().externals().end());
     for (const auto& [_, nom] : externals)
-        enqueue(rewrite(nom));
+        enqueue(nom);
 
     while (!cur_state().stack.empty()) {
         push_state();
@@ -103,6 +103,7 @@ void PassMan::run() {
 
 const Def* PassMan::rewrite(const Def* old_def) {
     if (old_def->no_dep()) return old_def;
+    if (auto old_nom = old_def->isa_nom()) return map(old_nom, old_nom);
 
     if (auto new_def = lookup(old_def)) {
         if (old_def == *new_def)
@@ -114,25 +115,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
     auto new_type = rewrite(old_def->type());
     auto new_dbg  = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
-    // rewrite nom
-    if (auto old_nom = old_def->isa_nom()) {
-        for (auto pass : passes_) {
-            if (auto rw = pass->rewrite(old_nom, new_type, new_dbg); rw != old_nom)
-                return map(old_nom, rewrite(rw));
-        }
-
-        assert(old_nom->type() == new_type);
-        return map(old_nom, old_nom);
-    }
-
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
-
-    // rewrite structural before rebuild
-    for (auto pass : passes_) {
-        if (auto rw = pass->rewrite(old_def, new_type, new_ops, new_dbg); rw != old_def)
-            return map(old_def, rewrite(rw));
-    }
-
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
     // rewrite structural after rebuild

@@ -34,12 +34,6 @@ public:
     /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
     virtual void enter() {}
 
-    /// Rewrites a @p nom within @p PassMan::cur_nom. Returns the replacement.
-    virtual const Def* rewrite(Def* nom, [[maybe_unused]] const Def* type, [[maybe_unused]] const Def* dbg) { return nom; }
-
-    /// Rewrites a @em structural @p def within @p PassMan::cur_nom @em before it has been @p rebuild. Returns the replacement.
-    virtual const Def* rewrite(const Def* def, [[maybe_unused]] const Def* type, [[maybe_unused]] Defs, [[maybe_unused]] const Def* dbg) { return def; }
-
     /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
     virtual const Def* rewrite(const Def* def) { return def; }
 

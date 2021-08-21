@@ -38,7 +38,7 @@ public:
     virtual const Def* rewrite(const Def* def) { return def; }
 
     /// Invoked just after @p rewrite%ing and before @p analyze%ing @p PassMan::cur_nom's body.
-    virtual void finish() {}
+    virtual void leave() {}
     //@}
 
     /// @name Proxy
@@ -73,15 +73,9 @@ public:
 
     /// @name hooks for the PassMan
     //@{
-    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
-    /// Default implementation invokes the other @p analyze method for all @p extended_ops of @p cur_nom.
+    /// Invoked after the @p PassMan has left (@p leave) @p rewrite%ing @p cur_nom to analyze @p def.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze();
-    virtual undo_t analyze([[maybe_unused]] const Def* def) { return No_Undo; }
-    //@}
-
-    /// @name mangage state - dummy implementations here
-    //@{
+    virtual undo_t analyze(const Def* def) = 0;
     virtual void* alloc() { return nullptr; }
     virtual void dealloc(void*) {}
     //@}

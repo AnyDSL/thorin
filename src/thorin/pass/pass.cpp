@@ -15,13 +15,6 @@ FPPassBase::FPPassBase(PassMan& man, const std::string& name)
     , index_(man.fp_passes().size())
 {}
 
-undo_t FPPassBase::analyze() {
-    undo_t undo = No_Undo;
-    for (auto op : man().cur_nom()->extended_ops())
-        undo = std::min(undo, analyze(op));
-    return undo;
-}
-
 void PassMan::init_state() {
     auto num = fp_passes_.size();
     states_.emplace_back(num);
@@ -78,11 +71,13 @@ void PassMan::run() {
             cur_nom()->set(i, rewrite(cur_nom()->op(i)));
 
         for (auto pass : passes_)
-            pass->finish();
+            pass->leave();
 
-        undo_t undo = No_Undo;
-        for (auto&& pass : fp_passes_)
-            undo = std::min(undo, pass->analyze());
+        auto undo = No_Undo;
+        for (auto&& pass : fp_passes_) {
+            for (auto op : cur_nom()->extended_ops())
+                undo = std::min(undo, pass->analyze(op));
+        }
 
         if (undo == No_Undo) {
             for (auto op : cur_nom()->extended_ops())
@@ -118,7 +113,6 @@ const Def* PassMan::rewrite(const Def* old_def) {
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
-    // rewrite structural after rebuild
     for (auto pass : passes_) {
         if (auto rw = pass->rewrite(new_def); rw != new_def)
             return map(old_def, rewrite(rw));

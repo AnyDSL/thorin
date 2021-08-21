@@ -35,7 +35,6 @@ public:
 private:
     void enter() override;
     const Def* rewrite(const Def*) override;
-    undo_t analyze() override;
     undo_t analyze(const Def*) override;
 
     const Def* get_val(Lam*, const Proxy*);
@@ -48,7 +47,6 @@ private:
     GIDSet<const Proxy*> keep_;                                      ///< Contains @p Sloxy%s we want to keep.
     LamSet preds_n_;
     Lam2Lam mem2phi_;
-    DefSet analyzed_;
 };
 
 }

@@ -46,8 +46,6 @@ undo_t EtaConv::analyze(const Def* def) {
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        undo = std::min(undo, analyze(def->op(i)));
-
         if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (is_callee(def, i)) {
                 if (expand_.contains(lam)) continue;

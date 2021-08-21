@@ -69,8 +69,6 @@ undo_t CopyProp::analyze(const Def* def) {
 
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        undo = std::min(undo, analyze(def->op(i)));
-
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
             auto&& [_, u,ins] = insert<LamMap<Args>>(lam);
             if (!ins) {

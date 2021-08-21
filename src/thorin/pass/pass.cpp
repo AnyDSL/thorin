@@ -15,13 +15,6 @@ FPPassBase::FPPassBase(PassMan& man, const std::string& name)
     , index_(man.fp_passes().size())
 {}
 
-undo_t FPPassBase::analyze() {
-    undo_t undo = No_Undo;
-    for (auto op : man().cur_nom()->extended_ops())
-        undo = std::min(undo, analyze(op));
-    return undo;
-}
-
 void PassMan::init_state() {
     auto num = fp_passes_.size();
     states_.emplace_back(num);
@@ -61,8 +54,10 @@ void PassMan::run() {
     world().debug_stream();
 
     auto externals = std::vector(world().externals().begin(), world().externals().end());
-    for (const auto& [_, nom] : externals)
-        enqueue(nom);
+    for (const auto& [_, nom] : externals) {
+        analyzed(nom);
+        cur_state().stack.push(nom);
+    }
 
     while (!cur_state().stack.empty()) {
         push_state();
@@ -78,19 +73,24 @@ void PassMan::run() {
             cur_nom()->set(i, rewrite(cur_nom()->op(i)));
 
         for (auto pass : passes_)
-            pass->finish();
+            pass->leave();
 
-        undo_t undo = No_Undo;
-        for (auto&& pass : fp_passes_)
-            undo = std::min(undo, pass->analyze());
+#ifndef NDEBUG
+        review_.clear();
+#endif
+        auto undo = No_Undo;
+        for (auto op : cur_nom()->extended_ops())
+            undo = std::min(undo, analyze(op));
 
-        if (undo == No_Undo) {
-            for (auto op : cur_nom()->extended_ops())
-                enqueue(op);
-            world().DLOG("=== done ===");
-        } else {
+        if (undo != No_Undo) {
             pop_states(undo);
             world().DLOG("=== undo: {} -> {} ===", undo, cur_state().stack.top());
+        } else {
+#ifndef NDEBUG
+            for (auto def : review_)
+                assert(!def->isa<Proxy>() && "proxies must not occur anymore after leaving a nom with No_Undo");
+#endif
+            world().DLOG("=== done ===");
         }
     }
 
@@ -127,19 +127,28 @@ const Def* PassMan::rewrite(const Def* old_def) {
     return map(old_def, new_def);
 }
 
-void PassMan::enqueue(const Def* def) {
-    if (def->no_dep() || enqueued(def)) return;
-    assert(!def->isa<Proxy>() && "proxies must not occur anymore after finishing a nom with No_Undo");
+undo_t PassMan::analyze(const Def* def) {
+    undo_t undo = No_Undo;
 
-    enqueue(def->type());
-    if (auto dbg = def->dbg()) enqueue(dbg);
-
-    if (auto nom = def->isa_nom()) {
+    if (def->no_dep() || analyzed(def)) {
+        // do nothing
+    } else if (auto nom = def->isa_nom()) {
         cur_state().stack.push(nom);
     } else {
-        for (auto op : def->ops())
-            enqueue(op);
+        for (auto op : def->extended_ops())
+            undo = std::min(undo, analyze(op));
+
+        for (auto&& pass : fp_passes_) {
+            if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != pass->proxy_id()) continue;
+            undo = std::min(undo, pass->analyze(def));
+        }
+
+#ifndef NDEBUG
+        review_.emplace(def);
+#endif
     }
+
+    return undo;
 }
 
 }

@@ -128,18 +128,11 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
-undo_t SSAConstr::analyze() {
-    analyzed_.clear();
-    undo_t undo = No_Undo;
-    for (auto op : cur_nom()->extended_ops())
-        undo = std::min(undo, analyze(op));
-    return undo;
-}
-
 undo_t SSAConstr::analyze(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>() || !analyzed_.emplace(def).second) return No_Undo;
-    if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return No_Undo;
+    if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return No_Undo;
+
+    def->dump(0);
 
     if (auto sloxy = isa_proxy(def, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);
@@ -161,8 +154,6 @@ undo_t SSAConstr::analyze(const Def* def) {
     } else {
         auto undo = No_Undo;
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            undo = std::min(undo, analyze(def->op(i)));
-
             if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
                 auto&& [suc_info, u, ins] = insert<Lam2Info>(suc_lam);
 

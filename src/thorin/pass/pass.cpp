@@ -62,35 +62,29 @@ void PassMan::run() {
     while (!cur_state().stack.empty()) {
         push_state();
         cur_nom_ = pop(cur_state().stack);
-        world().VLOG("=== state/cur_nom {}/{} ===", states_.size() - 1, cur_nom());
+        world().VLOG("=== state {}: {} ===", states_.size() - 1, cur_nom());
 
         if (!cur_nom()->is_set()) continue;
 
-        for (auto pass : passes_)
-            pass->enter();
+        for (auto pass : passes_) pass->enter();
 
         for (size_t i = 0, e = cur_nom()->num_ops(); i != e; ++i)
             cur_nom()->set(i, rewrite(cur_nom()->op(i)));
 
-        for (auto pass : passes_)
-            pass->leave();
+        for (auto pass : passes_) pass->leave();
 
-#ifndef NDEBUG
-        review_.clear();
-#endif
+        world().VLOG("=== analyze ===");
+        proxy_ = false;
         auto undo = No_Undo;
         for (auto op : cur_nom()->extended_ops())
             undo = std::min(undo, analyze(op));
 
-        if (undo != No_Undo) {
+        if (undo == No_Undo) {
+            assert(!proxy_ && "proxies must not occur anymore after leaving a nom with No_Undo");
+            world().DLOG("=== done ===");
+        } else {
             pop_states(undo);
             world().DLOG("=== undo: {} -> {} ===", undo, cur_state().stack.top());
-        } else {
-#ifndef NDEBUG
-            for (auto def : review_)
-                assert(!def->isa<Proxy>() && "proxies must not occur anymore after leaving a nom with No_Undo");
-#endif
-            world().DLOG("=== done ===");
         }
     }
 
@@ -134,18 +128,15 @@ undo_t PassMan::analyze(const Def* def) {
         // do nothing
     } else if (auto nom = def->isa_nom()) {
         cur_state().stack.push(nom);
+    } else if (auto proxy = def->isa<Proxy>()) {
+        proxy_ = true;
+        undo = static_cast<FPPassBase*>(passes_[proxy->id()])->analyze(proxy);
     } else {
         for (auto op : def->extended_ops())
             undo = std::min(undo, analyze(op));
 
-        for (auto&& pass : fp_passes_) {
-            if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != pass->proxy_id()) continue;
+        for (auto&& pass : fp_passes_)
             undo = std::min(undo, pass->analyze(def));
-        }
-
-#ifndef NDEBUG
-        review_.emplace(def);
-#endif
     }
 
     return undo;

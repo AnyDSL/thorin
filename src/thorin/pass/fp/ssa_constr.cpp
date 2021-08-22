@@ -132,8 +132,6 @@ undo_t SSAConstr::analyze(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
     if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return No_Undo;
 
-    def->dump(0);
-
     if (auto sloxy = isa_proxy(def, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);
 
@@ -154,13 +152,15 @@ undo_t SSAConstr::analyze(const Def* def) {
     } else {
         auto undo = No_Undo;
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam != nullptr && !ignore(suc_lam)) {
+            if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam && !ignore(suc_lam)) {
                 auto&& [suc_info, u, ins] = insert<Lam2Info>(suc_lam);
 
                 if (suc_lam->is_basicblock() && suc_lam != cur_lam) {
                     // TODO this is a bit scruffy - maybe we can do better
                     auto&& [cur_info, _, __] = insert<Lam2Info>(cur_lam);
                     suc_info.writable.insert_range(range(cur_info.writable));
+                    for (auto l : cur_info.writable)
+                        world().DLOG("writable: '{}' in '{}'", l, suc_lam);
                 }
 
                 if (!preds_n_.contains(suc_lam)) {

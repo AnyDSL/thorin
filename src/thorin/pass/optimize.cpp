@@ -18,10 +18,10 @@ namespace thorin {
 void optimize(World& world) {
     PassMan(world)
     //.add<PartialEval>()
-    //.add<EtaConv>()
-    //.add<BetaRed>()
+    .add<EtaConv>()
+    .add<BetaRed>()
     .add<SSAConstr>()
-    //.add<CopyProp>()
+    .add<CopyProp>()
     //.add<Scalerize>()
     //.add<AutoDiff>()
     .run();

@@ -186,9 +186,7 @@ private:
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
     Def* cur_nom_ = nullptr;
-#ifndef NDEBUG
-    DefSet review_;
-#endif
+    bool proxy_ = false;
 
     template<class P> friend class FPPass;
 };

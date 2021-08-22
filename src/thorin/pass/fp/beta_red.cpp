@@ -33,8 +33,6 @@ undo_t BetaRed::analyze(const Def* def) {
     } else {
         auto undo = No_Undo;
         for (auto op : def->ops()) {
-            undo = std::min(undo, analyze(op));
-
             if (auto lam = op->isa_nom<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
                 auto [lam_undo, ins] = put(lam);
                 if (!ins) {

@@ -73,9 +73,9 @@ public:
 
     /// @name hooks for the PassMan
     //@{
-    /// Invoked after the @p PassMan has left (@p leave) @p rewrite%ing @p cur_nom to analyze @p def.
+    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze(const Def* def) = 0;
+    virtual undo_t analyze([[maybe_unused]] const Def* def) { return No_Undo; }
     virtual void* alloc() { return nullptr; }
     virtual void dealloc(void*) {}
     //@}
@@ -155,16 +155,14 @@ private:
         State& operator=(State) = delete;
         State(size_t num)
             : data(num)
-            , analyzed(num)
         {}
 
         Def* cur_nom = nullptr;
         Array<void*> data;
-        Array<DefSet> analyzed;
-        DefSet enqueued;
         Array<const Def*> old_ops;
         std::stack<Def*> stack;
         Def2Def old2new;
+        DefSet analyzed;
     };
 
     void init_state();
@@ -172,13 +170,13 @@ private:
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     const Def* rewrite(const Def*);
-    void enqueue(const Def*);
+    undo_t analyze(const Def*);
 
-    bool enqueued(const Def* def) {
+    bool analyzed(const Def* def) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-            if (i->enqueued.contains(def)) return true;
+            if (i->analyzed.contains(def)) return true;
         }
-        cur_state().enqueued.emplace(def);
+        cur_state().analyzed.emplace(def);
         return false;
     }
 
@@ -188,6 +186,7 @@ private:
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
     Def* cur_nom_ = nullptr;
+    bool proxy_ = false;
 
     template<class P> friend class FPPass;
 };
@@ -248,23 +247,13 @@ protected:
         assert(inserted);
         return {i->second, cur_undo(), true};
     }
-
-    /// Use when implementing your own @p RWPass::analyze to remember whether you have already seen @p def.
-    /// @return @c true if already analyzed, @c false if not - but subsequent invocations will then yield @c true.
-    bool analyzed(const Def* def) {
-        for (auto i = states().rbegin(), e = states().rend(); i != e; ++i) {
-            if (i->analyzed[index()].contains(def)) return true;
-        }
-        states().back().analyzed[index()].emplace(def);
-        return false;
-    }
     //@}
 
     /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p PasMMan::cur_nom.
     template<class T = Def>
     T* descend(const Def* def) {
         auto cur_nom = man().template cur_nom<T>();
-        if (cur_nom == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>() || analyzed(def)) return nullptr;
+        if (cur_nom == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return nullptr;
         if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return nullptr;
         return cur_nom;
     }

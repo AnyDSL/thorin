@@ -17,13 +17,13 @@ namespace thorin {
 
 void optimize(World& world) {
     PassMan(world)
-    .add<PartialEval>()
+    //.add<PartialEval>()
     .add<EtaConv>()
     .add<BetaRed>()
     .add<SSAConstr>()
     .add<CopyProp>()
     //.add<Scalerize>()
-    .add<AutoDiff>()
+    //.add<AutoDiff>()
     .run();
 
     cleanup_world(world);

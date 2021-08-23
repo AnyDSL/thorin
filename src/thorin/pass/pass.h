@@ -212,14 +212,24 @@ public:
 protected:
     /// @name search in the state stack
     //@{
-    /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
-    /// @return A triple: <code> [undo, inserted] </code>.
-    template<class K, size_t I = 0>
-    auto put(const K& key) {
+    /// Searches states from back to top in the set @p S for @p key.
+    /// @return undo if found, No_Undo otherwise.
+    template<size_t I = 0>
+    auto contains(const Key<I>& key) {
         for (undo_t undo = states().size(); undo-- != 0;) {
             auto& set = std::get<I>(data(undo));
-            if (auto i = set.find(key); i != set.end()) return std::tuple(undo, false);
+            if (auto i = set.find(key); i != set.end()) return undo;
         }
+
+        return No_Undo;
+    }
+
+    /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
+    /// @return A triple: <code> [undo, inserted] </code>.
+    template<size_t I = 0>
+    auto put(const Key<I>& key) {
+        if (auto undo = contains<I>(key); undo != No_Undo)
+            return std::tuple(undo, false);
 
         auto [_, inserted] = std::get<I>(data()).emplace(key);
         assert(inserted);

@@ -5,26 +5,27 @@
 
 namespace thorin {
 
-enum Lattice { Callee, Once_Non_Callee };
-
 /**
  * Performs η-conversion.
  * It uses the following strategy:
- *      1. η-reduction: <code>λx.e x -> e</code>, whenever <code>x</code> does not appear free in <code>e</code> and does not contradict rule 2).
- *      2. η-expansion: <code>f -> λx.f x</code>, if
- *          - <code>f</code> is a @p Lam that does not appear in callee position.
- *          - if it is <code>f</code>'s sole occurrence (optimistically), nothing will happen.
- *      This rule is a generalization of critical edge elimination.
- *      It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature (e.g. adding or removing @p Var%s).
+ *  * η-reduction: <code>λx.e x -> e</code>, whenever <code>x</code> does (optimistically) not appear free in <code>e</code>.
+ *  * η-expansion: <code>f -> λx.f x</code>, if <code>f</code> is a @p Lam with more than one user and does not appear in callee position.
+ * This rule is a generalization of critical edge elimination.
+ * It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature
+ * (e.g. adding or removing @p Var%s).
  * @code
- *      expand_
- *       /   \
- * Callee     Once_Non_Callee
- *       \   /
- *        Bot
+ *       expand_                <-- η-expand non-callee as occurs more than once; don't η-reduce the wrapper again.
+ *        /   \
+ *  Callee     Non_Callee_1     <-- Multiple callees XOR exactly one non-callee are okay.
+ *        \   /
+ *     irreducible_             <-- η-reduction not possible as we stumbled upon a Var.
+ *          |
+ *        Reduce                <-- η-reduction performed.
+ *          |
+ *          ⊥                   <-- Never seen.
  * @endcode
  */
-class EtaConv : public FPPass<EtaConv, LamMap<Lattice>> {
+class EtaConv : public FPPass<EtaConv, LamSet, LamSet> {
 public:
     EtaConv(PassMan& man)
         : FPPass(man, "eta_conv")
@@ -33,9 +34,12 @@ public:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
+    enum : size_t { Reduce, Non_Callee_1 };
+
 private:
     LamSet expand_;
-    LamSet wrappers_;
+    LamSet callee_;
+    LamSet irreducible_;
     Def2Def def2exp_;
 };
 

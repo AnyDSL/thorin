@@ -2,6 +2,8 @@
 
 namespace thorin {
 
+using Args = std::vector<const Def*>;
+
 const Def* CopyProp::rewrite(const Def* def) {
     auto app = def->isa<App>();
     if (app == nullptr) return def;
@@ -9,7 +11,7 @@ const Def* CopyProp::rewrite(const Def* def) {
     auto var_lam = app->callee()->isa_nom<Lam>();
     if (ignore(var_lam) || var_lam->num_vars() == 0 || keep_.contains(var_lam)) return app;
 
-    auto&& [args, _, __] = insert<LamMap<Args>>(var_lam);
+    auto&& [args, _, __] = insert(var_lam);
     args.resize(app->num_args());
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
@@ -62,7 +64,7 @@ undo_t CopyProp::analyze(const Def* def) {
 
     if (auto proxy = isa_proxy(def)) {
         auto lam = proxy->op(0)->as_nom<Lam>();
-        auto&& [_, undo, __] = insert<LamMap<Args>>(lam);
+        auto&& [_, undo, __] = insert(lam);
         world().DLOG("found proxy : {}", lam);
         return undo;
     }
@@ -70,7 +72,7 @@ undo_t CopyProp::analyze(const Def* def) {
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
-            auto&& [_, u,ins] = insert<LamMap<Args>>(lam);
+            auto&& [_, u,ins] = insert(lam);
             if (!ins) {
                 undo = std::min(undo, u);
                 world().DLOG("keep: {}", lam);

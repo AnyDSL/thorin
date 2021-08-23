@@ -5,11 +5,9 @@
 
 namespace thorin {
 
-/**
- * Optimistically performs β-reduction (aka inlining).
- * β-reduction of <code>f e</code>happens if <code>f</code> only occurs exactly once in the program in callee position.
- */
-class BetaRed : public FPPass<BetaRed> {
+/// Optimistically performs β-reduction (aka inlining).
+/// β-reduction of <code>f e</code>happens if <code>f</code> only occurs exactly once in the program in callee position.
+class BetaRed : public FPPass<BetaRed, LamSet> {
 public:
     BetaRed(PassMan& man)
         : FPPass(man, "beta_red")
@@ -18,10 +16,7 @@ public:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
-    using Data = std::tuple<LamSet>;
-
 private:
-
     LamSet keep_;
 };
 

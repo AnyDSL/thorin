@@ -50,7 +50,7 @@ undo_t EtaConv::analyze(const Def* def) {
             if (is_callee(def, i)) {
                 if (expand_.contains(lam)) continue;
 
-                auto&& [l, u, ins] = insert<LamMap<Lattice>>(lam, Lattice::Callee);
+                auto&& [l, u, ins] = insert(lam, Lattice::Callee);
                 if (ins) {
                     world().DLOG("Bot -> Callee: '{}'", lam);
                     l = Lattice::Callee;
@@ -65,7 +65,7 @@ undo_t EtaConv::analyze(const Def* def) {
                     continue;
                 }
 
-                auto&& [l, u, ins] = insert<LamMap<Lattice>>(lam, Lattice::Once_Non_Callee);
+                auto&& [l, u, ins] = insert(lam, Lattice::Once_Non_Callee);
                 if (ins) {
                     world().DLOG("Bot -> Once_Non_Callee: '{}'", lam);
                 } else {

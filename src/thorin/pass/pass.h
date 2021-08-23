@@ -188,21 +188,25 @@ private:
     Def* cur_nom_ = nullptr;
     bool proxy_ = false;
 
-    template<class P> friend class FPPass;
+    template<class P, class... Ds> friend class FPPass;
 };
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
-template<class P>
+template<class P, class... Ds>
 class FPPass : public FPPassBase {
 public:
+    using D = std::tuple<Ds...>;
+    template<size_t I> using Key = typename std::tuple_element<I, D>::type::key_type;
+    template<size_t I> using Val = typename std::tuple_element<I, D>::type::mapped_type;
+
     FPPass(PassMan& man, const std::string& name)
         : FPPassBase(man, name)
     {}
 
     /// @name alloc/dealloc state
     //@{
-    void* alloc() override { return new typename P::Data(); }
-    void dealloc(void* state) override { delete static_cast<typename P::Data*>(state); }
+    void* alloc() override { return new D(); }
+    void dealloc(void* state) override { delete static_cast<D*>(state); }
     //@}
 
 protected:
@@ -234,16 +238,14 @@ protected:
         return nullptr;
     }
 
-    /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
-    /// @return A triple: <code> [ref_to_mapped_val, undo, inserted] </code>.
-    template<class M>
-    std::tuple<typename M::mapped_type&, undo_t, bool> insert(const typename M::key_type& key, typename M::mapped_type&& init = {}) {
+    template<size_t I = 0>
+    std::tuple<Val<I>&, undo_t, bool> insert(const Key<I>& key, Val<I>&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& map = std::get<M>(data(undo));
+            auto& map = std::get<I>(data(undo));
             if (auto i = map.find(key); i != map.end()) return {i->second, undo, false};
         }
 
-        auto [i, inserted] = std::get<M>(data()).emplace(key, std::move(init));
+        auto [i, inserted] = std::get<I>(data()).emplace(key, std::move(init));
         assert(inserted);
         return {i->second, cur_undo(), true};
     }
@@ -264,8 +266,8 @@ private:
     /// @name state-related getters
     //@{
     auto& states() { return man().states_; }
-    auto& data(size_t i) { return *static_cast<typename P::Data*>(states()[i].data[index()]); }
-    auto& data() { assert(!states().empty()); return *static_cast<typename P::Data*>(states().back().data[index()]); }
+    auto& data(size_t i) { return *static_cast<D*>(states()[i].data[index()]); }
+    auto& data() { assert(!states().empty()); return *static_cast<D*>(states().back().data[index()]); }
     //@}
 };
 

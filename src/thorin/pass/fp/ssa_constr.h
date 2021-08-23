@@ -9,28 +9,25 @@
 
 namespace thorin {
 
-/**
- * SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
- * This is loosely based upon:
- * "Simple and Efficient Construction of Static Single Assignment Form"
- * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau. <br>
- * Depends on: @p EtaConv.
- */
-class SSAConstr : public FPPass<SSAConstr> {
+struct SSAInfo {
+    Lam* pred = nullptr;
+    GIDSet<const Proxy*> writable;
+};
+
+using Lam2SSAInfo = std::map<Lam*, SSAInfo, GIDLt<Lam*>>;
+
+/// SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
+/// This is loosely based upon:
+/// "Simple and Efficient Construction of Static Single Assignment Form"
+/// by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau. <br>
+/// Depends on: @p EtaConv.
+class SSAConstr : public FPPass<SSAConstr, Lam2SSAInfo> {
 public:
     SSAConstr(PassMan& man)
         : FPPass(man, "ssa_constr")
     {}
 
     enum : flags_t { Sloxy, Phixy, Traxy };
-
-    struct Info {
-        Lam* pred = nullptr;
-        GIDSet<const Proxy*> writable;
-    };
-
-    using Lam2Info = std::map<Lam*, Info, GIDLt<Lam*>>;
-    using Data = std::tuple<Lam2Info>;
 
 private:
     void enter() override;

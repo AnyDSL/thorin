@@ -5,6 +5,8 @@
 
 namespace thorin {
 
+enum Lattice { Callee, Once_Non_Callee };
+
 /**
  * Performs η-conversion.
  * It uses the following strategy:
@@ -22,7 +24,7 @@ namespace thorin {
  *        Bot
  * @endcode
  */
-class EtaConv : public FPPass<EtaConv> {
+class EtaConv : public FPPass<EtaConv, LamMap<Lattice>> {
 public:
     EtaConv(PassMan& man)
         : FPPass(man, "eta_conv")
@@ -30,9 +32,6 @@ public:
 
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
-
-    enum Lattice { Callee, Once_Non_Callee };
-    using Data = std::tuple<LamMap<Lattice>>;
 
 private:
     LamSet expand_;

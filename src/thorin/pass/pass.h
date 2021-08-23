@@ -236,18 +236,6 @@ protected:
         return std::tuple(cur_undo(), true);
     }
 
-    /// Searches states from back to top in the map @p M for @p key and inserts @p init if nothing is found.
-    /// @return A triple: <code> TODO </code>.
-    template<class M>
-    typename M::mapped_type* find(const typename M::key_type& key) {
-        for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& map = std::get<M>(data(undo));
-            if (auto i = map.find(key); i != map.end()) return &i->second;
-        }
-
-        return nullptr;
-    }
-
     template<size_t I = 0>
     std::tuple<Val<I>&, undo_t, bool> insert(const Key<I>& key, Val<I>&& init = {}) {
         for (undo_t undo = states().size(); undo-- != 0;) {

@@ -31,12 +31,12 @@ public:
         : FPPass(man, "eta_conv")
     {}
 
+private:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
     enum : size_t { Reduce, Non_Callee_1 };
 
-private:
     LamSet expand_;
     LamSet callee_;
     LamSet irreducible_;

@@ -10,7 +10,7 @@ const Def* EtaExp::rewrite(const Def* def) {
         auto wrap = lam->stub(world(), lam->type(), lam->dbg());
         wrap->set_name(std::string("eta_") + lam->debug().name);
         wrap->app(lam, wrap->var());
-        eta_red_.irreducible_.emplace(wrap);
+        if (eta_red_) eta_red_->irreducible_.emplace(wrap);
         return wrap;
     };
 

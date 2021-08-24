@@ -102,10 +102,10 @@ public:
     //@{
     /// Add a pass to this @p PassMan.
     template<class P, class... Args>
-    P& add(Args&&... args) {
+    P* add(Args&&... args) {
         auto p = std::make_unique<P>(*this, std::forward<Args>(args)...);
         passes_.emplace_back(p.get());
-        auto& res = *p;
+        auto res = p.get();
 
         if constexpr (std::is_base_of<FPPassBase, P>::value) {
             fp_passes_.emplace_back(std::move(p));

@@ -14,7 +14,7 @@ class EtaRed;
 /// (e.g. adding or removing @p Var%s).
 class EtaExp : public FPPass<EtaExp> {
 public:
-    EtaExp(PassMan& man, EtaRed& eta_red)
+    EtaExp(PassMan& man, EtaRed* eta_red)
         : FPPass(man, "eta_exp")
         , eta_red_(eta_red)
     {}
@@ -38,7 +38,7 @@ private:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
-    EtaRed& eta_red_;
+    EtaRed* eta_red_;
     LamSet expand_;
     Def2Def def2exp_;
     LamMap<std::pair<Lam*, const Def*>> wrap2subst_;

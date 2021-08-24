@@ -18,9 +18,9 @@ namespace thorin {
 
 void optimize(World& world) {
     PassMan man1(world);
-    man1.add<BetaRed>();
-    man1.add<PartialEval>();
-    auto& er = man1.add<EtaRed>();
+    //man1.add<BetaRed>();
+    //man1.add<PartialEval>();
+    auto er = man1.add<EtaRed>();
     man1.add<EtaExp>(er);
     man1.add<SSAConstr>();
     //man1.add<CopyProp>();

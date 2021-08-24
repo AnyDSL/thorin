@@ -16,7 +16,7 @@ const Def* EtaExp::rewrite(const Def* def) {
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
-            if (is_callee(def, i)) continue;
+            if (isa_callee(def, i)) continue;
 
             if (expand_.contains(lam)) {
                 auto [j, ins] = def2exp_.emplace(def, nullptr);
@@ -56,8 +56,7 @@ undo_t EtaExp::analyze(const Def* def) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (expand_.contains(lam)) continue;
 
-            def->dump(0);
-            if (is_callee(def, i)) {
+            if (isa_callee(def, i)) {
                 auto [l, u] = data().emplace(lam, std::pair(Lattice::Callee, cur_undo())).first->second;
                 if (l == Lattice::Non_Callee_1) {
                     world().DLOG("Callee: Callee -> Expand: '{}'", lam);

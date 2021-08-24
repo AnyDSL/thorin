@@ -22,7 +22,7 @@ void optimize(World& world) {
     man1.add<PartialEval>();
     auto& er = man1.add<EtaRed>();
     man1.add<EtaExp>(er);
-    //man1.add<SSAConstr>();
+    man1.add<SSAConstr>();
     //man1.add<CopyProp>();
     //man1.add<Scalerize>();
     //man1.add<AutoDiff>();

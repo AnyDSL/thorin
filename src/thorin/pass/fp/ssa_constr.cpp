@@ -1,4 +1,3 @@
-#if 0
 #include "thorin/pass/fp/ssa_constr.h"
 
 namespace thorin {
@@ -9,7 +8,7 @@ static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {
 
 void SSAConstr::enter() {
     if (auto lam = cur_nom<Lam>()) {
-        insert(lam); // create undo point
+        data(lam).enter_undo = cur_undo();
         lam2sloxy2val_[lam].clear();
     }
 }
@@ -30,8 +29,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
             set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
-            auto&& [info, _, __] = insert(cur_lam);
-            info.writable.emplace(sloxy);
+            data(cur_lam).writable.emplace(sloxy);
             return world().tuple({mem, sloxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
@@ -41,7 +39,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
         if (auto sloxy = isa_proxy(ptr, Sloxy)) {
-            if (auto&& [info, _, __] = insert(cur_lam); info.writable.contains(sloxy)) {
+            if (data(cur_lam).writable.contains(sloxy)) {
                 set_val(cur_lam, sloxy, val);
                 return mem;
             }
@@ -61,9 +59,9 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
     } else if (ignore(lam)) {
         world().DLOG("cannot install phi for '{}' in '{}'", sloxy, lam);
         return sloxy;
-    } else if (auto&& [info, _, __] = insert(lam); info.pred != nullptr) {
-        world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, info.pred, lam);
-        return get_val(info.pred, sloxy);
+    } else if (auto pred = data(lam).pred) {
+        world().DLOG("get_val recurse: '{}': '{}' -> '{}'", sloxy, pred, lam);
+        return get_val(pred, sloxy);
     } else {
         auto phixy = proxy(get_sloxy_type(sloxy), {sloxy, lam}, Phixy, sloxy->dbg());
         phixy->set_name(std::string("phi_") + phixy->debug().name);
@@ -78,12 +76,13 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 }
 
 const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
+    auto&& mem_info = data(mem_lam);
+    if (mem_info.visit_undo == No_Undo) mem_info.visit_undo = cur_undo();
+
     auto&& lam2phixys = lam2phixys_[mem_lam];
     if (lam2phixys.empty()) return app;
 
-    insert(mem_lam); // create undo
-    auto& phi_lam = mem2phi_.emplace(mem_lam, nullptr).first->second;
-
+    auto&& [_, phi_lam] = *mem2phi_.emplace(mem_lam, nullptr).first;
     std::vector<const Def*> types;
     for (auto i = lam2phixys.begin(), e = lam2phixys.end(); i != e;) {
         auto sloxy = *i;
@@ -104,8 +103,6 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
         phi_lam = world().nom_lam(new_type, mem_lam->dbg());
         world().DLOG("new phi_lam '{}'", phi_lam);
         world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->dom(), phi_lam, phi_lam->dom());
-        auto [_, ins] = preds_n_.emplace(phi_lam);
-        assert(ins);
 
         auto num_mem_vars = mem_lam->num_vars();
         size_t i = 0;
@@ -138,54 +135,36 @@ undo_t SSAConstr::analyze(const Def* def) {
 
         if (keep_.emplace(sloxy).second) {
             world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, def);
-            auto&& [_, undo, __] = insert(sloxy_lam);
-            return undo;
+            return data(sloxy_lam).enter_undo;
         }
     } else if (auto phixy = isa_proxy(def, Phixy)) {
         auto [sloxy, mem_lam] = split_phixy(phixy);
         auto&& phixys = lam2phixys_[mem_lam];
 
         if (phixys.emplace(sloxy).second) {
-            auto&& [_, undo, __] = insert(mem_lam);
-            world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}' -> state {}", phixy, sloxy, mem_lam, undo);
+            auto undo = data(mem_lam).visit_undo;
+            assertf(undo != No_Undo, "no visit_undo for '{}'", mem_lam);
+            world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}'", phixy, sloxy, mem_lam);
             return undo;
         }
     } else {
-        auto undo = No_Undo;
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam && !ignore(suc_lam)) {
-                auto&& [suc_info, u, ins] = insert(suc_lam);
+                auto& suc_info = data(suc_lam);
 
-                if (suc_lam->is_basicblock() && suc_lam != cur_lam) {
-                    // TODO this is a bit scruffy - maybe we can do better
-                    auto&& [cur_info, _, __] = insert(cur_lam);
-                    suc_info.writable.insert_range(range(cur_info.writable));
-                    for (auto l : cur_info.writable)
-                        world().DLOG("writable: '{}' in '{}'", l, suc_lam);
-                }
+                if (suc_lam->is_basicblock() && suc_lam != cur_lam) // TODO this is a bit scruffy - maybe we can do better
+                    suc_info.writable.insert_range(range(data(cur_lam).writable));
 
-                if (is_callee(def, i)) { // several preds (due to EtaExp)
-                } else {                 // unique pred (due to EtaExp)
-                }
-
-                if (!preds_n_.contains(suc_lam)) {
-                    if (ins) {
-                        world().DLOG("bot -> preds_1: '{}' <- pred '{}'", suc_lam, cur_lam);
-                        suc_info.pred = cur_lam;
-                    } else {
-                        preds_n_.emplace(suc_lam);
-                        world().DLOG("preds_1 -> preds_n: '{}'", suc_lam);
-                        undo = std::min(undo, u);
-                    }
+                if (!isa_callee(def, i)) {
+                    // Several preds in non-callee position? Wait for EtaExp.
+                    suc_info.pred = suc_info.pred ? nullptr : cur_lam;
+                    world().DLOG("'{}' -> '{}'", cur_lam, suc_lam);
                 }
             }
         }
-
-        return undo;
     }
 
     return No_Undo;
 }
 
 }
-#endif

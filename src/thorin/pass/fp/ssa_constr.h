@@ -1,4 +1,3 @@
-#if 0
 #ifndef THORIN_PASS_FP_SSA_CONSTR_H
 #define THORIN_PASS_FP_SSA_CONSTR_H
 
@@ -26,7 +25,8 @@ public:
     struct SSAInfo {
         Lam* pred = nullptr;
         GIDSet<const Proxy*> writable;
-        undo_t undo = -1;
+        undo_t visit_undo = No_Undo;
+        undo_t enter_undo = No_Undo;
     };
 
     using Data = std::map<Lam*, SSAInfo, GIDLt<Lam*>>;
@@ -50,5 +50,4 @@ private:
 
 }
 
-#endif
 #endif

@@ -166,6 +166,8 @@ public:
     friend class World;
 };
 
+inline const App* isa_callee(const Def* def, size_t i) { return i == 0 ? def->isa<App>() : nullptr; }
+
 inline Stream& operator<<(Stream& s, std::pair<Lam*, Lam*> p) { return operator<<(s, std::pair<const Def*, const Def*>(p.first, p.second)); }
 
 // TODO remove - deprecated

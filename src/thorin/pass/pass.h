@@ -202,8 +202,8 @@ public:
 
     /// @name memory management for state
     //@{
-    void* alloc() override { return new typename P::Data(); }
-    void* copy(const void* p) override { return new typename P::Data(*static_cast<const typename P::Data*>(p)); }
+    void* alloc() override { return new typename P::Data(); }                                                     ///< Default-ctor.
+    void* copy(const void* p) override { return new typename P::Data(*static_cast<const typename P::Data*>(p)); } ///< Copy-ctor.
     void dealloc(void* state) override { delete static_cast<typename P::Data*>(state); }
     //@}
 
@@ -222,11 +222,12 @@ protected:
     undo_t cur_undo() const { return man().states_.size()-1; }
     auto& states() { return man().states_; }
     auto& data() { assert(!states().empty()); return *static_cast<typename P::Data*>(states().back().data[index()]); }
+    /// Use this for your convenience if @c P::Data is a map.
+    template<class K> auto& data(const K& key) { return data()[key]; }
     //@}
 };
 
 inline World& RWPass::world() { return man().world(); }
-inline const App* is_callee(const Def* def, size_t i) { return i == 0 ? def->isa<App>() : nullptr; }
 
 template<class T = Def> T* RWPass::cur_nom() const { return man().template cur_nom<T>(); }
 

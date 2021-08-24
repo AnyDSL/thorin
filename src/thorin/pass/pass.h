@@ -36,6 +36,7 @@ public:
 
     /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
     virtual const Def* rewrite(const Def* def) { return def; }
+    virtual const Def* rewrite(const Proxy* proxy) { return proxy; }
 
     /// Invoked just after @p rewrite%ing and before @p analyze%ing @p PassMan::cur_nom's body.
     virtual void leave() {}

@@ -33,6 +33,7 @@ public:
 
 private:
     void enter() override;
+    const Def* rewrite(const Proxy*) override;
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;

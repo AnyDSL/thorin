@@ -13,16 +13,22 @@ void SSAConstr::enter() {
     }
 }
 
+const Def* SSAConstr::rewrite(const Proxy* proxy) {
+    if (auto traxy = isa_proxy(proxy, Traxy)) {
+        world().DLOG("traxy '{}'", traxy);
+        for (size_t i = 1, e = traxy->num_ops(); i != e; i += 2)
+            set_val(cur_nom<Lam>(), as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
+        return traxy->op(0);
+    }
+
+    return proxy;
+}
+
 const Def* SSAConstr::rewrite(const Def* def) {
     auto cur_lam = cur_nom<Lam>();
     if (cur_lam == nullptr) return def;
 
-    if (auto traxy = isa_proxy(def, Traxy)) {
-        world().DLOG("traxy '{}'", traxy);
-        for (size_t i = 1, e = def->num_ops(); i != e; i += 2)
-            set_val(cur_lam, as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
-        return traxy->op(0);
-    } else if (auto slot = isa<Tag::Slot>(def)) {
+    if (auto slot = isa<Tag::Slot>(def)) {
         auto [mem, id] = slot->args<2>();
         auto [_, ptr] = slot->split<2>();
         auto sloxy = proxy(ptr->type(), {cur_lam, id}, Sloxy, slot->dbg());

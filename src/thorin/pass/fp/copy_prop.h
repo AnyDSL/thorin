@@ -1,3 +1,4 @@
+#if 0
 #ifndef THORIN_PASS_FP_COPY_PROP_H
 #define THORIN_PASS_FP_COPY_PROP_H
 
@@ -25,4 +26,5 @@ private:
 
 }
 
+#endif
 #endif

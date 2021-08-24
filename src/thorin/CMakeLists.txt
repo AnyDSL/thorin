@@ -41,8 +41,10 @@ set(THORIN_SOURCES
     be/c.h
     pass/optimize.cpp
     pass/pass.cpp
-    pass/fp/eta_conv.cpp
-    pass/fp/eta_conv.h
+    pass/fp/eta_exp.cpp
+    pass/fp/eta_exp.h
+    pass/fp/eta_red.cpp
+    pass/fp/eta_red.h
     pass/fp/beta_red.cpp
     pass/fp/beta_red.h
     pass/fp/copy_prop.cpp

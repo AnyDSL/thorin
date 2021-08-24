@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/fp/scalarize.h"
 
 namespace thorin {
@@ -64,3 +65,4 @@ undo_t Scalerize::analyze(const Def* def) {
 }
 
 }
+#endif

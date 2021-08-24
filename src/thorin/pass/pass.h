@@ -76,8 +76,9 @@ public:
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
     /// Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze([[maybe_unused]] const Def* def) { return No_Undo; }
-    virtual void* alloc() { return nullptr; }
-    virtual void dealloc(void*) {}
+    virtual void* alloc() = 0;
+    virtual void* copy(const void*) = 0;
+    virtual void dealloc(void*) = 0;
     //@}
 
 private:
@@ -101,9 +102,10 @@ public:
     //@{
     /// Add a pass to this @p PassMan.
     template<class P, class... Args>
-    PassMan& add(Args... args) {
+    P& add(Args&&... args) {
         auto p = std::make_unique<P>(*this, std::forward<Args>(args)...);
         passes_.emplace_back(p.get());
+        auto& res = *p;
 
         if constexpr (std::is_base_of<FPPassBase, P>::value) {
             fp_passes_.emplace_back(std::move(p));
@@ -111,7 +113,7 @@ public:
             rw_passes_.emplace_back(std::move(p));
         }
 
-        return *this;
+        return res;
     }
 
     const auto& passes() const { return passes_; }
@@ -165,7 +167,6 @@ private:
         DefSet analyzed;
     };
 
-    void init_state();
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
@@ -188,67 +189,25 @@ private:
     Def* cur_nom_ = nullptr;
     bool proxy_ = false;
 
-    template<class P, class... Ds> friend class FPPass;
+    template<class P> friend class FPPass;
 };
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
-template<class P, class... Ds>
+template<class P>
 class FPPass : public FPPassBase {
 public:
-    using D = std::tuple<Ds...>;
-    template<size_t I> using Key = typename std::tuple_element<I, D>::type::key_type;
-    template<size_t I> using Val = typename std::tuple_element<I, D>::type::mapped_type;
-
     FPPass(PassMan& man, const std::string& name)
         : FPPassBase(man, name)
     {}
 
-    /// @name alloc/dealloc state
+    /// @name memory management for state
     //@{
-    void* alloc() override { return new D(); }
-    void dealloc(void* state) override { delete static_cast<D*>(state); }
+    void* alloc() override { return new typename P::Data(); }
+    void* copy(const void* p) override { return new typename P::Data(*static_cast<const typename P::Data*>(p)); }
+    void dealloc(void* state) override { delete static_cast<typename P::Data*>(state); }
     //@}
 
 protected:
-    /// @name search in the state stack
-    //@{
-    /// Searches states from back to top in the set @p S for @p key.
-    /// @return undo if found, No_Undo otherwise.
-    template<size_t I = 0>
-    auto contains(const Key<I>& key) {
-        for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& set = std::get<I>(data(undo));
-            if (auto i = set.find(key); i != set.end()) return undo;
-        }
-
-        return No_Undo;
-    }
-
-    /// Searches states from back to top in the set @p S for @p key and puts it into @p S if not found.
-    /// @return A triple: <code> [undo, inserted] </code>.
-    template<size_t I = 0>
-    auto put(const Key<I>& key) {
-        if (auto undo = contains<I>(key); undo != No_Undo)
-            return std::tuple(undo, false);
-
-        auto [_, inserted] = std::get<I>(data()).emplace(key);
-        assert(inserted);
-        return std::tuple(cur_undo(), true);
-    }
-
-    template<size_t I = 0>
-    std::tuple<Val<I>&, undo_t, bool> insert(const Key<I>& key, Val<I>&& init = {}) {
-        for (undo_t undo = states().size(); undo-- != 0;) {
-            auto& map = std::get<I>(data(undo));
-            if (auto i = map.find(key); i != map.end()) return {i->second, undo, false};
-        }
-
-        auto [i, inserted] = std::get<I>(data()).emplace(key, std::move(init));
-        assert(inserted);
-        return {i->second, cur_undo(), true};
-    }
-    //@}
-
     /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p PasMMan::cur_nom.
     template<class T = Def>
     T* descend(const Def* def) {
@@ -258,14 +217,11 @@ protected:
         return cur_nom;
     }
 
-    undo_t cur_undo() const { return man().states_.size()-1; }
-
-private:
     /// @name state-related getters
     //@{
+    undo_t cur_undo() const { return man().states_.size()-1; }
     auto& states() { return man().states_; }
-    auto& data(size_t i) { return *static_cast<D*>(states()[i].data[index()]); }
-    auto& data() { assert(!states().empty()); return *static_cast<D*>(states().back().data[index()]); }
+    auto& data() { assert(!states().empty()); return *static_cast<typename P::Data*>(states().back().data[index()]); }
     //@}
 };
 

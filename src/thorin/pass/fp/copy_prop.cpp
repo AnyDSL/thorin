@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/fp/copy_prop.h"
 
 namespace thorin {
@@ -84,3 +85,4 @@ undo_t CopyProp::analyze(const Def* def) {
 }
 
 }
+#endif

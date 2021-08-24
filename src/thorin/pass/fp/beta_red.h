@@ -7,11 +7,14 @@ namespace thorin {
 
 /// Optimistically performs β-reduction (aka inlining).
 /// β-reduction of <code>f e</code>happens if <code>f</code> only occurs exactly once in the program in callee position.
-class BetaRed : public FPPass<BetaRed, LamSet> {
+/// Depends on: @p EtaConv.
+class BetaRed : public FPPass<BetaRed> {
 public:
     BetaRed(PassMan& man)
         : FPPass(man, "beta_red")
     {}
+
+    using Data = LamMap<undo_t>;
 
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;

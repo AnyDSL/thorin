@@ -1,3 +1,4 @@
+#if 0
 #ifndef THORIN_PASS_FP_SCALARIZE_H
 #define THORIN_PASS_FP_SCALARIZE_H
 
@@ -5,7 +6,7 @@
 
 namespace thorin {
 
-class Scalerize : public FPPass<Scalerize, LamSet> {
+class Scalerize : public FPPass<Scalerize> {
 public:
     Scalerize(PassMan& man)
         : FPPass(man, "scalerize")
@@ -22,4 +23,4 @@ private:
 }
 
 #endif
-
+#endif

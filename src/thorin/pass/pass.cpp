@@ -15,21 +15,17 @@ FPPassBase::FPPassBase(PassMan& man, const std::string& name)
     , index_(man.fp_passes().size())
 {}
 
-void PassMan::init_state() {
-    auto num = fp_passes_.size();
-    states_.emplace_back(num);
-
-    for (size_t i = 0; i != num; ++i)
-        cur_state().data[i] = fp_passes_[i]->alloc();
-}
-
 void PassMan::push_state() {
-    if (!fp_passes_.empty()) {
-        init_state();
+    if (size_t num = fp_passes_.size()) {
+        states_.emplace_back(num);
+
         auto&& prev_state   = states_[states_.size() - 2];
         cur_state().stack   = prev_state.stack; // copy over stack
         cur_state().cur_nom = prev_state.stack.top();
         cur_state().old_ops = cur_state().cur_nom->ops();
+
+        for (size_t i = 0; i != num; ++i)
+            cur_state().data[i] = fp_passes_[i]->copy(prev_state.data[i]);
     }
 }
 
@@ -47,7 +43,11 @@ void PassMan::pop_states(size_t undo) {
 
 void PassMan::run() {
     world().ILOG("run");
-    init_state();
+
+    auto num = fp_passes_.size();
+    states_.emplace_back(num);
+    for (size_t i = 0; i != num; ++i)
+        cur_state().data[i] = fp_passes_[i]->alloc();
 
     for (auto pass : passes_)
         world().ILOG(" + {}", pass->name());

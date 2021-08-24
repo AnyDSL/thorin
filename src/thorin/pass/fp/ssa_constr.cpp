@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/fp/ssa_constr.h"
 
 namespace thorin {
@@ -163,6 +164,10 @@ undo_t SSAConstr::analyze(const Def* def) {
                         world().DLOG("writable: '{}' in '{}'", l, suc_lam);
                 }
 
+                if (is_callee(def, i)) { // several preds (due to EtaExp)
+                } else {                 // unique pred (due to EtaExp)
+                }
+
                 if (!preds_n_.contains(suc_lam)) {
                     if (ins) {
                         world().DLOG("bot -> preds_1: '{}' <- pred '{}'", suc_lam, cur_lam);
@@ -183,3 +188,4 @@ undo_t SSAConstr::analyze(const Def* def) {
 }
 
 }
+#endif

@@ -73,9 +73,10 @@ public:
 
     /// @name hooks for the PassMan
     //@{
-    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze @p def.
+    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze the @p Def.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze([[maybe_unused]] const Def* def) { return No_Undo; }
+    virtual undo_t analyze(const Def  *) { return No_Undo; }
+    virtual undo_t analyze(const Proxy*) { return No_Undo; }
     virtual void* alloc() = 0;
     virtual void* copy(const void*) = 0;
     virtual void dealloc(void*) = 0;

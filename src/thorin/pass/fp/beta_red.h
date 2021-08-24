@@ -17,6 +17,7 @@ public:
     using Data = LamMap<undo_t>;
 
     const Def* rewrite(const Def*) override;
+    undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;
 
 private:

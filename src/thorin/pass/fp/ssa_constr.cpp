@@ -126,18 +126,15 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
-undo_t SSAConstr::analyze(const Def* def) {
-    auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return No_Undo;
-
-    if (auto sloxy = isa_proxy(def, Sloxy)) {
+undo_t SSAConstr::analyze(const Proxy* proxy) {
+    if (auto sloxy = isa_proxy(proxy, Sloxy)) {
         auto sloxy_lam = get_sloxy_lam(sloxy);
 
         if (keep_.emplace(sloxy).second) {
-            world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, def);
+            world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, proxy);
             return data(sloxy_lam).enter_undo;
         }
-    } else if (auto phixy = isa_proxy(def, Phixy)) {
+    } else if (auto phixy = isa_proxy(proxy, Phixy)) {
         auto [sloxy, mem_lam] = split_phixy(phixy);
         auto&& phixys = lam2phixys_[mem_lam];
 
@@ -147,23 +144,29 @@ undo_t SSAConstr::analyze(const Def* def) {
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}'", phixy, sloxy, mem_lam);
             return undo;
         }
-    } else {
-        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam && !ignore(suc_lam)) {
-                auto& suc_info = data(suc_lam);
+    }
 
-                if (suc_lam->is_basicblock() && suc_lam != cur_lam) // TODO this is a bit scruffy - maybe we can do better
-                    suc_info.writable.insert_range(range(data(cur_lam).writable));
+    return No_Undo;
+}
 
-                if (!isa_callee(def, i)) {
-                    // Several preds in non-callee position? Wait for EtaExp.
-                    suc_info.pred = suc_info.pred ? nullptr : cur_lam;
-                    world().DLOG("'{}' -> '{}'", cur_lam, suc_lam);
-                }
+undo_t SSAConstr::analyze(const Def* def) {
+    auto cur_lam = cur_nom<Lam>();
+    if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return No_Undo;
+
+    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+        if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam && !ignore(suc_lam)) {
+            auto& suc_info = data(suc_lam);
+
+            if (suc_lam->is_basicblock() && suc_lam != cur_lam) // TODO this is a bit scruffy - maybe we can do better
+                suc_info.writable.insert_range(range(data(cur_lam).writable));
+
+            if (!isa_callee(def, i)) {
+                // Several preds in non-callee position? Wait for EtaExp.
+                suc_info.pred = suc_info.pred ? nullptr : cur_lam;
+                world().DLOG("'{}' -> '{}'", cur_lam, suc_lam);
             }
         }
     }
-
     return No_Undo;
 }
 

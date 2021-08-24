@@ -17,26 +17,26 @@
 namespace thorin {
 
 void optimize(World& world) {
-    PassMan man1(world);
-    //man1.add<BetaRed>();
-    //man1.add<PartialEval>();
-    auto er = man1.add<EtaRed>();
-    man1.add<EtaExp>(er);
-    man1.add<SSAConstr>();
-    //man1.add<CopyProp>();
-    //man1.add<Scalerize>();
-    //man1.add<AutoDiff>();
-    man1.run();
+    PassMan opt(world);
+    opt.add<PartialEval>();
+    opt.add<BetaRed>();
+    //auto er = opt.add<EtaRed>();
+    opt.add<EtaExp>(nullptr/*er*/);
+    opt.add<SSAConstr>();
+    //opt.add<CopyProp>();
+    //opt.add<Scalerize>();
+    //opt.add<AutoDiff>();
+    opt.run();
 
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     flatten_tuples(world);
     cleanup_world(world);
 
-    PassMan man2(world);
-    //man2.add<BoundElim>();
-    man2.add<RetWrap>();
-    man2.run();
+    PassMan codgen_prepare(world);
+    //codgen_prepare.add<BoundElim>();
+    codgen_prepare.add<RetWrap>();
+    codgen_prepare.run();
 }
 
 }

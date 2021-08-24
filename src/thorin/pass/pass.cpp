@@ -106,6 +106,12 @@ const Def* PassMan::rewrite(const Def* old_def) {
             return map(old_def, rewrite(*new_def));
     }
 
+    if (auto proxy = old_def->isa<Proxy>()) {
+        if (auto rw = static_cast<FPPassBase*>(passes_[proxy->id()])->rewrite(proxy); rw != old_def)
+            return map(old_def, rewrite(rw));
+        return map(old_def, old_def);
+    }
+
     auto new_type = rewrite(old_def->type());
     auto new_dbg  = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 

@@ -19,33 +19,33 @@ const Def* BetaRed::rewrite(const Def* def) {
     return def;
 }
 
+undo_t BetaRed::analyze(const Proxy* proxy) {
+    auto lam = proxy->op(0)->as_nom<Lam>();
+    if (keep_.emplace(lam).second) {
+        world().DLOG("found proxy app of '{}' within '{}'", lam, cur_nom<Lam>());
+        return data().find(lam)->second;
+    }
+
+    return No_Undo;
+}
+
 undo_t BetaRed::analyze(const Def* def) {
     auto cur_lam = descend<Lam>(def);
     if (cur_lam == nullptr) return No_Undo;
 
-    if (auto proxy = isa_proxy(def)) {
-        auto lam = proxy->op(0)->as_nom<Lam>();
-        if (keep_.emplace(lam).second) {
-            world().DLOG("found proxy app of '{}' within '{}'", lam, cur_lam);
-            return data().find(lam)->second;
-        }
-    } else {
-        auto undo = No_Undo;
-        for (auto op : def->ops()) {
-            if (auto lam = op->isa_nom<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
-                auto [i, ins] = data().emplace(lam, cur_undo());
-                if (!ins) {
-                    auto u = i->second;
-                    world().DLOG("non-callee-position of '{}'; undo to {} inlining of {} within {}", lam, u, lam, cur_lam);
-                    undo = std::min(undo, u);
-                }
+    auto undo = No_Undo;
+    for (auto op : def->ops()) {
+        if (auto lam = op->isa_nom<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
+            auto [i, ins] = data().emplace(lam, cur_undo());
+            if (!ins) {
+                auto u = i->second;
+                world().DLOG("non-callee-position of '{}'; undo to {} inlining of {} within {}", lam, u, lam, cur_lam);
+                undo = std::min(undo, u);
             }
         }
-
-        return undo;
     }
 
-    return No_Undo;
+    return undo;
 }
 
 }

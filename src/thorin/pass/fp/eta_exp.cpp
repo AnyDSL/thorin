@@ -34,6 +34,7 @@ const Def* EtaExp::rewrite(const Def* def) {
             if (auto subst = wrap2subst_.lookup(lam)) {
                 auto [orig, subst_def] = *subst;
                 if (def != subst_def) {
+                    assert(lam->body()->isa<App>() && lam->body()->as<App>()->callee() == orig);
                     auto wrap = eta_wrap(orig);
                     auto new_def = def->refine(i, wrap);
                     wrap2subst_[wrap] = std::pair(orig, new_def);

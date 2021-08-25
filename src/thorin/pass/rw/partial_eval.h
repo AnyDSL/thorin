@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-class PartialEval : public RWPass {
+class PartialEval : public RWPass<> {
 public:
     PartialEval(PassMan& man)
         : RWPass(man, "partial_eval")

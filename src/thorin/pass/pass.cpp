@@ -4,14 +4,14 @@
 
 namespace thorin {
 
-RWPass::RWPass(PassMan& man, const std::string& name)
+RWPassBase::RWPassBase(PassMan& man, const std::string& name)
     : man_(man)
     , name_(name)
     , proxy_id_(man.passes().size())
 {}
 
 FPPassBase::FPPassBase(PassMan& man, const std::string& name)
-    : RWPass(man, name)
+    : RWPassBase(man, name)
     , index_(man.fp_passes().size())
 {}
 
@@ -62,21 +62,21 @@ void PassMan::run() {
     while (!cur_state().stack.empty()) {
         push_state();
         cur_nom_ = pop(cur_state().stack);
-        world().VLOG("=== state {}: {} ===", states_.size() - 1, cur_nom());
+        world().VLOG("=== state {}: {} ===", states_.size() - 1, cur_nom_);
 
-        if (!cur_nom()->is_set()) continue;
+        if (!cur_nom_->is_set()) continue;
 
-        for (auto pass : passes_) pass->enter();
+        for (auto pass : passes_) {
+            if (pass->descend()) pass->enter();
+        }
 
-        for (size_t i = 0, e = cur_nom()->num_ops(); i != e; ++i)
-            cur_nom()->set(i, rewrite(cur_nom()->op(i)));
-
-        for (auto pass : passes_) pass->leave();
+        for (size_t i = 0, e = cur_nom_->num_ops(); i != e; ++i)
+            cur_nom_->set(i, rewrite(cur_nom_->op(i)));
 
         world().VLOG("=== analyze ===");
         proxy_ = false;
         auto undo = No_Undo;
-        for (auto op : cur_nom()->extended_ops())
+        for (auto op : cur_nom_->extended_ops())
             undo = std::min(undo, analyze(op));
 
         if (undo == No_Undo) {
@@ -119,8 +119,10 @@ const Def* PassMan::rewrite(const Def* old_def) {
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
     for (auto pass : passes_) {
-        if (auto rw = pass->rewrite(new_def); rw != new_def)
-            return map(old_def, rewrite(rw));
+        if (pass->descend()) {
+            if (auto rw = pass->rewrite(new_def); rw != new_def)
+                return map(old_def, rewrite(rw));
+        }
     }
 
     return map(old_def, new_def);
@@ -144,8 +146,10 @@ undo_t PassMan::analyze(const Def* def) {
                 undo = std::min(undo, analyze(op));
         }
 
-        for (auto&& pass : fp_passes_)
-            undo = std::min(undo, var ? pass->analyze(var) : pass->analyze(def));
+        for (auto&& pass : fp_passes_) {
+            if (pass->descend())
+                undo = std::min(undo, var ? pass->analyze(var) : pass->analyze(def));
+        }
     }
 
     return undo;

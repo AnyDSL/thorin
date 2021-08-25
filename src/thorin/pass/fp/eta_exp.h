@@ -12,7 +12,7 @@ class EtaRed;
 /// This rule is a generalization of critical edge elimination.
 /// It gives other @p Pass%es such as @p SSAConstr the opportunity to change <code>f</code>'s signature
 /// (e.g. adding or removing @p Var%s).
-class EtaExp : public FPPass<EtaExp> {
+class EtaExp : public FPPass<EtaExp, Lam> {
 public:
     EtaExp(PassMan& man, EtaRed* eta_red)
         : FPPass(man, "eta_exp")

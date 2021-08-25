@@ -14,7 +14,7 @@ namespace thorin {
 /// "Simple and Efficient Construction of Static Single Assignment Form"
 /// by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau. <br>
 /// Depends on: @p BetaRed, @p EtaConv.
-class SSAConstr : public FPPass<SSAConstr> {
+class SSAConstr : public FPPass<SSAConstr, Lam> {
 public:
     SSAConstr(PassMan& man)
         : FPPass(man, "ssa_constr")
@@ -45,7 +45,7 @@ private:
     //@{
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    const Def* mem2phi(Lam*, const App*, Lam*);
+    const Def* mem2phi(const App*, Lam*);
     //@}
 
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;

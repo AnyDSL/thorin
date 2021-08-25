@@ -7,17 +7,15 @@ static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nom<Lam>
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nom<Lam>()}; }
 
 void SSAConstr::enter() {
-    if (auto lam = cur_nom<Lam>()) {
-        data(lam).enter_undo = cur_undo();
-        lam2sloxy2val_[lam].clear();
-    }
+    data(cur_nom()).enter_undo = cur_undo();
+    lam2sloxy2val_[cur_nom()].clear();
 }
 
 const Def* SSAConstr::rewrite(const Proxy* proxy) {
     if (auto traxy = isa_proxy(proxy, Traxy)) {
         world().DLOG("traxy '{}'", traxy);
         for (size_t i = 1, e = traxy->num_ops(); i != e; i += 2)
-            set_val(cur_nom<Lam>(), as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
+            set_val(cur_nom(), as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
         return traxy->op(0);
     }
 
@@ -25,34 +23,31 @@ const Def* SSAConstr::rewrite(const Proxy* proxy) {
 }
 
 const Def* SSAConstr::rewrite(const Def* def) {
-    auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr) return def;
-
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [mem, id] = slot->args<2>();
         auto [_, ptr] = slot->split<2>();
-        auto sloxy = proxy(ptr->type(), {cur_lam, id}, Sloxy, slot->dbg());
+        auto sloxy = proxy(ptr->type(), {cur_nom(), id}, Sloxy, slot->dbg());
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
-            set_val(cur_lam, sloxy, world().bot(get_sloxy_type(sloxy)));
-            data(cur_lam).writable.emplace(sloxy);
+            set_val(cur_nom(), sloxy, world().bot(get_sloxy_type(sloxy)));
+            data(cur_nom()).writable.emplace(sloxy);
             return world().tuple({mem, sloxy});
         }
     } else if (auto load = isa<Tag::Load>(def)) {
         auto [mem, ptr] = load->args<2>();
         if (auto sloxy = isa_proxy(ptr, Sloxy))
-            return world().tuple({mem, get_val(cur_lam, sloxy)});
+            return world().tuple({mem, get_val(cur_nom(), sloxy)});
     } else if (auto store = isa<Tag::Store>(def)) {
         auto [mem, ptr, val] = store->args<3>();
         if (auto sloxy = isa_proxy(ptr, Sloxy)) {
-            if (data(cur_lam).writable.contains(sloxy)) {
-                set_val(cur_lam, sloxy, val);
+            if (data(cur_nom()).writable.contains(sloxy)) {
+                set_val(cur_nom(), sloxy, val);
                 return mem;
             }
         }
     } else if (auto app = def->isa<App>()) {
         if (auto mem_lam = app->callee()->isa_nom<Lam>(); !ignore(mem_lam))
-            return mem2phi(cur_lam, app, mem_lam);
+            return mem2phi(app, mem_lam);
     }
 
     return def;
@@ -81,7 +76,7 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
     return lam2sloxy2val_[lam][sloxy] = val;
 }
 
-const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
+const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
     auto&& mem_info = data(mem_lam);
     if (mem_info.visit_undo == No_Undo) mem_info.visit_undo = cur_undo();
 
@@ -128,7 +123,7 @@ const Def* SSAConstr::mem2phi(Lam* cur_lam, const App* app, Lam* mem_lam) {
     }
 
     auto phi = lam2phixys.begin();
-    Array<const Def*> args(num_phixys, [&](auto) { return get_val(cur_lam, *phi++); });
+    Array<const Def*> args(num_phixys, [&](auto) { return get_val(cur_nom(), *phi++); });
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
@@ -156,20 +151,17 @@ undo_t SSAConstr::analyze(const Proxy* proxy) {
 }
 
 undo_t SSAConstr::analyze(const Def* def) {
-    auto cur_lam = cur_nom<Lam>();
-    if (cur_lam == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return No_Undo;
-
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto suc_lam = def->op(i)->isa_nom<Lam>(); suc_lam && !ignore(suc_lam)) {
             auto& suc_info = data(suc_lam);
 
-            if (suc_lam->is_basicblock() && suc_lam != cur_lam) // TODO this is a bit scruffy - maybe we can do better
-                suc_info.writable.insert_range(range(data(cur_lam).writable));
+            if (suc_lam->is_basicblock() && suc_lam != cur_nom()) // TODO this is a bit scruffy - maybe we can do better
+                suc_info.writable.insert_range(range(data(cur_nom()).writable));
 
             if (!isa_callee(def, i)) {
                 // Several preds in non-callee position? Wait for EtaExp.
-                suc_info.pred = suc_info.pred ? nullptr : cur_lam;
-                world().DLOG("'{}' -> '{}'", cur_lam, suc_lam);
+                suc_info.pred = suc_info.pred ? nullptr : cur_nom();
+                world().DLOG("'{}' -> '{}'", cur_nom(), suc_lam);
             }
         }
     }

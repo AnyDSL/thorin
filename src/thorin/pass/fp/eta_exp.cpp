@@ -49,9 +49,6 @@ const Def* EtaExp::rewrite(const Def* def) {
 }
 
 undo_t EtaExp::analyze(const Def* def) {
-    auto cur_lam = descend<Lam>(def);
-    if (cur_lam == nullptr) return No_Undo;
-
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {

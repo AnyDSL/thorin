@@ -14,10 +14,10 @@ static constexpr undo_t No_Undo = std::numeric_limits<undo_t>::max();
 /// All Passes that want to be registered in the @p PassMan must implement this interface.
 /// * Directly inherit from this class if your pass doesn't need state and a fixed-point iteration (a ReWrite pass).
 /// * Inherit from @p FPPass using CRTP if you do need state.
-class RWPass {
+class RWPassBase {
 public:
-    RWPass(PassMan& man, const std::string& name);
-    virtual ~RWPass() {}
+    RWPassBase(PassMan& man, const std::string& name);
+    virtual ~RWPassBase() {}
 
     /// @name getters
     //@{
@@ -26,20 +26,18 @@ public:
     const std::string& name() const { return name_; }
     size_t proxy_id() const { return proxy_id_; }
     World& world();
-    template<class T = Def> T* cur_nom() const;
     //@}
 
     /// @name hooks for the PassMan
     //@{
+    virtual bool descend() const = 0;
+
     /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
     virtual void enter() {}
 
     /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
     virtual const Def* rewrite(const Def* def) { return def; }
     virtual const Def* rewrite(const Proxy* proxy) { return proxy; }
-
-    /// Invoked just after @p rewrite%ing and before @p analyze%ing @p PassMan::cur_nom's body.
-    virtual void leave() {}
     //@}
 
     /// @name Proxy
@@ -57,6 +55,10 @@ public:
     }
     //@}
 
+protected:
+    template<class N> bool descend() const;
+    template<class N> N* cur_nom() const;
+
 private:
     PassMan& man_;
     std::string name_;
@@ -66,7 +68,7 @@ private:
 };
 
 /// Base class for all FPPass%es.
-class FPPassBase : public RWPass {
+class FPPassBase : public RWPassBase {
 public:
     FPPassBase(PassMan& man, const std::string& name);
 
@@ -105,8 +107,11 @@ public:
     const auto& passes() const { return passes_; }
     const auto& rw_passes() const { return rw_passes_; }
     const auto& fp_passes() const { return fp_passes_; }
+    Def* cur_nom() const { return cur_nom_; }
     //@}
 
+    /// @name create and run passes
+    //@{
     /// Add a pass to this @p PassMan.
     template<class P, class... Args>
     P* add(Args&&... args) {
@@ -122,15 +127,10 @@ public:
 
         return res;
     }
+    //@}
 
     /// Run all registered passes on the whole @p world.
     void run();
-    template<class T = Def> T* cur_nom() const {
-        if constexpr(std::is_same<T, Def>::value)
-            return cur_nom_ ;
-        else
-            return cur_nom_ ? cur_nom_->template isa<T>() : nullptr;
-    }
 
 private:
     /// @name state
@@ -190,18 +190,30 @@ private:
     //@}
 
     World& world_;
-    std::vector<RWPass*> passes_;
-    std::vector<std::unique_ptr<RWPass    >> rw_passes_;
+    std::vector<RWPassBase*> passes_;
+    std::vector<std::unique_ptr<RWPassBase>> rw_passes_;
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
     Def* cur_nom_ = nullptr;
     bool proxy_ = false;
 
-    template<class P> friend class FPPass;
+    template<class P, class N> friend class FPPass;
+};
+
+template<class N = Def>
+class RWPass : public RWPassBase {
+public:
+    RWPass(PassMan& man, const std::string& name)
+        : RWPassBase(man, name)
+    {}
+
+protected:
+    bool descend() const override { return RWPassBase::descend<N>(); }
+    N* cur_nom() const { return RWPassBase::cur_nom<N>(); }
 };
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
-template<class P>
+template<class P, class N = Def>
 class FPPass : public FPPassBase {
 public:
     FPPass(PassMan& man, const std::string& name)
@@ -216,23 +228,8 @@ public:
     //@}
 
 protected:
-    /// Get current @em nominal.
-    /// @return If @c this @p isa T, yields a pointer to T, @c nullptr otherwise.
-    template<class T = Def> T* cur_nom() const {
-        if constexpr(std::is_same<T, Def>::value)
-            return man().cur_nom_ ;
-        else
-            return man().cur_nom_ ? man().cur_nom_->template isa<T>() : nullptr;
-    }
-
-    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p cur_nom.
-    template<class T = Def>
-    T* descend(const Def* def) {
-        auto cur_nom = man().template cur_nom<T>();
-        if (cur_nom == nullptr) return nullptr;
-        if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return nullptr;
-        return cur_nom;
-    }
+    bool descend() const override { return RWPassBase::descend<N>(); }
+    N* cur_nom() const { return RWPassBase::cur_nom<N>(); }
 
     /// @name state-related getters
     //@{
@@ -244,8 +241,23 @@ protected:
     //@}
 };
 
-inline World& RWPass::world() { return man().world(); }
-template<class T = Def> T* RWPass::cur_nom() const { return man().template cur_nom<T>(); }
+inline World& RWPassBase::world() { return man().world(); }
+
+template<class N>
+bool RWPassBase::descend() const {
+    if constexpr(std::is_same<N, Def>::value)
+        return man().cur_nom() ;
+    else
+        return man().cur_nom()->template isa<N>();
+}
+
+template<class N>
+N* RWPassBase::cur_nom() const {
+    if constexpr(std::is_same<N, Def>::value)
+        return man().cur_nom() ;
+    else
+        return man().cur_nom()->template as<N>();
+}
 
 }
 

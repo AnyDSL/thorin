@@ -32,7 +32,6 @@ undo_t EtaRed::analyze(const Var* var) {
     if (auto lam = var->nom()->isa_nom<Lam>()) {
         auto [l, undo] = data().emplace(lam, std::pair(Lattice::Bot, cur_undo())).first->second;
         auto succ = irreducible_.emplace(lam).second;
-
         if (l == Lattice::Reduce && succ) {
             world().DLOG("irreducible: {}; found {}", lam, var);
             return undo;

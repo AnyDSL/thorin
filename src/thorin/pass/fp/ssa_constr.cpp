@@ -159,9 +159,13 @@ undo_t SSAConstr::analyze(const Def* def) {
                 suc_info.writable.insert_range(range(data(cur_nom()).writable));
 
             if (!isa_callee(def, i)) {
-                // Several preds in non-callee position? Wait for EtaExp.
-                suc_info.pred = suc_info.pred ? nullptr : cur_nom();
-                world().DLOG("'{}' -> '{}'", cur_nom(), suc_lam);
+                if (suc_info.pred) {
+                    world().DLOG("'{}' -> '{}'", cur_nom(), suc_lam);
+                    suc_info.pred = nullptr;
+                } else {
+                    world().DLOG("several preds in non-callee position; wait for EtaExp");
+                    suc_info.pred = cur_nom();
+                }
             }
         }
     }

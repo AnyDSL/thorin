@@ -20,8 +20,8 @@ void optimize(World& world) {
     PassMan opt(world);
     opt.add<PartialEval>();
     opt.add<BetaRed>();
-    //auto er = opt.add<EtaRed>();
-    opt.add<EtaExp>(nullptr/*er*/);
+    auto er = opt.add<EtaRed>();
+    opt.add<EtaExp>(er);
     opt.add<SSAConstr>();
     //opt.add<CopyProp>();
     //opt.add<Scalerize>();

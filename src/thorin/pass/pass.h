@@ -76,7 +76,8 @@ public:
     //@{
     /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze the @p Def.
     /// Return @p No_Undo or the state to roll back to.
-    virtual undo_t analyze(const Def  *) { return No_Undo; }
+    virtual undo_t analyze(const Def*  ) { return No_Undo; }
+    virtual undo_t analyze(const Var*  ) { return No_Undo; }
     virtual undo_t analyze(const Proxy*) { return No_Undo; }
     virtual void* alloc() = 0;
     virtual void* copy(const void*) = 0;
@@ -228,7 +229,7 @@ protected:
     template<class T = Def>
     T* descend(const Def* def) {
         auto cur_nom = man().template cur_nom<T>();
-        if (cur_nom == nullptr || def->no_dep() || def->isa_nom() || def->isa<Var>()) return nullptr;
+        if (cur_nom == nullptr) return nullptr;
         if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() != proxy_id()) return nullptr;
         return cur_nom;
     }

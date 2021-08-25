@@ -28,16 +28,14 @@ const Def* EtaRed::rewrite(const Def* def) {
     return def;
 }
 
-undo_t EtaRed::analyze(const Def* def) {
-    if (auto var = def->isa<Var>()) {
-        if (auto lam = var->nom()->isa_nom<Lam>()) {
-            auto [l, undo] = data().emplace(lam, std::pair(Lattice::Bot, cur_undo())).first->second;
-            auto succ = irreducible_.emplace(lam).second;
+undo_t EtaRed::analyze(const Var* var) {
+    if (auto lam = var->nom()->isa_nom<Lam>()) {
+        auto [l, undo] = data().emplace(lam, std::pair(Lattice::Bot, cur_undo())).first->second;
+        auto succ = irreducible_.emplace(lam).second;
 
-            if (l == Lattice::Reduce && succ) {
-                world().DLOG("irreducible: {}; found {}", lam, var);
-                return undo;
-            }
+        if (l == Lattice::Reduce && succ) {
+            world().DLOG("irreducible: {}; found {}", lam, var);
+            return undo;
         }
     }
 

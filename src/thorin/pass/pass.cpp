@@ -137,11 +137,15 @@ undo_t PassMan::analyze(const Def* def) {
         proxy_ = true;
         undo = static_cast<FPPassBase*>(passes_[proxy->id()])->analyze(proxy);
     } else {
-        for (auto op : def->extended_ops())
-            undo = std::min(undo, analyze(op));
+        auto var = def->isa<Var>();
+
+        if (!var) {
+            for (auto op : def->extended_ops())
+                undo = std::min(undo, analyze(op));
+        }
 
         for (auto&& pass : fp_passes_)
-            undo = std::min(undo, pass->analyze(def));
+            undo = std::min(undo, var ? pass->analyze(var) : pass->analyze(def));
     }
 
     return undo;

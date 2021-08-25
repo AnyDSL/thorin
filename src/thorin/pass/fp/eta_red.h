@@ -23,7 +23,7 @@ public:
 
 private:
     const Def* rewrite(const Def*) override;
-    undo_t analyze(const Def*) override;
+    undo_t analyze(const Var*) override;
 
     LamSet irreducible_;
 

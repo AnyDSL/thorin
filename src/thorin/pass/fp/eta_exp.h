@@ -19,15 +19,15 @@ public:
         , eta_red_(eta_red)
     {}
 
-    /*
-    @code
-         expand_                <-- η-expand non-callee as it occurs more than once; don't η-reduce the wrapper again.
-          /   \
-    Callee     Non_Callee_1     <-- Multiple callees XOR exactly one non-callee are okay.
-          \   /
-           Bot                  <-- Never seen.
-    @endcode
-    */
+    /**
+     * @code
+     *      expand_            <-- η-expand non-callee as it occurs more than once; don't η-reduce the wrapper again.
+     *       /   \
+     * Callee     Non_Callee_1 <-- Multiple callees XOR exactly one non-callee are okay.
+     *       \   /
+     *        Bot              <-- Never seen.
+     * @endcode
+     */
     enum Lattice : bool { Callee, Non_Callee_1 };
     static const char* lattice2str(Lattice l) { return l == Callee ? "Callee" : "Non_Callee_1"; }
 

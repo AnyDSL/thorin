@@ -30,13 +30,14 @@ public:
 
     /// @name hooks for the PassMan
     //@{
-    virtual bool descend() const = 0;
+    virtual bool inspect() const = 0;
 
     /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
     virtual void enter() {}
 
     /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
     virtual const Def* rewrite(const Def* def) { return def; }
+    virtual const Def* rewrite(const Var* var) { return var; }
     virtual const Def* rewrite(const Proxy* proxy) { return proxy; }
     //@}
 
@@ -56,7 +57,7 @@ public:
     //@}
 
 protected:
-    template<class N> bool descend() const;
+    template<class N> bool inspect() const;
     template<class N> N* cur_nom() const;
 
 private:
@@ -208,7 +209,7 @@ public:
     {}
 
 protected:
-    bool descend() const override { return RWPassBase::descend<N>(); }
+    bool inspect() const override { return RWPassBase::inspect<N>(); }
     N* cur_nom() const { return RWPassBase::cur_nom<N>(); }
 };
 
@@ -222,13 +223,13 @@ public:
 
     /// @name memory management for state
     //@{
-    void* alloc() override { return new typename P::Data(); }                                                     ///< Default-ctor.
-    void* copy(const void* p) override { return new typename P::Data(*static_cast<const typename P::Data*>(p)); } ///< Copy-ctor.
-    void dealloc(void* state) override { delete static_cast<typename P::Data*>(state); }
+    void* alloc() override { return new typename P::Data(); }                                                     ///< Default ctor.
+    void* copy(const void* p) override { return new typename P::Data(*static_cast<const typename P::Data*>(p)); } ///< Copy ctor.
+    void dealloc(void* state) override { delete static_cast<typename P::Data*>(state); }                          ///< Dtor.
     //@}
 
 protected:
-    bool descend() const override { return RWPassBase::descend<N>(); }
+    bool inspect() const override { return RWPassBase::inspect<N>(); }
     N* cur_nom() const { return RWPassBase::cur_nom<N>(); }
 
     /// @name state-related getters
@@ -244,7 +245,7 @@ protected:
 inline World& RWPassBase::world() { return man().world(); }
 
 template<class N>
-bool RWPassBase::descend() const {
+bool RWPassBase::inspect() const {
     if constexpr(std::is_same<N, Def>::value)
         return man().cur_nom() ;
     else

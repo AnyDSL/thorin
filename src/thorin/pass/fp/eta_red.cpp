@@ -12,8 +12,6 @@ static const App* eta_rule(Lam* lam) {
 }
 
 const Def* EtaRed::rewrite(const Def* def) {
-    if (def->isa<Var>() || def->isa<Proxy>()) return def;
-
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (auto app = eta_rule(lam); app && !irreducible_.contains(lam)) {

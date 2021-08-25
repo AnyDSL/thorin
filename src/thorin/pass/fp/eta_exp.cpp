@@ -4,8 +4,6 @@
 namespace thorin {
 
 const Def* EtaExp::rewrite(const Def* def) {
-    if (def->isa<Var>() || def->isa<Proxy>()) return def;
-
     auto eta_wrap = [&](Lam* lam) {
         auto wrap = lam->stub(world(), lam->type(), lam->dbg());
         wrap->set_name(std::string("eta_") + lam->debug().name);

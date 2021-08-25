@@ -67,7 +67,7 @@ void PassMan::run() {
         if (!cur_nom_->is_set()) continue;
 
         for (auto pass : passes_) {
-            if (pass->descend()) pass->enter();
+            if (pass->inspect()) pass->enter();
         }
 
         for (size_t i = 0, e = cur_nom_->num_ops(); i != e; ++i)
@@ -106,22 +106,28 @@ const Def* PassMan::rewrite(const Def* old_def) {
             return map(old_def, rewrite(*new_def));
     }
 
-    if (auto proxy = old_def->isa<Proxy>()) {
-        if (auto rw = static_cast<FPPassBase*>(passes_[proxy->id()])->rewrite(proxy); rw != old_def)
-            return map(old_def, rewrite(rw));
-        return map(old_def, old_def);
-    }
-
     auto new_type = rewrite(old_def->type());
     auto new_dbg  = old_def->dbg() ? rewrite(old_def->dbg()) : nullptr;
 
     Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
     auto new_def = old_def->rebuild(world(), new_type, new_ops, new_dbg);
 
-    for (auto pass : passes_) {
-        if (pass->descend()) {
-            if (auto rw = pass->rewrite(new_def); rw != new_def)
+    if (auto proxy = new_def->isa<Proxy>()) {
+        if (auto pass = static_cast<FPPassBase*>(passes_[proxy->id()]); pass->inspect()) {
+            if (auto rw = pass->rewrite(proxy); rw != proxy)
                 return map(old_def, rewrite(rw));
+        }
+    } else {
+        for (auto pass : passes_) {
+            if (!pass->inspect()) continue;
+
+            if (auto var = new_def->isa<Var>()) {
+                if (auto rw = pass->rewrite(var); rw != var)
+                    return map(old_def, rewrite(rw));
+            } else {
+                if (auto rw = pass->rewrite(new_def); rw != new_def)
+                    return map(old_def, rewrite(rw));
+            }
         }
     }
 
@@ -147,7 +153,7 @@ undo_t PassMan::analyze(const Def* def) {
         }
 
         for (auto&& pass : fp_passes_) {
-            if (pass->descend())
+            if (pass->inspect())
                 undo = std::min(undo, var ? pass->analyze(var) : pass->analyze(def));
         }
     }

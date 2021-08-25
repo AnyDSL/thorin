@@ -44,7 +44,7 @@ public:
 
     /// @name Proxy
     //@{
-    const Proxy* proxy(const Def* type, Defs ops, flags_t flags, const Def* dbg = {}) { return world().proxy(type, ops, proxy_id(), flags, dbg); }
+    const Proxy* proxy(const Def* type, Defs ops, flags_t flags = 0, const Def* dbg = {}) { return world().proxy(type, ops, proxy_id(), flags, dbg); }
     /// @name Check whether given @c def is a Proxy whose index matches this @p Pass's @p index.
     const Proxy* isa_proxy(const Def* def, flags_t flags = 0) {
         if (auto proxy = def->isa<Proxy>(); proxy != nullptr && proxy->id() == proxy_id() && proxy->flags() == flags) return proxy;
@@ -98,10 +98,14 @@ public:
         : world_(world)
     {}
 
-    World& world() const { return world_; }
-
-    /// @name create and run
+    /// @name getters
     //@{
+    World& world() const { return world_; }
+    const auto& passes() const { return passes_; }
+    const auto& rw_passes() const { return rw_passes_; }
+    const auto& fp_passes() const { return fp_passes_; }
+    //@}
+
     /// Add a pass to this @p PassMan.
     template<class P, class... Args>
     P* add(Args&&... args) {
@@ -118,32 +122,8 @@ public:
         return res;
     }
 
-    const auto& passes() const { return passes_; }
-    const auto& rw_passes() const { return rw_passes_; }
-    const auto& fp_passes() const { return fp_passes_; }
-
     /// Run all registered passes on the whole @p world.
     void run();
-    //@}
-
-    /// @name working with the rewrite-map
-    //@{
-    const Def* map(const Def* old_def, const Def* new_def) {
-        cur_state().old2new[old_def] = new_def;
-        cur_state().old2new.emplace(new_def, new_def);
-        return new_def;
-    }
-
-    std::optional<const Def*> lookup(const Def* old_def) {
-        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-            const auto& old2new = i->old2new;
-            if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
-        }
-
-        return {};
-    }
-    //@}
-
     template<class T = Def> T* cur_nom() const {
         if constexpr(std::is_same<T, Def>::value)
             return cur_nom_ ;
@@ -152,6 +132,8 @@ public:
     }
 
 private:
+    /// @name state
+    //@{
     struct State {
         State() = default;
         State(const State&) = delete;
@@ -172,9 +154,31 @@ private:
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    const Def* rewrite(const Def*);
-    undo_t analyze(const Def*);
+    //@}
 
+    /// @name rewriting
+    //@{
+    const Def* rewrite(const Def*);
+
+    const Def* map(const Def* old_def, const Def* new_def) {
+        cur_state().old2new[old_def] = new_def;
+        cur_state().old2new.emplace(new_def, new_def);
+        return new_def;
+    }
+
+    std::optional<const Def*> lookup(const Def* old_def) {
+        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
+            const auto& old2new = i->old2new;
+            if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
+        }
+
+        return {};
+    }
+    //@}
+
+    /// @name analyze
+    //@{
+    undo_t analyze(const Def*);
     bool analyzed(const Def* def) {
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
             if (i->analyzed.contains(def)) return true;
@@ -182,6 +186,7 @@ private:
         cur_state().analyzed.emplace(def);
         return false;
     }
+    //@}
 
     World& world_;
     std::vector<RWPass*> passes_;
@@ -210,7 +215,16 @@ public:
     //@}
 
 protected:
-    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p PasMMan::cur_nom.
+    /// Get current @em nominal.
+    /// @return If @c this @p isa T, yields a pointer to T, @c nullptr otherwise.
+    template<class T = Def> T* cur_nom() const {
+        if constexpr(std::is_same<T, Def>::value)
+            return man().cur_nom_ ;
+        else
+            return man().cur_nom_ ? man().cur_nom_->template isa<T>() : nullptr;
+    }
+
+    /// Use as guard within @p analyze to rule out common @p def%s one is usually not interested in and only considers @p T as @p cur_nom.
     template<class T = Def>
     T* descend(const Def* def) {
         auto cur_nom = man().template cur_nom<T>();
@@ -230,7 +244,6 @@ protected:
 };
 
 inline World& RWPass::world() { return man().world(); }
-
 template<class T = Def> T* RWPass::cur_nom() const { return man().template cur_nom<T>(); }
 
 }

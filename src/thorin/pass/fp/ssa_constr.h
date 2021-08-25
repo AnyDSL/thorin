@@ -32,16 +32,21 @@ public:
     using Data = std::map<Lam*, SSAInfo, GIDLt<Lam*>>;
 
 private:
+    /// @name PassMan hooks
+    //@{
     void enter() override;
     const Def* rewrite(const Proxy*) override;
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;
+    //@}
 
+    /// @name SSA construction helpers - see paper
+    //@{
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    undo_t join(Lam* cur_lam, Lam* lam, bool);
     const Def* mem2phi(Lam*, const App*, Lam*);
+    //@}
 
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phixys_; ///< Contains the @p Phixy%s to add to @c mem_lam to build the @c phi_lam.

@@ -15,7 +15,7 @@ const Def* EtaRed::rewrite(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (auto app = eta_rule(lam); app && !irreducible_.contains(lam)) {
-                data().emplace(lam, std::pair(Lattice::Reduce, cur_undo()));
+                data().emplace(lam, Lattice::Reduce);
                 auto new_def = def->refine(i, app->callee());
                 world().DLOG("eta-reduction '{}' -> '{}' by eliminating '{}'", def, new_def, lam);
                 return new_def;
@@ -28,11 +28,11 @@ const Def* EtaRed::rewrite(const Def* def) {
 
 undo_t EtaRed::analyze(const Var* var) {
     if (auto lam = var->nom()->isa_nom<Lam>()) {
-        auto [l, undo] = data().emplace(lam, std::pair(Lattice::Bot, cur_undo())).first->second;
+        auto [_, l] = *data().emplace(lam, Lattice::Bot).first;
         auto succ = irreducible_.emplace(lam).second;
         if (l == Lattice::Reduce && succ) {
             world().DLOG("irreducible: {}; found {}", lam, var);
-            return undo;
+            return visit_undo(lam);
         }
     }
 

@@ -8,7 +8,7 @@ const Def* EtaExp::rewrite(const Def* def) {
         auto wrap = lam->stub(world(), lam->type(), lam->dbg());
         wrap->set_name(std::string("eta_") + lam->debug().name);
         wrap->app(lam, wrap->var());
-        if (eta_red_) eta_red_->irreducible_.emplace(wrap);
+        if (eta_red_) eta_red_->mark_irreducible(wrap);
         return wrap;
     };
 
@@ -53,24 +53,23 @@ undo_t EtaExp::analyze(const Def* def) {
             if (expand_.contains(lam)) continue;
 
             if (isa_callee(def, i)) {
-                auto [l, u] = data().emplace(lam, std::pair(Lattice::Callee, cur_undo())).first->second;
+                auto [_, l] = *data().emplace(lam, Lattice::Callee).first;
                 if (l == Lattice::Non_Callee_1) {
                     world().DLOG("Callee: Callee -> Expand: '{}'", lam);
                     expand_.emplace(lam);
-                    undo = std::min(undo, u);
+                    undo = std::min(undo, visit_undo(lam));
                 } else {
                     world().DLOG("Callee: Bot/Callee -> Callee: '{}'", lam);
                 }
             } else {
-                auto [it, first] = data().emplace(lam, std::pair(Lattice::Non_Callee_1, cur_undo()));
-                auto [l, u] = it->second;
+                auto [it, first] = data().emplace(lam, Lattice::Non_Callee_1);
 
                 if (first) {
                     world().DLOG("Non_Callee: Bot -> Non_Callee_1: '{}'", lam);
                 } else {
-                    world().DLOG("Non_Callee: {} -> Expand: '{}'", lattice2str(l), lam);
+                    world().DLOG("Non_Callee: {} -> Expand: '{}'", lattice2str(it->second), lam);
                     expand_.emplace(lam);
-                    undo = std::min(undo, u);
+                    undo = std::min(undo, visit_undo(lam));
                 }
             }
         }

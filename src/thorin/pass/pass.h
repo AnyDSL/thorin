@@ -128,10 +128,10 @@ public:
 
         return res;
     }
-    //@}
 
     /// Run all registered passes on the whole @p world.
     void run();
+    //@}
 
 private:
     /// @name state
@@ -146,9 +146,10 @@ private:
         {}
 
         Def* cur_nom = nullptr;
-        Array<void*> data;
         Array<const Def*> old_ops;
         std::stack<Def*> stack;
+        NomMap<undo_t> nom2visit;
+        Array<void*> data;
         Def2Def old2new;
         DefSet analyzed;
     };
@@ -156,6 +157,8 @@ private:
     void push_state();
     void pop_states(undo_t undo);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
+    const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
+    undo_t cur_undo() const { return states_.size()-1; }
     //@}
 
     /// @name rewriting
@@ -169,11 +172,8 @@ private:
     }
 
     std::optional<const Def*> lookup(const Def* old_def) {
-        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
-            const auto& old2new = i->old2new;
-            if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
-        }
-
+        for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i)
+            if (auto new_def = i->old2new.lookup(old_def)) return *new_def;
         return {};
     }
     //@}
@@ -234,11 +234,26 @@ protected:
 
     /// @name state-related getters
     //@{
-    undo_t cur_undo() const { return man().states_.size()-1; }
     auto& states() { return man().states_; }
     auto& data() { assert(!states().empty()); return *static_cast<typename P::Data*>(states().back().data[index()]); }
     /// Use this for your convenience if @c P::Data is a map.
     template<class K> auto& data(const K& key) { return data()[key]; }
+    //@}
+
+    /// @name undo getters
+    //@{
+    undo_t cur_undo() const { return man().cur_undo(); }
+
+    undo_t visit_undo(Def* nom) const {
+        if (auto undo = man().cur_state().nom2visit.lookup(nom)) return *undo;
+        return No_Undo;
+    }
+
+    undo_t enter_undo(Def* nom) const {
+        for (auto i = man().states_.size(); i-- != 0;)
+            if (man().states_[i].cur_nom == nom) return i;
+        return No_Undo;
+    }
     //@}
 };
 

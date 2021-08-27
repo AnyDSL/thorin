@@ -19,10 +19,12 @@ void PassMan::push_state() {
     if (size_t num = fp_passes_.size()) {
         states_.emplace_back(num);
 
-        auto&& prev_state   = states_[states_.size() - 2];
-        cur_state().stack   = prev_state.stack; // copy over stack
-        cur_state().cur_nom = prev_state.stack.top();
-        cur_state().old_ops = cur_state().cur_nom->ops();
+        // copy over from prev_state to cur_state
+        auto&& prev_state     = states_[states_.size() - 2];
+        cur_state().cur_nom   = prev_state.stack.top();
+        cur_state().old_ops   = cur_state().cur_nom->ops();
+        cur_state().stack     = prev_state.stack;
+        cur_state().nom2visit = prev_state.nom2visit;
 
         for (size_t i = 0; i != num; ++i)
             cur_state().data[i] = fp_passes_[i]->copy(prev_state.data[i]);
@@ -97,7 +99,11 @@ void PassMan::run() {
 
 const Def* PassMan::rewrite(const Def* old_def) {
     if (old_def->no_dep()) return old_def;
-    if (auto old_nom = old_def->isa_nom()) return map(old_nom, old_nom);
+
+    if (auto nom = old_def->isa_nom()) {
+        cur_state().nom2visit.emplace(nom, cur_undo());
+        return map(nom, nom);
+    }
 
     if (auto new_def = lookup(old_def)) {
         if (old_def == *new_def)

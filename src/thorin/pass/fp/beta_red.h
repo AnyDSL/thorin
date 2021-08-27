@@ -14,7 +14,7 @@ public:
         : FPPass(man, "beta_red")
     {}
 
-    using Data = LamMap<undo_t>;
+    using Data = LamSet;
 
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Proxy*) override;

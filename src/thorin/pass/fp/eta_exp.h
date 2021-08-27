@@ -14,11 +14,6 @@ class EtaRed;
 /// (e.g. adding or removing @p Var%s).
 class EtaExp : public FPPass<EtaExp, Lam> {
 public:
-    EtaExp(PassMan& man, EtaRed* eta_red)
-        : FPPass(man, "eta_exp")
-        , eta_red_(eta_red)
-    {}
-
     /**
      * @code
      *      expand_            <-- η-expand non-callee as it occurs more than once; don't η-reduce the wrapper again.
@@ -31,8 +26,14 @@ public:
     enum Lattice : bool { Callee, Non_Callee_1 };
     static const char* lattice2str(Lattice l) { return l == Callee ? "Callee" : "Non_Callee_1"; }
 
-    using Data = LamMap<std::pair<Lattice, undo_t>>;
-    undo_t join(Lam*, Lattice);
+    using Data = LamMap<Lattice>;
+
+    EtaExp(PassMan& man, EtaRed* eta_red)
+        : FPPass(man, "eta_exp")
+        , eta_red_(eta_red)
+    {}
+
+    void mark_expand(Lam* lam) { expand_.emplace(lam); }
 
 private:
     const Def* rewrite(const Def*) override;

@@ -19,15 +19,14 @@ public:
         Irreducible, ///< η-reduction not possible as we stumbled upon a Var.
     };
 
-    using Data = LamMap<std::pair<Lattice, undo_t>>;
+    using Data = LamMap<Lattice>;
+    void mark_irreducible(Lam* lam) { irreducible_.emplace(lam); }
 
 private:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Var*) override;
 
     LamSet irreducible_;
-
-    friend class EtaExp;
 };
 
 }

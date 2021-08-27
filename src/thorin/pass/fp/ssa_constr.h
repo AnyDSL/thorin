@@ -9,24 +9,24 @@
 
 namespace thorin {
 
+class EtaExp;
+
 /// SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
 /// This is loosely based upon:
 /// "Simple and Efficient Construction of Static Single Assignment Form"
 /// by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau. <br>
-/// Depends on: @p BetaRed, @p EtaConv.
 class SSAConstr : public FPPass<SSAConstr, Lam> {
 public:
-    SSAConstr(PassMan& man)
+    SSAConstr(PassMan& man, EtaExp* eta_exp)
         : FPPass(man, "ssa_constr")
+        , eta_exp_(eta_exp)
     {}
 
-    enum : flags_t { Sloxy, Phixy, Traxy };
+    enum : flags_t { Etaxy, Phixy, Sloxy, Traxy };
 
     struct SSAInfo {
         Lam* pred = nullptr;
         GIDSet<const Proxy*> writable;
-        undo_t visit_undo = No_Undo;
-        undo_t enter_undo = No_Undo;
     };
 
     using Data = std::map<Lam*, SSAInfo, GIDLt<Lam*>>;
@@ -48,6 +48,7 @@ private:
     const Def* mem2phi(const App*, Lam*);
     //@}
 
+    EtaExp* eta_exp_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phixys_; ///< Contains the @p Phixy%s to add to @c mem_lam to build the @c phi_lam.
     GIDSet<const Proxy*> keep_;                                      ///< Contains @p Sloxy%s we want to keep.

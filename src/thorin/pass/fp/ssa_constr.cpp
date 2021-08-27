@@ -1,13 +1,13 @@
 #include "thorin/pass/fp/ssa_constr.h"
 
+#include "thorin/pass/fp/eta_exp.h"
+
 namespace thorin {
 
 static const Def* get_sloxy_type(const Proxy* sloxy) { return as<Tag::Ptr>(sloxy->type())->arg(0); }
-static Lam* get_sloxy_lam(const Proxy* sloxy) { return sloxy->op(0)->as_nom<Lam>(); }
 static std::tuple<const Proxy*, Lam*> split_phixy(const Proxy* phixy) { return {phixy->op(0)->as<Proxy>(), phixy->op(1)->as_nom<Lam>()}; }
 
 void SSAConstr::enter() {
-    data(cur_nom()).enter_undo = cur_undo();
     lam2sloxy2val_[cur_nom()].clear();
 }
 
@@ -48,6 +48,13 @@ const Def* SSAConstr::rewrite(const Def* def) {
     } else if (auto app = def->isa<App>()) {
         if (auto mem_lam = app->callee()->isa_nom<Lam>(); !ignore(mem_lam))
             return mem2phi(app, mem_lam);
+    } else {
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+            if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
+                if (false && mem2phi_.contains(lam))
+                   return def->refine(i, proxy(lam->type(), {lam}, Etaxy));
+            }
+        }
     }
 
     return def;
@@ -77,9 +84,6 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 }
 
 const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
-    auto&& mem_info = data(mem_lam);
-    if (mem_info.visit_undo == No_Undo) mem_info.visit_undo = cur_undo();
-
     auto&& lam2phixys = lam2phixys_[mem_lam];
     if (lam2phixys.empty()) return app;
 
@@ -103,7 +107,6 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
         auto new_type = world().pi(merge_sigma(mem_lam->dom(), types), mem_lam->codom());
         phi_lam = world().nom_lam(new_type, mem_lam->dbg());
         world().DLOG("new phi_lam '{}'", phi_lam);
-        world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->dom(), phi_lam, phi_lam->dom());
 
         auto num_mem_vars = mem_lam->num_vars();
         size_t i = 0;
@@ -122,6 +125,7 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
         world().DLOG("reuse phi_lam '{}'", phi_lam);
     }
 
+    world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->dom(), phi_lam, phi_lam->dom());
     auto phi = lam2phixys.begin();
     Array<const Def*> args(num_phixys, [&](auto) { return get_val(cur_nom(), *phi++); });
     return world().app(phi_lam, merge_tuple(app->arg(), args));
@@ -129,22 +133,29 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
 
 undo_t SSAConstr::analyze(const Proxy* proxy) {
     if (auto sloxy = isa_proxy(proxy, Sloxy)) {
-        auto sloxy_lam = get_sloxy_lam(sloxy);
+        auto sloxy_lam = sloxy->op(0)->as_nom<Lam>();
 
         if (keep_.emplace(sloxy).second) {
             world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, proxy);
-            return data(sloxy_lam).enter_undo;
+            return enter_undo(sloxy_lam);
         }
     } else if (auto phixy = isa_proxy(proxy, Phixy)) {
         auto [sloxy, mem_lam] = split_phixy(phixy);
         auto&& phixys = lam2phixys_[mem_lam];
 
         if (phixys.emplace(sloxy).second) {
-            auto undo = data(mem_lam).visit_undo;
-            assertf(undo != No_Undo, "no visit_undo for '{}'", mem_lam);
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}'", phixy, sloxy, mem_lam);
-            return undo;
+            return visit_undo(mem_lam);
         }
+    } else if (auto etaxy = isa_proxy(proxy, Etaxy)) {
+        auto etaxy_lam = etaxy->op(0)->as_nom<Lam>();
+        if (eta_exp_)
+            eta_exp_->mark_expand(etaxy_lam);
+        else
+            assert(false && "not implemented");
+
+        world().DLOG("found etaxy '{}', undo: {}", etaxy_lam);
+        return visit_undo(etaxy_lam);
     }
 
     return No_Undo;
@@ -160,10 +171,10 @@ undo_t SSAConstr::analyze(const Def* def) {
 
             if (!isa_callee(def, i)) {
                 if (suc_info.pred) {
-                    world().DLOG("'{}' -> '{}'", cur_nom(), suc_lam);
+                    world().DLOG("several preds in non-callee position; wait for EtaExp");
                     suc_info.pred = nullptr;
                 } else {
-                    world().DLOG("several preds in non-callee position; wait for EtaExp");
+                    world().DLOG("'{}' -> '{}'", cur_nom(), suc_lam);
                     suc_info.pred = cur_nom();
                 }
             }

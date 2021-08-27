@@ -21,8 +21,8 @@ void optimize(World& world) {
     opt.add<PartialEval>();
     opt.add<BetaRed>();
     auto er = opt.add<EtaRed>();
-    opt.add<EtaExp>(er);
-    opt.add<SSAConstr>();
+    auto ee = opt.add<EtaExp>(er);
+    opt.add<SSAConstr>(ee);
     //opt.add<CopyProp>();
     //opt.add<Scalerize>();
     //opt.add<AutoDiff>();

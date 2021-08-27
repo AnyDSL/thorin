@@ -51,7 +51,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
     } else {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
-                if (false && mem2phi_.contains(lam))
+                if (mem2phi_.contains(lam))
                    return def->refine(i, proxy(lam->type(), {lam}, Etaxy));
             }
         }
@@ -154,7 +154,7 @@ undo_t SSAConstr::analyze(const Proxy* proxy) {
         else
             assert(false && "not implemented");
 
-        world().DLOG("found etaxy '{}', undo: {}", etaxy_lam);
+        world().DLOG("found etaxy '{}'", etaxy_lam);
         return visit_undo(etaxy_lam);
     }
 

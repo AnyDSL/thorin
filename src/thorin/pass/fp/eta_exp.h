@@ -14,6 +14,13 @@ class EtaRed;
 /// (e.g. adding or removing @p Var%s).
 class EtaExp : public FPPass<EtaExp, Lam> {
 public:
+    EtaExp(PassMan& man, EtaRed* eta_red)
+        : FPPass(man, "eta_exp")
+        , eta_red_(eta_red)
+    {}
+
+    void mark_expand(Lam* lam) { expand_.emplace(lam); }
+
     /**
      * @code
      *      expand_            <-- η-expand non-callee as it occurs more than once; don't η-reduce the wrapper again.
@@ -28,15 +35,10 @@ public:
 
     using Data = LamMap<Lattice>;
 
-    EtaExp(PassMan& man, EtaRed* eta_red)
-        : FPPass(man, "eta_exp")
-        , eta_red_(eta_red)
-    {}
-
-    void mark_expand(Lam* lam) { expand_.emplace(lam); }
-
 private:
     const Def* rewrite(const Def*) override;
+    const Def* reexpand(const Def*);
+    Lam* eta_wrap(Lam*);
     undo_t analyze(const Def*) override;
 
     EtaRed* eta_red_;

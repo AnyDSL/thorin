@@ -1,9 +1,6 @@
-#if 0
 #include "thorin/pass/fp/copy_prop.h"
 
 namespace thorin {
-
-using Args = std::vector<const Def*>;
 
 const Def* CopyProp::rewrite(const Def* def) {
     auto app = def->isa<App>();
@@ -12,7 +9,7 @@ const Def* CopyProp::rewrite(const Def* def) {
     auto var_lam = app->callee()->isa_nom<Lam>();
     if (ignore(var_lam) || var_lam->num_vars() == 0 || keep_.contains(var_lam)) return app;
 
-    auto&& [args, _, __] = insert(var_lam);
+    auto& args = data(var_lam);
     args.resize(app->num_args());
     std::vector<const Def*> new_args;
     std::vector<const Def*> types;
@@ -41,7 +38,7 @@ const Def* CopyProp::rewrite(const Def* def) {
 
     if (!changed) return def;
 
-    auto&& prop_lam = var2prop_[var_lam];
+    auto& prop_lam = var2prop_[var_lam];
     if (prop_lam == nullptr || prop_lam->num_vars() != types.size()) {
         auto prop_dom = world().sigma(types);
         auto new_type = world().pi(prop_dom, var_lam->codom());
@@ -59,25 +56,21 @@ const Def* CopyProp::rewrite(const Def* def) {
     return app->world().app(prop_lam, new_args, app->dbg());
 }
 
+undo_t CopyProp::analyze(const Proxy* proxy) {
+    auto lam = proxy->op(0)->as_nom<Lam>();
+    world().DLOG("found proxy : {}", lam);
+    return undo_visit(lam);
+}
+
 undo_t CopyProp::analyze(const Def* def) {
-    auto cur_lam = descend<Lam>(def);
-    if (cur_lam == nullptr) return No_Undo;
-
-    if (auto proxy = isa_proxy(def)) {
-        auto lam = proxy->op(0)->as_nom<Lam>();
-        auto&& [_, undo, __] = insert(lam);
-        world().DLOG("found proxy : {}", lam);
-        return undo;
-    }
-
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {
-            auto&& [_, u,ins] = insert(lam);
-            if (!ins) {
-                undo = std::min(undo, u);
+            //auto&& [_, u,ins] = data(lam);
+            //if (!ins) {
+                undo = std::min(undo, undo_visit(lam));
                 world().DLOG("keep: {}", lam);
-            }
+            //}
         }
     }
 
@@ -85,4 +78,3 @@ undo_t CopyProp::analyze(const Def* def) {
 }
 
 }
-#endif

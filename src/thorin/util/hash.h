@@ -433,9 +433,9 @@ public:
                         swap(nodes_[i], old);
                         break;
                     } else {
-                        size_t cur_distance = probe_distance(i);
-                        if (cur_distance < distance) {
-                            distance = cur_distance;
+                        size_t curr_distance = probe_distance(i);
+                        if (curr_distance < distance) {
+                            distance = curr_distance;
                             swap(nodes_[i], old);
                         }
                         debug(i);
@@ -500,10 +500,10 @@ private:
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
-                size_t cur_distance = probe_distance(i);
-                if (cur_distance < distance) {
+                size_t curr_distance = probe_distance(i);
+                if (curr_distance < distance) {
                     result = result == end_ptr() ? nodes_+i : result;
-                    distance = cur_distance;
+                    distance = curr_distance;
                     swap(nodes_[i], n);
                 }
             }

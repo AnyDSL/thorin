@@ -32,7 +32,7 @@ undo_t EtaRed::analyze(const Var* var) {
         auto succ = irreducible_.emplace(lam).second;
         if (l == Lattice::Reduce && succ) {
             world().DLOG("irreducible: {}; found {}", lam, var);
-            return visit_undo(lam);
+            return undo_visit(lam);
         }
     }
 

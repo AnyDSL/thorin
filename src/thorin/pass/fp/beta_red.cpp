@@ -22,8 +22,8 @@ const Def* BetaRed::rewrite(const Def* def) {
 undo_t BetaRed::analyze(const Proxy* proxy) {
     auto lam = proxy->op(0)->as_nom<Lam>();
     if (keep_.emplace(lam).second) {
-        world().DLOG("found proxy app of '{}' within '{}'", lam, cur_nom());
-        return visit_undo(lam);
+        world().DLOG("found proxy app of '{}' within '{}'", lam, curr_nom());
+        return undo_visit(lam);
     }
 
     return No_Undo;
@@ -35,8 +35,8 @@ undo_t BetaRed::analyze(const Def* def) {
         if (auto lam = op->isa_nom<Lam>(); !ignore(lam) && keep_.emplace(lam).second) {
             auto [_, ins] = data().emplace(lam);
             if (!ins) {
-                world().DLOG("non-callee-position of '{}'; undo inlining of {} within {}", lam, lam, cur_nom());
-                undo = std::min(undo, visit_undo(lam));
+                world().DLOG("non-callee-position of '{}'; undo inlining of {} within {}", lam, lam, curr_nom());
+                undo = std::min(undo, undo_visit(lam));
             }
         }
     }

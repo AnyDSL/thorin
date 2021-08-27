@@ -32,10 +32,10 @@ public:
     //@{
     virtual bool inspect() const = 0;
 
-    /// Invoked just before @p rewrite%ing @p PassMan::cur_nom's body.
+    /// Invoked just before @p rewrite%ing @p PassMan::curr_nom's body.
     virtual void enter() {}
 
-    /// Rewrites a @em structural @p def within @p PassMan::cur_nom. Returns the replacement.
+    /// Rewrites a @em structural @p def within @p PassMan::curr_nom. Returns the replacement.
     virtual const Def* rewrite(const Def* def) { return def; }
     virtual const Def* rewrite(const Var* var) { return var; }
     virtual const Def* rewrite(const Proxy* proxy) { return proxy; }
@@ -58,7 +58,7 @@ public:
 
 protected:
     template<class N> bool inspect() const;
-    template<class N> N* cur_nom() const;
+    template<class N> N* curr_nom() const;
 
 private:
     PassMan& man_;
@@ -77,7 +77,7 @@ public:
 
     /// @name hooks for the PassMan
     //@{
-    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p cur_nom to analyze the @p Def.
+    /// Invoked after the @p PassMan has @p finish%ed @p rewrite%ing @p curr_nom to analyze the @p Def.
     /// Return @p No_Undo or the state to roll back to.
     virtual undo_t analyze(const Def*  ) { return No_Undo; }
     virtual undo_t analyze(const Var*  ) { return No_Undo; }
@@ -108,7 +108,7 @@ public:
     const auto& passes() const { return passes_; }
     const auto& rw_passes() const { return rw_passes_; }
     const auto& fp_passes() const { return fp_passes_; }
-    Def* cur_nom() const { return cur_nom_; }
+    Def* curr_nom() const { return curr_nom_; }
     //@}
 
     /// @name create and run passes
@@ -145,7 +145,7 @@ private:
             : data(num)
         {}
 
-        Def* cur_nom = nullptr;
+        Def* curr_nom = nullptr;
         Array<const Def*> old_ops;
         std::stack<Def*> stack;
         NomMap<undo_t> nom2visit;
@@ -156,9 +156,9 @@ private:
 
     void push_state();
     void pop_states(undo_t undo);
-    State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
-    undo_t cur_undo() const { return states_.size()-1; }
+    State& curr_state() { assert(!states_.empty()); return states_.back(); }
+    const State& curr_state() const { assert(!states_.empty()); return states_.back(); }
+    undo_t curr_undo() const { return states_.size()-1; }
     //@}
 
     /// @name rewriting
@@ -166,8 +166,8 @@ private:
     const Def* rewrite(const Def*);
 
     const Def* map(const Def* old_def, const Def* new_def) {
-        cur_state().old2new[old_def] = new_def;
-        cur_state().old2new.emplace(new_def, new_def);
+        curr_state().old2new[old_def] = new_def;
+        curr_state().old2new.emplace(new_def, new_def);
         return new_def;
     }
 
@@ -185,7 +185,7 @@ private:
         for (auto i = states_.rbegin(), e = states_.rend(); i != e; ++i) {
             if (i->analyzed.contains(def)) return true;
         }
-        cur_state().analyzed.emplace(def);
+        curr_state().analyzed.emplace(def);
         return false;
     }
     //@}
@@ -195,7 +195,7 @@ private:
     std::vector<std::unique_ptr<RWPassBase>> rw_passes_;
     std::vector<std::unique_ptr<FPPassBase>> fp_passes_;
     std::deque<State> states_;
-    Def* cur_nom_ = nullptr;
+    Def* curr_nom_ = nullptr;
     bool proxy_ = false;
 
     template<class P, class N> friend class FPPass;
@@ -210,7 +210,7 @@ public:
 
 protected:
     bool inspect() const override { return RWPassBase::inspect<N>(); }
-    N* cur_nom() const { return RWPassBase::cur_nom<N>(); }
+    N* curr_nom() const { return RWPassBase::curr_nom<N>(); }
 };
 
 /// Inherit from this class using CRTP if you do need a Pass with a state.
@@ -230,7 +230,7 @@ public:
 
 protected:
     bool inspect() const override { return RWPassBase::inspect<N>(); }
-    N* cur_nom() const { return RWPassBase::cur_nom<N>(); }
+    N* curr_nom() const { return RWPassBase::curr_nom<N>(); }
 
     /// @name state-related getters
     //@{
@@ -242,16 +242,16 @@ protected:
 
     /// @name undo getters
     //@{
-    undo_t cur_undo() const { return man().cur_undo(); }
+    undo_t curr_undo() const { return man().curr_undo(); }
 
-    undo_t visit_undo(Def* nom) const {
-        if (auto undo = man().cur_state().nom2visit.lookup(nom)) return *undo;
+    undo_t undo_visit(Def* nom) const {
+        if (auto undo = man().curr_state().nom2visit.lookup(nom)) return *undo;
         return No_Undo;
     }
 
-    undo_t enter_undo(Def* nom) const {
+    undo_t undo_enter(Def* nom) const {
         for (auto i = man().states_.size(); i-- != 0;)
-            if (man().states_[i].cur_nom == nom) return i;
+            if (man().states_[i].curr_nom == nom) return i;
         return No_Undo;
     }
     //@}
@@ -262,17 +262,17 @@ inline World& RWPassBase::world() { return man().world(); }
 template<class N>
 bool RWPassBase::inspect() const {
     if constexpr(std::is_same<N, Def>::value)
-        return man().cur_nom() ;
+        return man().curr_nom() ;
     else
-        return man().cur_nom()->template isa<N>();
+        return man().curr_nom()->template isa<N>();
 }
 
 template<class N>
-N* RWPassBase::cur_nom() const {
+N* RWPassBase::curr_nom() const {
     if constexpr(std::is_same<N, Def>::value)
-        return man().cur_nom() ;
+        return man().curr_nom() ;
     else
-        return man().cur_nom()->template as<N>();
+        return man().curr_nom()->template as<N>();
 }
 
 }

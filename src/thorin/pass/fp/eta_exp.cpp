@@ -81,7 +81,7 @@ undo_t EtaExp::analyze(const Def* def) {
                 if (l == Lattice::Non_Callee_1) {
                     world().DLOG("Callee: Callee -> Expand: '{}'", lam);
                     expand_.emplace(lam);
-                    undo = std::min(undo, visit_undo(lam));
+                    undo = std::min(undo, undo_visit(lam));
                 } else {
                     world().DLOG("Callee: Bot/Callee -> Callee: '{}'", lam);
                 }
@@ -93,7 +93,7 @@ undo_t EtaExp::analyze(const Def* def) {
                 } else {
                     world().DLOG("Non_Callee: {} -> Expand: '{}'", lattice2str(it->second), lam);
                     expand_.emplace(lam);
-                    undo = std::min(undo, visit_undo(lam));
+                    undo = std::min(undo, undo_visit(lam));
                 }
             }
         }

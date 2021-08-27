@@ -38,20 +38,20 @@ VarSet DepTree::run(Def* nom) {
     return result;
 }
 
-VarSet DepTree::run(Def* cur_nom, const Def* def) {
-    if (def->no_dep())                                     return {};
-    if (auto vars = def2vars_.lookup(def))                 return *vars;
-    if (auto nom  = def->isa_nom(); nom && cur_nom != nom) return run(nom);
+VarSet DepTree::run(Def* curr_nom, const Def* def) {
+    if (def->no_dep())                                      return {};
+    if (auto vars = def2vars_.lookup(def))                  return *vars;
+    if (auto nom  = def->isa_nom(); nom && curr_nom != nom) return run(nom);
 
     VarSet result;
     if (auto var = def->isa<Var>()) {
         result.emplace(var);
     } else {
         for (auto op : def->extended_ops())
-            merge(result, run(cur_nom, op));
+            merge(result, run(curr_nom, op));
 
-        if (auto var = cur_nom->has_var()) {
-            if (cur_nom == def) result.erase(var);
+        if (auto var = curr_nom->has_var()) {
+            if (curr_nom == def) result.erase(var);
         }
     }
 

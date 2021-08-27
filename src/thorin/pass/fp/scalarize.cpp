@@ -38,8 +38,8 @@ const Def* Scalerize::rewrite(const Def* def) {
 }
 
 undo_t Scalerize::analyze(const Def* def) {
-    auto cur_lam = descend<Lam>(def);
-    if (cur_lam == nullptr) return No_Undo;
+    auto curr_lam = descend<Lam>(def);
+    if (curr_lam == nullptr) return No_Undo;
 
     return No_Undo;
     if (auto proxy = isa_proxy(def)) {

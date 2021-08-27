@@ -176,10 +176,10 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
 
 template<class R, class F, bool rangei = false>
 Stream& Stream::range(const R& r, const char* sep, F f) {
-    const char* cur_sep = "";
+    const char* curr_sep = "";
     size_t j = 0;
     for (const auto& elem : r) {
-        for (auto i = cur_sep; *i != '\0'; ++i) {
+        for (auto i = curr_sep; *i != '\0'; ++i) {
             if (*i == '\n')
                 this->endl();
             else
@@ -190,7 +190,7 @@ Stream& Stream::range(const R& r, const char* sep, F f) {
         } else {
             f(elem);
         }
-        cur_sep = sep;
+        curr_sep = sep;
     }
     return *this;
 }

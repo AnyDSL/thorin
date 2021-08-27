@@ -83,8 +83,8 @@ public:
 
     /// @name manage global identifier - a unique number for each Def
     //@{
-    u32 cur_gid() const { return state_.cur_gid; }
-    u32 next_gid() { return ++state_.cur_gid; }
+    u32 curr_gid() const { return state_.curr_gid; }
+    u32 next_gid() { return ++state_.curr_gid; }
     //@}
 
     /// @name Space, Kind, Var, Proxy
@@ -286,7 +286,7 @@ public:
     //@{
     //@}
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, const Def* dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, const Def* dbg = {}) { return global(lit_nat(state_.cur_gid), init, is_mutable, dbg); }
+    const Def* global(const Def* init, bool is_mutable = true, const Def* dbg = {}) { return global(lit_nat(state_.curr_gid), init, is_mutable, dbg); }
     const Def* global_immutable_string(const std::string& str, const Def* dbg = {});
     //@}
 
@@ -368,7 +368,7 @@ public:
     const Def* op_load (const Def* mem, const Def* ptr,                 const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(ax_load (), {T, a}), {mem, ptr     }, dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(ax_store(), {T, a}), {mem, ptr, val}, dbg); }
     const Def* op_alloc(const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_alloc(), {type, lit_nat_0()}),  mem,                      dbg); }
-    const Def* op_slot (const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_slot (), {type, lit_nat_0()}), {mem, lit_nat(cur_gid())}, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_slot (), {type, lit_nat_0()}), {mem, lit_nat(curr_gid())}, dbg); }
     //@}
 
     /// @name wrappers for unary operations
@@ -509,7 +509,7 @@ private:
         }
 
         arena_.deallocate<T>(def);
-        --state_.cur_gid;
+        --state_.curr_gid;
         return static_cast<const T*>(*i);
     }
 
@@ -529,7 +529,7 @@ private:
     public:
         Arena()
             : root_zone_(new Zone) // don't use 'new Zone()' - we keep the allocated Zone uninitialized
-            , cur_zone_(root_zone_.get())
+            , curr_zone_(root_zone_.get())
         {}
 
         struct Zone {
@@ -557,12 +557,12 @@ private:
 
             if (buffer_index_ + num_bytes >= Zone::Size) {
                 auto zone = new Zone;
-                cur_zone_->next.reset(zone);
-                cur_zone_ = zone;
+                curr_zone_->next.reset(zone);
+                curr_zone_ = zone;
                 buffer_index_ = 0;
             }
 
-            auto result = new (cur_zone_->buffer + buffer_index_) T(args...);
+            auto result = new (curr_zone_->buffer + buffer_index_) T(args...);
             assert(result->num_ops() == num_ops);
             buffer_index_ += num_bytes;
             assert(buffer_index_ % alignof(T) == 0);
@@ -589,13 +589,13 @@ private:
 
     private:
         std::unique_ptr<Zone> root_zone_;
-        Zone* cur_zone_;
+        Zone* curr_zone_;
         size_t buffer_index_ = 0;
     } arena_;
 
     struct State {
         LogLevel min_level = LogLevel::Error;
-        u32 cur_gid = 0;
+        u32 curr_gid = 0;
         bool pe_done = false;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;

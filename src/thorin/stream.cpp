@@ -178,7 +178,7 @@ void Def::dump(size_t max) const {
 
 // TODO polish this
 Stream& World::stream(Stream& s) const {
-    auto old_gid = cur_gid();
+    auto old_gid = curr_gid();
 #if 1
     DepTree dep(*this);
 
@@ -186,7 +186,7 @@ Stream& World::stream(Stream& s) const {
     s << "module '" << name();
 
     stream(rec, dep.root()).endl();
-    assert_unused(old_gid == cur_gid());
+    assert_unused(old_gid == curr_gid());
     return s;
 #else
     RecStreamer rec(s, std::numeric_limits<size_t>::max());

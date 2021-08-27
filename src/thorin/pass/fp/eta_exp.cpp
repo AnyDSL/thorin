@@ -19,15 +19,9 @@ const Def* EtaExp::rewrite(const Def* def) {
                 }
                 return j->second;
             }
-        }
-    }
 
-    // if a wrapper is somehow reinstantiated again in a different expression, redo eta-expansion
-    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
             if (auto subst = wrap2subst_.lookup(lam)) {
-                auto [orig, subst_def] = *subst;
-                if (def != subst_def) {
+                if (auto [orig, subst_def] = *subst; def != subst_def) {
                     assert(lam->body()->isa<App>() && lam->body()->as<App>()->callee() == orig);
                     return reexpand(def);
                 }
@@ -38,15 +32,10 @@ const Def* EtaExp::rewrite(const Def* def) {
     return def;
 }
 
-Lam* EtaExp::eta_wrap(Lam* lam) {
-    auto wrap = lam->stub(world(), lam->type(), lam->dbg());
-    wrap->set_name(std::string("eta_") + lam->debug().name);
-    wrap->app(lam, wrap->var());
-    if (eta_red_) eta_red_->mark_irreducible(wrap);
-    return wrap;
-}
-
-// TODO cleanup + document eta-reexpand
+/// If a wrapper is somehow reinstantiated again in a different expression, redo eta-expansion.
+/// E.g., say we have <code>(a, f, g)</code> and eta-exand to <code>(a, eta_f, eta_g)</code>.
+/// But due to beta-reduction we now also have (b, eta_f, eta_g) which renders eta_f and eta_g not unique anymore.
+/// So, we build <code>(b, eta_f', eta_g')</code>.
 const Def* EtaExp::reexpand(const Def* def) {
     std::vector<std::pair<Lam*, Lam*>> refinements;
     Array<const Def*> new_ops(def->num_ops());
@@ -71,6 +60,14 @@ const Def* EtaExp::reexpand(const Def* def) {
         wrap2subst_[wrap] = std::pair(lam, new_def);
 
     return new_def;
+}
+
+Lam* EtaExp::eta_wrap(Lam* lam) {
+    auto wrap = lam->stub(world(), lam->type(), lam->dbg());
+    wrap->set_name(std::string("eta_") + lam->debug().name);
+    wrap->app(lam, wrap->var());
+    if (eta_red_) eta_red_->mark_irreducible(wrap);
+    return wrap;
 }
 
 undo_t EtaExp::analyze(const Def* def) {

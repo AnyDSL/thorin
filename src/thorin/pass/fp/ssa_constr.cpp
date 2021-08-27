@@ -180,6 +180,7 @@ undo_t SSAConstr::analyze(const Def* def) {
             }
         }
     }
+
     return No_Undo;
 }
 

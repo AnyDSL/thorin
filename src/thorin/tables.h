@@ -189,17 +189,17 @@ enum : tag_t { THORIN_TAG(CODE) Max };
 }
 
 #define CODE(T, o) o,
-enum class Bit    : tag_t { THORIN_BIT  (CODE) };
-enum class Shr    : tag_t { THORIN_SHR  (CODE) };
-enum class Wrap   : tag_t { THORIN_WRAP (CODE) };
-enum class Div    : tag_t { THORIN_DIV  (CODE) };
-enum class ROp    : tag_t { THORIN_R_OP (CODE) };
-enum class ICmp   : tag_t { THORIN_I_CMP(CODE) };
-enum class RCmp   : tag_t { THORIN_R_CMP(CODE) };
-enum class Trait  : tag_t { THORIN_TRAIT(CODE) };
-enum class Conv   : tag_t { THORIN_CONV (CODE) };
-enum class PE     : tag_t { THORIN_PE   (CODE) };
-enum class Acc    : tag_t { THORIN_ACC  (CODE) };
+enum class Bit    : flags_t { THORIN_BIT  (CODE) };
+enum class Shr    : flags_t { THORIN_SHR  (CODE) };
+enum class Wrap   : flags_t { THORIN_WRAP (CODE) };
+enum class Div    : flags_t { THORIN_DIV  (CODE) };
+enum class ROp    : flags_t { THORIN_R_OP (CODE) };
+enum class ICmp   : flags_t { THORIN_I_CMP(CODE) };
+enum class RCmp   : flags_t { THORIN_R_CMP(CODE) };
+enum class Trait  : flags_t { THORIN_TRAIT(CODE) };
+enum class Conv   : flags_t { THORIN_CONV (CODE) };
+enum class PE     : flags_t { THORIN_PE   (CODE) };
+enum class Acc    : flags_t { THORIN_ACC  (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }

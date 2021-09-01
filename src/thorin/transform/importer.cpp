@@ -72,6 +72,10 @@ const Def* Importer::import(Tracker odef) {
 
         def_old2new_[ocontinuation] = ncontinuation;
 
+        ncontinuation->set_filter(import(ocontinuation->filter())->as<Filter>());
+        if (ocontinuation->is_external())
+            world().make_external(ncontinuation);
+
         if (ocontinuation->has_body() && ocontinuation->body()->callee() == ocontinuation->world().branch()) {
             auto app = ocontinuation->body();
             auto cond = import(app->arg(0));
@@ -84,10 +88,6 @@ const Def* Importer::import(Tracker odef) {
                 return ncontinuation;
             }
         }
-
-        ncontinuation->set_filter(import(ocontinuation->filter())->as<Filter>());
-        if (ocontinuation->is_external())
-            world().make_external(ncontinuation);
     }
 
     size_t size = odef->num_ops();

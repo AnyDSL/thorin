@@ -337,8 +337,9 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
 
     discope_ = dicompile_unit_;
     if (debug()) {
-        auto src_file = llvm::sys::path::filename(entry_->loc().file);
-        auto src_dir = llvm::sys::path::parent_path(entry_->loc().file);
+        auto file = entry_->loc().file;
+        auto src_file = llvm::sys::path::filename(file);
+        auto src_dir = llvm::sys::path::parent_path(file);
         auto difile = dibuilder_.createFile(src_file, src_dir);
         auto disub_program = dibuilder_.createFunction(
             discope_, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,

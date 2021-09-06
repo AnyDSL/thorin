@@ -103,7 +103,6 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
 
         // Necessary so that the names match in the original and imported worlds
         imported->set_name(continuation->unique_name());
-        world.make_external(imported);
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->set_name(continuation->param(i)->name());
 

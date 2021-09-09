@@ -104,14 +104,12 @@ private:
     Continuation* emit_spawn(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_sync(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_vectorize_continuation(llvm::IRBuilder<>&, Continuation*);
-    Continuation* emit_sequence_continuation(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);
     llvm::Value* emit_bitcast(llvm::IRBuilder<>&, const Def*, const Type*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
-    void emit_sequence(llvm::Function*);
     void emit_phi_arg(llvm::IRBuilder<>&, const Param*, llvm::Value*);
 
     // Note: The module and context have to be stored as pointers, so
@@ -133,7 +131,6 @@ protected:
     std::unique_ptr<Runtime> runtime_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
-    std::vector<llvm::Function*> seq_todo_;
 #endif
 
     llvm::Value * current_mask = nullptr;

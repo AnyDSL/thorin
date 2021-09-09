@@ -465,24 +465,31 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         if (mask->isa<Vector>()) {
             auto all_one = true;
-            for (auto op : mask->ops())
+            auto all_zero = true;
+            for (auto op : mask->ops()) {
                 if (op != world().literal_bool(true, {}))
                     all_one = false;
+                if (op != world().literal_bool(false, {}))
+                    all_zero = false;
+            }
             if (all_one) {
                 current_mask = nullptr;
-                if (target_bb != over_bb) {
+                /*if (target_bb != over_bb) {
                     std::cerr << "Error, expected to match\n";
+                    continuation->dump();
+                    std::cerr << "mask\n";
+                    mask->type()->dump();
+                    mask->dump();
+                    std::cerr << "targets\n";
                     target_bb->dump();
                     over_bb->dump();
-                    continuation->dump();
-                    mask->dump();
-                    for (auto op : mask->ops())
-                        op->dump();
-                    mask->type()->dump();
-                    std::cerr << "\n";
-                }
+                    std::cerr << "fin\n";
+                }*/
                 //assert(target_bb == over_bb); //Constant propagation can result in this case triggering even if target_bb != over_bb.
                 irbuilder.CreateBr(target_bb);
+            } else if (all_zero) {
+                current_mask = emit(mask);
+                irbuilder.CreateBr(over_bb);
             } else {
                 current_mask = emit(mask);
                 llvm::Value *any_set = irbuilder.CreateOrReduce(current_mask);
@@ -767,7 +774,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             irbuilder.CreateStore(emit(op), gep);
         }
 
-        return irbuilder.CreateLoad(type, alloca);
+        return irbuilder.CreateLoad(alloca);
     } else if (auto array = def->isa<IndefiniteArray>()) {
         return llvm::UndefValue::get(convert(array->type()));
     } else if (auto agg = def->isa<Aggregate>()) {
@@ -830,7 +837,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
 
         if (auto extract = aggop->isa<Extract>()) {
             if (aggop->agg()->type()->isa<ArrayType>()) {
-                return irbuilder.CreateLoad(convert(extract->type()), copy_to_alloca_or_global());
+                return irbuilder.CreateLoad(copy_to_alloca_or_global());
             } else if (extract->agg()->type()->isa<VectorType>()) {
                 return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
             }
@@ -855,7 +862,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         if (insert->agg()->type()->isa<ArrayType>()) {
             auto p = copy_to_alloca();
             irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
-            return irbuilder.CreateLoad(convert(insert->type()), p.first);
+            return irbuilder.CreateLoad(p.first);
         } else if (insert->agg()->type()->isa<VectorType>()) {
             return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
         }
@@ -877,7 +884,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             irbuilder.CreateStore(payload_value, alloca);
             auto addr_space = alloca->getType()->getPointerAddressSpace();
             auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(convert(target_type), addr_space));
-            return irbuilder.CreateLoad(convert(variant_extract->type()), payload_addr);
+            return irbuilder.CreateLoad(payload_addr);
         });
     } else if (auto variant_ctor = def->isa<Variant>()) {
         auto llvm_type = convert(variant_ctor->type());
@@ -895,7 +902,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                     llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
                 irbuilder.CreateStore(payload_value, payload_addr);
             }
-            return irbuilder.CreateLoad(convert(variant_ctor->type()), alloca);
+            return irbuilder.CreateLoad(alloca);
         });
     } else if (auto primlit = def->isa<PrimLit>()) {
         llvm::Type* llvm_type = convert(primlit->type());
@@ -1101,11 +1108,11 @@ llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) 
     emit_unsafe(load->mem());
     auto ptr = emit(load->ptr());
     if (auto vectype = load->out_val_type()->isa<VectorType>(); vectype && vectype->is_vector()) {
-        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getScalarType()->getPointerElementType());
         auto result = irbuilder.CreateMaskedGather(ptr, align, current_mask);
         return result;
     } else {
-        auto result = irbuilder.CreateLoad(convert(load->out_val_type()), ptr);
+        auto result = irbuilder.CreateLoad(ptr);
         auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
         result->setAlignment(align);
         return result;
@@ -1116,7 +1123,7 @@ llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* stor
     emit_unsafe(store->mem());
     auto ptr = emit(store->ptr());
     if (auto vectype = store->val()->type()->isa<VectorType>(); vectype && vectype->is_vector()) {
-        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getScalarType()->getPointerElementType());
         auto result = irbuilder.CreateMaskedScatter(emit(store->val()), ptr, align, current_mask);
         return nullptr;
     } else {
@@ -1232,8 +1239,7 @@ Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* c
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(align), order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
@@ -1282,8 +1288,7 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(6)->as_continuation();
-    auto align = module().getDataLayout().getABITypeAlignment(ptr->getType()->getPointerElementType());
-    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(align), order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
     emit_phi_arg(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
     return cont;

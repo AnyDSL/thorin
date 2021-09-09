@@ -38,72 +38,6 @@
 
 namespace thorin::llvm {
 
-struct SequenceArgs {
-    enum {
-        Mem = 0,
-        Body,
-        Return,
-        Num
-    };
-};
-
-Continuation* CodeGen::emit_sequence_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    auto target = continuation->callee()->as_continuation();
-    assert_unused(target->intrinsic() == Intrinsic::Sequence);
-    assert(continuation->num_args() >= SequenceArgs::Num && "required arguments are missing");
-
-    // arguments
-    auto kernel = continuation->arg(SequenceArgs::Body)->as<Global>()->init()->as_continuation();
-    const size_t num_kernel_args = continuation->num_args() - SequenceArgs::Num;
-
-    // build function signature
-    Array<llvm::Type*> arg_types(num_kernel_args);
-    for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = continuation->arg(i + SequenceArgs::Num)->type();
-        arg_types[i] = convert(type);
-    }
-
-    // build iteration loop and wire the calls
-    Array<llvm::Value*> args(num_kernel_args);
-    for (size_t i = 0; i < num_kernel_args; ++i) {
-        // check target type
-        auto arg = continuation->arg(i + SequenceArgs::Num);
-        auto llvm_arg = emit(arg);
-        if (arg->type()->isa<PtrType>())
-            llvm_arg = irbuilder.CreateBitCast(llvm_arg, arg_types[i]);
-        args[i] = llvm_arg;
-    }
-
-    auto kernel_func = emit_fun_decl(kernel);
-
-    irbuilder.CreateCall(kernel_func, llvm_ref(args));
-
-    seq_todo_.emplace_back(kernel_func);
-
-    return continuation->arg(SequenceArgs::Return)->as_continuation();
-}
-
-void CodeGen::emit_sequence(llvm::Function* kernel_func) {
-    if (kernel_func->hasNUses(0)) {
-        kernel_func->eraseFromParent();
-        return;
-    }
-
-    // inline kernel
-    llvm::InlineFunctionInfo info;
-    for (auto *user : kernel_func->users()) {
-        auto kernel_call = llvm::dyn_cast<llvm::CallInst>(user);
-        if (kernel_call && kernel_call->getCalledFunction() == kernel_func)
-            llvm::InlineFunction(*kernel_call, info);
-    }
-
-    // remove vectorized function
-    if (kernel_func->hasNUses(0))
-        kernel_func->eraseFromParent();
-    else
-        kernel_func->addFnAttr(llvm::Attribute::AlwaysInline);
-}
-
 struct VectorizeArgs {
     enum {
         Mem = 0,
@@ -115,7 +49,6 @@ struct VectorizeArgs {
 };
 
 Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(false && "Dropped support");
     auto target = continuation->callee()->as_continuation();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(continuation->num_args() >= VectorizeArgs::Num && "required arguments are missing");
@@ -161,7 +94,6 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
-    assert(false && "Deactivated");
     verify();
 
     llvm::PassBuilder PB;
@@ -174,7 +106,6 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // ensure proper loop forms
     llvm::FunctionPassManager FPM;
-    FPM.addPass(llvm::DCEPass());
     FPM.addPass(llvm::SimplifyCFGPass());
     FPM.addPass(llvm::SROA());
     FPM.addPass(llvm::EarlyCSEPass());
@@ -235,7 +166,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         }
 
         llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, llvm::CloneFunctionChangeType::ClonedModule, retVec);
+        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, true, retVec);
 
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
@@ -245,11 +176,9 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         kernel_func->addFnAttr("target-features", machine_->getTargetFeatureString());
         rv::Config config = rv::Config::createForFunction(*kernel_func);
         config.enableIRPolish = config.useAVX2;
-        config.enableGreedyIPV = true;
 
         config.maxULPErrorBound = 35; // allow vector math with imprecision up to 3.5 ULP
         rv::addSleefResolver(config, platform_info);
-        rv::addRecursiveResolver(config, platform_info);
 
         rv::VectorizerInterface vectorizer(platform_info, config);
         {
@@ -274,14 +203,6 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
         vectorizer.finalize();
     }
-
-    // final cleanup
-    llvm::FunctionAnalysisManager FAM2;
-    PB.registerFunctionAnalyses(FAM2);
-    llvm::FunctionPassManager FPM2;
-    FPM2.addPass(llvm::DCEPass());
-    FPM2.addPass(llvm::SimplifyCFGPass());
-    FPM2.run(*simd_kernel_func, FAM2);
 
     // inline kernel
     llvm::InlineFunctionInfo info;

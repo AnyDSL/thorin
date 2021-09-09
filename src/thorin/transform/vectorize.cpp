@@ -1067,7 +1067,7 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
 
             if (de.name.rfind("rv_", 0) == 0) {
                 std::cerr << "RV intrinsic: " << de.name << "\n";
-                assert(false);
+                THORIN_UNREACHABLE;
             }
 
             if (anyvector) {

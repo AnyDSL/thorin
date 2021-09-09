@@ -90,9 +90,9 @@ public:
     //@{
     bool empty() { return data_.externals_.empty(); }
     const Externals& externals() const { return data_.externals_; }
-    void make_external(Continuation* cont) { data_.externals_.emplace(cont->name(), cont); }
-    void make_internal(Continuation* cont) { data_.externals_.erase(cont->name()); }
-    bool is_external(const Continuation* cont) { return data_.externals_.contains(cont->name()); }
+    void make_external(Continuation* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
+    void make_internal(Continuation* cont) { data_.externals_.erase(cont->unique_name()); }
+    bool is_external(const Continuation* cont) { return data_.externals_.contains(cont->unique_name()); }
     Continuation* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
 

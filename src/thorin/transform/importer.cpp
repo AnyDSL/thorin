@@ -75,19 +75,6 @@ const Def* Importer::import(Tracker odef) {
         ncontinuation->set_filter(import(ocontinuation->filter())->as<Filter>());
         if (ocontinuation->is_external())
             world().make_external(ncontinuation);
-
-        if (ocontinuation->has_body() && ocontinuation->body()->callee() == ocontinuation->world().branch()) {
-            auto app = ocontinuation->body();
-            auto cond = import(app->arg(0));
-            // TODO check if this folding stuff makes sense here and isn't redundant
-            if (auto lit = cond->isa<PrimLit>()) {
-                auto callee = import(lit->value().get_bool() ? app->arg(1) : app->arg(2));
-                ncontinuation->jump(callee, {}, ocontinuation->debug()); // TODO debug
-
-                assert(!ncontinuation->is_replaced());
-                return ncontinuation;
-            }
-        }
     }
 
     size_t size = odef->num_ops();

@@ -313,13 +313,10 @@ void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
         world_.VLOG("iteration: {}", i);
-        verify(world());
         todo_ = false;
         if (world_.is_pe_done())
             eliminate_tail_rec();
-        // rebuild();
         eta_conversion();
-        verify(world());
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());

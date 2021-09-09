@@ -289,10 +289,8 @@ void Cleaner::clean_pe_infos() {
             queue.push(continuation);
     };
 
-    for (auto&& [_, cont] : world().externals()) {
-        if (!cont->has_body()) continue;
-        enqueue(cont);
-    }
+    for (auto&& [_, cont] : world().externals())
+        if (cont->has_body()) enqueue(cont);
 
     while (!queue.empty()) {
         auto continuation = pop(queue);

@@ -11,7 +11,7 @@ public:
     Importer(World& src)
         : world_(src)
     {
-        if  (src.is_pe_done())
+        if (src.is_pe_done())
             world_.mark_pe_done();
 #if THORIN_ENABLE_CHECKS
         if (src.track_history())

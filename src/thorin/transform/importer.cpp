@@ -72,7 +72,6 @@ const Def* Importer::import(Tracker odef) {
 
         def_old2new_[ocontinuation] = ncontinuation;
 
-        ncontinuation->set_filter(import(ocontinuation->filter())->as<Filter>());
         if (ocontinuation->is_external())
             world().make_external(ncontinuation);
     }
@@ -80,6 +79,7 @@ const Def* Importer::import(Tracker odef) {
     size_t size = odef->num_ops();
     Array<const Def*> nops(size);
     for (size_t i = 0; i != size; ++i) {
+        assert(odef->op(i) != odef.def());
         nops[i] = import(odef->op(i));
         assert(&nops[i]->world() == &world());
     }

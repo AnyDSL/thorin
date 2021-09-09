@@ -77,6 +77,7 @@ void Def::unregister_use(size_t i) const {
 }
 
 void Def::unset_op(size_t i) {
+    // Note: if replace() didn't touch the uses, we could assert for nominalness here !
     assert(ops_[i] && "must be set");
     unregister_use(i);
     ops_[i] = nullptr;

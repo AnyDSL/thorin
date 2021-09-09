@@ -12,17 +12,7 @@ public:
 
     bool resolve_loads() {
         todo_ = false;
-        // TODO nuke that and iterate over conts directly
-        Scope::for_each(world_, [&] (Scope& scope) {
-            resolve_loads(scope);
-            scope.update();
-        });
-        return todo_;
-    }
-
-    void resolve_loads(const Scope& scope) {
-        for (auto node : scope.f_cfg().reverse_post_order()) {
-            auto continuation = node->continuation();
+        for (auto continuation : world_.copy_continuations()) {
             for (auto param : continuation->params()) {
                 if (param->type()->isa<MemType>()) {
                     Def2Def mapping;
@@ -30,6 +20,7 @@ public:
                 }
             }
         }
+        return todo_;
     }
 
     void resolve_loads(const Def* mem, Def2Def& mapping) {

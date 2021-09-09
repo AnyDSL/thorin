@@ -14,14 +14,19 @@ static void verify_calls(World& world) {
     }
 }
 
-static void verify_top_level(World& world) {
+static bool verify_top_level(World& world) {
+    bool ok = true;
     Scope::for_each(world, [&] (const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
                 world.ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
             world.ELOG("here: {}", scope.entry());
+            ok = false;
         }
     });
+    if (!ok)
+        world.dump();
+    return ok;
 }
 
 void verify(World& world) {

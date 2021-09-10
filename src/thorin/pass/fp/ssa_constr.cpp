@@ -64,7 +64,7 @@ const Def* SSAConstr::get_val(Lam* lam, const Proxy* sloxy) {
     if (auto val = lam2sloxy2val_[lam].lookup(sloxy)) {
         world().DLOG("get_val found: '{}': '{}': '{}'", sloxy, *val, lam);
         return *val;
-    } else if (ignore(lam)) {
+    } else if (lam->is_external()) {
         world().DLOG("cannot install phi for '{}' in '{}'", sloxy, lam);
         return sloxy;
     } else if (auto pred = data(lam).pred) {
@@ -149,11 +149,7 @@ undo_t SSAConstr::analyze(const Proxy* proxy) {
         }
     } else if (auto etaxy = isa_proxy(proxy, Etaxy)) {
         auto etaxy_lam = etaxy->op(0)->as_nom<Lam>();
-        if (eta_exp_)
-            eta_exp_->mark_expand(etaxy_lam);
-        else
-            assert(false && "not implemented");
-
+        eta_exp_->mark_expand(etaxy_lam);
         world().DLOG("found etaxy '{}'", etaxy_lam);
         return undo_visit(etaxy_lam);
     }

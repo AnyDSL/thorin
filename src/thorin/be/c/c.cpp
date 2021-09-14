@@ -942,7 +942,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         bb->body.fmt(": ").rangei(oconstrs, ", ", [&](size_t i) { bb->body.fmt("\"{}\" ({})", conv(oconstrs[i]), outputs[i]); }).fmt(" /* outputs */\n");
         bb->body.fmt(": ").rangei(iconstrs, ", ", [&](size_t i) { bb->body.fmt("\"{}\" ({})", conv(iconstrs[i]),  inputs[i]); }).fmt(" /* inputs */\n");
         bb->body.fmt(": ").rangei(clobbers, ", ", [&](size_t i) { bb->body.fmt("\"{}\"",      conv(clobbers[i])            ); }).fmt(" /* clobbers */\b\n);\n");
-        return name;
+        return "";
     } else if (auto select = def->isa<Select>()) {
         auto cond = emit_unsafe(select->cond());
         auto tval = emit_unsafe(select->tval());

@@ -2,6 +2,7 @@
 #include "thorin/transform/flatten_vectors.h"
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/analyses/looptree.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 
@@ -12,8 +13,10 @@
 #include <map>
 
 //#define DUMP_DIV_ANALYSIS
+//#define DUMP_LOOP_ANALYSIS
 //#define DUMP_WIDEN
 //#define DUMP_VECTORIZER
+//#define TEST_JOIN
 
 //#define DBG_TIME(v, t) llvm::TimeRegion v(t)
 #define DBG_TIME(v, t) (void)(t)
@@ -73,10 +76,13 @@ private:
         Continuation *base;
 
         GIDMap<Continuation*, ContinuationSet> dominatedBy;
-        GIDMap<Continuation*, ContinuationSet> reachableBy;
-        GIDMap<Continuation*, ContinuationSet> loopLatches;
+        GIDMap<Continuation*, ContinuationSet> sinkedBy;
         GIDMap<Continuation*, ContinuationSet> loopExits;
-        GIDMap<Continuation*, ContinuationSet> loopBodys;
+
+#ifdef TEST_JOIN
+        GIDMap<Continuation*, ContinuationSet> reachableBy;
+#endif
+
         GIDMap<Continuation*, ContinuationSet> relJoins;
         GIDMap<Continuation*, ContinuationSet> splitParrents;
 
@@ -181,15 +187,21 @@ ContinuationSet Vectorizer::DivergenceAnalysis::predecessors(Continuation * cont
 }
 
 void Vectorizer::DivergenceAnalysis::computeLoops() {
-    const LoopTree<true> &loops = Scope(base).f_cfg().looptree();
+    Scope scope = Scope(base);
+    auto& cfg = scope.f_cfg();
+    const LoopTree<true> &loops = cfg.looptree();
+    const DomTreeBase<true> &domtree = cfg.domtree();
 
+    auto& bcfg = scope.b_cfg();
+    const DomTreeBase<false> &bdomtree = bcfg.domtree();
 
     std::queue <Continuation*> queue;
     ContinuationSet done;
     //Step 1: construct head rewired CFG. (should probably be implicit)
-    //Step 1.1: Find Loop Headers
+    //Step 1.1: Find Loops
 
-    //Step 1.1.1 Reachability analysis
+#ifdef TEST_JOIN
+    //Step 1.1.0 Reachability analysis
     queue.push(base);
 
     while (!queue.empty()) {
@@ -200,7 +212,6 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
             changed = true;
             reachableBy[cont] = ContinuationSet({cont});
         }
-        ContinuationSet mydom = reachableBy[cont];
 
         ContinuationSet other;
         bool first = true;
@@ -222,83 +233,56 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
             }
         }
 
+        ContinuationSet myreach = reachableBy[cont];
+
         for (auto elem : other) {
-            changed = mydom.emplace(elem).second ? true : changed;
+            changed = myreach.emplace(elem).second ? true : changed;
         }
 
         if (changed) {
-            reachableBy[cont] = mydom;
+            reachableBy[cont] = myreach;
             for (auto succ : cont->succs()) {
                 if (!(succ->is_intrinsic() || succ->is_imported()))
                     queue.push(succ);
             }
         }
     }
+#endif
 
-    dominatedBy = reachableBy;
+    //Step 1.1.1: Dominance analysis caching
+    for (auto cfnode : cfg.reverse_post_order()) {
+        auto node = cfnode->continuation();
 
-    //Step 1.1.2: Dominance analysis from reachability analysis
-    queue.push(base);
+        ContinuationSet mydom;
+        mydom.emplace(node);
 
-    while (!queue.empty()) {
-        Continuation *cont = pop(queue);
-        bool changed = false;
-
-        assert (dominatedBy.contains(cont));
-        ContinuationSet mydom = dominatedBy[cont];
-
-        ContinuationSet other;
-        bool first = true;
-
-        for (auto pre : cont->preds()) {
-            if (!dominatedBy.contains(pre)) {
-                other.clear();
-                break;
-            }
-
-            if (first) {
-                first = false;
-                other = dominatedBy[pre];
-                continue;
-            }
-
-            ContinuationSet toDelete;
-
-            for (auto elem : other) {
-                if (!dominatedBy[pre].contains(elem))
-                    toDelete.emplace(elem);
-            }
-
-            for (auto elem : toDelete) {
-                other.erase(elem);
-            }
+        auto idom = cfnode;
+        while (idom != cfg.entry()) {
+            idom = domtree.idom(idom);
+            mydom.emplace(idom->continuation());
         }
 
-        ContinuationSet toDelete;
+        dominatedBy[node] = mydom;
+    }
 
-        for (auto elem : mydom) {
-            if (!other.contains(elem))
-                toDelete.emplace(elem);
+    for (auto cfnode : bcfg.reverse_post_order()) {
+        auto node = cfnode->continuation();
+
+        ContinuationSet mydom;
+        mydom.emplace(node);
+
+        auto idom = cfnode;
+        while (idom != bcfg.entry()) {
+            idom = bdomtree.idom(idom);
+            mydom.emplace(idom->continuation());
         }
-        toDelete.erase(cont);
 
-        changed |= !toDelete.empty();
-
-        for (auto elem : toDelete) {
-            mydom.erase(elem);
-        }
-
-        if (changed || done.emplace(cont).second) {
-            dominatedBy[cont] = mydom;
-            for (auto succ : cont->succs()) {
-                if (!(succ->is_intrinsic() || succ->is_imported()))
-                    queue.push(succ);
-            }
-        }
+        sinkedBy[node] = mydom;
     }
 
 #ifdef DUMP_LOOP_ANALYSIS
     base->dump();
+#ifdef TEST_JOIN
     for (auto elem : reachableBy) {
         std::cerr << "reachable by\n";
         elem.first->dump();
@@ -306,6 +290,7 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
             elem2->dump();
         std::cerr << "end\n";
     }
+#endif
 
     for (auto elem : dominatedBy) {
         std::cerr << "dominated by\n";
@@ -317,62 +302,20 @@ void Vectorizer::DivergenceAnalysis::computeLoops() {
     std::cerr << "\n";
 #endif
 
-    done.clear();
 
-    //Step 1.1.3: Find Loop Headers and Latches
-    queue.push(base);
-    done.emplace(base);
-
-    while (!queue.empty()) {
-        Continuation *cont = pop(queue);
-
-#ifdef DUMP_LOOP_ANALYSIS
-        std::cerr << "\n";
-        cont->dump();
-#endif
-
-        auto mydom = dominatedBy[cont];
-
-        for (auto succ : cont->succs()) {
-            if (succ->is_intrinsic() || succ->is_imported())
-                continue;
-#ifdef DUMP_LOOP_ANALYSIS
-            succ->dump();
-#endif
-            if (mydom.contains(succ)) {
-#ifdef DUMP_LOOP_ANALYSIS
-                std::cerr << "Loop registered\n";
-#endif
-                loopLatches[succ].emplace(cont);
-            }
-            if (done.emplace(succ).second)
-                queue.push(succ);
+    //Step 1.1.2: Find Loop Exit Nodes
+    GIDMap<Continuation*, ContinuationSet> loopBodies;
+    for (auto cfnode : cfg.reverse_post_order()) {
+        auto leaf = loops[cfnode];
+        auto parent = leaf->parent();
+        while (parent) {
+            for  (auto latch : parent->cf_nodes())
+                loopBodies[latch->continuation()].emplace(cfnode->continuation());
+            parent = parent->parent();
         }
     }
 
-    for (auto it : loopLatches) {
-        auto header = it.first;
-        auto latches = it.second;
-
-        for (auto latch : latches) {
-            ContinuationSet reaching = reachableBy[latch];
-
-            ContinuationSet toDelete;
-
-            for (auto elem : reaching) {
-                if (!dominatedBy[elem].contains(header))
-                    toDelete.emplace(elem);
-            }
-
-            for (auto elem : toDelete)
-                reaching.erase(elem);
-
-            for (auto elem : reaching)
-                loopBodys[header].emplace(elem);
-        }
-    }
-
-    for (auto it : loopBodys) {
+    for (auto it : loopBodies) {
         auto header = it.first;
         auto body = it.second;
 
@@ -389,17 +332,11 @@ void Vectorizer::DivergenceAnalysis::run() {
 #ifdef DUMP_DIV_ANALYSIS
     base->dump();
     std::cerr << "Loops are\n";
-    for (auto elem : loopLatches) {
+    for (auto elem : loopExits) {
         std::cerr << "Header\n";
         elem.first->dump();
-        std::cerr << "Latches\n";
-        for (auto latch : elem.second)
-            latch->dump();
-        std::cerr << "Body\n";
-        for (auto elem : loopBodys[elem.first])
-            elem->dump();
         std::cerr << "Exits\n";
-        for (auto elem : loopExits[elem.first])
+        for (auto elem : elem.second())
             elem->dump();
     }
     std::cerr << "End Loops\n";
@@ -582,22 +519,23 @@ void Vectorizer::DivergenceAnalysis::run() {
     }
 
     //TODO: Reaching Definitions Analysis.
-    //Step 3: Definite Reaching Definitions Analysis (see Chapter 6) (not at first, focus on CFG analysis first)
+    //Step <removed>: Definite Reaching Definitions Analysis (see Chapter 6) (not at first, focus on CFG analysis first)
     //Note: I am currently not sure which is better, first doing the Definite Reachign Analysis, or first doing the CFG analysis.
+    //Although needed in the paper, we do not require this. Code in Thorin is in SSA form.
 
-    //Step 4: Vaule Uniformity
-    //Step 4.1: Mark all Values as being uniform.
+    //Step 3: Vaule Uniformity
+    //Step 3.1: Mark all Values as being uniform.
     Scope base_scope(base);
     for (auto def : base_scope.defs())
         uniform[def] = Uniform;
 
     std::queue <const Def*> def_queue;
 
-    //Step 4.2: Mark varying defs
+    //Step 3.2: Mark varying defs
     //TODO: Memory Analysis: We need to track values that lie in memory slots!
     //This might not be so significant, stuff resides in memory for a reason.
 
-    //Step 4.2.1: Mark incomming trip counter as varying.
+    //Step 3.2.1: Mark incomming trip counter as varying.
     //for (auto def : base->params_as_defs()) {
     //    uniform[def] = Varying;
     //    def_queue.push(def);
@@ -606,7 +544,7 @@ void Vectorizer::DivergenceAnalysis::run() {
     uniform[def] = Varying;
     def_queue.push(def);
 
-    //Step 4.2.2: Mark everything in relevant joins as varying (for now at least)
+    //Step 3.2.2: Mark everything in relevant joins as varying (for now at least)
     for (auto it : relJoins) {
         //Continuation *split = it.first;
         //use split to capture information about the branching condition
@@ -646,7 +584,7 @@ void Vectorizer::DivergenceAnalysis::run() {
     std::cerr << "\n";
 #endif
 
-    //Step 4.3: Profit?
+    //Step 3.3: Profit?
     while (!def_queue.empty()) {
         const Def *def = pop(def_queue);
 #ifdef DUMP_DIV_ANALYSIS
@@ -1570,16 +1508,16 @@ bool Vectorizer::run() {
                         assert(join);
                     } else {
                         Continuation* join_old = nullptr;
-                        //TODO: this might go horribly wrong when loops are taken into account!
                         for (Continuation* join_it : joins_old) {
 #ifdef DUMP_VECTORIZER
                             join_it->dump();
 #endif
-                            if (!join_old || div_analysis_->reachableBy[join_it].contains(join_old)) {
+                            if (!join_old || div_analysis_->sinkedBy[join_old].contains(join_it)) {
                                 join_old = join_it;
                             }
                         }
                         assert(join_old);
+#ifdef TEST_JOIN
                         for (auto join_it : joins_old) {
                             if(!div_analysis_->reachableBy[join_old].contains(join_it)) {
                                 join_it->dump();
@@ -1588,6 +1526,7 @@ bool Vectorizer::run() {
                             }
                             assert(div_analysis_->reachableBy[join_old].contains(join_it));
                         }
+#endif
                         join = const_cast<Continuation*>(def2def_[join_old]->as<Continuation>());
                         assert(join);
                     }

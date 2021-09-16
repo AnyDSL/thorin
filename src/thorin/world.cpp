@@ -1276,6 +1276,7 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
 #define RUN_PASS(pass) \
 { \
+    VLOG("running pass {}", #pass); \
     pass; \
     debug_verify(*this); \
 }

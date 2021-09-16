@@ -136,19 +136,20 @@ private:
 
 Vectorizer::DivergenceAnalysis::State
 Vectorizer::DivergenceAnalysis::getUniform(const Def * def) {
-#if 1
-    (void)(def);
-    return Varying;
-#else
+#ifdef DUMP_DIV_ANALYSIS
     std::cerr << "Get uniform\n";
     std::cerr << def << "\n";
+#endif
     if (def->isa<Tuple>() && def->op(1)->isa<Continuation>()) {
+#ifdef DUMP_DIV_ANALYSIS
         std::cerr << "Varying\n";
+#endif
         return Varying;
     }
+#ifdef DUMP_DIV_ANALYSIS
     std::cerr << ((uniform[def] == Varying) ? "Varying" : "Uniform") << "\n";
-    return uniform[def];
 #endif
+    return uniform[def];
 }
 
 ContinuationSet Vectorizer::DivergenceAnalysis::successors(Continuation * cont) {

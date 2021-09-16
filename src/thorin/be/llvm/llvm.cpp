@@ -1119,6 +1119,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::AtomicLoad:  return emit_atomic_load(irbuilder, continuation);
         case Intrinsic::AtomicStore: return emit_atomic_store(irbuilder, continuation);
         case Intrinsic::CmpXchg:     return emit_cmpxchg(irbuilder, continuation);
+        case Intrinsic::Fence:       return emit_fence(irbuilder, continuation);
         case Intrinsic::Reserve:     return emit_reserve(irbuilder, continuation);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
@@ -1209,6 +1210,17 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
     auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
     emit_phi_arg(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
+    return cont;
+}
+
+Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->num_args() == 4 && "required arguments are missing");
+    u32 order_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto order = (llvm::AtomicOrdering)order_tag;
+    auto scope = continuation->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(3)->as_continuation();
+    auto call = irbuilder.CreateFence(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 

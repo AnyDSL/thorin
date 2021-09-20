@@ -625,10 +625,6 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
     auto name = def->unique_name();
     const Type* emitted_type = def->type();
 
-    // We should not need the basic block in this case
-    if (bb && is_const_primop(def))
-        return emit_constant(def);
-
     if (is_unit(def)) return "";
     else if (auto bin = def->isa<BinOp>()) {
         const char* op;

@@ -128,6 +128,7 @@ public:
     /// @name ops
     //@{
     Defs ops() const { return ops_; }
+    Array<const Def*> copy_ops() const { return Array<const Def*>(ops_.begin(), ops_.end()); }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     size_t num_ops() const { return ops_.size(); }
     /// Is @p def the @p i^th result of a @p T @p PrimOp?

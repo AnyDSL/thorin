@@ -71,12 +71,6 @@ public:
         return conts;
     }
 
-    /// Returns a mutated copy of this App, ops-based because the callers of this rely on Use.index
-    /// callee/args versions could be written later if necessary
-    const App* with_different_op(size_t, const Def*) const;
-    const App* with_different_ops(const Defs) const;
-    const App* with(const Def* ncallee, const Defs nargs) const;
-
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void verify() const;
 

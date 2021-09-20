@@ -4,7 +4,6 @@
 
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
@@ -38,21 +37,6 @@ void App::verify() const {
     if (auto cont = callee()->isa_nom<Continuation>()) {
         assert(!cont->dead_);
     }
-}
-
-const App* App::with_different_op(size_t i, const Def* d) const {
-    Array<const Def*> nops(num_ops());
-    for (size_t j = 0; j < num_ops(); j++) nops[j] = op(j);
-    nops[i] = d;
-    return world().app(nops[0], nops.skip_front(), debug());
-}
-
-const App* App::with_different_ops(const Defs defs) const {
-    return world().app(defs[0], defs.skip_front(), debug());
-}
-
-const App* App::with(const Def* ncallee, const Defs nargs) const {
-    return world().app(ncallee, nargs, debug());
 }
 
 //------------------------------------------------------------------------------

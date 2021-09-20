@@ -118,7 +118,8 @@ void lift_builtins(World& world) {
                         auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
 
-                        uapp->replace(uapp->with(ncontinuation, new_ops.skip_front()));
+                        new_ops[0] = ncontinuation;
+                        uapp->replace(uapp->rebuild(world, uapp->type(), new_ops));
                     }
                 }
             }

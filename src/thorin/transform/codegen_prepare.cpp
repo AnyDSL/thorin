@@ -15,7 +15,9 @@ void codegen_prepare(World& world) {
         for (auto use : ret_param->copy_uses()) {
             if (auto uapp = use->isa<App>()) {
                 if (use.index() != 0) {
-                    auto napp = uapp->with_different_op(use.index(), ret_cont);
+                    auto nops = uapp->copy_ops();
+                    nops[use.index()] = ret_cont;
+                    auto napp = uapp->rebuild(world, uapp->type(), nops);
                     uapp->replace(napp);
                     dirty = true;
                 }

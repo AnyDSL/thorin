@@ -1140,6 +1140,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
 }
 
 Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    emit_unsafe(continuation->arg(0)); //Emit atomic->mem()
     assert(continuation->num_args() == 7 && "required arguments are missing");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
     u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
@@ -1164,6 +1165,7 @@ Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* c
 }
 
 Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    emit_unsafe(continuation->arg(0)); //Emit atomic_load->mem()
     assert(continuation->num_args() == 5 && "required arguments are missing");
     auto ptr = emit(continuation->arg(1));
     u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
@@ -1180,6 +1182,7 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
 }
 
 Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    emit_unsafe(continuation->arg(0)); //Emit atomic_store->mem()
     assert(continuation->num_args() == 6 && "required arguments are missing");
     auto ptr = emit(continuation->arg(1));
     auto val = emit(continuation->arg(2));

@@ -59,6 +59,8 @@ set(THORIN_SOURCES
     pass/rw/ret_wrap.h
     pass/rw/bound_elim.cpp
     pass/rw/bound_elim.h
+    pass/rw/closure_conv.h
+    pass/rw/closure_conv.cpp
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/flatten_tuples.cpp

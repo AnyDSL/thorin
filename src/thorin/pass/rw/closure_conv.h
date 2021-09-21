@@ -1,6 +1,9 @@
 #ifndef THORIN_CLOSURE_CONV_H
 #define THORIN_CLOSURE_CONV_H
 
+#include <memory>
+#include <optional>
+
 #include "thorin/pass/pass.h"
 
 namespace thorin  {

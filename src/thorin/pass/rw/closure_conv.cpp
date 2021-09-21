@@ -50,9 +50,10 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
     auto env_type = world().sigma(env_types);
     auto env = world().tuple(env_vars);
 
+    auto name = lam->name();
     auto lifted_lam_type = lifted_fn_type<true>(lam->type(), env_type);
     auto debug = world().dbg(lam->debug());
-    debug->set_name(lam->name() + "_cconv_lifted");
+    debug->set_name(name + "_cconv_lifted");
     auto lifted_lam = world().nom_lam(lifted_lam_type, lam->cc(), debug);
     lifted_lam->set_body(lam->body());
     mark(lifted_lam, CL_STUB);
@@ -67,7 +68,8 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
     fv_maps_.emplace(lifted_lam, std::move(fv_map));
 
     auto clos_type = closure_type<true>(lam->type());
-    auto closure = world().tuple(clos_type, {env, lifted_lam});
+    auto closure = world().tuple(clos_type, {env, lifted_lam}, 
+            world().dbg(name + "_cconv_cl"));
 
     return closure;
 }

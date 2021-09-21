@@ -15,14 +15,14 @@ public:
         , status_()
         , fv_maps_()
         , cur_fv_map_(nullptr)
-        , rewrite_cur_nom_(false)
+        , rewrite_cur_nom_(true)
     {}
 
     void enter() override;
     const Def* rewrite(Def* nom, const Def* typ, const Def* dbg) override;
     const Def* rewrite(const Def* def, const Def* type, Defs ops, const Def* dbg) override;
 
-private:
+// private:
 
     class FVMap {
     private:
@@ -71,6 +71,14 @@ private:
 
     bool should_rewrite(const Def *def) {
         return rewrite_cur_nom_ && status(def) == UNPROC;
+    }
+
+    std::optional<const Def*> lookup_fv(const Def* fv) {
+        return (cur_fv_map_) ? cur_fv_map_->lookup(fv) : std::nullopt;
+    }
+
+    const Def* old_param() {
+        return (cur_fv_map_) ? cur_fv_map_->old_param() : nullptr;
     }
 
     const Def* rewrite_rec(const Def* def);

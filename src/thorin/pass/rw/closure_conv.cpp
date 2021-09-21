@@ -38,12 +38,16 @@ const Pi* ClosureConv::lifted_fn_type(const Pi* pi, const Def* env_type) {
         else
             return pi->dom(i - 1);
     });
-    return world().cn(dom);
+    // create a nom cn[] to memorize it
+    auto new_pi = world().nom_pi(world().kind(), dom, world().dbg("closure_type"));
+    new_pi->set_codom(world().bot_kind());
+    mark(new_pi, DONE);
+    return new_pi;
 }
 
 template<bool rewrite_args>
 Sigma* ClosureConv::closure_type(const Pi* pi) {
-    auto sigma = world().nom_sigma(world().kind(), 2, world().dbg("cconv_package_type"));
+    auto sigma = world().nom_sigma(world().kind(), 2, world().dbg("pkd_closure_type"));
     auto fn = lifted_fn_type<rewrite_args>(pi, sigma->var());
     sigma->set(0, sigma->var());
     sigma->set(1, fn);
@@ -68,10 +72,13 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
     auto name = lam->name();
     auto lifted_lam_type = lifted_fn_type<true>(lam->type(), env_type);
     auto debug = world().dbg(lam->debug());
-    debug->set_name(name + "_cconv_lifted");
+    debug->set_name(name + "closure");
     auto lifted_lam = world().nom_lam(lifted_lam_type, lam->cc(), debug);
     lifted_lam->set_body(lam->body());
     lifted_lam->set_filter(lam->filter());
+    if (lam->is_external()) {
+        lifted_lam->make_external();
+    }
     mark(lifted_lam, CL_STUB);
 
     auto fv_map = std::make_unique<FVMap>(lam->var());
@@ -87,22 +94,28 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
     auto closure = world().tuple(clos_type, {env, lifted_lam}, 
             world().dbg(name + "_cconv_cl"));
 
+    world().DLOG("closure stub -- {} : {} --> lifted: {} : {} | closure {} : {}",
+            lam, lam->type(), lifted_lam, lifted_lam_type, closure, clos_type);
+
     return closure;
 }
 
 void ClosureConv::enter() {
     auto stat = status(cur_nom());
-    if (auto lam = man().cur_nom<Lam>(); lam && stat != CL_STUB) {
+    if (auto lam = man().cur_nom<Lam>(); lam && stat == CL_STUB) {
         cur_fv_map_ = std::move(fv_maps_[lam]);
-        assert(cur_fv_map_);
+        assert(cur_fv_map_ != nullptr);
         rewrite_cur_nom_ = true;
         mark(lam, DONE);
-        return;
+    } else {
+        rewrite_cur_nom_ = false;
     }
-    rewrite_cur_nom_ = false;
+    world().DLOG("enter -- {}, status = {}, fv_map: {}, rw? {}", cur_nom(), stat,
+            cur_fv_map_.get(), rewrite_cur_nom_);
 }
 
 const Def* ClosureConv::rewrite(Def* nom, const Def* type, const Def* dbg) {
+    world().DLOG("rewrite nom -- {} : {} -- {}", nom, type, status(nom));
     if (!should_rewrite(nom))         
         return nom;
     if (auto lam = nom->isa<Lam>()) {
@@ -120,6 +133,7 @@ const Def* ClosureConv::rewrite(Def* nom, const Def* type, const Def* dbg) {
 }
 
 const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const Def* dbg) {
+    world().DLOG("cconv rewrite struct: {} : {}\nops = {}", def, type, ops);
     if (!should_rewrite(def))        
         return def;
     if (auto fv_from_env = lookup_fv(def)) {
@@ -128,24 +142,33 @@ const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const
         // rewrite cn[X..] -> closure(X..)
         if (pi->is_cn())             
             return closure_type<false>(world().cn(ops[0]));
-    } else if (auto app = def->isa<App>()) {
+    } else if (def->isa<App>()) {
         // rewrite app (where callee = packed closure)
         auto callee = ops[0];
+        auto arg = ops[1];
         if (!callee->type()->isa<Sigma>())
             return def;
-        auto new_callee = world().extract(callee, 0_u64, world().dbg("cconv_proj_fn"));
-        auto env = world().extract(callee, 1_u64, world().dbg("ccvonv_proj_env"));
-        return world().app(new_callee, Array<const Def*>(ops.size(), [=](auto i) {
-            return (i == 0) ? env : ops[i];
+        auto env = world().extract(callee, 0_u64, world().dbg("closure_app_env"));
+        auto new_callee = world().extract(callee, 1_u64, world().dbg("closure_app_fn"));
+        world().DLOG("cc: unpack callee {} ~> fct = {} : {} | env ~> {} : {}", callee, new_callee, new_callee->type(), 
+                env, env->type());
+        auto type = new_callee->type()->isa<Pi>();
+        assert(type);
+        assert (type->dom(0) == env->type());
+        auto new_arg = world().tuple(Array<const Def*>(type->num_doms(), [=](auto i) {
+            return (i == 0) ? env : world().extract(arg, i - 1);
         }));
-    } else if (def == old_param()) {
-        return cur_nom()->var();
+        return world().app(new_callee, new_arg);
+    } else if (def->isa<Var>()) {
+        if (def== old_param())
+            return cur_nom()->var();
     } else if (auto proj = def->isa<Extract>(); proj && proj->tuple() == old_param()) {
         // Shift param by one to account for new env param
-        return world().extract(cur_nom()->var(),
-                world().op(Wrap::add, WMode::none, ops[1], world().lit_nat_1()));
+        auto int_t = world().type_int_width(32);
+        auto idx = ops[1]->isa<Lit>();
+        assert(idx);
+        return world().extract(cur_nom()->var(), idx->fields() + 1);
     }
     return def;
 }
-
 } 

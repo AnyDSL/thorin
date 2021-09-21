@@ -22,6 +22,15 @@ public:
     const Def* rewrite(Def* nom, const Def* typ, const Def* dbg) override;
     const Def* rewrite(const Def* def, const Def* type, Defs ops, const Def* dbg) override;
 
+    void finish() override {
+        if (auto cur_lam = cur_nom<Lam>()) {
+            world().DLOG("finished closure stub {}", cur_lam);
+            cur_lam->dump(90000);
+            cur_lam->type()->dump(90000);
+            world().debug_stream();
+        }
+    }
+
 // private:
 
     class FVMap {
@@ -70,7 +79,11 @@ public:
     }
 
     bool should_rewrite(const Def *def) {
-        return rewrite_cur_nom_ && status(def) == UNPROC;
+        auto b = rewrite_cur_nom_ && status(def) == UNPROC;
+        if (!b) {
+            world().DLOG("--> Skip rewrite");
+        }
+        return b;
     }
 
     std::optional<const Def*> lookup_fv(const Def* fv) {

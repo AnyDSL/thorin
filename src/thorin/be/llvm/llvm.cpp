@@ -1229,7 +1229,7 @@ Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* co
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = continuation->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = continuation->arg(3)->as_continuation();
-    auto call = irbuilder.CreateFence(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    irbuilder.CreateFence(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 

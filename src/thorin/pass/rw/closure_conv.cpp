@@ -4,6 +4,12 @@
 namespace thorin {
 
 const Def* ClosureConv::rewrite_rec(const Def*  def) {
+    if (auto new_def = man().lookup(def)) {
+        if (def == *new_def)
+            return def;
+        else
+            def = *new_def;
+    }
     switch (def->node()) {
         case Node::Kind: 
         case Node::Space:
@@ -14,15 +20,23 @@ const Def* ClosureConv::rewrite_rec(const Def*  def) {
             return def;
         default: {
             auto type = rewrite_rec(def->type());
-            auto dbg = (def->dbg()) ? rewrite_rec(def->dbg()) : nullptr;
+            // auto dbg = (def->dbg()) ? rewrite_rec(def->dbg()) : nullptr;
+            auto dbg = def->dbg();
+            const Def *new_def;
             if (auto nom = def->isa_nom()) {
-                return rewrite(nom, type, dbg);
+                new_def = rewrite(nom, type, dbg);
             } else {
                 auto ops = Array<const Def*>(def->num_ops(), [&](auto i) {
                     return rewrite_rec(def->op(i));
                 });
-                return rewrite(def, type, ops, dbg);
+                new_def = rewrite(def, type, ops, dbg);
+                if (new_def == def) {
+                    new_def = def->rebuild(world(), type, ops, dbg);
+                    world().DLOG("after rebuild (ops = {}) --> {} : {}", ops, new_def, new_def->type());
+                }
             }
+            man().map(def, new_def);
+            return new_def;
         }
     }
 }
@@ -39,7 +53,7 @@ const Pi* ClosureConv::lifted_fn_type(const Pi* pi, const Def* env_type) {
             return pi->dom(i - 1);
     });
     // create a nom cn[] to memorize it
-    auto new_pi = world().nom_pi(world().kind(), dom, world().dbg("closure_type"));
+    auto new_pi = world().nom_pi(world().kind(), dom, world().dbg("ct"));
     new_pi->set_codom(world().bot_kind());
     mark(new_pi, DONE);
     return new_pi;
@@ -47,7 +61,9 @@ const Pi* ClosureConv::lifted_fn_type(const Pi* pi, const Def* env_type) {
 
 template<bool rewrite_args>
 Sigma* ClosureConv::closure_type(const Pi* pi) {
-    auto sigma = world().nom_sigma(world().kind(), 2, world().dbg("pkd_closure_type"));
+    if (auto def = man().lookup(pi); def && (*def)->isa_nom<Sigma>())
+        return (*def)->isa_nom<Sigma>();
+    auto sigma = world().nom_sigma(world().kind(), 2, world().dbg("pct"));
     auto fn = lifted_fn_type<rewrite_args>(pi, sigma->var());
     sigma->set(0, sigma->var());
     sigma->set(1, fn);
@@ -92,7 +108,7 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
 
     auto clos_type = closure_type<true>(lam->type());
     auto closure = world().tuple(clos_type, {env, lifted_lam}, 
-            world().dbg(name + "_cconv_cl"));
+            world().dbg(name + "pkd_closure"));
 
     world().DLOG("closure stub -- {} : {} --> lifted: {} : {} | closure {} : {}",
             lam, lam->type(), lifted_lam, lifted_lam_type, closure, clos_type);
@@ -133,7 +149,7 @@ const Def* ClosureConv::rewrite(Def* nom, const Def* type, const Def* dbg) {
 }
 
 const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const Def* dbg) {
-    world().DLOG("cconv rewrite struct: {} : {}\nops = {}", def, type, ops);
+    world().DLOG("cc rewrite struct: {} : {}\nops = {}", def, type, ops);
     if (!should_rewrite(def))        
         return def;
     if (auto fv_from_env = lookup_fv(def)) {
@@ -164,7 +180,6 @@ const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const
             return cur_nom()->var();
     } else if (auto proj = def->isa<Extract>(); proj && proj->tuple() == old_param()) {
         // Shift param by one to account for new env param
-        auto int_t = world().type_int_width(32);
         auto idx = ops[1]->isa<Lit>();
         assert(idx);
         return world().extract(cur_nom()->var(), idx->fields() + 1);

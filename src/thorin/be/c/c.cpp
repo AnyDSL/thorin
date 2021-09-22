@@ -951,7 +951,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
-        std::string prefix = device_prefix() + (global->is_mutable() ? "" : "const ");
+        std::string prefix = device_prefix();
         func_decls_.fmt("{}{} g_{}", prefix, convert(global->alloced_type()), global->unique_name());
         if (global->init()->isa<Bottom>())
             func_decls_.fmt("; // bottom\n");

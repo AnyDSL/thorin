@@ -101,7 +101,10 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
     auto rewriter = Rewriter(world(), &scope);
     i = 0;
     for (auto v: fvs) {
-       rewriter.old2new.emplace(v, world().extract(env_param, i));
+       auto from_env = (fvs.size() <= 1) ? env_param : world().extract(env_param, i);
+       auto dbg = world().dbg("fv_proxy");
+       auto proxy = world().proxy(v->type(), {from_env}, Tag::ClosurConvFv, 0, dbg);
+       rewriter.old2new.emplace(v, proxy);
        i++;
     }
     lifted_lam->set_body(rewriter.rewrite(lam->body()));
@@ -158,6 +161,8 @@ const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const
         // rewrite cn[X..] -> closure(X..)
         if (pi->is_cn())             
             return closure_type<false>(world().cn(ops[0]));
+    } else if (auto proxy = def->isa<Proxy>(); proxy && proxy->id() == Tag::ClosurConvFv) {
+        return proxy->op(0);
     } else if (def->isa<App>()) {
         // rewrite app (where callee = packed closure)
         auto callee = ops[0];
@@ -175,14 +180,19 @@ const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const
             return (i == 0) ? env : world().extract(arg, i - 1);
         }));
         return world().app(new_callee, new_arg);
-    } else if (def->isa<Var>()) {
-        if (def== old_param())
-            return cur_nom()->var();
-    } else if (auto proj = def->isa<Extract>(); proj && proj->tuple() == old_param()) {
-        // Shift param by one to account for new env param
-        auto idx = ops[1]->isa<Lit>();
-        assert(idx);
-        return world().extract(cur_nom()->var(), idx->fields() + 1);
+    } else if (def == old_param()) {
+        // if (def== old_param()) 
+        // return original arguemnt tuple
+        auto type = cur_nom()->var()->type();
+        assert(type->isa<Sigma>());
+        return world().tuple(Array<const Def*>(type->num_ops() - 1, [&](auto i) {
+            return cur_nom()->var(i + 1);
+        }));
+    // } else if (auto proj = def->isa<Extract>(); proj && proj->tuple() == old_param()) {
+    //     // Shift param by one to account for new env param
+    //     auto idx = ops[1]->isa<Lit>();
+    //     assert(idx);
+    //     return world().extract(cur_nom()->var(), idx->fields() + 1);
     }
     return def;
 }

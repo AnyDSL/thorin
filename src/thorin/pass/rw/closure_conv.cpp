@@ -1,5 +1,7 @@
+#include "thorin/pass/rw/closure_conv.h"
 
-#include "closure_conv.h"
+#include "thorin/rewrite.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
 
@@ -20,8 +22,7 @@ const Def* ClosureConv::rewrite_rec(const Def*  def) {
             return def;
         default: {
             auto type = rewrite_rec(def->type());
-            // auto dbg = (def->dbg()) ? rewrite_rec(def->dbg()) : nullptr;
-            auto dbg = def->dbg();
+            auto dbg = (def->dbg()) ? rewrite_rec(def->dbg()) : nullptr;
             const Def *new_def;
             if (auto nom = def->isa_nom()) {
                 new_def = rewrite(nom, type, dbg);
@@ -72,7 +73,8 @@ Sigma* ClosureConv::closure_type(const Pi* pi) {
 }
 
 const Def* ClosureConv::closure_stub(Lam* lam) {
-    auto fvs = Scope(lam).free_defs();
+    auto scope = Scope(lam);
+    auto fvs = scope.free_defs();
     fvs.erase(lam);
     auto env_types = Array<const Def*>(fvs.size());
     auto env_vars = Array<const Def*>(fvs.size());
@@ -88,23 +90,23 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
     auto name = lam->name();
     auto lifted_lam_type = lifted_fn_type<true>(lam->type(), env_type);
     auto debug = world().dbg(lam->debug());
-    debug->set_name(name + "closure");
+    debug->set_name(name + "_closure");
     auto lifted_lam = world().nom_lam(lifted_lam_type, lam->cc(), debug);
-    lifted_lam->set_body(lam->body());
-    lifted_lam->set_filter(lam->filter());
     if (lam->is_external()) {
         lifted_lam->make_external();
     }
-    mark(lifted_lam, CL_STUB);
 
-    auto fv_map = std::make_unique<FVMap>(lam->var());
+    push_old_param(lam, lifted_lam);
     auto env_param = lifted_lam->var(0_u64);
+    auto rewriter = Rewriter(world(), &scope);
     i = 0;
     for (auto v: fvs) {
-        fv_map->emplace(v, world().extract(env_param, i));
-        i++;
+       rewriter.old2new.emplace(v, world().extract(env_param, i));
+       i++;
     }
-    fv_maps_.emplace(lifted_lam, std::move(fv_map));
+    lifted_lam->set_body(rewriter.rewrite(lam->body()));
+    lifted_lam->set_filter(rewriter.rewrite(lam->filter()));
+    mark(lifted_lam, CL_STUB);
 
     auto clos_type = closure_type<true>(lam->type());
     auto closure = world().tuple(clos_type, {env, lifted_lam}, 
@@ -119,15 +121,15 @@ const Def* ClosureConv::closure_stub(Lam* lam) {
 void ClosureConv::enter() {
     auto stat = status(cur_nom());
     if (auto lam = man().cur_nom<Lam>(); lam && stat == CL_STUB) {
-        cur_fv_map_ = std::move(fv_maps_[lam]);
-        assert(cur_fv_map_ != nullptr);
+        cur_old_param_ = old_params_[lam];
+        assert(cur_old_param_ != nullptr);
         rewrite_cur_nom_ = true;
         mark(lam, DONE);
     } else {
         rewrite_cur_nom_ = false;
     }
-    world().DLOG("enter -- {}, status = {}, fv_map: {}, rw? {}", cur_nom(), stat,
-            cur_fv_map_.get(), rewrite_cur_nom_);
+    world().DLOG("enter -- {}, status = {}, old_param: {}, rw? {}", cur_nom(), stat,
+            cur_old_param_, rewrite_cur_nom_);
 }
 
 const Def* ClosureConv::rewrite(Def* nom, const Def* type, const Def* dbg) {
@@ -152,9 +154,7 @@ const Def* ClosureConv::rewrite(const Def* def, const Def* type, Defs ops, const
     world().DLOG("cc rewrite struct: {} : {}\nops = {}", def, type, ops);
     if (!should_rewrite(def))        
         return def;
-    if (auto fv_from_env = lookup_fv(def)) {
-        return *fv_from_env;
-    } else if (auto pi = def->isa<Pi>()) {
+    if (auto pi = def->isa<Pi>()) {
         // rewrite cn[X..] -> closure(X..)
         if (pi->is_cn())             
             return closure_type<false>(world().cn(ops[0]));

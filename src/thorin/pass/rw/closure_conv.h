@@ -13,8 +13,8 @@ public:
     ClosureConv(PassMan &man)
         : RWPass(man, "ClosureConv")
         , status_()
-        , fv_maps_()
-        , cur_fv_map_(nullptr)
+        , old_params_()
+        , cur_old_param_(nullptr)
         , rewrite_cur_nom_(true)
     {}
 
@@ -33,29 +33,6 @@ public:
 
 // private:
 
-    class FVMap {
-    private:
-        Def2Def map_;
-        const Def* old_param_;
-    public:
-        FVMap(const Def *old_param)
-            : map_(DefMap<const Def*>())
-            , old_param_(old_param)
-        {}
-
-        std::optional<const Def*> lookup(const Def* fv) {
-            return map_.lookup(fv);
-        }
-
-        void emplace(const Def* old_def, const Def* new_def) {
-            map_.emplace(old_def, new_def);
-        }
-
-        const Def* old_param() { return old_param_; }
-    };
-
-    using FVMapPtr = std::unique_ptr<FVMap>;
-
     enum Status { 
         UNPROC,
         CL_STUB,
@@ -63,8 +40,8 @@ public:
     };
 
     DefMap<Status> status_;
-    DefMap<FVMapPtr> fv_maps_;
-    FVMapPtr cur_fv_map_;
+    Def2Def old_params_;
+    const Def *cur_old_param_;
     bool rewrite_cur_nom_;
 
     Status status(const Def* def) {
@@ -86,13 +63,14 @@ public:
         return b;
     }
 
-    std::optional<const Def*> lookup_fv(const Def* fv) {
-        return (cur_fv_map_) ? cur_fv_map_->lookup(fv) : std::nullopt;
+    const Def* old_param() {
+        return cur_old_param_;
     }
 
-    const Def* old_param() {
-        return (cur_fv_map_) ? cur_fv_map_->old_param() : nullptr;
+    void push_old_param(Lam* old, Lam* lifted) {
+        old_params_.emplace(lifted, old->var());
     }
+
 
     const Def* rewrite_rec(const Def* def);
 

@@ -556,6 +556,7 @@ static inline bool is_definite_to_indefinite_array_cast(const PtrType* from, con
 std::string CCodeGen::emit_bottom(const Type* type) {
     if (auto definite_array = type->isa<DefiniteArrayType>()) {
         StringStream s;
+        s.fmt("{} ", constructor_prefix(type));
         s << "{ ";
         auto op = emit_bottom(definite_array->elem_type());
         for (size_t i = 0, n = definite_array->dim(); i < n; ++i) {
@@ -567,6 +568,7 @@ std::string CCodeGen::emit_bottom(const Type* type) {
         return s.str();
     } else if (type->isa<StructType>() || type->isa<TupleType>()) {
         StringStream s;
+        s.fmt("{} ", constructor_prefix(type));
         s << "{ ";
         s.range(type->ops(), ", ", [&] (const Type* op) { s << emit_bottom(op); });
         s << " }";
@@ -575,9 +577,9 @@ std::string CCodeGen::emit_bottom(const Type* type) {
         if (variant_type->has_payload()) {
             auto non_unit = *std::find_if(variant_type->ops().begin(), variant_type->ops().end(),
                 [] (const Type* op) { return !is_type_unit(op); });
-            return "{ { " + emit_bottom(non_unit) + " }, 0 }";
+            return constructor_prefix(type) + " { { " + emit_bottom(non_unit) + " }, 0 }";
         }
-        return "{ 0 }";
+        return constructor_prefix(type) + "{ 0 }";
     } else if (type->isa<PtrType>() || type->isa<PrimType>()) {
         return "0";
     } else {

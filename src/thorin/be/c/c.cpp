@@ -94,6 +94,8 @@ private:
     StringStream func_impls_;
     StringStream func_decls_;
     StringStream type_decls_;
+    /// Tracks defs that have been emitted as local variables of the current function
+    DefSet func_defs_;
 
     friend class CEmit;
 };
@@ -400,6 +402,11 @@ inline std::string label_name(const Def* def) {
 }
 
 void CCodeGen::finalize(const Scope&) {
+    for (auto& def : func_defs_) {
+        assert(defs_.contains(def) && "sanity check, should have been emitted if it's here");
+        defs_.erase(def);
+    }
+    func_defs_.clear();
     func_impls_.fmt("}}\n\n");
 }
 
@@ -720,6 +727,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         } else if (conv->isa<Bitcast>()) {
             assert(bb && "re-interpreting types is only possible within a basic block");
             func_impls_.fmt("{} {};\n", convert(emitted_type), name);
+            func_defs_.insert(def);
             if (lang_ == Lang::OpenCL) {
                 // OpenCL explicitly supports type punning via unions (6.4.4.1)
                 bb->body.fmt("union {{\t\n");
@@ -745,10 +753,12 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
     } else if (def->isa<IndefiniteArray>()) {
         assert(bb && "we cannot emit indefinite arrays except within a basic block.");
         func_impls_.fmt("{} {}; // indefinite array: bottom\n", convert(def->type()), name);
+        func_defs_.insert(def);
         return name;
     } else if (def->isa<Aggregate>()) {
         if (bb) {
             func_impls_.fmt("{} {};\n", convert(def->type()), name);
+            func_defs_.insert(def);
             for (size_t i = 0, n = def->num_ops(); i < n; ++i) {
                 auto op = emit_unsafe(def->op(i));
                 bb->body << name;
@@ -778,6 +788,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                 assert(bb && "cannot emit insert operations without a basic block");
                 if (auto value = emit_unsafe(insert->value()); !value.empty()) {
                     func_impls_.fmt("{} {};\n", convert(insert->type()), name);
+                    func_defs_.insert(def);
                     bb->body.fmt("{} = {};\n", name, agg);
                     bb->body.fmt("{}", name);
                     emit_access(bb->body, insert->agg()->type(), insert->index());
@@ -818,6 +829,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
     } else if (auto variant = def->isa<Variant>()) {
         if (bb) {
             func_impls_.fmt("{} {};\n", convert(variant->type()), name);
+            func_defs_.insert(def);
             if (auto value = emit_unsafe(variant->value()); !value.empty())
                 bb->body.fmt("{}.data.{} = {};\n", name, variant->type()->as<VariantType>()->op_name(variant->index()),
                             value);
@@ -862,6 +874,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         auto t = convert(slot->alloced_type());
         func_impls_.fmt("{} {}_slot;\n", t, name);
         func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
+        func_defs_.insert(def);
         return name;
     } else if (auto alloc = def->isa<Alloc>()) {
         assert(bb && "basic block is required for allocating");
@@ -869,6 +882,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         emit_unsafe(alloc->mem());
         auto t = convert(alloc->alloced_type());
         func_impls_.fmt("{}* {};\n", t, name);
+        func_defs_.insert(def);
 
         if (alloc->alloced_type()->isa<IndefiniteArrayType>()) {
             auto extra = emit(alloc->extra());
@@ -900,6 +914,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             for (size_t i = 1, e = tup->num_ops(); i != e; ++i) {
                 auto name = ass->out(i)->unique_name();
                 func_impls_.fmt("{} {};\n", convert(tup->op(i)), name);
+                func_defs_.insert(ass->out(i));
                 outputs.emplace_back(name);
                 defs_[ass->out(i)] = name;
             }
@@ -967,6 +982,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (bb) {
         func_impls_.fmt("{} {};\n", convert(emitted_type), name);
+        func_defs_.insert(def);
         bb->body.fmt("{} = {};\n", name, s.str());
         return name;
     } else

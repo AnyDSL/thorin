@@ -148,7 +148,6 @@ public:
     // TODO only used in parallel.cpp to create a dummy value, should be refactored in something cleaner
     const FnType* arg_fn_type() const;
 
-    // size_t num_args() const { return args().size(); }
     Attributes& attributes() { return attributes_; }
     const Attributes& attributes() const { return attributes_; }
     Intrinsic intrinsic() const { return attributes().intrinsic; }
@@ -162,11 +161,8 @@ public:
     bool is_exported() const { return is_external() && has_body(); }
     bool is_accelerator() const;
 
-    /// assumes there is a body
     const App* body() const { return op(0)->as<App>(); }
-    /// does not assume there is a body
-    const App* maybe_body() const { return op(0)->isa<App>(); }
-    bool has_body() const;
+    bool has_body() const { return !op(0)->isa<Bottom>(); }
     void set_body(const App* app) {
         unset_op(0);
         set_op(0, app);

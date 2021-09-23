@@ -104,8 +104,6 @@ const Param* Continuation::ret_param() const {
     return result;
 }
 
-bool Continuation::has_body() const { return !op(0)->isa<Bottom>(); }
-
 void Continuation::destroy(const char* cause) {
     world().VLOG("{} has been destroyed by {}", this, cause);
     destroy_filter();

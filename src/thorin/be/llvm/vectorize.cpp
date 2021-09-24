@@ -12,32 +12,31 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Passes/PassBuilder.h>
 
-#include <llvm/Transforms/Scalar/EarlyCSE.h>
 #include <llvm/Transforms/IPO.h>
-#include <llvm/Transforms/Utils/LCSSA.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/EarlyCSE.h>
 #include <llvm/Transforms/Scalar/LICM.h>
 #include <llvm/Transforms/Scalar/SCCP.h>
-#include <llvm/Transforms/Scalar/SimplifyCFG.h>
 #include <llvm/Transforms/Scalar/SROA.h>
-#include <llvm/Transforms/Scalar.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/Transforms/Utils/Mem2Reg.h>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
 #include <llvm/Transforms/Utils.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/FixIrreducible.h>
+#include <llvm/Transforms/Utils/LCSSA.h>
+#include <llvm/Transforms/Utils/Mem2Reg.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
 #include <rv/resolver/resolvers.h>
-#include <rv/transform/CNSPass.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
 #include <rv/region/FunctionRegion.h>
 
 #include "thorin/primop.h"
-#include "thorin/util/log.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
-namespace thorin {
+namespace thorin::llvm {
 
 struct VectorizeArgs {
     enum {
@@ -49,10 +48,14 @@ struct VectorizeArgs {
     };
 };
 
-Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
+Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     auto target = continuation->callee()->as_continuation();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(continuation->num_args() >= VectorizeArgs::Num && "required arguments are missing");
+
+    // Important: Must emit the memory object otherwise the
+    // memory operations before the call to vectorize are all gone!
+    emit_unsafe(continuation->arg(0));
 
     // arguments
     auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
@@ -60,32 +63,32 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_kernel_args + 1);
-    simd_args[0] = irbuilder_.getInt32Ty(); // loop index
+    simd_args[0] = irbuilder.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
         auto type = continuation->arg(i + VectorizeArgs::Num)->type();
         simd_args[i + 1] = convert(type);
     }
 
-    auto simd_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(simd_args), false);
+    auto simd_type = llvm::FunctionType::get(irbuilder.getVoidTy(), llvm_ref(simd_args), false);
     auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type).getCallee()->stripPointerCasts();
 
     // build iteration loop and wire the calls
     Array<llvm::Value*> args(num_kernel_args + 1);
-    args[0] = irbuilder_.getInt32(0);
+    args[0] = irbuilder.getInt32(0);
     for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
         auto arg = continuation->arg(i + VectorizeArgs::Num);
-        auto llvm_arg = lookup(arg);
+        auto llvm_arg = emit(arg);
         if (arg->type()->isa<PtrType>())
-            llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
+            llvm_arg = irbuilder.CreateBitCast(llvm_arg, simd_args[i + 1]);
         args[i + 1] = llvm_arg;
     }
-    auto simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
+    auto simd_kernel_call = irbuilder.CreateCall(kernel_simd_func, llvm_ref(args));
 
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        EDEF(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
+        world().edef(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
-    vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
+    vec_todo_.emplace_back(vector_length_constant, emit_fun_decl(kernel), simd_kernel_call);
 
     return continuation->arg(VectorizeArgs::Return)->as_continuation();
 }
@@ -107,7 +110,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     FPM.addPass(llvm::SROA());
     FPM.addPass(llvm::EarlyCSEPass());
     FPM.addPass(llvm::SCCPPass());
-    FPM.addPass(rv::CNSWrapperPass()); // make all loops reducible (has to run first!)
+    FPM.addPass(llvm::FixIrreduciblePass()); // make all loops reducible (has to run first!)
     FPM.addPass(llvm::PromotePass()); // CNSPass relies on mem2reg for now
 
     llvm::LoopPassManager LPM;
@@ -203,7 +206,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // inline kernel
     llvm::InlineFunctionInfo info;
-    llvm::InlineFunction(simd_kernel_call, info);
+    llvm::InlineFunction(*simd_kernel_call, info);
 
     // remove vectorized function
     if (simd_kernel_func->hasNUses(0))

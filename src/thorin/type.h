@@ -20,7 +20,7 @@ using TypeSet   = GIDSet<const Type*>;
 using Types     = ArrayRef<const Type*>;
 
 /// Base class for all \p Type%s.
-class Type : public RuntimeCast<Type>, public Streamable {
+class Type : public RuntimeCast<Type>, public Streamable<Type> {
 protected:
     Type(TypeTable& table, int tag, Types ops);
 
@@ -41,31 +41,23 @@ public:
     bool is_nominal() const { return nominal_; } ///< A nominal @p Type is always different from each other @p Type.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
-    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     virtual bool equal(const Type*) const;
-
-    const Type* rebuild(TypeTable& to, Types ops) const {
-        assert(num_ops() == ops.size());
-        if (ops.empty() && &table() == &to)
-            return this;
-        return vrebuild(to, ops);
-    }
-    const Type* rebuild(Types ops) const { return rebuild(table(), ops); }
+    virtual const Type* rebuild(TypeTable&, Types) const = 0;
+    Stream& stream(Stream&) const;
 
 protected:
-    virtual uint64_t vhash() const;
+    virtual hash_t vhash() const;
 
-    mutable uint64_t hash_ = 0;
+    mutable hash_t hash_ = 0;
     mutable bool nominal_  = false;
     int order_ = 0;
+    size_t gid_;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const = 0;
-
     mutable TypeTable* table_;
 
     int tag_;
-    size_t gid_;
     thorin::Array<const Type*> ops_;
 
     friend TypeTable;
@@ -79,8 +71,7 @@ private:
     {}
 
 public:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -89,19 +80,20 @@ public:
 /// a name that uniquely identifies them).
 class NominalType : public Type {
 protected:
-    NominalType(TypeTable& table, int tag, Symbol name, size_t size)
+    NominalType(TypeTable& table, int tag, Symbol name, size_t size, size_t gid)
         : Type(table, tag, thorin::Array<const Type*>(size))
         , name_(name)
         , op_names_(size)
     {
         nominal_ = true;
+        gid_ = gid;
     }
 
     Symbol name_;
     Array<Symbol> op_names_;
 
 private:
-    virtual const Type* vrebuild(TypeTable&, Types) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
 public:
     Symbol name() const { return name_; }
@@ -124,58 +116,50 @@ public:
 
 class StructType : public NominalType {
 private:
-    StructType(TypeTable& table, Symbol name, size_t size)
-        : NominalType(table, Node_StructType, name, size)
+    StructType(TypeTable& table, Symbol name, size_t size, size_t gid)
+        : NominalType(table, Node_StructType, name, size, gid)
     {}
 
-    virtual std::ostream& stream(std::ostream&) const override;
-
 public:
-    virtual const NominalType* stub(TypeTable&) const override;
+    const NominalType* stub(TypeTable&) const override;
 
     friend class TypeTable;
 };
 
 class VariantType : public NominalType {
 private:
-    VariantType(TypeTable& table, Symbol name, size_t size)
-        : NominalType(table, Node_VariantType, name, size)
+    VariantType(TypeTable& table, Symbol name, size_t size, size_t gid)
+        : NominalType(table, Node_VariantType, name, size, gid)
     {}
 
-    virtual std::ostream& stream(std::ostream&) const override;
-
 public:
-    virtual const NominalType* stub(TypeTable&) const override;
+    const NominalType* stub(TypeTable&) const override;
+
+    bool has_payload() const;
 
     friend class TypeTable;
 };
 
 /// The type of the memory monad.
 class MemType : public Type {
-public:
-    virtual std::ostream& stream(std::ostream&) const override;
-
 private:
     MemType(TypeTable& table)
         : Type(table, Node_MemType, {})
     {}
 
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
 
 /// The type of a stack frame.
 class FrameType : public Type {
-public:
-    virtual std::ostream& stream(std::ostream&) const override;
-
 private:
     FrameType(TypeTable& table)
         : Type(table, Node_FrameType, {})
     {}
 
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -188,8 +172,8 @@ protected:
         , length_(length)
     {}
 
-    virtual uint64_t vhash() const override { return hash_combine(Type::vhash(), length()); }
-    virtual bool equal(const Type* other) const override {
+    hash_t vhash() const override { return hash_combine(Type::vhash(), length()); }
+    bool equal(const Type* other) const override {
         return Type::equal(other) && this->length() == other->as<VectorType>()->length();
     }
 
@@ -216,11 +200,7 @@ private:
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
-
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -264,13 +244,11 @@ public:
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Type* other) const override;
-
-    virtual std::ostream& stream(std::ostream&) const override;
+    hash_t vhash() const override;
+    bool equal(const Type* other) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -295,10 +273,8 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
-    virtual std::ostream& stream(std::ostream&) const override;
-
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -314,9 +290,7 @@ private:
 
 public:
     int inner_order() const { return inner_order_; }
-
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
 private:
     int inner_order_;
@@ -342,10 +316,8 @@ public:
         : ArrayType(table, Node_IndefiniteArrayType, elem_type)
     {}
 
-    virtual std::ostream& stream(std::ostream&) const override;
-
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };
@@ -358,15 +330,13 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual uint64_t vhash() const override { return hash_combine(Type::vhash(), dim()); }
-    virtual bool equal(const Type* other) const override {
+    hash_t vhash() const override { return hash_combine(Type::vhash(), dim()); }
+    bool equal(const Type* other) const override {
         return Type::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }
 
-    virtual std::ostream& stream(std::ostream&) const override;
-
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     u64 dim_;
 
@@ -381,7 +351,7 @@ bool use_lea(const Type*);
 class TypeTable {
 private:
     struct TypeHash {
-        static uint64_t hash(const Type* t) { return t->hash(); }
+        static hash_t hash(const Type* t) { return t->hash(); }
         static bool eq(const Type* t1, const Type* t2) { return t2->equal(t1); }
         static const Type* sentinel() { return (const Type*)(1); }
     };

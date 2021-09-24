@@ -3,21 +3,23 @@
 namespace thorin {
 
 #define THORIN_GLUE(pre, next)
-#define THORIN_NODE(node, abbr) static_assert(Node_##node == (NodeTag) zzzMarker_##node,                 "NodeTag value not equal zzzMarker");
-#define THORIN_PRIMTYPE(T)          static_assert(Node_PrimType_##T == (NodeTag) zzzMarker_PrimType_##T, "NodeTag value not equal zzzMarker");
-#define THORIN_ARITHOP(op)          static_assert(Node_##op == (NodeTag) zzzMarker_##op,                 "NodeTag value not equal zzzMarker");
-#define THORIN_CMP(op)              static_assert(Node_##op == (NodeTag) zzzMarker_##op,                 "NodeTag value not equal zzzMarker");
+#define THORIN_NODE(node, abbr) static_assert(Node_##node == (NodeTag) zzzMarker_##node,             "NodeTag value not equal zzzMarker");
+#define THORIN_PRIMTYPE(T)      static_assert(Node_PrimType_##T == (NodeTag) zzzMarker_PrimType_##T, "NodeTag value not equal zzzMarker");
+#define THORIN_ARITHOP(op)      static_assert(Node_##op == (NodeTag) zzzMarker_##op,                 "NodeTag value not equal zzzMarker");
+#define THORIN_CMP(op)          static_assert(Node_##op == (NodeTag) zzzMarker_##op,                 "NodeTag value not equal zzzMarker");
+#define THORIN_MATHOP(op)       static_assert(Node_##op == (NodeTag) zzzMarker_##op,                 "NodeTag value not equal zzzMarker");
 #include "thorin/tables/allnodes.h"
 
 const char* tag2str(NodeTag tag) {
     switch (tag) {
 #define THORIN_GLUE(pre, next)
-#define THORIN_PRIMTYPE(T)         case Node_PrimType_##T: return #T;
+#define THORIN_PRIMTYPE(T)     case Node_PrimType_##T: return #T;
 #define THORIN_NODE(n, abbr)   case Node_##n: return #n;
-#define THORIN_ARITHOP(n)          case Node_##n: return #n;
-#define THORIN_CMP(n)            case Node_##n: return #n;
+#define THORIN_ARITHOP(n)      case Node_##n: return #n;
+#define THORIN_CMP(n)          case Node_##n: return #n;
+#define THORIN_MATHOP(n)       case Node_##n: return #n;
 #include "thorin/tables/allnodes.h"
-                                    default: THORIN_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 

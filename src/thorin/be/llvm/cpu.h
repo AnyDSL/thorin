@@ -3,14 +3,16 @@
 
 #include "thorin/be/llvm/llvm.h"
 
-namespace thorin {
+namespace thorin::llvm {
+
+namespace llvm = ::llvm;
 
 class CPUCodeGen : public CodeGen {
 public:
     CPUCodeGen(World& world, int opt, bool debug);
 
 protected:
-    virtual std::string get_alloc_name() const override { return "anydsl_alloc"; }
+    std::string get_alloc_name() const override { return "anydsl_alloc"; }
 };
 
 }

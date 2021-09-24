@@ -4,7 +4,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -16,7 +15,7 @@ void force_inline(Scope& scope, int threshold) {
             if (auto callee = continuation->callee()->isa_continuation()) {
                 if (!callee->empty() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
                     todo = true;
                 }
             }
@@ -30,13 +29,13 @@ void force_inline(Scope& scope, int threshold) {
         auto continuation = n->continuation();
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (!callee->empty() && !scope.contains(callee))
-                WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->jump_location(), scope.entry());
+                scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
         }
     }
 }
 
 void inliner(World& world) {
-    VLOG("start inliner");
+    world.VLOG("start inliner");
 
     static const int factor = 4;
     static const int offset = 4;
@@ -74,10 +73,10 @@ void inliner(World& world) {
             if (auto callee = continuation->callee()->isa_continuation()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
-                DLOG("callee: {}", callee);
+                world.DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
-                    DLOG("- here: {}", continuation);
-                    continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    world.DLOG("- here: {}", continuation);
+                    continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
                     dirty = true;
                 }
             }
@@ -91,7 +90,7 @@ void inliner(World& world) {
         }
     });
 
-    VLOG("stop inliner");
+    world.VLOG("stop inliner");
     debug_verify(world);
     world.cleanup();
 }

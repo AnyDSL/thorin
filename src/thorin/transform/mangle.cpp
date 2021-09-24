@@ -8,15 +8,14 @@
 namespace thorin {
 
 const Def* Rewriter::instantiate(const Def* odef) {
-    if (auto ndef = find(old2new, odef))
-        return ndef;
+    if (auto ndef = old2new.lookup(odef)) return *ndef;
 
     if (auto oprimop = odef->isa<PrimOp>()) {
         Array<const Def*> nops(oprimop->num_ops());
         for (size_t i = 0; i != oprimop->num_ops(); ++i)
             nops[i] = instantiate(odef->op(i));
 
-        auto nprimop = oprimop->rebuild(nops);
+        auto nprimop = oprimop->rebuild(oprimop->world(), oprimop->type(), nops);
         return old2new[oprimop] = nprimop;
     }
 
@@ -72,7 +71,7 @@ Continuation* Mangler::mangle() {
         else {
             auto new_param = new_entry()->param(j++);
             def2def_[old_param] = new_param;
-            new_param->debug().set(old_param->name());
+            new_param->set_name(old_param->name());
         }
     }
 
@@ -121,19 +120,19 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
             case Intrinsic::Branch: {
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
                     auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
-                    return new_continuation->jump(mangle(cont), {}, old_continuation->jump_debug());
+                    return new_continuation->jump(mangle(cont), {}, old_continuation->debug()); // TODO debug
                 }
                 break;
             }
             case Intrinsic::Match:
                 if (old_continuation->num_args() == 2)
-                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->jump_debug());
+                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->debug()); // TODO debug
 
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
                     for (size_t i = 2; i < old_continuation->num_args(); i++) {
                         auto new_arg = mangle(old_continuation->arg(i));
                         if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
-                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->jump_debug());
+                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->debug()); // TODO debug
                     }
                 }
                 break;
@@ -162,16 +161,16 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
         if (substitute) {
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            return new_continuation->jump(new_entry(), args, old_continuation->jump_debug());
+            return new_continuation->jump(new_entry(), args, old_continuation->debug()); // TODO debug
         }
     }
 
-    new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
+    new_continuation->jump(ntarget, nargs, old_continuation->debug()); // TODO debug
 }
 
 const Def* Mangler::mangle(const Def* old_def) {
-    if (auto new_def = find(def2def_, old_def))
-        return new_def;
+    if (auto new_def = def2def_.lookup(old_def))
+        return *new_def;
     else if (!within(old_def))
         return old_def;
     else if (auto old_continuation = old_def->isa_continuation()) {
@@ -190,7 +189,7 @@ const Def* Mangler::mangle(const Def* old_def) {
             nops[i] = mangle(old_primop->op(i));
 
         auto type = old_primop->type(); // TODO reduce
-        return def2def_[old_primop] = old_primop->rebuild(nops, type);
+        return def2def_[old_primop] = old_primop->rebuild(world(), type, nops);
     }
 }
 

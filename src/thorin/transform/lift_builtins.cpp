@@ -116,7 +116,7 @@ void lift_builtins(World& world) {
                         // jump to new top-level dummy function with new args
                         auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
-                        ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->jump_debug());
+                        ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->debug()); // TODO debug
                     }
                 }
             }

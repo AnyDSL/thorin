@@ -6,23 +6,8 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
-
-//------------------------------------------------------------------------------
-
-std::vector<Param::Peek> Param::peek() const {
-    std::vector<Peek> peeks;
-    for (auto use : continuation()->uses()) {
-        if (auto pred = use->isa_continuation()) {
-            if (use.index() == 0)
-                peeks.emplace_back(pred->arg(index()), pred);
-        }
-    }
-
-    return peeks;
-}
 
 //------------------------------------------------------------------------------
 
@@ -35,7 +20,7 @@ Continuation* Continuation::stub() const {
 
     auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
-        result->param(i)->debug() = param(i)->debug_history();
+        result->param(i)->set_name(debug_history().name);
         rewriter.old2new[param(i)] = result->param(i);
     }
 
@@ -160,7 +145,7 @@ Continuations Continuation::succs() const {
         }
 
         for (auto op : def->ops()) {
-            if (op->contains_continuation())
+            if (op->has_dep(Dep::Cont))
                 enqueue(op);
         }
     }
@@ -172,39 +157,33 @@ void Continuation::set_all_true_filter() {
     filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
 
-bool Continuation::is_exported() const { return attributes().visibility == Visibility::Exported; }
-bool Continuation::is_imported() const { return attributes().visibility == Visibility::Imported; }
-bool Continuation::is_internal() const { return attributes().visibility == Visibility::Internal; }
-bool Continuation::is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
-bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
-bool Continuation::is_channel() const { return name().str().find("channel") != std::string::npos; }
-bool Continuation::is_pipe() const { return name().str().find("pipe") != std::string::npos; }
-void Continuation::set_intrinsic() {
-    if      (name() == "cuda")                 attributes().intrinsic = Intrinsic::CUDA;
-    else if (name() == "nvvm")                 attributes().intrinsic = Intrinsic::NVVM;
-    else if (name() == "opencl")               attributes().intrinsic = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")               attributes().intrinsic = Intrinsic::AMDGPU;
-    else if (name() == "hls")                  attributes().intrinsic = Intrinsic::HLS;
-    else if (name() == "parallel")             attributes().intrinsic = Intrinsic::Parallel;
-    else if (name() == "fibers")               attributes().intrinsic = Intrinsic::Fibers;
-    else if (name() == "spawn")                attributes().intrinsic = Intrinsic::Spawn;
-    else if (name() == "sync")                 attributes().intrinsic = Intrinsic::Sync;
-    else if (name() == "anydsl_create_graph")  attributes().intrinsic = Intrinsic::CreateGraph;
-    else if (name() == "anydsl_create_task")   attributes().intrinsic = Intrinsic::CreateTask;
-    else if (name() == "anydsl_create_edge")   attributes().intrinsic = Intrinsic::CreateEdge;
-    else if (name() == "anydsl_execute_graph") attributes().intrinsic = Intrinsic::ExecuteGraph;
-    else if (name() == "vectorize")            attributes().intrinsic = Intrinsic::Vectorize;
-    else if (name() == "pe_info")              attributes().intrinsic = Intrinsic::PeInfo;
-    else if (name() == "pipeline")             attributes().intrinsic = Intrinsic::Pipeline;
-    else if (name() == "reserve_shared")       attributes().intrinsic = Intrinsic::Reserve;
-    else if (name() == "atomic")               attributes().intrinsic = Intrinsic::Atomic;
-    else if (name() == "atomic_load")          attributes().intrinsic = Intrinsic::AtomicLoad;
-    else if (name() == "atomic_store")         attributes().intrinsic = Intrinsic::AtomicStore;
-    else if (name() == "cmpxchg")              attributes().intrinsic = Intrinsic::CmpXchg;
-    else if (name() == "undef")                attributes().intrinsic = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic '{}'", name());
-}
+// TODO: probably should be moved to Attributes
+bool Continuation::is_channel() const { return name().find("channel") != std::string::npos; }
+bool Continuation::is_pipe() const { return name().find("pipe") != std::string::npos; }
 
+bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
+void Continuation::set_intrinsic() {
+    if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
+    else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
+    else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")         attributes().intrinsic = Intrinsic::AMDGPU;
+    else if (name() == "hls")            attributes().intrinsic = Intrinsic::HLS;
+    else if (name() == "parallel")       attributes().intrinsic = Intrinsic::Parallel;
+    else if (name() == "fibers")         attributes().intrinsic = Intrinsic::Fibers;
+    else if (name() == "spawn")          attributes().intrinsic = Intrinsic::Spawn;
+    else if (name() == "sync")           attributes().intrinsic = Intrinsic::Sync;
+    else if (name() == "vectorize")      attributes().intrinsic = Intrinsic::Vectorize;
+    else if (name() == "pe_info")        attributes().intrinsic = Intrinsic::PeInfo;
+    else if (name() == "pipeline")       attributes().intrinsic = Intrinsic::Pipeline;
+    else if (name() == "reserve_shared") attributes().intrinsic = Intrinsic::Reserve;
+    else if (name() == "atomic")         attributes().intrinsic = Intrinsic::Atomic;
+    else if (name() == "atomic_load")    attributes().intrinsic = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")   attributes().intrinsic = Intrinsic::AtomicStore;
+    else if (name() == "cmpxchg")        attributes().intrinsic = Intrinsic::CmpXchg;
+    else if (name() == "fence")          attributes().intrinsic = Intrinsic::Fence;
+    else if (name() == "undef")          attributes().intrinsic = Intrinsic::Undef;
+    else world().ELOG("unsupported thorin intrinsic '{}'", name());
+}
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
@@ -214,7 +193,6 @@ bool Continuation::is_returning() const { return type()->is_returning(); }
  */
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
-    jump_debug_ = dbg;
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
@@ -277,16 +255,17 @@ void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, nargs, src->jump_debug());
+    src->jump(dst, nargs);
 }
 
 Continuation* Continuation::update_op(size_t i, const Def* def) {
     Array<const Def*> new_ops(ops());
     new_ops[i] = def;
-    jump(new_ops.front(), new_ops.skip_front(), jump_location());
+    jump(new_ops.front(), new_ops.skip_front());
     return this;
 }
 
+#if 0
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
     //stream_type_params(os, type());
@@ -314,6 +293,7 @@ std::ostream& Continuation::stream_jump(std::ostream& os) const {
 
 void Continuation::dump_head() const { stream_head(std::cout) << endl; }
 void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
+#endif
 
 //------------------------------------------------------------------------------
 

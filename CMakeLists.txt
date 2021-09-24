@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4.3 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13.4 FATAL_ERROR)
 
 project(Thorin)
 
@@ -52,6 +52,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 if(THORIN_PROFILE)
     set(THORIN_ENABLE_PROFILING TRUE)
+endif()
+if(LLVM_FOUND)
+    set(THORIN_ENABLE_LLVM TRUE)
 endif()
 if(RV_FOUND)
     set(THORIN_ENABLE_RV TRUE)

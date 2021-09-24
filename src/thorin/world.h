@@ -16,6 +16,8 @@
 
 namespace thorin {
 
+enum class LogLevel { Debug, Verbose, Info, Warn, Error };
+
 /**
  * The World represents the whole program and manages creation and destruction of Thorin nodes.
  * In particular, the following things are done by this class:
@@ -41,7 +43,7 @@ namespace thorin {
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
-class World : public TypeTable, public Streamable {
+class World : public TypeTable, public Streamable<World> {
 public:
     typedef HashSet<const PrimOp*, PrimOpHash> PrimOpSet;
 
@@ -53,8 +55,24 @@ public:
 
     typedef HashSet<size_t, BreakHash> Breakpoints;
 
-    World(std::string name = "");
+    World(World&&) = delete;
+    World& operator=(const World&) = delete;
+
+    explicit World(const std::string& name = {});
+    ///  Inherits the @p state_ of the @p other @p World but does @em not perform a copy.
+    explicit World(const World& other)
+        : World(other.name())
+    {
+        stream_ = other.stream_;
+        state_  = other.state_;
+    }
     ~World();
+
+    /// @name manage global identifier - a unique number for each Def
+    //@{
+    //u32 cur_gid() const { return state_.cur_gid; }
+    //u32 next_gid() { return ++state_.cur_gid; }
+    //@}
 
     // literals
 
@@ -144,6 +162,33 @@ public:
     const Def* align_of(const Type* type, Debug dbg = {});
     const Def* size_of(const Type* type, Debug dbg = {});
 
+    // mathematical functions
+    const Def* mathop(MathOpTag, Defs, Debug = {});
+
+    const Def* fabs   (const Def* x, Debug dbg = {}) { return mathop(MathOp_fabs,    { x }, dbg); }
+    const Def* round  (const Def* x, Debug dbg = {}) { return mathop(MathOp_round,   { x }, dbg); }
+    const Def* ceil   (const Def* x, Debug dbg = {}) { return mathop(MathOp_ceil,    { x }, dbg); }
+    const Def* floor  (const Def* x, Debug dbg = {}) { return mathop(MathOp_floor,   { x }, dbg); }
+    const Def* cos    (const Def* x, Debug dbg = {}) { return mathop(MathOp_cos,     { x }, dbg); }
+    const Def* sin    (const Def* x, Debug dbg = {}) { return mathop(MathOp_sin,     { x }, dbg); }
+    const Def* tan    (const Def* x, Debug dbg = {}) { return mathop(MathOp_tan,     { x }, dbg); }
+    const Def* acos   (const Def* x, Debug dbg = {}) { return mathop(MathOp_acos,    { x }, dbg); }
+    const Def* asin   (const Def* x, Debug dbg = {}) { return mathop(MathOp_asin,    { x }, dbg); }
+    const Def* atan   (const Def* x, Debug dbg = {}) { return mathop(MathOp_atan,    { x }, dbg); }
+    const Def* sqrt   (const Def* x, Debug dbg = {}) { return mathop(MathOp_sqrt,    { x }, dbg); }
+    const Def* cbrt   (const Def* x, Debug dbg = {}) { return mathop(MathOp_cbrt,    { x }, dbg); }
+    const Def* exp    (const Def* x, Debug dbg = {}) { return mathop(MathOp_exp,     { x }, dbg); }
+    const Def* exp2   (const Def* x, Debug dbg = {}) { return mathop(MathOp_exp2,    { x }, dbg); }
+    const Def* log    (const Def* x, Debug dbg = {}) { return mathop(MathOp_log,     { x }, dbg); }
+    const Def* log2   (const Def* x, Debug dbg = {}) { return mathop(MathOp_log2,    { x }, dbg); }
+    const Def* log10  (const Def* x, Debug dbg = {}) { return mathop(MathOp_log10,   { x }, dbg); }
+
+    const Def* atan2   (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_atan2,    { x, y }, dbg); }
+    const Def* pow     (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_pow,      { x, y }, dbg); }
+    const Def* copysign(const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_copysign, { x, y }, dbg); }
+    const Def* fmin    (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_fmin,     { x, y }, dbg); }
+    const Def* fmax    (const Def* x, const Def* y, Debug dbg = {}) { return mathop(MathOp_fmax,     { x, y }, dbg); }
+
     // memory stuff
 
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
@@ -173,6 +218,7 @@ public:
         return continuation(fn_type, Continuation::Attributes(), dbg);
     }
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
+    // TODO move outside the builders
     template <typename Pred>
     Continuation* find_continuation(const Pred& pred) const;
     Continuation* branch() const { return branch_; }
@@ -192,22 +238,59 @@ public:
     Array<Continuation*> exported_continuations() const;
     bool empty() const { return continuations().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
-    // other stuff
+    /// @name partial evaluation done?
+    //@{
+    void mark_pe_done(bool flag = true) { state_.pe_done = flag; }
+    bool is_pe_done() const { return state_.pe_done; }
+    //@}
 
-    void mark_pe_done(bool flag = true) { pe_done_ = flag; }
-    bool is_pe_done() const { return pe_done_; }
 #if THORIN_ENABLE_CHECKS
-    void breakpoint(size_t number) { breakpoints_.insert(number); }
-    const Breakpoints& breakpoints() const { return breakpoints_; }
-    void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
-    bool track_history() const { return track_history_; }
-    void enable_history(bool flag = true) { track_history_ = flag; }
+    /// @name debugging features
+    //@{
+    void     breakpoint(size_t number);
+    void use_breakpoint(size_t number);
+    void enable_history(bool flag = true);
+    bool track_history() const;
+    const Def* gid2def(u32 gid);
+    //@}
 #endif
 
-    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    virtual std::ostream& stream(std::ostream&) const override; ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;              ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                                        ///< Dumps thorin to a file with an auto-generated file name.
+    /// @name logging
+    //@{
+    Stream& stream(Stream&) const;
+    Stream& stream() { return *stream_; }
+    /// Writes to a file named @c name().
+    DEBUG_UTIL void write() const { Streamable<World>::write(name()); }
+    LogLevel min_level() const { return state_.min_level; }
+
+    void set(LogLevel min_level) { state_.min_level = min_level; }
+    void set(std::shared_ptr<Stream> stream) { stream_ = stream; }
+
+    template<class... Args>
+    void log(LogLevel level, Loc loc, const char* fmt, Args&&... args) {
+        if (stream_ && int(min_level()) <= int(level)) {
+            stream().fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(loc.to_string(), 7));
+            stream().fmt(fmt, std::forward<Args&&>(args)...).endl().flush();
+        }
+    }
+
+    template<class... Args>
+    [[noreturn]] void error(Loc loc, const char* fmt, Args&&... args) {
+        log(LogLevel::Error, loc, fmt, std::forward<Args&&>(args)...);
+        std::abort();
+    }
+
+    // Ignore log
+    void ignore() {}
+
+    template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
+    template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
+    template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }
+
+    static const char* level2string(LogLevel level);
+    static int level2color(LogLevel level);
+    static std::string colorize(const std::string& str, int color);
+    //@}
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
@@ -217,30 +300,34 @@ public:
         swap(w1.primops_,       w2.primops_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
-        swap(w1.pe_done_,       w2.pe_done_);
-
-#if THORIN_ENABLE_CHECKS
-        swap(w1.breakpoints_,   w2.breakpoints_);
-        swap(w1.track_history_, w2.track_history_);
-#endif
+        swap(w1.state_,         w2.state_);
     }
 
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
-    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+    template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
+    template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
+    template <class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+
+    struct State {
+        LogLevel min_level = LogLevel::Error;
+        u32 cur_gid = 0;
+        bool pe_done = false;
+#if THORIN_ENABLE_CHECKS
+        bool track_history = false;
+        Breakpoints breakpoints;
+        Breakpoints use_breakpoints;
+#endif
+    } state_;
 
     std::string name_;
     ContinuationSet continuations_;
     PrimOpSet primops_;
     Continuation* branch_;
     Continuation* end_scope_;
-    bool pe_done_ = false;
-#if THORIN_ENABLE_CHECKS
-    Breakpoints breakpoints_;
-    bool track_history_ = false;
-#endif
+    std::shared_ptr<Stream> stream_;
 
     friend class Cleaner;
     friend class Continuation;
@@ -248,5 +335,15 @@ private:
 };
 
 }
+
+#define ELOG(...) log(thorin::LogLevel::Error,   thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#define WLOG(...) log(thorin::LogLevel::Warn,    thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#define ILOG(...) log(thorin::LogLevel::Info,    thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#define VLOG(...) log(thorin::LogLevel::Verbose, thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#ifndef NDEBUG
+#define DLOG(...) log(thorin::LogLevel::Debug,   thorin::Loc(__FILE__, {__LINE__, thorin::u32(-1)}, {__LINE__, thorin::u32(-1)}), __VA_ARGS__)
+#else
+#define DLOG(...) ignore()
+#endif
 
 #endif

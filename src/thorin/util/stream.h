@@ -1,153 +1,205 @@
 #ifndef THORIN_UTIL_STREAM_H
 #define THORIN_UTIL_STREAM_H
 
-#include <ostream>
-#include <stdexcept>
-#include <type_traits>
+#include <cassert>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <string>
+
+#include "thorin/util/utility.h"
+#include "thorin/util/iterator.h"
 
 namespace thorin {
 
-/// Inherit from this class and implement @p stream in order to use @p streamf.
-class Streamable {
+class Stream {
 public:
-    virtual ~Streamable() {}
-
-    virtual std::ostream& stream(std::ostream& os) const = 0;
-    std::string to_string() const; ///< Uses @p stream and @c std::ostringstream to generate a @c std::string.
-    void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
-};
-
-std::ostream& operator<<(std::ostream&, const Streamable*); ///< Use @p Streamable in C++ streams via @c operator<<.
-
-namespace detail {
-    template<typename T> inline std::ostream& stream(std::ostream& os, T val) { return os << val; }
-    template<> inline std::ostream& stream<const Streamable*>(std::ostream& os, const Streamable* s) { return s->stream(os); }
-
-    template<typename T>
-    const char* handle_fmt_specifier(std::ostream& os, const char* fmt, T val) {
-        fmt++; // skip opening brace {
-        char specifier = *fmt;
-        std::string spec_fmt;
-        while (*fmt && *fmt != '}') {
-            spec_fmt.push_back(*fmt++);
-        }
-        if (*fmt != '}')
-            throw std::invalid_argument("unmatched closing brace '}' in format string");
-        if (specifier == '}')
-            detail::stream(os, val);
-        // TODO possibly handle some format specifiers here that don't require major template trickery (e.g. floats)
-        return ++fmt;
-    }
-}
-
-/// Base case.
-std::ostream& streamf(std::ostream& os, const char* fmt);
-
-/**
- * fprintf-like function which works on C++ @c std::ostream.
- * Each @c "{}" in @p fmt corresponds to one of the variadic arguments in @p args.
- * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
- */
-template<typename T, typename... Args>
-std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
-    while (*fmt) {
-        auto next = fmt + 1;
-        if (*fmt == '{') {
-            if (*next == '{') {
-                os << '{';
-                fmt += 2;
-                continue;
-            }
-            fmt = detail::handle_fmt_specifier(os, fmt, val);
-            // call even when *fmt == 0 to detect extra arguments
-            return streamf(os, fmt, args...);
-        } else if (*fmt == '}') {
-            if (*next == '}') {
-                os << '}';
-                fmt += 2;
-                continue;
-            }
-            // TODO give exact position
-            throw std::invalid_argument("nmatched/unescaped closing brace '}' in format string");
-        } else
-            os << *fmt++;
-    }
-    throw std::invalid_argument("invalid format string for 'streamf': runaway arguments; use 'catch throw' in 'gdb'");
-}
-
-namespace detail {
-    void inc_indent();
-    void dec_indent();
-    unsigned int get_indent();
-}
-
-template <class charT, class traits>
-std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
-    return os << std::endl << std::string(detail::get_indent() * 4, ' ');
-}
-
-template <class charT, class traits>
-std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) { detail::inc_indent(); return os; }
-
-template <class charT, class traits>
-std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) { detail::dec_indent(); return os; }
-
-template <class charT, class traits>
-std::basic_ostream<charT,traits>& up_endl(std::basic_ostream<charT,traits>& os) { return os << up << endl; }
-
-template <class charT, class traits>
-std::basic_ostream<charT,traits>& down_endl(std::basic_ostream<charT,traits>& os) { return os << down << endl; }
-
-template<class Emit, class List>
-std::ostream& stream_list(std::ostream& os, const List& list, Emit emit,
-        const char* begin = "", const char* end = "", const char* sep = ", ", bool nl = false) {
-    os << begin;
-    const char* cur_sep = "";
-    bool cur_nl = false;
-    for (const auto& elem : list) {
-        os << cur_sep;
-        if (cur_nl)
-            os << endl;
-        emit(elem);
-        cur_sep = sep;
-        cur_nl = true & nl;
-    }
-    return os << end;
-}
-
-template<class Emit, class List>
-class StreamList {
-public:
-    StreamList(const List& list, Emit emit, const char* sep)
-        : emit(emit)
-        , list(list)
-        , sep(sep)
+    Stream(std::ostream& ostream = std::cout, const std::string& tab = {"    "}, size_t level = 0)
+        : ostream_(&ostream)
+        , tab_(tab)
+        , level_(level)
     {}
 
-    Emit emit;
-    const List& list;
-    const char* sep;
+    /// @name getters
+    //@{
+    std::ostream& ostream() { return *ostream_; }
+    std::string tab() const { return tab_; }
+    size_t level() const { return level_; }
+    //@}
+
+    /// @name modify Stream
+    //@{
+    Stream& indent(size_t i = 1) { level_ += i; return *this; }
+    Stream& dedent(size_t i = 1) { assert(level_ >= i); level_ -= i; return *this; }
+    Stream& endl();
+    Stream& flush() { ostream().flush(); return *this; }
+    //@}
+
+    /// @name stream
+    //@{
+    /**
+     * fprintf-like function.
+     * Each @c "{}" in @p s corresponds to one of the variadic arguments in @p args.
+     * The type of the corresponding argument must support @c operator<< on @c std::ostream& or preferably @p Stream.
+     * Furthermore, an argument may also be a range-based container where its elements fulfill the condition above.
+     * You can specify the separator within the braces:
+     @code{.cpp}
+         s.fmt("({, })", list) // yields "(a, b, c)"
+     @endcode
+     * If you use @c {\n} as separator, it will invoke Stream::endl - keeping indentation:
+     @code{.cpp}
+         s.fmt("({\n})", list)
+     @endcode
+     * Finally, you can use @c '\n', '\t', and '\b' to @p endl, @p indent, or @p dedent, respectively.
+     */
+    template<class T, class... Args> Stream& fmt(const char* s, T&& t, Args&&... args);
+    Stream& fmt(const char* s); ///< Base case.
+    template<class R, class F, bool rangei = false> Stream& range(const R& r, const char* sep, F f);
+    template<class R, class F, bool rangei = false> Stream& range(const R& r, F f) { return range(r, ", ", f); }
+    template<class R, class F> Stream& rangei(const R& r, const char* sep, F f) { return range<R, F, true>(r, sep, f); }
+    template<class R, class F> Stream& rangei(const R& r, F f) { return range<R, F, true>(r, ", ", f); }
+    template<class R> Stream& range(const R& r, const char* sep = ", ") { return range(r, sep, [&](const auto& x) { (*this) << x; }); }
+    //@}
+
+    void friend swap(Stream& a, Stream& b) {
+        using std::swap;
+        swap(a.ostream_, b.ostream_);
+        swap(a.tab_,     b.tab_);
+        swap(a.level_,   b.level_);
+    }
+
+protected:
+    bool match2nd(const char* next, const char*& s, const char c);
+
+    std::ostream* ostream_;
+    std::string tab_;
+    size_t level_;
 };
 
-template<class Emit, class List>
-std::ostream& operator<<(std::ostream& os, StreamList<Emit, List> sl) {
-    return stream_list(os, sl.list, sl.emit, "", "", sl.sep);
+class StringStream : public Stream {
+public:
+    StringStream()
+        : Stream(oss_)
+    {}
+
+    std::string str() const { return oss_.str(); }
+
+    friend void swap(StringStream& a, StringStream& b) {
+        using std::swap;
+        swap((Stream&)a, (Stream&)b);
+        swap(a.oss_, b.oss_);
+        // Pointers have to be restored so that this stream
+        // still holds the ownership over its ostringstream object.
+        a.ostream_ = &a.oss_;
+        b.ostream_ = &b.oss_;
+    }
+
+private:
+    std::ostringstream oss_;
+};
+
+template<class... Args> void outf(const char* fmt, Args&&... args) { Stream(std::cout).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+template<class... Args> void errf(const char* fmt, Args&&... args) { Stream(std::cerr).fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+
+template<class C>
+class Streamable {
+private:
+    constexpr const C& child() const { return *static_cast<const C*>(this); };
+
+public:
+    /// Writes to a file with name @p filename.
+    DEBUG_UTIL void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); child().stream(s).endl(); }
+    /// Writes to stdout.
+    DEBUG_UTIL void dump() const { Stream s(std::cout); child().stream(s).endl(); }
+    /// Streams to string.
+    DEBUG_UTIL std::string to_string() const { std::ostringstream oss; Stream s(oss); child().stream(s); return oss.str(); }
+};
+
+// TODO Maybe there is a nicer way to do this??? Probably, using C++20 requires ...
+// I just want to find out whether "x->stream(s)" or "x.stream(s)" are valid expressions.
+template<class T, class = void>  struct is_streamable_ptr                                                                               : std::false_type {};
+template<class T, class = void>  struct is_streamable_ref                                                                               : std::false_type {};
+template<class T>                struct is_streamable_ptr<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<Stream&>()))>> : std::true_type  {};
+template<class T>                struct is_streamable_ref<T, std::void_t<decltype(std::declval<T>(). stream(std::declval<Stream&>()))>> : std::true_type  {};
+template<class T> static constexpr bool is_streamable_ptr_v = is_streamable_ptr<T>::value;
+template<class T> static constexpr bool is_streamable_ref_v = is_streamable_ref<T>::value;
+
+template<class T> std::enable_if_t< is_streamable_ptr_v<T>, Stream&> operator<<(Stream& s, const T& x) { return x->stream(s); }
+template<class T> std::enable_if_t< is_streamable_ref_v<T>, Stream&> operator<<(Stream& s, const T& x) { return x .stream(s); }
+template<class T> std::enable_if_t<!is_streamable_ptr_v<T>
+                                && !is_streamable_ref_v<T>, Stream&> operator<<(Stream& s, const T& x) { s.ostream() << x; return s; } ///< Fallback uses @c std::ostream @c operator<<.
+
+template<class T, class... Args>
+Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
+    while (*s != '\0') {
+        auto next = s + 1;
+
+        switch (*s) {
+            case '\n': s++; endl();   break;
+            case '\t': s++; indent(); break;
+            case '\b': s++; dedent(); break;
+            case '{': {
+                if (match2nd(next, s, '{')) continue;
+                s++; // skip opening brace '{'
+
+                std::string spec;
+                while (*s != '\0' && *s != '}') spec.push_back(*s++);
+                assert(*s == '}' && "unmatched closing brace '}' in format string");
+
+                if constexpr (is_range_v<T>) {
+                    range(t, spec.c_str());
+                } else {
+                    (*this) << t;
+                }
+
+                ++s; // skip closing brace '}'
+                return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
+        }
+        case '}':
+            if (match2nd(next, s, '}')) continue;
+            assert(false && "unmatched/unescaped closing brace '}' in format string");
+            break;
+        default:
+            (*this) << *s++;
+        }
+    }
+
+    assert(false && "invalid format string for 's'");
+    return *this;
 }
 
-template<class Emit, class List>
-StreamList<Emit, List> stream_list(const List& list, Emit emit, const char* sep = ", ") {
-    return StreamList<Emit, List>(list, emit, sep);
+template<class R, class F, bool is_rangei>
+Stream& Stream::range(const R& r, const char* sep, F f) {
+    const char* cur_sep = "";
+    size_t j = 0;
+    for (const auto& elem : r) {
+        for (auto i = cur_sep; *i != '\0'; ++i) {
+            if (*i == '\n')
+                this->endl();
+            else
+                (*this) << *i;
+        }
+        if constexpr (is_rangei) {
+            f(j++);
+        } else {
+            f(elem);
+        }
+        cur_sep = sep;
+    }
+    return *this;
 }
 
 #ifdef NDEBUG
-#   define assertf(condition, ...) do { (void)sizeof(condition); } while (false)
+#define assertf(condition, ...) do { (void)sizeof(condition); } while (false)
 #else
-#   define assertf(condition, ...) do { \
-        if (!(condition)) { \
-            std::cerr << "Assertion '" #condition "' failed in " << __FILE__ << ":" << __LINE__ << ": "; \
-            streamf(std::cerr, __VA_ARGS__) << std::endl; \
-            std::abort(); \
-        } \
+#define assertf(condition, ...)                                                                                                 \
+    do {                                                                                                                        \
+        if (!(condition)) {                                                                                                     \
+            Stream(std::cerr).fmt("assertion '{}' failed in {}:{}: ", #condition, __FILE__,  __LINE__).fmt(__VA_ARGS__).endl(); \
+            std::abort();                                                                                                       \
+        }                                                                                                                       \
     } while (false)
 #endif
 

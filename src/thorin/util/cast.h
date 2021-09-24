@@ -19,6 +19,22 @@ namespace thorin {
  * R is the thing which goes in (the right-hand side of a call).
  */
 
+/// A bitcast.
+template<class D, class S>
+inline D bitcast(const S& src) {
+    D dst;
+    auto s = reinterpret_cast<const void*>(&src);
+    auto d = reinterpret_cast<void*>(&dst);
+
+    if constexpr(sizeof(D) == sizeof(S)) memcpy(d, s, sizeof(D));
+    if constexpr(sizeof(D)  < sizeof(S)) memcpy(d, s, sizeof(D));
+    if constexpr(sizeof(D)  > sizeof(S)) {
+        memset(d, 0, sizeof(D));
+        memcpy(d, s, sizeof(S));
+    }
+    return dst;
+}
+
 /// @c static_cast checked in debug version
 template<class L, class R>
 inline L* scast(R* r) {
@@ -41,19 +57,6 @@ inline L* dcast(R* u) {
 /// shorthand for @c dynamic_cast -- @c const version
 template<class L, class R>
 inline const L* dcast(const R* r) { return const_cast<const L*>(dcast<L, R>(const_cast<R*>(r))); }
-
-/**
- * A bitcast.
- * The bitcast requires both types to be of the same size.
- * Watch out for the order of the template parameters!
- */
-template<class L, class R>
-inline L bcast(const R& from) {
-    static_assert(sizeof(R) == sizeof(L), "size mismatch for bitcast");
-    L to;
-    memcpy(&to, &from, sizeof(L));
-    return to;
-}
 
 /**
  * Provides handy @p as and @p isa methods.

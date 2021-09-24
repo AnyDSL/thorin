@@ -1,6 +1,15 @@
 #include "thorin/world.h"
 
-#include <fstream>
+// for colored output
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
+
+#include <cmath>
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -13,26 +22,17 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/rewrite_flow_graphs.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
 #else
 #define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
-#endif
-
-#if THORIN_ENABLE_CHECKS
-#define THORIN_CHECK_BREAK(gid) \
-    if (breakpoints_.find((gid)) != breakpoints_.end()) { THORIN_BREAK }
-#else
-#define THORIN_CHECK_BREAK(gid) {}
 #endif
 
 namespace thorin {
@@ -41,7 +41,7 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(std::string name)
+World::World(const std::string& name)
     : name_(name)
 {
     branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
@@ -754,7 +754,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
                     Array<const Def*> args(agg->num_ops());
                     std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
                     args[primlit_value<u64>(lit)] = value;
-                    return aggregate->rebuild(args);
+                    return aggregate->rebuild(*this, aggregate->type(), args);
                 } else
                     return bottom(agg->type(), dbg);
             }
@@ -801,6 +801,212 @@ const Def* World::size_of(const Type* type, Debug dbg) {
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
     return cse(new SizeOf(bottom(type, dbg), dbg));
+}
+
+/*
+ * mathematical operations
+ */
+
+template <class F>
+const Def* World::transcendental(MathOpTag tag, const Def* arg, Debug dbg, F&& f) {
+    assert(is_type_f(arg->type()));
+    if (auto lit = arg->isa<PrimLit>()) {
+        switch (lit->primtype_tag()) {
+            case PrimType_qf16:
+            case PrimType_pf16:
+                return literal(lit->primtype_tag(), Box(f(lit->value().get_f16())), dbg);
+            case PrimType_qf32:
+            case PrimType_pf32:
+                return literal(lit->primtype_tag(), Box(f(lit->value().get_f32())), dbg);
+            case PrimType_qf64:
+            case PrimType_pf64:
+                return literal(lit->primtype_tag(), Box(f(lit->value().get_f64())), dbg);
+            default:
+                THORIN_UNREACHABLE;
+        }
+    }
+    return cse(new MathOp(tag, arg->type(), { arg }, dbg));
+}
+
+template <class F>
+const Def* World::transcendental(MathOpTag tag, const Def* left, const Def* right, Debug dbg, F&& f) {
+    assert(left->type() == right->type());
+    assert(is_type_f(left->type()));
+    if (auto [left_lit, right_lit] = std::pair { left->isa<PrimLit>(), right->isa<PrimLit>() }; left_lit && right_lit) {
+        switch (left_lit->primtype_tag()) {
+            case PrimType_qf16:
+            case PrimType_pf16:
+                return literal(left_lit->primtype_tag(), Box(f(left_lit->value().get_f16(), right_lit->value().get_f16())), dbg);
+            case PrimType_qf32:
+            case PrimType_pf32:
+                return literal(left_lit->primtype_tag(), Box(f(left_lit->value().get_f32(), right_lit->value().get_f32())), dbg);
+            case PrimType_qf64:
+            case PrimType_pf64:
+                return literal(left_lit->primtype_tag(), Box(f(left_lit->value().get_f64(), right_lit->value().get_f64())), dbg);
+            default:
+                THORIN_UNREACHABLE;
+        }
+    }
+    return cse(new MathOp(tag, left->type(), { left, right }, dbg));
+}
+
+template <class F>
+inline bool float_predicate(const PrimLit* lit, F&& f) {
+    switch (lit->primtype_tag()) {
+        case PrimType_qf16:
+        case PrimType_pf16:
+            return f(lit->value().get_f16());
+        case PrimType_qf32:
+        case PrimType_pf32:
+            return f(lit->value().get_f32());
+        case PrimType_qf64:
+        case PrimType_pf64:
+            return f(lit->value().get_f64());
+        default:
+            THORIN_UNREACHABLE;
+    }
+}
+
+const Def* World::mathop(MathOpTag tag, Defs args, Debug dbg) {
+    // Folding rules are only valid for fast-math floating-point types
+    // No attempt to simplify mathematical expressions will be attempted otherwise
+    auto signbit = [] (auto x) {
+        using T = decltype(x);
+        if constexpr (std::is_same_v<T, half>) return half_float::signbit(x);
+        else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::signbit(x);
+        THORIN_UNREACHABLE;
+    };
+    if (tag == MathOp_copysign) {
+        if (is_type_qf(args[1]->type()) && args[1]->isa<PrimLit>()) {
+            // - copysign(x, <known-constant>) => -x if signbit(<known_constant>) or x otherwise
+            return float_predicate(args[1]->as<PrimLit>(), signbit) ? arithop_minus(args[0], dbg) : args[0];
+        }
+        return transcendental(MathOp_copysign, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::copysign(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::copysign(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_pow) {
+        if (is_type_qf(args[1]->type()) &&
+            args[1]->isa<PrimLit>() &&
+            float_predicate(args[1]->as<PrimLit>(), [] (auto x) { return x == decltype(x)(0.5); }))
+        {
+            // - pow(x, 0.5) => sqrt(x)
+            return sqrt(args[0], dbg);
+        }
+        return transcendental(MathOp_pow, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::pow(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::pow(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_atan2) {
+        return transcendental(MathOp_atan2, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::atan2(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::atan2(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_fmin) {
+        return transcendental(MathOp_fmin, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::fmin(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::fmin(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else if (tag == MathOp_fmax) {
+        return transcendental(MathOp_fmax, args[0], args[1], dbg, [] (auto x, auto y) -> decltype(x) {
+            using T = decltype(x);
+            if constexpr (std::is_same_v<T, half>) return half_float::fmax(x, y);
+            else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) return std::fmax(x, y);
+            THORIN_UNREACHABLE;
+        });
+    } else {
+        if (is_type_qf(args[0]->type())) {
+            // - cos(acos(x)) => x
+            // - sin(asin(x)) => x
+            // - tan(atan(x)) => x
+            // Note: The other way around (i.e. `acos(cos(x)) => x`) is not always true
+            if (args[0]->isa<MathOp>()) {
+                auto other_tag = args[0]->as<MathOp>()->mathop_tag();
+                switch (tag) {
+                    case MathOp_cos: if (other_tag == MathOp_acos) return args[0]->op(0); break;
+                    case MathOp_sin: if (other_tag == MathOp_asin) return args[0]->op(0); break;
+                    case MathOp_tan: if (other_tag == MathOp_atan) return args[0]->op(0); break;
+                    default: break;
+                }
+            }
+            // - sqrt(x * x) => x
+            // - cbrt(x * x * x) => x
+            if (args[0]->isa<ArithOp>()) {
+                auto is_square = [] (const Def* x) -> const Def* {
+                    if (auto arithop = x->isa<ArithOp>(); arithop && arithop->arithop_tag() == ArithOp_mul)
+                        return x->op(0) == x->op(1) ? x->op(0) : nullptr;
+                    return nullptr;
+                };
+                auto is_cube = [&] (const Def* x) -> const Def* {
+                    if (auto arithop = x->isa<ArithOp>(); arithop && arithop->arithop_tag() == ArithOp_mul) {
+                        if (auto lhs = is_square(arithop->op(0)); lhs == arithop->op(1)) return lhs;
+                        if (auto rhs = is_square(arithop->op(1)); rhs == arithop->op(0)) return rhs;
+                    }
+                    return nullptr;
+                };
+                switch (tag) {
+                    case MathOp_sqrt: if (auto x = is_square(args[0])) return x; break;
+                    case MathOp_cbrt: if (auto x = is_cube(args[0]))   return x; break;
+                    default: break;
+                }
+            }
+        }
+        return transcendental(tag, args[0], dbg, [&] (auto arg) -> decltype(arg) {
+            using T = decltype(arg);
+            if constexpr (std::is_same_v<T, half>) {
+                switch (tag) {
+                    case MathOp_fabs:  return half_float::fabs(arg);
+                    case MathOp_round: return half_float::round(arg);
+                    case MathOp_floor: return half_float::floor(arg);
+                    case MathOp_ceil:  return half_float::ceil(arg);
+                    case MathOp_cos:   return half_float::cos(arg);
+                    case MathOp_sin:   return half_float::sin(arg);
+                    case MathOp_tan:   return half_float::tan(arg);
+                    case MathOp_acos:  return half_float::acos(arg);
+                    case MathOp_asin:  return half_float::asin(arg);
+                    case MathOp_atan:  return half_float::atan(arg);
+                    case MathOp_sqrt:  return half_float::sqrt(arg);
+                    case MathOp_cbrt:  return half_float::cbrt(arg);
+                    case MathOp_exp:   return half_float::exp(arg);
+                    case MathOp_exp2:  return half_float::exp2(arg);
+                    case MathOp_log:   return half_float::log(arg);
+                    case MathOp_log2:  return half_float::log2(arg);
+                    case MathOp_log10: return half_float::log10(arg);
+                    default: break;
+                }
+            } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+                switch (tag) {
+                    case MathOp_fabs:  return std::fabs(arg);
+                    case MathOp_round: return std::round(arg);
+                    case MathOp_floor: return std::floor(arg);
+                    case MathOp_ceil:  return std::ceil(arg);
+                    case MathOp_cos:   return std::cos(arg);
+                    case MathOp_sin:   return std::sin(arg);
+                    case MathOp_tan:   return std::tan(arg);
+                    case MathOp_acos:  return std::acos(arg);
+                    case MathOp_asin:  return std::asin(arg);
+                    case MathOp_atan:  return std::atan(arg);
+                    case MathOp_sqrt:  return std::sqrt(arg);
+                    case MathOp_cbrt:  return std::cbrt(arg);
+                    case MathOp_exp:   return std::exp(arg);
+                    case MathOp_exp2:  return std::exp2(arg);
+                    case MathOp_log:   return std::log(arg);
+                    case MathOp_log2:  return std::log2(arg);
+                    case MathOp_log10: return std::log10(arg);
+                    default: break;
+                }
+            }
+            THORIN_UNREACHABLE;
+        });
+    }
 }
 
 /*
@@ -873,22 +1079,20 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
  */
 
 const Def* World::hlt(const Def* def, Debug dbg) {
-    if (pe_done_)
-        return def;
+    if (is_pe_done()) return def;
     return cse(new Hlt(def, dbg));
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
-    if (pe_done_ || def->isa<Hlt>())
+    if (is_pe_done() || def->isa<Hlt>())
         return literal_bool(false, dbg);
-    if (is_const(def))
+    if (!def->has_dep(Dep::Param))
         return literal_bool(true, dbg);
     return cse(new Known(def, dbg));
 }
 
 const Def* World::run(const Def* def, Debug dbg) {
-    if (pe_done_)
-        return def;
+    if (is_pe_done()) return def;
     return cse(new Run(def, dbg));
 }
 
@@ -897,17 +1101,19 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto l = new Continuation(fn, attributes, dbg);
-    THORIN_CHECK_BREAK(l->gid());
-    continuations_.insert(l);
+    auto cont = new Continuation(fn, attributes, dbg);
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(cont->gid())) THORIN_BREAK;
+#endif
+    continuations_.insert(cont);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
-        auto p = param(op, l, i++, dbg);
-        l->params_.emplace_back(p);
+        auto p = param(op, cont, i++, dbg);
+        cont->params_.emplace_back(p);
     }
 
-    return l;
+    return cont;
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
@@ -920,6 +1126,7 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
 }
 
 template <typename Pred>
+// TODO does this belong here ?
 Continuation* World::find_continuation(const Pred& pred) const {
     for (auto continuation : continuations()) {
         if (pred(continuation))
@@ -930,13 +1137,64 @@ Continuation* World::find_continuation(const Pred& pred) const {
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
-    THORIN_CHECK_BREAK(param->gid());
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
+#endif
     return param;
 }
 
 /*
  * misc
  */
+
+#if THORIN_ENABLE_CHECKS
+
+void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
+void World::use_breakpoint(size_t number) { state_.use_breakpoints.insert(number); }
+void World::enable_history(bool flag)     { state_.track_history = flag; }
+bool World::track_history() const         { return state_.track_history; }
+
+const Def* World::gid2def(u32 gid) {
+    auto i = std::find_if(primops_.begin(), primops_.end(), [&](const Def* def) { return def->gid() == gid; });
+    if (i == primops_.end()) return nullptr;
+    return *i;
+}
+
+#endif
+
+const char* World::level2string(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return "E";
+        case LogLevel::Warn:    return "W";
+        case LogLevel::Info:    return "I";
+        case LogLevel::Verbose: return "V";
+        case LogLevel::Debug:   return "D";
+    }
+    THORIN_UNREACHABLE;
+}
+
+int World::level2color(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return 1;
+        case LogLevel::Warn:    return 3;
+        case LogLevel::Info:    return 2;
+        case LogLevel::Verbose: return 4;
+        case LogLevel::Debug:   return 4;
+    }
+    THORIN_UNREACHABLE;
+}
+
+#ifdef COLORIZE_LOG
+std::string World::colorize(const std::string& str, int color) {
+    if (isatty(fileno(stdout))) {
+        const char c = '0' + color;
+        return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
+    }
+#else
+std::string World::colorize(const std::string& str, int) {
+#endif
+    return str;
+}
 
 const Def* World::try_fold_aggregate(const Aggregate* agg) {
     const Def* from = nullptr;
@@ -971,7 +1229,9 @@ Array<Continuation*> World::exported_continuations() const {
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
-    THORIN_CHECK_BREAK(primop->gid());
+#if THORIN_ENABLE_CHECKS
+    if (state_.breakpoints.contains(primop->gid())) THORIN_BREAK;
+#endif
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
@@ -1003,31 +1263,7 @@ void World::opt() {
     hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
-    rewrite_flow_graphs(*this);
     codegen_prepare(*this);
-}
-
-/*
- * stream
- */
-
-std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
-
-    for (auto primop : primops()) {
-        if (auto global = primop->isa<Global>())
-            global->stream_assignment(os);
-    }
-
-    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
-    return os;
-}
-
-void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void World::thorin() const {
-    auto filename = name() + ".thorin";
-    write_thorin(filename.c_str());
 }
 
 }

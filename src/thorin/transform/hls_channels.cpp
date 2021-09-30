@@ -5,7 +5,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/util/log.h"
 #include "thorin/type.h"
 
 namespace thorin {
@@ -14,8 +13,7 @@ using Def2Mode = DefMap<ChannelMode>;
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // <From, To>
 
 static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
-    for (const auto& block : schedule) {
-        auto continuation = block.continuation();
+    for (const auto& continuation : schedule) {
 
         if (continuation->empty())
             continue;
@@ -24,17 +22,17 @@ static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode
         if (callee && callee->is_channel()) {
             if (continuation->arg(1)->order() == 0 && !(is_mem(continuation->arg(1)) || is_unit(continuation->arg(1)))) {
                 auto def= continuation->arg(1);
-                if (def->isa<PrimOp>() && is_const(def)) {
-                    if (callee->name().str().find("write_channel") != std::string::npos) {
+                if (def->isa<PrimOp>() && !def->has_dep(Dep::Param)) {
+                    if (callee->name().find("write_channel") != std::string::npos) {
                         assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Write) &&
                                 "Duplicated channel or \"READ\" mode channel redefined as WRITE!");
                         def2mode.emplace(def, ChannelMode::Write);
-                    } else if (callee->name().str().find("read_channel") != std::string::npos) {
+                    } else if (callee->name().find("read_channel") != std::string::npos) {
                         assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Read)  &&
                                 "Duplicated channel or \"WRITE\" mode channel redefined as READ!");
                         def2mode.emplace(def, ChannelMode::Read);
                     } else {
-                        ELOG("Not a channel / unsupported channel placeholder");
+                        continuation->world().ELOG("Not a channel / unsupported channel placeholder");
                     }
                 }
             }
@@ -181,7 +179,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
-            new_kernel->make_exported();
+            new_kernel->make_external();
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -238,7 +236,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             if (!is_channel_type(param->type())) {
                 if (param != kernel->ret_param() && param != kernel->mem_param()) {
                     param_index.emplace_back(kernel, i, top_param_types.size());
-                    top2kernel.emplace_back(top_param_types.size(), kernel->name().str(), i);
+                    top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
                     top_param_types.emplace_back(param->type());
                 }
             }
@@ -336,7 +334,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         for (auto& elem : resolved)
             elem = elem + single_kernels_size;
     } else {
-        ELOG("Kernels have circular dependency");
+        world.ELOG("Kernels have circular dependency");
         // finding all circles between kernels
         for (size_t i = 0; i < dependencies.size(); ++i) {
             for (size_t j = i; j < dependencies.size(); ++j) {
@@ -350,9 +348,9 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         for (auto elem : cycle) {
             auto circle_from_index = dependencies[elem.first].first + single_kernels_size;
             auto circle_to_index   = dependencies[elem.second].first + single_kernels_size;
-            ELOG("A channel between kernel#{} {} and kernel#{} {} made a circular data flow",
-                    circle_from_index, new_kernels[circle_from_index]->name().str(),
-                    circle_to_index, new_kernels[circle_to_index]->name().str());
+            world.ELOG("A channel between kernel#{} {} and kernel#{} {} made a circular data flow",
+                    circle_from_index, new_kernels[circle_from_index]->name(),
+                    circle_to_index, new_kernels[circle_to_index]->name());
         }
         assert(false && "circular dependency between kernels");
     }
@@ -390,7 +388,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         cur_mem = ret->mem_param();
     }
 
-    hls_top->make_exported();
+    hls_top->make_external();
 
     debug_verify(world);
     world.cleanup();

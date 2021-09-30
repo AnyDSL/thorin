@@ -5,7 +5,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -17,7 +16,7 @@ static void extract_opencl_args(Continuation* cont, Array<const Def*>& args) {
         return;
     else {
         for (size_t index = vars_offset; index < cont->num_args(); ++index) {
-            std::cout << index - vars_offset + var_num_args << endl;
+            std::cout << index - vars_offset + var_num_args << "\n";
             args[index - vars_offset + var_num_args] = cont->arg(index);
             }
         }
@@ -59,9 +58,9 @@ static Continuation* make_opencl(World& world, const Continuation* cont_hls, con
 }
 
 static Continuation* last_cl_kernel(const Schedule& schedule) {
-    const auto& scheduled_blocks = schedule.blocks();
+    const auto& scheduled_blocks = schedule;
     for (size_t i = schedule.size() - 1; i >= 0; --i) {
-        auto continuation = scheduled_blocks[i].continuation();
+        auto continuation = scheduled_blocks[i];
         auto callee = continuation->callee()->isa_continuation();
         if (callee && callee->intrinsic() == Intrinsic::OpenCL) {
             return continuation;
@@ -72,9 +71,9 @@ static Continuation* last_cl_kernel(const Schedule& schedule) {
 
 // Returns last Basic Block with corresponding intrinsic
 static Continuation* last_basic_block(const Intrinsic intrinsic, const Schedule& schedule) {
-    const auto& scheduled_blocks = schedule.blocks();
+    const auto& scheduled_blocks = schedule;
     for (size_t i = schedule.size() - 1; i >= 0; --i) {
-        auto continuation = scheduled_blocks[i].continuation();
+        auto continuation = scheduled_blocks[i];
         auto callee = continuation->callee()->isa_continuation();
         if (callee && callee->intrinsic() == intrinsic) {
             return continuation;
@@ -85,7 +84,7 @@ static Continuation* last_basic_block(const Intrinsic intrinsic, const Schedule&
 
 Continuation* is_opencl(const Schedule schedule) {
     for (auto& block : schedule) {
-        auto continuation = block.continuation();
+        auto continuation = block;
         if (continuation->empty())
             continue;
         auto callee = continuation->callee()->isa_continuation();
@@ -98,7 +97,7 @@ Continuation* is_opencl(const Schedule schedule) {
 
 Continuation* is_hls(const Schedule schedule) {
     for (auto& block : schedule) {
-        auto continuation = block.continuation();
+        auto continuation = block;
         if (continuation->empty())
             continue;
         auto callee = continuation->callee()->isa_continuation();
@@ -145,10 +144,10 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
 
     bool last_hls_found = false;
     Scope::for_each(world, [&] (Scope& scope) {
-            Schedule schedule(scope);
+            Schedule scheduled = schedule(scope);
 
-            for (auto& block : schedule) {
-                auto basic_block = block.continuation();
+            for (auto& block : scheduled) {
+                auto basic_block = block;
 
                 if (basic_block->empty())
                     continue;
@@ -158,7 +157,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                     auto callee_continuation = conts_ptr->second->as_continuation();
                     Continuation* last_hls_cont;
                     if (!last_hls_found) {
-                        if ( (last_hls_cont = last_basic_block(Intrinsic::HLS, schedule)) )
+                        if ( (last_hls_cont = last_basic_block(Intrinsic::HLS, scheduled)) )
                             last_hls_found = true;
 
                         opencl = make_opencl(world, last_hls_cont, device_params);

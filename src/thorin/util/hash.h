@@ -667,6 +667,7 @@ public:
 
 //------------------------------------------------------------------------------
 
+// TODO move this somewhere else
 template<class T>
 struct GIDLt {
     bool operator()(T a, T b) const { return a->gid() < b->gid(); }
@@ -674,7 +675,7 @@ struct GIDLt {
 
 template<class T>
 struct GIDHash {
-    static uint64_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
     static bool eq(T a, T b) { return a == b; }
     static T sentinel() { return T(1); }
 };

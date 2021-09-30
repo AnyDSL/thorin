@@ -6,6 +6,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/hls_channels.h"
 #include "thorin/be/emitter.h"
 #include "thorin/util/stream.h"
 #include "c.h"
@@ -35,6 +36,22 @@ struct BB {
     }
 };
 
+using FuncMode = ChannelMode;
+
+enum Cl : uint8_t {
+    STD    = 0,  ///< Standard OpenCL
+    INTEL  = 1,  ///< Intel FPGA extension
+    XILINX = 2   ///< Xilinx FPGA extension
+};
+
+enum class HlsInterface : uint8_t {
+    SOC,  ///< SoC HW module (Embedded)
+    HPC,  ///< HPC accelerator (HLS for HPC via OpenCL/XRT + XDMA)
+    HPC_STREAM,  ///< HPC accelerator (HLS for HPC via XRT + QDMA)
+    GMEM_OPT, ///< Dedicated global memory interfaces and memory banks
+    None
+};
+
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
     CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug)
@@ -55,6 +72,7 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
+    Stream& fpga(const Cl vendor, const size_t status);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -97,6 +115,11 @@ private:
     /// Tracks defs that have been emitted as local variables of the current function
     DefSet func_defs_;
 
+    std::ostringstream macro_xilinx_;
+    std::ostringstream macro_intel_;
+    std::string hls_pragmas_;
+    std::unordered_map<const Continuation*, FuncMode> builtin_funcs_; // OpenCL builtin functions
+
     friend class CEmit;
 };
 
@@ -116,6 +139,76 @@ static inline bool is_string_type(const Type* type) {
             if (primtype->primtype_tag() == PrimType_pu8)
                 return true;
     return false;
+}
+
+// TODO again using the names for this is a bad idea -H
+inline bool is_channel_type(const StructType* struct_type) {
+    return struct_type->name().str().find("channel") != std::string::npos;
+}
+
+// TODO better name -H
+inline bool has_params(Continuation* kernel) {
+    for (auto param : kernel->params()) {
+        if (is_mem(param) || param->order() != 0 || is_unit(param))
+            continue;
+        else
+            return true;
+    }
+    return false;
+}
+
+inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
+    const char* fpga_env = std::getenv("ANYDSL_FPGA");
+    if (fpga_env != NULL) {
+        std::string fpga_env_str = fpga_env;
+        for (auto& ch : fpga_env_str)
+            ch = std::toupper(ch, std::locale());
+        std::istringstream fpga_env_stream(fpga_env_str);
+        std::string token;
+        gmem = HlsInterface::None;
+        bool set_interface = false;
+
+        while (std::getline(fpga_env_stream, token, ',')) {
+            if (token.compare("GMEM_OPT") == 0) {
+                gmem = HlsInterface::GMEM_OPT;
+                continue;
+            } else if (token.compare("SOC") == 0 ) {
+                interface = HlsInterface::SOC;
+                set_interface = true;
+                continue;
+            } else if (token.compare("HPC") == 0 ) {
+                interface = HlsInterface::HPC;
+                set_interface = true;
+                continue;
+            } else if (token.compare("HPC_STREAM") == 0 ) {
+                interface = HlsInterface::HPC_STREAM;
+                set_interface = true;
+                continue;
+            } else {
+                continue;
+            }
+        }
+        return (set_interface ? true : false);
+    }
+    return false;
+}
+
+// TODO bad code smell -H
+Stream& CCodeGen::fpga(const Cl vendor = STD, const size_t status = 2_s) {
+    //status = 1 "start"
+    //       = 2 "continue"
+    //       = 0 "end"
+    if (vendor == STD && status == 1_s)
+        func_impls_ << "#ifdef STD_OPENCL";
+    else if (vendor == INTEL && status == 1_s)
+        func_impls_<< "#ifdef INTELFPGA_CL";
+    else if (vendor == XILINX && status == 1_s)
+        func_impls_ << "#ifdef __xilinx__";
+    else if (status == 2_s)
+        return func_impls_ << "\n";
+    else if ( status == 0_s)
+        return func_impls_ << "#endif" << "\n";
+    return (func_impls_ << "\n");
 }
 
 /*
@@ -191,7 +284,8 @@ std::string CCodeGen::convert(const Type* type) {
         s.fmt("typedef struct {{\t\n");
         s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
         s.fmt("\b\n}} {};\n", name);
-        if (struct_type->name().str().find("channel_") != std::string::npos) use_channels_ = true;
+        if (struct_type->name().str().find("channel_") != std::string::npos)
+            use_channels_ = true; // TODO is there a risk of missing this before we emit something for real ?
     } else {
         THORIN_UNREACHABLE;
     }
@@ -237,7 +331,11 @@ std::string CCodeGen::device_prefix() {
     switch (lang_) {
         default:           return "";
         case Lang::CUDA:   return "__device__ ";
-        case Lang::OpenCL: return "__constant ";
+        case Lang::OpenCL:
+            if(use_channels_)
+                return "PIPE ";
+            else
+                return "__constant ";
     }
 }
 
@@ -245,18 +343,97 @@ std::string CCodeGen::device_prefix() {
  * emit
  */
 
-void CCodeGen::emit_module() {
-    Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
+template <typename ScopeFn>
+void for_each_scope_except_hls_top(World& world, const ScopeFn& scope_fn) {
+    // TODO this doesn't actually forgo to run on hls_top but instead saves it for last. -H
+    Continuation* hls_top = nullptr;
+    Scope::for_each(world, [&] (const Scope& scope) {
+        // Skip hls_top so that it only appears at the end of the file
+        if (scope.entry()->name() == "hls_top") {
+            hls_top = scope.entry();
+            return;
+        }
+        scope_fn(scope);
+    });
+    if (hls_top)
+        scope_fn(Scope(hls_top));
+}
 
+HlsInterface interface, gmem_config;
+auto interface_status = get_interface(interface, gmem_config);
+
+void CCodeGen::emit_module() {
+    // TODO do something to make those ifdefs sane to work with -H
+    if (lang_==Lang::OpenCL)
+        func_decls_ << "#ifndef __xilinx__" << "\n";
+
+    // removing function prototypes from HLS synthesis
+    if (lang_ == Lang::HLS)
+        func_decls_ << "#ifndef __SYNTHESIS__\n";
+
+    // TODO nuke that function and put the check here ?
+    for_each_scope_except_hls_top(world(), [&] (const Scope& scope) { emit_scope(scope); });
+
+    if (lang_ == Lang::OpenCL)
+        func_decls_ << "#endif /* __xilinx__ */"<< "\n";
+    if (lang_ == Lang::HLS)
+        func_decls_ << "#endif /* __SYNTHESIS__ */\n";
+
+    if (lang_==Lang::OpenCL) {
+        if (use_channels_) {
+            std::string write_channel_params = "(channel, val) ";
+            std::string read_channel_params = "(val, channel) ";
+
+            macro_xilinx_ << "#if defined(__xilinx__)" << "\n" << "#define PIPE pipe" << "\n";
+            macro_intel_  << "\n" << "#elif defined(INTELFPGA_CL)" << "\n"
+            <<"#pragma OPENCL EXTENSION cl_intel_channels : enable" << "\n" << "#define PIPE channel" << "\n";
+            for (auto map : builtin_funcs_) {
+                if (map.first->is_channel()) {
+                    if (map.second == FuncMode::Write) {
+                        macro_xilinx_ << "#define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)" << "\n";
+                        macro_intel_ << "#define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)" << "\n";
+                    } else if (map.second == FuncMode::Read) {
+                        macro_xilinx_ << "#define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)" << "\n";
+                        macro_intel_  << "#define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)" << "\n";
+                    }
+                }
+            }
+            stream_ << macro_xilinx_.str() << macro_intel_.str();
+            stream_ << "\n" << "#else" << "\n" << "#define PIPE pipe"<< "\n";
+            stream_ << "\n" << "#endif" << "\n";
+
+            if (use_fp_16_)
+                stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << "\n";
+            if (use_fp_64_)
+                stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << "\n";
+            if (use_channels_ || use_fp_16_ || use_fp_64_)
+                stream_ << "\n";
+        }
+    }
+
+    // TODO is this still relevant post llvm-rewrite ? -H
     if (lang_ == Lang::OpenCL) {
-        if (use_channels_)
-            stream_.fmt("#pragma OPENCL EXTENSION cl_intel_channels : enable\n");
         if (use_fp_16_)
-            stream_.fmt("#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n");
-        if (use_fp_64_)
-            stream_.fmt("#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n");
-        if (use_channels_ || use_fp_16_ || use_fp_64_)
-            stream_.endl();
+            func_decls_ << "static inline half   intBitsToHalf(unsigned short i)  { return as_half(i);  }\n";
+        func_decls_ <<
+        "static inline float  intBitsToFloat(unsigned int i)  { return as_float(i);  }\n"
+        "#ifndef __xilinx__\n"
+        "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n"
+        "#endif /* __xilinx__ */";
+    } else {
+        // Use memcpy instead
+        const char* types[] = { "half", "float", "double" };
+        const char* int_types[] = { "uint16_t", "uint32_t", "uint64_t" };
+        for (size_t i = use_fp_16_ ? 0 : 1; i < 3; ++i) {
+            auto type = types[i];
+            auto int_type = int_types[i];
+            func_decls_
+            << "static inline " << type << " intBitsTo" << (char)std::toupper(type[0]) << (type + 1) << "(" << int_type << " x) {\n"
+            << "    " << type << " f;\n"
+            << "    memcpy(&f, &x, sizeof(" << type << "));\n"
+            << "    return f;\n"
+            << "}\n";
+        }
     }
 
     if (lang_ == Lang::C99) {
@@ -280,6 +457,9 @@ void CCodeGen::emit_module() {
     }
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
+        // TODO move this -H
+        if (lang_ == Lang::HLS)
+            stream_ << "#include \"hls_stream.h\""<< "\n" << "#include \"hls_math.h\""<< "\n";
         stream_.fmt("extern \"C\" {{\n");
     }
 
@@ -342,9 +522,59 @@ std::string CCodeGen::prepare(const Scope& scope) {
         }
     }
 
+    if (lang_ == Lang::HLS && cont->is_exported()) {
+        if (cont->name() == "hls_top") {
+            if (interface_status) {
+                if (cont->num_params() > 2) {
+                    size_t hls_gmem_index = 0;
+                    for (auto param : cont->params()) {
+                        if (is_mem(param) || param->order() != 0  || is_unit(param))
+                            continue;
+                        if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
+                            if (interface == HlsInterface::SOC)
+                                func_impls_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
+                            else if (interface == HlsInterface::HPC) {
+                                if (gmem_config == HlsInterface::GMEM_OPT)
+                                    hls_gmem_index++;
+                                func_impls_ << "\n#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
+                                << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n"
+                                << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name();
+                            } else if (interface == HlsInterface::HPC_STREAM) {
+                                func_impls_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
+                            }
+                        } else {
+                            if (interface == HlsInterface::SOC)
+                                func_impls_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name();
+                            else if (interface == HlsInterface::HPC)
+                                func_impls_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control";
+                        }
+
+                        func_impls_ << "\n#pragma HLS STABLE variable = " << param->unique_name();
+                    }
+                    if (interface == HlsInterface::SOC || interface == HlsInterface::HPC_STREAM)
+                        hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
+                    else if (interface == HlsInterface::HPC)
+                        hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_chain port = return";
+                }
+            } else {
+                interface = HlsInterface::None;
+                world().WLOG("HLS accelerator generated with no interface");
+            }
+            hls_pragmas_ += "\n#pragma HLS top name = hls_top";
+            if (use_channels_)
+                hls_pragmas_ += "\n#pragma HLS DATAFLOW";
+        } else if (use_channels_) {
+            hls_pragmas_ += "\n#pragma HLS INLINE off";
+        }
+    }
+
     func_impls_.fmt("{} {{", emit_fun_head(cont));
-    if (!hls_pragmas.empty())
+
+    //if (!hls_pragmas.empty())
+    if (!hls_pragmas_.empty()) // TODO which one of those matters ?
         func_impls_.fmt("\n{}", hls_pragmas);
+    hls_pragmas_.clear(); // TODO Why ? -H
+
     func_impls_.fmt("\t\n");
 
     // Load OpenCL structs from buffers
@@ -967,12 +1197,19 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
         std::string prefix = device_prefix();
-        func_decls_.fmt("{}{} g_{}", prefix, convert(global->alloced_type()), global->unique_name());
+        std::string suffix = "";
+
+        if (lang_ == Lang::OpenCL && use_channels_) {
+            std::replace(name.begin(), name.end(), '_', 'X'); // xilinx pipe name restriction
+            suffix = " __attribute__((xcl_reqd_pipe_depth(32)))";
+        }
+
+        func_decls_.fmt("{}{} g_{} {}", prefix, convert(global->alloced_type()), name, suffix);
         if (global->init()->isa<Bottom>())
             func_decls_.fmt("; // bottom\n");
         else
             func_decls_.fmt(" = {};\n", emit_constant(global->init()));
-        s.fmt("&g_{}", global->unique_name());
+        s.fmt("&g_{}", name);
         return s.str();
     } else if (def->isa<Bottom>()) {
         return emit_bottom(def->type());
@@ -1011,8 +1248,19 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 s << "__kernel ";
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
+                    auto single_workitem = false;
+                    if ((std::get<0>(block) == std::get<1>(block)) == (std::get<2>(block) == 1)) {
+                        single_workitem = true;
+                        fpga(INTEL,1_s) << "__attribute__((max_global_work_dim(0)))";
+                        if (!has_params(cont)) {
+                            fpga(INTEL) << "__attribute__((autorun))";
+                        }
+                        fpga(INTEL) << "__kernel" << "\n" << "#else" << "\n";
+                    }
                     if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
                         s.fmt("__attribute__((reqd_work_group_size({}, {}, {}))) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
+                    if (single_workitem)
+                        fpga(INTEL,0_s);
                 }
                 break;
         }
@@ -1041,12 +1289,27 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
             // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
             s << "__global " << convert(param->type()) << "*";
             if (!is_proto) s.fmt(" {}_", param->unique_name());
-        } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
+        } else if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
             auto array_size = config->as<HLSKernelConfig>()->param_size(param);
             assert(array_size > 0);
-            s.fmt("{} {}[{}]",
-                convert(pointee_or_elem_type(param->type()->as<PtrType>())),
-                !is_proto ? param->unique_name() : "", array_size);
+            auto ptr_type = param->type()->as<PtrType>();
+            auto elem_type = ptr_type->pointee();
+            if (auto array_type = elem_type->isa<ArrayType>()){
+                elem_type = array_type->elem_type();
+            }
+            if (interface == HlsInterface::HPC_STREAM) {
+                func_decls_ << "hls::stream<";
+                func_decls_ << convert(elem_type) <<">*";
+                func_impls_ << "hls::stream<";
+                func_impls_ << convert(elem_type) << ">* " << param->unique_name();
+            } else {
+                func_impls_ << convert(elem_type) << "[" << array_size << "]";
+                func_impls_ << convert(elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+            }
+            if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) {
+                hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+            }
+
         } else {
             std::string qualifier;
             if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&

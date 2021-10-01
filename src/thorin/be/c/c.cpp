@@ -326,22 +326,6 @@ std::string CCodeGen::device_prefix() {
  * emit
  */
 
-template <typename ScopeFn>
-void for_each_scope_except_hls_top(World& world, const ScopeFn& scope_fn) {
-    // TODO this doesn't actually forgo to run on hls_top but instead saves it for last. -H
-    Continuation* hls_top = nullptr;
-    Scope::for_each(world, [&] (const Scope& scope) {
-        // Skip hls_top so that it only appears at the end of the file
-        if (scope.entry()->name() == "hls_top") {
-            hls_top = scope.entry();
-            return;
-        }
-        scope_fn(scope);
-    });
-    if (hls_top)
-        scope_fn(Scope(hls_top));
-}
-
 HlsInterface interface, gmem_config;
 auto interface_status = get_interface(interface, gmem_config);
 
@@ -354,8 +338,15 @@ void CCodeGen::emit_module() {
     if (lang_ == Lang::HLS)
         func_decls_ << "#ifndef __SYNTHESIS__\n";
 
-    // TODO nuke that function and put the check here ?
-    for_each_scope_except_hls_top(world(), [&] (const Scope& scope) { emit_scope(scope); });
+    Continuation* hls_top = nullptr;
+    Scope::for_each(world(), [&] (const Scope& scope) {
+        if (scope.entry()->name() == "hls_top")
+            hls_top = scope.entry();
+        else
+            emit_scope(scope);
+    });
+    if (hls_top)
+        emit_scope(Scope(hls_top));
 
     if (lang_ == Lang::OpenCL)
         func_decls_ << "#endif /* __xilinx__ */"<< "\n";

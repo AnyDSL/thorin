@@ -72,7 +72,6 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
-    Stream& fpga(const Cl vendor, const size_t status);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -193,24 +192,6 @@ inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
         return (set_interface ? true : false);
     }
     return false;
-}
-
-// TODO bad code smell -H
-Stream& CCodeGen::fpga(const Cl vendor = STD, const size_t status = 2_s) {
-    //status = 1 "start"
-    //       = 2 "continue"
-    //       = 0 "end"
-    if (vendor == STD && status == 1_s)
-        func_impls_ << "#ifdef STD_OPENCL";
-    else if (vendor == INTEL && status == 1_s)
-        func_impls_<< "#ifdef INTELFPGA_CL";
-    else if (vendor == XILINX && status == 1_s)
-        func_impls_ << "#ifdef __xilinx__";
-    else if (status == 2_s)
-        return func_impls_ << "\n";
-    else if ( status == 0_s)
-        return func_impls_ << "#endif" << "\n";
-    return (func_impls_ << "\n");
 }
 
 /*
@@ -1247,19 +1228,23 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 s << "__kernel ";
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
+
+                    // See "Intel FPGA SDK for OpenCL"
                     auto single_workitem = false;
                     if ((std::get<0>(block) == std::get<1>(block)) == (std::get<2>(block) == 1)) {
                         single_workitem = true;
-                        fpga(INTEL,1_s) << "__attribute__((max_global_work_dim(0)))";
+                        func_impls_ << "#ifdef INTELFPGA_CL\n";
+
+                        func_impls_ << "__attribute__((max_global_work_dim(0)))";
                         if (!has_params(cont)) {
-                            fpga(INTEL) << "__attribute__((autorun))";
+                            func_impls_ << "__attribute__((autorun))";
                         }
-                        fpga(INTEL) << "__kernel" << "\n" << "#else" << "\n";
+                        func_impls_ << "__kernel" << "\n" << "#else" << "\n";
                     }
                     if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
                         s.fmt("__attribute__((reqd_work_group_size({}, {}, {}))) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                     if (single_workitem)
-                        fpga(INTEL,0_s);
+                        func_impls_ << "#endif" << "\n";
                 }
                 break;
         }

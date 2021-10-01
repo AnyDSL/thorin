@@ -147,15 +147,10 @@ inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel") != std::string::npos;
 }
 
-// TODO better name -H
-inline bool has_params(Continuation* kernel) {
-    for (auto param : kernel->params()) {
-        if (is_mem(param) || param->order() != 0 || is_unit(param))
-            continue;
-        else
-            return true;
-    }
-    return false;
+/// Returns true when the param carries concrete data in the final generated code
+inline bool is_concrete_param(const Param* param) { return !is_mem(param) && param->order() == 0 && !is_unit(param);}
+inline bool has_concrete_params(Continuation* cont) {
+    return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete_param(param); });
 }
 
 inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
@@ -500,7 +495,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
                 if (cont->num_params() > 2) {
                     size_t hls_gmem_index = 0;
                     for (auto param : cont->params()) {
-                        if (is_mem(param) || param->order() != 0  || is_unit(param))
+                        if (!is_concrete_param(param))
                             continue;
                         if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
                             if (interface == HlsInterface::SOC)
@@ -551,7 +546,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
     // Load OpenCL structs from buffers
     // TODO: See above
     for (auto param : cont->params()) {
-        if (is_mem(param) || is_unit(param) || param->order() > 0)
+        if (!is_concrete_param(param))
             continue;
         if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param))
             func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
@@ -567,7 +562,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
     // The parameters of the entry continuation have already been emitted.
     if (cont != entry_) {
         for (auto param : cont->params()) {
-            if (is_mem(param) || is_unit(param) || param->order() > 0) {
+            if (!is_concrete_param(param)) {
                 defs_[param] = {};
                 continue;
             }
@@ -739,7 +734,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         if (!is_type_unit(ret_type)) {
             size_t i = 0;
             for (auto param : ret_cont->params()) {
-                if (is_mem(param) || is_unit(param) || param->order() > 0)
+                if (!is_concrete_param(param))
                     continue;
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
@@ -1227,7 +1222,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                         func_impls_ << "#ifdef INTELFPGA_CL\n";
 
                         func_impls_ << "__attribute__((max_global_work_dim(0)))";
-                        if (!has_params(cont)) {
+                        if (!has_concrete_params(cont)) {
                             func_impls_ << "__attribute__((autorun))";
                         }
                         func_impls_ << "__kernel" << "\n" << "#else" << "\n";
@@ -1253,7 +1248,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     bool needs_comma = false;
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
-        if (is_mem(param) || is_unit(param) || param->order() > 0) {
+        if (!is_concrete_param(param)) {
             defs_[param] = {};
             continue;
         }

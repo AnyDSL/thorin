@@ -117,6 +117,8 @@ private:
 
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
+
+    /// emit_fun_head may want to add its own pragmas so we put this in a global
     std::string hls_pragmas_;
     std::unordered_map<const Continuation*, FuncMode> builtin_funcs_; // OpenCL builtin functions
 
@@ -511,14 +513,12 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();
 
-    // Place parameters in map and gather HLS pragmas
-    std::string hls_pragmas;
     for (auto param : cont->params()) {
         defs_[param] = param->unique_name();
         if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
             if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
-                hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+                hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
         }
     }
 
@@ -570,10 +570,9 @@ std::string CCodeGen::prepare(const Scope& scope) {
 
     func_impls_.fmt("{} {{", emit_fun_head(cont));
 
-    //if (!hls_pragmas.empty())
-    if (!hls_pragmas_.empty()) // TODO which one of those matters ?
-        func_impls_.fmt("\n{}", hls_pragmas);
-    hls_pragmas_.clear(); // TODO Why ? -H
+    if (!hls_pragmas_.empty())
+        func_impls_.fmt("\n{}", hls_pragmas_);
+    hls_pragmas_.clear();
 
     func_impls_.fmt("\t\n");
 

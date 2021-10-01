@@ -157,10 +157,6 @@ void Continuation::set_all_true_filter() {
     filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
 
-// TODO: probably should be moved to Attributes
-bool Continuation::is_channel() const { return name().find("channel") != std::string::npos; }
-bool Continuation::is_pipe() const { return name().find("pipe") != std::string::npos; }
-
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;

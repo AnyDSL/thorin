@@ -139,7 +139,7 @@ static inline bool is_string_type(const Type* type) {
     return false;
 }
 
-// TODO again using the names for this is a bad idea -H
+// TODO I think we should have a full-blown channel type
 inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel") != std::string::npos;
 }
@@ -323,7 +323,7 @@ auto interface_status = get_interface(interface, gmem_config);
 
 void CCodeGen::emit_module() {
     // TODO do something to make those ifdefs sane to work with -H
-    if (lang_==Lang::OpenCL)
+    if (lang_ == Lang::OpenCL)
         func_decls_ << "#ifndef __xilinx__" << "\n";
 
     // removing function prototypes from HLS synthesis
@@ -380,8 +380,8 @@ void CCodeGen::emit_module() {
     // TODO is this still relevant post llvm-rewrite ? -H
     if (lang_ == Lang::OpenCL) {
         if (use_fp_16_)
-            func_decls_ << "static inline half intBitsToHalf(unsigned short i)  { return as_half(i);  }\n";
-        func_decls_ << "static inline float  intBitsToFloat(unsigned int i)  { return as_float(i);  }\n"
+            func_decls_ << "static inline half intBitsToHalf(unsigned short i) { return as_half(i); }\n";
+        func_decls_ << "static inline float intBitsToFloat(unsigned int i)  { return as_float(i); }\n"
                        "#ifndef __xilinx__\n"
                        "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n"
                        "#endif /* __xilinx__ */";
@@ -419,11 +419,10 @@ void CCodeGen::emit_module() {
         stream_.fmt("#define half __half_raw\n");
         stream_.fmt("#endif\n\n");
     }
+    if (lang_ == Lang::HLS)
+        stream_ << "#include \"hls_stream.h\""<< "\n" << "#include \"hls_math.h\""<< "\n";
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
-        // TODO move this -H
-        if (lang_ == Lang::HLS)
-            stream_ << "#include \"hls_stream.h\""<< "\n" << "#include \"hls_math.h\""<< "\n";
         stream_.fmt("extern \"C\" {{\n");
     }
 

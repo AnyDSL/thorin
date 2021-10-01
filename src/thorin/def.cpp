@@ -234,7 +234,7 @@ void Def::finalize() {
         order_ = std::max(order_, op(i)->order_);
     }
 
-    if (!isa<Space>()) {
+    if (!isa<Space>() && !isa<Axiom>()) {
         if (auto dep = type()->dep(); dep != Dep::Bot) {
             dep_ |= dep;
             const auto& p = type()->uses_.emplace(this, -1);

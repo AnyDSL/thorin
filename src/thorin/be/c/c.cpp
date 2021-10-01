@@ -3,7 +3,6 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
-#include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/hls_channels.h"
@@ -38,17 +37,17 @@ struct BB {
 
 using FuncMode = ChannelMode;
 
-enum Cl : uint8_t {
-    STD    = 0,  ///< Standard OpenCL
-    INTEL  = 1,  ///< Intel FPGA extension
-    XILINX = 2   ///< Xilinx FPGA extension
+enum class CLDialect : uint8_t {
+    STD    = 0, ///< Standard OpenCL
+    INTEL  = 1, ///< Intel FPGA extension
+    XILINX = 2  ///< Xilinx FPGA extension
 };
 
 enum class HlsInterface : uint8_t {
-    SOC,  ///< SoC HW module (Embedded)
-    HPC,  ///< HPC accelerator (HLS for HPC via OpenCL/XRT + XDMA)
-    HPC_STREAM,  ///< HPC accelerator (HLS for HPC via XRT + QDMA)
-    GMEM_OPT, ///< Dedicated global memory interfaces and memory banks
+    SOC,        ///< SoC HW module (Embedded)
+    HPC,        ///< HPC accelerator (HLS for HPC via OpenCL/XRT + XDMA)
+    HPC_STREAM, ///< HPC accelerator (HLS for HPC via XRT + QDMA)
+    GMEM_OPT,   ///< Dedicated global memory interfaces and memory banks
     None
 };
 
@@ -120,8 +119,6 @@ private:
     /// emit_fun_head may want to add its own pragmas so we put this in a global
     std::string hls_pragmas_;
     std::unordered_map<const Continuation*, FuncMode> builtin_funcs_; // OpenCL builtin functions
-
-    friend class CEmit;
 };
 
 static inline const std::string lang_as_string(Lang lang) {
@@ -348,7 +345,7 @@ void CCodeGen::emit_module() {
     if (lang_ == Lang::HLS)
         func_decls_ << "#endif /* __SYNTHESIS__ */\n";
 
-    if (lang_==Lang::OpenCL) {
+    if (lang_ == Lang::OpenCL) {
         if (use_channels_) {
             std::string write_channel_params = "(channel, val) ";
             std::string read_channel_params = "(val, channel) ";
@@ -383,12 +380,11 @@ void CCodeGen::emit_module() {
     // TODO is this still relevant post llvm-rewrite ? -H
     if (lang_ == Lang::OpenCL) {
         if (use_fp_16_)
-            func_decls_ << "static inline half   intBitsToHalf(unsigned short i)  { return as_half(i);  }\n";
-        func_decls_ <<
-        "static inline float  intBitsToFloat(unsigned int i)  { return as_float(i);  }\n"
-        "#ifndef __xilinx__\n"
-        "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n"
-        "#endif /* __xilinx__ */";
+            func_decls_ << "static inline half intBitsToHalf(unsigned short i)  { return as_half(i);  }\n";
+        func_decls_ << "static inline float  intBitsToFloat(unsigned int i)  { return as_float(i);  }\n"
+                       "#ifndef __xilinx__\n"
+                       "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n"
+                       "#endif /* __xilinx__ */";
     } else {
         // Use memcpy instead
         const char* types[] = { "half", "float", "double" };
@@ -396,12 +392,11 @@ void CCodeGen::emit_module() {
         for (size_t i = use_fp_16_ ? 0 : 1; i < 3; ++i) {
             auto type = types[i];
             auto int_type = int_types[i];
-            func_decls_
-            << "static inline " << type << " intBitsTo" << (char)std::toupper(type[0]) << (type + 1) << "(" << int_type << " x) {\n"
-            << "    " << type << " f;\n"
-            << "    memcpy(&f, &x, sizeof(" << type << "));\n"
-            << "    return f;\n"
-            << "}\n";
+            func_decls_ << "static inline " << type << " intBitsTo" << (char)std::toupper(type[0]) << (type + 1) << "(" << int_type << " x) {\n"
+                        << "    " << type << " f;\n"
+                        << "    memcpy(&f, &x, sizeof(" << type << "));\n"
+                        << "    return f;\n"
+                        << "}\n";
         }
     }
 
@@ -1214,10 +1209,11 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 s << "__kernel ";
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
+                    auto [bx, by, bz] = block;
 
                     // See "Intel FPGA SDK for OpenCL"
                     auto single_workitem = false;
-                    if ((std::get<0>(block) == std::get<1>(block)) == (std::get<2>(block) == 1)) {
+                    if (block == std::tuple(1, 1, 1)) {
                         single_workitem = true;
                         func_impls_ << "#ifdef INTELFPGA_CL\n";
 
@@ -1227,7 +1223,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                         }
                         func_impls_ << "__kernel" << "\n" << "#else" << "\n";
                     }
-                    if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                    if (bx > 0 && by > 0 && bz > 0)
                         s.fmt("__attribute__((reqd_work_group_size({}, {}, {}))) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                     if (single_workitem)
                         func_impls_ << "#endif" << "\n";

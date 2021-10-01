@@ -1315,4 +1315,6 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type
     return result;
 }
 
+//------------------------------------------------------------------------------
+
 }

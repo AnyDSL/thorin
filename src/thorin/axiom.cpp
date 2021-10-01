@@ -17,7 +17,7 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const 
 std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
     if (auto axiom = def->isa<Axiom>()) return {axiom, axiom->currying_depth()};
     if (auto app = def->isa<App>()) return {app->axiom(), app->currying_depth()};
-    return {0, u16(-1)};
+    return {nullptr, u16(-1)};
 }
 
 bool is_memop(const Def* def) { return def->isa<App>() && isa<Tag::Mem>(def->out(0)->type()); }

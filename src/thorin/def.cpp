@@ -93,6 +93,7 @@ const Def* Vel    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) cons
 
 template<bool up> const Def* TExt  <up>::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.ext  <up>(t,    dbg); }
 template<bool up> const Def* TBound<up>::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.bound<up>(   o, dbg); }
+
 /*
  * stub
  */

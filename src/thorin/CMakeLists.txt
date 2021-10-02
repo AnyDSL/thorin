@@ -39,6 +39,10 @@ set(THORIN_SOURCES
     analyses/scope.h
     fe/lexer.cpp
     fe/lexer.h
+    fe/parser.cpp
+    fe/parser.h
+    fe/tok.cpp
+    fe/tok.h
     be/c.cpp
     be/c.h
     pass/optimize.cpp

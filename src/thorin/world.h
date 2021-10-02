@@ -65,7 +65,7 @@ public:
     World& operator=(const World&) = delete;
 
     explicit World(const std::string& name = {});
-    ///  Inherits the @p state_ of the @p other @p World but does @em not perform a copy.
+    /// Inherits the @p state_ of the @p other @p World but does @em not perform a copy.
     explicit World(const World& other)
         : World(other.name())
     {
@@ -168,11 +168,13 @@ public:
     /// @name Tuple
     //@{
     /// ascribes @p type to this tuple - needed for dependently typed and structural @p Sigma%s
+    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <code>[]</code>
     const Def* tuple(const Def* type, Defs ops, const Def* dbg = {});
     const Def* tuple(Defs ops, const Def* dbg = {});
-    const Def* tuple_str(const char* s, const Def* = {});
+    const Def* tuple_str(const char* s, const Def* dbg = {});
     const Def* tuple_str(const std::string& s, const Def* dbg = {}) { return tuple_str(s.c_str(), dbg); }
-    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <code>[]</code>
+    Sym sym(const char* s, const Def* dbg = {}) { return tuple_str(s, dbg); }
+    Sym sym(const std::string& s, const Def* dbg = {}) { return tuple_str(s, dbg); }
     //@}
 
     /// @name Pack

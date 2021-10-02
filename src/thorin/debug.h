@@ -4,12 +4,12 @@
 #include <string>
 #include <tuple>
 
+#include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
 
 class Def;
-class World;
 
 struct Pos : public Streamable<Pos> {
     Pos() = default;
@@ -68,6 +68,31 @@ public:
     Loc loc;
     const Def* meta = nullptr;
 };
+
+class Sym : public Streamable<Sym> {
+public:
+    Sym() {}
+    Sym(const Def* def)
+        : def_(def)
+    {}
+
+    const Def* def() const { return def_; }
+    bool operator==(Sym other) const { return this->def() == other.def(); }
+    Stream& stream(Stream& s) const;
+
+private:
+    const Def* def_;
+};
+
+struct SymHash {
+    static hash_t hash(Sym sym);
+    static bool eq(Sym a, Sym b) { return a == b; }
+    static Sym sentinel() { return Sym((const Def*) 1); }
+};
+
+template<class Val>
+using SymMap = HashMap<Sym, Val, SymHash>;
+using SymSet = HashSet<Sym, SymHash>;
 
 }
 

@@ -15,6 +15,20 @@ Loc::Loc(const Def* dbg) {
     }
 }
 
+Debug::Debug(const Def* dbg)
+    : name(dbg ? tuple2str(dbg->out(0)) : std::string{})
+    , loc(dbg)
+    , meta(dbg ? dbg->out(2) : nullptr)
+{}
+
+hash_t SymHash::hash(Sym sym) {
+    return murmur3(sym.def()->gid());
+}
+
+/*
+ * stream
+ */
+
 Stream& Pos::stream(Stream& s) const {
     return s.fmt("{}:{}", row, col);
 }
@@ -38,10 +52,8 @@ Stream& Loc::stream(Stream& s) const {
     return s;
 }
 
-Debug::Debug(const Def* dbg)
-    : name(dbg ? tuple2str(dbg->out(0)) : std::string{})
-    , loc(dbg)
-    , meta(dbg ? dbg->out(2) : nullptr)
-{}
+Stream& Sym::stream(Stream& s) const {
+    return s << tuple2str(def());
+}
 
 }

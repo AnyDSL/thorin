@@ -1,4 +1,5 @@
 add_executable(thorin-gtest
+    lexer.cpp
     test.cpp
 )
 

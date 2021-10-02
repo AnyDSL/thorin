@@ -11,6 +11,7 @@ Lexer::Lexer(World& world, const char* filename, std::istream& stream)
     , stream_(stream)
 {
     if (!stream_) throw std::runtime_error("stream is bad");
+
 #define CODE(t, str) keywords_[str] = Tok::Tag::t;
     THORIN_KEY(CODE)
 #undef CODE
@@ -37,11 +38,22 @@ Tok Lexer::lex() {
 
         if (eof()) return tok(Tok::Tag::M_eof);
         if (accept_if(isspace)) continue;
-        if (accept('=')) return tok(Tok::Tag::P_assign);
-        if (accept('.')) return tok(Tok::Tag::P_dot);
-        if (accept('(')) return tok(Tok::Tag::D_paren_l);
-        if (accept(')')) return tok(Tok::Tag::D_paren_r);
-        if (accept('/')) {
+
+        // delimiters
+        if (accept( '(')) return tok(Tok::Tag::D_paren_l);
+        if (accept( ')')) return tok(Tok::Tag::D_paren_r);
+        if (accept( '[')) return tok(Tok::Tag::D_bracket_l);
+        if (accept( ']')) return tok(Tok::Tag::D_bracket_r);
+        if (accept( '{')) return tok(Tok::Tag::D_brace_l);
+        if (accept( '}')) return tok(Tok::Tag::D_brace_r);
+        if (accept(U'«')) return tok(Tok::Tag::D_quote_l);
+        if (accept(U'»')) return tok(Tok::Tag::D_quote_r);
+        if (accept(U'‹')) return tok(Tok::Tag::D_angle_l);
+        if (accept(U'›')) return tok(Tok::Tag::D_angle_r);
+        if (accept( '=')) return tok(Tok::Tag::P_assign);
+        if (accept( '.')) return tok(Tok::Tag::P_dot);
+
+        if (accept( '/')) {
             if (accept('*')) {
                 eat_comments();
                 continue;
@@ -55,7 +67,15 @@ Tok Lexer::lex() {
             continue;
         }
 
-        // lex identifier or keyword
+        // binder
+        if (accept(U'λ')) return tok(Tok::Tag::B_lam);
+        if (accept(U'∀')) return tok(Tok::Tag::B_forall);
+        if (accept('\\')) {
+            if (accept('/')) return tok(Tok::Tag::B_forall);
+            return tok(Tok::Tag::B_lam);
+        }
+
+        // identifier or keyword
         if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
             if (auto i = keywords_.find(str_); i != keywords_.end()) return tok(i->second); // keyword

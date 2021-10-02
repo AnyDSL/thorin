@@ -75,7 +75,6 @@ set(THORIN_SOURCES
     transform/mangle.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
-    util/args.h
     util/array.h
     util/assert.h
     util/bit.h

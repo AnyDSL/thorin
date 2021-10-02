@@ -163,7 +163,7 @@ undo_t SSAConstr::analyze(const Def* def) {
             auto& succ_info = data(succ_lam);
 
             if (succ_lam->is_basicblock() && succ_lam != curr_nom()) // TODO this is a bit scruffy - maybe we can do better
-                succ_info.writable.insert_range(range(data(curr_nom()).writable));
+                succ_info.writable.insert_range(data(curr_nom()).writable);
 
             if (!isa_callee(def, i)) {
                 if (succ_info.pred) {

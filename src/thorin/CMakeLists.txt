@@ -73,18 +73,22 @@ set(THORIN_SOURCES
     transform/partial_evaluation.h
     util/args.h
     util/array.h
+    util/assert.h
+    util/bit.h
     util/bitset.cpp
     util/bitset.h
     util/cast.h
-    util/hash.h
+    util/container.h
     util/hash.cpp
+    util/hash.h
     util/indexmap.h
     util/indexset.h
     util/iterator.h
+    util/ptr.h
     util/stream.cpp
     util/stream.h
     util/types.h
-    util/utility.h
+    util/utf8.h
 )
 
 if(LLVM_FOUND)

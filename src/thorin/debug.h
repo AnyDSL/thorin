@@ -11,7 +11,15 @@ namespace thorin {
 class Def;
 class World;
 
-struct Pos {
+struct Pos : public Streamable<Pos> {
+    Pos() = default;
+    Pos(uint32_t row, uint32_t col)
+        : row(row)
+        , col(col)
+    {}
+
+    Stream& stream(Stream&) const;
+
     uint32_t row = -1;
     uint32_t col = -1;
 };

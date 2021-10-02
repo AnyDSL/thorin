@@ -15,20 +15,24 @@ Loc::Loc(const Def* dbg) {
     }
 }
 
+Stream& Pos::stream(Stream& s) const {
+    return s.fmt("{}:{}", row, col);
+}
+
 Stream& Loc::stream(Stream& s) const {
     s.fmt("{}:", file);
 
     if (begin.col == u32(-1) || finis.col == u32(-1)) {
         if (begin.row != finis.row)
-            s.fmt("{} - {}", begin.row, finis.row);
+            s.fmt("{}-{}", begin.row, finis.row);
         else
             s.fmt("{}", begin.row);
     } else if (begin.row != finis.row) {
-        s.fmt("{} col {} - {} col {}", begin.row, begin.col, finis.row, finis.col);
+        s.fmt("{}-{}", begin, finis);
     } else if (begin.col != finis.col) {
-        s.fmt("{} col {} - {}", begin.row, begin.col, finis.col);
+        s.fmt("{}-{}", begin, finis.col);
     } else {
-        s.fmt("{} col {}", begin.row, begin.col);
+        begin.stream(s);
     }
 
     return s;

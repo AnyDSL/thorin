@@ -1,5 +1,5 @@
-#ifndef THORIN_LEXER_H
-#define THORIN_LEXER_H
+#ifndef THORIN_FE_LEXER_H
+#define THORIN_FE_LEXER_H
 
 #include "thorin/debug.h"
 #include "thorin/fe/tok.h"
@@ -13,6 +13,7 @@ class Lexer {
 public:
     Lexer(World&, const char*, std::istream&);
 
+    World& world() { return world_; }
     Loc loc() const { return loc_; }
     Tok lex();                                          ///< Get next @p Tok in stream.
 

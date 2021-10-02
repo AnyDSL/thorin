@@ -33,6 +33,6 @@ if(COLORIZE_OUTPUT)
     add_definitions(-DCOLORIZE_LOG)
 endif()
 
-# build thorin lib
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(thorin)
+add_subdirectory(driver)

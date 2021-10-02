@@ -32,8 +32,8 @@ public:
             |  (u32(chars_[1]) <<  8_u32)
             |  (u32(chars_[0])          );
     }
-private:
 
+private:
     std::array<uint8_t, Max> chars_;
 };
 

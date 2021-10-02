@@ -1,5 +1,8 @@
 #include "thorin/util/bitset.h"
 
+#include "thorin/util/assert.h"
+#include "thorin/util/bit.h"
+
 namespace thorin {
 
 void BitSet::dealloc() const {
@@ -69,8 +72,7 @@ void BitSet::ensure_capacity(size_t i) const {
     size_t num_new_words = (i+64_s) / 64_s;
     if (num_new_words > num_words_) {
         num_new_words = round_to_power_of_2(num_new_words);
-        assert(num_new_words >= num_words_ * 2_s
-                && "num_new_words must be a power of two at least twice of num_words_");
+        assert(num_new_words >= num_words_ * 2_s && "num_new_words must be a power of two at least twice of num_words_");
         uint64_t* new_words = new uint64_t[num_new_words];
 
         // copy over and fill rest with zero

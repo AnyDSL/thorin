@@ -16,6 +16,7 @@
 #include "thorin/rewrite.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
+#include "thorin/util/container.h"
 #include "tables.h"
 
 namespace thorin {

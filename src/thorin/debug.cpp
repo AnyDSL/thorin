@@ -7,11 +7,11 @@ namespace thorin {
 Loc::Loc(const Def* dbg) {
     if (dbg != nullptr) {
         auto [d_file, d_begin, d_finis] = dbg->out(1)->split<3>();
-        const_cast<std::string&>(file) = tuple2str(d_file);
-        const_cast<u32&>(begin.row) = as_lit(d_begin) >> 32_u64;
-        const_cast<u32&>(begin.col) = as_lit(d_begin);
-        const_cast<u32&>(finis.row) = as_lit(d_finis) >> 32_u64;
-        const_cast<u32&>(finis.col) = as_lit(d_finis);
+        file = tuple2str(d_file);
+        begin.row = as_lit(d_begin) >> 32_u64;
+        begin.col = as_lit(d_begin);
+        finis.row = as_lit(d_finis) >> 32_u64;
+        finis.col = as_lit(d_finis);
     }
 }
 

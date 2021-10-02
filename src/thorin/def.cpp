@@ -6,7 +6,6 @@
 #include "thorin/rewrite.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/utility.h"
 
 namespace thorin {
 

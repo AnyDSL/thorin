@@ -3,14 +3,13 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <stack>
 
 #include "thorin/world.h"
 #include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/utility.h"
+#include "thorin/util/container.h"
 
 namespace thorin {
 

@@ -1,6 +1,8 @@
 #ifndef THORIN_ANALYSES_DEPTREE_H
 #define THORIN_ANALYSES_DEPTREE_H
 
+#include <deque>
+
 #include "thorin/def.h"
 
 namespace thorin {

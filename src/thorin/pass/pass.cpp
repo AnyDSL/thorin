@@ -1,6 +1,7 @@
 #include "thorin/pass/pass.h"
 
 #include "thorin/rewrite.h"
+#include "thorin/util/container.h"
 
 namespace thorin {
 

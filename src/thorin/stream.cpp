@@ -1,6 +1,7 @@
 #include "thorin/def.h"
 #include "thorin/world.h"
 #include "thorin/analyses/deptree.h"
+#include "thorin/util/container.h"
 
 namespace thorin {
 

@@ -1,7 +1,8 @@
 #ifndef THORIN_TABLES_H
 #define THORIN_TABLES_H
 
-#include "thorin/util/utility.h"
+#include "thorin/util/assert.h"
+#include "thorin/util/types.h"
 
 namespace thorin {
 

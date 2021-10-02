@@ -1,5 +1,8 @@
+#include <queue>
+
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/util/container.h"
 #include "thorin/util/hash.h"
 
 // WARNING This file will be nuked

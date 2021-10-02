@@ -14,8 +14,8 @@
 #include <utility>
 
 #include "thorin/config.h"
+#include "thorin/util/bit.h"
 #include "thorin/util/stream.h"
-#include "thorin/util/utility.h"
 
 namespace thorin {
 

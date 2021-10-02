@@ -1,8 +1,9 @@
 #ifndef THORIN_PASS_PASS_H
 #define THORIN_PASS_PASS_H
 
-#include "thorin/world.h"
+#include <stack>
 
+#include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {

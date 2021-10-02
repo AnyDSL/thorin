@@ -37,6 +37,8 @@ set(THORIN_SOURCES
     analyses/schedule.h
     analyses/scope.cpp
     analyses/scope.h
+    fe/lexer.cpp
+    fe/lexer.h
     be/c.cpp
     be/c.h
     pass/optimize.cpp

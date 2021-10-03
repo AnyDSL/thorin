@@ -12,6 +12,7 @@ Lexer::Lexer(World& world, const char* filename, std::istream& stream)
 {
     if (!stream_) throw std::runtime_error("stream is bad");
     next(); // fill peek
+    accept(utf8::BOM); // eat utf-8 BOM if present
 
 #define CODE(t, str) keywords_[str] = Tok::Tag::t;
     THORIN_KEY(CODE)

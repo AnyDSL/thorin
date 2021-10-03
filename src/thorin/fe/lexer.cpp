@@ -19,7 +19,7 @@ Lexer::Lexer(World& world, const char* filename, std::istream& stream)
 }
 
 char32_t Lexer::next() {
-    while (true) {
+    for (bool ok = true; true; ok = true) {
         char32_t result = peek_.char_;
         peek_.char_ = stream_.get();
         loc_.finis = peek_.pos_;
@@ -27,16 +27,16 @@ char32_t Lexer::next() {
         if (eof()) return result;
 
         switch (auto n = utf8::num_bytes(peek_.char_)) {
-            case 0: goto error;
+            case 0: ok = false; break;
             case 1: /*do nothing*/ break;
             default:
                 peek_.char_ = utf8::first(peek_.char_, n);
 
-                for (size_t i = 1; i != n; ++i) {
+                for (size_t i = 1; ok && i != n; ++i) {
                     if (auto x = utf8::is_valid(stream_.get()))
                         peek_.char_ = utf8::append(peek_.char_, *x);
                     else
-                        goto error;
+                        ok = false;
                 }
         }
 
@@ -47,9 +47,8 @@ char32_t Lexer::next() {
             ++peek_.pos_.col;
         }
 
-        return result;
+        if (ok) return result;
 
-error:
         errln("{}, invalid UTF-8 character", peek_.pos_);
     }
 }

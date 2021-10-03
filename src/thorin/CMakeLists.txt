@@ -91,6 +91,7 @@ set(THORIN_SOURCES
     util/stream.cpp
     util/stream.h
     util/types.h
+    util/utf8.cpp
     util/utf8.h
 )
 

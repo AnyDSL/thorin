@@ -21,7 +21,7 @@ constexpr auto Num_Keys  = size_t(0) THORIN_KEY(CODE);
 
 #define THORIN_TOK(m)                   \
     /* misc */                          \
-    m(M_eof, "<end of file>")           \
+    m(M_eof, "<eof>")                   \
     m(M_id,  "<identifier>")            \
     /* punctuators */                   \
     m(P_colon,        ":")              \

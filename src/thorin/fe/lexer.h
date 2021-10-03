@@ -15,35 +15,37 @@ public:
 
     World& world() { return world_; }
     Loc loc() const { return loc_; }
-    Tok lex();                                          ///< Get next @p Tok in stream.
+    Tok lex();
 
 private:
-    Tok tok(Tok::Tag tag) { return {loc(), tag}; }      ///< Factory method to create a @p Tok.
-    bool eof() const { peek(); return stream_.eof(); }  ///< Have we reached the end of file?
+    Tok tok(Tok::Tag tag) { return {loc(), tag}; }
+    bool eof() const { return peek_.char_ == (char32_t) std::istream::traits_type::eof(); }
 
     /// @return @c true if @p pred holds.
     /// In this case invoke @p next() and append to @p str_;
     template<class Pred>
     bool accept_if(Pred pred) {
-        if (pred(peek())) {
+        if (pred(peek_.char_)) {
             str_ += next();
             return true;
         }
         return false;
     }
 
-    bool accept(int val) {
-        return accept_if([val] (int p) { return p == val; });
+    bool accept(char32_t val) {
+        return accept_if([val] (char32_t p) { return p == val; });
     }
 
-    /// Get next byte in @p stream_ and increase @p loc_ / @p peek_pos_.
-    int next();
-    int peek() const { return stream_.peek(); }
+    /// Get next utf8-char in @p stream_ and increase @p loc_ / @p peek_.pos_.
+    char32_t next();
     void eat_comments();
 
     World& world_;
-    Loc loc_;       ///< @p Loc%ation of the @p Tok%en we are currently constructing within @p str_,
-    Pos peek_pos_;  ///< @p Pos%ition of the current @p peek().
+    Loc loc_; ///< @p Loc%ation of the @p Tok%en we are currently constructing within @p str_,
+    struct {
+        char32_t char_;
+        Pos pos_;
+    } peek_;
     std::istream& stream_;
     std::string str_;
     std::unordered_map<std::string, Tok::Tag> keywords_;

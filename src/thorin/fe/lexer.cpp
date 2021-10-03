@@ -7,33 +7,56 @@ namespace thorin {
 Lexer::Lexer(World& world, const char* filename, std::istream& stream)
     : world_(world)
     , loc_{filename, {1, 1}, {1, 1}}
-    , peek_pos_({1, 1})
+    , peek_({0, Pos(1, 0)})
     , stream_(stream)
 {
     if (!stream_) throw std::runtime_error("stream is bad");
+    next(); // fill peek
 
 #define CODE(t, str) keywords_[str] = Tok::Tag::t;
     THORIN_KEY(CODE)
 #undef CODE
 }
 
-int Lexer::next() {
-    loc_.finis = peek_pos_;
-    int c = stream_.get();
+char32_t Lexer::next() {
+    while (true) {
+        char32_t result = peek_.char_;
+        peek_.char_ = stream_.get();
+        loc_.finis = peek_.pos_;
 
-    if (c == '\n') {
-        ++peek_pos_.row;
-        peek_pos_.col = 1;
-    } else {
-        ++peek_pos_.col;
+        if (eof()) return result;
+
+        switch (auto n = utf8::num_bytes(peek_.char_)) {
+            case 0: goto error;
+            case 1: /*do nothing*/ break;
+            default:
+                peek_.char_ = utf8::first(peek_.char_, n);
+
+                for (size_t i = 1; i != n; ++i) {
+                    if (auto x = utf8::is_valid(stream_.get()))
+                        peek_.char_ = utf8::append(peek_.char_, *x);
+                    else
+                        goto error;
+                }
+        }
+
+        if (peek_.char_ == '\n') {
+            ++peek_.pos_.row;
+            peek_.pos_.col = 0;
+        } else {
+            ++peek_.pos_.col;
+        }
+
+        return result;
+
+error:
+        errln("{}, invalid UTF-8 character", peek_.pos_);
     }
-
-    return c;
 }
 
 Tok Lexer::lex() {
     while (true) {
-        loc_.begin = peek_pos_;
+        loc_.begin = peek_.pos_;
         str_.clear();
 
         if (eof()) return tok(Tok::Tag::M_eof);
@@ -51,21 +74,9 @@ Tok Lexer::lex() {
         if (accept(U'‹')) return tok(Tok::Tag::D_angle_l);
         if (accept(U'›')) return tok(Tok::Tag::D_angle_r);
         if (accept( '=')) return tok(Tok::Tag::P_assign);
+        if (accept( ':')) return tok(Tok::Tag::P_colon);
+        if (accept( ',')) return tok(Tok::Tag::P_comma);
         if (accept( '.')) return tok(Tok::Tag::P_dot);
-
-        if (accept( '/')) {
-            if (accept('*')) {
-                eat_comments();
-                continue;
-            }
-            if (accept('/')) {
-                while (!eof() && peek() != '\n') next();
-                continue;
-            }
-
-            //Loc(loc_.file, peek_pos_).err() << "invalid input char '/'; maybe you wanted to start a comment?" << std::endl;
-            continue;
-        }
 
         // binder
         if (accept(U'λ')) return tok(Tok::Tag::B_lam);
@@ -75,6 +86,21 @@ Tok Lexer::lex() {
             return tok(Tok::Tag::B_lam);
         }
 
+        if (accept( '/')) {
+            if (accept('*')) {
+                eat_comments();
+                continue;
+            }
+            if (accept('/')) {
+                while (!eof() && peek_.char_ != '\n') next();
+                continue;
+            }
+
+            //Loc(loc_.file, peek_.pos_).err() << "invalid input char '/'; maybe you wanted to start a comment?" << std::endl;
+            continue;
+        }
+
+
         // identifier or keyword
         if (accept_if([](int i) { return i == '_' || isalpha(i); })) {
             while (accept_if([](int i) { return i == '_' || isalpha(i) || isdigit(i); })) {}
@@ -82,14 +108,14 @@ Tok Lexer::lex() {
             return {loc(), world_.sym(str_, world_.dbg(loc()))};                            // identifier
         }
 
-        //Loc(loc_.file, peek_pos_).err() << "invalid input char: '" << (char) peek() << "'" << std::endl;
+        //Loc(loc_.file, peek_.pos_).err() << "invalid input char: '" << (char) peek() << "'" << std::endl;
         next();
     }
 }
 
 void Lexer::eat_comments() {
     while (true) {
-        while (!eof() && peek() != '*') next();
+        while (!eof() && peek_.char_ != '*') next();
         if (eof()) {
             //loc_.err() << "non-terminated multiline comment" << std::endl;
             return;

@@ -22,6 +22,7 @@ namespace thorin {
             const Def* closure_type(const Pi *pi, const Def *ent_type = nullptr);
 
             struct Closure {
+                Lam *old_fn;
                 const Def *env;
                 Lam *fn;
             };

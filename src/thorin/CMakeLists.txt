@@ -59,8 +59,6 @@ set(THORIN_SOURCES
     pass/rw/ret_wrap.h
     pass/rw/bound_elim.cpp
     pass/rw/bound_elim.h
-    pass/rw/closure_conv.h
-    pass/rw/closure_conv.cpp
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/flatten_tuples.cpp
@@ -69,6 +67,8 @@ set(THORIN_SOURCES
     transform/mangle.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
+    transform/closure_conv.h
+    transform/closure_conv.cpp
     util/args.h
     util/array.h
     util/bitset.cpp

@@ -7,12 +7,12 @@
 #include "thorin/pass/rw/bound_elim.h"
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
-#include "thorin/pass/rw/closure_conv.h"
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "thorin/transform/closure_conv.h"
 
 namespace thorin {
 
@@ -24,8 +24,9 @@ void optimize(World& world) {
     // .add<SSAConstr>()
     // .add<CopyProp>()
     // //.add<Scalerize>()
-    .add<ClosureConv>()
     .run();
+
+    ClosureConv(world).run();
 
     cleanup_world(world);
     // while (partial_evaluation(world, true)); // lower2cff

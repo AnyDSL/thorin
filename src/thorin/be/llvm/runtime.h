@@ -22,7 +22,8 @@ public:
         CPU_PLATFORM,
         CUDA_PLATFORM,
         OPENCL_PLATFORM,
-        HSA_PLATFORM
+        HSA_PLATFORM,
+        VULKAN_PLATFORM,
     };
 
     /// Emits a call to anydsl_launch_kernel.

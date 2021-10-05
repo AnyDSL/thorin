@@ -163,6 +163,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
     else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
     else if (name() == "amdgpu")         attributes().intrinsic = Intrinsic::AMDGPU;
+    else if (name() == "spirv")                attributes().intrinsic = Intrinsic::SpirV;
     else if (name() == "hls")            attributes().intrinsic = Intrinsic::HLS;
     else if (name() == "parallel")       attributes().intrinsic = Intrinsic::Parallel;
     else if (name() == "fibers")         attributes().intrinsic = Intrinsic::Fibers;
@@ -242,6 +243,31 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
         args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
 
     return jump(world().match(val->type(), patterns.size()), args, dbg);
+}
+
+void Continuation::structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
+    attributes_.intrinsic = Intrinsic::SCFLoopMerge;
+    attributes_.scf_metadata.loop_epilogue.loop_header = loop_header;
+    resize(targets.size());
+    size_t x = 0;
+    for (auto target : targets)
+        set_op(x++, target);
+}
+
+void Continuation::structured_loop_continue(const Continuation* loop_header) {
+    attributes_.intrinsic = Intrinsic::SCFLoopContinue;
+    resize(1);
+    set_op(0, loop_header);
+}
+
+void Continuation::structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets) {
+    attributes_.intrinsic = Intrinsic::SCFLoopHeader;
+    resize(targets.size());
+    attributes_.scf_metadata.loop_header.continue_target = loop_continue;
+    attributes_.scf_metadata.loop_header.merge_target = loop_epilogue;
+    size_t x = 0;
+    for (auto target : targets)
+        set_op(x++, target);
 }
 
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {

@@ -61,6 +61,7 @@ enum class Intrinsic : uint8_t {
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     AMDGPU,                     ///< Internal AMDGPU-Backend.
+    SpirV,                      ///< Internal Vulkan-Compute-Shader-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
@@ -79,7 +80,14 @@ enum class Intrinsic : uint8_t {
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
-    PeInfo,                     ///< Partial evaluation debug info.
+    SCFBegin,
+    SCFLoopHeader = SCFBegin,   ///< A header for a structured loop
+    SCFLoopMerge,               ///< A merge block for a structured loop
+    SCFLoopContinue,            ///< A continue block in a structured loop
+    SCFNonLocalJump,            ///< A non-local jump in a structured control flow graph
+    SCFBackEdge,                ///< A back edge a structured loop,
+    SCFEnd,
+    PeInfo = SCFEnd,            ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
 
@@ -90,10 +98,25 @@ enum class Intrinsic : uint8_t {
  */
 class Continuation : public Def {
 public:
+    /// Stores information about structured control flow that should not be encoded in ops, as ops encode control flow
+    union SCFMetadata {
+        struct {
+            const Continuation* continue_target;
+            const Continuation* merge_target;
+        } loop_header;
+        struct {
+            const Continuation* loop_header;
+        } loop_epilogue;
+        struct {
+            const Continuation* merge_target;
+        } selection_header;
+    };
+
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         Visibility visibility = Visibility::Internal;
         CC cc = CC::C;
+        SCFMetadata scf_metadata = {};
 
         Attributes() = default;
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
@@ -149,6 +172,9 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
+    void structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets);
+    void structured_loop_continue(const Continuation* loop_header);
+    void structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets);
     void verify() const {
 #if THORIN_ENABLE_CHECKS
         auto c = callee_fn_type();

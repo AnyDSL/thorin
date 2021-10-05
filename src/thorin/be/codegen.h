@@ -44,7 +44,7 @@ struct DeviceBackends {
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, BackendCount };
+    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, SpirV, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
 private:
     std::vector<Importer> importers_;

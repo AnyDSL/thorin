@@ -133,12 +133,14 @@ ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
     auto scope = Scope(fn);
     auto fv_set = scope.free_defs();
     fv_set.erase(fn);
-    auto fvs = Array<const Def*>(fv_set.size());
-    auto fvs_types = Array<const Def*>(fv_set.size());
+    auto fvs = std::vector<const Def*>();
+    auto fvs_types = std::vector<const Def*>();
     auto i = 0;
     for (auto fv: fv_set) {
-        fvs[i] = fv;
-        fvs_types[i] = rewrite(fv->type());
+        if (fv == fn || fv->is_external() || fv->isa<Axiom>()) // TODO: How to filter top-level def? (no_dep()?)
+            continue;
+        fvs.emplace_back(fv);
+        fvs_types.emplace_back(rewrite(fv->type()));
         i++;
     }
     auto env = world().tuple(fvs);

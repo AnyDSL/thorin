@@ -1182,7 +1182,6 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 }
                 break;
             case Lang::OpenCL:
-                s << "__kernel ";
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
                     auto [bx, by, bz] = block;
@@ -1191,19 +1190,16 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                     auto single_workitem = false;
                     if (block == std::tuple(1, 1, 1)) {
                         single_workitem = true;
-                        func_impls_ << "#ifdef INTELFPGA_CL\n";
-
-                        func_impls_ << "__attribute__((max_global_work_dim(0)))";
+                        s << "#ifdef INTELFPGA_CL\n";
+                        s << "__attribute__((max_global_work_dim(0)))\n";
                         if (!has_concrete_params(cont)) {
-                            func_impls_ << "__attribute__((autorun))";
+                            s << "__attribute__((autorun))\n";
                         }
-                        func_impls_ << "__kernel" << "\n" << "#else" << "\n";
-                    }
-                    if (bx > 0 && by > 0 && bz > 0)
-                        s.fmt("__attribute__((reqd_work_group_size({}, {}, {}))) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
-                    if (single_workitem)
-                        func_impls_ << "#endif" << "\n";
+                        s << "#endif\n";
+                    } else
+                        s.fmt("__attribute__((reqd_work_group_size({}, {}, {})))\n", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                 }
+                s << "__kernel ";
                 break;
         }
     } else if (lang_ == Lang::CUDA) {
@@ -1240,13 +1236,14 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 elem_type = array_type->elem_type();
             }
             if (interface == HlsInterface::HPC_STREAM) {
-                func_decls_ << "hls::stream<";
-                func_decls_ << convert(elem_type) <<">*";
-                func_impls_ << "hls::stream<";
-                func_impls_ << convert(elem_type) << ">* " << param->unique_name();
+                s << "hls::stream<" << convert(elem_type) <<">*";
+                if (!is_proto)
+                    s << " " << param->unique_name();
             } else {
-                func_impls_ << convert(elem_type) << "[" << array_size << "]";
-                func_impls_ << convert(elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                s << convert(elem_type);
+                if (!is_proto)
+                    s << " " << param->unique_name();
+                s << "[" << array_size << "]";
             }
             if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) {
                 hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";

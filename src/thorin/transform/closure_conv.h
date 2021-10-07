@@ -23,6 +23,7 @@ namespace thorin {
 
             struct Closure {
                 Lam *old_fn;
+                size_t num_fvs;
                 const Def *env;
                 Lam *fn;
             };

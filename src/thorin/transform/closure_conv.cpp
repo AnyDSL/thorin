@@ -16,16 +16,17 @@ void ClosureConv::run() {
         if (auto closure = closures_.lookup(def)) {
             auto new_fn = closure->fn;
             auto env = closure->env;
+            auto num_fvs = closure->num_fvs;
             auto old_fn = closure->old_fn;
             world().DLOG("===== CC (run): closure body {} [old={}, env={}] =====", 
                     new_fn, old_fn, env);
             auto subst = Def2Def();
             auto env_param = new_fn->var(0_u64);
-            if (env_param->arity()->fields() == 1) {
+            if (num_fvs == 1) {
                 subst.emplace(env, env_param);
             } else {
-                for (size_t i = 0; i < env->num_ops(); i++) {
-                        subst.emplace(env->op(i), world().extract(env_param, i, world().dbg("cc_fv")));
+                for (size_t i = 0; i < num_fvs; i++) {
+                    subst.emplace(env->op(i), world().extract(env_param, i, world().dbg("cc_fv")));
                 }
             }
             auto params = 
@@ -75,7 +76,7 @@ const Def *ClosureConv::rewrite(const Def *def, Def2Def *subst) {
         /* Types: rewrite dom, codom \w susbt here */
         return map(closure_type(pi));
     } else if (auto lam = def->isa_nom<Lam>(); lam && lam->type()->is_cn()) {
-        auto [_, fv_env, fn] = make_closure(lam);
+        auto [old, num, fv_env, fn] = make_closure(lam);
         auto closure_type = rewrite(lam->type(), subst);
         auto env = rewrite(fv_env, subst);
         auto closure = world().tuple(closure_type, {env, fn});
@@ -135,13 +136,13 @@ ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
     fv_set.erase(fn);
     auto fvs = std::vector<const Def*>();
     auto fvs_types = std::vector<const Def*>();
-    auto i = 0;
+    size_t num_fvs = 0;
     for (auto fv: fv_set) {
         if (fv == fn || fv->is_external() || fv->isa<Axiom>()) // TODO: How to filter top-level def? (no_dep()?)
             continue;
         fvs.emplace_back(fv);
         fvs_types.emplace_back(rewrite(fv->type()));
-        i++;
+        num_fvs++;
     }
     auto env = world().tuple(fvs);
     auto env_type = world().sigma(fvs_types);
@@ -159,7 +160,7 @@ ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
     world().DLOG("CC (make_closure): {} : {} ~~> {} : {}, env = {} : {}", fn, fn->type(), new_lam,
             new_fn_type, env, env_type);
 
-    auto closure = Closure{fn, env, new_lam};
+    auto closure = Closure{fn, num_fvs, env, new_lam};
     closures_.emplace(fn, closure);
     closures_.emplace(new_lam, closure);
     worklist_.emplace(new_lam);

@@ -8,20 +8,6 @@
 
 namespace thorin {
 
-static void extract_opencl_args(Continuation* cont, Array<const Def*>& args) {
-    // variables (arguments in this context) are placed after (mem, dev, lambda, continuation, /vars_args/ )
-    const char vars_offset = 4;
-    size_t var_num_args = cont->num_args() - vars_offset;
-    if (var_num_args == 0)
-        return;
-    else {
-        for (size_t index = vars_offset; index < cont->num_args(); ++index) {
-            std::cout << index - vars_offset + var_num_args << "\n";
-            args[index - vars_offset + var_num_args] = cont->arg(index);
-        }
-    }
-}
-
 static Continuation* make_opencl(World& world, const Continuation* cont_hls, const DeviceParams& device_params) {
     auto last_callee_continuation = cont_hls->arg(hls_free_vars_offset - 1)->as_continuation();
     auto last_callee_body = cont_hls->arg(hls_free_vars_offset - 2);
@@ -55,18 +41,6 @@ static Continuation* make_opencl(World& world, const Continuation* cont_hls, con
     return opencl;
 }
 
-static Continuation* last_cl_kernel(const Schedule& schedule) {
-    const auto& scheduled_blocks = schedule;
-    for (size_t i = schedule.size() - 1; i >= 0; --i) {
-        auto continuation = scheduled_blocks[i];
-        auto callee = continuation->callee()->isa_continuation();
-        if (callee && callee->intrinsic() == Intrinsic::OpenCL) {
-            return continuation;
-        }
-    }
-    return nullptr;
-}
-
 // Returns last Basic Block with corresponding intrinsic
 static Continuation* last_basic_block(const Intrinsic intrinsic, const Schedule& schedule) {
     const auto& scheduled_blocks = schedule;
@@ -76,50 +50,6 @@ static Continuation* last_basic_block(const Intrinsic intrinsic, const Schedule&
         if (callee && callee->intrinsic() == intrinsic) {
             return continuation;
         }
-    }
-    return nullptr;
-}
-
-Continuation* is_opencl(const Schedule schedule) {
-    for (auto& block : schedule) {
-        auto continuation = block;
-        if (continuation->empty())
-            continue;
-        auto callee = continuation->callee()->isa_continuation();
-        if (callee && callee->intrinsic() == Intrinsic::OpenCL) {
-            return continuation;
-        }
-    }
-    return nullptr;
-}
-
-Continuation* is_hls(const Schedule schedule) {
-    for (auto& block : schedule) {
-        auto continuation = block;
-        if (continuation->empty())
-            continue;
-        auto callee = continuation->callee()->isa_continuation();
-        if (callee && callee->intrinsic() == Intrinsic::HLS) {
-            return continuation;
-        }
-    }
-    return nullptr;
-}
-
-Continuation* is_opencl(Continuation* continuation) {
-    auto callee = continuation->callee()->isa_continuation();
-    if (callee && callee->intrinsic() == Intrinsic::OpenCL) {
-        return continuation;
-    }
-    return nullptr;
-}
-
-// Returns a pointer to the first continuation calling OpenCL and the callee continuation
-std::unique_ptr<std::pair<Continuation*, Continuation*>> has_opencl_callee(Continuation* continuation) {
-    auto callee = continuation->callee()->isa_continuation();
-    if (callee && callee->intrinsic() == Intrinsic::OpenCL) {
-        auto opencl_cont = continuation->arg(5)->as_continuation();
-        return std::make_unique<std::pair<Continuation*, Continuation*>> (continuation, opencl_cont);
     }
     return nullptr;
 }

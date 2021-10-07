@@ -156,8 +156,8 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
     });
 
     debug_verify(world);
-    world.dump();
-    world.cleanup();
+    //world.dump();
+    //world.cleanup();
 }
 
 }

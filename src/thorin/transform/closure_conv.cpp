@@ -127,22 +127,39 @@ const Def *ClosureConv::closure_type(const Pi *pi, const Def *env_type) {
     }
 }
 
+
+void compute_fvs(Lam *fn, DefSet& visited, DefSet& fvs) {
+    if (visited.contains(fn))
+        return;
+    visited.insert(fn);
+    auto scope = Scope(fn);
+    for (auto fv: scope.free_defs()) {
+        if (fv == fn || fv->is_external() || fv->isa<Axiom>())
+            continue;
+        else if (auto callee = fv->isa_nom<Lam>())
+            compute_fvs(callee, visited, fvs);
+        else
+            fvs.insert(fv);
+    }
+}
+
+void compute_fvs(Lam *lam, DefSet &fvs) {
+    auto visited = DefSet();
+    compute_fvs(lam, visited, fvs);
+}
+
+
 ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
     if (auto closure = closures_.lookup(fn))
         return *closure;
 
-    auto scope = Scope(fn);
-    auto fv_set = scope.free_defs();
-    fv_set.erase(fn);
+    auto fv_set = DefSet();
+    compute_fvs(fn, fv_set);
     auto fvs = std::vector<const Def*>();
     auto fvs_types = std::vector<const Def*>();
-    size_t num_fvs = 0;
     for (auto fv: fv_set) {
-        if (fv == fn || fv->is_external() || fv->isa<Axiom>()) // TODO: How to filter top-level def? (no_dep()?)
-            continue;
         fvs.emplace_back(fv);
         fvs_types.emplace_back(rewrite(fv->type()));
-        num_fvs++;
     }
     auto env = world().tuple(fvs);
     auto env_type = world().sigma(fvs_types);
@@ -160,7 +177,7 @@ ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
     world().DLOG("CC (make_closure): {} : {} ~~> {} : {}, env = {} : {}", fn, fn->type(), new_lam,
             new_fn_type, env, env_type);
 
-    auto closure = Closure{fn, num_fvs, env, new_lam};
+    auto closure = Closure{fn, fv_set.size(), env, new_lam};
     closures_.emplace(fn, closure);
     closures_.emplace(new_lam, closure);
     worklist_.emplace(new_lam);

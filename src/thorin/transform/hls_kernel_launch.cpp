@@ -8,9 +8,9 @@
 
 namespace thorin {
 
-static Continuation* make_opencl(World& world, const Continuation* cont_hls, const DeviceParams& device_params) {
+static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const DeviceParams& device_params) {
     auto last_callee_continuation = cont_hls->arg(hls_free_vars_offset - 1)->as_continuation();
-    auto last_callee_body = cont_hls->arg(hls_free_vars_offset - 2);
+    auto kernel_ptr = cont_hls->arg(hls_free_vars_offset - 2);
 
     // building OpenCL intrinsics corresponding to hls intrinsic
     std::vector<const Type*> opencl_param_types;
@@ -28,7 +28,7 @@ static Continuation* make_opencl(World& world, const Continuation* cont_hls, con
     }
 
     // type for dummy hls_top
-    opencl_param_types.emplace_back(last_callee_body->type());
+    opencl_param_types.emplace_back(kernel_ptr->type());
     opencl_param_types.emplace_back(last_callee_continuation->type());
 
     // all parameters from device IR and the remaining
@@ -41,35 +41,34 @@ static Continuation* make_opencl(World& world, const Continuation* cont_hls, con
     return opencl;
 }
 
-// Returns last Basic Block with corresponding intrinsic
-static Continuation* last_basic_block(const Intrinsic intrinsic, const Schedule& schedule) {
-    const auto& scheduled_blocks = schedule;
+static Continuation* last_basic_block_with_intrinsic(const Intrinsic intrinsic, const Schedule& schedule) {
     for (size_t i = schedule.size() - 1; i >= 0; --i) {
-        auto continuation = scheduled_blocks[i];
-        auto callee = continuation->callee()->isa_continuation();
+        auto block = schedule[i];
+        auto callee = block->callee()->isa_continuation();
         if (callee && callee->intrinsic() == intrinsic) {
-            return continuation;
+            return block;
         }
     }
     return nullptr;
 }
 
-// Returns a pointer to the first continuation calling hls and the continuation of hls callee
-std::unique_ptr<std::pair<Continuation*, const Def*>> has_hls_callee(Continuation* continuation) {
+const Def* has_hls_callee(Continuation* continuation) {
     auto callee = continuation->callee()->isa_continuation();
     if (callee && callee->intrinsic() == Intrinsic::HLS) {
         auto hls_cont_arg = continuation->arg(hls_free_vars_offset - 1);
-        return std::make_unique<std::pair<Continuation*, const Def*>> (continuation, hls_cont_arg);
+        return hls_cont_arg;
     }
     return nullptr;
 }
 
+// Finds instances of HLS kernel launches and wraps them in a OpenCL launch
 void hls_kernel_launch(World& world, DeviceParams& device_params) {
+    bool last_hls_found = false;
     Continuation* opencl = nullptr;
+
     const size_t base_opencl_param_num = 6;
     Array<const Def*> opencl_args(base_opencl_param_num + device_params.size());
 
-    bool last_hls_found = false;
     Scope::for_each(world, [&] (Scope& scope) {
         Schedule scheduled = schedule(scope);
 
@@ -77,15 +76,19 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
             if (block->empty())
                 continue;
 
-            if (auto conts_ptr = has_hls_callee(block)) {
-                auto cont_mem_obj = conts_ptr->first->mem_param();
-                auto callee_continuation = conts_ptr->second->as_continuation();
+            if (auto hls_callee = has_hls_callee(block)) {
+                auto cont_mem_obj = block->mem_param();
+                auto callee_continuation = hls_callee->as_continuation();
                 Continuation* last_hls_cont;
                 if (!last_hls_found) {
-                    if ((last_hls_cont = last_basic_block(Intrinsic::HLS, scheduled)))
+                    // TODO I'm at a loss for what is intended here. This is an assignment - not a check, the net result
+                    // is the _only the first_ block with an HLS callee will enter this, which means the first block in the schedule
+                    // will be rewired to call the opencl intrinsic, not the last. But it is still using the 'last' hls basic block
+                    // as the one to pass to `make_opencl_intrinsic`. How is this meant to work ?
+                    if ((last_hls_cont = last_basic_block_with_intrinsic(Intrinsic::HLS, scheduled)))
                         last_hls_found = true;
 
-                    opencl = make_opencl(world, last_hls_cont, device_params);
+                    opencl = make_opencl_intrinsic(world, last_hls_cont, device_params);
 
                     // Building a dummy hls_top function
                     auto hls_top_fn_type = opencl->param(4)->type()->as<PtrType>()->pointee()->as<FnType>();
@@ -93,6 +96,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
 
                     auto hls_top_global = world.global(hls_top_fn,false);
                     opencl_args[4] = hls_top_global;
+
                     auto opencl_mem_param = opencl->mem_param();
                     auto opencl_device_param = opencl->param(1);
 
@@ -104,7 +108,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                         if (param == opencl_mem_param)
                             opencl_args[i] = cont_mem_obj;
                         else if (param == opencl_device_param)
-                            opencl_args[i] = conts_ptr->first->arg(hls_free_vars_offset - 3);
+                            opencl_args[i] = block->arg(hls_free_vars_offset - 3);
                         else if (param->type()->isa<TupleType>()) {
                             // Block and grid fixed on 'one'
                             for (size_t j = 0; j < opencl_tuples_elems.size(); ++j) {
@@ -117,7 +121,6 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                                 continue;
                         } else if ( param->type()->isa<FnType>() && param->order() == 1)
                             opencl_args[i] = last_hls_cont->arg(hls_free_vars_offset - 1);
-
                     }
                 }
 
@@ -132,26 +135,22 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                     size_t opencl_arg_index = std::distance(device_params.begin(), param_on_device_it);
                     assert(opencl_arg_index < device_params.size());
                     opencl_args[opencl_arg_index + base_opencl_param_num] = block->arg(index);
-
                 }
-
-                auto cur_bb  = block;
-                auto cur_mem = cont_mem_obj;
 
                 Array<const Def*> args(callee_continuation->type()->num_ops());
                 for (size_t i = 0; i < callee_continuation->num_params(); ++i) {
                     auto param = block->param(i);
                     if (param == cont_mem_obj)
-                        args[i] = cur_mem;
+                        args[i] = cont_mem_obj;
                     else
                         args[i] = param;
                 }
                 // jump over all hls basic blocks until the last one
                 // Replace the last one with the specialized basic block with Opencl intrinsic
                 if (block != last_hls_cont)
-                    cur_bb->jump(callee_continuation, args);
+                    block->jump(callee_continuation, args);
                 else
-                    cur_bb->jump(opencl,opencl_args);
+                    block->jump(opencl, opencl_args);
             }
         }
     });

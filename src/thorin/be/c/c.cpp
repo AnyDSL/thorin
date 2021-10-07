@@ -377,29 +377,6 @@ void CCodeGen::emit_module() {
         }
     }
 
-    // TODO is this still relevant post llvm-rewrite ? -H
-    if (lang_ == Lang::OpenCL) {
-        if (use_fp_16_)
-            func_decls_ << "static inline half intBitsToHalf(unsigned short i) { return as_half(i); }\n";
-        func_decls_ << "static inline float intBitsToFloat(unsigned int i)  { return as_float(i); }\n"
-                       "#ifndef __xilinx__\n"
-                       "static inline double intBitsToDouble(unsigned long i) { return as_double(i); }\n"
-                       "#endif /* __xilinx__ */";
-    } else {
-        // Use memcpy instead
-        const char* types[] = { "half", "float", "double" };
-        const char* int_types[] = { "uint16_t", "uint32_t", "uint64_t" };
-        for (size_t i = use_fp_16_ ? 0 : 1; i < 3; ++i) {
-            auto type = types[i];
-            auto int_type = int_types[i];
-            func_decls_ << "static inline " << type << " intBitsTo" << (char)std::toupper(type[0]) << (type + 1) << "(" << int_type << " x) {\n"
-                        << "    " << type << " f;\n"
-                        << "    memcpy(&f, &x, sizeof(" << type << "));\n"
-                        << "    return f;\n"
-                        << "}\n";
-        }
-    }
-
     if (lang_ == Lang::C99) {
         stream_.fmt("#include <stdbool.h>\n"); // for the 'bool' type
         if (use_align_of_)

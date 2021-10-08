@@ -278,15 +278,6 @@ World::~World() {
  * core calculus
  */
 
-const Pi* World::pi(const Def* dom, const Def* codom, const Def* dbg) {
-    return unify<Pi>(2, codom->type(), dom, codom, dbg);
-}
-
-const Lam* World::lam(const Def* dom, const Def* filter, const Def* body, const Def* dbg) {
-    auto p = pi(dom, body->type());
-    return unify<Lam>(2, p, filter, body, dbg);
-}
-
 const Def* World::app(const Def* callee, const Def* arg, const Def* dbg) {
     auto pi = callee->type()->as<Pi>();
 

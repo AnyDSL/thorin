@@ -105,7 +105,7 @@ public:
 
     /// @name Pi
     //@{
-    const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {});
+    const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {}) { return unify<Pi>(2, codom->type(), dom, codom, dbg); }
     const Pi* pi(Defs dom, const Def* codom, const Def* dbg = {}) { return pi(sigma(dom), codom, dbg); }
     Pi* nom_pi(const Def* type, const Def* dbg = {}) { return insert<Pi>(2, type, dbg); }
     //@}
@@ -131,8 +131,8 @@ public:
         return lam;
     }
     Lam* nom_lam(const Pi* cn, const Def* dbg = {}) { return nom_lam(cn, Lam::CC::C, dbg); }
-    const Lam* lam(const Def* dom, const Def* filter, const Def* body, const Def* dbg);
-    const Lam* lam(const Def* dom, const Def* body, const Def* dbg) { return lam(dom, lit_true(), body, dbg); }
+    const Lam* lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg) { return unify<Lam>(2, pi, filter, body, dbg); }
+    const Lam* lam(const Pi* pi, const Def* body, const Def* dbg) { return lam(pi, lit_true(), body, dbg); }
     //@}
 
     /// @name App

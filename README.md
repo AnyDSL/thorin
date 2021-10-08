@@ -13,7 +13,8 @@ See our [AnyDSL/Thorin Website](https://anydsl.github.io/Thorin).
 
 ```ebnf
 (* nominals *)
-n = lam ID ":" e "=" e "," e ";"
+n = lam ID ":" e ["=" e "," e] ";"
+  | sig ID ":" e (["=" e "," ... "," e]) | ("(" N ")") ";"
 
 e = e e                             (* application *)
   | ex(e, e)                        (* extract *)

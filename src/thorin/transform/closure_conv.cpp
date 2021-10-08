@@ -18,6 +18,7 @@ void ClosureConv::run() {
             auto env = closure->env;
             auto num_fvs = closure->num_fvs;
             auto old_fn = closure->old_fn;
+
             world().DLOG("===== CC (run): closure body {} [old={}, env={}] =====", 
                     new_fn, old_fn, env);
             auto subst = Def2Def();
@@ -29,16 +30,24 @@ void ClosureConv::run() {
                     subst.emplace(env->op(i), world().extract(env_param, i, world().dbg("cc_fv")));
                 }
             }
+
             auto params = 
                 world().tuple(Array<const Def*>(old_fn->num_doms(), [&] (auto i) {
                     return new_fn->var(i + 1); 
                 }), world().dbg("cc_param"));
             subst.emplace(old_fn->var(), params);
-            auto body = rewrite(new_fn->body(), &subst);
-            auto filter = rewrite(new_fn->filter(), &subst);
+
+            auto filter = (new_fn->filter()) 
+                ? rewrite(new_fn->filter(), &subst) 
+                : world().lit_false(); // extern function?
+            
+            auto body = (new_fn->body())
+                ? rewrite(new_fn->body(), &subst)
+                : world().app(old_fn, params); // extern function
+
             new_fn->set_body(body);
             new_fn->set_filter(filter);
-            new_fn->dump(9000);
+            // new_fn->dump(9000);
         }
         else {
             world().DLOG("CC (run): rewrite def {}", def);
@@ -171,7 +180,8 @@ ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
     new_lam->set_filter(fn->filter());
     if (fn->is_external()) { 
         new_lam->make_external();
-        fn->make_internal();
+        if (fn->body() && fn->filter()) // imported external
+            fn->make_internal();
     }
 
     world().DLOG("CC (make_closure): {} : {} ~~> {} : {}, env = {} : {}", fn, fn->type(), new_lam,

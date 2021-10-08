@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include <llvm/ADT/Triple.h>
+#include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -1236,12 +1237,62 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::Fibers:      return emit_fibers(irbuilder, continuation);
         case Intrinsic::Spawn:       return emit_spawn(irbuilder, continuation);
         case Intrinsic::Sync:        return emit_sync(irbuilder, continuation);
+        case Intrinsic::RV:          return emit_rv_intrinsic(irbuilder, continuation);
 #if THORIN_ENABLE_RV
         case Intrinsic::Vectorize:   return emit_vectorize_continuation(irbuilder, continuation);
 #else
         case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with RV support");
 #endif
         default: THORIN_UNREACHABLE;
+    }
+}
+
+Continuation* CodeGen::emit_rv_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    emit_unsafe(continuation->arg(0)); // Emit mem
+
+    Debug de = continuation->callee()->debug();
+
+    auto cont = continuation->arg(2)->as_continuation();
+
+    auto val = emit(continuation->arg(1));
+    assert(val);
+
+    if (de.name.rfind("rv_ballot", 0) == 0) {
+        auto * indexTy = convert(cont->param(1)->type());
+        auto vecWidth = llvm::cast<llvm::FixedVectorType>(val->getType())->getNumElements();
+        auto * intVecTy = llvm::FixedVectorType::get(indexTy, vecWidth);
+        uint32_t bits = intVecTy->getScalarSizeInBits();
+
+        if (current_mask)
+            THORIN_UNREACHABLE; //currently unsupported.
+
+        llvm::Intrinsic::ID id;
+        switch (vecWidth) {
+        case 2: id = llvm::Intrinsic::x86_sse2_movmsk_pd; bits = 64; break;
+        case 4: id = llvm::Intrinsic::x86_sse_movmsk_ps; break;
+        case 8: id = llvm::Intrinsic::x86_avx_movmsk_ps_256; break;
+        default: abort();
+          assert(false && "Unsupported vector width in ballot !");
+        }
+
+        auto * extVal = irbuilder.CreateSExt(val, llvm::FixedVectorType::get(irbuilder.getIntNTy(bits), vecWidth), de.name);
+        auto * simdVal = irbuilder.CreateBitCast(extVal, llvm::FixedVectorType::get(bits == 32 ? irbuilder.getFloatTy() : irbuilder.getDoubleTy(), vecWidth), de.name);
+
+        auto movMaskDecl = llvm::Intrinsic::getDeclaration(module_.get(), id);
+        auto call = irbuilder.CreateCall(movMaskDecl, simdVal, de.name);
+
+        emit_phi_arg(irbuilder, cont->param(1), call);
+        return cont;
+    } else if (de.name.rfind("rv_any", 0) == 0) {
+        auto call = irbuilder.CreateOrReduce(val);
+        emit_phi_arg(irbuilder, cont->param(1), call);
+        return cont;
+    } else if (de.name.rfind("rv_all", 0) == 0) {
+        auto call = irbuilder.CreateAndReduce(val);
+        emit_phi_arg(irbuilder, cont->param(1), call);
+        return cont;
+    } else {
+        THORIN_UNREACHABLE;
     }
 }
 

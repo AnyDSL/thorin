@@ -144,7 +144,7 @@ Vectorizer::DivergenceAnalysis::State
 Vectorizer::DivergenceAnalysis::getUniform(const Def * def) {
 #ifdef DUMP_DIV_ANALYSIS
     std::cerr << "Get uniform\n";
-    std::cerr << def << "\n";
+    std::cerr << def->to_string() << "\n";
 #endif
     if (def->isa<Tuple>() && def->op(1)->isa<Continuation>()) {
 #ifdef DUMP_DIV_ANALYSIS

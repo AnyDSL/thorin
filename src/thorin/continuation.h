@@ -68,6 +68,7 @@ enum class Intrinsic : uint8_t {
     Sync,                       ///< Internal Parallel-CPU-Backend.
     Vectorize,                  ///< External vectorizer.
     Sequence,                   ///< External vectorizer. emit sequenced code
+    RV,                         ///< RV related intrinsics, will be lowered
     AcceleratorEnd,
     Reserve = AcceleratorEnd,   ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function

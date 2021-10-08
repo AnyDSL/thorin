@@ -1138,9 +1138,24 @@ llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
     if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
         return irbuilder.CreateStructGEP(convert(lea->ptr_pointee()), emit(lea->ptr()), primlit_value<u32>(lea->index()));
 
+    auto inner_ptr = emit(lea->ptr());
+
+    auto extended_pointer_type = lea->ptr_pointee()->isa<VectorExtendedType>();
+    if (extended_pointer_type && (extended_pointer_type->element()->isa<TupleType>() || extended_pointer_type->element()->isa<StructType>())) {
+        auto vector_width = lea->ptr_type()->as<VectorType>()->length();
+        llvm::Value* vector = llvm::UndefValue::get(convert(lea->type()));
+        auto element_type = convert(extended_pointer_type->element());
+        for (size_t lane = 0; lane < vector_width; lane++) {
+            auto extract = irbuilder.CreateExtractElement(inner_ptr, irbuilder.getInt32(lane));
+            auto gep = irbuilder.CreateStructGEP(element_type, extract, primlit_value<u32>(lea->index()));
+            vector = irbuilder.CreateInsertElement(vector, gep, irbuilder.getInt32(lane));
+        }
+        return vector;
+    }
+
     assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
     llvm::Value* args[2] = { irbuilder.getInt64(0), emit(lea->index()) };
-    return irbuilder.CreateInBoundsGEP(emit(lea->ptr()), args);
+    return irbuilder.CreateInBoundsGEP(inner_ptr, args);
 }
 
 llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {

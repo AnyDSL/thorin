@@ -336,7 +336,7 @@ void Vectorizer::DivergenceAnalysis::run() {
         std::cerr << "Header\n";
         elem.first->dump();
         std::cerr << "Exits\n";
-        for (auto elem : elem.second())
+        for (auto elem : elem.second)
             elem->dump();
     }
     std::cerr << "End Loops\n";
@@ -636,13 +636,24 @@ void Vectorizer::DivergenceAnalysis::run() {
                         if (target->is_imported()) {
                             auto actualtarget = const_cast<Continuation*>(cont->op(cont->num_ops() - 1)->isa<Continuation>());
                             assert(actualtarget);
-                            for (auto param : actualtarget->params()) {
+                            Debug de = target->debug();
+                            if (de.name.rfind("rv_ballot", 0) == 0) {
+                                for (auto param : actualtarget->params()) {
 #ifdef DUMP_DIV_ANALYSIS
-                                std::cerr << "Mark param varying\n";
-                                param->dump();
+                                    std::cerr << "Mark rv_ballot param uniform\n";
+                                    param->dump();
 #endif
-                                uniform[param] = Varying;
-                                def_queue.push(param);
+                                    uniform[param] = Uniform;
+                                }
+                            } else  {
+                                for (auto param : actualtarget->params()) {
+#ifdef DUMP_DIV_ANALYSIS
+                                    std::cerr << "Mark param varying\n";
+                                    param->dump();
+#endif
+                                    uniform[param] = Varying;
+                                    def_queue.push(param);
+                                }
                             }
                         }
                         for (size_t i = 1; i < cont->num_ops(); ++i) {
@@ -996,20 +1007,23 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
         if (callee->is_imported()) {
             auto old_fn_type = callee->type()->as<FnType>();
             Array<const Type*> ops(old_fn_type->num_ops());
-            bool anyvector = false;
+            bool any_vector = false;
+            size_t vector_width = 1;
             for (size_t i = 0; i < old_fn_type->num_ops(); i++) {
                 ops[i] = nops[i + 1]->type(); //TODO: this feels like a bad hack. At least it's working for now.
-                if (auto vectype = ops[i]->isa<VectorType>(); vectype && vectype->is_vector())
-                    anyvector = true;
+                if (auto vectype = ops[i]->isa<VectorType>(); vectype && vectype->is_vector()) {
+                    any_vector = true;
+                    vector_width = vectype->length();
+                }
             }
             Debug de = callee->debug();
 
             if (de.name.rfind("rv_", 0) == 0) {
-                std::cerr << "RV intrinsic: " << de.name << "\n";
-                THORIN_UNREACHABLE;
-            }
-
-            if (anyvector) {
+                //leave unchanged, will be lowered in backend.
+                //std::cerr << "RV intrinsic for BE: " << de.name << "\n";
+                //ntarget = world_.continuation(world_.fn_type(ops), Continuation::Attributes(Intrinsic::RV), de);
+                ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
+            } else if (any_vector) {
                 if (de.name == "llvm.exp.f32")
                     de.name = "llvm.exp.v8f32"; //TODO: Use vectorlength to find the correct intrinsic.
                 else if (de.name == "llvm.exp.f64")
@@ -1037,6 +1051,26 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                 else {
                     std::cerr << "Not supported: " << de.name << "\n";
                     assert(false && "Import not supported in vectorize.");
+                }
+
+                for (size_t i = 0, e = old_fn_type->num_ops(); i != e; ++i) {
+                    if (auto vector = ops[i]->isa<VectorType>())
+                        if (vector->is_vector())
+                            continue;
+                    if (ops[i]->isa<VariantVectorType>())
+                        continue;
+                    if (ops[i]->isa<MemType>())
+                        continue;
+                    if (ops[i]->isa<FnType>())
+                        continue;
+
+                    //non-vector element in a vector setting needs to be extended to a vector.
+                    Array<const Def*> elements(vector_width);
+                    for (size_t j = 0; j < vector_width; j++) {
+                        elements[j] = nops[i + 1];
+                    }
+                    nops[i + 1] = world_.vector(elements, nops[i + 1]->debug_history());
+                    ops[i] = nops[i + 1]->type();
                 }
 
                 ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
@@ -2298,16 +2332,12 @@ bool Vectorizer::run() {
 
 bool vectorize(World& world) {
     world.VLOG("start vectorizer");
-    //world.dump();
     bool res = Vectorizer(world).run();
-
-    //world.dump();
 
     if (!res)
         flatten_vectors(world);
-    //world.cleanup();
+    world.cleanup();
 
-    //world.dump();
     debug_verify(world);
 
     world.VLOG("end vectorizer");

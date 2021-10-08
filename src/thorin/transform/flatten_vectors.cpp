@@ -302,7 +302,11 @@ const PrimOp * Flatten::flatten_primop(const PrimOp *primop) {
                 auto extract_result  = world.extract(element, index);
                 elements.emplace_back(extract_result);
             }
-            new_primop = world.vector(elements)->as<PrimOp>();
+            auto expected_type = world.vec_type(elements[0]->type(), vector_width);
+            if (expected_type->like(newtype))
+                new_primop = world.vector(elements)->as<PrimOp>();
+            else
+                new_primop = world.struct_agg(newtype, elements)->as<PrimOp>();
         } else {
             new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         }
@@ -348,8 +352,7 @@ const PrimOp * Flatten::flatten_primop(const PrimOp *primop) {
         } else {
             auto element_type = newtype->op(0);
             size_t vector_width = primop->type()->as<VectorType>()->length();
-            //element_type->dump();
-            assert(element_type->isa<VariantType>());
+            //assert(element_type->isa<VariantType>());
 
             std::vector<const Def*> rebuild_struct_elements;
             for (size_t lane = 0; lane < vector_width; ++lane) {

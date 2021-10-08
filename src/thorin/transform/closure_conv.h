@@ -18,17 +18,17 @@ class ClosureConv {
 
     private:
         struct Closure {
-            Lam *old_fn;
+            Lam* old_fn;
             size_t num_fvs;
-            const Def *env;
-            Lam *fn;
+            const Def* env;
+            Lam* fn;
         };
 
-        const Def* rewrite(const Def *old_def, Def2Def *subst = nullptr);
+        const Def* rewrite(const Def* old_def, Def2Def* subst = nullptr);
 
-        const Def* closure_type(const Pi *pi, const Def *ent_type = nullptr);
+        const Def* closure_type(const Pi* pi, const Def* ent_type = nullptr);
 
-        Closure make_closure(Lam *lam);
+        Closure make_closure(Lam* lam);
 
         World& world() { return world_; }
 

@@ -5,7 +5,7 @@ namespace thorin {
 
 const Def* EtaExp::rewrite(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); lam && lam->is_set()) {
             if (isa_callee(def, i)) continue;
 
             if (expand_.contains(lam)) {
@@ -73,7 +73,7 @@ Lam* EtaExp::eta_wrap(Lam* lam) {
 undo_t EtaExp::analyze(const Def* def) {
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
+        if (auto lam = def->op(i)->isa_nom<Lam>(); lam && lam->is_set()) {
             if (expand_.contains(lam)) continue;
 
             if (isa_callee(def, i)) {

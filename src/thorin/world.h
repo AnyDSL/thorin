@@ -107,8 +107,7 @@ public:
     //@{
     const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {});
     const Pi* pi(Defs dom, const Def* codom, const Def* dbg = {}) { return pi(sigma(dom), codom, dbg); }
-    Pi* nom_pi(const Def* type, const Def* dom, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(dom); }
-    Pi* nom_pi(const Def* type, Defs doms, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(doms); }
+    Pi* nom_pi(const Def* type, const Def* dbg = {}) { return insert<Pi>(2, type, dbg); }
     //@}
 
     /// @name Pi: continuation type (cn), i.e., @p Pi type with codom @p Bot%tom

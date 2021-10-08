@@ -47,7 +47,6 @@ void ClosureConv::run() {
 
             new_fn->set_body(body);
             new_fn->set_filter(filter);
-            // new_fn->dump(9000);
         }
         else {
             world().DLOG("CC (run): rewrite def {}", def);
@@ -60,7 +59,7 @@ void ClosureConv::run() {
 }
 
 
-const Def *ClosureConv::rewrite(const Def *def, Def2Def *subst) {
+const Def* ClosureConv::rewrite(const Def* def, Def2Def* subst) {
     switch(def->node()) {
         case Node::Kind:
         case Node::Space:
@@ -73,7 +72,7 @@ const Def *ClosureConv::rewrite(const Def *def, Def2Def *subst) {
             break;
     }
 
-    auto map = [&](const Def *new_def) {
+    auto map = [&](const Def* new_def) {
         if (subst)
             subst->emplace(def, new_def);
         return new_def;
@@ -115,10 +114,10 @@ const Def *ClosureConv::rewrite(const Def *def, Def2Def *subst) {
     }
 }
 
-const Def *ClosureConv::closure_type(const Pi *pi, const Def *env_type) {
+const Def* ClosureConv::closure_type(const Pi* pi, const Def* env_type) {
     if (!env_type) {
         if (auto pct = closure_types_.lookup(pi))
-            return *pct;
+            return* pct;
         auto sigma = world().nom_sigma(world().kind(), 2_u64, world().dbg("cc_pct"));
         auto new_pi = closure_type(pi, sigma->var());
         sigma->set(0, sigma->var());
@@ -137,7 +136,7 @@ const Def *ClosureConv::closure_type(const Pi *pi, const Def *env_type) {
 }
 
 
-void compute_fvs(Lam *fn, DefSet& visited, DefSet& fvs) {
+void compute_fvs(Lam* fn, DefSet& visited, DefSet& fvs) {
     if (visited.contains(fn))
         return;
     visited.insert(fn);
@@ -152,15 +151,15 @@ void compute_fvs(Lam *fn, DefSet& visited, DefSet& fvs) {
     }
 }
 
-void compute_fvs(Lam *lam, DefSet &fvs) {
+void compute_fvs(Lam* lam, DefSet &fvs) {
     auto visited = DefSet();
     compute_fvs(lam, visited, fvs);
 }
 
 
-ClosureConv::Closure ClosureConv::make_closure(Lam *fn) {
+ClosureConv::Closure ClosureConv::make_closure(Lam* fn) {
     if (auto closure = closures_.lookup(fn))
-        return *closure;
+        return* closure;
 
     auto fv_set = DefSet();
     compute_fvs(fn, fv_set);

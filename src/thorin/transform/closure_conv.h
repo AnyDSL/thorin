@@ -2,9 +2,12 @@
 #ifndef THORIN_CLOSURE_CONV_H
 #define THORIN_CLOSURE_CONV_H
 
-#include "thorin/world.h"
-namespace thorin {
+#include <queue>
+#include <vector>
 
+#include "thorin/world.h"
+
+namespace thorin {
 
 class ClosureConv {
     public:

@@ -1,6 +1,6 @@
 
-#include "thorin/analyses/scope.h"
 #include "thorin/transform/closure_conv.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
 

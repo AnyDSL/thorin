@@ -77,7 +77,6 @@ set(THORIN_SOURCES
     transform/partial_evaluation.h
     transform/closure_conv.h
     transform/closure_conv.cpp
-    util/args.h
     util/array.h
     util/assert.h
     util/bit.h

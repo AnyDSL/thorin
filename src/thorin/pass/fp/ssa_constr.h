@@ -9,46 +9,51 @@
 
 namespace thorin {
 
-/**
- * SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
- * This is loosely based upon:
- * "Simple and Efficient Construction of Static Single Assignment Form"
- * by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau. <br>
- * Depends on: @p EtaConv.
- */
-class SSAConstr : public FPPass<SSAConstr> {
+class EtaExp;
+
+/// SSA construction algorithm that promotes @p Slot%s, @p Load%s, and @p Store%s to SSA values.
+/// This is loosely based upon:
+/// "Simple and Efficient Construction of Static Single Assignment Form"
+/// by Braun, Buchwald, Hack, Leißa, Mallon, Zwinkau. <br>
+class SSAConstr : public FPPass<SSAConstr, Lam> {
 public:
-    SSAConstr(PassMan& man)
+    SSAConstr(PassMan& man, EtaExp* eta_exp)
         : FPPass(man, "ssa_constr")
+        , eta_exp_(eta_exp)
     {}
 
-    enum : flags_t { Sloxy, Phixy, Traxy };
+    enum : flags_t { Etaxy, Phixy, Sloxy, Traxy };
 
-    struct Info {
+    struct SSAInfo {
         Lam* pred = nullptr;
         GIDSet<const Proxy*> writable;
     };
 
-    using Lam2Info = std::map<Lam*, Info, GIDLt<Lam*>>;
-    using Data = std::tuple<Lam2Info>;
+    using Data = std::map<Lam*, SSAInfo, GIDLt<Lam*>>;
 
 private:
+    /// @name PassMan hooks
+    //@{
     void enter() override;
+    const Def* rewrite(const Proxy*) override;
     const Def* rewrite(const Def*) override;
-    undo_t analyze() override;
+    undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;
+    //@}
 
+    /// @name SSA construction helpers - see paper
+    //@{
     const Def* get_val(Lam*, const Proxy*);
     const Def* set_val(Lam*, const Proxy*, const Def*);
-    undo_t join(Lam* cur_lam, Lam* lam, bool);
-    const Def* mem2phi(Lam*, const App*, Lam*);
+    const Def* mem2phi(const App*, Lam*);
+    //@}
 
+    EtaExp* eta_exp_;
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2phixys_; ///< Contains the @p Phixy%s to add to @c mem_lam to build the @c phi_lam.
     GIDSet<const Proxy*> keep_;                                      ///< Contains @p Sloxy%s we want to keep.
     LamSet preds_n_;
     Lam2Lam mem2phi_;
-    DefSet analyzed_;
 };
 
 }

@@ -1,3 +1,4 @@
+#if 0
 #ifndef THORIN_PASS_FP_SCALARIZE_H
 #define THORIN_PASS_FP_SCALARIZE_H
 
@@ -14,8 +15,6 @@ public:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
-    using Data = std::tuple<LamSet>;
-
 private:
     DefSet keep_;
     Lam2Lam tup2sca_;
@@ -24,4 +23,4 @@ private:
 }
 
 #endif
-
+#endif

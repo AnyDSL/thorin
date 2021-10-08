@@ -1,6 +1,8 @@
 #ifndef THORIN_CHECK_H
 #define THORIN_CHECK_H
 
+#include <deque>
+
 #include "thorin/def.h"
 
 namespace thorin {

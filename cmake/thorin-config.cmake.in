@@ -51,10 +51,10 @@ find_path(Thorin_CONFIG_DIR NAMES thorin/config.h
         ../../../include
 )
 
-if(NOT TARGET thorin)
+if(NOT TARGET libthorin)
     include(${Thorin_DIR}/thorin-exports.cmake)
 endif()
-set(Thorin_LIBRARY thorin)
+set(Thorin_LIBRARY libthorin)
 
 set(Thorin_DEPS_INCLUDE_DIRS ${Half_INCLUDE_DIRS} ${Thorin_CONFIG_DIR})
 if(LLVM_FOUND)

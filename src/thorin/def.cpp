@@ -6,7 +6,6 @@
 #include "thorin/rewrite.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/utility.h"
 
 namespace thorin {
 
@@ -93,6 +92,7 @@ const Def* Vel    ::rebuild(World& w, const Def* t, Defs o, const Def* dbg) cons
 
 template<bool up> const Def* TExt  <up>::rebuild(World& w, const Def* t, Defs  , const Def* dbg) const { return w.ext  <up>(t,    dbg); }
 template<bool up> const Def* TBound<up>::rebuild(World& w, const Def*  , Defs o, const Def* dbg) const { return w.bound<up>(   o, dbg); }
+
 /*
  * stub
  */
@@ -233,7 +233,7 @@ void Def::finalize() {
         order_ = std::max(order_, op(i)->order_);
     }
 
-    if (!isa<Space>()) {
+    if (!isa<Space>() && !isa<Axiom>()) {
         if (auto dep = type()->dep(); dep != Dep::Bot) {
             dep_ |= dep;
             const auto& p = type()->uses_.emplace(this, -1);

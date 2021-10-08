@@ -1,5 +1,8 @@
+#include <queue>
+
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/util/container.h"
 #include "thorin/util/hash.h"
 
 // WARNING This file will be nuked
@@ -51,7 +54,7 @@ public:
     PartialEvaluator(World& world, bool lower2cff)
         : world_(world)
         , lower2cff_(lower2cff)
-        , boundary_(world.cur_gid())
+        , boundary_(world.curr_gid())
     {}
 
     World& world() { return world_; }

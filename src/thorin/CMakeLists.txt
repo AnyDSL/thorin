@@ -37,12 +37,20 @@ set(THORIN_SOURCES
     analyses/schedule.h
     analyses/scope.cpp
     analyses/scope.h
+    fe/lexer.cpp
+    fe/lexer.h
+    fe/parser.cpp
+    fe/parser.h
+    fe/tok.cpp
+    fe/tok.h
     be/c.cpp
     be/c.h
     pass/optimize.cpp
     pass/pass.cpp
-    pass/fp/eta_conv.cpp
-    pass/fp/eta_conv.h
+    pass/fp/eta_exp.cpp
+    pass/fp/eta_exp.h
+    pass/fp/eta_red.cpp
+    pass/fp/eta_red.h
     pass/fp/beta_red.cpp
     pass/fp/beta_red.h
     pass/fp/copy_prop.cpp
@@ -71,18 +79,23 @@ set(THORIN_SOURCES
     transform/closure_conv.cpp
     util/args.h
     util/array.h
+    util/assert.h
+    util/bit.h
     util/bitset.cpp
     util/bitset.h
     util/cast.h
-    util/hash.h
+    util/container.h
     util/hash.cpp
+    util/hash.h
     util/indexmap.h
     util/indexset.h
     util/iterator.h
+    util/ptr.h
     util/stream.cpp
     util/stream.h
     util/types.h
-    util/utility.h
+    util/utf8.cpp
+    util/utf8.h
 )
 
 if(LLVM_FOUND)
@@ -109,12 +122,34 @@ if(LLVM_FOUND)
     )
 endif()
 
-add_library(thorin ${THORIN_SOURCES})
+add_library(libthorin ${THORIN_SOURCES})
+set_target_properties(libthorin PROPERTIES PREFIX "")
+target_compile_options(libthorin PRIVATE -Wall -Wextra)
+target_include_directories(libthorin PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 if(LLVM_FOUND)
+    target_compile_definitions(libthorin PUBLIC ${LLVM_DEFINITIONS} LLVM_SUPPORT)
+    target_include_directories(libthorin PRIVATE ${LLVM_INCLUDE_DIRS})
     llvm_map_components_to_libnames(LLVM_LIBRARIES all)
-    target_link_libraries(thorin ${LLVM_LIBRARIES})
+    target_link_libraries(libthorin PUBLIC ${LLVM_LIBRARIES})
 endif()
+
 if(RV_FOUND)
-    target_link_libraries(thorin ${RV_LIBRARIES})
+    target_link_libraries(libthorin PUBLIC ${RV_LIBRARIES})
+    target_include_directories(libthorin PRIVATE ${RV_INCLUDE_DIRS})
+endif()
+
+find_package(Half REQUIRED)
+message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
+target_include_directories(libthorin PUBLIC ${Half_INCLUDE_DIRS})
+
+# check for colored terminal
+set(COLOR_TTY_AVAILABLE TRUE)
+if(WIN32)
+    # Windows console does not support ANSI escape codes
+    set(COLOR_TTY_AVAILABLE FALSE)
+endif()
+set(COLORIZE_OUTPUT ${COLOR_TTY_AVAILABLE} CACHE BOOL "Set to true to enable colored error messages")
+if(COLORIZE_OUTPUT)
+    target_compile_definitions(libthorin PUBLIC COLORIZE_LOG)
 endif()

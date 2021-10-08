@@ -9,6 +9,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/container.h"
 
 namespace thorin {
 
@@ -172,10 +173,10 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
                 break;
             }
 
-            int cur_depth = looptree_[i]->depth();
-            if (cur_depth < depth) {
+            int curr_depth = looptree_[i]->depth();
+            if (curr_depth < depth) {
                 result = i;
-                depth = cur_depth;
+                depth = curr_depth;
             }
         }
     }

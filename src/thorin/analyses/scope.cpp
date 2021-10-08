@@ -8,6 +8,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/util/container.h"
 
 namespace thorin {
 

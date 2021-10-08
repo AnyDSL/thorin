@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-class RetWrap : public RWPass {
+class RetWrap : public RWPass<Lam> {
 public:
     RetWrap(PassMan& man)
         : RWPass(man, "ret_wrap")

@@ -115,14 +115,14 @@ void LoopTreeBuilder<forward>::build() {
 
 template<bool forward>
 void LoopTreeBuilder<forward>::recurse(Head* parent, ArrayRef<const CFNode*> heads, int depth) {
-    size_t cur_new_child = 0;
+    size_t curr_new_child = 0;
     for (const auto& head : heads) {
         set_.clear();
         walk_scc(head, parent, depth, 0);
 
         // now mark all newly found heads globally as head
-        for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
-            for (const auto& head : parent->child(cur_new_child)->cf_nodes())
+        for (size_t e = parent->num_children(); curr_new_child != e; ++curr_new_child) {
+            for (const auto& head : parent->child(curr_new_child)->cf_nodes())
                 states_[head] |= IsHead;
         }
     }

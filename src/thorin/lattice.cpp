@@ -2,6 +2,7 @@
 
 #include "thorin/lam.h"
 #include "thorin/world.h"
+#include "thorin/util/container.h"
 
 namespace thorin {
 

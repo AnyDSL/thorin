@@ -65,7 +65,7 @@ public:
     World& operator=(const World&) = delete;
 
     explicit World(const std::string& name = {});
-    ///  Inherits the @p state_ of the @p other @p World but does @em not perform a copy.
+    /// Inherits the @p state_ of the @p other @p World but does @em not perform a copy.
     explicit World(const World& other)
         : World(other.name())
     {
@@ -83,8 +83,8 @@ public:
 
     /// @name manage global identifier - a unique number for each Def
     //@{
-    u32 cur_gid() const { return state_.cur_gid; }
-    u32 next_gid() { return ++state_.cur_gid; }
+    u32 curr_gid() const { return state_.curr_gid; }
+    u32 next_gid() { return ++state_.curr_gid; }
     //@}
 
     /// @name Space, Kind, Var, Proxy
@@ -105,10 +105,9 @@ public:
 
     /// @name Pi
     //@{
-    const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {});
+    const Pi* pi(const Def* dom, const Def* codom, const Def* dbg = {}) { return unify<Pi>(2, codom->type(), dom, codom, dbg); }
     const Pi* pi(Defs dom, const Def* codom, const Def* dbg = {}) { return pi(sigma(dom), codom, dbg); }
-    Pi* nom_pi(const Def* type, const Def* dom, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(dom); }
-    Pi* nom_pi(const Def* type, Defs doms, const Def* dbg = {}) { return insert<Pi>(2, type, dbg)->set_dom(doms); }
+    Pi* nom_pi(const Def* type, const Def* dbg = {}) { return insert<Pi>(2, type, dbg); }
     //@}
 
     /// @name Pi: continuation type (cn), i.e., @p Pi type with codom @p Bot%tom
@@ -132,8 +131,8 @@ public:
         return lam;
     }
     Lam* nom_lam(const Pi* cn, const Def* dbg = {}) { return nom_lam(cn, Lam::CC::C, dbg); }
-    const Lam* lam(const Def* dom, const Def* filter, const Def* body, const Def* dbg);
-    const Lam* lam(const Def* dom, const Def* body, const Def* dbg) { return lam(dom, lit_true(), body, dbg); }
+    const Lam* lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg) { return unify<Lam>(2, pi, filter, body, dbg); }
+    const Lam* lam(const Pi* pi, const Def* body, const Def* dbg) { return lam(pi, lit_true(), body, dbg); }
     //@}
 
     /// @name App
@@ -168,11 +167,13 @@ public:
     /// @name Tuple
     //@{
     /// ascribes @p type to this tuple - needed for dependently typed and structural @p Sigma%s
+    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <code>[]</code>
     const Def* tuple(const Def* type, Defs ops, const Def* dbg = {});
     const Def* tuple(Defs ops, const Def* dbg = {});
-    const Def* tuple_str(const char* s, const Def* = {});
+    const Def* tuple_str(const char* s, const Def* dbg = {});
     const Def* tuple_str(const std::string& s, const Def* dbg = {}) { return tuple_str(s.c_str(), dbg); }
-    const Tuple* tuple() { return data_.tuple_; } ///< the unit value of type <code>[]</code>
+    Sym sym(const char* s, const Def* dbg = {}) { return tuple_str(s, dbg); }
+    Sym sym(const std::string& s, const Def* dbg = {}) { return tuple_str(s, dbg); }
     //@}
 
     /// @name Pack
@@ -219,13 +220,23 @@ public:
     const Lit* lit_nat_1  () { return data_.lit_nat_1_;   }
     const Lit* lit_nat_max() { return data_.lit_nat_max_; }
     const Lit* lit_int      (const Def* type, u64 val, const Def* dbg = {});
-    const Lit* lit_int      (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod),                          val, dbg); }
-    const Lit* lit_int_width(nat_t width,     u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                          val, dbg); }
-    const Lit* lit_int_mod  (nat_t   mod,     u64 val, const Def* dbg = {}) { return lit_int(type_int      (  mod), mod == 0 ? val : (val % mod), dbg); }
+
+    /// Constructs @p Int @p Lit @p val via @p width, i.e. converts from @p width to @em internal @c mod value.
+    const Lit* lit_int_width(nat_t width, u64 val, const Def* dbg = {}) { return lit_int(type_int_width(width),                          val, dbg); }
+
+    /// Constructs @p Int @p Lit @p val with @em extenral @p mod, i.e. if <code> mod == 0 </code>, it will be adjusted to @c uint_t(-1) (special case for 2^64).
+    const Lit* lit_int_mod  (nat_t mod, u64 val, const Def* dbg = {}) {
+        return lit_int(type_int(mod), mod == 0 ? val : (val % mod), dbg);
+    }
+
+    /// Constructs @p Int @p Lit @p val with @em internal @p mod, i.e. without any conversions - <code> mod = 0 </code> means 2^64.
+    /// Use this version if you directly receive an @em internal @c mod which is already converted.
+    const Lit* lit_int(nat_t mod, u64 val, const Def* dbg = {}) { return lit_int(type_int( mod), val, dbg); }
     template<class I> const Lit* lit_int(I val, const Def* dbg = {}) {
         static_assert(std::is_integral<I>());
         return lit_int(type_int(width2mod(sizeof(I)*8)), val, dbg);
     }
+
     const Lit* lit_bool(bool val) { return data_.lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return data_.lit_bool_[0]; }
     const Lit* lit_true()  { return data_.lit_bool_[1]; }
@@ -276,7 +287,7 @@ public:
     //@{
     //@}
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, const Def* dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, const Def* dbg = {}) { return global(lit_nat(state_.cur_gid), init, is_mutable, dbg); }
+    const Def* global(const Def* init, bool is_mutable = true, const Def* dbg = {}) { return global(lit_nat(state_.curr_gid), init, is_mutable, dbg); }
     const Def* global_immutable_string(const std::string& str, const Def* dbg = {});
     //@}
 
@@ -358,7 +369,7 @@ public:
     const Def* op_load (const Def* mem, const Def* ptr,                 const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(ax_load (), {T, a}), {mem, ptr     }, dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(ax_store(), {T, a}), {mem, ptr, val}, dbg); }
     const Def* op_alloc(const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_alloc(), {type, lit_nat_0()}),  mem,                      dbg); }
-    const Def* op_slot (const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_slot (), {type, lit_nat_0()}), {mem, lit_nat(cur_gid())}, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_slot (), {type, lit_nat_0()}), {mem, lit_nat(curr_gid())}, dbg); }
     //@}
 
     /// @name wrappers for unary operations
@@ -499,7 +510,7 @@ private:
         }
 
         arena_.deallocate<T>(def);
-        --state_.cur_gid;
+        --state_.curr_gid;
         return static_cast<const T*>(*i);
     }
 
@@ -519,7 +530,7 @@ private:
     public:
         Arena()
             : root_zone_(new Zone) // don't use 'new Zone()' - we keep the allocated Zone uninitialized
-            , cur_zone_(root_zone_.get())
+            , curr_zone_(root_zone_.get())
         {}
 
         struct Zone {
@@ -547,12 +558,12 @@ private:
 
             if (buffer_index_ + num_bytes >= Zone::Size) {
                 auto zone = new Zone;
-                cur_zone_->next.reset(zone);
-                cur_zone_ = zone;
+                curr_zone_->next.reset(zone);
+                curr_zone_ = zone;
                 buffer_index_ = 0;
             }
 
-            auto result = new (cur_zone_->buffer + buffer_index_) T(args...);
+            auto result = new (curr_zone_->buffer + buffer_index_) T(args...);
             assert(result->num_ops() == num_ops);
             buffer_index_ += num_bytes;
             assert(buffer_index_ % alignof(T) == 0);
@@ -579,13 +590,13 @@ private:
 
     private:
         std::unique_ptr<Zone> root_zone_;
-        Zone* cur_zone_;
+        Zone* curr_zone_;
         size_t buffer_index_ = 0;
     } arena_;
 
     struct State {
         LogLevel min_level = LogLevel::Error;
-        u32 cur_gid = 0;
+        u32 curr_gid = 0;
         bool pe_done = false;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;

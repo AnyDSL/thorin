@@ -1,9 +1,11 @@
 #ifndef THORIN_UTIL_BITSET_H
 #define THORIN_UTIL_BITSET_H
 
+#include <cstdint>
 #include <algorithm>
 
-#include "thorin/util/utility.h"
+#include "thorin/util/ptr.h"
+#include "thorin/util/types.h"
 
 namespace thorin {
 

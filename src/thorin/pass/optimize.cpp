@@ -1,6 +1,7 @@
 #include "thorin/pass/fp/beta_red.h"
 #include "thorin/pass/fp/copy_prop.h"
-#include "thorin/pass/fp/eta_conv.h"
+#include "thorin/pass/fp/eta_exp.h"
+#include "thorin/pass/fp/eta_red.h"
 #include "thorin/pass/fp/scalarize.h"
 #include "thorin/pass/fp/ssa_constr.h"
 #include "thorin/pass/rw/auto_diff.h"
@@ -17,14 +18,16 @@
 namespace thorin {
 
 void optimize(World& world) {
-    PassMan(world)
-    // .add<PartialEval>()
-    // .add<EtaConv>()
-    // .add<BetaRed>()
-    // .add<SSAConstr>()
-    // .add<CopyProp>()
-    // //.add<Scalerize>()
-    .run();
+    PassMan opt(world);
+    opt.add<PartialEval>();
+    opt.add<BetaRed>();
+    auto er = opt.add<EtaRed>();
+    auto ee = opt.add<EtaExp>(er);
+    opt.add<SSAConstr>(ee);
+    //opt.add<CopyProp>();
+    //opt.add<Scalerize>();
+    //opt.add<AutoDiff>();
+    opt.run();
 
     ClosureConv(world).run();
 
@@ -33,10 +36,10 @@ void optimize(World& world) {
     // flatten_tuples(world);
     // cleanup_world(world);
 
-    // PassMan(world)
-    // .add<BoundElim>()
-    // .add<RetWrap>()
-    // .run();
+    PassMan codgen_prepare(world);
+    //codgen_prepare.add<BoundElim>();
+    codgen_prepare.add<RetWrap>();
+    codgen_prepare.run();
 }
 
 }

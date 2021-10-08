@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-class AutoDiff : public RWPass {
+class AutoDiff : public RWPass<> {
 public:
     AutoDiff(PassMan& man)
         : RWPass(man, "auto_diff")

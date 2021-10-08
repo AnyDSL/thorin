@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/pass/rw/bound_elim.h"
 
 namespace thorin {
@@ -64,3 +65,4 @@ const Def* BoundElim::rewrite(const Def* def) {
 }
 
 }
+#endif

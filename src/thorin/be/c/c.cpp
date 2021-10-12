@@ -23,12 +23,14 @@ namespace thorin::c {
 struct BB {
     BB() = default;
 
+    Continuation* cont = nullptr;
     StringStream head;
     StringStream body;
     StringStream tail;
 
     friend void swap(BB& a, BB& b) {
         using std::swap;
+        swap(a.cont, b.cont);
         swap(a.head, b.head);
         swap(a.body, b.body);
         swap(a.tail, b.tail);
@@ -545,6 +547,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
 
 void CCodeGen::prepare(Continuation* cont, const std::string&) {
     auto& bb = cont2bb_[cont];
+    bb.cont = cont;
     bb.head.indent(2);
     bb.body.indent(2);
     bb.tail.indent(2);
@@ -1066,6 +1069,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         func_impls_.fmt("{} {}_slot;\n", t, name);
         func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
         func_defs_.insert(def);
+        if (bb->cont->name() == "hls_top")
+            func_impls_ << "#pragma HLS STREAM variable = "<< name << " depth = 5" << "\n";
         return name;
     } else if (auto alloc = def->isa<Alloc>()) {
         assert(bb && "basic block is required for allocating");

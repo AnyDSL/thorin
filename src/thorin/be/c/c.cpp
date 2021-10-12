@@ -490,49 +490,48 @@ std::string CCodeGen::prepare(const Scope& scope) {
                             continue;
                         if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
                             if (interface == HlsInterface::SOC)
-                                func_impls_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
+                                func_impls_ << "#pragma HLS INTERFACE axis port = " << param->unique_name() << "\n";
                             else if (interface == HlsInterface::HPC) {
                                 if (gmem_config == HlsInterface::GMEM_OPT)
                                     hls_gmem_index++;
-                                func_impls_ << "\n#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
-                                << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n"
-                                << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name();
+                                func_impls_ << "#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
+                                            << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n";
+                                func_impls_ << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name() << "\n";
                             } else if (interface == HlsInterface::HPC_STREAM) {
-                                func_impls_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
+                                func_impls_ << "#pragma HLS INTERFACE axis port = " << param->unique_name() << "\n";
                             }
                         } else {
                             if (interface == HlsInterface::SOC)
-                                func_impls_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name();
+                                func_impls_ << "#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << "\n";
                             else if (interface == HlsInterface::HPC)
-                                func_impls_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control";
+                                func_impls_ << "#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control" << "\n";
                         }
 
-                        func_impls_ << "\n#pragma HLS STABLE variable = " << param->unique_name();
+                        func_impls_ << "#pragma HLS STABLE variable = " << param->unique_name() << "\n";
                     }
                     if (interface == HlsInterface::SOC || interface == HlsInterface::HPC_STREAM)
-                        hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
+                        hls_pragmas_ += "#pragma HLS INTERFACE ap_ctrl_none port = return\n";
                     else if (interface == HlsInterface::HPC)
-                        hls_pragmas_ += "\n#pragma HLS INTERFACE ap_ctrl_chain port = return";
+                        hls_pragmas_ += "#pragma HLS INTERFACE ap_ctrl_chain port = return\n";
                 }
             } else {
                 interface = HlsInterface::None;
                 world().WLOG("HLS accelerator generated with no interface");
             }
-            hls_pragmas_ += "\n#pragma HLS top name = hls_top";
+            hls_pragmas_ += "#pragma HLS top name = hls_top\n";
             if (use_channels_)
-                hls_pragmas_ += "\n#pragma HLS DATAFLOW";
+                hls_pragmas_ += "#pragma HLS DATAFLOW\n";
         } else if (use_channels_) {
-            hls_pragmas_ += "\n#pragma HLS INLINE off";
+            hls_pragmas_ += "#pragma HLS INLINE off\n";
         }
     }
 
     func_impls_.fmt("{} {{", emit_fun_head(cont));
+    func_impls_.fmt("\t\n");
 
     if (!hls_pragmas_.empty())
-        func_impls_.fmt("\n{}", hls_pragmas_);
+        func_impls_.fmt("{}", hls_pragmas_);
     hls_pragmas_.clear();
-
-    func_impls_.fmt("\t\n");
 
     // Load OpenCL structs from buffers
     // TODO: See above

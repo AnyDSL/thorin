@@ -43,6 +43,24 @@ enum class CLDialect : uint8_t {
     XILINX = 2  ///< Xilinx FPGA extension
 };
 
+inline std::string cl_dialect_guard(CLDialect dialect) {
+    switch (dialect) {
+        case CLDialect::STD:    return "STD_OPENCL";
+        case CLDialect::INTEL:  return "INTELFPGA_CL";
+        case CLDialect::XILINX: return "__xilinx__";
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+template<typename Fn>
+inline std::string guarded_statement(const std::string guard, Fn fn) {
+    StringStream s;
+    s.fmt("#ifdef {}\n", guard);
+    fn(s);
+    s.fmt("#endif\n");
+    return s.str();
+}
+
 enum class HlsInterface : uint8_t {
     SOC,        ///< SoC HW module (Embedded)
     HPC,        ///< HPC accelerator (HLS for HPC via OpenCL/XRT + XDMA)
@@ -659,8 +677,14 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
             auto begin = emit(cont->arg(2));
             auto end   = emit(cont->arg(3));
-            if (lang_ == Lang::OpenCL)
-                bb.tail.fmt("#pragma ii {}\n", !interval.empty() ? interval : "1");
+            if (lang_ == Lang::OpenCL) {
+                bb.tail << guarded_statement(cl_dialect_guard(CLDialect::INTEL), [&](Stream& s){
+                    s.fmt("#pragma ii {}\n", !interval.empty() ? interval : "1");
+                });
+                bb.tail << guarded_statement(cl_dialect_guard(CLDialect::XILINX), [&](Stream& s){
+                    s.fmt("__attribute__((xcl_pipeline_loop({})))\n", !interval.empty() ? interval : "1");
+                });
+            }
             bb.tail.fmt("for (int i{} = {}; i{} < {}; i{}++) {{\t\n",
                 callee->gid(), begin, callee->gid(), end, callee->gid());
             if (lang_ == Lang::HLS) {
@@ -1187,15 +1211,13 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                     auto [bx, by, bz] = block;
 
                     // See "Intel FPGA SDK for OpenCL"
-                    auto single_workitem = false;
                     if (block == std::tuple(1, 1, 1)) {
-                        single_workitem = true;
-                        s << "#ifdef INTELFPGA_CL\n";
-                        s << "__attribute__((max_global_work_dim(0)))\n";
-                        if (!has_concrete_params(cont)) {
-                            s << "__attribute__((autorun))\n";
-                        }
-                        s << "#endif\n";
+                        s << guarded_statement(cl_dialect_guard(CLDialect::INTEL), [&](Stream& gs){
+                            gs << "__attribute__((max_global_work_dim(0)))\n";
+                            if (!has_concrete_params(cont)) {
+                                gs << "__attribute__((autorun))\n";
+                            }
+                        });
                     } else
                         s.fmt("__attribute__((reqd_work_group_size({}, {}, {})))\n", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                 }

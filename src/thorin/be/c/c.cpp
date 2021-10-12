@@ -275,10 +275,18 @@ std::string CCodeGen::convert(const Type* type) {
         s.fmt("{} tag;", convert(tag_type));
         s.fmt("\b\n}} {};\n", name);
     } else if (auto struct_type = type->isa<StructType>()) {
-        types_[struct_type] = name = struct_type->name().str();
-        s.fmt("typedef struct {{\t\n");
-        s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
-        s.fmt("\b\n}} {};\n", name);
+        name = struct_type->name().str();
+        if (lang_ == Lang::OpenCL && use_channels_) {
+            s.fmt("typedef {} {}_{};", convert(struct_type->op(0)), name, struct_type->gid());
+            name = (struct_type->name().str() + "_" + std::to_string(type->gid()));
+        } else if (is_channel_type(struct_type) && lang_ == Lang::HLS) {
+            s.fmt("typedef {} {}_{};", convert(struct_type->op(0)), name, struct_type->gid());
+            name = ("hls::stream<" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
+        } else {
+            s.fmt("typedef struct {{\t\n");
+            s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
+            s.fmt("\b\n}} {};\n", name);
+        }
         if (struct_type->name().str().find("channel_") != std::string::npos)
             use_channels_ = true; // TODO is there a risk of missing this before we emit something for real ?
     } else {

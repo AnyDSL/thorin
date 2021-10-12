@@ -621,7 +621,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
 
         switch (values.size()) {
-            case 0: bb.tail.fmt("return;");               break;
+            case 0: bb.tail.fmt(lang_ == Lang::HLS ? "return void();" : "return;"); break;
             case 1: bb.tail.fmt("return {};", values[0]); break;
             default:
                 auto tuple = convert(world().tuple_type(types));

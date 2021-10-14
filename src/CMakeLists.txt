@@ -1,24 +1,13 @@
+# build thorin lib
+add_subdirectory(thorin)
+
 if(MSVC)
-    add_definitions(-D_SCL_SECURE_NO_WARNINGS)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-    add_compile_options("/wd4800" "/wd4520")
-    add_compile_options("/experimental:external" "/external:anglebrackets" "/external:W0")
+    target_compile_definitions(thorin PRIVATE -D_SCL_SECURE_NO_WARNINGS)
+    target_compile_definitions(thorin PRIVATE -D_CRT_SECURE_NO_WARNINGS)
+    target_compile_options(thorin PRIVATE "/wd4800" "/wd4520")
+    target_compile_options(thorin PRIVATE "/experimental:external" "/external:anglebrackets" "/external:W0")
 else()
-    add_compile_options("-Wall" "-Wextra")
-endif()
-
-# check for Half library
-find_package(Half REQUIRED)
-message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
-include_directories(${Half_INCLUDE_DIRS})
-
-if(LLVM_FOUND)
-    add_definitions(${LLVM_DEFINITIONS})
-    include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
-endif()
-
-if(RV_FOUND)
-    include_directories(SYSTEM ${RV_INCLUDE_DIRS})
+    target_compile_options(thorin PRIVATE "-Wall" "-Wextra")
 endif()
 
 # check for colored terminal
@@ -29,9 +18,5 @@ if(WIN32)
 endif()
 set(COLORIZE_OUTPUT ${COLOR_TTY_AVAILABLE} CACHE BOOL "Set to true to enable colored error messages")
 if(COLORIZE_OUTPUT)
-    add_definitions(-DCOLORIZE_LOG)
+    target_compile_definitions(thorin PRIVATE -DCOLORIZE_LOG)
 endif()
-
-# build thorin lib
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory(thorin)

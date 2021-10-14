@@ -39,7 +39,7 @@ struct LaunchArgs {
 };
 
 struct DeviceBackends {
-    DeviceBackends(World& world, int opt, bool debug);
+    DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);
 
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;

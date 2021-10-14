@@ -1,7 +1,5 @@
 #include "thorin/be/llvm/cpu.h"
 
-#include <cstdlib>
-
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
@@ -10,28 +8,24 @@
 
 namespace thorin::llvm {
 
-CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug)
+CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
 {
     llvm::InitializeNativeTarget();
-    auto triple_str   = llvm::sys::getDefaultTargetTriple();
-    auto cpu_str      = llvm::sys::getHostCPUName();
+    auto triple_str = llvm::sys::getDefaultTargetTriple();
+    auto cpu_str    = llvm::sys::getHostCPUName();
     std::string features_str;
     llvm::StringMap<bool> features;
     llvm::sys::getHostCPUFeatures(features);
     for (auto& feature : features)
         features_str += (feature.getValue() ? "+" : "-") + feature.getKey().str() + ",";
 
-    char* target_triple   = std::getenv("ANYDSL_TARGET_TRIPLE");
-    char* target_cpu      = std::getenv("ANYDSL_TARGET_CPU");
-    char* target_features = std::getenv("ANYDSL_TARGET_FEATURES");
-
-    if (target_triple && target_cpu) {
+    if (!target_triple.empty() && !target_cpu.empty()) {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         triple_str   = target_triple;
         cpu_str      = target_cpu;
-        features_str = target_features ? target_features : "";
+        features_str = target_attr;
     }
 
     std::string error;

@@ -167,10 +167,10 @@ inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel") != std::string::npos;
 }
 
-/// Returns true when the param carries concrete data in the final generated code
-inline bool is_concrete_param(const Param* param) { return !is_mem(param) && param->order() == 0 && !is_unit(param);}
+/// Returns true when the def carries concrete data in the final generated code
+inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
 inline bool has_concrete_params(Continuation* cont) {
-    return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete_param(param); });
+    return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
 }
 
 inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
@@ -497,7 +497,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
                 if (cont->num_params() > 2) {
                     size_t hls_gmem_index = 0;
                     for (auto param : cont->params()) {
-                        if (!is_concrete_param(param))
+                        if (!is_concrete(param))
                             continue;
                         if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
                             if (interface == HlsInterface::SOC)
@@ -547,7 +547,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
     // Load OpenCL structs from buffers
     // TODO: See above
     for (auto param : cont->params()) {
-        if (!is_concrete_param(param))
+        if (!is_concrete(param))
             continue;
         if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param))
             func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
@@ -564,7 +564,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
     // The parameters of the entry continuation have already been emitted.
     if (cont != entry_) {
         for (auto param : cont->params()) {
-            if (!is_concrete_param(param)) {
+            if (!is_concrete(param)) {
                 defs_[param] = {};
                 continue;
             }
@@ -745,7 +745,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         const Param* channel_read_result = n == 1 ? values[0] : nullptr;
 
-        bool channel_transaction = false;
+        bool channel_transaction = false, no_function_call = false;
 
         auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
         if (lang_ == Lang::OpenCL && use_channels_ && callee->is_channel()) {
@@ -759,6 +759,23 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 args.emplace(args.begin(), emit(channel_read_result));
             } else THORIN_UNREACHABLE;
             channel_transaction = true;
+        } else if (lang_ == Lang::HLS && callee->is_channel()) {
+            int i = 0;
+            for (auto arg : cont->args()) {
+                if (!is_concrete(arg)) continue;
+                if (i == 0)
+                    bb.tail.fmt("*{}", emit(arg));
+                if (i == 1) {
+                    if (name.find("write_channel") != std::string::npos) {
+                        bb.tail.fmt(" << {};\n", emit(arg));
+                    } else THORIN_UNREACHABLE;
+                }
+                if (name.find("read_channel") != std::string::npos) {
+                    bb.tail.fmt(" >> {};\n", emit(channel_read_result));
+                }
+                i++;
+            }
+            no_function_call = true;
         }
 
         // Do not store the result of `void` calls
@@ -766,13 +783,14 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
-        bb.tail.fmt("{}({, });\n", emit(callee), args);
+        if (!no_function_call)
+            bb.tail.fmt("{}({, });\n", emit(callee), args);
 
         // Pass the result to the phi nodes of the return continuation
         if (!is_type_unit(ret_type)) {
             size_t i = 0;
             for (auto param : ret_cont->params()) {
-                if (!is_concrete_param(param))
+                if (!is_concrete(param))
                     continue;
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
@@ -1285,7 +1303,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     bool needs_comma = false;
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
-        if (!is_concrete_param(param)) {
+        if (!is_concrete(param)) {
             defs_[param] = {};
             continue;
         }

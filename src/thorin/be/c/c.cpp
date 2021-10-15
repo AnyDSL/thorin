@@ -37,7 +37,10 @@ struct BB {
     }
 };
 
-using FuncMode = ChannelMode;
+struct ChannelUsage {
+    bool read = false;
+    bool write = false;
+};
 
 enum class CLDialect : uint8_t {
     STD    = 0, ///< Standard OpenCL
@@ -138,7 +141,7 @@ private:
 
     /// emit_fun_head may want to add its own pragmas so we put this in a global
     std::string hls_pragmas_;
-    std::unordered_map<const Continuation*, FuncMode> builtin_funcs_; // OpenCL builtin functions
+    ContinuationMap<ChannelUsage> builtin_funcs_; // OpenCL builtin functions
 };
 
 static inline const std::string lang_as_string(Lang lang) {
@@ -383,10 +386,10 @@ void CCodeGen::emit_module() {
             <<"#pragma OPENCL EXTENSION cl_intel_channels : enable" << "\n" << "#define PIPE channel" << "\n";
             for (auto map : builtin_funcs_) {
                 if (map.first->is_channel()) {
-                    if (map.second == FuncMode::Write) {
+                    if (map.second.write) {
                         macro_xilinx_ << "#define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)" << "\n";
                         macro_intel_ << "#define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)" << "\n";
-                    } else if (map.second == FuncMode::Read) {
+                    } else if (map.second.read) {
                         macro_xilinx_ << "#define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)" << "\n";
                         macro_intel_  << "#define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)" << "\n";
                     }
@@ -728,9 +731,39 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 args.emplace_back(emitted_arg);
         }
 
+        size_t num_params = ret_cont->num_params();
+        size_t n = 0;
+        Array<const Param*> values(num_params);
+        Array<const Type*> types(num_params);
+        for (auto param : ret_cont->params()) {
+            if (!is_mem(param) && !is_unit(param)) {
+                values[n] = param;
+                types[n] = param->type();
+                n++;
+            }
+        }
+
+        const Param* channel_read_result = n == 1 ? values[0] : nullptr;
+
+        bool channel_transaction = false;
+
+        auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
+        if (lang_ == Lang::OpenCL && use_channels_ && callee->is_channel()) {
+            auto [usage, _] = builtin_funcs_.emplace(callee, ChannelUsage {});
+
+            if (name.find("write") != std::string::npos) {
+                usage->second.write = true;
+            } else if (name.find("read") != std::string::npos) {
+                usage->second.write = true;
+                assert(channel_read_result != nullptr);
+                args.emplace(args.begin(), emit(channel_read_result));
+            } else THORIN_UNREACHABLE;
+            channel_transaction = true;
+        }
+
         // Do not store the result of `void` calls
         auto ret_type = thorin::c::ret_type(callee->type());
-        if (!is_type_unit(ret_type))
+        if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
         bb.tail.fmt("{}({, });\n", emit(callee), args);
@@ -1168,7 +1201,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
-        
+
         auto converted_type = convert(global->alloced_type());
 
         std::string prefix = device_prefix();

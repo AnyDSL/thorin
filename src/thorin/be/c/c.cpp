@@ -1168,6 +1168,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
+        
+        auto converted_type = convert(global->alloced_type());
 
         std::string prefix = device_prefix();
         std::string suffix = "";
@@ -1177,7 +1179,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             suffix = " __attribute__((xcl_reqd_pipe_depth(32)))";
         }
 
-        func_decls_.fmt("{}{} g_{} {}", prefix, convert(global->alloced_type()), name, suffix);
+        func_decls_.fmt("{}{} g_{} {}", prefix, converted_type, name, suffix);
         if (global->init()->isa<Bottom>())
             func_decls_.fmt("; // bottom\n");
         else

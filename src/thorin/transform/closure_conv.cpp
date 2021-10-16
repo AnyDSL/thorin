@@ -4,6 +4,12 @@
 
 namespace thorin {
 
+static auto num_doms(const Def *def) {
+    auto pi = def->type()->isa<Pi>();
+    assert(pi && "cc: num_doms(): def not of fct type");
+    return pi->num_doms();
+}
+
 void ClosureConv::run() {
     auto externals = std::vector(world().externals().begin(), world().externals().end());
     for (auto [_, ext_def]: externals) {
@@ -105,7 +111,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def* subst) {
             auto env = world().extract(closure, 0_u64, world().dbg("cc_app_env"));
             auto fn = world().extract(closure, 1_u64, world().dbg("cc_app_f"));
             world().DLOG("CC (rw): call closure {}: APP {} {} {}", closure, fn, env, args);
-            return map(world().app(fn, Array<const Def*>(args->num_ops() + 1, [&](auto i) {
+            return map(world().app(fn, Array<const Def*>(num_doms(fn), [&](auto i) {
                 return (i == 0) ? env : world().extract(args, i - 1);
             })));
         } else {

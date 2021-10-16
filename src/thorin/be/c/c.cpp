@@ -464,13 +464,13 @@ void CCodeGen::emit_module() {
         stream_.fmt("}} /* extern \"C\" */\n");
 }
 
-inline bool is_passed_via_buffer(const Param* param) {
+static inline bool is_passed_via_buffer(const Param* param) {
     return param->type()->isa<DefiniteArrayType>()
         || param->type()->isa<StructType>()
         || param->type()->isa<TupleType>();
 }
 
-inline const Type* ret_type(const FnType* fn_type) {
+static inline const Type* ret_type(const FnType* fn_type) {
     auto ret_fn_type = (*std::find_if(
         fn_type->ops().begin(), fn_type->ops().end(), [] (const Type* op) {
             return op->order() % 2 == 1;
@@ -592,7 +592,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
     }
 }
 
-inline std::string make_identifier(const std::string& str) {
+static inline std::string make_identifier(const std::string& str) {
     auto copy = str;
     // Transform non-alphanumeric characters
     std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) {
@@ -606,7 +606,7 @@ inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
-inline std::string label_name(const Def* def) {
+static inline std::string label_name(const Def* def) {
     return make_identifier(def->as_continuation()->unique_name());
 }
 

@@ -149,12 +149,18 @@ void compute_fvs(Lam* fn, DefSet& visited, DefSet& fvs) {
     visited.insert(fn);
     auto scope = Scope(fn);
     for (auto fv: scope.free_defs()) {
-        if (fv == fn || fv->is_external() || fv->isa<Axiom>())
-            continue;
-        else if (auto callee = fv->isa_nom<Lam>())
-            compute_fvs(callee, visited, fvs);
-        else
-            fvs.insert(fv);
+        // TODO: Handle pack's
+        ArrayRef<const Def*> ops
+            = (fv->isa<Tuple>()) ? flatten(fv)->ops()
+            : ArrayRef{fv};
+        for (auto op: ops) {
+            if (op == fn || op->is_external() || op->isa<Axiom>())
+                continue;
+            else if (auto callee = op->isa_nom<Lam>())
+                compute_fvs(callee, visited, fvs);
+            else
+                fvs.insert(fv);
+        }
     }
 }
 

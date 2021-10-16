@@ -27,11 +27,11 @@ class ClosureConv {
             Lam* fn;
         };
 
-        const Def* rewrite(const Def* old_def, Def2Def* subst = nullptr);
+        const Def* rewrite(const Def* old_def, Def2Def& subst);
 
-        const Def* closure_type(const Pi* pi, const Def* ent_type = nullptr);
+        const Def* closure_type(const Pi* pi, Def2Def& subst, const Def* ent_type = nullptr);
 
-        Closure make_closure(Lam* lam);
+        Closure make_closure(Lam* lam, Def2Def& subst);
 
         World& world() { return world_; }
 

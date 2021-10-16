@@ -6,18 +6,20 @@ namespace thorin {
 
 static auto num_doms(const Def *def) {
     auto pi = def->type()->isa<Pi>();
-    assert(pi && "cc: num_doms(): def not of fct type");
+    assert(pi && "cc: num_doms(): def not of pi type");
     return pi->num_doms();
 }
 
 void ClosureConv::run() {
     auto externals = std::vector(world().externals().begin(), world().externals().end());
+    auto subst = Def2Def();
     for (auto [_, ext_def]: externals) {
-        rewrite(ext_def);
+        rewrite(ext_def, subst);
     }
     world().DLOG("===== CC (run): start =====");
     while (!worklist_.empty()) {
         auto def = worklist_.front();
+        subst = Def2Def();
         worklist_.pop();
         if (auto closure = closures_.lookup(def)) {
             auto new_fn = closure->fn;
@@ -27,7 +29,6 @@ void ClosureConv::run() {
 
             world().DLOG("===== CC (run): closure body {} [old={}, env={}] =====", 
                     new_fn, old_fn, env);
-            auto subst = Def2Def();
             auto env_param = new_fn->var(0_u64);
             if (num_fvs == 1) {
                 subst.emplace(env, env_param);
@@ -44,11 +45,11 @@ void ClosureConv::run() {
             subst.emplace(old_fn->var(), params);
 
             auto filter = (new_fn->filter()) 
-                ? rewrite(new_fn->filter(), &subst) 
-                : world().lit_false(); // extern function?
+                ? rewrite(new_fn->filter(), subst) 
+                : world().lit_false(); // extern function
             
             auto body = (new_fn->body())
-                ? rewrite(new_fn->body(), &subst)
+                ? rewrite(new_fn->body(), subst)
                 : world().app(old_fn, params); // extern function
 
             new_fn->set_body(body);
@@ -56,7 +57,7 @@ void ClosureConv::run() {
         }
         else {
             world().DLOG("CC (run): rewrite def {}", def);
-            rewrite(def);
+            rewrite(def, subst);
         }
         world().DLOG("===== (run) done rewrite");
     }
@@ -65,7 +66,7 @@ void ClosureConv::run() {
 }
 
 
-const Def* ClosureConv::rewrite(const Def* def, Def2Def* subst) {
+const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
     switch(def->node()) {
         case Node::Kind:
         case Node::Space:
@@ -79,18 +80,17 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def* subst) {
     }
 
     auto map = [&](const Def* new_def) {
-        if (subst)
-            subst->emplace(def, new_def);
+        subst.emplace(def, new_def);
         return new_def;
     };
 
-    if (subst && subst->contains(def)) {
-        return map(*subst->lookup(def));
+    if (subst.contains(def)) {
+        return map(*subst.lookup(def));
     } else if (auto pi = def->isa<Pi>(); pi && pi->is_cn()) {
         /* Types: rewrite dom, codom \w susbt here */
-        return map(closure_type(pi));
+        return map(closure_type(pi, subst));
     } else if (auto lam = def->isa_nom<Lam>(); lam && lam->type()->is_cn()) {
-        auto [old, num, fv_env, fn] = make_closure(lam);
+        auto [old, num, fv_env, fn] = make_closure(lam, subst);
         auto closure_type = rewrite(lam->type(), subst);
         auto env = rewrite(fv_env, subst);
         auto closure = world().tuple(closure_type, {env, fn});
@@ -99,6 +99,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def* subst) {
         return map(closure);
     } else if (auto nom = def->isa_nom()) {
         assert(false && "TODO: rewrite: handle noms");
+        // Toplevel sigma types?
     } else {
         auto new_type = rewrite(def->type(), subst);
         auto new_dbg = (def->dbg()) ? rewrite(def->dbg(), subst) : nullptr;
@@ -120,12 +121,12 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def* subst) {
     }
 }
 
-const Def* ClosureConv::closure_type(const Pi* pi, const Def* env_type) {
+const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* env_type) {
     if (!env_type) {
         if (auto pct = closure_types_.lookup(pi))
             return* pct;
         auto sigma = world().nom_sigma(world().kind(), 2_u64, world().dbg("cc_pct"));
-        auto new_pi = closure_type(pi, sigma->var());
+        auto new_pi = closure_type(pi, subst, sigma->var());
         sigma->set(0, sigma->var());
         sigma->set(1, new_pi);
         closure_types_.emplace(pi, sigma);
@@ -133,7 +134,7 @@ const Def* ClosureConv::closure_type(const Pi* pi, const Def* env_type) {
         return sigma;
     } else {
         auto dom = world().sigma(Array<const Def*>(pi->num_doms() + 1, [&](auto i) {
-            return (i == 0) ? env_type : rewrite(pi->dom(i - 1));
+            return (i == 0) ? env_type : rewrite(pi->dom(i - 1), subst);
         }));
         auto new_pi = world().cn(dom, world().dbg("cc_ct"));
         world().DLOG("CC (cl_type: make ct: {}, env = {} ~~> {})", pi, env_type, new_pi);
@@ -162,8 +163,7 @@ void compute_fvs(Lam* lam, DefSet &fvs) {
     compute_fvs(lam, visited, fvs);
 }
 
-
-ClosureConv::Closure ClosureConv::make_closure(Lam* fn) {
+ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
     if (auto closure = closures_.lookup(fn))
         return* closure;
 
@@ -173,13 +173,13 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn) {
     auto fvs_types = std::vector<const Def*>();
     for (auto fv: fv_set) {
         fvs.emplace_back(fv);
-        fvs_types.emplace_back(rewrite(fv->type()));
+        fvs_types.emplace_back(rewrite(fv->type(), subst));
     }
     auto env = world().tuple(fvs);
     auto env_type = world().sigma(fvs_types);
 
     /* Types: rewrite function type here \w fv s */
-    auto new_fn_type = closure_type(fn->type(), env_type)->as<Pi>();
+    auto new_fn_type = closure_type(fn->type(), subst, env_type)->as<Pi>();
     auto new_lam = world().nom_lam(new_fn_type, world().dbg("cc_" + fn->name()));
     new_lam->set_body(fn->body());
     new_lam->set_filter(fn->filter());

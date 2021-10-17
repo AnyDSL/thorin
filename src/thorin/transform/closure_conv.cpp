@@ -97,12 +97,24 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         world().DLOG("CC (rw): build closure: {} ~~> {} = (fn {}, env {}) : {}", lam, closure,
                 fn, env, closure_type);
         return map(closure);
-    } else if (auto nom = def->isa_nom()) {
-        assert(false && "TODO: rewrite: handle noms");
-        // Toplevel sigma types?
+    } 
+
+    auto new_type = rewrite(def->type(), subst);
+    auto new_dbg = (def->dbg()) ? rewrite(def->dbg(), subst) : nullptr;
+
+    if (auto nom = def->isa_nom()) {
+        // TODO: Test this
+        world().DLOG("CC (rw): rewrite nom {}", nom);
+        auto new_nom = nom->stub(world(), new_type, new_dbg);
+        subst.emplace(nom->var(), new_nom->var());
+        for (int i = 0; i < nom->num_ops(); i++) {
+            if (def->op(i))
+                new_nom->set(i, rewrite(def->op(i), subst));
+        }
+        if (auto restruct = new_nom->restructure())
+            return map(restruct);
+        return map(new_nom);
     } else {
-        auto new_type = rewrite(def->type(), subst);
-        auto new_dbg = (def->dbg()) ? rewrite(def->dbg(), subst) : nullptr;
         auto new_ops = Array<const Def*>(def->num_ops(), [&](auto i) {
             return rewrite(def->op(i), subst);
         });

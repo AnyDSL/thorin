@@ -31,12 +31,16 @@ static bool should_flatten(const Def* def) {
     return is_sigma_or_arr(def->sort() == Sort::Term ? def->type() : def);
 }
 
-static void flatten(std::vector<const Def*>& ops, const Def* def) {
-    if (auto a = isa_lit<nat_t>(def->arity()); a && a != 1 && should_flatten(def)) {
+size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_noms) {
+    if (auto a = isa_lit<nat_t>(def->arity()); a && a != 1 && should_flatten(def)
+            && flatten_noms == (def->isa_nom() != nullptr)) {
+        auto n = 0;
         for (size_t i = 0; i != a; ++i)
-            flatten(ops, proj(def, *a, i));
+            n += flatten(ops, proj(def, *a, i), flatten_noms);
+        return n;
     } else {
         ops.emplace_back(def);
+        return 1;
     }
 }
 

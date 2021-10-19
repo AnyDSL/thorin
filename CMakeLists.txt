@@ -51,6 +51,8 @@ if(DEFINED CMAKE_BUILD_TYPE)
     message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
+set(Thorin_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 # configure thorin preprocessor definitions
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(THORIN_ENABLE_CHECKS TRUE)

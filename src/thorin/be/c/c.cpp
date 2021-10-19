@@ -76,13 +76,14 @@ enum class HlsInterface : uint8_t {
 
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
-    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug)
+    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
         : world_(world)
         , kernel_config_(kernel_config)
         , lang_(lang)
         , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
         , stream_(stream)
+        , flags_(flags)
     {}
 
     World& world() const { return world_; }
@@ -109,6 +110,7 @@ private:
     std::string constructor_prefix(const Type*);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
+    bool get_interface(HlsInterface &interface, HlsInterface &gmem);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -128,6 +130,7 @@ private:
     bool use_memcpy_ = false;
     bool use_malloc_ = false;
     bool debug_;
+    std::string flags_;
 
     Stream& stream_;
     StringStream func_impls_;
@@ -173,9 +176,9 @@ inline bool has_concrete_params(Continuation* cont) {
     return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
 }
 
-inline bool get_interface(HlsInterface &interface, HlsInterface &gmem) {
-    const char* fpga_env = std::getenv("ANYDSL_FPGA");
-    if (fpga_env != NULL) {
+bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
+    auto fpga_env = flags_;
+    if (!fpga_env.empty()) {
         std::string fpga_env_str = fpga_env;
         for (auto& ch : fpga_env_str)
             ch = std::toupper(ch, std::locale());
@@ -350,9 +353,10 @@ std::string CCodeGen::device_prefix() {
  */
 
 HlsInterface interface, gmem_config;
-auto interface_status = get_interface(interface, gmem_config);
+bool interface_status = false;
 
 void CCodeGen::emit_module() {
+    interface_status = get_interface(interface, gmem_config);
     // TODO do something to make those ifdefs sane to work with -H
     if (lang_ == Lang::OpenCL)
         func_decls_ << "#ifndef __xilinx__" << "\n";
@@ -1482,11 +1486,12 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 
 void CodeGen::emit_stream(std::ostream& stream) {
     Stream s(stream);
-    CCodeGen(world(), kernel_config_, s, lang_, debug_).emit_module();
+    CCodeGen(world(), kernel_config_, s, lang_, debug_, flags_).emit_module();
 }
 
 void emit_c_int(World& world, Stream& stream) {
-    CCodeGen(world, {}, stream, Lang::C99, false).emit_c_int();
+    std::string flags;
+    CCodeGen(world, {}, stream, Lang::C99, false, flags).emit_c_int();
 }
 
 //------------------------------------------------------------------------------

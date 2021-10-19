@@ -142,8 +142,6 @@ private:
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
 
-    /// emit_fun_head may want to add its own pragmas so we put this in a global
-    std::string hls_pragmas_;
     ContinuationMap<ChannelUsage> builtin_funcs_; // OpenCL builtin functions
 };
 
@@ -486,14 +484,19 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();
 
+    StringStream hls_pragmas_;
+
     for (auto param : cont->params()) {
         defs_[param] = param->unique_name();
         if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
             if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
-                hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
+                hls_pragmas_.fmt("#pragma HLS data_pack variable={} struct_level", param->unique_name());
         }
     }
+
+    func_impls_.fmt("{} {{", emit_fun_head(cont));
+    func_impls_.fmt("\t\n");
 
     if (lang_ == Lang::HLS && cont->is_exported()) {
         if (cont->name() == "hls_top") {
@@ -525,28 +528,23 @@ std::string CCodeGen::prepare(const Scope& scope) {
                         func_impls_ << "#pragma HLS STABLE variable = " << param->unique_name() << "\n";
                     }
                     if (interface == HlsInterface::SOC || interface == HlsInterface::HPC_STREAM)
-                        hls_pragmas_ += "#pragma HLS INTERFACE ap_ctrl_none port = return\n";
+                        func_impls_ << "#pragma HLS INTERFACE ap_ctrl_none port = return\n";
                     else if (interface == HlsInterface::HPC)
-                        hls_pragmas_ += "#pragma HLS INTERFACE ap_ctrl_chain port = return\n";
+                        func_impls_ << "#pragma HLS INTERFACE ap_ctrl_chain port = return\n";
                 }
             } else {
                 interface = HlsInterface::None;
                 world().WLOG("HLS accelerator generated with no interface");
             }
-            hls_pragmas_ += "#pragma HLS top name = hls_top\n";
+            func_impls_ << "#pragma HLS top name = hls_top\n";
             if (use_channels_)
-                hls_pragmas_ += "#pragma HLS DATAFLOW\n";
+                func_impls_ << "#pragma HLS DATAFLOW\n";
         } else if (use_channels_) {
-            hls_pragmas_ += "#pragma HLS INLINE off\n";
+            func_impls_ << "#pragma HLS INLINE off\n";
         }
     }
 
-    func_impls_.fmt("{} {{", emit_fun_head(cont));
-    func_impls_.fmt("\t\n");
-
-    if (!hls_pragmas_.empty())
-        func_impls_.fmt("{}", hls_pragmas_);
-    hls_pragmas_.clear();
+    func_impls_ << hls_pragmas_.str();
 
     // Load OpenCL structs from buffers
     // TODO: See above
@@ -1335,9 +1333,6 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 if (!is_proto)
                     s << " " << param->unique_name();
                 s << "[" << array_size << "]";
-            }
-            if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) {
-                hls_pragmas_ += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
             }
 
         } else {

@@ -23,13 +23,15 @@ bool match_any(A a, B b, Ts... args) {
         return a == b || match_any(a, args...);
 }
 
+static bool is_var_ref(const Def* def) {
+    const Extract* proj;
+    return def->isa<Var>()
+        || ((proj = def->isa<Extract>()) && proj->tuple()->isa<Var>());
+}
+
 static bool print_inline(const Def* def) {
-    const Extract* proj = nullptr;
-    return !def->isa_nom() && 
-           (def->no_dep()
-        || def->isa<Var>()
-        || (match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple) && def->num_ops() <= 5)
-        || ((proj = def->isa<Extract>()) && proj->tuple()->isa<Var>()));
+    return !def->isa_nom() && (def->no_dep() || is_var_ref(def) || 
+        match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple) && def->num_ops() <= 5);
 }
 
 struct Fmt {
@@ -41,8 +43,8 @@ struct Fmt {
     Flags flags;
 
     friend Stream& operator<<(Stream& s, Fmt& fmt) {
-        if (fmt.flags == Parentize && print_inline(fmt.def)
-            && match_any(fmt.def->node(), Node::App, Node::Proxy, Node::Extract, Node::Pi))
+        if (fmt.flags == Parentize && print_inline(fmt.def) && !is_var_ref(fmt.def) &&
+                match_any(fmt.def->node(), Node::App, Node::Proxy, Node::Extract, Node::Pi))
             return s.fmt("({})", fmt.def);
 
         return s.fmt("{}", fmt.def);
@@ -70,13 +72,19 @@ Stream& stream(Stream& s, const Def* def) {
                 default: THORIN_UNREACHABLE;
             }
         }
-
         return s.fmt("{}∷{}", lit->get(), lit->type());
     } else if (auto proj = def->isa<Extract>()) {
-        if (auto var = proj->tuple()->isa<Var>())             
-            return s.fmt("@{{{}, {}}}", var->nom(), proj->index());
-        else
+        if (auto var = proj->tuple()->isa<Var>()) {
+            auto lam = var->nom()->isa<Lam>();
+            if (lam && proj == lam->mem_var())
+                return s.fmt("MEM@{{{}}}", var->nom());
+            else if (lam && proj == lam->ret_var())
+                return s.fmt("RET@{{{}}}", var->nom());
+            else
+                return s.fmt("@{{{}, {}}}", var->nom(), proj->index());
+        } else {
             return s.fmt("#{{{}}} {}", proj->index(), proj->tuple());
+        }
     } else if (auto var = def->isa<Var>()) {
         return s.fmt("@{{{}}}", var->nom());
     } else if (auto pi = def->isa<Pi>()) {
@@ -108,7 +116,7 @@ Stream& stream(Stream& s, const Def* def) {
                 return s.fmt("{}*", (const Def*) pointee); // TODO why the cast???
         }
 
-        return s.fmt("{} {}", parens(app->callee()), (app->arg()));
+        return s.fmt("{} {}", parens(app->callee()), app->arg());
     } else if (auto sigma = def->isa<Sigma>()) {
         return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {

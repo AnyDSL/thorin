@@ -283,10 +283,10 @@ std::string CCodeGen::convert(const Type* type) {
         if ((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && is_channel_type(struct_type))
             use_channels_ = true;
         if (lang_ == Lang::OpenCL && use_channels_) {
-            s.fmt("typedef {} {}_{};", convert(struct_type->op(0)), name, struct_type->gid());
+            s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
             name = (struct_type->name().str() + "_" + std::to_string(type->gid()));
         } else if (is_channel_type(struct_type) && lang_ == Lang::HLS) {
-            s.fmt("typedef {} {}_{};", convert(struct_type->op(0)), name, struct_type->gid());
+            s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
             name = ("hls::stream<" + name + "_" + std::to_string(type->gid()) + ">");
         } else {
             s.fmt("typedef struct {{\t\n");
@@ -355,13 +355,6 @@ bool interface_status = false;
 
 void CCodeGen::emit_module() {
     interface_status = get_interface(interface, gmem_config);
-    // TODO do something to make those ifdefs sane to work with -H
-    if (lang_ == Lang::OpenCL)
-        func_decls_ << "#ifndef __xilinx__" << "\n";
-
-    // removing function prototypes from HLS synthesis
-    if (lang_ == Lang::HLS)
-        func_decls_ << "#ifndef __SYNTHESIS__\n";
 
     Continuation* hls_top = nullptr;
     Scope::for_each(world(), [&] (const Scope& scope) {
@@ -373,42 +366,43 @@ void CCodeGen::emit_module() {
     if (hls_top)
         emit_scope(Scope(hls_top));
 
-    if (lang_ == Lang::OpenCL)
-        func_decls_ << "#endif /* __xilinx__ */"<< "\n";
-    if (lang_ == Lang::HLS)
-        func_decls_ << "#endif /* __SYNTHESIS__ */\n";
-
     if (lang_ == Lang::OpenCL) {
         if (use_channels_) {
             std::string write_channel_params = "(channel, val) ";
             std::string read_channel_params = "(val, channel) ";
 
-            macro_xilinx_ << "#if defined(__xilinx__)" << "\n" << "#define PIPE pipe" << "\n";
-            macro_intel_  << "\n" << "#elif defined(INTELFPGA_CL)" << "\n"
-            <<"#pragma OPENCL EXTENSION cl_intel_channels : enable" << "\n" << "#define PIPE channel" << "\n";
+            macro_xilinx_ << " #define PIPE pipe\n";
+            macro_intel_  << " #pragma OPENCL EXTENSION cl_intel_channels : enable\n"
+                          << " #define PIPE channel\n";
             for (auto map : builtin_funcs_) {
                 if (map.first->is_channel()) {
                     if (map.second.write) {
-                        macro_xilinx_ << "#define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)" << "\n";
-                        macro_intel_ << "#define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)" << "\n";
+                        macro_xilinx_ << " #define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)\n";
+                        macro_intel_  << " #define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
                     } else if (map.second.read) {
-                        macro_xilinx_ << "#define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)" << "\n";
-                        macro_intel_  << "#define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)" << "\n";
+                        macro_xilinx_ << " #define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)\n";
+                        macro_intel_  << " #define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)\n";
                     }
                 }
             }
-            stream_ << macro_xilinx_.str() << macro_intel_.str();
-            stream_ << "\n" << "#else" << "\n" << "#define PIPE pipe"<< "\n";
-            stream_ << "\n" << "#endif" << "\n";
+            stream_ << "#if defined(__xilinx__)" << "\n";
+            stream_ << macro_xilinx_.str();
+
+            stream_ << "#elif defined(INTELFPGA_CL)" << "\n";
+            stream_ << macro_intel_.str();
+
+            stream_ << "#else\n"
+                    << " #define PIPE pipe\n";
+            stream_ << "#endif" << "\n";
 
             if (use_fp_16_)
                 stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << "\n";
             if (use_fp_64_)
                 stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << "\n";
-            if (use_channels_ || use_fp_16_ || use_fp_64_)
-                stream_ << "\n";
         }
     }
+
+    stream_.endl();
 
     if (lang_ == Lang::C99) {
         stream_.fmt("#include <stdbool.h>\n"); // for the 'bool' type
@@ -436,8 +430,21 @@ void CCodeGen::emit_module() {
         stream_.fmt("extern \"C\" {{\n");
     }
 
-    stream_ << type_decls_.str();
-    stream_.endl() << func_decls_.str();
+    stream_ << type_decls_.str() << "\n";
+
+    // For Xilinx hardware, we have to ifdef the function declarations away
+    // In CL mode we don't want them at all, for HLS we only want them when doing simulations and not for synthesis
+    if (lang_ == Lang::OpenCL)
+        stream_ << "#ifndef __xilinx__\n";
+    else if (lang_ == Lang::HLS)
+        stream_ << "#ifndef __SYNTHESIS__\n";
+
+    stream_ << func_decls_.str();
+
+    if (lang_ == Lang::OpenCL)
+        stream_ << "#endif /* __xilinx__ */\n";
+    else if (lang_ == Lang::HLS)
+        stream_ << "#endif /* __SYNTHESIS__ */\n";
 
     if (lang_ == Lang::CUDA) {
         stream_.endl();

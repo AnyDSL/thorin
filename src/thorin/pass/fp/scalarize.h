@@ -12,21 +12,26 @@ namespace thorin {
 /// <code>f</code> appears in callee position only, see @p EtaExp. 
 /// It will not flatten nominal @p Sigma#s or @p Arr#s.
 
-class Scalerize : public RWPass<Lam> {
+class Scalerize : public FPPass<Scalerize, Lam> {
 public:
     Scalerize(PassMan& man)
-        : RWPass(man, "scalerize")
+        : FPPass(man, "scalerize")
     {}
 
     const Def* rewrite(const Def*) override;
+
+    undo_t analyze(const Def*) override;
+
+    using Data = DefSet; // Expanded Lams
 
 private:
 
     bool should_expand(Lam *lam);
     Lam* make_scalar(Lam *lam);
 
-    DefSet keep_;
+    DefSet keep_;               // Should not be expanded
     Lam2Lam tup2sca_;
+    NomMap<Def2Def> sca_args;   // rewrite args in body
 };
 
 }

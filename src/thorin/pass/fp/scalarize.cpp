@@ -9,12 +9,14 @@ namespace thorin {
 using DefVec = std::vector<const Def*>;
 
 bool Scalerize::should_expand(Lam* lam) {
-    auto uses = lam->uses(); // 
-    auto eta_expanded = /* std::all_of(uses.begin(), uses.end(), [&](auto use) { */
-        /* return isa_callee(use.def(), use.index()); */
-    /* }); */ true;
-    auto pi = lam->type(); return eta_expanded // TODO: This is not really required... (and could be checked using the PassMan infrastructure)
+    if (ignore(lam) || keep_.contains(lam))
+        return false;
+    auto pi = lam->type(); 
+    auto rewrite = lam->num_doms() > 1
         && pi->is_cn() && !pi->isa_nom(); // no ugly dependent pis
+    if (!rewrite)
+        keep_.emplace(lam);
+    return rewrite;
 }
 
 Lam* Scalerize::make_scalar(Lam *lam) {
@@ -27,36 +29,41 @@ Lam* Scalerize::make_scalar(Lam *lam) {
         arg_sz.push_back(n);
     }
     auto pi = world().cn(world().sigma(types));
-    auto sca_lam = world().nom_lam(pi, world().dbg("sca_" + lam->name()));
-    auto rewriter = Rewriter(world());
-    rewriter.old2new.emplace(lam, sca_lam);
+    auto sca_lam = lam->stub(world(), pi, world().dbg("sca_" + lam->name()));
+    auto arg_map = Def2Def();
     for (size_t i = 0, n = 0; i < lam->num_doms(); i++) {
-        auto new_arg = 
-            world().tuple(Array<const Def*>(arg_sz.at(i), [&](auto j) {
-                return sca_lam->var(n + j);
-            }));
-        rewriter.old2new.emplace(lam->var(i), unflatten(new_arg, lam->dom(i)));
+        auto new_args = Array<const Def*>(arg_sz.at(i), [&](auto j) {
+            return sca_lam->var(n + j);
+        });
         n += arg_sz.at(i);
+        arg_map.emplace(lam->var(i), unflatten(new_args, lam->dom(i)));
     }
-    sca_lam->set_body(rewriter.rewrite(lam->body()));
-    sca_lam->set_filter(rewriter.rewrite(lam->filter()));
+    assert(sca_lam != lam);
+    sca_lam->set_filter(lam->filter());
+    sca_lam->set_body(lam->body());
+    sca_args.emplace(sca_lam, arg_map);
     keep_.emplace(sca_lam);
+    data().insert(lam);
     tup2sca_.emplace(lam, sca_lam);
     return sca_lam;
 }
 
 
 const Def* Scalerize::rewrite(const Def* def) {
+    if (auto arg_map = sca_args.lookup(curr_nom())) {
+        if (auto new_arg = arg_map->lookup(def))
+            return *new_arg;
+    } 
     if (auto app = def->isa<App>()) {
         auto tup_lam = app->callee()->isa_nom<Lam>();
-        if (ignore(tup_lam) || tup_lam->num_vars() <= 1 || keep_.contains(tup_lam)) return app;
 
         if (!should_expand(tup_lam)) {
-            keep_.emplace(tup_lam);
-            return app;
+            return app; 
         }
 
         auto sca_lam = make_scalar(tup_lam);
+        assert(sca_lam != curr_nom());
+
         world().DLOG("SCAL: lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
         auto new_args = std::vector<const Def*>();
         flatten(new_args, app->arg(), false);
@@ -64,6 +71,19 @@ const Def* Scalerize::rewrite(const Def* def) {
         return world().app(sca_lam, new_args);
     }
     return def;
+}
+
+undo_t Scalerize::analyze(const Def* def) {
+    auto undo = No_Undo;
+    for (size_t i = 0; i < def->num_ops(); i++) {
+        auto lam = def->op(i)->isa_nom();
+        if (lam && data().contains(lam) && !isa_callee(def, i)) {
+            world().DLOG("not η-expanded: {}", lam);
+            keep_.insert(lam);
+            undo = std::min(undo, undo_visit(lam));
+        }
+    }
+    return undo;
 }
 
 }

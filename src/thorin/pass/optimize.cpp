@@ -19,27 +19,29 @@ namespace thorin {
 
 void optimize(World& world) {
     PassMan opt(world);
-    opt.add<PartialEval>();
-    opt.add<BetaRed>();
+    // opt.add<PartialEval>();
+    // opt.add<BetaRed>();
     auto er = opt.add<EtaRed>();
     auto ee = opt.add<EtaExp>(er);
-    opt.add<SSAConstr>(ee);
-    //opt.add<CopyProp>();
-    //opt.add<Scalerize>();
-    //opt.add<AutoDiff>();
+    // opt.add<SSAConstr>(ee);
+    // opt.add<CopyProp>();
+    // opt.add<Scalerize>();
+    // opt.add<AutoDiff>();
     opt.run();
 
     ClosureConv(world).run();
+    auto cc = PassMan(world);
+    cc.add<Scalerize>();
+    cc.run();
+    world.debug_stream();
 
-    cleanup_world(world);
     // while (partial_evaluation(world, true)); // lower2cff
     // flatten_tuples(world);
-    // cleanup_world(world);
 
-    PassMan codgen_prepare(world);
+    // PassMan codgen_prepare(world);
     //codgen_prepare.add<BoundElim>();
-    codgen_prepare.add<RetWrap>();
-    codgen_prepare.run();
+    // codgen_prepare.add<RetWrap>();
+    // codgen_prepare.run();
 }
 
 }

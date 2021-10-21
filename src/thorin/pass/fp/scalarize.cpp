@@ -30,30 +30,23 @@ Lam* Scalerize::make_scalar(Lam *lam) {
     }
     auto pi = world().cn(world().sigma(types));
     auto sca_lam = lam->stub(world(), pi, world().dbg("sca_" + lam->name()));
-    auto arg_map = Def2Def();
-    for (size_t i = 0, n = 0; i < lam->num_doms(); i++) {
+    size_t n = 0;
+    world().DLOG("SCA type {} ~> {}", lam->type(), pi);
+    auto new_vars = world().tuple(Array<const Def*>(lam->num_doms(), [&](auto i) {
         auto new_args = Array<const Def*>(arg_sz.at(i), [&](auto j) {
-            return sca_lam->var(n + j);
+                return sca_lam->var(n + j);
         });
         n += arg_sz.at(i);
-        arg_map.emplace(lam->var(i), unflatten(new_args, lam->dom(i)));
-    }
-    assert(sca_lam != lam);
-    sca_lam->set_filter(lam->filter());
-    sca_lam->set_body(lam->body());
-    sca_args.emplace(sca_lam, arg_map);
+        return unflatten(new_args, lam->dom(i));
+    }));
+    sca_lam->set(lam->apply(new_vars));
     keep_.emplace(sca_lam);
-    data().insert(lam);
     tup2sca_.emplace(lam, sca_lam);
     return sca_lam;
 }
 
 
 const Def* Scalerize::rewrite(const Def* def) {
-    if (auto arg_map = sca_args.lookup(curr_nom())) {
-        if (auto new_arg = arg_map->lookup(def))
-            return *new_arg;
-    } 
     if (auto app = def->isa<App>()) {
         auto tup_lam = app->callee()->isa_nom<Lam>();
 
@@ -62,7 +55,6 @@ const Def* Scalerize::rewrite(const Def* def) {
         }
 
         auto sca_lam = make_scalar(tup_lam);
-        assert(sca_lam != curr_nom());
 
         world().DLOG("SCAL: lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
         auto new_args = std::vector<const Def*>();
@@ -71,19 +63,6 @@ const Def* Scalerize::rewrite(const Def* def) {
         return world().app(sca_lam, new_args);
     }
     return def;
-}
-
-undo_t Scalerize::analyze(const Def* def) {
-    auto undo = No_Undo;
-    for (size_t i = 0; i < def->num_ops(); i++) {
-        auto lam = def->op(i)->isa_nom();
-        if (lam && data().contains(lam) && !isa_callee(def, i)) {
-            world().DLOG("not η-expanded: {}", lam);
-            keep_.insert(lam);
-            undo = std::min(undo, undo_visit(lam));
-        }
-    }
-    return undo;
 }
 
 }

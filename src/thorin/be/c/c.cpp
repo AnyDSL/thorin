@@ -1083,6 +1083,8 @@ void CCodeGen::emit_c_int() {
     for (auto cont : world().continuations()) {
         if (!cont->is_external())
             continue;
+        if (cont->cc() != CC::C && cont->is_imported())
+            continue;
 
         // Generate C types for structs used by imported or exported functions
         for (auto op : cont->type()->ops()) {

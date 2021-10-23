@@ -37,10 +37,7 @@ struct BB {
     }
 };
 
-struct ChannelUsage {
-    bool read = false;
-    bool write = false;
-};
+using FuncMode = ChannelMode;
 
 enum class CLDialect : uint8_t {
     STD    = 0, ///< Standard OpenCL
@@ -142,7 +139,7 @@ private:
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
 
-    ContinuationMap<ChannelUsage> builtin_funcs_; // OpenCL builtin functions
+    ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
 
 static inline const std::string lang_as_string(Lang lang) {
@@ -376,10 +373,12 @@ void CCodeGen::emit_module() {
                           << " #define PIPE channel\n";
             for (auto map : builtin_funcs_) {
                 if (map.first->is_channel()) {
-                    if (map.second.write) {
+                    if (map.second == FuncMode::Write) {
+                        std::cout << "WRITE" << std::endl;
                         macro_xilinx_ << " #define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)\n";
                         macro_intel_  << " #define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
-                    } else if (map.second.read) {
+                    } else if (map.second == FuncMode::Read) {
+                        std::cout << "READ" << std::endl;
                         macro_xilinx_ << " #define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)\n";
                         macro_intel_  << " #define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)\n";
                     }
@@ -758,12 +757,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
         if (lang_ == Lang::OpenCL && use_channels_ && callee->is_channel()) {
-            auto [usage, _] = builtin_funcs_.emplace(callee, ChannelUsage {});
+            auto [usage, _] = builtin_funcs_.emplace(callee, FuncMode::Read);
 
             if (name.find("write") != std::string::npos) {
-                usage->second.write = true;
+                usage->second = FuncMode::Write;
             } else if (name.find("read") != std::string::npos) {
-                usage->second.write = true;
+                usage->second = FuncMode::Read;
                 assert(channel_read_result != nullptr);
                 args.emplace(args.begin(), emit(channel_read_result));
             } else THORIN_UNREACHABLE;
@@ -803,6 +802,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     continue;
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
+                else if (lang_ == Lang::OpenCL && use_channels_)
+                    bb.tail.fmt(" p_{} = {};\n", emit(channel_read_result), param->unique_name());
                 else
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }
@@ -1244,7 +1245,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             func_decls_.fmt("; // bottom\n");
         else
             func_decls_.fmt(" = {};\n", emit_constant(global->init()));
-        s.fmt("&g_{}", name);
+        s.fmt("g_{}", name);
         return s.str();
     } else if (def->isa<Bottom>()) {
         return emit_bottom(def->type());

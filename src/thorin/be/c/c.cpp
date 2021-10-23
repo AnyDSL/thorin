@@ -374,11 +374,9 @@ void CCodeGen::emit_module() {
             for (auto map : builtin_funcs_) {
                 if (map.first->is_channel()) {
                     if (map.second == FuncMode::Write) {
-                        std::cout << "WRITE" << std::endl;
                         macro_xilinx_ << " #define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)\n";
                         macro_intel_  << " #define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
                     } else if (map.second == FuncMode::Read) {
-                        std::cout << "READ" << std::endl;
                         macro_xilinx_ << " #define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)\n";
                         macro_intel_  << " #define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)\n";
                     }

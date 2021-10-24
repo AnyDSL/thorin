@@ -1243,7 +1243,11 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             func_decls_.fmt("; // bottom\n");
         else
             func_decls_.fmt(" = {};\n", emit_constant(global->init()));
-        s.fmt("g_{}", name);
+        if (use_channels_)
+            s.fmt("g_{}", name);
+        else
+            s.fmt("&g_{}", name);
+
         return s.str();
     } else if (def->isa<Bottom>()) {
         return emit_bottom(def->type());

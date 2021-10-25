@@ -30,7 +30,7 @@ static bool is_var_ref(const Def* def) {
 
 static bool print_inline(const Def* def) {
     return !def->isa_nom() && (def->no_dep() || is_var_ref(def) ||
-        match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple) && def->num_ops() <= 5);
+        (match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple) && def->num_ops() <= 5));
 }
 
 struct Fmt {

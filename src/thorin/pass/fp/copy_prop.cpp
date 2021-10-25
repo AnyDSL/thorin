@@ -63,6 +63,7 @@ undo_t CopyProp::analyze(const Proxy* proxy) {
 }
 
 undo_t CopyProp::analyze(const Def* def) {
+    return No_Undo;
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam != nullptr && !ignore(lam) && keep_.emplace(lam).second) {

@@ -1,8 +1,7 @@
+#include "thorin/pass/rw/scalarize.h"
 
 #include "thorin/tuple.h"
 #include "thorin/rewrite.h"
-
-#include "thorin/pass/rw/scalarize.h"
 
 namespace thorin {
 
@@ -11,7 +10,7 @@ using DefVec = std::vector<const Def*>;
 bool Scalerize::should_expand(Lam* lam) {
     if (ignore(lam) || keep_.contains(lam))
         return false;
-    auto pi = lam->type(); 
+    auto pi = lam->type();
     auto rewrite = lam->num_doms() > 1
         && pi->is_cn() && !pi->isa_nom(); // no ugly dependent pis
     if (!rewrite)
@@ -50,7 +49,7 @@ const Def* Scalerize::rewrite(const Def* def) {
         auto tup_lam = app->callee()->isa_nom<Lam>();
 
         if (!should_expand(tup_lam)) {
-            return app; 
+            return app;
         }
 
         auto sca_lam = make_scalar(tup_lam);

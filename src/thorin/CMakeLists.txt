@@ -69,8 +69,6 @@ set(THORIN_SOURCES
     pass/rw/scalarize.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/flatten_tuples.cpp
-    transform/flatten_tuples.h
     transform/mangle.cpp
     transform/mangle.h
     transform/partial_evaluation.cpp

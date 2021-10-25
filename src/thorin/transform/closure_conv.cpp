@@ -62,9 +62,8 @@ void ClosureConv::run() {
         world().DLOG("===== (run) done rewrite");
     }
     world().DLOG("===== ClosureConv: done ======");
-    world().debug_stream();
+    // world().debug_stream();
 }
-
 
 const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
     switch(def->node()) {
@@ -107,7 +106,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         world().DLOG("CC (rw): rewrite nom {}", nom);
         auto new_nom = nom->stub(world(), new_type, new_dbg);
         subst.emplace(nom->var(), new_nom->var());
-        for (int i = 0; i < nom->num_ops(); i++) {
+        for (size_t i = 0; i < nom->num_ops(); i++) {
             if (def->op(i))
                 new_nom->set(i, rewrite(def->op(i), subst));
         }
@@ -155,38 +154,127 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
 }
 
 
-void compute_fvs(Lam* fn, DefSet& visited, DefSet& fvs) {
-    if (visited.contains(fn))
+void FVA::split_fv(const Def* def, DefSet& out) {
+    if (def->no_dep() || def->isa<Lam>() || def->is_external() || def->isa<Axiom>()) {
         return;
-    visited.insert(fn);
-    auto scope = Scope(fn);
-    for (auto fv: scope.free_defs()) {
-        // TODO: Handle pack's
-        ArrayRef<const Def*> ops
-            = (fv->isa<Tuple>()) ? flatten(fv)->ops()
-            : ArrayRef{fv};
-        for (auto op: ops) {
-            if (op == fn || op->is_external() || op->isa<Axiom>())
-                continue;
-            else if (auto callee = op->isa_nom<Lam>())
-                compute_fvs(callee, visited, fvs);
-            else
-                fvs.insert(fv);
-        }
+    } else if (auto tuple = def->isa<Tuple>()) {
+        for (auto op: tuple->ops())
+            split_fv(op, out);
+    } else {
+        out.emplace(def);
     }
 }
 
-void compute_fvs(Lam* lam, DefSet &fvs) {
-    auto visited = DefSet();
-    compute_fvs(lam, visited, fvs);
+std::pair<FVA::Node*, bool> FVA::build_node(Lam *lam, NodeQueue& worklist) {
+    auto [p, inserted] = lam2nodes_.emplace(lam, nullptr);
+    if (!inserted) 
+        return {p->second.get(), false};
+    world().DLOG("FVA: create node: {}", lam);
+    p->second = std::make_unique<Node>();
+    auto node = p->second.get();
+    node->lam = lam;
+    node->pass_id = 0;
+    auto scope = Scope(lam);
+    node->fvs = DefSet();
+    for (auto v: scope.free_defs()) {
+        split_fv(v, node->fvs);
+    }
+    node->preds = Nodes();
+    node->succs = Nodes();
+    bool init_node = false;
+    for (auto n: scope.free_noms()) {
+        if (auto pred = n->isa_nom<Lam>(); pred && pred != lam) {
+            auto [pnode, inserted] = build_node(pred, worklist);
+            node->preds.push_back(pnode);
+            pnode->succs.push_back(node);
+            init_node |= inserted;
+        }
+    }
+    if (!init_node) {
+        worklist.push(node);
+        world().DLOG("FVA: init {}", lam);
+    }
+    return {node, true};
 }
+
+
+void FVA::run(NodeQueue& worklist) {
+    int iter = 0;
+    while(!worklist.empty()) {
+        auto node = worklist.front();
+        worklist.pop();
+        world().DLOG("FA: iter {}: {}", iter, node->lam);
+        if (is_done(node))
+            continue;
+        auto changed = is_bot(node);
+        mark(node);
+        for (auto p: node->preds) {
+            auto& pfvs = p->fvs;
+            changed |= node->fvs.insert(pfvs.begin(), pfvs.end());
+            world().DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->lam, p->lam, pfvs);
+        }
+        if (changed) {
+            for (auto s: node->succs) {
+                worklist.push(s);
+            }
+        }
+        iter++;
+    }
+    world().DLOG("FVA: done");
+}
+
+DefSet& FVA::run(Lam *lam) {
+    auto worklist = NodeQueue();
+    auto [node, _] = build_node(lam, worklist);
+    if (!is_done(node)) {
+        cur_pass_id++;
+        run(worklist);
+    }
+    return node->fvs;
+}
+
+// DefSet& ClosureConv::compute_fvs(Lam *lam) {
+//     auto visited = LamSet();
+//     auto& fvs = fva_run(lam, visited);
+//     for (auto v: visited) {
+//         fvinfo(v).done = true;
+//     }
+//     return fvs;
+// }
+
+// void compute_fvs(Lam* fn, DefSet& visited, DefSet& fvs) {
+//     if (visited.contains(fn))
+//         return;
+//     visited.insert(fn);
+//     auto scope = Scope(fn);
+//     for (auto fv: scope.free_defs()) {
+//         // TODO: Handle pack's
+//         ArrayRef<const Def*> ops
+//             = (fv->isa<Tuple>()) ? flatten(fv)->ops()
+//             : ArrayRef{fv};
+//         for (auto op: ops) {
+//             if (op == fn || op->is_external() || op->isa<Axiom>())
+//                 continue;
+//             else if (auto callee = op->isa_nom<Lam>())
+//                 compute_fvs(callee, visited, fvs);
+//             else {
+//                 fv->dump(1);
+//                 fvs.insert(fv);
+//             }
+//         }
+//     }
+// }
+
+// void compute_fvs(Lam* lam, DefSet &fvs) {
+//     auto visited = DefSet();
+//     compute_fvs(lam, visited, fvs);
+// }
 
 ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
     if (auto closure = closures_.lookup(fn))
         return* closure;
 
-    auto fv_set = DefSet();
-    compute_fvs(fn, fv_set);
+    auto& fv_set = fva_.run(fn);
     auto fvs = std::vector<const Def*>();
     auto fvs_types = std::vector<const Def*>();
     for (auto fv: fv_set) {

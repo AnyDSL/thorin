@@ -36,7 +36,6 @@ using nat_t    = u64;
     m(Atomic, atomic)                                               \
     m(Lift, lift)                                                   \
     m(RevDiff, rev_diff) m(TangentVector, tangent_vector) \
-    m(ClosurConvFv, closure_conv_fv)
 
 namespace WMode {
 enum : nat_t {

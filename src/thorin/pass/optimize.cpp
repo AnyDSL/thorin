@@ -2,12 +2,12 @@
 #include "thorin/pass/fp/copy_prop.h"
 #include "thorin/pass/fp/eta_exp.h"
 #include "thorin/pass/fp/eta_red.h"
-#include "thorin/pass/fp/scalarize.h"
 #include "thorin/pass/fp/ssa_constr.h"
 #include "thorin/pass/rw/auto_diff.h"
 #include "thorin/pass/rw/bound_elim.h"
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
+#include "thorin/pass/rw/scalarize.h"
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"

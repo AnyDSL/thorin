@@ -5,7 +5,6 @@
 #include <queue>
 #include <vector>
 #include <set>
-#include <functional>
 
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
@@ -77,9 +76,6 @@ class ClosureConv {
         const Def* closure_type(const Pi* pi, Def2Def& subst, const Def* ent_type = nullptr);
 
         Closure make_closure(Lam* lam, Def2Def& subst);
-
-        //////////////////////////////////////// 
-        ///////////////////////////////////////
 
         World& world() { return world_; }
 

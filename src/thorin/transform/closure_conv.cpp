@@ -13,10 +13,10 @@ static auto num_doms(const Def *def) {
 void ClosureConv::run() {
     auto externals = std::vector(world().externals().begin(), world().externals().end());
     auto subst = Def2Def();
+    world().DLOG("===== ClosureConv: start =====");
     for (auto [_, ext_def]: externals) {
         rewrite(ext_def, subst);
     }
-    world().DLOG("===== CC (run): start =====");
     while (!worklist_.empty()) {
         auto def = worklist_.front();
         subst = Def2Def();
@@ -27,8 +27,7 @@ void ClosureConv::run() {
             auto num_fvs = closure->num_fvs;
             auto old_fn = closure->old_fn;
 
-            world().DLOG("===== CC (run): closure body {} [old={}, env={}] =====", 
-                    new_fn, old_fn, env);
+            world().DLOG("RUN: closure body {} [old={}, env={}]\n\t", new_fn, old_fn, env);
             auto env_param = new_fn->var(0_u64);
             if (num_fvs == 1) {
                 subst.emplace(env, env_param);
@@ -56,10 +55,10 @@ void ClosureConv::run() {
             new_fn->set_filter(filter);
         }
         else {
-            world().DLOG("CC (run): rewrite def {}", def);
+            world().DLOG("RUN: rewrite def {}\t", def);
             rewrite(def, subst);
         }
-        world().DLOG("===== (run) done rewrite");
+        world().DLOG("\b");
     }
     world().DLOG("===== ClosureConv: done ======");
     // world().debug_stream();
@@ -93,8 +92,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         auto closure_type = rewrite(lam->type(), subst);
         auto env = rewrite(fv_env, subst);
         auto closure = world().tuple(closure_type, {env, fn});
-        world().DLOG("CC (rw): build closure: {} ~~> {} = (fn {}, env {}) : {}", lam, closure,
-                fn, env, closure_type);
+        world().DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
         return map(closure);
     } 
 
@@ -103,7 +101,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
 
     if (auto nom = def->isa_nom()) {
         // TODO: Test this
-        world().DLOG("CC (rw): rewrite nom {}", nom);
+        world().DLOG("RW: nom {}", nom);
         auto new_nom = nom->stub(world(), new_type, new_dbg);
         subst.emplace(nom->var(), new_nom->var());
         for (size_t i = 0; i < nom->num_ops(); i++) {
@@ -122,7 +120,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
             auto args = new_ops[1];
             auto env = world().extract(closure, 0_u64, world().dbg("cc_app_env"));
             auto fn = world().extract(closure, 1_u64, world().dbg("cc_app_f"));
-            world().DLOG("CC (rw): call closure {}: APP {} {} {}", closure, fn, env, args);
+            world().DLOG("RW: call {} ~> APP {} {} {}", closure, fn, env, args);
             return map(world().app(fn, Array<const Def*>(num_doms(fn), [&](auto i) {
                 return (i == 0) ? env : world().extract(args, i - 1);
             })));
@@ -141,14 +139,14 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
         sigma->set(0, sigma->var());
         sigma->set(1, new_pi);
         closure_types_.emplace(pi, sigma);
-        world().DLOG("CC (cl_type): make pct: {} ~~> {}", pi, sigma);
+        world().DLOG("C-TYPE: pct {} ~~> {}", pi, sigma);
         return sigma;
     } else {
         auto dom = world().sigma(Array<const Def*>(pi->num_doms() + 1, [&](auto i) {
             return (i == 0) ? env_type : rewrite(pi->dom(i - 1), subst);
         }));
         auto new_pi = world().cn(dom, world().dbg("cc_ct"));
-        world().DLOG("CC (cl_type: make ct: {}, env = {} ~~> {})", pi, env_type, new_pi);
+        world().DLOG("C-TYPE: ct {}, env = {} ~~> {}", pi, env_type, new_pi);
         return new_pi;
     }
 }
@@ -233,42 +231,6 @@ DefSet& FVA::run(Lam *lam) {
     return node->fvs;
 }
 
-// DefSet& ClosureConv::compute_fvs(Lam *lam) {
-//     auto visited = LamSet();
-//     auto& fvs = fva_run(lam, visited);
-//     for (auto v: visited) {
-//         fvinfo(v).done = true;
-//     }
-//     return fvs;
-// }
-
-// void compute_fvs(Lam* fn, DefSet& visited, DefSet& fvs) {
-//     if (visited.contains(fn))
-//         return;
-//     visited.insert(fn);
-//     auto scope = Scope(fn);
-//     for (auto fv: scope.free_defs()) {
-//         // TODO: Handle pack's
-//         ArrayRef<const Def*> ops
-//             = (fv->isa<Tuple>()) ? flatten(fv)->ops()
-//             : ArrayRef{fv};
-//         for (auto op: ops) {
-//             if (op == fn || op->is_external() || op->isa<Axiom>())
-//                 continue;
-//             else if (auto callee = op->isa_nom<Lam>())
-//                 compute_fvs(callee, visited, fvs);
-//             else {
-//                 fv->dump(1);
-//                 fvs.insert(fv);
-//             }
-//         }
-//     }
-// }
-
-// void compute_fvs(Lam* lam, DefSet &fvs) {
-//     auto visited = DefSet();
-//     compute_fvs(lam, visited, fvs);
-// }
 
 ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
     if (auto closure = closures_.lookup(fn))
@@ -295,8 +257,7 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
             fn->make_internal();
     }
 
-    world().DLOG("CC (make_closure): {} : {} ~~> {} : {}, env = {} : {}", fn, fn->type(), new_lam,
-            new_fn_type, env, env_type);
+    world().DLOG("STUB {} ~~> ({}, {})", fn, new_lam, env);
 
     auto closure = Closure{fn, fv_set.size(), env, new_lam};
     closures_.emplace(fn, closure);

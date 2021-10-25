@@ -5,6 +5,10 @@
 *.nvvm
 *.s
 *.out
+compile_flags.txt
+src/compile_flags.txt
+src/.project.vim
+src/tags
 CMakeCache.txt
 CMakeFiles/
 build*

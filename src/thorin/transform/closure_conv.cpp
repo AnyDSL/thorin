@@ -45,11 +45,11 @@ void ClosureConv::run() {
 
             auto filter = (new_fn->filter()) 
                 ? rewrite(new_fn->filter(), subst) 
-                : world().lit_false(); // extern function
+                : nullptr; // extern function
             
             auto body = (new_fn->body())
                 ? rewrite(new_fn->body(), subst)
-                : world().app(old_fn, params); // extern function
+                : nullptr;
 
             new_fn->set_body(body);
             new_fn->set_filter(filter);
@@ -248,13 +248,12 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
 
     /* Types: rewrite function type here \w fv s */
     auto new_fn_type = closure_type(fn->type(), subst, env_type)->as<Pi>();
-    auto new_lam = world().nom_lam(new_fn_type, world().dbg("cc_" + fn->name()));
+    auto new_lam = world().nom_lam(new_fn_type, world().dbg(fn->name()));
     new_lam->set_body(fn->body());
     new_lam->set_filter(fn->filter());
     if (fn->is_external()) { 
+        fn->make_internal();
         new_lam->make_external();
-        if (fn->body() && fn->filter()) // imported external
-            fn->make_internal();
     }
 
     world().DLOG("STUB {} ~~> ({}, {})", fn, new_lam, env);

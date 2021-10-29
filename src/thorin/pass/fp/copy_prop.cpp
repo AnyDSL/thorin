@@ -11,8 +11,8 @@ const Def* CopyProp::rewrite(const Def* def) {
 
     auto& args = data(var_lam);
     args.resize(app->num_args());
-    std::vector<const Def*> new_args;
-    std::vector<const Def*> types;
+    DefVec new_args;
+    DefVec types;
 
     bool update = false;
     bool changed = false;

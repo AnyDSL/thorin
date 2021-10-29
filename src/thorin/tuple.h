@@ -160,7 +160,7 @@ public:
 
 /// Flattens a sigma/array/pack/tuple.
 const Def* flatten(const Def* def);
-size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_sigmas = true);
+size_t flatten(DefVec& ops, const Def* def, bool flatten_sigmas = true);
 
 /// Applies the reverse transformation on a pack/tuple, given the original type.
 const Def* unflatten(const Def* def, const Def* type);

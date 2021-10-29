@@ -36,7 +36,7 @@ static bool nom_val_or_typ(const Def *def) {
     return typ->isa_nom();
 }
 
-size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_noms) {
+size_t flatten(DefVec& ops, const Def* def, bool flatten_noms) {
     if (auto a = isa_lit<nat_t>(def->arity()); a && a != 1 && should_flatten(def)
             && flatten_noms == nom_val_or_typ(def)) {
         auto n = 0;
@@ -51,7 +51,7 @@ size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_noms) 
 
 const Def* flatten(const Def* def) {
     if (!should_flatten(def)) return def;
-    std::vector<const Def*> ops;
+    DefVec ops;
     flatten(ops, def);
     return def->sort() == Sort::Term ? def->world().tuple(def->type(), ops, def->dbg()) : def->world().sigma(ops, def->dbg());
 }

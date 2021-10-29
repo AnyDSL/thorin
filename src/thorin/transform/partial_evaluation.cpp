@@ -10,7 +10,7 @@
 namespace thorin {
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
-    std::vector<const Def*> nargs;
+    DefVec nargs;
     auto src_app = src->body()->as<App>();
     for (size_t i = 0, e = src_app->num_args(); i != e; ++i) {
         if (app->arg(i)->isa<Top>())

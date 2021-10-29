@@ -14,8 +14,7 @@ public:
         : FPPass(man, "copy_prop")
     {}
 
-    using Args = std::vector<const Def*>;
-    using Data = LamMap<Args>;
+    using Data = LamMap<DefVec>;
 
 private:
     const Def* rewrite(const Def*) override;

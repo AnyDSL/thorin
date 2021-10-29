@@ -36,7 +36,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
 
 Lam* Mangler::mangle() {
     // create new_entry - but first collect and specialize all var types
-    std::vector<const Def*> var_types;
+    DefVec var_types;
     for (size_t i = 0, e = old_entry()->num_vars(); i != e; ++i) {
         if (args_[i]->isa<Top>())
             var_types.emplace_back(old_entry()->var(i)->type());

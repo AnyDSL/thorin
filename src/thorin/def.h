@@ -255,7 +255,7 @@ public:
     const Var* has_var() { return var_ ? var() : nullptr; }
     const Var* var(const Def* dbg);
     const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
-    const Var* var();       ///< Wrapper instead of default argument for easy access in @c gdb.
+    const Var* var();         ///< Wrapper instead of default argument for easy access in @c gdb.
     const Def* var(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
     Array<const Def*> vars() { return Array<const Def*>(num_vars(), [&](auto i) { return var(i); }); }
     size_t num_vars();
@@ -357,8 +357,8 @@ template<class To>
 using DefMap  = GIDMap<const Def*, To>;
 using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
-
-using DefDef = std::tuple<const Def*, const Def*>;
+using DefDef  = std::tuple<const Def*, const Def*>;
+using DefVec  = std::vector<const Def*>;
 
 struct DefDefHash {
     static hash_t hash(DefDef pair) {

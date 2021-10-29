@@ -88,7 +88,7 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
     if (lam2phixys.empty()) return app;
 
     auto&& [_, phi_lam] = *mem2phi_.emplace(mem_lam, nullptr).first;
-    std::vector<const Def*> types;
+    DefVec types;
     for (auto i = lam2phixys.begin(), e = lam2phixys.end(); i != e;) {
         auto sloxy = *i;
         if (keep_.contains(sloxy)) {

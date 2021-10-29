@@ -5,8 +5,6 @@
 
 namespace thorin {
 
-using DefVec = std::vector<const Def*>;
-
 bool Scalerize::should_expand(Lam* lam) {
     if (ignore(lam) || keep_.contains(lam))
         return false;
@@ -55,7 +53,7 @@ const Def* Scalerize::rewrite(const Def* def) {
         auto sca_lam = make_scalar(tup_lam);
 
         world().DLOG("SCAL: lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
-        auto new_args = std::vector<const Def*>();
+        auto new_args = DefVec();
         flatten(new_args, app->arg(), false);
 
         return world().app(sca_lam, new_args);

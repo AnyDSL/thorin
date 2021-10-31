@@ -131,6 +131,11 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
+/*
+ * TODO since proxies are only visible to its dedicated pass we don't really need isa_proxy
+ * TODO use THORIN_UNREACHABLE
+ */
+
 undo_t SSAConstr::analyze(const Proxy* proxy) {
     if (auto sloxy = isa_proxy(proxy, Sloxy)) {
         auto sloxy_lam = sloxy->op(0)->as_nom<Lam>();

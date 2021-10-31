@@ -24,12 +24,12 @@ public:
 
     enum : flags_t { Etaxy, Phixy, Sloxy, Traxy };
 
-    struct SSAInfo {
+    struct Info {
         Lam* pred = nullptr;
         GIDSet<const Proxy*> writable;
     };
 
-    using Data = std::map<Lam*, SSAInfo, GIDLt<Lam*>>;
+    using Data = std::map<Lam*, Info, GIDLt<Lam*>>;
 
 private:
     /// @name PassMan hooks

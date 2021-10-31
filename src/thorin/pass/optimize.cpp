@@ -21,8 +21,8 @@ void optimize(World& world) {
     auto er = opt.add<EtaRed>();
     auto ee = opt.add<EtaExp>(er);
     opt.add<SSAConstr>(ee);
-    opt.add<Scalerize>();
-    //opt.add<CopyProp>();
+    //opt.add<Scalerize>();
+    opt.add<CopyProp>(ee);
     opt.run();
 
     cleanup_world(world);

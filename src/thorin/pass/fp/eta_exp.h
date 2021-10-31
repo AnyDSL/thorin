@@ -19,7 +19,7 @@ public:
         , eta_red_(eta_red)
     {}
 
-    void mark_expand(Lam* lam) { expand_.emplace(lam); }
+    void mark_expand(Lam* lam, const char*);
 
     /**
      * @code

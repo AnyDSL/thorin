@@ -3,12 +3,15 @@
 
 namespace thorin {
 
+void EtaExp::mark_expand(Lam* lam, const char* name) {
+    world().DLOG("mark_expand from {}: {}", name, lam);
+    expand_.emplace(lam);
+}
+
 const Def* EtaExp::rewrite(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam && lam->is_set()) {
-            if (isa_callee(def, i)) continue;
-
-            if (expand_.contains(lam)) {
+            if (!isa_callee(def, i) && expand_.contains(lam)) {
                 auto [j, ins] = def2exp_.emplace(def, nullptr);
                 if (ins) {
                     auto wrap = eta_wrap(lam);
@@ -21,10 +24,7 @@ const Def* EtaExp::rewrite(const Def* def) {
             }
 
             if (auto subst = wrap2subst_.lookup(lam)) {
-                if (auto [orig, subst_def] = *subst; def != subst_def) {
-                    assert(lam->body()->isa<App>() && lam->body()->as<App>()->callee() == orig);
-                    return reexpand(def);
-                }
+                if (auto [orig, subst_def] = *subst; def != subst_def) return reexpand(def);
             }
         }
     }
@@ -44,9 +44,14 @@ const Def* EtaExp::reexpand(const Def* def) {
         if (auto lam = def->op(i)->isa_nom<Lam>()) {
             if (auto subst = wrap2subst_.lookup(lam)) {
                 auto [orig, subst_def] = *subst;
-                auto wrap = eta_wrap(orig);
-                refinements.emplace_back(wrap, orig);
-                new_ops[i] = wrap;
+                assert(lam->body()->isa<App>() && lam->body()->as<App>()->callee() == orig);
+                if (isa_callee(def, i)) {
+                    new_ops[i] = orig;
+                } else {
+                    auto wrap = eta_wrap(orig);
+                    refinements.emplace_back(wrap, orig);
+                    new_ops[i] = wrap;
+                }
                 continue;
             }
         }

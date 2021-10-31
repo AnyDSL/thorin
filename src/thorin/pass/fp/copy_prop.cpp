@@ -82,7 +82,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
 undo_t CopyProp::analyze(const Proxy* proxy) {
     if (auto etaxy = isa_proxy(proxy, Etaxy)) {
         auto etaxy_lam = etaxy->op(0)->as_nom<Lam>();
-        eta_exp_->mark_expand(etaxy_lam);
+        eta_exp_->mark_expand(etaxy_lam, "copy_prop");
         world().DLOG("found etaxy '{}'", etaxy_lam);
         return undo_visit(etaxy_lam);
     } else if (auto copxy = isa_proxy(proxy, Copxy)) {
@@ -113,7 +113,7 @@ undo_t CopyProp::analyze(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>()) {
             if (!isa_callee(def, i) && !keep_.contains(lam) && var2prop_.contains(lam)) {
-                eta_exp_->mark_expand(lam);
+                eta_exp_->mark_expand(lam, "copy_prop");
                 undo = std::min(undo, undo_visit(lam));
                 world().DLOG("eta-expand: {}", lam);
             }

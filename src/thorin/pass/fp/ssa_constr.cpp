@@ -154,7 +154,7 @@ undo_t SSAConstr::analyze(const Proxy* proxy) {
         }
     } else if (auto etaxy = isa_proxy(proxy, Etaxy)) {
         auto etaxy_lam = etaxy->op(0)->as_nom<Lam>();
-        eta_exp_->mark_expand(etaxy_lam);
+        eta_exp_->mark_expand(etaxy_lam, "ssa_constr");
         world().DLOG("found etaxy '{}'", etaxy_lam);
         return undo_visit(etaxy_lam);
     }

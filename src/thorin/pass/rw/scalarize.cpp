@@ -26,9 +26,9 @@ Lam* Scalerize::make_scalar(Lam *lam) {
         arg_sz.push_back(n);
     }
     auto pi = world().cn(world().sigma(types));
-    auto sca_lam = lam->stub(world(), pi, world().dbg("sca_" + lam->name()));
+    auto sca_lam = lam->stub(world(), pi, lam->dbg());
     size_t n = 0;
-    world().DLOG("SCA type {} ~> {}", lam->type(), pi);
+    world().DLOG("type {} ~> {}", lam->type(), pi);
     auto new_vars = world().tuple(Array<const Def*>(lam->num_doms(), [&](auto i) {
         auto new_args = Array<const Def*>(arg_sz.at(i), [&](auto j) {
                 return sca_lam->var(n + j);
@@ -46,13 +46,10 @@ const Def* Scalerize::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         auto tup_lam = app->callee()->isa_nom<Lam>();
 
-        if (!should_expand(tup_lam)) {
-            return app;
-        }
+        if (!should_expand(tup_lam)) return app;
 
         auto sca_lam = make_scalar(tup_lam);
-
-        world().DLOG("SCAL: lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
+        world().DLOG("lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
         auto new_args = DefVec();
         flatten(new_args, app->arg(), false);
 

@@ -19,7 +19,7 @@ public:
         , eta_red_(eta_red)
     {}
 
-    void mark_expand(Lam* lam, const char*);
+    const Proxy* proxy(Lam*);
 
     /**
      * @code
@@ -39,6 +39,7 @@ private:
     const Def* rewrite(const Def*) override;
     const Def* reexpand(const Def*);
     Lam* eta_wrap(Lam*);
+    undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;
 
     EtaRed* eta_red_;

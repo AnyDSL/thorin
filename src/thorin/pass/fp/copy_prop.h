@@ -17,8 +17,6 @@ public:
         , eta_exp_(eta_exp)
     {}
 
-    enum : flags_t { Etaxy, Copxy };
-
     using Data = LamMap<DefVec>;
 
 private:

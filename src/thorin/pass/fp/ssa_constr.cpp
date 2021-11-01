@@ -52,7 +52,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
                 if (mem2phi_.contains(lam))
-                   return def->refine(i, proxy(lam->type(), {lam}, Etaxy));
+                   return def->refine(i, eta_exp_->proxy(lam));
             }
         }
     }
@@ -152,11 +152,6 @@ undo_t SSAConstr::analyze(const Proxy* proxy) {
             world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}'", phixy, sloxy, mem_lam);
             return undo_visit(mem_lam);
         }
-    } else if (auto etaxy = isa_proxy(proxy, Etaxy)) {
-        auto etaxy_lam = etaxy->op(0)->as_nom<Lam>();
-        eta_exp_->mark_expand(etaxy_lam, "ssa_constr");
-        world().DLOG("found etaxy '{}'", etaxy_lam);
-        return undo_visit(etaxy_lam);
     }
 
     return No_Undo;

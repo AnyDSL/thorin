@@ -22,7 +22,7 @@ public:
         , eta_exp_(eta_exp)
     {}
 
-    enum : flags_t { Etaxy, Phixy, Sloxy, Traxy };
+    enum : flags_t { Phixy, Sloxy, Traxy };
 
     struct Info {
         Lam* pred = nullptr;

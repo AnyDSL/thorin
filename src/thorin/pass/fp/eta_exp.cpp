@@ -3,11 +3,6 @@
 
 namespace thorin {
 
-void EtaExp::mark_expand(Lam* lam, const char* name) {
-    world().DLOG("mark_expand from {}: {}", name, lam);
-    expand_.emplace(lam);
-}
-
 const Def* EtaExp::rewrite(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam && lam->is_set()) {
@@ -73,6 +68,17 @@ Lam* EtaExp::eta_wrap(Lam* lam) {
     wrap->app(lam, wrap->var());
     if (eta_red_) eta_red_->mark_irreducible(wrap);
     return wrap;
+}
+
+const Proxy* EtaExp::proxy(Lam* lam) {
+    return FPPass<EtaExp, Lam>::proxy(lam->type(), {lam}, 0);
+}
+
+undo_t EtaExp::analyze(const Proxy* proxy) {
+    auto lam = proxy->op(0)->as_nom<Lam>();
+    if (expand_.emplace(lam).second)
+        return undo_visit(lam);
+    return No_Undo;
 }
 
 undo_t EtaExp::analyze(const Def* def) {

@@ -12,7 +12,7 @@ const Def* CopyProp::rewrite(const Def* def) {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
                 if (var2prop_.contains(lam))
-                   return def->refine(i, proxy(lam->type(), {lam}, Etaxy));
+                   return def->refine(i, eta_exp_->proxy(lam));
             }
         }
     }
@@ -52,7 +52,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
     world().DLOG("new_args: {, }", new_args);
 
     if (proxy_ops.size() > 1) {
-        auto p = proxy(app->type(), proxy_ops, Copxy);
+        auto p = proxy(app->type(), proxy_ops, 0);
         world().DLOG("copxy: '{}': {, }", p, proxy_ops);
         return p;
     }
@@ -80,31 +80,22 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
 }
 
 undo_t CopyProp::analyze(const Proxy* proxy) {
-    if (auto etaxy = isa_proxy(proxy, Etaxy)) {
-        auto etaxy_lam = etaxy->op(0)->as_nom<Lam>();
-        eta_exp_->mark_expand(etaxy_lam, "copy_prop");
-        world().DLOG("found etaxy '{}'", etaxy_lam);
-        return undo_visit(etaxy_lam);
-    } else if (auto copxy = isa_proxy(proxy, Copxy)) {
-        auto var_lam = copxy->op(0)->as_nom<Lam>();
-        world().DLOG("found copxy: {}", var_lam);
+    auto var_lam = proxy->op(0)->as_nom<Lam>();
+    world().DLOG("found proxy: {}", var_lam);
 
-        for (auto op : copxy->ops().skip_front()) {
-            if (op) {
-                if (keep_.emplace(op).second) world().DLOG("keep var: {}", op);
-            }
+    for (auto op : proxy->ops().skip_front()) {
+        if (op) {
+            if (keep_.emplace(op).second) world().DLOG("keep var: {}", op);
         }
-
-        auto vars = var_lam->vars();
-        if (std::all_of(vars.begin(), vars.end(), [&](const Def* def) { return keep_.contains(def); })) {
-            if (keep_.emplace(var_lam).second)
-                world().DLOG("keep var_lam: {}", var_lam);
-        }
-
-        return undo_visit(var_lam);
     }
 
-    return No_Undo;
+    auto vars = var_lam->vars();
+    if (std::all_of(vars.begin(), vars.end(), [&](const Def* def) { return keep_.contains(def); })) {
+        if (keep_.emplace(var_lam).second)
+            world().DLOG("keep var_lam: {}", var_lam);
+    }
+
+    return undo_visit(var_lam);
 }
 
 undo_t CopyProp::analyze(const Def* def) {
@@ -113,7 +104,6 @@ undo_t CopyProp::analyze(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>()) {
             if (!isa_callee(def, i) && !keep_.contains(lam) && var2prop_.contains(lam)) {
-                eta_exp_->mark_expand(lam, "copy_prop");
                 undo = std::min(undo, undo_visit(lam));
                 world().DLOG("eta-expand: {}", lam);
             }

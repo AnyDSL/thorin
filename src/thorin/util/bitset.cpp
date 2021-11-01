@@ -21,6 +21,29 @@ size_t BitSet::count() const {
 inline static uint64_t begin_mask(uint64_t i) { return -1_u64 << (i % 64_u64); }
 inline static uint64_t   end_mask(uint64_t i) { return ~begin_mask(i); }
 
+bool BitSet::operator==(const BitSet& other) const {
+    auto n = std::min(this->num_words(), other.num_words());
+    for (size_t i = 0; i != n; ++i) {
+        if (this->words()[i] != other.words()[i]) return false;
+    }
+
+    const uint64_t* w;
+    size_t m;
+    if (this->num_words() > other.num_words()) {
+        w = this->words();
+        m = this->num_words();
+    } else {
+        w = other.words();
+        m = other.num_words();
+    }
+
+    for (size_t i = n; i != m; ++i) {
+        if (w[i] != 0) return false;
+    }
+
+    return true;
+}
+
 bool BitSet::any_range(const size_t begin, size_t end) const {
     if (begin >= end)
         return false;

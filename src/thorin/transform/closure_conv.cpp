@@ -71,7 +71,6 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         case Node::Nat:
         case Node::Bot:
         case Node::Top:
-        case Node::Axiom:
             return def;
         default:
             break;
@@ -103,7 +102,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         // TODO: Test this
         world().DLOG("RW: nom {}", nom);
         auto new_nom = nom->stub(world(), new_type, new_dbg);
-        subst.emplace(nom->var(), new_nom->var());
+        subst.emplace(nom, new_nom);
         for (size_t i = 0; i < nom->num_ops(); i++) {
             if (def->op(i))
                 new_nom->set(i, rewrite(def->op(i), subst));
@@ -152,36 +151,36 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
 }
 
 
-void FVA::split_fv(const Def* def, DefSet& out) {
-    if (def->no_dep() || def->isa<Lam>() || def->is_external() || def->isa<Axiom>()) {
+void FVA::split_fv(Def *nom, const Def* def, DefSet& out) {
+    if (def->no_dep() || def->is_external() || def->isa<Axiom>() || def->isa_nom()) {
         return;
-    } else if (auto tuple = def->isa<Tuple>()) {
-        for (auto op: tuple->ops())
-            split_fv(op, out);
-    } else {
+    } else if (def->dep() == Dep::Var && !def->isa<Tuple>()) {
         out.emplace(def);
+    } else {
+        for (auto op: def->ops())
+            split_fv(nom, op, out);
     }
 }
 
-std::pair<FVA::Node*, bool> FVA::build_node(Lam *lam, NodeQueue& worklist) {
-    auto [p, inserted] = lam2nodes_.emplace(lam, nullptr);
+std::pair<FVA::Node*, bool> FVA::build_node(Def *nom, NodeQueue& worklist) {
+    auto [p, inserted] = lam2nodes_.emplace(nom, nullptr);
     if (!inserted) 
         return {p->second.get(), false};
-    world().DLOG("FVA: create node: {}", lam);
+    world().DLOG("FVA: create node: {}", nom);
     p->second = std::make_unique<Node>();
     auto node = p->second.get();
-    node->lam = lam;
+    node->nom = nom;
     node->pass_id = 0;
-    auto scope = Scope(lam);
+    auto scope = Scope(nom);
     node->fvs = DefSet();
     for (auto v: scope.free_defs()) {
-        split_fv(v, node->fvs);
+        split_fv(nom, v, node->fvs);
     }
     node->preds = Nodes();
     node->succs = Nodes();
     bool init_node = false;
-    for (auto n: scope.free_noms()) {
-        if (auto pred = n->isa_nom<Lam>(); pred && pred != lam) {
+    for (auto pred: scope.free_noms()) {
+        if (pred != nom) {
             auto [pnode, inserted] = build_node(pred, worklist);
             node->preds.push_back(pnode);
             pnode->succs.push_back(node);
@@ -190,7 +189,7 @@ std::pair<FVA::Node*, bool> FVA::build_node(Lam *lam, NodeQueue& worklist) {
     }
     if (!init_node) {
         worklist.push(node);
-        world().DLOG("FVA: init {}", lam);
+        world().DLOG("FVA: init {}", nom);
     }
     return {node, true};
 }
@@ -201,7 +200,7 @@ void FVA::run(NodeQueue& worklist) {
     while(!worklist.empty()) {
         auto node = worklist.front();
         worklist.pop();
-        world().DLOG("FA: iter {}: {}", iter, node->lam);
+        world().DLOG("FA: iter {}: {}", iter, node->nom);
         if (is_done(node))
             continue;
         auto changed = is_bot(node);
@@ -209,7 +208,7 @@ void FVA::run(NodeQueue& worklist) {
         for (auto p: node->preds) {
             auto& pfvs = p->fvs;
             changed |= node->fvs.insert(pfvs.begin(), pfvs.end());
-            world().DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->lam, p->lam, pfvs);
+            world().DLOG("\tFV({}) ∪= FV({}) = {{{, }}}\b", node->nom, p->nom, pfvs);
         }
         if (changed) {
             for (auto s: node->succs) {

@@ -26,7 +26,7 @@ private:
     using Nodes = std::vector<Node*>;
 
     struct Node {
-        Lam *lam;
+        Def *nom;
         DefSet fvs;
         Nodes preds;
         Nodes succs;
@@ -39,9 +39,9 @@ private:
     }
     void mark(Node* node) { node->pass_id = cur_pass_id; }
 
-    void split_fv(const Def* fv, DefSet& out);
+    void split_fv(Def *nom, const Def* fv, DefSet& out);
 
-    std::pair<Node*, bool> build_node(Lam* lam, NodeQueue& worklist);
+    std::pair<Node*, bool> build_node(Def* nom, NodeQueue& worklist);
     void run(NodeQueue& worklist);
 
     World& world() { return world_; }

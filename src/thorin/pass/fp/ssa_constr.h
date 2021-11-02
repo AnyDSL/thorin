@@ -50,10 +50,14 @@ private:
 
     EtaExp* eta_exp_;
     Lam2Lam mem2phi_;
+
+    /// Value numbering table.
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;
+
     /// Contains the @p Sloxy%s that we need to install as phi in a @c mem_lam to build the @c phi_lam.
     LamMap<std::set<const Proxy*, GIDLt<const Proxy*>>> lam2sloxys_;
-    /// Contains @p Sloxy%s we want to keep.
+
+    /// Contains @p Sloxy%s we have to keep.
     GIDSet<const Proxy*> keep_;
 };
 

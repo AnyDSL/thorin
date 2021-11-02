@@ -19,13 +19,15 @@ public:
         , eta_red_(eta_red)
     {}
 
+    /// @name interface for other passes
+    //@{
     const Proxy* proxy(Lam*);
     void new2old(Lam* new_lam, Lam* old_lam) { new2old_[new_lam] = old_lam; }
-    Lam* new2old(Lam* new_lam) {
-        if (auto old_lam = new2old_.lookup(new_lam)) return new2old(*old_lam);
-        return new_lam;
-    }
+    Lam* new2old(Lam* new_lam);
+    //@}
 
+    /// @name lattice
+    //@{
     /**
      * @code
      *      expand_            <-- η-expand non-callee as it occurs more than once; don't η-reduce the wrapper again.
@@ -37,15 +39,23 @@ public:
      */
     enum Lattice : bool { Callee, Non_Callee_1 };
     static const char* lattice2str(Lattice l) { return l == Callee ? "Callee" : "Non_Callee_1"; }
+    //@}
 
     using Data = LamMap<Lattice>;
 
 private:
+    /// @name PassMan hooks
+    //@{
     const Def* rewrite(const Def*) override;
-    const Def* reexpand(const Def*);
-    Lam* eta_wrap(Lam*);
     undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;
+    //@}
+
+    /// @name helpers
+    //@{
+    const Def* reconvert(const Def*);
+    Lam* eta_wrap(Lam*);
+    //@}
 
     EtaRed* eta_red_;
     LamSet expand_;

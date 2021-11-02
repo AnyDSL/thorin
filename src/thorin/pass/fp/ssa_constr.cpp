@@ -49,6 +49,8 @@ const Def* SSAConstr::rewrite(const Def* def) {
         if (auto mem_lam = app->callee()->isa_nom<Lam>(); !ignore(mem_lam))
             return mem2phi(app, mem_lam);
     } else {
+        // TODO I'm currently not sure why we need this.
+        // The eta_exp_->new2old(...) should be enough, but removing this will break reverse.impala.
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
                 if (mem2phi_.contains(lam))
@@ -157,7 +159,8 @@ undo_t SSAConstr::analyze(const Def* def) {
         if (auto succ_lam = def->op(i)->isa_nom<Lam>(); succ_lam && !ignore(succ_lam)) {
             auto& succ_info = data(succ_lam);
 
-            if (succ_lam->is_basicblock() && succ_lam != curr_nom()) // TODO this is a bit scruffy - maybe we can do better
+            // TODO this is a bit scruffy - maybe we can do better
+            if (succ_lam->is_basicblock() && succ_lam != curr_nom())
                 succ_info.writable.insert_range(data(curr_nom()).writable);
 
             if (!isa_callee(def, i)) {

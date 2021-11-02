@@ -625,6 +625,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     emit_debug_info(bb.tail, cont->arg(0));
 
+    if (lang_ == Lang::OpenCL && cont->is_exported())
+        emit_fun_decl(cont);
+
     if (cont->callee() == entry_->ret_param()) { // return
         std::vector<std::string> values;
         std::vector<const Type*> types;

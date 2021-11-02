@@ -20,6 +20,11 @@ public:
     {}
 
     const Proxy* proxy(Lam*);
+    void new2old(Lam* new_lam, Lam* old_lam) { new2old_[new_lam] = old_lam; }
+    Lam* new2old(Lam* new_lam) {
+        if (auto old_lam = new2old_.lookup(new_lam)) return new2old(*old_lam);
+        return new_lam;
+    }
 
     /**
      * @code
@@ -46,6 +51,7 @@ private:
     LamSet expand_;
     Def2Def def2exp_;
     LamMap<std::pair<Lam*, const Def*>> wrap2subst_;
+    Lam2Lam new2old_;
 };
 
 }

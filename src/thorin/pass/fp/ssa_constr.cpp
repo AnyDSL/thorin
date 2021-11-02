@@ -12,11 +12,11 @@ void SSAConstr::enter() {
 }
 
 const Def* SSAConstr::rewrite(const Proxy* proxy) {
-    if (auto traxy = isa_proxy(proxy, Traxy)) {
-        world().DLOG("traxy '{}'", traxy);
-        for (size_t i = 1, e = traxy->num_ops(); i != e; i += 2)
-            set_val(curr_nom(), as_proxy(traxy->op(i), Sloxy), traxy->op(i+1));
-        return traxy->op(0);
+    if (proxy->flags() == Traxy) {
+        world().DLOG("traxy '{}'", proxy);
+        for (size_t i = 1, e = proxy->num_ops(); i != e; i += 2)
+            set_val(curr_nom(), as_proxy(proxy->op(i), Sloxy), proxy->op(i+1));
+        return proxy->op(0);
     }
 
     return proxy;
@@ -84,15 +84,15 @@ const Def* SSAConstr::set_val(Lam* lam, const Proxy* sloxy, const Def* val) {
 }
 
 const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
-    auto&& lam2phixys = lam2phixys_[mem_lam];
-    if (lam2phixys.empty()) return app;
+    auto&& sloxys = lam2sloxys_[mem_lam];
+    if (sloxys.empty()) return app;
 
     auto&& [_, phi_lam] = *mem2phi_.emplace(mem_lam, nullptr).first;
     DefVec types;
-    for (auto i = lam2phixys.begin(), e = lam2phixys.end(); i != e;) {
+    for (auto i = sloxys.begin(), e = sloxys.end(); i != e;) {
         auto sloxy = *i;
         if (keep_.contains(sloxy)) {
-            i = lam2phixys.erase(i);
+            i = sloxys.erase(i);
             phi_lam = nullptr;
         } else {
             types.emplace_back(get_sloxy_type(sloxy));
@@ -100,20 +100,21 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
         }
     }
 
-    size_t num_phixys = lam2phixys.size();
-    if (num_phixys == 0) return app;
+    size_t num_phis = sloxys.size();
+    if (num_phis == 0) return app;
 
     if (phi_lam == nullptr) {
         auto new_type = world().pi(merge_sigma(mem_lam->dom(), types), mem_lam->codom());
         phi_lam = world().nom_lam(new_type, mem_lam->dbg());
+        eta_exp_->new2old(phi_lam, mem_lam);
         world().DLOG("new phi_lam '{}'", phi_lam);
 
         auto num_mem_vars = mem_lam->num_vars();
         size_t i = 0;
-        Array<const Def*> traxy_ops(2*num_phixys + 1);
+        Array<const Def*> traxy_ops(2*num_phis + 1);
         traxy_ops[0] = phi_lam->var();
-        for (auto phixy : lam2phixys) {
-            traxy_ops[2*i + 1] = phixy;
+        for (auto sloxy : sloxys) {
+            traxy_ops[2*i + 1] = sloxy;
             traxy_ops[2*i + 2] = phi_lam->var(num_mem_vars + i);
             ++i;
         }
@@ -126,32 +127,26 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
     }
 
     world().DLOG("mem_lam => phi_lam: '{}': '{}' => '{}': '{}'", mem_lam, mem_lam->type()->dom(), phi_lam, phi_lam->dom());
-    auto phi = lam2phixys.begin();
-    Array<const Def*> args(num_phixys, [&](auto) { return get_val(curr_nom(), *phi++); });
+    auto sloxy = sloxys.begin();
+    Array<const Def*> args(num_phis, [&](auto) { return get_val(curr_nom(), *sloxy++); });
     return world().app(phi_lam, merge_tuple(app->arg(), args));
 }
 
-/*
- * TODO since proxies are only visible to its dedicated pass we don't really need isa_proxy
- * TODO use THORIN_UNREACHABLE
- */
-
 undo_t SSAConstr::analyze(const Proxy* proxy) {
-    if (auto sloxy = isa_proxy(proxy, Sloxy)) {
-        auto sloxy_lam = sloxy->op(0)->as_nom<Lam>();
+    if (proxy->flags() == Sloxy) {
+        auto sloxy_lam = proxy->op(0)->as_nom<Lam>();
 
-        if (keep_.emplace(sloxy).second) {
-            world().DLOG("keep: '{}'; pointer needed for: '{}'", sloxy, proxy);
+        if (keep_.emplace(proxy).second) {
+            world().DLOG("keep: '{}'; pointer needed", proxy);
             return undo_enter(sloxy_lam);
         }
-    } else if (auto phixy = isa_proxy(proxy, Phixy)) {
-        auto [sloxy, mem_lam] = split_phixy(phixy);
-        auto&& phixys = lam2phixys_[mem_lam];
+    }
 
-        if (phixys.emplace(sloxy).second) {
-            world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}'", phixy, sloxy, mem_lam);
-            return undo_visit(mem_lam);
-        }
+    assert(proxy->flags() == Phixy);
+    auto [sloxy, mem_lam] = split_phixy(proxy);
+    if (lam2sloxys_[mem_lam].emplace(sloxy).second) {
+        world().DLOG("phi needed: phixy '{}' for sloxy '{}' for mem_lam '{}'", proxy, sloxy, mem_lam);
+        return undo_visit(mem_lam);
     }
 
     return No_Undo;

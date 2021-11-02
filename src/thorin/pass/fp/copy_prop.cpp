@@ -8,7 +8,9 @@ const Def* CopyProp::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto var_lam = app->callee()->isa_nom<Lam>(); !ignore(var_lam))
             return var2prop(app, var_lam);
-    } else {
+    }
+#if 0
+    else {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
                 if (var2prop_.contains(lam))
@@ -16,6 +18,7 @@ const Def* CopyProp::rewrite(const Def* def) {
             }
         }
     }
+#endif
 
     return def;
 }
@@ -63,6 +66,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
         auto prop_dom = world().sigma(types);
         auto new_type = world().pi(prop_dom, var_lam->codom());
         prop_lam = var_lam->stub(world(), new_type, var_lam->dbg());
+        eta_exp_->new2old(prop_lam, var_lam);
         keep_.emplace(prop_lam); // don't try to propagate again
         world().DLOG("var_lam => prop_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), prop_lam, prop_dom);
 

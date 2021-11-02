@@ -85,6 +85,7 @@ undo_t EtaExp::analyze(const Def* def) {
     auto undo = No_Undo;
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>(); lam && lam->is_set()) {
+            lam = new2old(lam);
             if (expand_.contains(lam)) continue;
 
             if (isa_callee(def, i)) {

@@ -3,6 +3,7 @@
 
 #include "thorin/world.h"
 #include "thorin/pass/pass.h"
+#include "thorin/pass/fp/eta_exp.h"
 
 namespace thorin {
 
@@ -13,8 +14,9 @@ namespace thorin {
 /// It will not flatten nominal @p Sigma#s or @p Arr#s.
 class Scalerize : public RWPass<Lam> {
 public:
-    Scalerize(PassMan& man)
+    Scalerize(PassMan& man, EtaExp* eta_exp)
         : RWPass(man, "scalerize")
+        , eta_exp_(eta_exp)
     {}
 
     const Def* rewrite(const Def*) override;
@@ -23,7 +25,7 @@ private:
     bool should_expand(Lam *lam);
     Lam* make_scalar(Lam *lam);
 
-    DefSet keep_; // Should not be expanded
+    EtaExp* eta_exp_;
     Lam2Lam tup2sca_;
 };
 

@@ -29,9 +29,9 @@ private:
 
     const Def* var2prop(const App*, Lam*);
 
+    EtaExp* eta_exp_;
     LamMap<std::pair<Lam*, DefVec>> var2prop_;
     DefSet keep_;
-    EtaExp* eta_exp_;
 };
 
 }

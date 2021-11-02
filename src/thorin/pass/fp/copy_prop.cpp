@@ -44,6 +44,9 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
         } else if (keep_.contains(var_lam->var(i))) {
             types.emplace_back(var_lam->var(i)->type());
             new_args.emplace_back(app->arg(i));
+        } else if (app->arg(i)->isa<Proxy>()) { // TODO check whether arg *contains* proxy
+            world().DLOG("found proxy within app: {}@{}", var_lam, app);
+            return app; // wait till proxy is gone
         } else if (args[i] == nullptr) {
             args[i] = app->arg(i);
         } else if (args[i] != app->arg(i)) {

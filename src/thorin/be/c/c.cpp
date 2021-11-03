@@ -133,6 +133,7 @@ private:
     StringStream func_impls_;
     StringStream func_decls_;
     StringStream type_decls_;
+    StringStream vars_decls_;
     /// Tracks defs that have been emitted as local variables of the current function
     DefSet func_defs_;
 
@@ -442,6 +443,8 @@ void CCodeGen::emit_module() {
         stream_ << "#endif /* __xilinx__ */\n";
     else if (lang_ == Lang::HLS)
         stream_ << "#endif /* __SYNTHESIS__ */\n";
+
+    stream_ << vars_decls_.str();
 
     if (lang_ == Lang::CUDA) {
         stream_.endl();
@@ -1241,11 +1244,11 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             suffix = " __attribute__((xcl_reqd_pipe_depth(32)))";
         }
 
-        func_decls_.fmt("{}{} g_{} {}", prefix, converted_type, name, suffix);
+        vars_decls_.fmt("{}{} g_{} {}", prefix, converted_type, name, suffix);
         if (global->init()->isa<Bottom>())
-            func_decls_.fmt("; // bottom\n");
+            vars_decls_.fmt("; // bottom\n");
         else
-            func_decls_.fmt(" = {};\n", emit_constant(global->init()));
+            vars_decls_.fmt(" = {};\n", emit_constant(global->init()));
         if (use_channels_)
             s.fmt("g_{}", name);
         else
@@ -1429,6 +1432,8 @@ void CCodeGen::emit_c_int() {
         stream_.fmt("{}\n", type_decls_.str());
     if (!func_decls_.str().empty())
         stream_.fmt("{}\n", func_decls_.str());
+    if (!vars_decls_.str().empty())
+        stream_.fmt("{}\n", vars_decls_.str());
 
     stream_.fmt("#ifdef __cplusplus\n");
     stream_.fmt("}}\n");

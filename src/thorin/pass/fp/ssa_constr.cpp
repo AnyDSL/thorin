@@ -89,23 +89,24 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
     auto&& sloxys = lam2sloxys_[mem_lam];
     if (sloxys.empty()) return app;
 
-    auto&& [_, phi_lam] = *mem2phi_.emplace(mem_lam, nullptr).first;
-    DefVec types;
+    DefVec types, phis;
     for (auto i = sloxys.begin(), e = sloxys.end(); i != e;) {
         auto sloxy = *i;
         if (keep_.contains(sloxy)) {
             i = sloxys.erase(i);
-            phi_lam = nullptr;
         } else {
+            phis.emplace_back(sloxy);
             types.emplace_back(get_sloxy_type(sloxy));
             ++i;
         }
     }
 
-    size_t num_phis = sloxys.size();
+    size_t num_phis = phis.size();
     if (num_phis == 0) return app;
 
-    if (phi_lam == nullptr) {
+    auto&& [phi_lam, old_phis] = mem2phi_[mem_lam];
+    if (phi_lam == nullptr || old_phis != phis) {
+        old_phis = phis;
         auto new_type = world().pi(merge_sigma(mem_lam->dom(), types), mem_lam->codom());
         phi_lam = world().nom_lam(new_type, mem_lam->dbg());
         eta_exp_->new2old(phi_lam, mem_lam);

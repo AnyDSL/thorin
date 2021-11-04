@@ -49,7 +49,7 @@ private:
     //@}
 
     EtaExp* eta_exp_;
-    Lam2Lam mem2phi_;
+    LamMap<std::pair<Lam*, DefVec>> mem2phi_;
 
     /// Value numbering table.
     std::map<Lam*, GIDMap<const Proxy*, const Def*>, GIDLt<Lam*>> lam2sloxy2val_;

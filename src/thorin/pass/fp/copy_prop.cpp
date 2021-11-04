@@ -44,7 +44,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
         } else if (keep_.contains(var_lam->var(i))) {
             types.emplace_back(var_lam->var(i)->type());
             new_args.emplace_back(app->arg(i));
-        } else if (app->arg(i)->isa<Proxy>()) { // TODO check whether arg *contains* proxy
+        } else if (app->arg(i)->contains_proxy()) {
             world().DLOG("found proxy within app: {}@{}", var_lam, app);
             return app; // wait till proxy is gone
         } else if (args[i] == nullptr) {
@@ -54,6 +54,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
         }
     }
 
+    world().DLOG("app->args(): {, }", app->args());
     world().DLOG("args: {, }", args);
     world().DLOG("new_args: {, }", new_args);
 
@@ -66,6 +67,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
     assert(new_args.size() < var_lam->num_vars());
     auto&& [prop_lam, old_args] = var2prop_[var_lam];
     if (prop_lam == nullptr || old_args != args) {
+        old_args = args;
         auto prop_dom = world().sigma(types);
         auto new_type = world().pi(prop_dom, var_lam->codom());
         prop_lam = var_lam->stub(world(), new_type, var_lam->dbg());
@@ -78,7 +80,6 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
             return keep_.contains(var_lam->var(i)) ? prop_lam->var(j++) : args[i];
         });
         prop_lam->set(var_lam->apply(world().tuple(new_vars)));
-        old_args = args;
     } else {
         world().DLOG("reuse var_lam => prop_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), prop_lam, prop_lam->type()->dom());
     }

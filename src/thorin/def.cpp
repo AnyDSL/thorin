@@ -19,6 +19,7 @@ Def::Def(node_t node, const Def* type, Defs ops, uint64_t fields, const Def* dbg
     , nom_(false)
     , var_(false)
     , dep_(Dep::Bot)
+    , proxy_(0)
     , order_(0)
     , num_ops_(ops.size())
     , dbg_(dbg)
@@ -45,6 +46,7 @@ Def::Def(node_t node, const Def* type, size_t num_ops, uint64_t fields, const De
     , nom_(true)
     , var_(false)
     , dep_(Dep::Nom)
+    , proxy_(0)
     , order_(0)
     , num_ops_(num_ops)
     , dbg_(dbg)
@@ -247,6 +249,14 @@ void Def::finalize() {
         var->nom()->var_ = true;
         dep_ = Dep::Var;
     }
+
+    if (isa<Proxy>()) {
+        proxy_ = true;
+    } else {
+        for (auto op : extended_ops())
+            proxy_ |= op->contains_proxy();
+    }
+
 }
 
 Def* Def::set(size_t i, const Def* def) {

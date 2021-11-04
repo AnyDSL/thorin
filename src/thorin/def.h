@@ -176,6 +176,7 @@ public:
     unsigned dep() const { return dep_; }
     bool no_dep() const { return dep() == Dep::Bot; }
     bool has_dep(unsigned dep) const { return (dep_ & dep) != 0; }
+    bool contains_proxy() const { return proxy_; }
     //@}
 
     /// @name split def via proj%s
@@ -324,7 +325,8 @@ protected:
     unsigned nom_   :  1;
     unsigned var_   :  1;
     unsigned dep_   :  2;
-    unsigned order_ : 12;
+    unsigned proxy_ :  1;
+    unsigned order_ : 11;
     u32 gid_;
     u32 num_ops_;
     hash_t hash_;

@@ -682,8 +682,12 @@ const Def* normalize_ICmp(const Def* type, const Def* c, const Def* arg, const D
     auto [a, b] = arg->split<2>();
 
     if (auto result = fold<ICmp, op>(world, type, callee, a, b, dbg)) return result;
-    if constexpr (op == ICmp::_f) return world.lit_false();
-    if constexpr (op == ICmp::_t) return world.lit_true();
+    if (op == ICmp::_f) return world.lit_false();
+    if (op == ICmp::_t) return world.lit_true();
+    if (a == b) {
+        if (op == ICmp:: e) return world.lit_true();
+        if (op == ICmp::ne) return world.lit_false();
+    }
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -695,8 +699,8 @@ const Def* normalize_RCmp(const Def* type, const Def* c, const Def* arg, const D
     auto [a, b] = arg->split<2>();
 
     if (auto result = fold<RCmp, op>(world, type, callee, a, b, dbg)) return result;
-    if constexpr (op == RCmp::f) return world.lit_false();
-    if constexpr (op == RCmp::t) return world.lit_true();
+    if (op == RCmp::f) return world.lit_false();
+    if (op == RCmp::t) return world.lit_true();
 
     return world.raw_app(callee, {a, b}, dbg);
 }

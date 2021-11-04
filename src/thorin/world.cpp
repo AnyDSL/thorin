@@ -160,6 +160,9 @@ World::World(const std::string& name)
         auto ptr = type_ptr(T, as);
         type->set_codom(pi({mem, ptr}, sigma({mem, T})));
         data_.load_ = axiom(normalize_load, type, Tag::Load, 0, dbg("load"));
+    } { // remem: M -> M
+        auto type = pi(mem, mem);
+        data_.remem_ = axiom(normalize_remem, type, Tag::Remem, 0, dbg("remem"));
     } { // store: [T: *, as: nat] -> [M, ptr(T, as), T] -> M
         auto type = nom_pi(kind())->set_dom({kind(), nat});
         auto T  = type->var(0, dbg("T"));

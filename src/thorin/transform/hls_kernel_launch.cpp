@@ -42,7 +42,7 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
 }
 
 static Continuation* last_basic_block_with_intrinsic(const Intrinsic intrinsic, const Schedule& schedule) {
-    for (size_t i = schedule.size() - 1; i >= 0; --i) {
+    for (int i = schedule.size() - 1; i >= 0; --i) {
         auto block = schedule[i];
         auto callee = block->callee()->isa_continuation();
         if (callee && callee->intrinsic() == intrinsic) {

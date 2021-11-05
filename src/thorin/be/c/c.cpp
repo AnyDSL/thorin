@@ -79,8 +79,8 @@ public:
         , lang_(lang)
         , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
-        , stream_(stream)
         , flags_(flags)
+        , stream_(stream)
     {}
 
     World& world() const { return world_; }
@@ -128,8 +128,8 @@ private:
     bool use_malloc_ = false;
     bool debug_;
     std::string flags_;
-
     Stream& stream_;
+
     StringStream func_impls_;
     StringStream func_decls_;
     StringStream type_decls_;
@@ -1293,7 +1293,6 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
             case Lang::OpenCL:
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();
-                    auto [bx, by, bz] = block;
 
                     // See "Intel FPGA SDK for OpenCL"
                     if (block == std::tuple(1, 1, 1)) {

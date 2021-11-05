@@ -108,7 +108,7 @@ if(LLVM_FOUND)
 endif()
 
 add_library(thorin ${THORIN_SOURCES})
-target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/include)
+target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${Thorin_ROOT_DIR}/src ${CMAKE_BINARY_DIR}/include)
 
 if(LLVM_FOUND)
     set(Thorin_LLVM_COMPONENTS core support ipo target ${LLVM_TARGETS_TO_BUILD})

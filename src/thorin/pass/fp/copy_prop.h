@@ -24,7 +24,6 @@ private:
     //@{
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Proxy*) override;
-    undo_t analyze(const Def*) override;
     //@}
 
     const Def* var2prop(const App*, Lam*);

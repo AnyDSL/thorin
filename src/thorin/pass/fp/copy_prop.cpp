@@ -9,16 +9,6 @@ const Def* CopyProp::rewrite(const Def* def) {
         if (auto var_lam = app->callee()->isa_nom<Lam>(); !ignore(var_lam))
             return var2prop(app, var_lam);
     }
-#if 0
-    else {
-        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            if (auto lam = def->op(i)->isa_nom<Lam>(); !ignore(lam)) {
-                if (var2prop_.contains(lam))
-                   return def->refine(i, eta_exp_->proxy(lam));
-            }
-        }
-    }
-#endif
 
     return def;
 }
@@ -104,21 +94,6 @@ undo_t CopyProp::analyze(const Proxy* proxy) {
     }
 
     return undo_visit(var_lam);
-}
-
-undo_t CopyProp::analyze(const Def* def) {
-    return No_Undo;
-    auto undo = No_Undo;
-    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-        if (auto lam = def->op(i)->isa_nom<Lam>()) {
-            if (!isa_callee(def, i) && !keep_.contains(lam) && var2prop_.contains(lam)) {
-                undo = std::min(undo, undo_visit(lam));
-                world().DLOG("eta-expand: {}", lam);
-            }
-        }
-    }
-
-    return undo;
 }
 
 }

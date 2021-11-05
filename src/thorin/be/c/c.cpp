@@ -498,7 +498,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
         if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
             if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
-                hls_pragmas_.fmt("#pragma HLS data_pack variable={} struct_level", param->unique_name());
+                hls_pragmas_.fmt("#pragma HLS data_pack variable={} struct_level\n", param->unique_name());
         }
     }
 
@@ -788,6 +788,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 i++;
             }
             no_function_call = true;
+            //TODO: Check it
+            channel_transaction = true;
         }
 
         // Do not store the result of `void` calls
@@ -806,7 +808,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     continue;
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
-                else if (lang_ == Lang::OpenCL && use_channels_)
+                else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
                     bb.tail.fmt(" p_{} = {};\n", emit(channel_read_result), param->unique_name());
                 else
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());

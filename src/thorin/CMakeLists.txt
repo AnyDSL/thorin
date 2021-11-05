@@ -70,6 +70,10 @@ set(THORIN_SOURCES
     transform/partial_evaluation.h
     transform/split_slots.cpp
     transform/split_slots.h
+    transform/hls_channels.cpp
+    transform/hls_channels.h
+    transform/hls_kernel_launch.h
+    transform/hls_kernel_launch.cpp
     util/array.h
     util/cast.h
     util/hash.h

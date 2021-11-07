@@ -11,6 +11,7 @@
 
 namespace thorin {
 
+/// Perform free variable analyses.
 class FVA {
 public:
     FVA(World& world)
@@ -18,6 +19,10 @@ public:
         , cur_pass_id(1) 
         , lam2nodes_() {};
 
+    /// @p run will compute free defs that appear transitively in @p lam%s body.
+    /// Nominal @p Def%s are never considered free (but their free variables are).
+    /// Structural @p Def%s containing nominals are broken up.
+    /// The results are memorized.
     DefSet& run(Lam *lam);
 
 private:
@@ -50,6 +55,18 @@ private:
     unsigned cur_pass_id;
     DefMap<std::unique_ptr<Node>> lam2nodes_;
 };
+
+
+/// Perform typed closure conversion.
+/// Closures are represented using existential types <code>Σent_type.[env_type, cn[ent_type, Args..]]</code>
+/// Only non-returning @p Lam%s are converted (i.e that have type cn[...])
+/// This can lead to bugs in combinations with @p Axiom%s / @p Lam%s that are polymorphic in their arguments
+/// return type:
+/// <code>ax : ∀[B]. (int -> B) -> (int -> B)</code> won't be converted, possible arguments may.
+/// Further, there is no machinery to handle free variables in a @p Lam%s type; this may lead to
+/// problems with polymorphic functions.
+/// Neither of this two cases is checked.
+/// The type of higher-order @p Axiom%s is adjusted as well.
 
 class ClosureConv {
     public:
@@ -84,7 +101,6 @@ class ClosureConv {
         DefMap<Closure> closures_;
         Def2Def closure_types_;
         std::queue<const Def*> worklist_;
-
 };
 
 };

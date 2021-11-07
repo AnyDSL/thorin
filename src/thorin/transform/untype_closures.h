@@ -6,12 +6,22 @@
 
 #include "thorin/world.h"
 
+/// Convert from typed closuras (represented by <code>Σt.[t, cn[t, <args>]code>)
+/// to untyped closures, where the environment is passed via memory (as <code>i8*</code>).
+/// The following assumptions are made:
+/// * @p Lam%s in callee-postion are λ-lifted and not closure converted (See @p Scalerize)
+/// * each function receives its environment as its first paramter
+/// * closure types have the aforementioned form, see @isa_pct
+/// 
+/// All environments are heap allocated. External funtions receive <code>[]</code> as their
+/// environment instead of a pointer
+
 namespace thorin {
 
 class UntypeClosures {
 public:
 
-    using StubQueue = std::queue<std::pair<const Def*, Lam*>>;
+    using StubQueue = std::queue<std::tuple<const Def*, const Def*, Lam*>>;
 
     UntypeClosures(World& world)
         : world_(world)

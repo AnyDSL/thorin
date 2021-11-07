@@ -14,6 +14,7 @@
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/closure_conv.h"
+#include "thorin/transform/untype_closures.h"
 
 namespace thorin {
 
@@ -34,6 +35,8 @@ void optimize(World& world) {
     cc.add<Scalerize>();
     cc.run();
     world.debug_stream();
+
+    UntypeClosures(world).run();
 
     // while (partial_evaluation(world, true)); // lower2cff
     // flatten_tuples(world);

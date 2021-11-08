@@ -32,15 +32,23 @@ public:
 
     static Sigma* isa_pct(const Def* def);
 
-    const Def* env_type() {
-        return world().type_ptr(world().type_int_width(8));
+    static const Sigma* isa_uct(const Def* def);
+
+    static const Def* env_type(World& world) {
+        return world.type_ptr(world.type_int_width(8));
     }
+
+    const Def* env_type() {
+        return env_type(world());
+    }
+
+    bool unbox_env(const Def* type);
 
 private:
 
     const Def* rewrite(const Def* def);
 
-    Lam* make_stub(Lam* lam, bool callee_pos);
+    Lam* make_stub(Lam* lam, bool unbox_env);
 
     template<class D = const Def>
     D* map(const Def* old_def, D* new_def) {

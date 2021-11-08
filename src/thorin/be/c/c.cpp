@@ -349,20 +349,22 @@ std::string CCodeGen::device_prefix() {
  */
 
 HlsInterface interface, gmem_config;
-bool interface_status = false;
+bool interface_status, hls_top_scope = false;
 
 void CCodeGen::emit_module() {
+    Continuation* hls_top = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
-    Continuation* hls_top = nullptr;
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else
             emit_scope(scope);
     });
-    if (hls_top)
+    if (hls_top) {
+        hls_top_scope = true;
         emit_scope(Scope(hls_top));
+    }
 
     if (lang_ == Lang::OpenCL) {
         if (use_channels_) {
@@ -1143,8 +1145,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         func_impls_.fmt("{} {}_slot;\n", t, name);
         func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
         func_defs_.insert(def);
-        if (bb->cont->name() == "hls_top")
-            func_impls_ << "#pragma HLS STREAM variable = "<< name << " depth = 5" << "\n";
+        if (hls_top_scope)
+            func_impls_ <<"#pragma HLS STREAM variable = "<< name << " depth = 5" << "\n";
         return name;
     } else if (auto alloc = def->isa<Alloc>()) {
         assert(bb && "basic block is required for allocating");

@@ -16,7 +16,7 @@ public:
         , eta_exp_(eta_exp)
     {}
 
-    using Data = LamMap<DefVec>;
+    using Data = LamSet;
 
 private:
     /// @name PassMan hooks

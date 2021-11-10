@@ -16,47 +16,24 @@ const Def* DCE::rewrite(const Def* def) {
 const Def* DCE::var2dce(const App* app, Lam* var_lam) {
     if (ignore(var_lam) || var_lam->num_vars() == 0 || keep_.contains(var_lam)) return app;
 
-    auto& args = data(var_lam);
-    args.resize(app->num_args());
     DefVec new_args;
     DefVec types;
-    DefVec proxy_ops = {var_lam};
+    BitSet live;
 
     for (size_t i = 0, e = app->num_args(); i != e; ++i) {
-        if (isa<Tag::Mem>(var_lam->var(i)->type())) {
-            keep_.emplace(var_lam->var(i));
+        if (keep_.contains(var_lam->var(i))) {
             types.emplace_back(var_lam->var(i)->type());
             new_args.emplace_back(app->arg(i));
-            if (var_lam->num_vars() == 1) {
-                keep_.emplace(var_lam);
-                return app;
-            }
-        } else if (keep_.contains(var_lam->var(i))) {
-            types.emplace_back(var_lam->var(i)->type());
-            new_args.emplace_back(app->arg(i));
-        } else if (app->arg(i)->contains_proxy()) {
-            world().DLOG("found proxy within app: {}@{}", var_lam, app);
-            return app; // wait till proxy is gone
-        } else if (args[i] == nullptr) {
-            args[i] = app->arg(i);
-        } else if (args[i] != app->arg(i)) {
-            proxy_ops.emplace_back(var_lam->var(i));
+            live.set(i);
         }
     }
 
     world().DLOG("app->args(): {, }", app->args());
-    world().DLOG("args: {, }", args);
     world().DLOG("new_args: {, }", new_args);
 
-    if (proxy_ops.size() > 1) {
-        auto p = proxy(app->type(), proxy_ops, 0);
-        world().DLOG("copxy: '{}': {, }", p, proxy_ops);
-        return p;
-    }
-
     assert(new_args.size() < var_lam->num_vars());
-    auto&& [prop_lam, old_args] = var2prop_[var_lam];
-    if (prop_lam == nullptr || old_args != args) {
+    auto&& [prop_lam, old_live] = var2dce_[var_lam];
+    if (prop_lam == nullptr || old_live != live) {
         old_args = args;
         auto prop_dom = world().sigma(types);
         auto new_type = world().pi(prop_dom, var_lam->codom());

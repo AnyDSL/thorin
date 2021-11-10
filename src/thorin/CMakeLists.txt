@@ -55,6 +55,8 @@ set(THORIN_SOURCES
     pass/fp/beta_red.h
     pass/fp/copy_prop.cpp
     pass/fp/copy_prop.h
+    pass/fp/dce.cpp
+    pass/fp/dce.h
     pass/fp/ssa_constr.cpp
     pass/fp/ssa_constr.h
     pass/rw/auto_diff.cpp

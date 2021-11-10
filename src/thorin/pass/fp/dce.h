@@ -25,10 +25,10 @@ private:
     undo_t analyze(const Proxy*) override;
     //@}
 
-    const Def* var2dce(const App*, Lam*);
+    const Def* var2dead(const App*, Lam*);
 
     EtaExp* eta_exp_;
-    LamMap<std::pair<Lam*, BitSet>> var2dce_;
+    LamMap<std::pair<Lam*, BitSet>> var2dead_;
     DefSet keep_;
 };
 

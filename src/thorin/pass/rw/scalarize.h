@@ -1,11 +1,11 @@
 #ifndef THORIN_PASS_RW_SCALARIZE_H
 #define THORIN_PASS_RW_SCALARIZE_H
 
-#include "thorin/world.h"
 #include "thorin/pass/pass.h"
-#include "thorin/pass/fp/eta_exp.h"
 
 namespace thorin {
+
+class EtaExp;
 
 /// Perform Scalarization (= Argument simplification), i.e.:
 /// <code> f := λ (x_1:[T_1, T_2], .., x_n:T_n).E </code> will be transformed to

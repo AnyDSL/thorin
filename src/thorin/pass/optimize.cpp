@@ -23,7 +23,7 @@ void optimize(World& world) {
     auto ee = opt.add<EtaExp>(er);
     opt.add<SSAConstr>(ee);
     opt.add<Scalerize>(ee);
-    opt.add<DCE>(ee);
+    //opt.add<DCE>(ee); // mostly works
     opt.add<CopyProp>(ee);
     opt.run();
 

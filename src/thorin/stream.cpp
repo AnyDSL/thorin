@@ -3,6 +3,7 @@
 #include "thorin/analyses/deptree.h"
 #include "thorin/util/container.h"
 
+#include "transform/untype_closures.h"
 
 namespace thorin {
 
@@ -29,9 +30,21 @@ static bool is_var_ref(const Def* def) {
         || ((proj = def->isa<Extract>()) && proj->tuple()->isa<Var>());
 }
 
+static size_t def_print_size(const Def* def) {
+    if (match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple)) {
+        size_t sz = 1;
+        for (auto op: def->ops())
+            sz += def_print_size(op);
+        return sz;
+    } else if (def->isa_nom() || def->no_dep()) {
+        return 1;
+    } else {
+        return std::numeric_limits<size_t>::max();
+    }
+}
+
 static bool print_inline(const Def* def) {
-    return !def->isa_nom() && (def->no_dep() || is_var_ref(def) || 
-        match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple) && def->num_ops() <= 5);
+    return !def->isa_nom() && (is_var_ref(def) || def_print_size(def) <= 2);
 }
 
 struct Fmt {
@@ -87,6 +100,13 @@ Stream& stream(Stream& s, const Def* def) {
         }
     } else if (auto var = def->isa<Var>()) {
         return s.fmt("@{{{}}}", var->nom());
+    } else if (auto uct = UntypeClosures::isa_uct(def)) {
+        auto pi = uct->op(1_u64)->isa<Pi>();
+        auto ops = std::vector<const Def*>();
+        for (int i = 1; i < pi->num_doms(); i++)
+            if (pi->dom(i) != def->world().type_mem())
+                ops.push_back(pi->dom(i));
+        return s.fmt("uct[{, }]", ops);
     } else if (auto pi = def->isa<Pi>()) {
         if (pi->is_cn()) {
             return s.fmt("cn {}", pi->dom());
@@ -223,7 +243,11 @@ Stream& Def::stream(Stream& s, size_t max) const {
 }
 
 Stream& Def::stream_assignment(Stream& s) const {
-    return thorin::stream(s.fmt("{}: {} = ", unique_name(), type()), this).fmt(";");
+    if (print_inline(type())) {
+        return thorin::stream(s.fmt("{}: {} = ", unique_name(), type()), this).fmt(";");
+    } else {
+        return thorin::stream(s.fmt("{}: {} = ", unique_name(), type()->unique_name()), this).fmt(";");
+    }
 }
 
 void Def::dump() const { Streamable<Def>::dump(); }
@@ -243,7 +267,7 @@ Stream& World::stream(Stream& s) const {
     s << "module '" << name();
 
     stream(rec, dep.root()).endl();
-    assert_unused(old_gid == curr_gid());
+    // assert_unused(old_gid == curr_gid());
     return s;
 #else
     RecStreamer rec(s, std::numeric_limits<size_t>::max());

@@ -16,11 +16,13 @@ public:
 
     using Data = LamSet;
 
+    void keep(Lam* lam) { keep_.emplace(lam); }
+
+private:
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Proxy*) override;
     undo_t analyze(const Def*) override;
 
-private:
     LamSet keep_;
 };
 

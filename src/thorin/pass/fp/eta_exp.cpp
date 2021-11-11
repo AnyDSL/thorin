@@ -13,7 +13,6 @@ Lam* EtaExp::new2old(Lam* new_lam) {
         assert(root != new_lam);
         new2old_[new_lam] = root;
         return root;
-
     }
 
     return new_lam;
@@ -77,7 +76,7 @@ const Def* EtaExp::reconvert(const Def* def) {
     for (auto [wrap, lam] : refinements)
         wrap2subst_[wrap] = std::pair(lam, new_def);
 
-    return new_def;
+    return def2exp_[def] = new_def;
 }
 
 Lam* EtaExp::eta_wrap(Lam* lam) {

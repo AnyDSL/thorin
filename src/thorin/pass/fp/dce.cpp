@@ -1,5 +1,6 @@
 #include "thorin/pass/fp/dce.h"
 
+#include "thorin/pass/fp/beta_red.h"
 #include "thorin/pass/fp/eta_exp.h"
 
 namespace thorin {
@@ -52,6 +53,7 @@ const Def* DCE::var2dead(const App* app, Lam* var_lam) {
         auto dead_dom = world().sigma(types);
         auto new_type = world().pi(dead_dom, var_lam->codom());
         dead_lam = var_lam->stub(world(), new_type, var_lam->dbg());
+        beta_red_->keep(dead_lam);
         eta_exp_->new2old(dead_lam, var_lam);
         keep_.emplace(dead_lam); // don't try to dce again
         world().DLOG("var_lam => dead_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), dead_lam, dead_dom);

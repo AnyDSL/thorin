@@ -5,6 +5,7 @@
 
 namespace thorin {
 
+class BetaRed;
 class EtaExp;
 
 /// This @p FPPass is similar to sparse conditional constant propagation (SCCP).
@@ -12,8 +13,9 @@ class EtaExp;
 /// What is more, this optimization will also propagate arbitrary @p Def%s and not only constants.
 class CopyProp : public FPPass<CopyProp, Lam> {
 public:
-    CopyProp(PassMan& man, EtaExp* eta_exp)
+    CopyProp(PassMan& man, BetaRed* beta_red, EtaExp* eta_exp)
         : FPPass(man, "copy_prop")
+        , beta_red_(beta_red)
         , eta_exp_(eta_exp)
     {}
 
@@ -28,6 +30,7 @@ private:
 
     const Def* var2prop(const App*, Lam*);
 
+    BetaRed* beta_red_;
     EtaExp* eta_exp_;
     LamMap<std::pair<Lam*, DefVec>> var2prop_;
     DefSet keep_;

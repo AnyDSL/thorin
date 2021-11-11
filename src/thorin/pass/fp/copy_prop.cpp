@@ -1,5 +1,6 @@
 #include "thorin/pass/fp/copy_prop.h"
 
+#include "thorin/pass/fp/beta_red.h"
 #include "thorin/pass/fp/eta_exp.h"
 
 namespace thorin {
@@ -61,6 +62,7 @@ const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {
         auto prop_dom = world().sigma(types);
         auto new_type = world().pi(prop_dom, var_lam->codom());
         prop_lam = var_lam->stub(world(), new_type, var_lam->dbg());
+        beta_red_->keep(prop_lam);
         eta_exp_->new2old(prop_lam, var_lam);
         keep_.emplace(prop_lam); // don't try to propagate again
         world().DLOG("var_lam => prop_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), prop_lam, prop_dom);

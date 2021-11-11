@@ -18,13 +18,13 @@ namespace thorin {
 void optimize(World& world) {
     PassMan opt(world);
     opt.add<PartialEval>();
-    opt.add<BetaRed>();
+    auto br = opt.add<BetaRed>();
     auto er = opt.add<EtaRed>();
     auto ee = opt.add<EtaExp>(er);
     opt.add<SSAConstr>(ee);
     opt.add<Scalerize>(ee);
-    //opt.add<DCE>(ee); // mostly works
-    opt.add<CopyProp>(ee);
+    opt.add<DCE>(br, ee);
+    opt.add<CopyProp>(br, ee);
     opt.run();
 
     cleanup_world(world);

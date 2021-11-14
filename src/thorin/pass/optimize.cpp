@@ -31,11 +31,20 @@ void optimize(World& world) {
 
     ClosureConv(world).run();
     auto cc = PassMan(world);
-    cc.add<Scalerize>();
+    er = cc.add<EtaRed>();
+    ee = cc.add<EtaExp>(er);
+    cc.add<Scalerize>(ee);
     cc.run();
     world.debug_stream();
 
-    UntypeClosures(world).run();
+
+    auto dc = PassMan(world);
+    er = dc.add<EtaRed>();
+    ee = cc.add<EtaExp>(er);
+    dc.add<CopyProp>(ee);
+    dc.run();
+    world.debug_stream();
+    // UntypeClosures(world).run();
 
     // while (partial_evaluation(world, true)); // lower2cff
     // flatten_tuples(world);

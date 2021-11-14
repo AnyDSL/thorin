@@ -26,6 +26,7 @@ private:
     undo_t analyze(const Proxy*) override;
     //@}
 
+    const Def* var2prop(const Tuple*);
     const Def* var2prop(const App*, Lam*);
 
     EtaExp* eta_exp_;

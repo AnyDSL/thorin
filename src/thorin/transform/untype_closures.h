@@ -32,6 +32,12 @@ public:
 
     static Sigma* isa_pct(const Def* def);
 
+    static const Tuple* isa_closure(const Def* def) {
+        if (auto tpl = def->isa<Tuple>(); tpl && isa_pct(tpl->type()))
+            return tpl;
+        return nullptr;
+    }
+
     static const Sigma* isa_uct(const Def* def);
 
     static const Def* env_type(World& world) {

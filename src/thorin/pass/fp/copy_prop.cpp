@@ -2,6 +2,8 @@
 
 #include "thorin/pass/fp/eta_exp.h"
 
+#include "thorin/transform/untype_closures.h"
+
 namespace thorin {
 
 const Def* CopyProp::rewrite(const Def* def) {
@@ -9,8 +11,51 @@ const Def* CopyProp::rewrite(const Def* def) {
         if (auto var_lam = app->callee()->isa_nom<Lam>(); !ignore(var_lam))
             return var2prop(app, var_lam);
     }
+    if (auto closure = UntypeClosures::isa_closure(def)) {
+        return var2prop(closure);
+    }
 
     return def;
+}
+
+const Def* CopyProp::var2prop(const Tuple* closure) {
+    auto env = closure->op(0);
+    auto var_lam = closure->op(1)->isa_nom<Lam>();
+
+    if (ignore(var_lam) || keep_.contains(var_lam))
+        return closure;
+
+    auto& const_args = data(var_lam);
+    const_args.resize(var_lam->num_doms());
+
+    if (env->contains_proxy())
+        return closure;
+    else if (const_args[0] == nullptr)
+        const_args[0] = env;
+    else if (const_args[0] != env)
+        return proxy(closure->type(), {var_lam, var_lam->var(0_u64)});
+
+    auto&& [prop_lam, old_args] = var2prop_[var_lam];
+    if (!prop_lam || old_args != const_args) {
+        for (size_t i = 1; i < var_lam->num_doms(); i++)
+            keep_.emplace(var_lam->var(i));
+        auto doms = world().sigma(Array<const Def*>(var_lam->num_doms(), [&](auto i) {
+            return (i == 0) ? world().sigma() : var_lam->dom(i);
+        }));
+        auto new_lam = var_lam->stub(world(), world().cn(doms), var_lam->dbg());
+        eta_exp_->new2old(new_lam, var_lam);
+        keep_.emplace(new_lam); // don't try to propagate again
+        world().DLOG("closure ({}, {}) => prop_lam {}", env, var_lam, new_lam);
+        auto new_vars = Array<const Def*>(var_lam->num_doms(), [&](auto i) {
+            return (i == 0) ? const_args[0] : new_lam->var(i); 
+        });
+        new_lam->set(var_lam->apply(world().tuple(new_vars)));
+        prop_lam = new_lam;
+    } else {
+        world().DLOG("reuse closure {} => {}", var_lam, prop_lam);
+    }
+    return world().tuple(closure->type(), {world().tuple(), prop_lam}, closure->dbg());
+
 }
 
 const Def* CopyProp::var2prop(const App* app, Lam* var_lam) {

@@ -499,7 +499,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
         defs_[param] = param->unique_name();
         if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
-            if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
+            if ((elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) && !hls_top_scope)
                 hls_pragmas_.fmt("#pragma HLS data_pack variable={} struct_level\n", param->unique_name());
         }
     }
@@ -689,9 +689,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             func_impls_.fmt("{}{} {}_reserved[{}];\n",
                 addr_space_prefix(AddrSpace::Shared), convert(elem_type),
                 cont->unique_name(), emit_constant(cont->arg(1)));
-            if (lang_ == Lang::HLS) {
+            if (lang_ == Lang::HLS && !hls_top_scope) {
                 func_impls_.fmt("#pragma HLS dependence variable={}_reserved inter false\n", cont->unique_name());
                 func_impls_.fmt("#pragma HLS data_pack  variable={}_reserved\n", cont->unique_name());
+                func_impls_<< "#if defined( __VITIS_HLS__ )\n   __attribute__((packed))\n  #endif\n";
             }
             bb.tail.fmt("p_{} = {}_reserved;\n", ret_cont->param(1)->unique_name(), cont->unique_name());
             bb.tail.fmt("goto {};", label_name(ret_cont));

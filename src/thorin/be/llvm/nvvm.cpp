@@ -48,7 +48,7 @@ static u64 resolve_addr_space(const Def* def) {
 
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lam* lam) {
     // skip non-global address-space parameters
-    std::vector<const Def*> types;
+    DefVec types;
     for (auto type : lam->type()->ops()) {
         if (auto ptr = isa<Tag::Ptr>(type))
             if (as_lit<nat_t>(ptr->arg(1)) == AddrSpace::Texture)

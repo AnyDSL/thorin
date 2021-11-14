@@ -55,6 +55,8 @@ set(THORIN_SOURCES
     pass/fp/beta_red.h
     pass/fp/copy_prop.cpp
     pass/fp/copy_prop.h
+    pass/fp/dce.cpp
+    pass/fp/dce.h
     pass/fp/ssa_constr.cpp
     pass/fp/ssa_constr.h
     pass/rw/auto_diff.cpp
@@ -69,8 +71,6 @@ set(THORIN_SOURCES
     pass/rw/scalarize.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/flatten_tuples.cpp
-    transform/flatten_tuples.h
     transform/mangle.cpp
     transform/mangle.h
     transform/partial_evaluation.cpp

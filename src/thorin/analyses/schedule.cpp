@@ -186,7 +186,7 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
 
 void Scheduler::topo_sort(Def2CFNode& def2node) {
     for (auto& block : schedule_.blocks_) {
-        std::vector<const Def*> defs;
+        DefVec defs;
         std::queue<const Def*> queue;
         DefSet done;
 

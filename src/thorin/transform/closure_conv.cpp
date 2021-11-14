@@ -37,16 +37,16 @@ void ClosureConv::run() {
                 }
             }
 
-            auto params = 
+            auto params =
                 world().tuple(Array<const Def*>(old_fn->num_doms(), [&] (auto i) {
-                    return new_fn->var(i + 1); 
+                    return new_fn->var(i + 1);
                 }), world().dbg("cc_param"));
             subst.emplace(old_fn->var(), params);
 
-            auto filter = (new_fn->filter()) 
-                ? rewrite(new_fn->filter(), subst) 
+            auto filter = (new_fn->filter())
+                ? rewrite(new_fn->filter(), subst)
                 : nullptr; // extern function
-            
+
             auto body = (new_fn->body())
                 ? rewrite(new_fn->body(), subst)
                 : nullptr;
@@ -93,7 +93,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         auto closure = world().tuple(closure_type, {env, fn});
         world().DLOG("RW: pack {} ~> {} : {}", lam, closure, closure_type);
         return map(closure);
-    } 
+    }
 
     auto new_type = rewrite(def->type(), subst);
     auto new_dbg = (def->dbg()) ? rewrite(def->dbg(), subst) : nullptr;
@@ -236,8 +236,8 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
         return* closure;
 
     auto& fv_set = fva_.run(fn);
-    auto fvs = std::vector<const Def*>();
-    auto fvs_types = std::vector<const Def*>();
+    auto fvs = DefVec();
+    auto fvs_types = DefVec();
     for (auto fv: fv_set) {
         fvs.emplace_back(fv);
         fvs_types.emplace_back(rewrite(fv->type(), subst));

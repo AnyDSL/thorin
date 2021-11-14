@@ -55,6 +55,7 @@ public:
         other.words_ = nullptr;
     }
     ~BitSet() { dealloc(); }
+
     /// @name get, set, clear, toggle, and test bits
     //@{
     bool test(size_t i) const {
@@ -72,6 +73,9 @@ public:
     reference operator[](size_t i) { ensure_capacity(i); return reference(words() + i/64_s, i%64_u64); }
     bool operator[](size_t i) const { return (*const_cast<BitSet*>(this))[i]; }
     //@}
+
+    bool operator==(const BitSet&) const; // TODO test
+    bool operator!=(const BitSet& other) const { return !(*this == other); } // TODO optimize
 
     /// @name any
     /// Is any bit range set?
@@ -116,13 +120,13 @@ public:
     /// number of bits set
     size_t count() const;
 
+    BitSet& operator=(BitSet other) { swap(*this, other); return *this; }
+
     void friend swap(BitSet& b1, BitSet& b2) {
         using std::swap;
         swap(b1.num_words_, b2.num_words_);
         swap(b1.words_,     b2.words_);
     }
-
-    BitSet& operator=(BitSet other) { swap(*this, other); return *this; }
 
 private:
     void ensure_capacity(size_t num_bits) const;

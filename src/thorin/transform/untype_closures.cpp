@@ -121,11 +121,14 @@ const Def* UntypeClosures::rewrite(const Def* def) {
 
     world().DLOG("rewrite {}", def);
 
+    // A sigmas var dependets on the sigma (type)
+    if (auto var = def->isa<Var>(); var && isa_pct(var->nom()))
+        return map(var, env_type());
+
     auto new_type = rewrite(def->type());
     auto new_dbg = def->dbg() ? rewrite(def->dbg()) : nullptr;
 
     if (auto pct = isa_pct(def)) {
-        map(pct->var(), env_type());
         return map(def, world().sigma({rewrite(pct->op(0)), rewrite(pct->op(1))}));
     } else if (def->isa<Tuple>() && isa_pct(def->type())) {
         auto env = rewrite(def->op(0_u64));

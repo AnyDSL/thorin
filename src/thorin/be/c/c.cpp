@@ -817,7 +817,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }
         }
-        bb.tail.fmt("goto {};", label_name(ret_cont));
+        if (!hls_top_scope)
+            bb.tail.fmt("goto {};", label_name(ret_cont));
     } else {
         THORIN_UNREACHABLE;
     }

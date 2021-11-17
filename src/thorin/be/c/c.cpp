@@ -630,7 +630,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     emit_debug_info(bb.tail, cont->arg(0));
 
-    if (lang_ == Lang::OpenCL && cont->is_exported())
+    if ((lang_ == Lang::OpenCL || (lang_==Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
     if (cont->callee() == entry_->ret_param()) { // return

@@ -713,7 +713,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     s.fmt("__attribute__((xcl_pipeline_loop({})))\n", !interval.empty() ? interval : "1");
                 });
             }
-            bb.tail.fmt("for (int i{} = {}; i{} < {}; i{}++) {{\t\n",
+            bb.tail.fmt("int i{};\n", cont->callee()->gid());
+            bb.tail.fmt("for (i{} = {}; i{} < {}; i{}++) {{\t\n",
                 callee->gid(), begin, callee->gid(), end, callee->gid());
             if (lang_ == Lang::HLS) {
                 bb.tail << "#pragma HLS PIPELINE";

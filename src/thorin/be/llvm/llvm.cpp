@@ -485,7 +485,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             auto closure = emit(continuation->callee());
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);
-            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(func->getType()), func, args);
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getElementType()), func, args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare

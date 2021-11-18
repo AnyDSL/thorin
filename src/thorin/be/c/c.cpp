@@ -1235,7 +1235,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         auto cond = emit_unsafe(select->cond());
         auto tval = emit_unsafe(select->tval());
         auto fval = emit_unsafe(select->fval());
-        s.fmt("({} ? {} : {})", name, cond, tval, fval);
+        s.fmt("({} ? {} : {})", cond, tval, fval);
     } else if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation());
         if (global->is_mutable() && lang_ != Lang::C99)

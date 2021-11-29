@@ -75,7 +75,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
     auto& world = continuation->world();
-    auto kernel_name = builder.CreateGlobalStringPtr(kernel->unique_name());
+    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->unique_name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 

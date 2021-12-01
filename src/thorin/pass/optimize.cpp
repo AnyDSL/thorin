@@ -8,6 +8,7 @@
 #include "thorin/pass/rw/partial_eval.h"
 #include "thorin/pass/rw/ret_wrap.h"
 #include "thorin/pass/rw/scalarize.h"
+#include "thorin/pass/fp/closure_destruct.h"
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"
@@ -20,7 +21,7 @@ namespace thorin {
 void optimize(World& world) {
     PassMan opt(world);
     // opt.add<PartialEval>();
-    // opt.add<BetaRed>();
+    opt.add<BetaRed>();
     auto er = opt.add<EtaRed>();
     auto ee = opt.add<EtaExp>(er);
     // opt.add<SSAConstr>(ee);
@@ -30,18 +31,19 @@ void optimize(World& world) {
     opt.run();
 
     ClosureConv(world).run();
-    auto cc = PassMan(world);
-    er = cc.add<EtaRed>();
-    ee = cc.add<EtaExp>(er);
-    cc.add<Scalerize>(ee);
-    cc.run();
+
+    // auto cc = PassMan(world);
+    // er = cc.add<EtaRed>();
+    // ee = cc.add<EtaExp>(er);
+    // cc.add<Scalerize>(ee);
+    // cc.run();
     world.debug_stream();
 
-
     auto dc = PassMan(world);
-    er = dc.add<EtaRed>();
-    ee = cc.add<EtaExp>(er);
-    dc.add<CopyProp>(ee);
+    // er = dc.add<EtaRed>();
+    // ee = dc.add<EtaExp>(er);
+    // dc.add<CopyProp>(ee);
+    dc.add<ClosureDestruct>();
     dc.run();
     world.debug_stream();
     // UntypeClosures(world).run();

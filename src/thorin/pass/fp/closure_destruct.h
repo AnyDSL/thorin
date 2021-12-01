@@ -13,12 +13,16 @@ class ClosureDestruct : public FPPass<ClosureDestruct, Lam> {
 public:
     ClosureDestruct(PassMan& man) 
         : FPPass<ClosureDestruct, Lam>(man, "closure_destruct")
-        , iter_(0), clos2dropped_() 
+        , iter_(1), clos2dropped_() 
     {}
 
     void unify(const Def* a, const Def* b);
 
-    void enter() override { iter_++; }
+    void enter() override { 
+        iter_++; 
+        dump_graph();
+    }
+
     const Def* rewrite(const Def*) override;
     undo_t analyze(const Def*) override;
 
@@ -121,8 +125,8 @@ public:
 private:
     Node* repr_;
     const Def* def_;
-    undo_t undo_;
     bool esc_;
+    undo_t undo_;
     std::set<Edge> points_to_;
 
     static Node top_; 

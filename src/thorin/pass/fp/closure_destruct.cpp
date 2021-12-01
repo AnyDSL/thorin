@@ -69,6 +69,8 @@ undo_t ClosureDestruct::Node::unify(Node* other) {
     a->esc_ &= b->is_esc();
     a->undo_ = std::min(a->undo_, b->undo_);
     a->points_to_.insert(b->points_to_.begin(), b->points_to_.end());
+    a->points_to_.insert({b, 0});
+    b->repr_ = a;
     b->points_to_.clear();
     return res;
 }
@@ -77,26 +79,22 @@ ClosureDestruct::Node ClosureDestruct::Node::top_(nullptr);
 
 void ClosureDestruct::Node::dump(Stream& s, std::set<Node*>& visited) {
     if (!def_) {
-        s.fmt("⊤");
-    } if (!is_repr()) {
-        repr_->dump(s, visited);
+        s.fmt("<top>");
     } else {
-        s.fmt("{}: [{}, {}]\n", this, def_, (is_esc()) ? "⊤" : "⊥");
-        if (visited.count(this) != 0) {
+        s.fmt("[{}, {}, {}] \n", repr(), def_, (is_esc()) ? "⊤" : "⊥");
+        if (visited.count(this) == 0) {
             visited.insert(this);
-            s.indent();
-            for (auto& edge: points_to_)
-               edge.dump(s, visited);
-            s.dedent();
+            s.indent(1);
+            s.fmt("\n");
+            for (auto& edge: points_to_) {
+                s.fmt("[{}] {} ", edge.iter(), (edge->repr() == this) ? "=" : "->");
+                edge->dump(s, visited);
+            }
+            s.fmt("\n");
+            s.dedent(1);
         }
     }
 }
-
-void ClosureDestruct::Edge::dump(Stream& s, std::set<Node*>& visited) const {
-    s.fmt("{}: ", iter_);
-    node_->dump(s, visited);
-}
-
 
 ClosureDestruct::Node* ClosureDestruct::get_node(const Def* def, undo_t undo) { 
     auto [p, inserted] = def2node_.emplace(def, nullptr);
@@ -105,19 +103,27 @@ ClosureDestruct::Node* ClosureDestruct::get_node(const Def* def, undo_t undo) {
     return p->second.get();
 }
 
+static bool interesting_type(const Def* def) {
+    return UntypeClosures::isa_pct(def) != nullptr;
+}
+
 undo_t ClosureDestruct::add_pointee(ClosureDestruct::Node* node, const Def* def) {
-    if (def->isa_nom<Lam>() || isa_var(def)) {
+    if (def->isa_nom<Lam>() || def->isa<Var>()) {
         return node->add_pointee(get_node(def), iter_);
+    } else if (auto proj = def->isa<Extract>()) {
+        if (auto lam = proj->tuple()->isa_nom<Lam>(); lam && interesting_type(def->type()))
+            return node->add_pointee(node, iter_);
+        else
+            return add_pointee(node, proj->tuple());
     } else if (auto closure = UntypeClosures::isa_closure(def)) {
         return add_pointee(node, closure->op(1_u64));
-    } else if (auto proj = def->isa<Extract>()) {
-        return add_pointee(node, proj->tuple());
     } else if (auto pack = def->isa<Pack>()) {
         return add_pointee(node, pack->body());
     } else if (auto tuple = def->isa<Tuple>()) {
         auto undo = No_Undo;
         for (auto op: tuple->ops())
-            undo = std::min(undo, add_pointee(node, def));
+            undo = std::min(undo, add_pointee(node, op));
+        return undo;
     } else {
         return No_Undo;
     }
@@ -139,7 +145,8 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
                 auto new_vars = Array<const Def*>(dropped->num_doms(), [&](auto i) {
                     return (i == 0) ? env : dropped->var(i); 
                 });
-                lam_node->unify(get_node(def, curr_undo()));
+                auto dropped_node = get_node(dropped, curr_undo());
+                lam_node->unify(dropped_node);
             }
             return world().tuple(closure->type(), {world().tuple(), dropped}, closure->dbg());
         }
@@ -147,9 +154,12 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
     return def;
 }
 
+// TODO: Interprocedural part?
 undo_t ClosureDestruct::analyze_call(const Def* callee, size_t i, const Def* arg) {
     if (auto lam = callee->isa_nom<Lam>()) {
         return add_pointee(lam->var(i), arg);
+    } else if (auto closure = UntypeClosures::isa_closure(callee)) {
+        return add_pointee(lam->var(i), closure->op(1_u64));
     } else if (auto proj = callee->isa<Extract>()) {
         return analyze_call(proj->tuple(), i, arg);
     } else if (auto pack = callee->isa<Pack>()) {
@@ -157,23 +167,25 @@ undo_t ClosureDestruct::analyze_call(const Def* callee, size_t i, const Def* arg
     } else if (auto tuple = callee->isa<Tuple>()) {
         auto undo = No_Undo;
         for (auto op: tuple->ops())
-            undo = std::min(undo, analyze_call(callee, i, arg));
+            undo = std::min(undo, analyze_call(callee, i, op));
         return undo;
     } else {
         return add_pointee(Node::top(), arg);
     }
 }
 
+// TODO: Analyze store
 undo_t ClosureDestruct::analyze(const Def* def) {
+    auto undo = No_Undo;
     if (auto closure = UntypeClosures::isa_closure(def)) {
-        return add_pointee(closure->op(1), closure->op(0));
+        undo = add_pointee(closure->op(1), closure->op(0));
+        // FIXME: env also flows into the env-argument: #x @{f, 0} for 0 <= x <= size env
     } else if (auto app = def->isa<App>(); app && app->callee_type()->is_cn()) {
-        auto undo = No_Undo;
-        for (size_t i = 0; i < app->num_args(); i++)
-            undo = std::min(undo, analyze_call(app->callee(), i, app->arg(i)));
-        return undo;
+        for (size_t i = 0; i < app->num_args(); i++) 
+            if (interesting_type(app->callee_type()->dom(i)))
+                undo = std::min(undo, analyze_call(app->callee(), i, app->arg(i)));
     }
-    return No_Undo;
+    return undo;
 }
 
 void ClosureDestruct::unify(const Def* a, const Def* b) {
@@ -181,17 +193,21 @@ void ClosureDestruct::unify(const Def* a, const Def* b) {
 }
 
 void ClosureDestruct::dump_node(Node* node) {
-    world().stream().fmt("{}", *node);
+    world().stream().fmt("{}\n", *node);
 }
 
 void ClosureDestruct::dump_graph() {
     auto s = world().stream();
     auto v = std::set<Node*>();
+    s.fmt("-----------------\n");
     for (auto& [def, node]: def2node_) {
-        s.fmt("{def} => ");
-        node->dump(s, v);
-        s.fmt("\n");
+        if (v.count(node.get()) == 0) {
+            s.fmt("{} =>\n", def);
+            node->dump(s, v);
+            s.fmt("\n");
+        }
     }
+    s.fmt("\n");
 }
 
 } // namespace thorin

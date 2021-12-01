@@ -145,6 +145,7 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
                 auto new_vars = Array<const Def*>(dropped->num_doms(), [&](auto i) {
                     return (i == 0) ? env : dropped->var(i); 
                 });
+                dropped->set(lam->apply(world().tuple(new_vars)));
                 auto dropped_node = get_node(dropped, curr_undo());
                 lam_node->unify(dropped_node);
             }

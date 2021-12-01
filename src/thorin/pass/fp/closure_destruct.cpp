@@ -12,6 +12,10 @@ static const Var* isa_var(const Def* def) {
     return def->isa<Var>();
 }
 
+static bool is_exp_imp(Lam *lam) {
+    return lam->is_external() || !lam->is_set();
+}
+
 ClosureDestruct::Node::Node(const Def* def, bool esc, undo_t undo)
     : repr_(this)
     , def_(def)
@@ -24,7 +28,7 @@ ClosureDestruct::Node::Node(const Def* def, bool esc, undo_t undo)
         esc_ = true;
         add_pointee(top(), 0);
     } else if (auto var = isa_var(def)) {
-        if (auto lam = var->nom()->isa_nom<Lam>(); lam && lam->is_external()) {
+        if (auto lam = var->nom()->isa_nom<Lam>(); lam && is_exp_imp(lam)) {
             esc_ |= !lam->is_set(); // imported lams always escape their args
             add_pointee(top(), 0);
         }

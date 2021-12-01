@@ -12,140 +12,68 @@ static const Var* isa_var(const Def* def) {
     return def->isa<Var>();
 }
 
-struct ClosureDestruct::Edge {
-public:
-    Edge(Node* node, size_t iter)
-        : node_(node), iter_(iter) {};
-
-    Node* operator*() const {
-        return node_;
-    }
-
-    Node* operator->() const {
-        return node_;
-    }
-
-    bool operator<(Edge& other) const {
-        return node_ < other.node_;
-    }
-
-    bool operator==(Edge& other) const {
-        return node_ == other.node_;
-    }
-
-    size_t iter() const { return iter_; }
-    void set_iter(size_t new_iter) const {
-        iter_ = std::min(iter_, new_iter);
-    }
-
-    void dump(Stream& s, std::set<Node*>& visited) const;
-    
-private:
-    Node* const node_;
-    mutable size_t iter_; 
-};
-
-class ClosureDestruct::Node {
-public:
-    Node(const Def* def, bool esc = false, undo_t undo = No_Undo) 
-        : repr_(this), def_(def), esc_(esc), undo_(undo), points_to_() 
-    {
-        if (!def || def->is_external()) {  // ⊤, external lam or Global
-            esc_ = true;
-        } else if (def->isa<Global>()) {
-            esc_ = true;
-            add_pointee(top(), 0);
-        } else if (auto var = isa_var(def)) {
-            if (auto lam = var->nom()->isa_nom<Lam>(); lam && lam->is_external()) {
-                esc_ |= !lam->is_set(); // imported lams always escape their args
-                add_pointee(top(), 0);
-            }
-        }
-    }
-
-    template<class T = const Def>
-    T* def() { assert(def_); return def_->isa<T>(); };
-
-    inline bool is_repr() {
-        return this == repr_;
-    }
-
-    Node* repr() {
-        if (!is_repr())
-            repr_ = repr_->repr();
-        return repr_;
-    }
-
-    bool is_esc() { 
-        if (!is_repr())
-            return repr()->is_esc();
-        return esc_; 
-    }
-
-    undo_t mark_esc() {
-        if (!is_repr())
-            return repr()->mark_esc();
-        if (is_esc())
-            return No_Undo;
+ClosureDestruct::Node::Node(const Def* def, bool esc, undo_t undo)
+    : repr_(this)
+    , def_(def)
+    , esc_(esc)
+    , undo_(undo)
+    , points_to_() {
+    if (!def || def->is_external()) { // ⊤, external lam or Global
         esc_ = true;
-        auto undo = undo_;
-        for (auto p: points_to_)
-            undo = std::min(undo, p->mark_esc());
-        return undo;
-    }
-    
-    undo_t add_pointee(Node* pointee, size_t iter) {
-        if (!is_repr())
-            return repr()->add_pointee(pointee, iter);
-        if (def_) {
-            auto [p, inserted] = points_to_.emplace(pointee, iter);
-            if (!inserted) {
-                p->set_iter(iter);
-                return No_Undo;
-            }
+    } else if (def->isa<Global>()) {
+        esc_ = true;
+        add_pointee(top(), 0);
+    } else if (auto var = isa_var(def)) {
+        if (auto lam = var->nom()->isa_nom<Lam>(); lam && lam->is_external()) {
+            esc_ |= !lam->is_set(); // imported lams always escape their args
+            add_pointee(top(), 0);
         }
-        return (is_esc())
-             ? pointee->mark_esc() : No_Undo;
     }
+}
 
-    undo_t unify(Node* other) {
-        auto a = repr();
-        auto b = other->repr();
-        if (a == b)
+undo_t ClosureDestruct::Node::mark_esc() {
+    if (!is_repr())
+        return repr()->mark_esc();
+    if (is_esc())
+        return No_Undo;
+    esc_ = true;
+    auto undo = undo_;
+    for (auto p : points_to_)
+        undo = std::min(undo, p->mark_esc());
+    return undo;
+}
+
+undo_t ClosureDestruct::Node::add_pointee(Node* pointee, size_t iter) {
+    if (!is_repr())
+        return repr()->add_pointee(pointee, iter);
+    if (def_) {
+        auto [p, inserted] = points_to_.emplace(pointee, iter);
+        if (!inserted) {
+            p->set_iter(iter);
             return No_Undo;
-        auto res = No_Undo;
-        if (!a->is_esc())
-            std::swap(a, b);
-        if (a->esc_ != b->esc_)
-            res = b->mark_esc();
-        a->esc_ &= b->is_esc();
-        a->undo_ = std::min(a->undo_, b->undo_);
-        a->points_to_.insert(b->points_to_.begin(), b->points_to_.end());
-        b->points_to_.clear();
-        return res;
+        }
     }
+    return (is_esc()) ? pointee->mark_esc() : No_Undo;
+}
 
-    void dump(Stream& s, std::set<Node*>& visited);
+undo_t ClosureDestruct::Node::unify(Node* other) {
+    auto a = repr();
+    auto b = other->repr();
+    if (a == b)
+        return No_Undo;
+    auto res = No_Undo;
+    if (!a->is_esc())
+        std::swap(a, b);
+    if (a->esc_ != b->esc_)
+        res = b->mark_esc();
+    a->esc_ &= b->is_esc();
+    a->undo_ = std::min(a->undo_, b->undo_);
+    a->points_to_.insert(b->points_to_.begin(), b->points_to_.end());
+    b->points_to_.clear();
+    return res;
+}
 
-    friend Stream& operator<<(Stream& s, Node& node) {
-        auto visited = std::set<Node*>();
-        node.dump(s, visited); 
-        return s;
-    }
-
-    static Node* top() { return &top_; }
-
-private:
-    Node* repr_;
-    const Def* def_;
-    undo_t undo_;
-    bool esc_;
-    std::set<Edge> points_to_;
-
-    static Node top_;
-};
-
-auto ClosureDestruct::Node::top_ = ClosureDestruct::Node(nullptr);
+ClosureDestruct::Node ClosureDestruct::Node::top_(nullptr);
 
 void ClosureDestruct::Node::dump(Stream& s, std::set<Node*>& visited) {
     if (!def_) {
@@ -153,7 +81,7 @@ void ClosureDestruct::Node::dump(Stream& s, std::set<Node*>& visited) {
     } if (!is_repr()) {
         repr_->dump(s, visited);
     } else {
-        s.fmt("{}: [{}, {}]", this, def_, (is_esc()) ? "⊤" : "⊥");
+        s.fmt("{}: [{}, {}]\n", this, def_, (is_esc()) ? "⊤" : "⊥");
         if (visited.count(this) != 0) {
             visited.insert(this);
             s.indent();
@@ -165,7 +93,7 @@ void ClosureDestruct::Node::dump(Stream& s, std::set<Node*>& visited) {
 }
 
 void ClosureDestruct::Edge::dump(Stream& s, std::set<Node*>& visited) const {
-    s.fmt("[{}: ]", iter_);
+    s.fmt("{}: ", iter_);
     node_->dump(s, visited);
 }
 
@@ -195,7 +123,7 @@ undo_t ClosureDestruct::add_pointee(ClosureDestruct::Node* node, const Def* def)
     }
 }
 
-const Def* ClosureDestruct::rewrites(const Def* def) {
+const Def* ClosureDestruct::rewrite(const Def* def) {
     if (auto closure = UntypeClosures::isa_closure(def)) {
         auto env = closure->op(0);
         auto lam = closure->op(1)->isa_nom<Lam>();
@@ -250,6 +178,20 @@ undo_t ClosureDestruct::analyze(const Def* def) {
 
 void ClosureDestruct::unify(const Def* a, const Def* b) {
     get_node(a)->unify(get_node(b));
+}
+
+void ClosureDestruct::dump_node(Node* node) {
+    world().stream().fmt("{}", *node);
+}
+
+void ClosureDestruct::dump_graph() {
+    auto s = world().stream();
+    auto v = std::set<Node*>();
+    for (auto& [def, node]: def2node_) {
+        s.fmt("{def} => ");
+        node->dump(s, v);
+        s.fmt("\n");
+    }
 }
 
 } // namespace thorin

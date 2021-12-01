@@ -1127,7 +1127,8 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::Atomic:      return emit_atomic(irbuilder, continuation);
         case Intrinsic::AtomicLoad:  return emit_atomic_load(irbuilder, continuation);
         case Intrinsic::AtomicStore: return emit_atomic_store(irbuilder, continuation);
-        case Intrinsic::CmpXchg:     return emit_cmpxchg(irbuilder, continuation);
+        case Intrinsic::CmpXchg:     return emit_cmpxchg(irbuilder, continuation, false);
+        case Intrinsic::CmpXchgWeak: return emit_cmpxchg(irbuilder, continuation, true);
         case Intrinsic::Fence:       return emit_fence(irbuilder, continuation);
         case Intrinsic::Reserve:     return emit_reserve(irbuilder, continuation);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
@@ -1204,19 +1205,23 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     return cont;
 }
 
-Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() == 7 && "required arguments are missing");
+Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation, bool is_weak) {
+    assert(continuation->num_args() == 8 && "required arguments are missing");
     if (!is_type_i(continuation->arg(3)->type()))
         world().edef(continuation->arg(3), "cmpxchg only supported for integer types");
-    auto ptr  = emit(continuation->arg(1));
-    auto cmp  = emit(continuation->arg(2));
-    auto val  = emit(continuation->arg(3));
-    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
-    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
-    auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(6)->as_continuation();
-    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, order, order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto ptr = emit(continuation->arg(1));
+    auto cmp = emit(continuation->arg(2));
+    auto val = emit(continuation->arg(3));
+    u32 success_order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
+    u32 failure_order_tag = continuation->arg(5)->as<PrimLit>()->qu32_value();
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(success_order_tag) && int(success_order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    assert(int(llvm::AtomicOrdering::NotAtomic) <= int(failure_order_tag) && int(failure_order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
+    auto success_order = (llvm::AtomicOrdering)success_order_tag;
+    auto failure_order = (llvm::AtomicOrdering)failure_order_tag;
+    auto scope = continuation->arg(6)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = continuation->arg(7)->as_continuation();
+    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, success_order, failure_order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    call->setWeak(is_weak);
     emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
     emit_phi_arg(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
     return cont;

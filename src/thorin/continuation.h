@@ -73,6 +73,7 @@ enum class Intrinsic : uint8_t {
     AtomicLoad,                 ///< Intrinsic atomic load function
     AtomicStore,                ///< Intrinsic atomic store function
     CmpXchg,                    ///< Intrinsic cmpxchg function
+    CmpXchgWeak,                ///< Intrinsic cmpxchg weak function
     Fence,                      ///< Intrinsic fence function
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend

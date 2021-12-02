@@ -7,11 +7,17 @@
 namespace thorin {
 
 template<class I>
-static inline undo_t min_undo(I& cont, std::function<undo_t (typename I::value_type)> f) {
-    auto undo_t = No_Undo;
+static inline undo_t min_undo(I& cont, std::function<undo_t (typename I::value_type)> f,
+    undo_t undo = No_Undo) {
     for (auto elem: cont)
-        std::min(undo_t, f(elem));
-    return No_Undo;
+        undo = std::min(undo, f(elem));
+    return undo;
+}
+
+static inline undo_t min_undo(size_t n, std::function<undo_t (size_t)> f, undo_t undo = No_Undo) {
+    for (size_t i = 0; i < n; i++)
+        undo = std::min(undo, f(i));
+    return undo;
 }
 
 static const Var* isa_var(const Def* def) {
@@ -30,6 +36,8 @@ ClosureDestruct::Node::Node(const Def* def, bool esc, undo_t undo)
     , esc_(esc)
     , undo_(undo)
     , points_to_() {
+    if (def && def->isa<Var>() && def->type()->isa<Sigma>())
+        assert(false && "created node for hole argument tuple");
     if (!def || def->is_external()) { // ⊤, external lam or Global
         esc_ = true;
     } else if (def->isa<Global>()) {
@@ -49,16 +57,17 @@ undo_t ClosureDestruct::Node::mark_esc() {
     if (is_esc())
         return No_Undo;
     esc_ = true;
-    return min_undo(points_to_, [&] (auto edge) {
+    auto undo = min_undo(points_to_, [&] (auto edge) {
         return edge->mark_esc();
-    });
+    }, undo_);
+    return undo;
 }
 
 undo_t ClosureDestruct::Node::add_pointee(Node* pointee, size_t iter) {
     if (!is_repr())
         return repr()->add_pointee(pointee, iter);
     if (def_) {
-        auto [p, inserted] = points_to_.emplace(pointee, iter);
+        auto [p, inserted] = points_to_.emplace(pointee->repr(), iter);
         if (!inserted) {
             p->set_iter(iter);
             return No_Undo;
@@ -129,11 +138,13 @@ static bool interesting_type(const Def* type) {
 }
 
 undo_t ClosureDestruct::add_pointee(ClosureDestruct::Node* node, const Def* def) {
-    if (def->isa_nom<Lam>() || def->isa<Var>()) {
+    if (def->isa_nom<Lam>()) {
         return node->add_pointee(get_node(def), iter_);
+    } else if (auto var = def->isa<Var>()) {
+        return node->add_pointee(get_node(var), iter_);
     } else if (auto proj = def->isa<Extract>()) {
-        if (auto lam = proj->tuple()->isa_nom<Lam>(); lam && interesting_type(def->type()))
-            return node->add_pointee(node, iter_);
+        if (auto var = proj->tuple()->isa<Var>(); var && var->nom()->isa<Lam>() && interesting_type(def->type()))
+            return node->add_pointee(get_node(def), iter_);
         else
             return add_pointee(node, proj->tuple());
     } else if (auto closure = UntypeClosures::isa_closure(def)) {
@@ -180,6 +191,7 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
 // TODO: Interprocedural part?
 undo_t ClosureDestruct::analyze_call(const Def* callee, ArgVec& args) {
     if (auto lam = callee->isa_nom<Lam>()) {
+        world().DLOG("call {}", lam);
         return min_undo(args, [&] (auto arg) { 
             world().DLOG("call: {} -> {}", lam, arg.second);
             return add_pointee(lam->var(arg.first), arg.second);
@@ -214,7 +226,7 @@ undo_t ClosureDestruct::analyze(const Def* def) {
         for (size_t i = 0; i < app->num_args(); i++) 
             if (interesting_type(app->callee_type()->dom(i)))
                 args.emplace_back(i, app->arg(i));
-        return analyze_call(app->callee(), args);
+        undo = analyze_call(app->callee(), args);
     }
     return undo;
 }

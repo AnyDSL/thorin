@@ -6,6 +6,14 @@
 
 namespace thorin {
 
+template<class I>
+static inline undo_t min_undo(I& cont, std::function<undo_t (typename I::value_type)> f) {
+    auto undo_t = No_Undo;
+    for (auto elem: cont)
+        std::min(undo_t, f(elem));
+    return No_Undo;
+}
+
 static const Var* isa_var(const Def* def) {
     if (auto proj = def->isa<Extract>())
         def = proj->tuple();
@@ -41,10 +49,9 @@ undo_t ClosureDestruct::Node::mark_esc() {
     if (is_esc())
         return No_Undo;
     esc_ = true;
-    auto undo = undo_;
-    for (auto p : points_to_)
-        undo = std::min(undo, p->mark_esc());
-    return undo;
+    return min_undo(points_to_, [&] (auto edge) {
+        return edge->mark_esc();
+    });
 }
 
 undo_t ClosureDestruct::Node::add_pointee(Node* pointee, size_t iter) {
@@ -107,8 +114,18 @@ ClosureDestruct::Node* ClosureDestruct::get_node(const Def* def, undo_t undo) {
     return p->second.get();
 }
 
-static bool interesting_type(const Def* def) {
-    return UntypeClosures::isa_pct(def) != nullptr;
+static bool interesting_type_b(const Def* type) {
+    return UntypeClosures::isa_pct(type) != nullptr;
+}
+
+static bool interesting_type(const Def* type) {
+    if (interesting_type_b(type))
+        return true;
+    if (auto sigma = type->isa<Sigma>())
+        return std::any_of(sigma->ops().begin(), sigma->ops().end(), interesting_type);
+    if (auto arr = type->isa<Arr>())
+        return interesting_type(arr->body());
+    return false;
 }
 
 undo_t ClosureDestruct::add_pointee(ClosureDestruct::Node* node, const Def* def) {
@@ -159,23 +176,30 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
     return def;
 }
 
+
 // TODO: Interprocedural part?
-undo_t ClosureDestruct::analyze_call(const Def* callee, size_t i, const Def* arg) {
+undo_t ClosureDestruct::analyze_call(const Def* callee, ArgVec& args) {
     if (auto lam = callee->isa_nom<Lam>()) {
-        return add_pointee(lam->var(i), arg);
+        return min_undo(args, [&] (auto arg) { 
+            world().DLOG("call: {} -> {}", lam, arg.second);
+            return add_pointee(lam->var(arg.first), arg.second);
+        });
     } else if (auto closure = UntypeClosures::isa_closure(callee)) {
-        return add_pointee(lam->var(i), closure->op(1_u64));
+        return analyze_call(closure->op(1_u64), args);
     } else if (auto proj = callee->isa<Extract>()) {
-        return analyze_call(proj->tuple(), i, arg);
+        return analyze_call(proj->tuple(), args);
     } else if (auto pack = callee->isa<Pack>()) {
-        return analyze_call(pack->body(), i, arg);
+        return analyze_call(pack->body(), args);
     } else if (auto tuple = callee->isa<Tuple>()) {
         auto undo = No_Undo;
         for (auto op: tuple->ops())
-            undo = std::min(undo, analyze_call(callee, i, op));
+            undo = std::min(undo, analyze_call(op, args));
         return undo;
     } else {
-        return add_pointee(Node::top(), arg);
+        return min_undo(args, [&] (auto arg) {
+            world().DLOG("call {}: escape {}", callee, arg.second);
+            return add_pointee(Node::top(), arg.second);
+        });
     }
 }
 
@@ -186,9 +210,11 @@ undo_t ClosureDestruct::analyze(const Def* def) {
         undo = add_pointee(closure->op(1), closure->op(0));
         // FIXME: env also flows into the env-argument: #x @{f, 0} for 0 <= x <= size env
     } else if (auto app = def->isa<App>(); app && app->callee_type()->is_cn()) {
+        auto args = ArgVec();
         for (size_t i = 0; i < app->num_args(); i++) 
             if (interesting_type(app->callee_type()->dom(i)))
-                undo = std::min(undo, analyze_call(app->callee(), i, app->arg(i)));
+                args.emplace_back(i, app->arg(i));
+        return analyze_call(app->callee(), args);
     }
     return undo;
 }

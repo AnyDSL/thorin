@@ -39,7 +39,8 @@ private:
         return add_pointee(get_node(a, undo), b);
     }
 
-    undo_t analyze_call(const Def* callee, size_t i, const Def* arg);
+    using ArgVec = std::vector<std::pair<size_t, const Def*>>;
+    undo_t analyze_call(const Def* callee, ArgVec& vec);
 
     void dump_node(Node* node);
     void dump_graph();

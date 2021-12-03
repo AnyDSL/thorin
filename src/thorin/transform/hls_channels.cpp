@@ -84,7 +84,7 @@ void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& c
 // ----------- Kernel scheduling (dependency resolver) algorithm -------------
 
 // Find out if a kernel has no dependency (no input from other kernels to this one)
-static bool is_free_kernel(const Dependencies& dependencies, const bool dependency_bool_vector[], const size_t kernel) {
+static bool is_free_kernel(const Dependencies& dependencies, const std::vector<bool>& dependency_bool_vector, const size_t kernel) {
     bool free_kernel = true;
     for (size_t i = 0; i < dependencies.size() && free_kernel; ++i) {
         free_kernel = (!dependency_bool_vector[i])|| (dependencies[i].second != kernel);
@@ -93,7 +93,7 @@ static bool is_free_kernel(const Dependencies& dependencies, const bool dependen
 }
 
 // Get the kernels with no dependency (no input from other kernels to those)
-static size_t get_free_kernels(const Dependencies& dependencies, const bool dependency_bool_vector[],
+static size_t get_free_kernels(const Dependencies& dependencies, const std::vector<bool>& dependency_bool_vector,
         const size_t dependent_kernels_size, std::stack<size_t>& free_kernels) {
     for (size_t kernel = 0; kernel < dependent_kernels_size; ++kernel) {
         if (is_free_kernel(dependencies, dependency_bool_vector, kernel)) {
@@ -105,7 +105,7 @@ static size_t get_free_kernels(const Dependencies& dependencies, const bool depe
 
 bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kernels_size, std::vector<size_t>& resolved) {
     std::stack<size_t> free_kernels;
-    bool dependency_bool_vector[dependencies.size()];
+    std::vector<bool> dependency_bool_vector(dependencies.size());
     size_t remaining_dependencies = dependencies.size();
 
 

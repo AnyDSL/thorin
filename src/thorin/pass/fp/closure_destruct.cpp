@@ -143,10 +143,10 @@ undo_t ClosureDestruct::add_pointee(ClosureDestruct::Node* node, const Def* def)
     } else if (auto var = def->isa<Var>()) {
         return node->add_pointee(get_node(var), iter_);
     } else if (auto proj = def->isa<Extract>()) {
-        if (auto var = proj->tuple()->isa<Var>(); var && var->nom()->isa<Lam>() && interesting_type(def->type()))
-            return node->add_pointee(get_node(def), iter_);
-        else
-            return add_pointee(node, proj->tuple());
+        if (auto var = proj->tuple()->isa<Var>(); var && var->nom()->isa<Lam>())
+            return interesting_type(def->type())
+                ? node->add_pointee(get_node(def), iter_) : No_Undo;
+        return add_pointee(node, proj->tuple());
     } else if (auto closure = UntypeClosures::isa_closure(def)) {
         return add_pointee(node, closure->op(1_u64));
     } else if (auto pack = def->isa<Pack>()) {

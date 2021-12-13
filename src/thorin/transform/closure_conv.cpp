@@ -293,12 +293,33 @@ const Sigma* isa_uct(const Def* def) {
     return nullptr;
 }
 
-const Sigma* isa_ct(const Def* def, bool typed) { 
-    return typed ? isa_pct(def) : isa_uct(def); 
+const Sigma* isa_ct(const Def* def, ClosureKind::T kind) { 
+    switch (kind) {
+        case ClosureKind::TYPED: {
+            auto sig = def->isa_nom<Sigma>();
+            if (!sig)
+                return nullptr;
+            return isa_ct(def, [&](auto def) { return sig->var() == def; })
+                ? sig : nullptr;
+        }
+        case ClosureKind::UNTYPED: {
+            auto sig = def->isa<Sigma>();
+            if (!sig)
+                return nullptr;
+            return isa_ct(def, [](auto def) { return def == closure_env_type(def->world()); })
+                ? sig : nullptr;
+        }
+        case ClosureKind::ANY: {
+            if (auto pct = isa_ct(def, ClosureKind::TYPED))
+                return pct;
+            else
+                return isa_ct(def, ClosureKind::UNTYPED);
+        }
+    }
 }
 
-ClosureWrapper isa_closure(const Def* def, bool typed) {
-    return ClosureWrapper(def, typed); 
+ClosureWrapper isa_closure(const Def* def, ClosureKind::T kind) {
+    return ClosureWrapper(def, kind); 
 }
 
 const Pi* ClosureWrapper::old_type() {

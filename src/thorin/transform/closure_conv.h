@@ -107,18 +107,23 @@ class ClosureConv {
 
 // Functions for matching closure types
 
+namespace ClosureKind {
+    enum T { TYPED = 1, UNTYPED = 2, ANY = TYPED | UNTYPED };
+};
+
+const Sigma* isa_ct(const Def* def, ClosureKind::T kind = ClosureKind::ANY);
+
 Sigma* isa_pct(const Def* def);
 
 const Sigma* isa_uct(const Def* def);
 
-const Sigma* isa_ct(const Def* def, bool typed);
 
 const Def* closure_env_type(World& world);
 
 class ClosureWrapper {
 public:
-    ClosureWrapper(const Def* def, bool typed)
-        : def_(def->isa<Tuple>() && isa_ct(def, typed) ? def->as<Tuple>() : nullptr) {}
+    ClosureWrapper(const Def* def, ClosureKind::T kind)
+        : kind_(kind), def_(def->isa<Tuple>() && isa_ct(def, kind) ? def->as<Tuple>() : nullptr) {}
 
     Lam* lam();
 
@@ -137,8 +142,6 @@ public:
         return def_->type()->isa<Sigma>();
     }
 
-    const Pi* old_type();
-
     unsigned int order() {
         return old_type()->order();
     }
@@ -147,11 +150,33 @@ public:
         return old_type()->is_basicblock();
     }
 
+    const Def* env_var() {
+        return lam()->var(0_u64);
+    }
+
+    const Def* mem_var() {
+        auto var = lam()->var(0_u64);
+        assert(var->type() == def_->world().type_mem());
+        return mem_var();
+    }
+
+    const Def* ret_var() {
+        assert(!is_basicblock());
+        auto l = lam();
+        auto var = l->var(l->num_doms() - 1);
+        assert(isa_ct(var->type(), kind_));
+        return var;
+    }
+
 private:
+    // Slighlty misleading name^^
+    const Pi* old_type();
+
+    const ClosureKind::T kind_;
     const Tuple* def_;
 };
 
-ClosureWrapper isa_closure(const Def* def, bool typed = true);
+ClosureWrapper isa_closure(const Def* def, ClosureKind::T kind = ClosureKind::TYPED);
 
 };
 

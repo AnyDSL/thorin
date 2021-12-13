@@ -76,7 +76,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Arr* stub(World&, const Def*, const Def*) override;
-    const Def* restructure();
+    const Def* restructure() override;
     //@}
 
     static constexpr auto Node = Node::Arr;

@@ -167,13 +167,24 @@ public:
 #endif
         {}
 
-        iterator_base(const iterator_base<false>& i)
+        template<bool other_const, class = std::enable_if_t<is_const || !other_const>>
+        iterator_base(const iterator_base<other_const>& i)
             : ptr_(i.ptr_)
             , table_(i.table_)
 #if THORIN_ENABLE_CHECKS
             , id_(i.id_)
 #endif
-        {}
+            {}
+
+        template<bool other_const, class = std::enable_if_t<is_const || !other_const>>
+        iterator_base& operator=(const iterator_base<other_const>& other) {
+            ptr_ = other.ptr_;
+            table_ = other.table_;
+#if THORIN_ENABLE_CHECKS
+            id_ = other.id_;
+#endif
+            return *this;
+        }
 
 #if THORIN_ENABLE_CHECKS
         inline void verify() const { assert(table_->id_ == id_); }
@@ -187,7 +198,6 @@ public:
         inline void verify(iterator_base) const {}
 #endif
 
-        iterator_base& operator=(const iterator_base& other) = default;
         iterator_base& operator++() { verify(); *this = skip(ptr_+1, table_); return *this; }
         iterator_base operator++(int) { verify(); iterator_base res = *this; ++(*this); return res; }
         reference operator*() const { verify(); return *ptr_; }

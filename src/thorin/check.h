@@ -13,6 +13,7 @@ public:
         : world_(world)
     {}
 
+    World& world() const { return world_; }
     bool equiv(const Def*, const Def*);
     bool assignable(const Def*, const Def*);
 

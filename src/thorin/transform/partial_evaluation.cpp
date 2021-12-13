@@ -161,7 +161,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
     if (cur->body()->as<App>()->arg(2)->no_dep()) {
         //auto msg = cur->body()->as<App>()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
         world().idef(cur->body()->as<App>()->callee(), "pe_info: {}: {}", "TODO", cur->body()->as<App>()->arg(2));
-        cur->app(next, {cur->body()->as<App>()->arg(0)}, cur->body()->as<App>()->dbg());
+        cur->app(next, cur->body()->as<App>()->arg(0), cur->body()->as<App>()->dbg());
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);

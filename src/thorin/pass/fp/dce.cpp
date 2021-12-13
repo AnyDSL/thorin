@@ -59,7 +59,7 @@ const Def* DCE::var2dead(const App* app, Lam* var_lam) {
         world().DLOG("var_lam => dead_lam: {}: {} => {}: {}", var_lam, var_lam->type()->dom(), dead_lam, dead_dom);
 
         size_t j = 0;
-        Array<const Def*> new_vars(app->num_args(), [&](size_t i) {
+        Array<const Def*> new_vars(app->num_args(), [&, dead_lam = dead_lam](size_t i) {
             auto v = var_lam->var(i);
             return keep_.contains(v) ? dead_lam->var(j++) : proxy(v->type(), {var_lam, v}, 0);
         });

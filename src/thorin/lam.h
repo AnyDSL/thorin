@@ -44,7 +44,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Pi* stub(World&, const Def*, const Def*) override;
-    const Pi* restructure();
+    const Pi* restructure() override;
     //@}
 
     static constexpr auto Node = Node::Pi;

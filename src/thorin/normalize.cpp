@@ -576,7 +576,7 @@ const Def* normalize_Div(const Def* type, const Def* c, const Def* arg, const De
     auto [mem, a, b] = arg->split<3>();
     auto w = isa_lit(callee->arg());
     type = type->as<Sigma>()->op(1); // peel of actual type
-    auto make_res = [&](const Def* res) { return world.tuple({mem, res}, dbg); };
+    auto make_res = [&, mem = mem](const Def* res) { return world.tuple({mem, res}, dbg); };
 
     if (auto result = fold<Div, op>(world, type, callee, a, b, dbg)) return make_res(result);
 
@@ -980,7 +980,7 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
             auto s_n = isa_lit(shapes.front());
 
             if (s_n) {
-                Array<const Def*> elems(*s_n, [&](size_t s_i) {
+                Array<const Def*> elems(*s_n, [&, f = f](size_t s_i) {
                     Array<const Def*> inner_args(args.size(), [&](size_t i) { return proj(args[i], *s_n, s_i); });
                     if (*lr == 1)
                         return w.app(f, inner_args);

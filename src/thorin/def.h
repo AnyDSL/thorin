@@ -146,7 +146,7 @@ public:
         if constexpr (N == size_t(-1)) {
             return Defs(num_ops_, ops_ptr());
         } else {
-            return ops().template to_array<N>();
+            return ArrayRef<const Def*>(N, ops_ptr()).template to_array<N>();
         }
     }
     const Def* op(size_t i) const { return ops()[i]; }
@@ -469,13 +469,13 @@ public:
     friend class World;
 };
 
-template<class T = u64> std::optional<T> isa_lit(const Def* def) {
+template<class T> std::optional<T> isa_lit(const Def* def) {
     if (def == nullptr) return {};
     if (auto lit = def->isa<Lit>()) return lit->get<T>();
     return {};
 }
 
-template<class T = u64> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
+template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
 class Tracker {
 public:

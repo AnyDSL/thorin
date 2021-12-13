@@ -34,7 +34,7 @@ void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, co
 }
 
 void Lam::test(const Def* value, const Def* index, const Def* match, const Def* clash, const Def* mem, const Def* dbg) {
-    return app(world().test(value, index, match, clash), {mem}, dbg);
+    return app(world().test(value, index, match, clash), mem, dbg);
 }
 
 /*

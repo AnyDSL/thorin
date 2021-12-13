@@ -5,6 +5,7 @@
 #include <queue>
 
 #include "thorin/world.h"
+#include "thorin/transform/closure_conv.h"
 
 /// Convert from typed closuras (represented by <code>Σt.[t, cn[t, <args>]code>)
 /// to untyped closures, where the environment is passed via memory (as <code>i8*</code>).
@@ -18,6 +19,7 @@
 
 namespace thorin {
 
+
 class UntypeClosures {
 public:
 
@@ -30,22 +32,8 @@ public:
 
     void run();
 
-    static Sigma* isa_pct(const Def* def);
-
-    static const Tuple* isa_closure(const Def* def) {
-        if (auto tpl = def->isa<Tuple>(); tpl && isa_pct(tpl->type()))
-            return tpl;
-        return nullptr;
-    }
-
-    static const Sigma* isa_uct(const Def* def);
-
-    static const Def* env_type(World& world) {
-        return world.type_ptr(world.type_int_width(8));
-    }
-
     const Def* env_type() {
-        return env_type(world());
+        return closure_env_type(world());
     }
 
     bool unbox_env(const Def* type);
@@ -65,7 +53,6 @@ private:
     World& world() {
         return world_;
     }
-
 
     World& world_;
     Def2Def old2new_;

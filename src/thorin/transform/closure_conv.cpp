@@ -264,4 +264,58 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
     return closure;
 }
 
+static bool isa_ct(const Def* def, std::function<bool (const Def*)> var_pred) {
+    if (def->num_ops() != 2)
+        return false;
+    auto cn = def->op(1)->isa<Pi>();
+    return cn
+        && var_pred(def->op(0))
+        && cn->is_cn()
+        && cn->num_ops() > 1
+        && var_pred(cn->dom(0));
 }
+
+Sigma* isa_pct(const Def* def) {
+    if (auto sigma = def->isa_nom<Sigma>())
+        return isa_ct(def, [&](auto def) { return sigma->var() == def; }) ? sigma : nullptr;
+    return nullptr;
+}
+
+const Def* closure_env_type(World& world) { 
+    return world.type_ptr(world.type_int_width(8)); 
+}
+
+const Sigma* isa_uct(const Def* def) {
+    if (auto sigma = def->isa<Sigma>())
+        return isa_ct(sigma, [](auto def) { return def == closure_env_type(def->world()); })
+                   ? def->as<Sigma>()
+                   : nullptr;
+    return nullptr;
+}
+
+const Sigma* isa_ct(const Def* def, bool typed) { 
+    return typed ? isa_pct(def) : isa_uct(def); 
+}
+
+ClosureWrapper isa_closure(const Def* def, bool typed) {
+    return ClosureWrapper(def, typed); 
+}
+
+const Pi* ClosureWrapper::old_type() {
+    assert(def_);
+    auto pi = def_->type()->op(1_u64)->isa<Pi>();
+    assert(pi);
+    auto& w = def_->world();
+    return w.cn(pi->doms().skip_front());
+}
+
+Lam* ClosureWrapper::lam() {
+    assert(def_);
+    return def_->op(1_u64)->isa_nom<Lam>();
+}
+
+const Def* ClosureWrapper::env() {
+    assert(def_);
+    return def_->op(0_u64);
+}
+} // namespace thorin

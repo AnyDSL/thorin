@@ -2,7 +2,7 @@
 
 #include "thorin/pass/fp/eta_exp.h"
 
-#include "thorin/transform/untype_closures.h"
+#include "thorin/transform/closure_conv.h"
 
 namespace thorin {
 
@@ -11,7 +11,7 @@ const Def* CopyProp::rewrite(const Def* def) {
         if (auto var_lam = app->callee()->isa_nom<Lam>(); !ignore(var_lam))
             return var2prop(app, var_lam);
     }
-    if (auto closure = UntypeClosures::isa_closure(def)) {
+    if (auto closure = isa_closure(def)) {
         return var2prop(closure);
     }
 

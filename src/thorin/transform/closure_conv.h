@@ -103,6 +103,56 @@ class ClosureConv {
         std::queue<const Def*> worklist_;
 };
 
+/// Utils for working with closures
+
+// Functions for matching closure types
+
+Sigma* isa_pct(const Def* def);
+
+const Sigma* isa_uct(const Def* def);
+
+const Sigma* isa_ct(const Def* def, bool typed);
+
+const Def* closure_env_type(World& world);
+
+class ClosureWrapper {
+public:
+    ClosureWrapper(const Def* def, bool typed)
+        : def_(def->isa<Tuple>() && isa_ct(def, typed) ? def->as<Tuple>() : nullptr) {}
+
+    Lam* lam();
+
+    const Def* env();
+
+    operator bool() const {
+        return def_ != nullptr;
+    }
+
+    operator const Tuple*() {
+        return def_;
+    }
+
+    const Sigma* type() {
+        assert(def_);
+        return def_->type()->isa<Sigma>();
+    }
+
+    const Pi* old_type();
+
+    unsigned int order() {
+        return old_type()->order();
+    }
+
+    bool is_basicblock() {
+        return old_type()->is_basicblock();
+    }
+
+private:
+    const Tuple* def_;
+};
+
+ClosureWrapper isa_closure(const Def* def, bool typed = true);
+
 };
 
 #endif

@@ -4,31 +4,6 @@
 
 namespace thorin {
 
-static bool isa_ct(const Def* def, std::function<bool (const Def*)> var_pred) {
-    if (def->num_ops() != 2)
-        return false;
-    auto cn = def->op(1)->isa<Pi>();
-    return cn
-        && var_pred(def->op(0))
-        && cn->is_cn()
-        && cn->num_ops() > 1
-        && var_pred(cn->dom(0));
-}
-
-Sigma* UntypeClosures::isa_pct(const Def* def) {
-    if (auto sigma = def->isa_nom<Sigma>())
-        return isa_ct(def, [&](auto def) { return sigma->var() == def; }) ? sigma : nullptr;
-    return nullptr;
-}
-
-const Sigma* UntypeClosures::isa_uct(const Def* def) {
-    if (auto sigma = def->isa<Sigma>())
-        return isa_ct(sigma, [](auto def) { return def == env_type(def->world()); })
-             ? def->as<Sigma>() : nullptr;
-    return nullptr;
-}
-
-
 void UntypeClosures::run() {
     auto externals = std::vector(world().externals().begin(), world().externals().end());
     for (auto [_, n]: externals)

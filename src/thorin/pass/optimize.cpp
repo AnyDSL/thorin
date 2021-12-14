@@ -37,7 +37,7 @@ void optimize(World& world) {
     // ee = cc.add<EtaExp>(er);
     // cc.add<Scalerize>(ee);
     // cc.run();
-    world.debug_stream();
+    // world.debug_stream();
 
     auto dc = PassMan(world);
     // er = dc.add<EtaRed>();
@@ -45,11 +45,11 @@ void optimize(World& world) {
     // dc.add<CopyProp>(ee);
     dc.add<ClosureDestruct>();
     dc.run();
-    world.debug_stream();
+    // world.debug_stream();
     // UntypeClosures(world).run();
 
     // while (partial_evaluation(world, true)); // lower2cff
-    // flatten_tuples(world);
+    // world.debug_stream();
 
     // PassMan codgen_prepare(world);
     //codgen_prepare.add<BoundElim>();

@@ -26,12 +26,10 @@ private:
     DefSet escape_;
     LamMap<std::pair<const Def*, Lam*>> clos2dropped_;
 
-    bool is_esc(const Def* def) {
-        return escape_.contains(def);
-    }
+    bool is_esc(const Def* def);
 
-    undo_t join(DefSet& out, DefSet& defs, bool cond);
-    undo_t join(DefSet& out, const Def* def, bool cond);
+    undo_t join(DefSet& defs, bool cond);
+    undo_t join(const Def* def, bool cond);
 };
 
 }

@@ -123,7 +123,8 @@ const Def* closure_env_type(World& world);
 class ClosureWrapper {
 public:
     ClosureWrapper(const Def* def, ClosureKind::T kind)
-        : kind_(kind), def_(def->isa<Tuple>() && isa_ct(def, kind) ? def->as<Tuple>() : nullptr) {}
+        : kind_(kind)
+        , def_(def->isa<Tuple>() && isa_ct(def->type(), kind) ? def->as<Tuple>() : nullptr) {}
 
     Lam* lam();
 

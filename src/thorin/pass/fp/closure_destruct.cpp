@@ -4,10 +4,11 @@
 
 namespace thorin {
 
+
 const Def* ClosureDestruct::rewrite(const Def* def) {
     if (auto c = isa_closure(def)) {
-        if (!escape_.contains(c.lam()) && c.env()->type() != world().sigma()) {
-            auto [old_env, new_lam] = clos2dropped_[c.lam()];
+        if (!is_esc(c.lam()) && c.env()->type() != world().sigma()) {
+            auto& [old_env, new_lam] = clos2dropped_[c.lam()];
             if (new_lam && c.env() == old_env)
                 return new_lam;
             // TODO: Mark non-escaping, only lambda-drop bb's
@@ -55,7 +56,7 @@ static std::pair<const Def*, Def*> isa_var(const Def* a) {
     return {nullptr, nullptr};
 }
 
-static void split(DefSet& out, const Def* def) {
+static void split(DefSet& out, const Def* def, bool keep_others) {
     if (auto lam = def->isa<Lam>())
         out.insert(def);
     else if (auto c = isa_closure(def))
@@ -63,67 +64,85 @@ static void split(DefSet& out, const Def* def) {
     else if (auto [var, lam] = isa_var(def); var && lam)
         out.insert(var);
     else if (auto proj = def->isa<Extract>())
-        split(out, proj->tuple());
+        split(out, proj->tuple(), keep_others);
     else if (auto pack = def->isa<Pack>())
-        split(out, pack->body());
+        split(out, pack->body(), keep_others);
     else if (auto tuple = def->isa<Tuple>())
         for (auto op: tuple->ops())
-            split(out, op);
+            split(out, op, keep_others);
+    else if (keep_others)
+        out.insert(def);
 }
 
-static DefSet&& split(DefSet&& out, const Def* def) {
-    split(out, def);
+static DefSet&& split(DefSet&& out, const Def* def, bool keep_others) {
+    split(out, def, keep_others);
     return std::move(out);
 }
 
-undo_t ClosureDestruct::join(DefSet& out, DefSet& defs, bool cond) {
+bool ClosureDestruct::is_esc(const Def* def) {
+    if (escape_.contains(def))
+        return true;
+    if (auto lam = def->isa_nom<Lam>()) {
+        if (auto [_, rw] = clos2dropped_[lam]; rw && escape_.contains(rw)) {
+            escape_.emplace(lam);
+            return true;
+        }
+    }
+    if (auto [var, lam] = isa_var(def); var && lam)
+        return !lam->is_set();
+    return false;
+}
+
+undo_t ClosureDestruct::join(DefSet& defs, bool cond) {
     if (!cond)
         return No_Undo;
     auto undo = No_Undo;
     for (auto def: defs) {
-        if (out.contains(def))
+        if (is_esc(def))
             continue;
-        out.insert(def);
+        world().DLOG("escape {}", def);
+        escape_.insert(def);
         if (auto [_, lam] = isa_var(def); lam) {
             undo = std::min(undo, undo_visit(lam));
         } else {
             lam = def->isa_nom<Lam>();
-            assert(lam);
+            assert(lam && "should be lam or var");
             undo = std::min(undo, undo_visit(lam));
         }
     }
     return undo;
 }
 
-undo_t ClosureDestruct::join(DefSet& out, const Def* def, bool cond) {
-    if (!cond)
+undo_t ClosureDestruct::join(const Def* def, bool escapes) {
+    if (!escapes)
         return No_Undo;
-    auto defs = DefSet();
-    split(defs, def);
-    return join(out, defs, cond);
+    auto defs = split(DefSet(), def, false);
+    return join(defs, escapes);
 }
 
 undo_t ClosureDestruct::analyze(const Def* def) {
     if (auto c = isa_closure(def)) {
-        return join(escape_, c.env(), is_esc(c.lam()) && is_esc(c.env_var()));
-    } else if (auto app = def->isa<App>()) {
-        auto callees = split(DefSet(), def);
+        world().DLOG("closure ({}, {})", c.env(), c.lam());
+        return join(c.env(), is_esc(c.lam()) && is_esc(c.env_var()));
+    } else if (auto app = def->isa<App>(); app && app->callee_type()->is_cn()) {
+        auto callees = split(DefSet(), app->callee(), true);
         auto undo = No_Undo;
+        world().DLOG("call {}", app);
+        assert(callees.size() > 0);
+        for (auto callee: callees)
+            world().DLOG("callee: {}", callee);
         for (size_t i = 0; i < app->num_args(); i++) {
             auto a = app->arg(i);
             if (!interesting_type(a->type()))
                 continue;
-            auto cond = std::any_of(callees.begin(), callees.end(), [&](const Def* c) {
-                if (auto [var, lam] = isa_var(c); var && lam)
-                    return true;
-                auto lam = c->isa_nom<Lam>();
-                assert(lam && "callee should be lam or var");
-                return is_esc(lam->var(i));
+            auto escapes = std::any_of(callees.begin(), callees.end(), [&](const Def* c) {
+                if (auto lam = c->isa_nom<Lam>())
+                    return is_esc(lam->var(i));
+                return true;
             });
-            if (!cond)
+            if (!escapes)
                 continue;
-            auto args = split(DefSet(), app->arg(i));
-            undo = std::min(undo, join(escape_, args, true));
+            undo = std::min(undo, join(a, true));
         }
         return undo;
     }

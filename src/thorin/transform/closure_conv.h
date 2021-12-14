@@ -1,4 +1,3 @@
-
 #ifndef THORIN_CLOSURE_CONV_H
 #define THORIN_CLOSURE_CONV_H
 
@@ -15,7 +14,7 @@ class FVA {
 public:
     FVA(World& world)
         : world_(world)
-        , cur_pass_id(1) 
+        , cur_pass_id(1)
         , lam2nodes_() {};
 
     DefSet& run(Lam *lam);
@@ -34,8 +33,8 @@ private:
     };
 
     bool is_bot(Node* node) { return node->pass_id == 0; }
-    bool is_done(Node* node) { 
-        return !is_bot(node) && node->pass_id < cur_pass_id; 
+    bool is_done(Node* node) {
+        return !is_bot(node) && node->pass_id < cur_pass_id;
     }
     void mark(Node* node) { node->pass_id = cur_pass_id; }
 

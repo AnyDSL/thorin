@@ -936,7 +936,7 @@ static const Def* tangent_vector_type(const Def* primal_type) {
             return world.sigma({mem, world.type_tangent_vector(vars)});
         }
 
-        Array<const Def*> tangent_vectors(num_ops);
+        DefArray tangent_vectors(num_ops);
         for (size_t i = 0; i < num_ops; ++i) {
             tangent_vectors[i] = world.type_tangent_vector(sigma->op(i));
         }
@@ -980,8 +980,8 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
             auto s_n = isa_lit(shapes.front());
 
             if (s_n) {
-                Array<const Def*> elems(*s_n, [&, f = f](size_t s_i) {
-                    Array<const Def*> inner_args(args.size(), [&](size_t i) { return proj(args[i], *s_n, s_i); });
+                DefArray elems(*s_n, [&, f = f](size_t s_i) {
+                    DefArray inner_args(args.size(), [&](size_t i) { return proj(args[i], *s_n, s_i); });
                     if (*lr == 1)
                         return w.app(f, inner_args);
                     else

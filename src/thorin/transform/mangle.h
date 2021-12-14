@@ -32,17 +32,17 @@ private:
 Lam* mangle(const Scope&, Defs args, Defs lift);
 
 inline Lam* drop(const Scope& scope, Defs args) {
-    return mangle(scope, args, Array<const Def*>());
+    return mangle(scope, args, DefArray());
 }
 
 Lam* drop(const App*);
 
 inline Lam* lift(const Scope& scope, Defs defs) {
-    return mangle(scope, Array<const Def*>(scope.entry()->num_vars()), defs);
+    return mangle(scope, DefArray(scope.entry()->num_vars()), defs);
 }
 
 inline Lam* clone(const Scope& scope) {
-    return mangle(scope, Array<const Def*>(scope.entry()->num_vars()), Defs());
+    return mangle(scope, DefArray(scope.entry()->num_vars()), Defs());
 }
 
 }

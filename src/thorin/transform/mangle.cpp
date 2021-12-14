@@ -85,7 +85,7 @@ const Def* Mangler::mangle(const Def* old_def) {
     }
 
     size_t size = old_def->num_ops();
-    Array<const Def*> new_ops(size);
+    DefArray new_ops(size);
     for (size_t i = 0; i != size; ++i) {
         new_ops[i] = mangle(old_def->op(i));
         assert(&new_ops[i]->world() == &world());

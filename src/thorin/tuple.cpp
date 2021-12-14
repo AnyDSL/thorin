@@ -61,7 +61,7 @@ static const Def* unflatten(Defs defs, const Def* type, size_t& j) {
         return defs[j++];
     if (auto a = isa_lit<nat_t>(type->arity()); a && *a != 1) {
         auto& world = type->world();
-        Array<const Def*> ops(*a, [&] (size_t i) { return unflatten(defs, proj(type, *a, i), j); });
+        DefArray ops(*a, [&] (size_t i) { return unflatten(defs, proj(type, *a, i), j); });
         return world.tuple(type, ops);
     }
 
@@ -94,12 +94,12 @@ bool is_tuple_arg_of_app(const Def* def) {
     return true;
 }
 
-Array<const Def*> merge(const Def* def, Defs defs) {
-    return Array<const Def*>(defs.size() + 1, [&](auto i) { return i == 0 ? def : defs[i-1]; });
+DefArray merge(const Def* def, Defs defs) {
+    return DefArray(defs.size() + 1, [&](auto i) { return i == 0 ? def : defs[i-1]; });
 }
 
-Array<const Def*> merge(Defs a, Defs b) {
-    Array<const Def*> result(a.size() + b.size());
+DefArray merge(Defs a, Defs b) {
+    DefArray result(a.size() + b.size());
     auto i = std::copy(a.begin(), a.end(), result.begin());
     std::copy(b.begin(), b.end(), i);
     return result;
@@ -115,7 +115,7 @@ const Def* merge_tuple(const Def* def, Defs defs) {
     auto& w = def->world();
     if (auto sigma = def->type()->isa<Sigma>(); sigma && !sigma->isa_nom()) {
         auto a = sigma->num_ops();
-        Array<const Def*> tuple(a, [&](auto i) { return w.extract(def, a, i); });
+        DefArray tuple(a, [&](auto i) { return w.extract(def, a, i); });
         return w.tuple(merge(tuple, defs));
     }
 

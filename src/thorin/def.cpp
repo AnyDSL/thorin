@@ -118,7 +118,7 @@ const Pi* Pi::restructure() {
 const Def* Arr::restructure() {
     auto& w = world();
     if (auto n = isa_lit(shape()))
-        return w.sigma(Array<const Def*>(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));
+        return w.sigma(DefArray(*n, [&](size_t i) { return apply(w.lit_int(*n, i)).back(); }));
     return nullptr;
 }
 
@@ -318,12 +318,12 @@ void Def::replace(Tracker with) const {
     }
 }
 
-Array<const Def*> Def::apply(const Def* arg) const {
+DefArray Def::apply(const Def* arg) const {
     if (auto nom = isa_nom()) return nom->apply(arg);
     return ops();
 }
 
-Array<const Def*> Def::apply(const Def* arg) {
+DefArray Def::apply(const Def* arg) {
     auto& cache = world().data_.cache_;
     if (auto res = cache.lookup({this, arg})) return *res;
 
@@ -345,7 +345,7 @@ const Def* Def::reduce() const {
 }
 
 const Def* Def::refine(size_t i, const Def* new_op) const {
-    Array<const Def*> new_ops(ops());
+    DefArray new_ops(ops());
     new_ops[i] = new_op;
     return rebuild(world(), type(), new_ops, dbg());
 }

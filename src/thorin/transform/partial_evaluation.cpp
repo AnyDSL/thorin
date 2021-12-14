@@ -95,7 +95,7 @@ public:
             return *ndef;
 
         if (!odef->isa_nom()) {
-            Array<const Def*> nops(odef->num_ops());
+            DefArray nops(odef->num_ops());
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
@@ -204,7 +204,7 @@ bool PartialEvaluator::run() {
 
             if (callee->is_set()) {
                 size_t num_args = app->num_args();
-                Array<const Def*> args(num_args);
+                DefArray args(num_args);
 
                 CondEval cond_eval(callee, app->args(), top_level_);
 

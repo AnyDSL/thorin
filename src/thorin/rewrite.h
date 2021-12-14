@@ -39,10 +39,10 @@ const Def* rewrite(Def* nom, const Def* arg, size_t i);
 const Def* rewrite(Def* nom, const Def* arg, size_t i, const Scope& scope);
 
 /// Rewrites @p nom's ops by substituting @p nom's @p Var with @p arg while obeying @p nom's @p scope.
-Array<const Def*> rewrite(Def* nom, const Def* arg);
+DefArray rewrite(Def* nom, const Def* arg);
 
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
-Array<const Def*> rewrite(Def* nom, const Def* arg, const Scope& scope);
+DefArray rewrite(Def* nom, const Def* arg, const Scope& scope);
 
 /// Removes unreachable and dead code by rebuilding the whole @p world into a new @p World.
 void cleanup(World& world);

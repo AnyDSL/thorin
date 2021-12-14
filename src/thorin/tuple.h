@@ -167,7 +167,7 @@ const Def* unflatten(const Def* def, const Def* type);
 /// Same as unflatten, but uses the operands of a flattened pack/tuple directly.
 const Def* unflatten(Defs ops, const Def* type);
 
-Array<const Def*> merge(const Def* def, Defs defs);
+DefArray merge(const Def* def, Defs defs);
 const Def* merge_sigma(const Def* def, Defs defs);
 const Def* merge_tuple(const Def* def, Defs defs);
 

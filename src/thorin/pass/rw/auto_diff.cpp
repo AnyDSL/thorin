@@ -202,7 +202,7 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
     }
 
     if (auto tuple = def->isa<Tuple>()) {
-        Array<const Def*> ops{tuple->num_ops(), [&](auto i) { return j_wrap(tuple->op(i)); }};
+        DefArray ops{tuple->num_ops(), [&](auto i) { return j_wrap(tuple->op(i)); }};
         auto dst = world_.tuple(ops);
         src_to_dst_[tuple] = dst;
 

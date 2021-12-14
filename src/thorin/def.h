@@ -41,7 +41,8 @@ class Stream;
 class Tracker;
 class World;
 
-typedef ArrayRef<const Def*> Defs;
+using Defs     = ArrayRef<const Def*>;
+using DefArray = Array<const Def*>;
 
 //------------------------------------------------------------------------------
 
@@ -203,7 +204,7 @@ public:
     template<size_t A> auto split(        ) const { return split<A>(   [](const Def* def) { return def; }); }
                        auto split(size_t a) const { return split   (a, [](const Def* def) { return def; }); }
     const Def* out(size_t i, const Def* dbg = {}) const { return proj(this, num_outs(), i, dbg); }
-    Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
+    DefArray outs() const { return DefArray(num_outs(), [&](auto i) { return out(i); }); }
     size_t num_outs() const {
         if (auto a = isa_lit(arity())) return *a;
         return 1;
@@ -258,14 +259,14 @@ public:
     const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
     const Var* var();         ///< Wrapper instead of default argument for easy access in @c gdb.
     const Def* var(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
-    Array<const Def*> vars() { return Array<const Def*>(num_vars(), [&](auto i) { return var(i); }); }
+    DefArray vars() { return DefArray(num_vars(), [&](auto i) { return var(i); }); }
     size_t num_vars();
     //@}
 
     /// @name rewrites last op by substituting @p var with @p arg.
     //@{
-    Array<const Def*> apply(const Def* arg) const;
-    Array<const Def*> apply(const Def* arg);
+    DefArray apply(const Def* arg) const;
+    DefArray apply(const Def* arg);
     //@}
 
     /// @name reduce/subst

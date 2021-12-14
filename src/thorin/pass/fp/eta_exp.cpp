@@ -50,7 +50,7 @@ const Def* EtaExp::rewrite(const Def* def) {
 /// <code>f (a, b, c)</code>
 const Def* EtaExp::reconvert(const Def* def) {
     std::vector<std::pair<Lam*, Lam*>> refinements;
-    Array<const Def*> new_ops(def->num_ops());
+    DefArray new_ops(def->num_ops());
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>()) {

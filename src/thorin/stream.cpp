@@ -100,7 +100,7 @@ Stream& stream(Stream& s, const Def* def) {
         }
     } else if (auto var = def->isa<Var>()) {
         return s.fmt("@{{{}}}", var->nom());
-    } else if (auto uct = isa_uct(def)) {
+    } else if (auto uct = isa_ctype(def, ClosureWrapper::UNTYPED)) {
         auto pi = uct->op(1_u64)->isa<Pi>();
         auto ops = std::vector<const Def*>();
         for (int i = 1; i < pi->num_doms(); i++)

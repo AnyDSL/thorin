@@ -293,35 +293,35 @@ const Sigma* isa_uct(const Def* def) {
     return nullptr;
 }
 
-const Sigma* isa_ct(const Def* def, ClosureKind::T kind) { 
+const Sigma* isa_ctype(const Def* def, ClosureWrapper::Kind kind) { 
     switch (kind) {
-        case ClosureKind::TYPED: {
+        case ClosureWrapper::TYPED: {
             auto sig = def->isa_nom<Sigma>();
             if (!sig)
                 return nullptr;
             return isa_ct(def, [&](auto def) { return sig->var() == def; })
                 ? sig : nullptr;
         }
-        case ClosureKind::UNTYPED: {
+        case ClosureWrapper::UNTYPED: {
             auto sig = def->isa<Sigma>();
             if (!sig)
                 return nullptr;
             return isa_ct(def, [](auto def) { return def == closure_env_type(def->world()); })
                 ? sig : nullptr;
         }
-        case ClosureKind::ANY: {
-            if (auto pct = isa_ct(def, ClosureKind::TYPED))
-                return pct;
-            else
-                return isa_ct(def, ClosureKind::UNTYPED);
-        }
     }
 }
 
-ClosureWrapper isa_closure(const Def* def, ClosureKind::T kind) {
+ClosureWrapper isa_closure(const Def* def, ClosureWrapper::Kind kind) {
     return ClosureWrapper(def, kind); 
 }
 
+ClosureWrapper::ClosureWrapper(const Def* def, ClosureWrapper::Kind kind)
+        : kind_(kind)
+        , def_(def->isa<Tuple>() && isa_ctype(def->type(), kind) ? def->as<Tuple>() : nullptr) {}
+
+// Essentially removes the env-param to get accurate info about the old
+// function type
 const Pi* ClosureWrapper::old_type() {
     assert(def_);
     auto pi = def_->type()->op(1_u64)->isa<Pi>();
@@ -338,5 +338,17 @@ Lam* ClosureWrapper::lam() {
 const Def* ClosureWrapper::env() {
     assert(def_);
     return def_->op(0_u64);
+}
+const Def* ClosureWrapper::ret_var() {
+    assert(!is_basicblock());
+    auto l = lam();
+    auto var = l->var(l->num_doms() - 1);
+    assert(isa_ctype(var->type(), kind_));
+    return var;
+}
+const Def* ClosureWrapper::mem_var() {
+    auto var = lam()->var(0_u64);
+    assert(var->type() == def_->world().type_mem());
+    return mem_var();
 }
 } // namespace thorin

@@ -12,7 +12,7 @@
 /// The following assumptions are made:
 /// * @p Lam%s in callee-postion are λ-lifted and not closure converted (See @p Scalerize)
 /// * each function receives its environment as its first paramter
-/// * closure types have the aforementioned form, see @isa_pct
+/// * closure types have the aforementioned form, see @isa_ct
 /// 
 /// All environments are heap allocated. External funtions receive <code>[]</code> as their
 /// environment instead of a pointer

@@ -29,7 +29,7 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
 }
 
 static bool interesting_type_b(const Def* type) {
-    return isa_pct(type) != nullptr;
+    return isa_ctype(type) != nullptr;
 }
 
 static bool interesting_type(const Def* type) {

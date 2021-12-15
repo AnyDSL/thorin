@@ -97,18 +97,18 @@ const Def* UntypeClosures::rewrite(const Def* def) {
     world().DLOG("rewrite {}", def);
 
     // A sigmas var dependets on the sigma (type)
-    if (auto var = def->isa<Var>(); var && isa_pct(var->nom()))
+    if (auto var = def->isa<Var>(); var && isa_ctype(var->nom()))
         return map(var, env_type());
 
     auto new_type = rewrite(def->type());
     auto new_dbg = def->dbg() ? rewrite(def->dbg()) : nullptr;
 
-    if (auto pct = isa_pct(def)) {
-        return map(def, world().sigma({rewrite(pct->op(0)), rewrite(pct->op(1))}));
-    } else if (def->isa<Tuple>() && isa_pct(def->type())) {
-        auto env = rewrite(def->op(0_u64));
+    if (auto ct = isa_ctype(def)) {
+        return map(def, world().sigma({rewrite(ct->op(0)), rewrite(ct->op(1))}));
+    } else if (auto c = isa_closure(def)) {
+        auto env = rewrite(c.env());
         auto unbox = unbox_env(env->type());
-        auto fn = make_stub(def->op(1_u64)->isa_nom<Lam>(), unbox);
+        auto fn = make_stub(c.lam(), unbox);
         if (!unbox) {
             auto mem_ptr = world().op_alloc(env->type(), lcm_);
             auto mem = world().extract(mem_ptr, 0_u64);

@@ -6,7 +6,7 @@ namespace thorin {
 
 Loc::Loc(const Def* dbg) {
     if (dbg != nullptr) {
-        auto [d_file, d_begin, d_finis] = dbg->out(1)->split<3>();
+        auto [d_file, d_begin, d_finis] = dbg->out(1)->outs<3>();
         file = tuple2str(d_file);
         begin.row = as_lit(d_begin) >> 32_u64;
         begin.col = as_lit(d_begin);

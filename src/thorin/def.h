@@ -180,35 +180,57 @@ public:
     bool contains_proxy() const { return proxy_; }
     //@}
 
-    /// @name split def via proj%s
+    /// @name out/outs - split this def via proj%s
     //@{
-    /// Splits this @p Def into an array.
-    /// Applies @p f to each @p proj%ected element.
-    template<size_t A, class F>
-    auto split(F f) const {
-        using R = decltype(f(this));
-
-        auto a = as_lit(arity());
-        assert(a == A);
-        std::array<R, A> array;
-        for (size_t i = 0; i != A; ++i)
-            array[i] = f(proj(this, a, i));
-        return array;
-    }
-    template<class F>
-    auto split(size_t a, F f) const {
-        using R = decltype(f(this));
-        return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
-    }
-    /// Splits this @p Def into an array.
-    template<size_t A> auto split(        ) const { return split<A>(   [](const Def* def) { return def; }); }
-                       auto split(size_t a) const { return split   (a, [](const Def* def) { return def; }); }
-    const Def* out(size_t i, const Def* dbg = {}) const { return proj(this, num_outs(), i, dbg); }
-    DefArray outs() const { return DefArray(num_outs(), [&](auto i) { return out(i); }); }
+    /// @return yields arity if a @p Lit or @c 1 otherwise.
     size_t num_outs() const {
         if (auto a = isa_lit(arity())) return *a;
         return 1;
     }
+    /// @p proj%ects the @p i%th element from @c this while assuming that @c this is of arity @p a.
+    const Def* out(size_t a, size_t i, const Def* dbg = {}) const { return proj(this, a, i, dbg); }
+    /// Same as above but assumes @p num_outs as arity.
+    const Def* out(size_t i, const Def* dbg = {}) const { return out(num_outs(), i, dbg); }
+
+    /**
+     * Splits this @p Def into an array.
+     * Applies @p f to each @p proj%ected element.
+     * This functions and its overloads is best described by example:
+     @code{.cpp}
+        std::array<const Def*, 2> ab = def->outs<2>();
+        std::array<u64, 2>        xy = def->outs<2>(as_lit);
+        auto [a, b] = def->outs<2>();
+        auto [x, y] = def->outs<2>(as_lit);
+        Array<const Def*> outs = def->outs();          // outs has def->num_outs() many elements
+        Array<const Lit*> lits = def->outs(as_lit);    // same as above but applies as_lit on each element
+        Array<const Def*> outs = def->outs(n);         // outs has n elements - asserts if incorrect
+        Array<const Lit*> lits = def->outs(n, as_lit); // same as above but applies as_lit on each element
+     @endcode
+     */
+    template<size_t A = size_t(-1), class F>
+    auto outs(F f) const {
+        using R = decltype(f(this));
+        if constexpr (A == size_t(-1)) {
+            size_t a = num_outs();
+            return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
+        } else {
+            assert(A == as_lit(arity()));
+            std::array<R, A> array;
+            for (size_t i = 0; i != A; ++i)
+                array[i] = f(proj(this, A, i));
+            return array;
+        }
+    }
+
+    template<class F>
+    auto outs(size_t a, F f) const {
+        using R = decltype(f(this));
+        return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
+    }
+
+    template<size_t A = size_t(-1)>
+    auto outs(        ) const { return outs<A>(   [](const Def* def) { return def; }); }
+    auto outs(size_t a) const { return outs   (a, [](const Def* def) { return def; }); }
     //@}
 
     /// @name external handling

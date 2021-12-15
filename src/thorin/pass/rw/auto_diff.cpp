@@ -145,14 +145,14 @@ const Def* AutoDiffer::j_wrap(const Def* def) {
             // Take care of binary operations
             if (auto axiom = inner->callee()->isa<Axiom>()) {
                 if (axiom->tag() == Tag::ROp) {
-                    auto [a, b] = j_wrap(arg)->split<2>();
+                    auto [a, b] = j_wrap(arg)->outs<2>();
                     auto dst = j_wrap_rop(ROp(axiom->flags()), a, b);
                     src_to_dst_[app] = dst;
                     return dst;
                 }
 
                 if (axiom->tag() == Tag::RCmp) {
-                    auto [a, b] = j_wrap(arg)->split<2>();
+                    auto [a, b] = j_wrap(arg)->outs<2>();
                     auto dst = world_.op(RCmp(axiom->flags()), nat_t(0), a, b);
                     src_to_dst_[app] = dst;
                     return world_.tuple({inner, dst});

@@ -76,7 +76,7 @@ const Def* unflatten(Defs defs, const Def* type) {
 }
 
 const Def* unflatten(const Def* def, const Def* type) {
-    return unflatten(def->split(as_lit(def->arity())), type);
+    return unflatten(def->outs(as_lit(def->arity())), type);
 }
 
 bool is_unit(const Def* def) {
@@ -125,7 +125,7 @@ const Def* merge_tuple(const Def* def, Defs defs) {
 std::string tuple2str(const Def* def) {
     if (def == nullptr) return {};
 
-    auto array = def->split(as_lit(def->arity()), as_lit<nat_t>);
+    auto array = def->outs(as_lit(def->arity()), as_lit<nat_t>);
     return std::string(array.begin(), array.end());
 }
 

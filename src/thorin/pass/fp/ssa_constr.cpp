@@ -25,7 +25,7 @@ const Def* SSAConstr::rewrite(const Proxy* proxy) {
 const Def* SSAConstr::rewrite(const Def* def) {
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [mem, id] = slot->args<2>();
-        auto [_, ptr] = slot->split<2>();
+        auto [_, ptr] = slot->outs<2>();
         auto sloxy = proxy(ptr->type(), {curr_nom(), id}, Sloxy, slot->dbg());
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {

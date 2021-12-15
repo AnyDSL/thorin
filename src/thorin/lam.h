@@ -145,18 +145,21 @@ public:
     DefArray args() const { return arg()->outs(); }
     size_t num_args() const { return arg()->num_outs(); }
     //@}
+
     /// @name split arg
     //@{
-    template<size_t A, class F> auto args(          F f) const { return arg()->split<A, F>(   f); }
-    template<          class F> auto args(size_t a, F f) const { return arg()->split<   F>(a, f); }
-    template<size_t A> auto args(        ) const { return arg()->split<A>( ); }
-                       auto args(size_t a) const { return arg()->split   (a); }
+    template<size_t A, class F> auto args(          F f) const { return arg()->outs<A, F>(   f); }
+    template<          class F> auto args(size_t a, F f) const { return arg()->outs<   F>(a, f); }
+    template<size_t A> auto args(        ) const { return arg()->outs<A>( ); }
+                       auto args(size_t a) const { return arg()->outs   (a); }
     //@}
+
     /// @name get axiom and current currying depth
     //@{
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
     //@}
+
     /// @name virtual methods
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;

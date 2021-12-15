@@ -148,10 +148,8 @@ public:
 
     /// @name split arg
     //@{
-    template<size_t A, class F> auto args(          F f) const { return arg()->outs<A, F>(   f); }
-    template<          class F> auto args(size_t a, F f) const { return arg()->outs<   F>(a, f); }
-    template<size_t A> auto args(        ) const { return arg()->outs<A>( ); }
-                       auto args(size_t a) const { return arg()->outs   (a); }
+    template<size_t A = -1_s, class F = std::identity> auto args(          F f = {}) const { return arg()->outs<A, F>(   f); }
+    template<                 class F = std::identity> auto args(size_t a, F f = {}) const { return arg()->outs<   F>(a, f); }
     //@}
 
     /// @name get axiom and current currying depth

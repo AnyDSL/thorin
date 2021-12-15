@@ -12,6 +12,16 @@
 #include "thorin/util/ptr.h"
 #include "thorin/util/stream.h"
 
+// TODO remove once we upgraded to C++20
+namespace std {
+
+struct identity {
+    using is_transparent = void;
+    template<class T> T& operator()(T& x) const { return x; }
+    template<class T> const T& operator()(const T& x) const { return x; }
+};
+
+}
 namespace thorin {
 
 template<class T>
@@ -68,7 +78,7 @@ public:
         : tagged_ptr_(def, index)
     {}
 
-    bool is_used_as_type() const { return index() == size_t(-1); }
+    bool is_used_as_type() const { return index() == -1_s; }
     size_t index() const { return tagged_ptr_.index(); }
     const Def* def() const { return tagged_ptr_.ptr(); }
     operator const Def*() const { return tagged_ptr_; }
@@ -142,9 +152,9 @@ public:
 
     /// @name ops
     //@{
-    template<size_t N = size_t(-1)>
+    template<size_t N = -1_s>
     auto ops() const {
-        if constexpr (N == size_t(-1)) {
+        if constexpr (N == -1_s) {
             return Defs(num_ops_, ops_ptr());
         } else {
             return ArrayRef<const Def*>(N, ops_ptr()).template to_array<N>();
@@ -189,30 +199,25 @@ public:
     }
     /// @p proj%ects the @p i%th element from @c this while assuming that @c this is of arity @p a.
     const Def* out(size_t a, size_t i, const Def* dbg = {}) const { return proj(this, a, i, dbg); }
-    /// Same as above but assumes @p num_outs as arity.
+
+    /// Same as above but takes @p num_outs as arity.
     const Def* out(size_t i, const Def* dbg = {}) const { return out(num_outs(), i, dbg); }
 
     /**
-     * Splits this @p Def into an array.
-     * Applies @p f to each @p proj%ected element.
-     * This functions and its overloads is best described by example:
+     * Splits this @p Def via @p proj%ections into an Array (if @p A == @c -1_s) or @c std::array otherwise.
+     * Applies @p f to each element.
      @code{.cpp}
         std::array<const Def*, 2> ab = def->outs<2>();
-        std::array<u64, 2>        xy = def->outs<2>(as_lit);
+        std::array<u64, 2>        xy = def->outs<2>(as_lit<nat_t>);
         auto [a, b] = def->outs<2>();
-        auto [x, y] = def->outs<2>(as_lit);
-        Array<const Def*> outs = def->outs();          // outs has def->num_outs() many elements
-        Array<const Lit*> lits = def->outs(as_lit);    // same as above but applies as_lit on each element
-        Array<const Def*> outs = def->outs(n);         // outs has n elements - asserts if incorrect
-        Array<const Lit*> lits = def->outs(n, as_lit); // same as above but applies as_lit on each element
+        auto [x, y] = def->outs<2>(as_lit<nat_t>);
      @endcode
      */
-    template<size_t A = size_t(-1), class F>
-    auto outs(F f) const {
-        using R = decltype(f(this));
-        if constexpr (A == size_t(-1)) {
-            size_t a = num_outs();
-            return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
+    template<size_t A = -1_s, class F = std::identity>
+    auto outs(F f = {}) const {
+        using R = std::decay_t<decltype(f(this))>;
+        if constexpr (A == -1_s) {
+            return outs(num_outs(), f);
         } else {
             assert(A == as_lit(arity()));
             std::array<R, A> array;
@@ -222,15 +227,21 @@ public:
         }
     }
 
-    template<class F>
-    auto outs(size_t a, F f) const {
-        using R = decltype(f(this));
+    /**
+     * Splits this @p Def via @p proj%ections into an Array.
+     * Applies @p f to each element.
+     @code{.cpp}
+        Array<const Def*> outs = def->outs();                 // outs has def->num_outs() many elements
+        Array<const Lit*> lits = def->outs(as_lit<nat_t>);    // same as above but applies as_lit<nat_t> to each element
+        Array<const Def*> outs = def->outs(n);                // outs has n elements - asserts if incorrect
+        Array<const Lit*> lits = def->outs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
+     @endcode
+     */
+    template<class F = std::identity>
+    auto outs(size_t a, F f = {}) const {
+        using R = std::decay_t<decltype(f(this))>;
         return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
     }
-
-    template<size_t A = size_t(-1)>
-    auto outs(        ) const { return outs<A>(   [](const Def* def) { return def; }); }
-    auto outs(size_t a) const { return outs   (a, [](const Def* def) { return def; }); }
     //@}
 
     /// @name external handling

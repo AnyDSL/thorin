@@ -7,23 +7,25 @@ namespace thorin {
 
 const Def* ClosureDestruct::rewrite(const Def* def) {
     if (auto c = isa_closure(def)) {
-        if (!is_esc(c.lam()) && c.env()->type() != world().sigma()) {
-            auto& [old_env, new_lam] = clos2dropped_[c.lam()];
-            if (new_lam && c.env() == old_env)
-                return new_lam;
-            // TODO: Mark non-escaping, only lambda-drop bb's
-            auto doms = world().sigma(Array<const Def*>(c.lam()->num_doms(), [&](auto i) {
-                return (i == 0) ? world().sigma() : c.lam()->dom(i);
-            }));
-            new_lam = c.lam()->stub(world(), world().cn(doms), c.lam()->dbg());
-            world().DLOG("drop ({}, {}) => {}", c.env(), c.lam(), new_lam);
-            auto new_vars = Array<const Def*>(new_lam->num_doms(), [&](auto i) {
-                return (i == 0) ? c.env() : new_lam->var(i); 
-            });
-            new_lam->set(c.lam()->apply(world().tuple(new_vars)));
-            return world().tuple(c.type(), {world().tuple(), new_lam}, def->dbg());
-            // }
-        }
+        if (is_esc(c.lam()) || c.marked_no_esc())
+            return def;
+        auto new_dbg = ClosureWrapper::get_esc_annot(def);
+        if (!c.is_basicblock())
+            return world().tuple(c.type(), {c.env(), c.lam()}, new_dbg);
+        auto& [old_env, new_lam] = clos2dropped_[c.lam()];
+        if (new_lam && c.env() == old_env)
+            return new_lam;
+        old_env = c.env();
+        auto doms = world().sigma(Array<const Def*>(c.lam()->num_doms(), [&](auto i) {
+            return (i == 0) ? world().sigma() : c.lam()->dom(i);
+        }));
+        new_lam = c.lam()->stub(world(), world().cn(doms), c.lam()->dbg());
+        world().DLOG("drop ({}, {}) => {}", c.env(), c.lam(), new_lam);
+        auto new_vars = Array<const Def*>(new_lam->num_doms(), [&](auto i) {
+            return (i == 0) ? c.env() : new_lam->var(i); 
+        });
+        new_lam->set(c.lam()->apply(world().tuple(new_vars)));
+        return world().tuple(c.type(), {world().tuple(), new_lam}, new_dbg);
     }
     return def;
 }
@@ -122,9 +124,10 @@ undo_t ClosureDestruct::join(const Def* def, bool escapes) {
 
 // store [type, space] (:mem, ptr, x)
 const Def* try_get_stored(const Def* def) {
-    if (auto app = def->isa<App>(); app && app->axiom())
-        if (app->axiom()->tag() == Tag::Store)
-            return app->arg(32_u64); 
+    if (auto top_app = def->isa<App>()) 
+        if (auto head = top_app->callee()->isa<App>(); head && head->axiom())
+            if (head->axiom()->tag() == Tag::Store)
+                return top_app->arg(2_u64); 
     return nullptr;
 }
 

@@ -340,6 +340,7 @@ const Def* ClosureWrapper::env() {
     assert(def_);
     return def_->op(0_u64);
 }
+
 const Def* ClosureWrapper::ret_var() {
     assert(!is_basicblock());
     auto l = lam();
@@ -347,9 +348,33 @@ const Def* ClosureWrapper::ret_var() {
     assert(isa_ctype(var->type(), kind_));
     return var;
 }
+
 const Def* ClosureWrapper::mem_var() {
     auto var = lam()->var(0_u64);
     assert(var->type() == def_->world().type_mem());
     return mem_var();
 }
+
+// TODO: Introduce a sperat axiom/flag for this??
+static bool isa_mark(const Def* def) {
+    auto& w = def->world();
+    return def == w.type_mem();
+}
+
+bool ClosureWrapper::marked_no_esc() {
+    auto m = def_->debug().meta;
+    return m && 
+        (isa_mark(m) ||
+           (m->isa<Tuple>() &&
+           std::any_of(m->ops().begin(), m->ops().end(), isa_mark)));
+}
+
+const Def* ClosureWrapper::get_esc_annot(const Def* def) {
+    auto& w = def->world();
+    auto dbg = def->debug();
+    dbg.name += "no_esc";
+    dbg.meta = (dbg.meta) ? merge_tuple(dbg.meta, {w.type_mem()}) : w.type_mem();
+    return w.dbg(dbg);
+}
+
 } // namespace thorin

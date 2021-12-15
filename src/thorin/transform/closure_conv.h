@@ -149,8 +149,8 @@ public:
     }
 
     // Escape analyses
-    bool is_escaping() { /* TODO */ assert(false); }
-    static const Def* get_esc_annot(const Def*) { /* TODO */ assert(false); }
+    bool marked_no_esc(); 
+    static const Def* get_esc_annot(const Def*);
 
 private:
     // Slighlty misleading name^^

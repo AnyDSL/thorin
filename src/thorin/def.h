@@ -204,13 +204,15 @@ public:
     const Def* out(size_t i, const Def* dbg = {}) const { return out(num_outs(), i, dbg); }
 
     /**
-     * Splits this @p Def via @p proj%ections into an Array (if @p A == @c -1_s) or @c std::array otherwise.
+     * Splits this @p Def via @p proj%ections into an Array (if @p A == @c -1_s) or @c std::array (otherwise).
      * Applies @p f to each element.
      @code{.cpp}
         std::array<const Def*, 2> ab = def->outs<2>();
         std::array<u64, 2>        xy = def->outs<2>(as_lit<nat_t>);
         auto [a, b] = def->outs<2>();
         auto [x, y] = def->outs<2>(as_lit<nat_t>);
+        Array<const Def*> outs = def->outs();                 // outs has def->num_outs() many elements
+        Array<const Lit*> lits = def->outs(as_lit<nat_t>);    // same as above but applies as_lit<nat_t> to each element
      @endcode
      */
     template<size_t A = -1_s, class F = std::identity>
@@ -231,8 +233,6 @@ public:
      * Splits this @p Def via @p proj%ections into an Array.
      * Applies @p f to each element.
      @code{.cpp}
-        Array<const Def*> outs = def->outs();                 // outs has def->num_outs() many elements
-        Array<const Lit*> lits = def->outs(as_lit<nat_t>);    // same as above but applies as_lit<nat_t> to each element
         Array<const Def*> outs = def->outs(n);                // outs has n elements - asserts if incorrect
         Array<const Lit*> lits = def->outs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
      @endcode

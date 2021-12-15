@@ -315,7 +315,7 @@ const Def* World::sigma(Defs ops, const Def* dbg) {
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {
-    Array<const Def*> elems(ops.size());
+    DefArray elems(ops.size());
     for (size_t i = 0, e = ops.size(); i != e; ++i)
         elems[i] = ops[i]->type();
 
@@ -337,7 +337,7 @@ const Pi* World::cn_mem_half_flat(const Def* dom, const Def* codom, const Def* d
 
     if (dom->isa<Sigma>()) {
         auto size = dom->num_ops() + 2;
-        Array<const Def*> defs(size);
+        DefArray defs(size);
         for (size_t i = 0; i < size; ++i) {
             if (i == 0) {
                 defs[i] = type_mem();
@@ -353,7 +353,7 @@ const Pi* World::cn_mem_half_flat(const Def* dom, const Def* codom, const Def* d
 
     if (auto a = dom->isa<Arr>()) {
         auto size = a->shape()->as<Lit>()->get<uint8_t>() + 2;
-        Array<const Def*> defs(size);
+        DefArray defs(size);
         for (uint8_t i = 0; i < size; ++i) {
             if (i == 0) {
                 defs[i] = type_mem();
@@ -377,7 +377,7 @@ const Pi* World::cn_mem_flat(const Def* dom, const Def* codom, const Def* dbg) {
     }
     if (auto a = codom->isa<Arr>()) {
         auto size = a->shape()->as<Lit>()->get<uint8_t>() + 1;
-        Array<const Def*> defs(size);
+        DefArray defs(size);
         for (uint8_t i = 0; i < size - 1; ++i) {
             defs[i + 1] = a->body();
         }
@@ -388,7 +388,7 @@ const Pi* World::cn_mem_flat(const Def* dom, const Def* codom, const Def* dbg) {
 
     if (dom->isa<Sigma>()) {
         auto size = dom->num_ops() + 2;
-        Array<const Def*> defs(size);
+        DefArray defs(size);
         for (size_t i = 0; i < size; ++i) {
             if (i == 0) {
                 defs[i] = type_mem();
@@ -404,7 +404,7 @@ const Pi* World::cn_mem_flat(const Def* dom, const Def* codom, const Def* dbg) {
 
     if (auto a = dom->isa<Arr>()) {
         auto size = a->shape()->as<Lit>()->get<uint8_t>() + 2;
-        Array<const Def*> defs(size);
+        DefArray defs(size);
         for (uint8_t i = 0; i < size; ++i) {
             if (i == 0) {
                 defs[i] = type_mem();
@@ -465,12 +465,12 @@ const Def* World::tuple_str(const char* s, const Def* dbg) {
 
 const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index, const Def* dbg) {
     if (index->isa<Arr>() || index->isa<Pack>()) {
-        Array<const Def*> ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
+        DefArray ops(as_lit(index->arity()), [&](size_t) { return extract(tup, index->ops().back()); });
         return index->isa<Arr>() ? sigma(ops, dbg) : tuple(ops, dbg);
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
         auto n = index->num_ops();
-        Array<const Def*> idx(n, [&](size_t i) { return index->op(i); });
-        Array<const Def*> ops(n, [&](size_t i) { return proj(tup, n, as_lit(idx[i])); });
+        DefArray idx(n, [&](size_t i) { return index->op(i); });
+        DefArray ops(n, [&](size_t i) { return proj(tup, n, as_lit(idx[i])); });
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
@@ -522,7 +522,7 @@ const Def* World::insert(const Def* tup, const Def* index, const Def* val, const
     // insert(‹4; x›, 2, y) -> (x, x, y, x)
     if (auto pack = tup->isa<Pack>()) {
         if (auto a = isa_lit(pack->arity())) {
-            Array<const Def*> new_ops(*a, pack->body());
+            DefArray new_ops(*a, pack->body());
             new_ops[as_lit(index)] = val;
             return tuple(type, new_ops, dbg);
         }
@@ -623,7 +623,7 @@ const Def* World::global(const Def* id, const Def* init, bool is_mutable, const 
 const Def* World::global_immutable_string(const std::string& str, const Def* dbg) {
     size_t size = str.size() + 1;
 
-    Array<const Def*> str_array(size);
+    DefArray str_array(size);
     for (size_t i = 0; i != size-1; ++i)
         str_array[i] = lit_nat(str[i], dbg);
     str_array.back() = lit_nat('\0', dbg);
@@ -639,7 +639,7 @@ template<bool up>
 const Def* World::ext(const Def* type, const Def* dbg) {
     if (auto arr = type->isa<Arr>()) return pack(arr->shape(), ext<up>(arr->body()), dbg);
     if (auto sigma = type->isa<Sigma>())
-        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return ext<up>(sigma->op(i), dbg); }), dbg);
+        return tuple(sigma, DefArray(sigma->num_ops(), [&](size_t i) { return ext<up>(sigma->op(i), dbg); }), dbg);
     return unify<TExt<up>>(0, type, dbg);
 }
 
@@ -652,7 +652,7 @@ const Def* World::bound(Defs ops, const Def* dbg) {
         return ext<up>(kind);
 
     // ignore: ext<!up>
-    Array<const Def*> cpy(ops);
+    DefArray cpy(ops);
     auto end = std::copy_if(ops.begin(), ops.end(), cpy.begin(), [&](const Def* op) { return !isa_ext(op); });
 
     // sort and remove duplicates
@@ -670,7 +670,7 @@ const Def* World::bound(Defs ops, const Def* dbg) {
 
 const Def* World::et(const Def* type, Defs ops, const Def* dbg) {
     if (type->isa<Meet>()) {
-        Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
+        DefArray types(ops.size(), [&](size_t i) { return ops[i]->type(); });
         return unify<Et>(ops.size(), meet(types), ops, dbg);
     }
 

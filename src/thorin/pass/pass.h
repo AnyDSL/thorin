@@ -147,7 +147,7 @@ private:
         {}
 
         Def* curr_nom = nullptr;
-        Array<const Def*> old_ops;
+        DefArray old_ops;
         std::stack<Def*> stack;
         NomMap<undo_t> nom2visit;
         Array<void*> data;

@@ -36,11 +36,11 @@ static bool nom_val_or_typ(const Def *def) {
     return typ->isa_nom();
 }
 
-size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_noms) {
-    if (auto a = isa_lit<nat_t>(def->arity()); a && a != 1 && should_flatten(def)
+size_t flatten(DefVec& ops, const Def* def, bool flatten_noms) {
+    if (auto a = isa_lit<nat_t>(def->arity()); a && *a != 1 && should_flatten(def)
             && flatten_noms == nom_val_or_typ(def)) {
         auto n = 0;
-        for (size_t i = 0; i != a; ++i)
+        for (size_t i = 0; i != *a; ++i)
             n += flatten(ops, proj(def, *a, i), flatten_noms);
         return n;
     } else {
@@ -51,7 +51,7 @@ size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_noms) 
 
 const Def* flatten(const Def* def) {
     if (!should_flatten(def)) return def;
-    std::vector<const Def*> ops;
+    DefVec ops;
     flatten(ops, def);
     return def->sort() == Sort::Term ? def->world().tuple(def->type(), ops, def->dbg()) : def->world().sigma(ops, def->dbg());
 }
@@ -59,9 +59,9 @@ const Def* flatten(const Def* def) {
 static const Def* unflatten(Defs defs, const Def* type, size_t& j) {
     if (!defs.empty() && defs[0]->type() == type)
         return defs[j++];
-    if (auto a = isa_lit<nat_t>(type->arity()); a && a != 1) {
+    if (auto a = isa_lit<nat_t>(type->arity()); a && *a != 1) {
         auto& world = type->world();
-        Array<const Def*> ops(*a, [&] (size_t i) { return unflatten(defs, proj(type, *a, i), j); });
+        DefArray ops(*a, [&] (size_t i) { return unflatten(defs, proj(type, *a, i), j); });
         return world.tuple(type, ops);
     }
 
@@ -76,7 +76,7 @@ const Def* unflatten(Defs defs, const Def* type) {
 }
 
 const Def* unflatten(const Def* def, const Def* type) {
-    return unflatten(def->split(as_lit(def->arity())), type);
+    return unflatten(def->outs(as_lit(def->arity())), type);
 }
 
 bool is_unit(const Def* def) {
@@ -94,12 +94,12 @@ bool is_tuple_arg_of_app(const Def* def) {
     return true;
 }
 
-Array<const Def*> merge(const Def* def, Defs defs) {
-    return Array<const Def*>(defs.size() + 1, [&](auto i) { return i == 0 ? def : defs[i-1]; });
+DefArray merge(const Def* def, Defs defs) {
+    return DefArray(defs.size() + 1, [&](auto i) { return i == 0 ? def : defs[i-1]; });
 }
 
-Array<const Def*> merge(Defs a, Defs b) {
-    Array<const Def*> result(a.size() + b.size());
+DefArray merge(Defs a, Defs b) {
+    DefArray result(a.size() + b.size());
     auto i = std::copy(a.begin(), a.end(), result.begin());
     std::copy(b.begin(), b.end(), i);
     return result;
@@ -115,7 +115,7 @@ const Def* merge_tuple(const Def* def, Defs defs) {
     auto& w = def->world();
     if (auto sigma = def->type()->isa<Sigma>(); sigma && !sigma->isa_nom()) {
         auto a = sigma->num_ops();
-        Array<const Def*> tuple(a, [&](auto i) { return w.extract(def, a, i); });
+        DefArray tuple(a, [&](auto i) { return w.extract(def, a, i); });
         return w.tuple(merge(tuple, defs));
     }
 
@@ -125,7 +125,7 @@ const Def* merge_tuple(const Def* def, Defs defs) {
 std::string tuple2str(const Def* def) {
     if (def == nullptr) return {};
 
-    auto array = def->split(as_lit(def->arity()), as_lit<nat_t>);
+    auto array = def->outs(as_lit(def->arity()), as_lit<nat_t>);
     return std::string(array.begin(), array.end());
 }
 

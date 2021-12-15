@@ -39,8 +39,8 @@ Lam* Scalerize::make_scalar(Lam* tup_lam) {
     if (eta_exp_) eta_exp_->new2old(sca_lam, tup_lam);
     size_t n = 0;
     world().DLOG("type {} ~> {}", tup_lam->type(), pi);
-    auto new_vars = world().tuple(Array<const Def*>(tup_lam->num_doms(), [&](auto i) {
-        auto new_args = Array<const Def*>(arg_sz.at(i), [&](auto j) {
+    auto new_vars = world().tuple(DefArray(tup_lam->num_doms(), [&](auto i) {
+        auto new_args = DefArray(arg_sz.at(i), [&](auto j) {
                 return sca_lam->var(n + j);
         });
         n += arg_sz.at(i);

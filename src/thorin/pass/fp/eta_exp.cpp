@@ -13,7 +13,6 @@ Lam* EtaExp::new2old(Lam* new_lam) {
         assert(root != new_lam);
         new2old_[new_lam] = root;
         return root;
-
     }
 
     return new_lam;
@@ -51,7 +50,7 @@ const Def* EtaExp::rewrite(const Def* def) {
 /// <code>f (a, b, c)</code>
 const Def* EtaExp::reconvert(const Def* def) {
     std::vector<std::pair<Lam*, Lam*>> refinements;
-    Array<const Def*> new_ops(def->num_ops());
+    DefArray new_ops(def->num_ops());
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         if (auto lam = def->op(i)->isa_nom<Lam>()) {
@@ -77,7 +76,7 @@ const Def* EtaExp::reconvert(const Def* def) {
     for (auto [wrap, lam] : refinements)
         wrap2subst_[wrap] = std::pair(lam, new_def);
 
-    return new_def;
+    return def2exp_[def] = new_def;
 }
 
 Lam* EtaExp::eta_wrap(Lam* lam) {

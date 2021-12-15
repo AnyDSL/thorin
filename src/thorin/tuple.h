@@ -76,7 +76,7 @@ public:
     //@{
     const Def* rebuild(World&, const Def*, Defs, const Def*) const override;
     Arr* stub(World&, const Def*, const Def*) override;
-    const Def* restructure();
+    const Def* restructure() override;
     //@}
 
     static constexpr auto Node = Node::Arr;
@@ -160,14 +160,14 @@ public:
 
 /// Flattens a sigma/array/pack/tuple.
 const Def* flatten(const Def* def);
-size_t flatten(std::vector<const Def*>& ops, const Def* def, bool flatten_sigmas = true);
+size_t flatten(DefVec& ops, const Def* def, bool flatten_sigmas = true);
 
 /// Applies the reverse transformation on a pack/tuple, given the original type.
 const Def* unflatten(const Def* def, const Def* type);
 /// Same as unflatten, but uses the operands of a flattened pack/tuple directly.
 const Def* unflatten(Defs ops, const Def* type);
 
-Array<const Def*> merge(const Def* def, Defs defs);
+DefArray merge(const Def* def, Defs defs);
 const Def* merge_sigma(const Def* def, Defs defs);
 const Def* merge_tuple(const Def* def, Defs defs);
 

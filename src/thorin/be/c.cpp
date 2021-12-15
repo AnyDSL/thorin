@@ -493,8 +493,8 @@ void CCodeGen::emit() {
                 size_t num_args = lam->app()->num_args();
                 if (num_args == 0) func_impl_ << "return ;";
                 else {
-                    Array<const Def*> values(num_args);
-                    Array<const Def*> types(num_args);
+                    DefArray values(num_args);
+                    DefArray types(num_args);
 
                     size_t n = 0;
                     for (auto arg : lam->app()->args()) {
@@ -625,8 +625,8 @@ void CCodeGen::emit() {
                         size_t num_vars = succ->num_vars();
 
                         size_t n = 0;
-                        Array<const Def*> values(num_vars);
-                        Array<const Def*> types(num_vars);
+                        DefArray values(num_vars);
+                        DefArray types(num_vars);
                         for (auto var : succ->vars()) {
                             if (!is_mem(var) && !is_unit(var)) {
                                 values[n] = var;

@@ -302,7 +302,8 @@ const Sigma* isa_ctype(const Def* def, ClosureWrapper::Kind kind) {
             return isa_ct(def, [&](auto def) { return sig->var() == def; })
                 ? sig : nullptr;
         }
-        case ClosureWrapper::UNTYPED: {
+        case ClosureWrapper::UNTYPED:
+        default: {
             auto sig = def->isa<Sigma>();
             if (!sig)
                 return nullptr;

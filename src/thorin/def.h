@@ -12,6 +12,16 @@
 #include "thorin/util/ptr.h"
 #include "thorin/util/stream.h"
 
+// TODO remove once we upgraded to C++20
+namespace std {
+
+struct identity {
+    using is_transparent = void;
+    template<class T> T& operator()(T& x) const { return x; }
+    template<class T> const T& operator()(const T& x) const { return x; }
+};
+
+}
 namespace thorin {
 
 template<class T>
@@ -41,7 +51,8 @@ class Stream;
 class Tracker;
 class World;
 
-typedef ArrayRef<const Def*> Defs;
+using Defs     = ArrayRef<const Def*>;
+using DefArray = Array<const Def*>;
 
 //------------------------------------------------------------------------------
 
@@ -67,7 +78,7 @@ public:
         : tagged_ptr_(def, index)
     {}
 
-    bool is_used_as_type() const { return index() == size_t(-1); }
+    bool is_used_as_type() const { return index() == -1_s; }
     size_t index() const { return tagged_ptr_.index(); }
     const Def* def() const { return tagged_ptr_.ptr(); }
     operator const Def*() const { return tagged_ptr_; }
@@ -141,12 +152,12 @@ public:
 
     /// @name ops
     //@{
-    template<size_t N = size_t(-1)>
+    template<size_t N = -1_s>
     auto ops() const {
-        if constexpr (N == size_t(-1)) {
+        if constexpr (N == -1_s) {
             return Defs(num_ops_, ops_ptr());
         } else {
-            return ops().template to_array<N>();
+            return ArrayRef<const Def*>(N, ops_ptr()).template to_array<N>();
         }
     }
     const Def* op(size_t i) const { return ops()[i]; }
@@ -179,34 +190,57 @@ public:
     bool contains_proxy() const { return proxy_; }
     //@}
 
-    /// @name split def via proj%s
+    /// @name out/outs - split this def via proj%s
     //@{
-    /// Splits this @p Def into an array.
-    /// Applies @p f to each @p proj%ected element.
-    template<size_t A, class F>
-    auto split(F f) const {
-        using R = decltype(f(this));
-
-        auto a = as_lit(arity());
-        assert(a == A);
-        std::array<R, A> array;
-        for (size_t i = 0; i != A; ++i)
-            array[i] = f(proj(this, a, i));
-        return array;
-    }
-    template<class F>
-    auto split(size_t a, F f) const {
-        using R = decltype(f(this));
-        return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
-    }
-    /// Splits this @p Def into an array.
-    template<size_t A> auto split(        ) const { return split<A>(   [](const Def* def) { return def; }); }
-                       auto split(size_t a) const { return split   (a, [](const Def* def) { return def; }); }
-    const Def* out(size_t i, const Def* dbg = {}) const { return proj(this, num_outs(), i, dbg); }
-    Array<const Def*> outs() const { return Array<const Def*>(num_outs(), [&](auto i) { return out(i); }); }
+    /// @return yields arity if a @p Lit or @c 1 otherwise.
     size_t num_outs() const {
         if (auto a = isa_lit(arity())) return *a;
         return 1;
+    }
+    /// @p proj%ects the @p i%th element from @c this while assuming that @c this is of arity @p a.
+    const Def* out(size_t a, size_t i, const Def* dbg = {}) const { return proj(this, a, i, dbg); }
+
+    /// Same as above but takes @p num_outs as arity.
+    const Def* out(size_t i, const Def* dbg = {}) const { return out(num_outs(), i, dbg); }
+
+    /**
+     * Splits this @p Def via @p proj%ections into an Array (if @p A == @c -1_s) or @c std::array otherwise.
+     * Applies @p f to each element.
+     @code{.cpp}
+        std::array<const Def*, 2> ab = def->outs<2>();
+        std::array<u64, 2>        xy = def->outs<2>(as_lit<nat_t>);
+        auto [a, b] = def->outs<2>();
+        auto [x, y] = def->outs<2>(as_lit<nat_t>);
+     @endcode
+     */
+    template<size_t A = -1_s, class F = std::identity>
+    auto outs(F f = {}) const {
+        using R = std::decay_t<decltype(f(this))>;
+        if constexpr (A == -1_s) {
+            return outs(num_outs(), f);
+        } else {
+            assert(A == as_lit(arity()));
+            std::array<R, A> array;
+            for (size_t i = 0; i != A; ++i)
+                array[i] = f(proj(this, A, i));
+            return array;
+        }
+    }
+
+    /**
+     * Splits this @p Def via @p proj%ections into an Array.
+     * Applies @p f to each element.
+     @code{.cpp}
+        Array<const Def*> outs = def->outs();                 // outs has def->num_outs() many elements
+        Array<const Lit*> lits = def->outs(as_lit<nat_t>);    // same as above but applies as_lit<nat_t> to each element
+        Array<const Def*> outs = def->outs(n);                // outs has n elements - asserts if incorrect
+        Array<const Lit*> lits = def->outs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
+     @endcode
+     */
+    template<class F = std::identity>
+    auto outs(size_t a, F f = {}) const {
+        using R = std::decay_t<decltype(f(this))>;
+        return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
     }
     //@}
 
@@ -258,14 +292,14 @@ public:
     const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
     const Var* var();         ///< Wrapper instead of default argument for easy access in @c gdb.
     const Def* var(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
-    Array<const Def*> vars() { return Array<const Def*>(num_vars(), [&](auto i) { return var(i); }); }
+    DefArray vars() { return DefArray(num_vars(), [&](auto i) { return var(i); }); }
     size_t num_vars();
     //@}
 
     /// @name rewrites last op by substituting @p var with @p arg.
     //@{
-    Array<const Def*> apply(const Def* arg) const;
-    Array<const Def*> apply(const Def* arg);
+    DefArray apply(const Def* arg) const;
+    DefArray apply(const Def* arg);
     //@}
 
     /// @name reduce/subst
@@ -469,13 +503,13 @@ public:
     friend class World;
 };
 
-template<class T = u64> std::optional<T> isa_lit(const Def* def) {
+template<class T> std::optional<T> isa_lit(const Def* def) {
     if (def == nullptr) return {};
     if (auto lit = def->isa<Lit>()) return lit->get<T>();
     return {};
 }
 
-template<class T = u64> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
+template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
 class Tracker {
 public:

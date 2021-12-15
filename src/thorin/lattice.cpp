@@ -36,9 +36,9 @@ const Sigma* TBound<up>::convert() const {
         assert(size % align == 0);
         auto arr = w.arr(size / align, w.type_int_width(align * 8_u64));
 
-        return w.sigma({w.type_int(num_ops()), arr})->as<Sigma>();
+        return w.sigma({w.type_int(num_ops()), arr})->template as<Sigma>();
     } else {
-        return w.sigma(ops())->as<Sigma>();
+        return w.sigma(ops())->template as<Sigma>();
     }
 }
 

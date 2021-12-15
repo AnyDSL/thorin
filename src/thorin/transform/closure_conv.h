@@ -1,4 +1,3 @@
-
 #ifndef THORIN_CLOSURE_CONV_H
 #define THORIN_CLOSURE_CONV_H
 
@@ -16,7 +15,7 @@ class FVA {
 public:
     FVA(World& world)
         : world_(world)
-        , cur_pass_id(1) 
+        , cur_pass_id(1)
         , lam2nodes_() {};
 
     /// @p run will compute free defs that appear transitively in @p lam%s body.

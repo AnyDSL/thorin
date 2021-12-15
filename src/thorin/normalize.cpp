@@ -334,7 +334,7 @@ template<Bit op>
 const Def* normalize_Bit(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = arg->outs<2>();
     auto w = isa_lit(callee->arg());
 
     commute(op, a, b);
@@ -477,7 +477,7 @@ template<Shr op>
 const Def* normalize_Shr(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = arg->outs<2>();
     auto w = isa_lit(callee->arg());
 
     if (auto result = fold<Shr, op>(world, type, callee, a, b, dbg)) return result;
@@ -511,7 +511,7 @@ template<Wrap op>
 const Def* normalize_Wrap(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = arg->outs<2>();
     auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
 
     if (auto result = fold<Wrap, op>(world, type, callee, a, b, dbg)) return result;
@@ -573,10 +573,10 @@ template<Div op>
 const Def* normalize_Div(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [mem, a, b] = arg->split<3>();
+    auto [mem, a, b] = arg->outs<3>();
     auto w = isa_lit(callee->arg());
     type = type->as<Sigma>()->op(1); // peel of actual type
-    auto make_res = [&](const Def* res) { return world.tuple({mem, res}, dbg); };
+    auto make_res = [&, mem = mem](const Def* res) { return world.tuple({mem, res}, dbg); };
 
     if (auto result = fold<Div, op>(world, type, callee, a, b, dbg)) return make_res(result);
 
@@ -615,7 +615,7 @@ template<ROp op>
 const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = arg->outs<2>();
     auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
 
     if (auto result = fold<ROp, op>(world, type, callee, a, b, dbg)) return result;
@@ -679,7 +679,7 @@ template<ICmp op>
 const Def* normalize_ICmp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = arg->outs<2>();
 
     if (auto result = fold<ICmp, op>(world, type, callee, a, b, dbg)) return result;
     if (op == ICmp::_f) return world.lit_false();
@@ -696,7 +696,7 @@ template<RCmp op>
 const Def* normalize_RCmp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = arg->outs<2>();
 
     if (auto result = fold<RCmp, op>(world, type, callee, a, b, dbg)) return result;
     if (op == RCmp::f) return world.lit_false();
@@ -865,7 +865,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
 
 const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
-    auto [ptr, index] = arg->split<2>();
+    auto [ptr, index] = arg->outs<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     if (auto a = isa_lit(pointee->arity()); a && *a ==  1) return ptr;
@@ -876,7 +876,7 @@ const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, con
 
 const Def* normalize_load(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
-    auto [mem, ptr] = arg->split<2>();
+    auto [mem, ptr] = arg->outs<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     if (ptr->isa<Bot>()) return world.tuple({mem, world.bot(type->as<Sigma>()->op(1))}, dbg);
@@ -897,7 +897,7 @@ const Def* normalize_remem(const Def* type, const Def* callee, const Def* mem, c
 
 const Def* normalize_store(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
-    auto [mem, ptr, val] = arg->split<3>();
+    auto [mem, ptr, val] = arg->outs<3>();
 
     if (ptr->isa<Bot>() || val->isa<Bot>()) return mem;
     if (auto pack = val->isa<Pack>(); pack && pack->body()->isa<Bot>()) return mem;
@@ -936,7 +936,7 @@ static const Def* tangent_vector_type(const Def* primal_type) {
             return world.sigma({mem, world.type_tangent_vector(vars)});
         }
 
-        Array<const Def*> tangent_vectors(num_ops);
+        DefArray tangent_vectors(num_ops);
         for (size_t i = 0; i < num_ops; ++i) {
             tangent_vectors[i] = world.type_tangent_vector(sigma->op(i));
         }
@@ -960,7 +960,7 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
     auto& w = type->world();
     auto callee = c->as<App>();
     auto is_os = callee->arg();
-    auto [n_i, Is, n_o, Os, f] = is_os->split<5>();
+    auto [n_i, Is, n_o, Os, f] = is_os->outs<5>();
     auto [r, s] = callee->decurry()->args<2>();
     auto lr = isa_lit(r);
     auto ls = isa_lit(s);
@@ -973,15 +973,15 @@ const Def* normalize_lift(const Def* type, const Def* c, const Def* arg, const D
     if (lr && ls && *lr == 1 && *ls == 1) return w.app(f, arg, dbg);
 
     if (auto l_in = isa_lit(n_i)) {
-        auto args = arg->split(*l_in);
+        auto args = arg->outs(*l_in);
 
         if (lr && std::all_of(args.begin(), args.end(), [&](const Def* arg) { return is_tuple_or_pack(arg); })) {
-            auto shapes = s->split(*lr);
+            auto shapes = s->outs(*lr);
             auto s_n = isa_lit(shapes.front());
 
             if (s_n) {
-                Array<const Def*> elems(*s_n, [&](size_t s_i) {
-                    Array<const Def*> inner_args(args.size(), [&](size_t i) { return proj(args[i], *s_n, s_i); });
+                DefArray elems(*s_n, [&, f = f](size_t s_i) {
+                    DefArray inner_args(args.size(), [&](size_t i) { return proj(args[i], *s_n, s_i); });
                     if (*lr == 1)
                         return w.app(f, inner_args);
                     else

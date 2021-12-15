@@ -6,13 +6,15 @@
 
 namespace thorin {
 
+class BetaRed;
 class EtaExp;
 
 /// Dead Code Elimination.
 class DCE : public FPPass<DCE, Lam> {
 public:
-    DCE(PassMan& man, EtaExp* eta_exp)
+    DCE(PassMan& man, BetaRed* beta_red, EtaExp* eta_exp)
         : FPPass(man, "dce")
+        , beta_red_(beta_red)
         , eta_exp_(eta_exp)
     {}
 
@@ -27,6 +29,7 @@ private:
 
     const Def* var2dead(const App*, Lam*);
 
+    BetaRed* beta_red_;
     EtaExp* eta_exp_;
     LamMap<std::pair<Lam*, BitSet>> var2dead_;
     DefSet keep_;

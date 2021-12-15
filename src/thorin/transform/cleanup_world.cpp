@@ -105,7 +105,7 @@ void Cleaner::eta_conversion() {
                 for (auto use : lam->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
-                        Array<const Def*> new_args(perm.size());
+                        DefArray new_args(perm.size());
                         for (size_t i = 0, e = perm.size(); i != e; ++i) {
                             new_args[i] = uapp->arg(perm[i]);
                         }

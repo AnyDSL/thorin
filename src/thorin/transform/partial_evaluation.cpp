@@ -95,7 +95,7 @@ public:
             return *ndef;
 
         if (!odef->isa_nom()) {
-            Array<const Def*> nops(odef->num_ops());
+            DefArray nops(odef->num_ops());
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
@@ -161,7 +161,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
     if (cur->body()->as<App>()->arg(2)->no_dep()) {
         //auto msg = cur->body()->as<App>()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
         world().idef(cur->body()->as<App>()->callee(), "pe_info: {}: {}", "TODO", cur->body()->as<App>()->arg(2));
-        cur->app(next, {cur->body()->as<App>()->arg(0)}, cur->body()->as<App>()->dbg());
+        cur->app(next, cur->body()->as<App>()->arg(0), cur->body()->as<App>()->dbg());
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
@@ -204,7 +204,7 @@ bool PartialEvaluator::run() {
 
             if (callee->is_set()) {
                 size_t num_args = app->num_args();
-                Array<const Def*> args(num_args);
+                DefArray args(num_args);
 
                 CondEval cond_eval(callee, app->args(), top_level_);
 

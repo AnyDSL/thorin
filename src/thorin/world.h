@@ -159,7 +159,7 @@ public:
     const Def* arr(Defs shape, const Def* body, const Def* dbg = {});
     const Def* arr(u64 n, const Def* body, const Def* dbg = {}) { return arr(lit_nat(n), body, dbg); }
     const Def* arr(ArrayRef<u64> shape, const Def* body, const Def* dbg = {}) {
-        return arr(Array<const Def*>(shape.size(), [&](size_t i) { return lit_nat(shape[i], dbg); }), body, dbg);
+        return arr(DefArray(shape.size(), [&](size_t i) { return lit_nat(shape[i], dbg); }), body, dbg);
     }
     const Def* arr_unsafe(const Def* body, const Def* dbg = {}) { return arr(top_nat(), body, dbg); }
     //@}
@@ -182,7 +182,7 @@ public:
     const Def* pack(Defs shape, const Def* body, const Def* dbg = {});
     const Def* pack(u64 n, const Def* body, const Def* dbg = {}) { return pack(lit_nat(n), body, dbg); }
     const Def* pack(ArrayRef<u64> shape, const Def* body, const Def* dbg = {}) {
-        return pack(Array<const Def*>(shape.size(), [&](auto i) { return lit_nat(shape[i], dbg); }), body, dbg);
+        return pack(DefArray(shape.size(), [&](auto i) { return lit_nat(shape[i], dbg); }), body, dbg);
     }
     //@}
 
@@ -651,7 +651,7 @@ private:
         std::string name_;
         Externals externals_;
         Sea defs_;
-        DefDefMap<Array<const Def*>> cache_;
+        DefDefMap<DefArray> cache_;
     } data_;
 
     std::shared_ptr<Stream> stream_;
@@ -659,7 +659,7 @@ private:
     std::unique_ptr<Checker> checker_;
 
     friend class Cleaner;
-    friend Array<const Def*> Def::apply(const Def*);
+    friend DefArray Def::apply(const Def*);
     friend void Def::replace(Tracker) const;
 };
 

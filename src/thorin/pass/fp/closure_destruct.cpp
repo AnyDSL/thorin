@@ -120,10 +120,20 @@ undo_t ClosureDestruct::join(const Def* def, bool escapes) {
     return join(defs, escapes);
 }
 
+// store [type, space] (:mem, ptr, x)
+const Def* try_get_stored(const Def* def) {
+    if (auto app = def->isa<App>(); app && app->axiom())
+        if (app->axiom()->tag() == Tag::Store)
+            return app->arg(32_u64); 
+    return nullptr;
+}
+
 undo_t ClosureDestruct::analyze(const Def* def) {
     if (auto c = isa_closure(def)) {
         world().DLOG("closure ({}, {})", c.env(), c.lam());
         return join(c.env(), is_esc(c.lam()) && is_esc(c.env_var()));
+    } else if (auto stored = try_get_stored(def)) {
+        return join(stored, true);
     } else if (auto app = def->isa<App>(); app && app->callee_type()->is_cn()) {
         auto callees = split(DefSet(), app->callee(), true);
         auto undo = No_Undo;

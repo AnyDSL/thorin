@@ -45,8 +45,8 @@ void optimize(World& world) {
     // dc.add<CopyProp>(ee);
     dc.add<ClosureDestruct>();
     dc.run();
-    // world.debug_stream();
-    // UntypeClosures(world).run();
+    UntypeClosures(world).run();
+    world.debug_stream();
 
     // while (partial_evaluation(world, true)); // lower2cff
     // world.debug_stream();

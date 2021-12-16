@@ -7,11 +7,21 @@ namespace thorin {
 
 const Def* ClosureDestruct::rewrite(const Def* def) {
     if (auto c = isa_closure(def)) {
-        if (is_esc(c.lam()) || c.marked_no_esc())
+        if (is_esc(c.lam())) {
+            world().DLOG("mark escaping: {}", c.lam());
+            auto dbg = def->debug();
+            dbg.meta = nullptr;
+            def->set_dbg(world().dbg(dbg));
+            return def;
+        }
+        if (c.marked_no_esc())
             return def;
         auto new_dbg = ClosureWrapper::get_esc_annot(def);
-        if (!c.is_basicblock())
-            return world().tuple(c.type(), {c.env(), c.lam()}, new_dbg);
+        if (!c.is_basicblock()) {
+            world().DLOG("mark no esc ({}, {})", c.env(), c.env_var());
+            def->set_dbg(new_dbg);
+            return def;
+        }
         auto& [old_env, new_lam] = clos2dropped_[c.lam()];
         if (new_lam && c.env() == old_env)
             return new_lam;

@@ -696,7 +696,7 @@ const Def* World::test(const Def* value, const Def* probe, const Def* match, con
         assert(m_pi && c_pi);
         auto a = isa_lit(m_pi->dom()->arity());
         assert(a && *a == 2);
-        assert(checker_->equiv(m_pi->dom()->proj(2, 0_s), c_pi->dom()));
+        assert(checker_->equiv(m_pi->dom(2, 0_s), c_pi->dom()));
     }
 
     auto codom = join({m_pi->codom(), c_pi->codom()});

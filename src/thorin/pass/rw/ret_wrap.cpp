@@ -11,7 +11,7 @@ void RetWrap::enter() {
     ret_cont->app(ret_var, ret_cont->var(), ret_var->dbg());
 
     // rebuild a new "var" that substitutes the actual ret_var with ret_cont
-    auto new_vars = curr_nom()->var()->projs(curr_nom()->num_vars());
+    auto new_vars = curr_nom()->vars();
     assert(new_vars.back() == ret_var && "we assume that the last element is the ret_var");
     new_vars.back() = ret_cont;
     auto new_var = world().tuple(curr_nom()->dom(), new_vars);

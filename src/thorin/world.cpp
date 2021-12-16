@@ -470,7 +470,7 @@ const Def* World::extract_(const Def* ex_type, const Def* tup, const Def* index,
     } else if (index->isa<Sigma>() || index->isa<Tuple>()) {
         auto n = index->num_ops();
         DefArray idx(n, [&](size_t i) { return index->op(i); });
-        DefArray ops(n, [&](size_t i) { return proj(tup, n, as_lit(idx[i])); });
+        DefArray ops(n, [&](size_t i) { return tup->proj(n, as_lit(idx[i])); });
         return index->isa<Sigma>() ? sigma(ops, dbg) : tuple(ops, dbg);
     }
 
@@ -696,7 +696,7 @@ const Def* World::test(const Def* value, const Def* probe, const Def* match, con
         assert(m_pi && c_pi);
         auto a = isa_lit(m_pi->dom()->arity());
         assert(a && *a == 2);
-        assert(checker_->equiv(proj(m_pi->dom(), 2, 0), c_pi->dom()));
+        assert(checker_->equiv(m_pi->dom()->proj(2, 0_s), c_pi->dom()));
     }
 
     auto codom = join({m_pi->codom(), c_pi->codom()});

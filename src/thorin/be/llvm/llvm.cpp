@@ -378,7 +378,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 }
             } else if (auto extract = lam->body()->as<App>()->callee()->isa<Extract>()) {
                 // TODO support switch
-                auto [f, t] = extract->tuple()->outs<2>();
+                auto [f, t] = extract->tuple()->projs<2>();
                 auto cond = lookup(extract->index());
                 auto tbb = bb2lam[t->as_nom<Lam>()];
                 auto fbb = bb2lam[f->as_nom<Lam>()];

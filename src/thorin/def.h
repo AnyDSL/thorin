@@ -56,12 +56,6 @@ using DefArray = Array<const Def*>;
 
 //------------------------------------------------------------------------------
 
-/**
- * Similar to @p World::extract but also works on @p Sigma%s, and @p Arr%s.
- * If @p def is a value (see @p Def::is_value), proj resorts to @p World::extract.
- */
-const Def* proj(const Def* def, u64 arity, u64 i, const Def* dbg = {});
-
 template<class T = u64> std::optional<T> isa_lit(const Def*);
 template<class T = u64> T as_lit(const Def* def);
 
@@ -190,41 +184,42 @@ public:
     bool contains_proxy() const { return proxy_; }
     //@}
 
-    /// @name out/outs - split this def via proj%s
+    /// @name proj/projs - split this def via proj%s
     //@{
     /// @return yields arity if a @p Lit or @c 1 otherwise.
-    size_t num_outs() const {
+    size_t num_projs() const {
         if (auto a = isa_lit(arity())) return *a;
         return 1;
     }
-    /// @p proj%ects the @p i%th element from @c this while assuming that @c this is of arity @p a.
-    const Def* out(size_t a, size_t i, const Def* dbg = {}) const { return proj(this, a, i, dbg); }
+    /// Similar to @p World::extract while assuming an arity of @p a but also works on @p Sigma%s, and @p Arr%ays.
+    /// If @p def is a value (see @p Def::is_value), @p proj resorts to @p World::extract.
+    const Def* proj(nat_t a, nat_t i, const Def* dbg = {}) const;
 
-    /// Same as above but takes @p num_outs as arity.
-    const Def* out(size_t i, const Def* dbg = {}) const { return out(num_outs(), i, dbg); }
+    /// Same as above but takes @p num_projs as arity.
+    const Def* proj(nat_t i, const Def* dbg = {}) const { return proj(num_projs(), i, dbg); }
 
     /**
      * Splits this @p Def via @p proj%ections into an Array (if @p A == @c -1_s) or @c std::array (otherwise).
      * Applies @p f to each element.
      @code{.cpp}
-        std::array<const Def*, 2> ab = def->outs<2>();
-        std::array<u64, 2>        xy = def->outs<2>(as_lit<nat_t>);
-        auto [a, b] = def->outs<2>();
-        auto [x, y] = def->outs<2>(as_lit<nat_t>);
-        Array<const Def*> outs = def->outs();                 // outs has def->num_outs() many elements
-        Array<const Lit*> lits = def->outs(as_lit<nat_t>);    // same as above but applies as_lit<nat_t> to each element
+        std::array<const Def*, 2> ab = def->projs<2>();
+        std::array<u64, 2>        xy = def->projs<2>(as_lit<nat_t>);
+        auto [a, b] = def->projs<2>();
+        auto [x, y] = def->projs<2>(as_lit<nat_t>);
+        Array<const Def*> projs = def->projs();             // projs has def->num_projs() many elements
+        Array<const Lit*> lits = def->projs(as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
      @endcode
      */
     template<size_t A = -1_s, class F = std::identity>
-    auto outs(F f = {}) const {
+    auto projs(F f = {}) const {
         using R = std::decay_t<decltype(f(this))>;
         if constexpr (A == -1_s) {
-            return outs(num_outs(), f);
+            return projs(num_projs(), f);
         } else {
             assert(A == as_lit(arity()));
             std::array<R, A> array;
             for (size_t i = 0; i != A; ++i)
-                array[i] = f(proj(this, A, i));
+                array[i] = f(proj(A, i));
             return array;
         }
     }
@@ -233,14 +228,14 @@ public:
      * Splits this @p Def via @p proj%ections into an Array.
      * Applies @p f to each element.
      @code{.cpp}
-        Array<const Def*> outs = def->outs(n);                // outs has n elements - asserts if incorrect
-        Array<const Lit*> lits = def->outs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
+        Array<const Def*> projs = def->projs(n);               // projs has n elements - asserts if incorrect
+        Array<const Lit*> lits = def->projs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
      @endcode
      */
     template<class F = std::identity>
-    auto outs(size_t a, F f = {}) const {
+    auto projs(size_t a, F f = {}) const {
         using R = std::decay_t<decltype(f(this))>;
-        return Array<R>(a, [&](size_t i) { return f(proj(this, a, i)); });
+        return Array<R>(a, [&](size_t i) { return f(proj(a, i)); });
     }
     //@}
 
@@ -288,12 +283,12 @@ public:
     //@{
     /// Only returns a @p Var for this @em nom if it has ever been created.
     const Var* has_var() { return var_ ? var() : nullptr; }
-    const Var* var(const Def* dbg);
-    const Def* var(size_t i, const Def* dbg) { return proj((const Def*) var(), num_vars(), i, dbg); }
-    const Var* var();         ///< Wrapper instead of default argument for easy access in @c gdb.
-    const Def* var(size_t i); ///< Wrapper instead of default argument for easy access in @c gdb.
-    DefArray vars() { return DefArray(num_vars(), [&](auto i) { return var(i); }); }
-    size_t num_vars();
+    const Var* var(const Def* dbg = {});
+    const Def* var(size_t a, size_t i, const Def* dbg = {}) { return ((const Def*) var())->proj(a, i, dbg); }
+    const Def* var(size_t i, const Def* dbg = {}) { return ((const Def*) var())->proj(i, dbg); }
+    template<size_t A = -1_s, class F = std::identity> auto vars(          F f = {}) { return ((const Def*) var())->projs<A, F>(   f); }
+    template<                 class F = std::identity> auto vars(size_t a, F f = {}) { return ((const Def*) var())->projs<   F>(a, f); }
+    size_t num_vars() { return ((const Def*) var())->num_projs(); }
     //@}
 
     /// @name rewrites last op by substituting @p var with @p arg.

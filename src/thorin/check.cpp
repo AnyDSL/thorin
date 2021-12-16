@@ -24,7 +24,7 @@ bool Checker::equiv(const Def* d1, const Def* d2) {
 
         if (auto a = isa_lit(d1->arity())) {
             for (size_t i = 0; i != a; ++i) {
-                if (!equiv(proj(d1, *a, i), proj(d2, *a, i))) return false;
+                if (!equiv(d1->proj(*a, i), d2->proj(*a, i))) return false;
             }
 
             return true;
@@ -60,7 +60,7 @@ bool Checker::assignable(const Def* type, const Def* val) {
 
         auto red = sigma->apply(val);
         for (size_t i = 0, a = red.size(); i != a; ++i) {
-            if (!assignable(red[i], proj(val, a, i))) return false;
+            if (!assignable(red[i], val->proj(a, i))) return false;
         }
 
         return true;
@@ -69,7 +69,7 @@ bool Checker::assignable(const Def* type, const Def* val) {
 
         if (auto a = isa_lit(arr->arity())) {;
             for (size_t i = 0; i != *a; ++i) {
-                if (!assignable(proj(arr, *a, i), proj(val, *a, i))) return false;
+                if (!assignable(arr->proj(*a, i), val->proj(*a, i))) return false;
             }
 
             return true;

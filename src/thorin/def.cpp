@@ -123,6 +123,29 @@ const Def* Arr::restructure() {
 }
 
 /*
+ * proj
+ */
+
+const Def* Def::proj(nat_t a, nat_t i, const Def* dbg) const {
+    if (a == 1 && (!isa_nom<Sigma>() && !type()->isa_nom<Sigma>())) return this;
+    if (isa<Tuple>() || isa<Sigma>()) return op(i);
+
+    if (auto arr = isa<Arr>()) {
+        if (arr->arity()->isa<Top>()) return arr->body();
+        return arr->apply(world().lit_int(as_lit(arr->arity()), i)).back();
+    }
+
+    if (auto pack = isa<Pack>()) {
+        if (pack->arity()->isa<Top>()) return pack->body();
+        return pack->apply(world().lit_int(as_lit(pack->arity()), i)).back();
+    }
+
+    if (sort() == Sort::Term) { return world().extract(this, a, i, dbg); }
+
+    return nullptr;
+}
+
+/*
  * Def
  */
 
@@ -152,10 +175,6 @@ const Var* Def::var(const Def* dbg) {
     if (isa_bound(this)) return w.var(this, this,  dbg);
     THORIN_UNREACHABLE;
 }
-
-const Var* Def::var() { return var(nullptr); }
-const Def* Def::var(size_t i) { return var(i, nullptr); }
-size_t     Def::num_vars() { return var()->num_outs(); }
 
 Sort Def::level() const {
     if (                isa<Space>()) return Sort::Space;

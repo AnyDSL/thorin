@@ -62,6 +62,8 @@ Lam *UntypeClosures::make_stub(Lam* lam, bool unbox_env) {
     return map<Lam>(lam, new_lam);
 }
 
+
+// TODO: Handle ptr?
 static size_t repr_size(const Def* type, size_t inf) {
     if (auto size = thorin::isa_sized_type(type)) {
         return as_lit(size);
@@ -78,8 +80,7 @@ static size_t repr_size(const Def* type, size_t inf) {
 }
 
 bool UntypeClosures::unbox_env(const Def* type) {
-    // return repr_size(type, 64 * 2) <= 64;
-    return false;
+    return repr_size(type, 64 * 2) <= 64;
 }
 
 const Def* UntypeClosures::rewrite(const Def* def) {
@@ -115,7 +116,7 @@ const Def* UntypeClosures::rewrite(const Def* def) {
                 ? w.op_slot(env->type(), lcm_)
                 : w.op_alloc(env->type(), lcm_);
             auto mem = w.extract(mem_ptr, 0_u64);
-            auto env_ptr = w.extract(mem_ptr, 1_u64, w.dbg(fn->name() + "env_ptr"));
+            auto env_ptr = w.extract(mem_ptr, 1_u64, w.dbg(fn->name() + "_env"));
             lcm_ = w.op_store(mem, env_ptr, env);
             map(lvm_, lcm_);
             auto ucl = w.tuple({env_ptr, fn});

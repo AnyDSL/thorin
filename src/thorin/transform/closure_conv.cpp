@@ -33,14 +33,14 @@ void ClosureConv::run() {
                 subst.emplace(env, env_param);
             } else {
                 for (size_t i = 0; i < num_fvs; i++) {
-                    subst.emplace(env->op(i), world().extract(env_param, i, world().dbg("cc_fv")));
+                    subst.emplace(env->op(i), world().extract(env_param, i, world().dbg("fv")));
                 }
             }
 
             auto params =
                 world().tuple(DefArray(old_fn->num_doms(), [&] (auto i) {
                     return new_fn->var(i + 1);
-                }), world().dbg("cc_param"));
+                }), world().dbg("param"));
             subst.emplace(old_fn->var(), params);
 
             auto filter = (new_fn->filter())
@@ -99,7 +99,6 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
     auto new_dbg = (def->dbg()) ? rewrite(def->dbg(), subst) : nullptr;
 
     if (auto nom = def->isa_nom()) {
-        // TODO: Test this
         world().DLOG("RW: nom {}", nom);
         auto new_nom = nom->stub(world(), new_type, new_dbg);
         subst.emplace(nom, new_nom);
@@ -117,8 +116,8 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
         if (auto app = def->isa<App>(); app && new_ops[0]->type()->isa<Sigma>()) {
             auto closure = new_ops[0];
             auto args = new_ops[1];
-            auto env = world().extract(closure, 0_u64, world().dbg("cc_app_env"));
-            auto fn = world().extract(closure, 1_u64, world().dbg("cc_app_f"));
+            auto env = world().extract(closure, 0_u64, world().dbg("env"));
+            auto fn = world().extract(closure, 1_u64, world().dbg("lam"));
             world().DLOG("RW: call {} ~> APP {} {} {}", closure, fn, env, args);
             return map(world().app(fn, DefArray(num_doms(fn), [&](auto i) {
                 return (i == 0) ? env : world().extract(args, i - 1);
@@ -133,7 +132,7 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
     if (!env_type) {
         if (auto pct = closure_types_.lookup(pi))
             return* pct;
-        auto sigma = world().nom_sigma(world().kind(), 2_u64, world().dbg("cc_pct"));
+        auto sigma = world().nom_sigma(world().kind(), 2_u64, world().dbg("closure_type"));
         auto new_pi = closure_type(pi, subst, sigma->var());
         sigma->set(0, sigma->var());
         sigma->set(1, new_pi);
@@ -144,7 +143,7 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
         auto dom = world().sigma(DefArray(pi->num_doms() + 1, [&](auto i) {
             return (i == 0) ? env_type : rewrite(pi->dom(i - 1), subst);
         }));
-        auto new_pi = world().cn(dom, world().dbg("cc_ct"));
+        auto new_pi = world().cn(dom);
         world().DLOG("C-TYPE: ct {}, env = {} ~~> {}", pi, env_type, new_pi);
         return new_pi;
     }

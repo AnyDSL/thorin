@@ -18,7 +18,7 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
             return def;
         auto new_dbg = ClosureWrapper::get_esc_annot(def);
         if (!c.is_basicblock()) {
-            world().DLOG("mark no esc ({}, {})", c.env(), c.env_var());
+            world().DLOG("mark no esc ({}, {})", c.env(), c.lam());
             def->set_dbg(new_dbg);
             return def;
         }
@@ -144,7 +144,7 @@ const Def* try_get_stored(const Def* def) {
 undo_t ClosureDestruct::analyze(const Def* def) {
     if (auto c = isa_closure(def)) {
         world().DLOG("closure ({}, {})", c.env(), c.lam());
-        return join(c.env(), is_esc(c.lam()) && is_esc(c.env_var()));
+        return join(c.env(), is_esc(c.lam()) || is_esc(c.env_var()));
     } else if (auto stored = try_get_stored(def)) {
         return join(stored, true);
     } else if (auto app = def->isa<App>(); app && app->callee_type()->is_cn()) {

@@ -23,18 +23,19 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
             return def;
         }
         auto& [old_env, new_lam] = clos2dropped_[c.lam()];
-        if (new_lam && c.env() == old_env)
-            return new_lam;
-        old_env = c.env();
-        auto doms = world().sigma(DefArray(c.lam()->num_doms(), [&](auto i) {
-            return (i == 0) ? world().sigma() : c.lam()->dom(i);
-        }));
-        new_lam = c.lam()->stub(world(), world().cn(doms), c.lam()->dbg());
-        world().DLOG("drop ({}, {}) => {}", c.env(), c.lam(), new_lam);
-        auto new_vars = DefArray(new_lam->num_doms(), [&](auto i) {
-            return (i == 0) ? c.env() : new_lam->var(i); 
-        });
-        new_lam->set(c.lam()->apply(world().tuple(new_vars)));
+        if (!new_lam || c.env() != old_env) {
+            old_env = c.env();
+            auto doms = world().sigma(DefArray(c.lam()->num_doms(), [&](auto i) {
+                return (i == 0) ? world().sigma() : c.lam()->dom(i);
+            }));
+            new_lam = c.lam()->stub(world(), world().cn(doms), c.lam()->dbg());
+            world().DLOG("drop ({}, {}) => {}", c.env(), c.lam(), new_lam);
+            auto new_vars = DefArray(new_lam->num_doms(), [&](auto i) {
+                return (i == 0) ? c.env() : new_lam->var(i); 
+            });
+            new_lam->set(c.lam()->apply(world().tuple(new_vars)));
+            eta_exp_.new2old(new_lam, c.lam());
+        }
         return world().tuple(c.type(), {world().tuple(), new_lam}, new_dbg);
     }
     return def;
@@ -70,7 +71,7 @@ static std::pair<const Def*, Def*> isa_var(const Def* a) {
 
 static void split(DefSet& out, const Def* def, bool keep_others) {
     if (auto lam = def->isa<Lam>())
-        out.insert(def);
+        out.insert(lam);
     else if (auto c = isa_closure(def))
         out.insert(c.lam());
     else if (auto [var, lam] = isa_var(def); var && lam)

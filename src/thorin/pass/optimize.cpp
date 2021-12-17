@@ -20,14 +20,14 @@ namespace thorin {
 
 void optimize(World& world) {
     PassMan opt(world);
-    // opt.add<PartialEval>();
-    opt.add<BetaRed>();
-    auto er = opt.add<EtaRed>();
-    auto ee = opt.add<EtaExp>(er);
-    // opt.add<SSAConstr>(ee);
-    // opt.add<CopyProp>();
-    // opt.add<Scalerize>();
-    // opt.add<AutoDiff>();
+    // // opt.add<PartialEval>();
+    // opt.add<BetaRed>();
+    // auto er = opt.add<EtaRed>();
+    // auto ee = opt.add<EtaExp>(er);
+    // // opt.add<SSAConstr>(ee);
+    // // opt.add<CopyProp>();
+    // // opt.add<Scalerize>();
+    // // opt.add<AutoDiff>();
     opt.run();
 
     ClosureConv(world).run();
@@ -39,17 +39,18 @@ void optimize(World& world) {
     // cc.run();
     // world.debug_stream();
 
+    // while (partial_evaluation(world, true)); // lower2cff
+    // world.debug_stream();
+    
     auto dc = PassMan(world);
-    // er = dc.add<EtaRed>();
-    // ee = dc.add<EtaExp>(er);
-    // dc.add<CopyProp>(ee);
-    dc.add<ClosureDestruct>();
+    auto br = dc.add<BetaRed>();
+    auto er = dc.add<EtaRed>();
+    auto ee = dc.add<EtaExp>(er);
+    dc.add<CopyProp>(br, ee);
+    dc.add<ClosureDestruct>(ee);
     dc.run();
     UntypeClosures(world).run();
     world.debug_stream();
-
-    // while (partial_evaluation(world, true)); // lower2cff
-    // world.debug_stream();
 
     // PassMan codgen_prepare(world);
     //codgen_prepare.add<BoundElim>();

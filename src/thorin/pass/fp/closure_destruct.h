@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "thorin/pass/pass.h"
+#include "thorin/pass/fp/eta_exp.h"
 
 namespace thorin {
 
@@ -12,9 +13,9 @@ namespace thorin {
 
 class ClosureDestruct : public FPPass<ClosureDestruct, Lam> {
 public:
-    ClosureDestruct(PassMan& man) 
+    ClosureDestruct(PassMan& man, EtaExp* eta_exp) 
         : FPPass<ClosureDestruct, Lam>(man, "closure_destruct")
-        , escape_(), clos2dropped_()
+        , eta_exp_(*eta_exp), escape_(), clos2dropped_()
     {}
 
     const Def* rewrite(const Def*) override;
@@ -23,6 +24,7 @@ public:
     using Data = int;
 
 private:
+    EtaExp& eta_exp_;
     DefSet escape_;
     LamMap<std::pair<const Def*, Lam*>> clos2dropped_;
 

@@ -26,12 +26,12 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
         if (new_lam && c.env() == old_env)
             return new_lam;
         old_env = c.env();
-        auto doms = world().sigma(Array<const Def*>(c.lam()->num_doms(), [&](auto i) {
+        auto doms = world().sigma(DefArray(c.lam()->num_doms(), [&](auto i) {
             return (i == 0) ? world().sigma() : c.lam()->dom(i);
         }));
         new_lam = c.lam()->stub(world(), world().cn(doms), c.lam()->dbg());
         world().DLOG("drop ({}, {}) => {}", c.env(), c.lam(), new_lam);
-        auto new_vars = Array<const Def*>(new_lam->num_doms(), [&](auto i) {
+        auto new_vars = DefArray(new_lam->num_doms(), [&](auto i) {
             return (i == 0) ? c.env() : new_lam->var(i); 
         });
         new_lam->set(c.lam()->apply(world().tuple(new_vars)));
@@ -100,8 +100,8 @@ bool ClosureDestruct::is_esc(const Def* def) {
             return true;
         }
     }
-    if (auto [var, lam] = isa_var(def); var && lam)
-        return !lam->is_set();
+//     if (auto [var, lam] = isa_var(def); var && lam)
+//         return !lam->is_set();
     return false;
 }
 

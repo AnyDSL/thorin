@@ -6,27 +6,6 @@
 
 namespace thorin {
 
-const Def* proj(const Def* def, u64 a, u64 i, const Def* dbg) {
-    auto& world = def->world();
-
-    if (a == 1 && (!def->isa_nom<Sigma>() && !def->type()->isa_nom<Sigma>())) return def;
-    if (def->isa<Tuple>() || def->isa<Sigma>()) return def->op(i);
-
-    if (auto arr = def->isa<Arr>()) {
-        if (arr->arity()->isa<Top>()) return arr->body();
-        return arr->apply(world.lit_int(as_lit(arr->arity()), i)).back();
-    }
-
-    if (auto pack = def->isa<Pack>()) {
-        if (pack->arity()->isa<Top>()) return pack->body();
-        return pack->apply(world.lit_int(as_lit(pack->arity()), i)).back();
-    }
-
-    if (def->sort() == Sort::Term) { return def->world().extract(def, a, i, dbg); }
-
-    return nullptr;
-}
-
 static bool should_flatten(const Def* def) {
     return is_sigma_or_arr(def->sort() == Sort::Term ? def->type() : def);
 }
@@ -41,7 +20,7 @@ size_t flatten(DefVec& ops, const Def* def, bool flatten_noms) {
             && flatten_noms == nom_val_or_typ(def)) {
         auto n = 0;
         for (size_t i = 0; i != *a; ++i)
-            n += flatten(ops, proj(def, *a, i), flatten_noms);
+            n += flatten(ops, def->proj(*a, i), flatten_noms);
         return n;
     } else {
         ops.emplace_back(def);
@@ -61,7 +40,7 @@ static const Def* unflatten(Defs defs, const Def* type, size_t& j) {
         return defs[j++];
     if (auto a = isa_lit<nat_t>(type->arity()); a && *a != 1) {
         auto& world = type->world();
-        DefArray ops(*a, [&] (size_t i) { return unflatten(defs, proj(type, *a, i), j); });
+        DefArray ops(*a, [&] (size_t i) { return unflatten(defs, type->proj(*a, i), j); });
         return world.tuple(type, ops);
     }
 
@@ -76,7 +55,7 @@ const Def* unflatten(Defs defs, const Def* type) {
 }
 
 const Def* unflatten(const Def* def, const Def* type) {
-    return unflatten(def->outs(as_lit(def->arity())), type);
+    return unflatten(def->projs(as_lit(def->arity())), type);
 }
 
 bool is_unit(const Def* def) {
@@ -125,7 +104,7 @@ const Def* merge_tuple(const Def* def, Defs defs) {
 std::string tuple2str(const Def* def) {
     if (def == nullptr) return {};
 
-    auto array = def->outs(as_lit(def->arity()), as_lit<nat_t>);
+    auto array = def->projs(as_lit(def->arity()), as_lit<nat_t>);
     return std::string(array.begin(), array.end());
 }
 

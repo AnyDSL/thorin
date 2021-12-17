@@ -21,14 +21,18 @@ public:
     /// @name ops
     //@{
     const Def* dom() const { return op(0); }
-    const Def* dom(size_t i) const { return proj(dom(), num_doms(), i); }
-    DefArray doms() const { return DefArray(num_doms(), [&](size_t i) { return dom(i); }); }
-    size_t num_doms() const { return dom()->num_outs(); }
+    const Def* dom(size_t a, size_t i, const Def* dbg = {}) const { return dom()->proj(a, i, dbg); }
+    const Def* dom(size_t i, const Def* dbg = {}) const { return dom()->proj(i, dbg); }
+    template<size_t A = -1_s, class F = std::identity> auto doms(          F f = {}) const { return dom()->projs<A, F>(   f); }
+    template<                 class F = std::identity> auto doms(size_t a, F f = {}) const { return dom()->projs<   F>(a, f); }
+    size_t num_doms() const { return dom()->num_projs(); }
 
     const Def* codom() const { return op(1); }
-    const Def* codom(size_t i) const { return proj(codom(), num_codoms(), i); }
-    DefArray codoms() const { return DefArray(num_codoms(), [&](size_t i) { return codom(i); }); }
-    size_t num_codoms() const { return codom()->num_outs(); }
+    const Def* codom(size_t a, size_t i, const Def* dbg = {}) const { return codom()->proj(a, i, dbg); }
+    const Def* codom(size_t i, const Def* dbg = {}) const { return codom()->proj(i, dbg); }
+    template<size_t A = -1_s, class F = std::identity> auto codoms(          F f = {}) const { return codom()->projs<A, F>(   f); }
+    template<                 class F = std::identity> auto codoms(size_t a, F f = {}) const { return codom()->projs<   F>(a, f); }
+    size_t num_codoms() const { return codom()->num_projs(); }
 
     bool is_cn() const;
     bool is_basicblock() const { return order() == 1; }
@@ -141,15 +145,11 @@ public:
     const App* decurry() const { return callee()->as<App>(); } ///< Returns the @p callee again as @p App.
     const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
-    const Def* arg(size_t i, const Def* dbg = {}) const { return arg()->out(i, dbg); }
-    DefArray args() const { return arg()->outs(); }
-    size_t num_args() const { return arg()->num_outs(); }
-    //@}
-
-    /// @name split arg
-    //@{
-    template<size_t A = -1_s, class F = std::identity> auto args(          F f = {}) const { return arg()->outs<A, F>(   f); }
-    template<                 class F = std::identity> auto args(size_t a, F f = {}) const { return arg()->outs<   F>(a, f); }
+    const Def* arg(size_t a, size_t i, const Def* dbg = {}) const { return arg()->proj(a, i, dbg); }
+    const Def* arg(size_t i, const Def* dbg = {}) const { return arg()->proj(i, dbg); }
+    template<size_t A = -1_s, class F = std::identity> auto args(          F f = {}) const { return arg()->projs<A, F>(   f); }
+    template<                 class F = std::identity> auto args(size_t a, F f = {}) const { return arg()->projs<   F>(a, f); }
+    size_t num_args() const { return arg()->num_projs(); }
     //@}
 
     /// @name get axiom and current currying depth

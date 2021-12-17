@@ -25,7 +25,7 @@ const Def* SSAConstr::rewrite(const Proxy* proxy) {
 const Def* SSAConstr::rewrite(const Def* def) {
     if (auto slot = isa<Tag::Slot>(def)) {
         auto [mem, id] = slot->args<2>();
-        auto [_, ptr] = slot->outs<2>();
+        auto [_, ptr] = slot->projs<2>();
         auto sloxy = proxy(ptr->type(), {curr_nom(), id}, Sloxy, slot->dbg());
         world().DLOG("sloxy: '{}'", sloxy);
         if (!keep_.contains(sloxy)) {
@@ -127,7 +127,7 @@ const Def* SSAConstr::mem2phi(const App* app, Lam* mem_lam) {
         }
         auto traxy = proxy(phi_lam->var()->type(), traxy_ops, Traxy);
 
-        DefArray new_vars(num_mem_vars, [&](size_t i) { return traxy->out(i); });
+        DefArray new_vars(num_mem_vars, [&](size_t i) { return traxy->proj(i); });
         phi_lam->set(mem_lam->apply(world().tuple(mem_lam->dom(), new_vars)));
     } else {
         world().DLOG("reuse phi_lam '{}'", phi_lam);

@@ -38,8 +38,8 @@ private:
     };
 
     bool is_bot(Node* node) { return node->pass_id == 0; }
-    bool is_done(Node* node) { 
-        return !is_bot(node) && node->pass_id < cur_pass_id; 
+    bool is_done(Node* node) {
+        return !is_bot(node) && node->pass_id < cur_pass_id;
     }
     void mark(Node* node) { node->pass_id = cur_pass_id; }
 

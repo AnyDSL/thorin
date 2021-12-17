@@ -38,7 +38,7 @@ void ClosureConv::run() {
             }
 
             auto params =
-                world().tuple(Array<const Def*>(old_fn->num_doms(), [&] (auto i) {
+                world().tuple(DefArray(old_fn->num_doms(), [&] (auto i) {
                     return new_fn->var(i + 1);
                 }), world().dbg("cc_param"));
             subst.emplace(old_fn->var(), params);
@@ -111,7 +111,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
             return map(restruct);
         return map(new_nom);
     } else {
-        auto new_ops = Array<const Def*>(def->num_ops(), [&](auto i) {
+        auto new_ops = DefArray(def->num_ops(), [&](auto i) {
             return rewrite(def->op(i), subst);
         });
         if (auto app = def->isa<App>(); app && new_ops[0]->type()->isa<Sigma>()) {
@@ -120,7 +120,7 @@ const Def* ClosureConv::rewrite(const Def* def, Def2Def& subst) {
             auto env = world().extract(closure, 0_u64, world().dbg("cc_app_env"));
             auto fn = world().extract(closure, 1_u64, world().dbg("cc_app_f"));
             world().DLOG("RW: call {} ~> APP {} {} {}", closure, fn, env, args);
-            return map(world().app(fn, Array<const Def*>(num_doms(fn), [&](auto i) {
+            return map(world().app(fn, DefArray(num_doms(fn), [&](auto i) {
                 return (i == 0) ? env : world().extract(args, i - 1);
             })));
         } else {
@@ -141,7 +141,7 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
         world().DLOG("C-TYPE: pct {} ~~> {}", pi, sigma);
         return sigma;
     } else {
-        auto dom = world().sigma(Array<const Def*>(pi->num_doms() + 1, [&](auto i) {
+        auto dom = world().sigma(DefArray(pi->num_doms() + 1, [&](auto i) {
             return (i == 0) ? env_type : rewrite(pi->dom(i - 1), subst);
         }));
         auto new_pi = world().cn(dom, world().dbg("cc_ct"));
@@ -250,7 +250,7 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
     auto new_lam = world().nom_lam(new_fn_type, world().dbg(fn->name()));
     new_lam->set_body(fn->body());
     new_lam->set_filter(fn->filter());
-    if (fn->is_external()) { 
+    if (fn->is_external()) {
         fn->make_internal();
         new_lam->make_external();
     }

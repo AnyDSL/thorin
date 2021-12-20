@@ -9,6 +9,7 @@
 #include "thorin/pass/rw/ret_wrap.h"
 #include "thorin/pass/rw/scalarize.h"
 #include "thorin/pass/fp/closure_destruct.h"
+#include "thorin/pass/fp/unbox_closures.h"
 
 // old stuff
 #include "thorin/transform/cleanup_world.h"
@@ -19,7 +20,7 @@
 namespace thorin {
 
 void optimize(World& world) {
-    // PassMan opt(world);
+    PassMan opt(world);
     // // opt.add<PartialEval>();
     // opt.add<BetaRed>();
     // auto er = opt.add<EtaRed>();
@@ -32,7 +33,7 @@ void optimize(World& world) {
 
     // while (partial_evaluation(world, true)); // lower2cff
     // world.debug_stream();
-    //
+    
     ClosureConv(world).run();
     world.debug_stream();
     
@@ -42,14 +43,16 @@ void optimize(World& world) {
     auto ee = conv_closures.add<EtaExp>(er);
     conv_closures.add<CopyProp>(br, ee);
     conv_closures.add<ClosureDestruct>(ee);
+    conv_closures.add<Scalerize>(ee);
+    conv_closures.add<UnboxClosure>();
     conv_closures.run();
     UntypeClosures(world).run();
     world.debug_stream();
 
-    PassMan codgen_prepare(world);
-    codgen_prepare.add<Scalerize>(nullptr);
+    // PassMan codgen_prepare(world);
+    // codgen_prepare.add<Scalerize>(nullptr);
     // codgen_prepare.add<RetWrap>();
-    codgen_prepare.run();
+    // codgen_prepare.run();
 }
 
 }

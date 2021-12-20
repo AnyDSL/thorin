@@ -61,6 +61,8 @@ set(THORIN_SOURCES
     pass/fp/ssa_constr.h
     pass/fp/closure_destruct.h
     pass/fp/closure_destruct.cpp
+    pass/fp/unbox_closures.h
+    pass/fp/unbox_closures.cpp
     pass/rw/auto_diff.cpp
     pass/rw/auto_diff.h
     pass/rw/partial_eval.cpp

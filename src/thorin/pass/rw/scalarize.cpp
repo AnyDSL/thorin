@@ -40,11 +40,12 @@ Lam* Scalerize::make_scalar(Lam* tup_lam) {
     size_t n = 0;
     world().DLOG("type {} ~> {}", tup_lam->type(), pi);
     auto new_vars = world().tuple(DefArray(tup_lam->num_doms(), [&](auto i) {
-        auto new_args = DefArray(arg_sz.at(i), [&](auto j) {
-                return sca_lam->var(n + j);
+        auto tuple = DefArray(arg_sz.at(i), [&](auto j) {
+            return sca_lam->var(n++);
         });
-        n += arg_sz.at(i);
-        return unflatten(new_args, tup_lam->dom(i));
+        auto t = world().tuple(tuple);
+        // n += arg_sz.at(i);
+        return unflatten(tuple, tup_lam->dom(i));
     }));
     sca_lam->set(tup_lam->apply(new_vars));
     tup2sca_[sca_lam] = sca_lam;

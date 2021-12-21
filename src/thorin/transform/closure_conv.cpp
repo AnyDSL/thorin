@@ -254,7 +254,7 @@ ClosureConv::Closure ClosureConv::make_closure(Lam* fn, Def2Def& subst) {
         new_lam->make_external();
     }
 
-    world().DLOG("STUB {} ~~> ({}, {})", fn, new_lam, env);
+    world().DLOG("STUB {} ~~> ({}, {})", fn, env, new_lam);
 
     auto closure = Closure{fn, fv_set.size(), env, new_lam};
     closures_.emplace(fn, closure);
@@ -312,46 +312,65 @@ const Sigma* isa_ctype(const Def* def, ClosureWrapper::Kind kind) {
     }
 }
 
-ClosureWrapper isa_closure(const Def* def, ClosureWrapper::Kind kind) {
-    return ClosureWrapper(def, kind); 
+static std::pair<const Def*, const Tuple*>
+isa_folded_branch(const Def* def) {
+    if (auto proj = def->isa<Extract>()) 
+        if (auto tuple = proj->tuple()->isa<Tuple>())
+            if (std::all_of(tuple->ops().begin(), tuple->ops().end(), 
+                    [](const Def* d) { return d->isa_nom<Lam>(); }))
+                return {proj->index(), tuple};
+    return {nullptr, nullptr};
 }
 
-ClosureWrapper::ClosureWrapper(const Def* def, ClosureWrapper::Kind kind)
-        : kind_(kind)
-        , def_(def->isa<Tuple>() && isa_ctype(def->type(), kind) ? def->as<Tuple>() : nullptr) {}
+ClosureWrapper isa_closure(const Def* def, ClosureWrapper::Kind kind) {
+    if (isa_ctype(def->type(), kind)) {
+        if (auto tpl = def->isa<Tuple>()) {
+            auto [idx, lams] = isa_folded_branch(tpl->op(1_u64));
+            if (tpl->op(1_u64)->isa<Lam>() || (idx && lams))
+                return ClosureWrapper(tpl, kind);
+        }
+    }
+    return ClosureWrapper(nullptr, kind);
+}
 
 // Essentially removes the env-param to get accurate info about the old
 // function type
-const Pi* ClosureWrapper::old_type() {
-    assert(def_);
-    auto pi = def_->type()->op(1_u64)->isa<Pi>();
-    assert(pi);
-    auto& w = def_->world();
-    return w.cn(pi->doms().skip_front());
-}
 
-Lam* ClosureWrapper::lam() {
-    assert(def_);
-    return def_->op(1_u64)->isa_nom<Lam>();
-}
 
 const Def* ClosureWrapper::env() {
     assert(def_);
     return def_->op(0_u64);
 }
 
-const Def* ClosureWrapper::ret_var() {
-    assert(!is_basicblock());
-    auto l = lam();
-    auto var = l->var(l->num_doms() - 1);
-    assert(isa_ctype(var->type(), kind_));
-    return var;
+const Def* ClosureWrapper::fnc() {
+    assert(def_);
+    return def_->op(1_u64);
 }
 
-const Def* ClosureWrapper::mem_var() {
-    auto var = lam()->var(0_u64);
-    assert(var->type() == def_->world().type_mem());
-    return mem_var();
+Lam* ClosureWrapper::fnc_as_lam() {
+    return fnc()->isa_nom<Lam>();
+}
+
+std::pair<const Def*, const Tuple*> ClosureWrapper::fnc_as_folded() {
+    return isa_folded_branch(fnc());
+}
+
+const Def* ClosureWrapper::var(size_t i) {
+    assert(i < fnc_type()->num_doms());
+    if (auto lam = fnc_as_lam())
+        return lam->var(i);
+    auto [idx, lams] = fnc_as_folded();
+    assert(idx && lams && "closure should be a lam or folded branch");
+    auto& w = idx->world();
+    auto tuple = w.tuple(DefArray(lams->num_ops(), [&](auto j) {
+        const Def* lam = lams->op(j);
+        return lam->isa_nom<Lam>()->var(i);
+    }));
+    return w.extract(tuple, idx);
+}
+
+const Def* ClosureWrapper::env_var() {
+    return var(0_u64);
 }
 
 // TODO: Introduce a sperat axiom/flag for this??
@@ -374,6 +393,11 @@ const Def* ClosureWrapper::get_esc_annot(const Def* def) {
     dbg.name += "no_esc";
     dbg.meta = (dbg.meta) ? merge_tuple(dbg.meta, {w.type_mem()}) : w.type_mem();
     return w.dbg(dbg);
+}
+
+const Pi* ClosureWrapper::old_type() {
+    auto& w = def_->world();
+    return w.cn(fnc_type()->doms().skip_front());
 }
 
 } // namespace thorin

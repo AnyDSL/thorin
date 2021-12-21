@@ -4,39 +4,61 @@
 
 namespace thorin {
 
-static const Def* top(World& w) {
-    return w.top(w.kind());
-}
+// static const Def* top(World& w) {
+//     return w.top(w.kind());
+// }
 
-UnboxClosure::Res UnboxClosure::unbox(const Def* def) {
-    auto& w = world();
-    if (auto c = isa_closure(def)) {
-        return {c.env()->type(), c.env(), c.lam()};
-    } else if (auto proj = def->isa<Extract>()) {
-        auto [type, env, lam] = unbox(proj->tuple());
-        if (type == top(w))
-            return {type, nullptr, nullptr};
-        auto idx = proj->index();
-        return {type, w.extract(env, idx), w.extract(lam, idx)};
-    } else if (auto tuple = def->isa<Tuple>()) {
-        assert (tuple->num_ops() > 0 && "empty tuple in closure expr");
-        auto [type, env0, lam0] = unbox(tuple->op(0));
-        DefVec envs = {env0}, lams = {lam0};
-        for (size_t i = 1; i < tuple->num_ops(); i++) {
-            auto [other_type, env, lam] = unbox(def->op(i));
-            if (type != other_type)
-                return {};
-            envs.push_back(env);
-            lams.push_back(lam);
-        }
-        return {type, w.tuple(envs), w.tuple(lams)};
-    } else {
-        return {top(w), nullptr, nullptr};
-    }
-}
+// UnboxClosure::Res UnboxClosure::unbox(const Def* def) {
+//     auto& w = world();
+//     if (auto c = isa_closure(def)) {
+//         return {c.env()->type(), c.env(), c.lam()};
+//     } else if (auto proj = def->isa<Extract>()) {
+//         auto [type, env, lam] = unbox(proj->tuple());
+//         if (type == top(w))
+//             return {type, nullptr, nullptr};
+//         auto idx = proj->index();
+//         return {type, w.extract(env, idx), w.extract(lam, idx)};
+//     } else if (auto tuple = def->isa<Tuple>()) {
+//         assert (tuple->num_ops() > 0 && "empty tuple in closure expr");
+//         auto [type, env0, lam0] = unbox(tuple->op(0));
+//         DefVec envs = {env0}, lams = {lam0};
+//         for (size_t i = 1; i < tuple->num_ops(); i++) {
+//             auto [other_type, env, lam] = unbox(def->op(i));
+//             if (type != other_type)
+//                 return {};
+//             envs.push_back(env);
+//             lams.push_back(lam);
+//         }
+//         return {type, w.tuple(envs), w.tuple(lams)};
+//     } else {
+//         return {top(w), nullptr, nullptr};
+//     }
+// }
 
 const Def* UnboxClosure::rewrite(const Def* def) { 
     auto& w = world();
+
+    if (auto proj = def->isa<Extract>(); proj && isa_ctype(proj->type())) {
+        auto tuple = proj->tuple()->isa<Tuple>();
+        if (!tuple || tuple->num_ops() <= 0)
+            return def;
+        DefVec envs, lams;
+        const Def* env_type = nullptr;
+        for (auto op: tuple->ops()) {
+            auto c = isa_closure(op);
+            if (!c || !c.fnc_as_lam() || (env_type && !checker_.equiv(env_type, c.env_type())))
+                return def;
+            env_type = c.env_type();
+            envs.push_back(c.env());
+            lams.push_back(c.fnc_as_lam());
+        }
+        auto env = w.extract(w.tuple(envs), proj->index());
+        auto lam = w.extract(w.tuple(lams), proj->index());
+        auto new_def = w.tuple(proj->type(), {env, lam});
+        w.DLOG("flattend branch: {} => {}", tuple, new_def);
+        return new_def;
+    }
+
     if (auto app = def->isa<App>()) {
         auto bxd_lam = app->callee()->isa_nom<Lam>();
         if (ignore(bxd_lam) || keep_.contains(bxd_lam))
@@ -51,26 +73,27 @@ const Def* UnboxClosure::rewrite(const Def* def) {
                 args.push_back(arg);
                 continue;
             }
-            auto [env_type, env, fnc] = unbox(arg);
-            if (arg_spec[i] && !checker_.equiv(arg_spec[i], env_type)) {
-                w.DLOG("{}, {}: {} ∪ {} => ⊤" , fnc, i, arg_spec[i], env_type);
+            auto c = isa_closure(arg);
+            if (!c) {
+                w.DLOG("{},{} => ⊤ (no closure lit)" , bxd_lam, i);
                 keep_.emplace(bxd_lam->var(i));
                 proxy_ops.push_back(arg);
+                continue;
+            }
+            if (arg_spec[i] && !checker_.equiv(arg_spec[i], c.env_type())) {
+                w.DLOG("{},{}: {} => ⊤  (env mismatch: {})" , bxd_lam, i, arg_spec[i], c.env_type());
+                keep_.emplace(bxd_lam->var(i));
+                proxy_ops.push_back(arg);
+                continue;
             }
             if (!arg_spec[i]) {
-                w.DLOG("{}, {}: ⊥ => {}", bxd_lam, i, env_type);
-                arg_spec[i] = env_type;
-                if (env_type == top(w)) { // Couldnt unbox lambda?
-                    keep_.emplace(bxd_lam->var(i));
-                    doms.push_back(type);
-                    args.push_back(arg);
-                    continue;
-                }
+                arg_spec[i] = c.env_type();
+                w.DLOG("{}, {}: ⊥ => {}", bxd_lam, i, c.env_type());
             }
-            doms.push_back(env_type);
-            doms.push_back(fnc->type());
-            args.push_back(env);
-            args.push_back(fnc);
+            doms.push_back(c.env_type());
+            doms.push_back(c.fnc_type());
+            args.push_back(c.env());
+            args.push_back(c.fnc());
         }
 
         if (proxy_ops.size() > 1) {

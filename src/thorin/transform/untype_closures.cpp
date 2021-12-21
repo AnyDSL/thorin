@@ -62,6 +62,18 @@ Lam *UntypeClosures::make_stub(Lam* lam, bool unbox_env) {
     return map<Lam>(lam, new_lam);
 }
 
+const Def* UntypeClosures::make_stub(ClosureWrapper& closure, bool unbox_env) {
+    auto& w = world();
+    if (auto fnc = closure.fnc_as_lam())
+        return make_stub(fnc, unbox_env);
+    auto [idx, lams] = closure.fnc_as_folded();
+    assert(idx && lams && "closure should be lam or folded branch");
+    auto new_lams = DefArray(lams->num_ops(), [&](auto i) {
+        const Def* lam = lams->op(i);
+        return make_stub(lam->isa_nom<Lam>(), unbox_env);
+    });
+    return w.extract(w.tuple(new_lams), idx);
+}
 
 // TODO: Handle ptr?
 static size_t repr_size(const Def* type, size_t inf) {
@@ -110,7 +122,7 @@ const Def* UntypeClosures::rewrite(const Def* def) {
     } else if (auto c = isa_closure(def)) {
         auto env = rewrite(c.env());
         auto unbox = unbox_env(env->type());
-        auto fn = make_stub(c.lam(), unbox);
+        auto fn = make_stub(c, unbox);
         if (!unbox) {
             auto mem_ptr = (c.marked_no_esc()) 
                 ? w.op_slot(env->type(), lcm_)

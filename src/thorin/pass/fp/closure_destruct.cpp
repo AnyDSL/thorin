@@ -7,8 +7,8 @@ namespace thorin {
 
 const Def* ClosureDestruct::rewrite(const Def* def) {
     if (auto c = isa_closure(def)) {
-        if (is_esc(c.lam())) {
-            world().DLOG("mark escaping: {}", c.lam());
+        if (is_esc(c.fnc())) {
+            world().DLOG("mark escaping: {}", c.fnc());
             auto dbg = def->debug();
             dbg.meta = nullptr;
             def->set_dbg(world().dbg(dbg));
@@ -17,24 +17,24 @@ const Def* ClosureDestruct::rewrite(const Def* def) {
         if (c.marked_no_esc())
             return def;
         auto new_dbg = ClosureWrapper::get_esc_annot(def);
-        if (!c.is_basicblock()) {
-            world().DLOG("mark no esc ({}, {})", c.env(), c.lam());
+        if (!c.is_basicblock() || !c.fnc_as_lam()) {
+            world().DLOG("mark no esc ({}, {})", c.env(), c.fnc());
             def->set_dbg(new_dbg);
             return def;
         }
-        auto& [old_env, new_lam] = clos2dropped_[c.lam()];
+        auto& [old_env, new_lam] = clos2dropped_[c.fnc_as_lam()];
         if (!new_lam || c.env() != old_env) {
             old_env = c.env();
-            auto doms = world().sigma(DefArray(c.lam()->num_doms(), [&](auto i) {
-                return (i == 0) ? world().sigma() : c.lam()->dom(i);
+            auto doms = world().sigma(DefArray(c.fnc_as_lam()->num_doms(), [&](auto i) {
+                return (i == 0) ? world().sigma() : c.fnc_as_lam()->dom(i);
             }));
-            new_lam = c.lam()->stub(world(), world().cn(doms), c.lam()->dbg());
-            world().DLOG("drop ({}, {}) => {}", c.env(), c.lam(), new_lam);
+            new_lam = c.fnc_as_lam()->stub(world(), world().cn(doms), c.fnc_as_lam()->dbg());
+            world().DLOG("drop ({}, {}) => {}", c.env(), c.fnc_as_lam(), new_lam);
             auto new_vars = DefArray(new_lam->num_doms(), [&](auto i) {
                 return (i == 0) ? c.env() : new_lam->var(i); 
             });
-            new_lam->set(c.lam()->apply(world().tuple(new_vars)));
-            eta_exp_.new2old(new_lam, c.lam());
+            new_lam->set(c.fnc_as_lam()->apply(world().tuple(new_vars)));
+            eta_exp_.new2old(new_lam, c.fnc_as_lam());
         }
         return world().tuple(c.type(), {world().tuple(), new_lam}, new_dbg);
     }
@@ -73,7 +73,8 @@ static void split(DefSet& out, const Def* def, bool keep_others) {
     if (auto lam = def->isa<Lam>())
         out.insert(lam);
     else if (auto c = isa_closure(def))
-        out.insert(c.lam());
+        // out.insert(c.fnc_as_lam());
+        split(out, c.fnc(), keep_others);
     else if (auto [var, lam] = isa_var(def); var && lam)
         out.insert(var);
     else if (auto proj = def->isa<Extract>())
@@ -95,14 +96,21 @@ static DefSet&& split(DefSet&& out, const Def* def, bool keep_others) {
 bool ClosureDestruct::is_esc(const Def* def) {
     if (escape_.contains(def))
         return true;
+    if (auto proj = def->isa<Extract>()) {
+        if (auto tuple = proj->tuple()->isa<Tuple>()) {
+            auto ops = tuple->ops();
+            if (std::all_of(ops.begin(), ops.end(), [&](auto d) { return is_esc(d); })) {
+                escape_.emplace(def);
+                return true;
+            }
+        }
+    }
     if (auto lam = def->isa_nom<Lam>()) {
         if (auto [_, rw] = clos2dropped_[lam]; rw && escape_.contains(rw)) {
             escape_.emplace(lam);
             return true;
         }
     }
-//     if (auto [var, lam] = isa_var(def); var && lam)
-//         return !lam->is_set();
     return false;
 }
 
@@ -144,8 +152,8 @@ const Def* try_get_stored(const Def* def) {
 
 undo_t ClosureDestruct::analyze(const Def* def) {
     if (auto c = isa_closure(def)) {
-        world().DLOG("closure ({}, {})", c.env(), c.lam());
-        return join(c.env(), is_esc(c.lam()) || is_esc(c.env_var()));
+        world().DLOG("closure ({}, {})", c.env(), c.fnc_as_lam());
+        return join(c.env(), is_esc(c.fnc_as_lam()) || is_esc(c.env_var()));
     } else if (auto stored = try_get_stored(def)) {
         return join(stored, true);
     } else if (auto app = def->isa<App>(); app && app->callee_type()->is_cn()) {

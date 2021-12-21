@@ -110,12 +110,26 @@ class ClosureWrapper {
 public:
     enum Kind { TYPED, UNTYPED };
 
-    ClosureWrapper(const Def* def, ClosureWrapper::Kind kind);
-
     // Getters
-    Lam* lam();
+    const Sigma* type() {
+        assert(def_);
+        return def_->type()->isa<Sigma>();
+    }
 
     const Def* env();
+    const Def* env_type() {
+        return env()->type();
+    }
+
+    const Def* fnc();
+    const Pi* fnc_type() {
+        return fnc()->type()->isa<Pi>();
+    }
+    Lam* fnc_as_lam();
+    std::pair<const Def*, const Tuple*> fnc_as_folded();
+
+    const Def* var(size_t i);
+    const Def* env_var();
 
     operator bool() const {
         return def_ != nullptr;
@@ -124,20 +138,6 @@ public:
     operator const Tuple*() {
         return def_;
     }
-
-    const Sigma* type() {
-        assert(def_);
-        return def_->type()->isa<Sigma>();
-    }
-
-    // Special Variables
-    const Def* env_var() {
-        return lam()->var(0_u64);
-    }
-
-    const Def* mem_var();
-
-    const Def* ret_var();
 
     // Properties
     unsigned int order() {
@@ -153,11 +153,16 @@ public:
     static const Def* get_esc_annot(const Def*);
 
 private:
-    // Slighlty misleading name^^
+    ClosureWrapper(const Tuple* def, ClosureWrapper::Kind kind)
+        : kind_(kind), def_(def)
+    {};
+
     const Pi* old_type();
 
     const Kind kind_;
     const Tuple* def_;
+
+    friend ClosureWrapper isa_closure(const Def* def, ClosureWrapper::Kind kind);
 };
 
 const Sigma* isa_ctype(const Def*, ClosureWrapper::Kind kind = ClosureWrapper::TYPED);

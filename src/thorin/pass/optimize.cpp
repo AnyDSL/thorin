@@ -37,22 +37,23 @@ void optimize(World& world) {
     ClosureConv(world).run();
     world.debug_stream();
     
-    PassMan conv_closures(world);
-    auto br = conv_closures.add<BetaRed>();
-    auto er = conv_closures.add<EtaRed>();
-    auto ee = conv_closures.add<EtaExp>(er);
-    conv_closures.add<CopyProp>(br, ee);
-    conv_closures.add<ClosureDestruct>(ee);
-    conv_closures.add<Scalerize>(ee);
-    conv_closures.add<UnboxClosure>();
-    conv_closures.run();
-    UntypeClosures(world).run();
-    world.debug_stream();
+    // PassMan conv_closures(world);
+    // auto br = conv_closures.add<BetaRed>();
+    // auto er = conv_closures.add<EtaRed>();
+    // auto ee = conv_closures.add<EtaExp>(er);
+    // conv_closures.add<CopyProp>(br, ee);
+    // conv_closures.add<ClosureDestruct>(ee);
+    // conv_closures.add<Scalerize>(ee);
+    // // conv_closures.add<UnboxClosure>();
+    // conv_closures.run();
 
-    // PassMan codgen_prepare(world);
-    // codgen_prepare.add<Scalerize>(nullptr);
+    PassMan codgen_prepare(world);
+    codgen_prepare.add<Scalerize>(nullptr);
+    codgen_prepare.add<UnboxClosure>();
     // codgen_prepare.add<RetWrap>();
-    // codgen_prepare.run();
+    codgen_prepare.run();
+    // UntypeClosures(world).run();
+    // world.debug_stream();
 }
 
 }

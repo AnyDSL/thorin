@@ -43,6 +43,7 @@ private:
     const Def* rewrite(const Def* def);
 
     Lam* make_stub(Lam* lam, bool unbox_env);
+    const Def* make_stub(ClosureWrapper& closure, bool unbox_env);
 
     template<class D = const Def>
     D* map(const Def* old_def, D* new_def) {

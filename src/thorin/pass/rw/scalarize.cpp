@@ -20,8 +20,12 @@ bool Scalerize::should_expand(Lam* lam) {
     return false;
 }
 
-Lam* Scalerize::make_scalar(Lam* tup_lam) {
-    if (auto sca_lam = tup2sca_.lookup(tup_lam)) return *sca_lam;
+Lam* Scalerize::make_scalar(const Def* def) {
+    auto tup_lam = def->isa_nom<Lam>();
+    assert(tup_lam);
+
+    if (auto sca_lam = tup2sca_.lookup(tup_lam)) 
+        return *sca_lam;
 
     auto types = DefVec();
     auto arg_sz = std::vector<size_t>();
@@ -43,8 +47,6 @@ Lam* Scalerize::make_scalar(Lam* tup_lam) {
         auto tuple = DefArray(arg_sz.at(i), [&](auto j) {
             return sca_lam->var(n++);
         });
-        auto t = world().tuple(tuple);
-        // n += arg_sz.at(i);
         return unflatten(tuple, tup_lam->dom(i));
     }));
     sca_lam->set(tup_lam->apply(new_vars));
@@ -55,17 +57,31 @@ Lam* Scalerize::make_scalar(Lam* tup_lam) {
 }
 
 const Def* Scalerize::rewrite(const Def* def) {
+    auto& w = world();
     if (auto app = def->isa<App>()) {
-        auto tup_lam = app->callee()->isa_nom<Lam>();
+        const Def* sca_callee = app->callee();
+        // auto tup_lam = app->callee()->isa_nom<Lam>();
 
-        if (!should_expand(tup_lam)) return app;
+        // if (!should_expand(tup_lam)) return app;
+        if (auto tup_lam = sca_callee->isa_nom<Lam>(); should_expand(tup_lam)) {
+            sca_callee = make_scalar(tup_lam);
+            world().DLOG("lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_callee, sca_callee->type());
+        } else if (auto proj = sca_callee->isa<Extract>()) {
+            auto tuple = proj->tuple()->isa<Tuple>();
+            if (tuple && std::all_of(tuple->ops().begin(), tuple->ops().end(), 
+                    [&](const Def* op) { return should_expand(op->isa_nom<Lam>()); })) {
+                auto new_tuple = w.tuple(DefArray(tuple->num_ops(), [&](auto i) { 
+                    return make_scalar(tuple->op(i)); 
+                }));
+                sca_callee = w.extract(new_tuple, proj->index());
+                w.DLOG("Expand tuple: {, } ~> {, }", tuple->ops(), new_tuple->ops());
+            }
+        }
 
-        if (auto sca_lam = make_scalar(tup_lam); sca_lam != tup_lam) {
-            world().DLOG("lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
+        if (sca_callee != app->callee()) {
             auto new_args = DefVec();
             flatten(new_args, app->arg(), false);
-
-            return world().app(sca_lam, new_args);
+            return world().app(sca_callee, new_args);
         }
     }
     return def;

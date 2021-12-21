@@ -14,7 +14,7 @@ public:
 
     UnboxClosure(PassMan& man) 
         : FPPass<UnboxClosure, Lam>(man, "unbox_closures")
-        , keep_(), boxed2unboxed_(), checker_(man.world())
+        , keep_(), boxed2unboxed_()
     {}
 
     const Def* rewrite(const Def*) override;
@@ -26,7 +26,6 @@ public:
 private:
     DefSet keep_;
     LamMap<std::tuple<Lam*, DefVec>> boxed2unboxed_;
-    Checker checker_;
 
     using Res = std::tuple<const Def*, const Def*, const Def*>;
     Res unbox(const Def*);

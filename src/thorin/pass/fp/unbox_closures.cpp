@@ -4,37 +4,6 @@
 
 namespace thorin {
 
-// static const Def* top(World& w) {
-//     return w.top(w.kind());
-// }
-
-// UnboxClosure::Res UnboxClosure::unbox(const Def* def) {
-//     auto& w = world();
-//     if (auto c = isa_closure(def)) {
-//         return {c.env()->type(), c.env(), c.lam()};
-//     } else if (auto proj = def->isa<Extract>()) {
-//         auto [type, env, lam] = unbox(proj->tuple());
-//         if (type == top(w))
-//             return {type, nullptr, nullptr};
-//         auto idx = proj->index();
-//         return {type, w.extract(env, idx), w.extract(lam, idx)};
-//     } else if (auto tuple = def->isa<Tuple>()) {
-//         assert (tuple->num_ops() > 0 && "empty tuple in closure expr");
-//         auto [type, env0, lam0] = unbox(tuple->op(0));
-//         DefVec envs = {env0}, lams = {lam0};
-//         for (size_t i = 1; i < tuple->num_ops(); i++) {
-//             auto [other_type, env, lam] = unbox(def->op(i));
-//             if (type != other_type)
-//                 return {};
-//             envs.push_back(env);
-//             lams.push_back(lam);
-//         }
-//         return {type, w.tuple(envs), w.tuple(lams)};
-//     } else {
-//         return {top(w), nullptr, nullptr};
-//     }
-// }
-
 const Def* UnboxClosure::rewrite(const Def* def) { 
     auto& w = world();
 
@@ -43,15 +12,19 @@ const Def* UnboxClosure::rewrite(const Def* def) {
         if (!tuple || tuple->num_ops() <= 0)
             return def;
         DefVec envs, lams;
-        const Def* env_type = nullptr;
+        const Def* fnc_type = nullptr;
         for (auto op: tuple->ops()) {
             auto c = isa_closure(op);
-            if (!c || !c.fnc_as_lam() || (env_type && !checker_.equiv(env_type, c.env_type())))
+            // TODO: We have to check if the pi's and not just the environmen-types are *equal*, since
+            // extract doesn't check for equiv and the closure conv may rewrite noms with different, but equiv noms
+            if (!c || !c.fnc_as_lam() || (fnc_type && fnc_type != c.fnc_type()))
                 return def;
-            env_type = c.env_type();
+            fnc_type = c.fnc_type();
             envs.push_back(c.env());
             lams.push_back(c.fnc_as_lam());
         }
+        auto t = w.tuple(envs);
+        auto l = w.tuple(lams);
         auto env = w.extract(w.tuple(envs), proj->index());
         auto lam = w.extract(w.tuple(lams), proj->index());
         auto new_def = w.tuple(proj->type(), {env, lam});
@@ -80,7 +53,7 @@ const Def* UnboxClosure::rewrite(const Def* def) {
                 proxy_ops.push_back(arg);
                 continue;
             }
-            if (arg_spec[i] && !checker_.equiv(arg_spec[i], c.env_type())) {
+            if (arg_spec[i] && arg_spec[i] != c.env_type()) {
                 w.DLOG("{},{}: {} => ⊤  (env mismatch: {})" , bxd_lam, i, arg_spec[i], c.env_type());
                 keep_.emplace(bxd_lam->var(i));
                 proxy_ops.push_back(arg);

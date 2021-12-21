@@ -151,7 +151,7 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
 
 
 void FVA::split_fv(Def *nom, const Def* def, DefSet& out) {
-    if (def->no_dep() || def->is_external() || def->isa<Axiom>() || def->isa_nom()) {
+    if (def->no_dep() || def->isa<Global>() || def->isa<Axiom>() || def->isa_nom()) {
         return;
     } else if (def->dep() == Dep::Var && !def->isa<Tuple>()) {
         out.emplace(def);

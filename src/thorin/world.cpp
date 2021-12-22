@@ -72,8 +72,8 @@ World::World(const std::string& name)
         THORIN_SHR(CODE)
     } { // Wrap: [m: nat, w: nat] -> [int w, int w] -> int w
         auto type = nom_pi(kind())->set_dom({nat, nat});
-        type->var(0, dbg("m"));
-        auto int_w = type_int(type->var(1, dbg("w")));
+        auto [m, w] = type->vars<2>({dbg("m"), dbg("w")});
+        auto int_w = type_int(w);
         type->set_codom(pi({int_w, int_w}, int_w));
         THORIN_WRAP(CODE)
     } { // Div: w: nat -> [mem, int w, int w] -> [mem, int w]
@@ -83,8 +83,8 @@ World::World(const std::string& name)
         THORIN_DIV(CODE)
     } { // ROp: [m: nat, w: nat] -> [real w, real w] -> real w
         auto type = nom_pi(kind())->set_dom({nat, nat});
-        type->var(0, dbg("m"));
-        auto real_w = type_real(type->var(1, dbg("w")));
+        auto [m, w] = type->vars<2>({dbg("m"), dbg("w")});
+        auto real_w = type_real(w);
         type->set_codom(pi({real_w, real_w}, real_w));
         THORIN_R_OP(CODE)
     } { // ICmp: w: nat -> [int w, int w] -> bool
@@ -94,8 +94,8 @@ World::World(const std::string& name)
         THORIN_I_CMP(CODE)
     } { // RCmp: [m: nat, w: nat] -> [real w, real w] -> bool
         auto type = nom_pi(kind())->set_dom({nat, nat});
-        type->var(0, dbg("m"));
-        auto real_w = type_real(type->var(1, dbg("w")));
+        auto [m, w] = type->vars<2>({dbg("m"), dbg("w")});
+        auto real_w = type_real(w);
         type->set_codom(pi({real_w, real_w}, type_bool()));
         THORIN_R_CMP(CODE)
     } { // trait: T: * -> nat
@@ -112,8 +112,7 @@ World::World(const std::string& name)
     {   // Conv: [dw: nat, sw: nat] -> i/r sw -> i/r dw
         auto make_type = [&](Conv o) {
             auto type = nom_pi(kind())->set_dom({nat, nat});
-            auto dw = type->var(0, dbg("dw"));
-            auto sw = type->var(1, dbg("sw"));
+            auto [dw, sw] = type->vars<2>({dbg("dw"), dbg("sw")});
             auto type_dw = o == Conv::s2r || o == Conv::u2r || o == Conv::r2r ? type_real(dw) : type_int(dw);
             auto type_sw = o == Conv::r2s || o == Conv::r2u || o == Conv::r2r ? type_real(sw) : type_int(sw);
             return type->set_codom(pi(type_sw, type_dw));
@@ -134,8 +133,7 @@ World::World(const std::string& name)
         data_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, Tag::PE, flags_t(PE::known), dbg(op2str(PE::known)));
     } { // bitcast: [D: *, S: *] -> S -> D
         auto type = nom_pi(kind())->set_dom({kind(), kind()});
-        auto D = type->var(0, dbg("D"));
-        auto S = type->var(1, dbg("S"));
+        auto [D, S] = type->vars<2>({dbg("D"), dbg("S")});
         type->set_codom(pi(S, D));
         data_.bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, dbg("bitcast"));
     } { // lea:, [n: nat, Ts: «n; *», as: nat] -> [ptr(«j: n; Ts#j», as), i: int n] -> ptr(Ts#i, as)
@@ -144,9 +142,7 @@ World::World(const std::string& name)
         dom->set(1, arr(dom->var(0, dbg("n")), kind()));
         dom->set(2, nat);
         auto pi1 = nom_pi(kind())->set_dom(dom);
-        auto n  = pi1->var(0, dbg("n"));
-        auto Ts = pi1->var(1, dbg("Ts"));
-        auto as = pi1->var(2, dbg("as"));
+        auto [n, Ts, as] = pi1->vars<3>({dbg("n"), dbg("Ts"), dbg("as")});
         auto in = nom_arr(n);
         in->set(extract(Ts, in->var(dbg("j"))));
         auto pi2 = nom_pi(kind())->set_dom({type_ptr(in, as), type_int(n)});
@@ -155,8 +151,7 @@ World::World(const std::string& name)
         data_.lea_ = axiom(normalize_lea, pi1, Tag::LEA, 0, dbg("lea"));
     } { // load: [T: *, as: nat] -> [M, ptr(T, as)] -> [M, T]
         auto type = nom_pi(kind())->set_dom({kind(), nat});
-        auto T  = type->var(0, dbg("T"));
-        auto as = type->var(1, dbg("as"));
+        auto [T, as] = type->vars<2>({dbg("T"), dbg("as")});
         auto ptr = type_ptr(T, as);
         type->set_codom(pi({mem, ptr}, sigma({mem, T})));
         data_.load_ = axiom(normalize_load, type, Tag::Load, 0, dbg("load"));
@@ -165,29 +160,25 @@ World::World(const std::string& name)
         data_.remem_ = axiom(normalize_remem, type, Tag::Remem, 0, dbg("remem"));
     } { // store: [T: *, as: nat] -> [M, ptr(T, as), T] -> M
         auto type = nom_pi(kind())->set_dom({kind(), nat});
-        auto T  = type->var(0, dbg("T"));
-        auto as = type->var(1, dbg("as"));
+        auto [T, as] = type->vars<2>({dbg("T"), dbg("as")});
         auto ptr = type_ptr(T, as);
         type->set_codom(pi({mem, ptr, T}, mem));
         data_.store_ = axiom(normalize_store, type, Tag::Store, 0, dbg("store"));
     } { // alloc: [T: *, as: nat] -> M -> [M, ptr(T, as)]
         auto type = nom_pi(kind())->set_dom({kind(), nat});
-        auto T  = type->var(0, dbg("T"));
-        auto as = type->var(1, dbg("as"));
+        auto [T, as] = type->vars<2>({dbg("T"), dbg("as")});
         auto ptr = type_ptr(T, as);
         type->set_codom(pi(mem, sigma({mem, ptr})));
         data_.alloc_ = axiom(nullptr, type, Tag::Alloc, 0, dbg("alloc"));
     } { // slot: [T: *, as: nat] -> [M, nat] -> [M, ptr(T, as)]
         auto type = nom_pi(kind())->set_dom({kind(), nat});
-        auto T  = type->var(0, dbg("T"));
-        auto as = type->var(1, dbg("as"));
+        auto [T, as] = type->vars<2>({dbg("T"), dbg("as")});
         auto ptr = type_ptr(T, as);
         type->set_codom(pi({mem, nat}, sigma({mem, ptr})));
         data_.slot_ = axiom(nullptr, type, Tag::Slot, 0, dbg("slot"));
     } { // atomic: [T: *, R: *] -> T -> R
         auto type = nom_pi(kind())->set_dom({kind(), kind()});
-        auto T = type->var(0, dbg("T"));
-        auto R = type->var(1, dbg("R"));
+        auto [T, R] = type->vars<2>({dbg("T"), dbg("R")});
         type->set_codom(pi(T, R));
         data_.atomic_ = axiom(nullptr, type, Tag::Atomic, 0, dbg("atomic"));
     } { // lift: [r: nat, s: «r; nat»] -> [n_i: nat, Is: «n_i; *», n_o: nat, Os: «n_o; *», f: «i: n_i; Is#i» -> «o: n_o; Os#o»] -> «i: n_i; «s; Is#i»» -> «o: n_o; «s; Os#o»»
@@ -258,9 +249,7 @@ World::World(const std::string& name)
         data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, dbg("rev_diff"));
         */
         auto type = nom_pi(kind())->set_dom({kind(), kind()});
-        auto A = type->var(0, dbg("A"));
-        auto B = type->var(1, dbg("B"));
-
+        auto [A, B] = type->vars<2>({dbg("A"), dbg("B")});
         auto pullback = cn_mem_flat(B, A);
         auto diffd = cn({
           type_mem(),

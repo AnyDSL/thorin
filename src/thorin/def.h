@@ -12,16 +12,6 @@
 #include "thorin/util/ptr.h"
 #include "thorin/util/stream.h"
 
-// TODO remove once we upgraded to C++20
-namespace std {
-
-struct identity {
-    using is_transparent = void;
-    template<class T> T& operator()(T& x) const { return x; }
-    template<class T> const T& operator()(const T& x) const { return x; }
-};
-
-}
 namespace thorin {
 
 template<class T>
@@ -103,6 +93,15 @@ enum : unsigned {
 };
 }
 
+/// Use as mixin to wrap all kind of @p Def::proj and @p Def::projs variants.
+#define THORIN_PROJ(NAME, CONST)                                                                                                       \
+    size_t num_##NAME##s() CONST { return ((const Def*) NAME())->num_projs(); }                                                        \
+    const Def* NAME(nat_t a, nat_t i, const Def* dbg = {}) CONST { return ((const Def*) NAME())->proj(a, i, dbg); }                    \
+    const Def* NAME(         nat_t i, const Def* dbg = {}) CONST { return ((const Def*) NAME())->proj(   i, dbg); }                    \
+    template<size_t A = -1_s, class F> auto NAME##s(F f, Defs dbgs = {}) CONST { return ((const Def*) NAME())->projs<A, F>(f, dbgs); } \
+    template<size_t A = -1_s>          auto NAME##s(     Defs dbgs = {}) CONST { return ((const Def*) NAME())->projs<A   >(   dbgs); } \
+    template<class F> auto NAME##s(size_t a, F f, Defs dbgs = {}) CONST { return ((const Def*) NAME())->projs<F>(a, f, dbgs); }        \
+                      auto NAME##s(size_t a,      Defs dbgs = {}) CONST { return ((const Def*) NAME())->projs   (a,    dbgs); }
 /**
  * Base class for all @p Def%s.
  * The data layout (see @p World::alloc) looks like this:
@@ -206,37 +205,35 @@ public:
         std::array<u64, 2>        xy = def->projs<2>(as_lit<nat_t>);
         auto [a, b] = def->projs<2>();
         auto [x, y] = def->projs<2>(as_lit<nat_t>);
-        Array<const Def*> projs = def->projs();             // projs has def->num_projs() many elements
-        Array<const Lit*> lits = def->projs(as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
+        Array<const Def*> projs = def->projs();                // projs has def->num_projs() many elements
+        Array<const Def*> projs = def->projs(n);               // projs has n elements - asserts if incorrect
+        Array<const Lit*> lits = def->projs(as_lit<nat_t>);    // same as above but applies as_lit<nat_t> to each element
+        Array<const Lit*> lits = def->projs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
      @endcode
      */
-    template<size_t A = -1_s, class F = std::identity>
-    auto projs(F f = {}) const {
+    template<size_t A = -1_s, class F>
+    auto projs(F f, Defs dbgs = {}) const {
         using R = std::decay_t<decltype(f(this))>;
         if constexpr (A == -1_s) {
-            return projs(num_projs(), f);
+            return projs(num_projs(), f, dbgs);
         } else {
             assert(A == as_lit(arity()));
             std::array<R, A> array;
             for (size_t i = 0; i != A; ++i)
-                array[i] = f(proj(A, i));
+                array[i] = f(proj(A, i, dbgs.empty() ? nullptr : dbgs[i]));
             return array;
         }
     }
 
-    /**
-     * Splits this @p Def via @p proj%ections into an Array.
-     * Applies @p f to each element.
-     @code{.cpp}
-        Array<const Def*> projs = def->projs(n);               // projs has n elements - asserts if incorrect
-        Array<const Lit*> lits = def->projs(n, as_lit<nat_t>); // same as above but applies as_lit<nat_t> to each element
-     @endcode
-     */
-    template<class F = std::identity>
-    auto projs(size_t a, F f = {}) const {
+    template<class F>
+    auto projs(size_t a, F f, Defs dbgs = {}) const {
         using R = std::decay_t<decltype(f(this))>;
-        return Array<R>(a, [&](size_t i) { return f(proj(a, i)); });
+        return Array<R>(a, [&](size_t i) { return f(proj(a, i, dbgs.empty() ? nullptr : dbgs[i])); });
     }
+
+    template<size_t A = -1_s>
+    auto projs(Defs dbgs = {}) const { return projs<A>([this](const Def* def) { return def; }, dbgs); }
+    auto projs(size_t a, Defs dbgs = {}) const { return projs(a, [this](const Def* def) { return def; }, dbgs); }
     //@}
 
     /// @name external handling
@@ -284,11 +281,7 @@ public:
     /// Only returns a @p Var for this @em nom if it has ever been created.
     const Var* has_var() { return var_ ? var() : nullptr; }
     const Var* var(const Def* dbg = {});
-    const Def* var(size_t a, size_t i, const Def* dbg = {}) { return ((const Def*) var())->proj(a, i, dbg); }
-    const Def* var(size_t i, const Def* dbg = {}) { return ((const Def*) var())->proj(i, dbg); }
-    template<size_t A = -1_s, class F = std::identity> auto vars(          F f = {}) { return ((const Def*) var())->projs<A, F>(   f); }
-    template<                 class F = std::identity> auto vars(size_t a, F f = {}) { return ((const Def*) var())->projs<   F>(a, f); }
-    size_t num_vars() { return ((const Def*) var())->num_projs(); }
+    THORIN_PROJ(var,)
     //@}
 
     /// @name rewrites last op by substituting @p var with @p arg.

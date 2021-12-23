@@ -52,7 +52,7 @@ Lam* Scalerize::make_scalar(const Def* def) {
     sca_lam->set(tup_lam->apply(new_vars));
     tup2sca_[sca_lam] = sca_lam;
     tup2sca_.emplace(tup_lam, sca_lam);
-
+    world().DLOG("lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_lam, sca_lam->type());
     return sca_lam;
 }
 
@@ -65,7 +65,7 @@ const Def* Scalerize::rewrite(const Def* def) {
         // if (!should_expand(tup_lam)) return app;
         if (auto tup_lam = sca_callee->isa_nom<Lam>(); should_expand(tup_lam)) {
             sca_callee = make_scalar(tup_lam);
-            world().DLOG("lambda {} : {} ~> {} : {}", tup_lam, tup_lam->type(), sca_callee, sca_callee->type());
+
         } else if (auto proj = sca_callee->isa<Extract>()) {
             auto tuple = proj->tuple()->isa<Tuple>();
             if (tuple && std::all_of(tuple->ops().begin(), tuple->ops().end(), 

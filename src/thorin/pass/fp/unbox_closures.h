@@ -26,11 +26,6 @@ public:
 private:
     DefSet keep_;
     LamMap<std::tuple<Lam*, DefVec>> boxed2unboxed_;
-
-    using Res = std::tuple<const Def*, const Def*, const Def*>;
-    Res unbox(const Def*);
-
-
 };
 
 };

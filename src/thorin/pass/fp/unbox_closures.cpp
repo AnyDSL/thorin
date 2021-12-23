@@ -23,8 +23,6 @@ const Def* UnboxClosure::rewrite(const Def* def) {
             envs.push_back(c.env());
             lams.push_back(c.fnc_as_lam());
         }
-        auto t = w.tuple(envs);
-        auto l = w.tuple(lams);
         auto env = w.extract(w.tuple(envs), proj->index());
         auto lam = w.extract(w.tuple(lams), proj->index());
         auto new_def = w.tuple(proj->type(), {env, lam});
@@ -48,20 +46,20 @@ const Def* UnboxClosure::rewrite(const Def* def) {
             }
             auto c = isa_closure(arg);
             if (!c) {
-                w.DLOG("{},{} => ⊤ (no closure lit)" , bxd_lam, i);
+                w.DLOG("{}({}) => ⊤ (no closure lit)" , bxd_lam, i);
                 keep_.emplace(bxd_lam->var(i));
                 proxy_ops.push_back(arg);
                 continue;
             }
             if (arg_spec[i] && arg_spec[i] != c.env_type()) {
-                w.DLOG("{},{}: {} => ⊤  (env mismatch: {})" , bxd_lam, i, arg_spec[i], c.env_type());
+                w.DLOG("{}({}): {} => ⊤  (env mismatch: {})" , bxd_lam, i, arg_spec[i], c.env_type());
                 keep_.emplace(bxd_lam->var(i));
                 proxy_ops.push_back(arg);
                 continue;
             }
             if (!arg_spec[i]) {
                 arg_spec[i] = c.env_type();
-                w.DLOG("{}, {}: ⊥ => {}", bxd_lam, i, c.env_type());
+                w.DLOG("{}({}): ⊥ => {}", bxd_lam, i, c.env_type());
             }
             doms.push_back(c.env_type());
             doms.push_back(c.fnc_type());
@@ -71,6 +69,13 @@ const Def* UnboxClosure::rewrite(const Def* def) {
 
         if (proxy_ops.size() > 1) {
             return proxy(def->type(), proxy_ops);
+        }
+
+        // No argument was flattend, ignore lam from now on
+        if (doms.size() <= bxd_lam->num_doms()) {
+            w.DLOG("KEEP {}", bxd_lam);
+            keep_.emplace(bxd_lam);
+            return def;
         }
 
         auto& [ubxd_lam, old_doms] = boxed2unboxed_[bxd_lam];
@@ -86,8 +91,10 @@ const Def* UnboxClosure::rewrite(const Def* def) {
                     return ubxd_lam->var(j++);
             }));
             ubxd_lam->set(bxd_lam->apply(new_args));
-            w.DLOG("replaced lam {} => {}", bxd_lam, ubxd_lam);
+            w.DLOG("{} => {} (new)", bxd_lam, ubxd_lam);
             keep_.insert(ubxd_lam);
+        } else {
+            w.DLOG("{} => {} (cached)", bxd_lam, ubxd_lam);
         }
         return w.app(ubxd_lam, args);
     }

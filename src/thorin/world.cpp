@@ -14,10 +14,10 @@
 #include "thorin/error.h"
 #include "thorin/normalize.h"
 #include "thorin/rewrite.h"
+#include "thorin/tables.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 #include "thorin/util/container.h"
-#include "tables.h"
 
 namespace thorin {
 

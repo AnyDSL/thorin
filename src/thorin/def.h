@@ -313,6 +313,7 @@ public:
         if (node()                 == Node::Space) return *world_;
         if (type()->node()         == Node::Space) return *type()->world_;
         if (type()->type()->node() == Node::Space) return *type()->type()->world_;
+        assert(type()->type()->type()->node() == Node::Space);
         return *type()->type()->type()->world_;
     }
     //@}

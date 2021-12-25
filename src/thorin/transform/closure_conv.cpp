@@ -149,7 +149,6 @@ const Def* ClosureConv::closure_type(const Pi* pi, Def2Def& subst, const Def* en
     }
 }
 
-
 void FVA::split_fv(Def *nom, const Def* def, DefSet& out) {
     if (def->no_dep() || def->isa<Global>() || def->isa<Axiom>() || def->isa_nom()) {
         return;
@@ -163,7 +162,7 @@ void FVA::split_fv(Def *nom, const Def* def, DefSet& out) {
 
 std::pair<FVA::Node*, bool> FVA::build_node(Def *nom, NodeQueue& worklist) {
     auto [p, inserted] = lam2nodes_.emplace(nom, nullptr);
-    if (!inserted) 
+    if (!inserted)
         return {p->second.get(), false};
     world().DLOG("FVA: create node: {}", nom);
     p->second = std::make_unique<Node>();
@@ -280,8 +279,8 @@ Sigma* isa_pct(const Def* def) {
     return nullptr;
 }
 
-const Def* closure_env_type(World& world) { 
-    return world.type_ptr(world.type_int_width(8)); 
+const Def* closure_env_type(World& world) {
+    return world.type_ptr(world.type_int_width(8));
 }
 
 const Sigma* isa_uct(const Def* def) {
@@ -292,7 +291,7 @@ const Sigma* isa_uct(const Def* def) {
     return nullptr;
 }
 
-const Sigma* isa_ctype(const Def* def, ClosureWrapper::Kind kind) { 
+const Sigma* isa_ctype(const Def* def, ClosureWrapper::Kind kind) {
     switch (kind) {
         case ClosureWrapper::TYPED: {
             auto sig = def->isa_nom<Sigma>();
@@ -314,9 +313,9 @@ const Sigma* isa_ctype(const Def* def, ClosureWrapper::Kind kind) {
 
 static std::pair<const Def*, const Tuple*>
 isa_folded_branch(const Def* def) {
-    if (auto proj = def->isa<Extract>()) 
+    if (auto proj = def->isa<Extract>())
         if (auto tuple = proj->tuple()->isa<Tuple>())
-            if (std::all_of(tuple->ops().begin(), tuple->ops().end(), 
+            if (std::all_of(tuple->ops().begin(), tuple->ops().end(),
                     [](const Def* d) { return d->isa_nom<Lam>(); }))
                 return {proj->index(), tuple};
     return {nullptr, nullptr};
@@ -381,7 +380,7 @@ static bool isa_mark(const Def* def) {
 
 bool ClosureWrapper::marked_no_esc() {
     auto m = def_->debug().meta;
-    return m && 
+    return m &&
         (isa_mark(m) ||
            (m->isa<Tuple>() &&
            std::any_of(m->ops().begin(), m->ops().end(), isa_mark)));

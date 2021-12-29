@@ -13,56 +13,86 @@ namespace thorin {
  * %foobar: structural
  */
 
-
-template<typename A, typename B, typename ...Ts >
-bool match_any(A a, B b, Ts... args) {
-    if constexpr(sizeof...(args) == 0)
-        return a == b;
-    else
-        return a == b || match_any(a, args...);
-}
-
-static bool is_var_ref(const Def* def) {
-    const Extract* proj;
-    return def->isa<Var>()
-        || ((proj = def->isa<Extract>()) && proj->tuple()->isa<Var>());
-}
-
-static bool print_inline(const Def* def) {
-    return !def->isa_nom() && (def->no_dep() || is_var_ref(def) ||
-        (match_any(def->node(), Node::Pi, Node::Sigma, Node::Tuple) && def->num_ops() <= 5));
-}
-
-struct Fmt {
-    enum Flags {
-        None,
-        Parentize
-    };
-    const Def *def;
-    Flags flags;
-
-    friend Stream& operator<<(Stream& s, Fmt& fmt) {
-        if (fmt.flags == Parentize && print_inline(fmt.def) && !is_var_ref(fmt.def) &&
-                match_any(fmt.def->node(), Node::App, Node::Proxy, Node::Extract, Node::Pi))
-            return s.fmt("({})", fmt.def);
-
-        return s.fmt("{}", fmt.def);
+bool Def::unwrap() const {
+    if (isa_nom()) return false;
+    if (isa<Global>()) return false;
+    //if (def->no_dep()) return true;
+    if (auto app = isa<App>()) {
+        if (app->type()->isa<Pi>()) return true; // curried apps are printed inline
+        if (app->type()->isa<Kind>() || app->type()->isa<Space>()) return true;
+        if (app->callee()->isa<Axiom>()) {
+            return app->callee_type()->num_doms() <= 1;
+        }
+        return false;
     }
+    return true;
+}
+
+enum class Prec {   //  left    right
+    Bottom,         //  Bottom  Bottom
+    Pi,             //  App     Pi
+    App,            //  App     Extract
+    Extract,        //  Extract Lit
+    Lit,            //  -       Lit
 };
 
-static Fmt parens(const Def* def) {
-    return Fmt{def, Fmt::Parentize};
+static Prec prec(const Def* def) {
+    if (def->isa<Pi>())      return Prec::Pi;
+    if (def->isa<App>())     return Prec::App;
+    if (def->isa<Extract>()) return Prec::Extract;
+    if (def->isa<Lit>())     return Prec::Lit;
+    return Prec::Bottom;
 }
 
-Stream& stream(Stream& s, const Def* def) {
+static Prec prec_l(const Def* def) {
+    assert(!def->isa<Lit>());
+    if (def->isa<Pi>())      return Prec::App;
+    if (def->isa<App>())     return Prec::App;
+    if (def->isa<Extract>()) return Prec::Extract;
+    return Prec::Bottom;
+}
+
+static Prec prec_r(const Def* def) {
+    if (def->isa<Pi>())      return Prec::Pi;
+    if (def->isa<App>())     return Prec::Extract;
+    if (def->isa<Extract>()) return Prec::Lit;
+    return Prec::Bottom;
+}
+
+template<bool L>
+struct LRPrec {
+    LRPrec(const Def* l, const Def* r)
+        : l_(l)
+        , r_(r)
+    {}
+
+    friend Stream& operator<<(Stream& s, const LRPrec& p) {
+        if constexpr (L) {
+            if (p.l_->unwrap() && prec_l(p.r_) > prec(p.r_)) return s.fmt("({})", p.l_);
+            return s.fmt("{}", p.l_);
+        } else {
+            if (p.r_->unwrap() && prec(p.l_) > prec_r(p.l_)) return s.fmt("({})", p.r_);
+            return s.fmt("{}", p.r_);
+        }
+    }
+
+private:
+    const Def* l_;
+    const Def* r_;
+};
+
+using LPrec = LRPrec<true>;
+using RPrec = LRPrec<false>;
+
+Stream& Def::unwrap(Stream& s) const {
     if (false) {}
-    else if (def->isa<Space>()) return s.fmt("□");
-    else if (def->isa<Kind>())  return s.fmt("★");
-    else if (def->isa<Nat>())   return s.fmt("nat");
-    else if (auto bot = def->isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
-    else if (auto top = def->isa<Top>()) return s.fmt("⊤∷{}", top->type());
-    else if (auto axiom = def->isa<Axiom>()) return s.fmt(":{}", axiom->debug().name);
-    else if (auto lit = def->isa<Lit>()) {
+    else if (isa<Space>()) return s.fmt("□");
+    else if (isa<Kind>())  return s.fmt("★");
+    else if (isa<Nat>())   return s.fmt("nat");
+    else if (auto bot = isa<Bot>()) return s.fmt("⊥∷{}", bot->type());
+    else if (auto top = isa<Top>()) return s.fmt("⊤∷{}", top->type());
+    else if (auto axiom = isa<Axiom>()) return s.fmt(":{}", axiom->debug().name);
+    else if (auto lit = isa<Lit>()) {
         if (auto real = thorin::isa<Tag::Real>(lit->type())) {
             switch (as_lit(real->arg())) {
                 case 16: return s.fmt("{}∷r16", lit->get<r16>());
@@ -72,29 +102,20 @@ Stream& stream(Stream& s, const Def* def) {
             }
         }
         return s.fmt("{}∷{}", lit->get(), lit->type());
-    } else if (auto proj = def->isa<Extract>()) {
-        if (auto var = proj->tuple()->isa<Var>()) {
-            auto lam = var->nom()->isa<Lam>();
-            if (lam && proj == lam->mem_var())
-                return s.fmt("MEM@{{{}}}", var->nom());
-            else if (lam && proj == lam->ret_var())
-                return s.fmt("RET@{{{}}}", var->nom());
-            else
-                return s.fmt("@{{{}, {}}}", var->nom(), proj->index());
-        } else {
-            return s.fmt("#{{{}}} {}", proj->index(), proj->tuple());
-        }
-    } else if (auto var = def->isa<Var>()) {
-        return s.fmt("@{{{}}}", var->nom());
-    } else if (auto pi = def->isa<Pi>()) {
+    } else if (auto ex = isa<Extract>()) {
+        if (ex->tuple()->isa<Var>() && ex->index()->isa<Lit>()) return s.fmt("{}", ex->unique_name());
+        return s.fmt("{}#{}", ex->tuple(), ex->index());
+    } else if (auto var = isa<Var>()) {
+        return s.fmt("@{}", var->nom());
+    } else if (auto pi = isa<Pi>()) {
         if (pi->is_cn()) {
-            return s.fmt("cn {}", pi->dom());
+            return s.fmt("Cn {}", pi->dom());
         } else {
             return s.fmt("{} -> {}", pi->dom(), pi->codom());
         }
-    } else if (auto lam = def->isa<Lam>()) {
+    } else if (auto lam = isa<Lam>()) {
         return s.fmt("λ@({}) {}", lam->filter(), lam->body());
-    } else if (auto app = def->isa<App>()) {
+    } else if (auto app = isa<App>()) {
         if (auto size = isa_lit(isa_sized_type(app))) {
             if (auto real = thorin::isa<Tag::Real>(app)) return s.fmt("r{}", *size);
             if (auto _int = thorin::isa<Tag:: Int>(app)) {
@@ -109,34 +130,29 @@ Stream& stream(Stream& s, const Def* def) {
                 return s.fmt("i{}", str);
             }
             THORIN_UNREACHABLE;
-        } else if (auto ptr = thorin::isa<Tag::Ptr>(app)) {
-            auto [pointee, addr_space] = ptr->args<2>();
-            if (auto as = isa_lit(addr_space); as && *as == 0)
-                return s.fmt("{}*", (const Def*) pointee); // TODO why the cast???
         }
-
-        return s.fmt("{} {}", parens(app->callee()), app->arg());
-    } else if (auto sigma = def->isa<Sigma>()) {
+        return s.fmt("{} {}", LPrec(app->callee(), app), RPrec(app, app->arg()));
+    } else if (auto sigma = isa<Sigma>()) {
         return s.fmt("[{, }]", sigma->ops());
-    } else if (auto tuple = def->isa<Tuple>()) {
+    } else if (auto tuple = isa<Tuple>()) {
         s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nom() ? s.fmt("∷{}", tuple->type()) : s;
-    } else if (auto arr = def->isa<Arr>()) {
+    } else if (auto arr = isa<Arr>()) {
         return s.fmt("«{}; {}»", arr->shape(), arr->body());
-    } else if (auto pack = def->isa<Pack>()) {
+    } else if (auto pack = isa<Pack>()) {
         return s.fmt("‹{}; {}›", pack->shape(), pack->body());
-    } else if (auto proxy = def->isa<Proxy>()) {
+    } else if (auto proxy = isa<Proxy>()) {
         return s.fmt(".proxy#{}#{} {, }", proxy->id(), proxy->flags(), proxy->ops());
-    } else if (auto bound = isa_bound(def)) {
+    } else if (auto bound = isa_bound(this)) {
         const char* op = bound->isa<Join>() ? "∪" : "∩";
-        if (def->isa_nom()) s.fmt("{}{}: {}", op, def->unique_name(), def->type());
-        return s.fmt("{}({, })", op, def->ops());
+        if (isa_nom()) s.fmt("{}{}: {}", op, unique_name(), type());
+        return s.fmt("{}({, })", op, ops());
     }
 
     // other
-    if (def->fields() == 0)
-        return s.fmt(".{} {, }", def->node_name(), def->ops());
-    return s.fmt(".{}#{} {, }", def->node_name(), def->fields(), def->ops());
+    if (fields() == 0)
+        return s.fmt(".{} {, }", node_name(), ops());
+    return s.fmt(".{}#{} {, }", node_name(), fields(), ops());
 }
 
 //------------------------------------------------------------------------------
@@ -153,13 +169,12 @@ public:
 
     Stream& s;
     size_t max;
-    unique_queue<DefSet> noms;
+    unique_queue<NomSet> noms;
     DefSet defs;
 };
 
-
 void RecStreamer::run(const Def* def) {
-    if (def->no_dep() || !defs.emplace(def).second) return;
+    if (!defs.emplace(def).second) return;
 
     for (auto op : def->ops()) { // for now, don't include debug info and type
         if (auto nom = op->isa_nom()) {
@@ -172,9 +187,9 @@ void RecStreamer::run(const Def* def) {
     }
 
     if (auto nom = def->isa_nom())
-        thorin::stream(s.endl().fmt("-> "), nom).fmt(";");
-    else if (!print_inline(def))
-        def->stream_assignment(s.endl());
+        nom->unwrap(s.endl());
+    else if (!def->unwrap())
+        def->let(s.endl());
 }
 
 void RecStreamer::run() {
@@ -183,7 +198,14 @@ void RecStreamer::run() {
         s.endl().endl();
 
         if (nom->is_set()) {
-            s.fmt("{}: {} = {{\t", nom->unique_name(), nom->type());
+            s.fmt("{}: {}", nom->unique_name(), nom->type());
+            if (nom->has_var()) {
+                auto e = nom->num_vars();
+                s.fmt(": {}", e == 1 ? "" : "(");
+                s.range(nom->vars(), [&](const Def* def) { s << def->unique_name(); });
+                if (e != 1) s.fmt(")");
+            }
+            s.fmt(" = {{\t");
             run(nom);
             s.fmt("\b\n}}");
         } else {
@@ -202,12 +224,12 @@ Stream& operator<<(Stream& s, const Def* def) {
 Stream& operator<<(Stream& s, std::pair<const Def*, const Def*> p) { return s.fmt("({}, {})", p.first, p.second); }
 
 Stream& Def::stream(Stream& s) const {
-    if (no_dep() || print_inline(this)) return thorin::stream(s, this);
+    if (unwrap()) return unwrap(s);
     return s << unique_name();
 }
 
 Stream& Def::stream(Stream& s, size_t max) const {
-    if (max == 0) return stream_assignment(s);
+    if (max == 0) return let(s);
     RecStreamer rec(s, --max);
 
     if (auto nom = isa_nom()) {
@@ -221,8 +243,8 @@ Stream& Def::stream(Stream& s, size_t max) const {
     return s;
 }
 
-Stream& Def::stream_assignment(Stream& s) const {
-    return thorin::stream(s.fmt("{}: {} = ", unique_name(), type()), this).fmt(";");
+Stream& Def::let(Stream& s) const {
+    return unwrap(s.fmt("{}: {} = ", unique_name(), type())).fmt(";");
 }
 
 void Def::dump() const { Streamable<Def>::dump(); }
@@ -234,7 +256,7 @@ void Def::dump(size_t max) const {
 
 // TODO polish this
 Stream& World::stream(Stream& s) const {
-    auto old_gid = curr_gid();
+    //auto old_gid = curr_gid();
 #if 1
     DepTree dep(*this);
 
@@ -242,7 +264,7 @@ Stream& World::stream(Stream& s) const {
     s << "module '" << name();
 
     stream(rec, dep.root()).endl();
-    assert_unused(old_gid == curr_gid());
+    //assert_unused(old_gid == curr_gid());
     return s;
 #else
     RecStreamer rec(s, std::numeric_limits<size_t>::max());

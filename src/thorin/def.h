@@ -327,7 +327,9 @@ public:
     ///@{ @name stream
     Stream& stream(Stream& s) const;
     Stream& stream(Stream& s, size_t max) const;
-    Stream& stream_assignment(Stream&) const;
+    Stream& let(Stream&) const;
+    Stream& unwrap(Stream&) const;
+    bool unwrap() const;
     void dump() const;
     void dump(size_t) const;
     //@}

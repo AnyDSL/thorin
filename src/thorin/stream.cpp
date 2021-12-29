@@ -106,6 +106,7 @@ Stream& Def::unwrap(Stream& s) const {
         if (ex->tuple()->isa<Var>() && ex->index()->isa<Lit>()) return s.fmt("{}", ex->unique_name());
         return s.fmt("{}#{}", ex->tuple(), ex->index());
     } else if (auto var = isa<Var>()) {
+        if (var->nom()->num_vars() == 1) return s.fmt("{}", var->unique_name());
         return s.fmt("@{}", var->nom());
     } else if (auto pi = isa<Pi>()) {
         if (pi->is_cn()) {

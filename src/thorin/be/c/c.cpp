@@ -681,6 +681,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         bb.tail.fmt("goto {};", label_name(callee));
     } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
+            emit_unsafe(cont->arg(0));
             if (!cont->arg(1)->isa<PrimLit>())
                 world().edef(cont->arg(1), "reserve_shared: couldn't extract memory size");
 
@@ -699,6 +700,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
 
+            emit_unsafe(cont->arg(0));
             std::string interval;
             if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0)
                 interval = emit_constant(cont->arg(1));
@@ -731,6 +733,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(cont->arg(6)));
             bb.tail.fmt("goto {};", label_name(cont->arg(5)));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
+            emit_unsafe(cont->arg(0));
             bb.tail.fmt("goto {};", label_name(callee));
         } else {
             THORIN_UNREACHABLE;

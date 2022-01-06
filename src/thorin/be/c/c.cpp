@@ -707,6 +707,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
             auto begin = emit(cont->arg(2));
             auto end   = emit(cont->arg(3));
+            // HLS/OpenCL Pipeline loop-index
+            bb.tail.fmt("int i{};\n", cont->callee()->gid());
             if (lang_ == Lang::OpenCL) {
                 bb.tail << guarded_statement(cl_dialect_guard(CLDialect::INTEL), [&](Stream& s){
                     s.fmt("#pragma ii {}\n", !interval.empty() ? interval : "1");
@@ -715,7 +717,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     s.fmt("__attribute__((xcl_pipeline_loop({})))\n", !interval.empty() ? interval : "1");
                 });
             }
-            bb.tail.fmt("int i{};\n", cont->callee()->gid());
+            // The next instruction pipeline pragmas/attributes need to see is just a loop-head.
+            // No any other instructions should come in between.
             bb.tail.fmt("for (i{} = {}; i{} < {}; i{}++) {{\t\n",
                 callee->gid(), begin, callee->gid(), end, callee->gid());
             if (lang_ == Lang::HLS) {

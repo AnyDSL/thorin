@@ -909,7 +909,8 @@ std::string CCodeGen::emit_constant(const Def* def) {
 
 /// If bb is nullptr, then we are emitting a constant, otherwise we emit the def as a local variable
 std::string CCodeGen::emit_def(BB* bb, const Def* def) {
-    StringStream s;
+    auto sp = std::make_unique<StringStream>();
+    auto& s = *sp;
     auto name = def->unique_name();
     const Type* emitted_type = def->type();
 

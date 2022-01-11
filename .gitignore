@@ -10,3 +10,5 @@ CMakeCache.txt
 CMakeFiles/
 build*
 test/impala
+tags
+.vimrc

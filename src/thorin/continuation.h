@@ -75,6 +75,7 @@ enum class Intrinsic : uint8_t {
     AtomicLoad,                 ///< Intrinsic atomic load function
     AtomicStore,                ///< Intrinsic atomic store function
     CmpXchg,                    ///< Intrinsic cmpxchg function
+    CmpXchgWeak,                ///< Intrinsic cmpxchg weak function
     Fence,                      ///< Intrinsic fence function
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
@@ -144,6 +145,9 @@ public:
     bool is_internal() const { return attributes().visibility == Visibility::Internal; }
     bool is_imported() const { return is_external() && empty(); }
     bool is_exported() const { return is_external() && !empty(); }
+    // TODO: probably should be moved to Attributes
+    bool is_channel() const { return name().find("channel") != std::string::npos; }
+    bool is_pipe() const { return name().find("pipe") != std::string::npos; }
     bool is_accelerator() const;
     void destroy_body();
 

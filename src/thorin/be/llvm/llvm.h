@@ -106,7 +106,7 @@ private:
     Continuation* emit_vectorize_continuation(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_rv_intrinsic(llvm::IRBuilder<>&, Continuation*);
-    Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*, bool);
     Continuation* emit_fence(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);

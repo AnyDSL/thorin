@@ -177,6 +177,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "atomic_load")    attributes().intrinsic = Intrinsic::AtomicLoad;
     else if (name() == "atomic_store")   attributes().intrinsic = Intrinsic::AtomicStore;
     else if (name() == "cmpxchg")        attributes().intrinsic = Intrinsic::CmpXchg;
+    else if (name() == "cmpxchg_weak")   attributes().intrinsic = Intrinsic::CmpXchgWeak;
     else if (name() == "fence")          attributes().intrinsic = Intrinsic::Fence;
     else if (name() == "undef")          attributes().intrinsic = Intrinsic::Undef;
     else world().ELOG("unsupported thorin intrinsic '{}'", name());

@@ -1,5 +1,7 @@
 #include "thorin/be/codegen.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_kernel_launch.h"
 
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
@@ -71,7 +73,7 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
+DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& flags)
     : cgs {}
 {
     for (size_t i = 0; i < cgs.size(); ++i)
@@ -139,10 +141,14 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     }
 
     // get the HLS kernel configurations
+    Top2Kernel top2kernel;
+    DeviceParams hls_host_params;
     if (!importers_[HLS].world().empty()) {
+        hls_host_params = hls_channels(importers_[HLS], top2kernel, world);
+
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
+            for (size_t i = hls_free_vars_offset, e = use->num_args(); i != e; ++i) {
                 auto arg = use->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;
@@ -166,11 +172,13 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
                     world.edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
-                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
+                param_sizes.emplace(imported->param(i - hls_free_vars_offset + 2), num_elems);
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
+        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
     }
+    hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
     if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
@@ -179,7 +187,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     (void)opt;
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
-        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
+        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

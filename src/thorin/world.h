@@ -327,7 +327,6 @@ public:
     const Axiom* ax_lea()     const { return data_.lea_;     }
     const Axiom* ax_lift()    const { return data_.lift_;    }
     const Axiom* ax_load()    const { return data_.load_;    }
-    const Axiom* ax_remem()   const { return data_.remem_;   }
     const Axiom* ax_slot()    const { return data_.slot_;    }
     const Axiom* ax_store()   const { return data_.store_;   }
     //@}
@@ -367,7 +366,6 @@ public:
     const Def* op_lea(const Def* ptr, const Def* index, const Def* dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, u64 i, const Def* dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, const Def* dbg = {}) { auto safe_int = type_int(as<Tag::Ptr>(ptr->type())->arg(0)->arity()); return op_lea(ptr, op(Conv::u2u, safe_int, i), dbg); }
-    const Def* op_remem(const Def* mem, const Def* dbg = {}) { return app(ax_remem(), mem, dbg); }
     const Def* op_load (const Def* mem, const Def* ptr,                 const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(ax_load (), {T, a}), {mem, ptr     }, dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, const Def* dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(ax_store(), {T, a}), {mem, ptr, val}, dbg); }
     const Def* op_alloc(const Def* type, const Def* mem, const Def* dbg = {}) { return app(app(ax_alloc(), {type, lit_nat_0()}),  mem,                      dbg); }
@@ -639,7 +637,6 @@ private:
         const Axiom* bitcast_;
         const Axiom* lea_;
         const Axiom* load_;
-        const Axiom* remem_;
         const Axiom* slot_;
         const Axiom* store_;
         const Axiom* type_int_;

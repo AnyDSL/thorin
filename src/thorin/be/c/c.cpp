@@ -1310,10 +1310,10 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                     if (block == std::tuple(1, 1, 1)) {
                         s << guarded_statement(cl_dialect_guard(CLDialect::INTEL), [&](Stream& gs){
                             gs << "__attribute__((max_global_work_dim(0)))\n";
-                            gs << "#else\n" << "__attribute__((reqd_work_group_size(1, 1, 1)))\n";
                             if (!has_concrete_params(cont)) {
                                 gs << "__attribute__((autorun))\n";
                             }
+                            gs << "#else\n" << "__attribute__((reqd_work_group_size(1, 1, 1)))\n";
                         });
                     } else
                         s.fmt("__attribute__((reqd_work_group_size({}, {}, {})))\n", std::get<0>(block), std::get<1>(block), std::get<2>(block));

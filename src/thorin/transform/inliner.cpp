@@ -52,7 +52,7 @@ void inliner(World& world) {
     };
 
     auto is_candidate = [&] (Continuation* continuation) -> Scope* {
-        if (continuation->has_body() && continuation->order() > 1) {
+        if (continuation->has_body() && continuation->order() > 1 && !continuation->is_external()) {
             auto scope = get_scope(continuation);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops

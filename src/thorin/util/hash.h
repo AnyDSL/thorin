@@ -379,7 +379,7 @@ public:
     //@}
 
     //@{ find
-    iterator find(const key_type& k) {
+    DEBUG_UTIL iterator find(const key_type& k) {
         if (on_heap()) {
             if (empty())
                 return end();
@@ -395,7 +395,7 @@ public:
         return array_find(k);
     }
 
-    const_iterator find(const key_type& key) const {
+    DEBUG_UTIL const_iterator find(const key_type& key) const {
         return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this);
     }
     //@}
@@ -412,8 +412,8 @@ public:
         fill(nodes_);
     }
 
-    size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
-    bool contains(const key_type& key) const { return count(key) == 1; }
+    DEBUG_UTIL size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
+    DEBUG_UTIL bool contains(const key_type& key) const { return count(key) == 1; }
 
     void rehash(size_t new_capacity) {
         using std::swap;

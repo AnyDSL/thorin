@@ -105,7 +105,8 @@ private:
     Continuation* emit_sync(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_vectorize_continuation(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic(llvm::IRBuilder<>&, Continuation*);
-    Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_cmpxchg(llvm::IRBuilder<>&, Continuation*, bool);
+    Continuation* emit_fence(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_load(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_atomic_store(llvm::IRBuilder<>&, Continuation*);
     llvm::Value* emit_bitcast(llvm::IRBuilder<>&, const Def*, const Type*);

@@ -72,10 +72,10 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->ops(), index)));
+        set_type(world.ptr_type(get(struct_type->ops(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
         assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag())));
+        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->device(), type->addr_space()));
     } else {
         THORIN_UNREACHABLE;
     }

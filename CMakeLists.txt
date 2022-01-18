@@ -22,6 +22,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
+# check for Half library
+find_package(Half REQUIRED)
+message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
+
 # check for possible llvm extension
 find_package(LLVM QUIET CONFIG)
 if(LLVM_FOUND)
@@ -47,6 +51,8 @@ if(DEFINED CMAKE_BUILD_TYPE)
     message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
+set(Thorin_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 # configure thorin preprocessor definitions
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(THORIN_ENABLE_CHECKS TRUE)
@@ -61,7 +67,6 @@ if(RV_FOUND)
     set(THORIN_ENABLE_RV TRUE)
 endif()
 configure_file(src/thorin/config.h.in ${CMAKE_BINARY_DIR}/include/thorin/config.h @ONLY)
-include_directories(${CMAKE_BINARY_DIR}/include)
 
 add_subdirectory(src)
 

@@ -33,12 +33,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
-#include "thorin/be/llvm/cuda.h"
-#include "thorin/be/llvm/hls.h"
-#include "thorin/be/llvm/nvvm.h"
-#include "thorin/be/llvm/opencl.h"
 #include "thorin/pass/optimize.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/util/array.h"
@@ -500,7 +495,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     if (debug)
         dibuilder_.finalize();
 
-#if THORIN_ENABLE_RV
+#if 0 //THORIN_ENABLE_RV
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));

@@ -1402,7 +1402,9 @@ void CCodeGen::emit_c_int() {
     world().cleanup();
 
     for (auto def : world().defs()) {
-            auto cont = def->isa_nom<Continuation>();
+        auto cont = def->isa_nom<Continuation>();
+        if (!cont)
+            continue;
         if (!cont->is_external())
             continue;
         if (cont->cc() != CC::C && cont->is_imported())

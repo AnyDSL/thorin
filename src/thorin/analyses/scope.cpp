@@ -84,7 +84,7 @@ const ParamSet& Scope::free_params() const {
         unique_queue<DefSet> queue;
 
         auto enqueue = [&](const Def* def) {
-            if (auto param = def->isa<Param>())
+            if (auto param = def->isa<Param>(); param && !param->continuation()->dead_)
                 free_params_->emplace(param);
             else if (def->isa<Continuation>())
                 return;

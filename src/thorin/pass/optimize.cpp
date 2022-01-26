@@ -28,8 +28,6 @@ void optimize(World& world) {
     opt.add<CopyProp>(br, ee);
     opt.run();
 
-
-
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     cleanup_world(world);

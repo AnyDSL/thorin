@@ -766,6 +766,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return emit_alloca(convert(alloced_type), slot->unique_name());
     } else if (auto load = isa<Tag::Load>(def)) {
         return emit_load(load);
+    } else if (auto remem = isa<Tag::Remem>(def)) {
+        return lookup(remem->arg());
     } else if (auto store = isa<Tag::Store>(def)) {
         return emit_store(store);
     }

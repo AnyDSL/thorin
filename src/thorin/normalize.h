@@ -9,6 +9,7 @@ const Def* normalize_bit    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_bitcast(const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_lea    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_load   (const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_remem  (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_store  (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_tangent(const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_lift   (const Def*, const Def*, const Def*, const Def*);

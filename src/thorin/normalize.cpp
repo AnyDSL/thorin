@@ -888,6 +888,13 @@ const Def* normalize_load(const Def* type, const Def* callee, const Def* arg, co
     return world.raw_app(callee, {mem, ptr}, dbg);
 }
 
+const Def* normalize_remem(const Def* type, const Def* callee, const Def* mem, const Def* dbg) {
+    auto& world = type->world();
+
+    //if (auto m = isa<Tag::Remem>(mem)) mem = m;
+    return world.raw_app(callee, mem, dbg);
+}
+
 const Def* normalize_store(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [mem, ptr, val] = arg->projs<3>();

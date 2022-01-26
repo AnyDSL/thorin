@@ -57,8 +57,6 @@ set(THORIN_SOURCES
     pass/fp/dce.h
     pass/fp/ssa_constr.cpp
     pass/fp/ssa_constr.h
-    pass/rw/auto_diff.cpp
-    pass/rw/auto_diff.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
     pass/rw/remem_elim.cpp

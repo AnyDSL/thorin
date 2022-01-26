@@ -212,53 +212,6 @@ World::World(const std::string& name)
         rs_pi->set_codom(is_os_pi);
 
         data_.lift_ = axiom(normalize_lift, rs_pi, Tag::Lift, 0, dbg("lift"));
-    } { // type_tangent_vector: Π*. *
-        data_.type_tangent_vector_ = axiom(normalize_tangent, pi(kind(), kind()), Tag::TangentVector, 0, dbg("tangent"));
-    } { // op_rev_diff: Π[I:*.O:*]. ΠI. O
-        // DS: I can't figure out how to give it the correct type…
-        // pullback assumes that:
-        //     I = Π[mem, T₁, …, Tₙ, Π[mem, R₁, …, Rₙ].⊥].⊥
-        //     O = Π[mem, T₁, …, Tₙ, Π[mem, R₁, …, Rₙ, Π[mem, R'₁, …, R'ₙ, ΠT'.⊥].⊥].⊥].⊥
-        // where
-        //     α' = type_tangent_vector(α)
-
-        /*
-        auto type = nom_pi(kind())->set_dom({ kind(), kind() });
-        auto I = type->var(0, dbg("I"));
-        auto O = type->var(1, dbg("O"));
-        type->set_codom(pi(I, O));
-        data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, dbg("rev_diff"));
-        */
-        // TODO: generalize this axiom for arbitrary functions
-        // what we basically want is an operator that looks like this:
-        //   A →  B →  (A →  B →  (A × B →  B × A))
-        //              \---------- Ξ ------------/
-        /*
-        auto type = nom_pi(kind())->set_dom({kind(), kind()});
-        auto A = type->var(0, dbg("A"));
-        auto B = type->var(1, dbg("B"));
-
-        auto diffd = cn({
-          type_mem(),
-          A,
-          B,
-          cn({type_mem(), sigma({B, A})})
-        });
-        auto Xi = pi(cn_mem_flat(A, B), diffd);
-        type->set_codom(Xi);
-        data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, dbg("rev_diff"));
-        */
-        auto type = nom_pi(kind())->set_dom({kind(), kind()});
-        auto [A, B] = type->vars<2>({dbg("A"), dbg("B")});
-        auto pullback = cn_mem_flat(B, A);
-        auto diffd = cn({
-          type_mem(),
-          A,
-          cn({type_mem(), B, pullback})
-        });
-        auto Xi = pi(cn_mem_flat(A, B), diffd);
-        type->set_codom(Xi);
-        data_.op_rev_diff_ = axiom(nullptr, type, Tag::RevDiff, 0, dbg("rev_diff"));
     }
 }
 
@@ -786,37 +739,6 @@ void World::visit(VisitFn f) const {
         for (auto nom : scope.free_noms())
             noms.push(nom);
     }
-}
-
-/*
- * misc
- */
-
-const Def* World::op_rev_diff(const Def* fn, const Def* dbg){
-    if (auto pi = fn->type()->isa<Pi>()) {
-        assert(pi->is_cn());
-
-        auto dom = sigma(pi->dom()->ops().skip_front().skip_back());
-        auto codom = sigma(pi->dom()->ops().back()->as<Pi>()->dom()->ops().skip_front());
-        //auto tan_dom = type_tangent_vector(dom);
-        //auto tan_codom = type_tangent_vector(codom);
-
-        // seed value is an additional input   // FIXME: generalize this for the multidimensional case
-        //auto in = merge_sigma(dom, {tan_codom});
-        //auto out = merge_sigma(codom, {tan_dom});
-        //auto cn = cn_mem_flat(in, out);
-
-        auto mk_pullback = app(data_.op_rev_diff_, tuple({dom, codom}), this->dbg("mk_pullback"));
-        auto pullback = app(mk_pullback, fn, dbg);
-
-        return pullback;
-    }
-
-    return nullptr;
-}
-
-const Def* World::type_tangent_vector(const Def* primal_type, const Def* dbg) {
-    return app(data_.type_tangent_vector_, primal_type, dbg);
 }
 
 /*

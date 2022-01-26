@@ -383,12 +383,6 @@ public:
     const Def* op_wminus(nat_t wmode, const Def* a, const Def* dbg = {}) { return op_wminus(lit_nat(wmode), a, dbg); }
     //@}
 
-    /// @name AD
-    //@{
-    const Def* type_tangent_vector(const Def* primal_type, const Def* dbg = {});
-    const Def* op_rev_diff(const Def* fn, const Def* dbg = {});
-    //@}
-
     /// @name helpers
     //@{
     const Def* dbg(Debug);

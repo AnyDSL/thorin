@@ -42,11 +42,7 @@ const Def* SSAConstr::rewrite(const Def* def) {
         if (auto sloxy = isa_proxy(ptr, Sloxy)) {
             if (data(curr_nom()).writable.contains(sloxy)) {
                 set_val(curr_nom(), sloxy, val);
-#if 0
                 return world().op_remem(mem, store->dbg());
-#else
-                return mem;
-#endif
             }
         }
     } else if (auto app = def->isa<App>()) {

@@ -6,6 +6,7 @@
 #include "thorin/pass/fp/ssa_constr.h"
 #include "thorin/pass/rw/bound_elim.h"
 #include "thorin/pass/rw/partial_eval.h"
+#include "thorin/pass/rw/remem_elim.h"
 #include "thorin/pass/rw/ret_wrap.h"
 #include "thorin/pass/rw/scalarize.h"
 
@@ -27,12 +28,15 @@ void optimize(World& world) {
     opt.add<CopyProp>(br, ee);
     opt.run();
 
+
+
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff
     cleanup_world(world);
 
     PassMan codgen_prepare(world);
     //codgen_prepare.add<BoundElim>();
+    codgen_prepare.add<RememElim>();
     codgen_prepare.add<RetWrap>();
     codgen_prepare.run();
 }

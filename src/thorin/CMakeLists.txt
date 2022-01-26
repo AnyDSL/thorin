@@ -61,6 +61,8 @@ set(THORIN_SOURCES
     pass/rw/auto_diff.h
     pass/rw/partial_eval.cpp
     pass/rw/partial_eval.h
+    pass/rw/remem_elim.cpp
+    pass/rw/remem_elim.h
     pass/rw/ret_wrap.cpp
     pass/rw/ret_wrap.h
     pass/rw/bound_elim.cpp

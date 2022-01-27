@@ -1251,6 +1251,7 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
 }
 
 const Def* World::cse_base(const Def* def) {
+    assert(def->isa_structural());
 #if THORIN_ENABLE_CHECKS
     if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif

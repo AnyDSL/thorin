@@ -28,7 +28,7 @@ const Type* Importer::import(const Type* otype) {
     return ntype;
 }
 
-const Def* Importer::import(Tracker odef) {
+const Def* Importer::import(const Def* odef) {
     if (auto ndef = def_old2new_.lookup(odef)) {
         assert(&(*ndef)->world() == &world_);
         return *ndef;
@@ -77,7 +77,7 @@ const Def* Importer::import(Tracker odef) {
     size_t size = odef->num_ops();
     Array<const Def*> nops(size);
     for (size_t i = 0; i != size; ++i) {
-        assert(odef->op(i) != odef.def());
+        assert(odef->op(i) != odef);
         nops[i] = import(odef->op(i));
         assert(&nops[i]->world() == &world());
     }

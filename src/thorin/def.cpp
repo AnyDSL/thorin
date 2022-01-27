@@ -131,7 +131,7 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
-void Def::replace_uses(Tracker with) const {
+void Def::replace_uses(const Def* with) const {
     world().DLOG("replace uses: {} -> {}", this, with);
     if (this != with) {
         for (auto& use : copy_uses()) {

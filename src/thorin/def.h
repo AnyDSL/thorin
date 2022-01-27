@@ -205,7 +205,7 @@ public:
     // TODO stub
     //@}
 
-    void replace_uses(Tracker) const;
+    void replace_uses(const Def*) const;
 
     /// @name hash/equal
     //@{
@@ -231,7 +231,6 @@ private:
     const NodeTag tag_;
     std::vector<const Def*> ops_;
     const Type* type_;
-    mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
     mutable hash_t hash_ = 0; // TODO init in ctor
@@ -243,31 +242,7 @@ private:
 
     friend class Cleaner;
     friend class Scope;
-    friend class Tracker;
     friend class World;
-};
-
-class Tracker {
-public:
-    Tracker()
-        : def_(nullptr)
-    {}
-    Tracker(const Def* def)
-        : def_(def)
-    {}
-
-    operator const Def*() const { return def(); }
-    const Def* operator->() const { return def(); }
-    const Def* def() const {
-        if (def_ != nullptr) {
-            while (auto repr = def_->substitute_)
-                def_ = repr;
-        }
-        return def_;
-    }
-
-private:
-    mutable const Def* def_;
 };
 
 uint64_t UseHash::hash(Use use) {

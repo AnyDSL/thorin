@@ -11,7 +11,7 @@ static void dead_load_opt(const Scope& scope) {
         auto continuation = n->continuation();
         if (!continuation->has_body()) continue;
 
-        Tracker mem;
+        const Def* mem;
         for (auto arg : continuation->body()->args()) {
             if (is_mem(arg)) {
                 mem = arg;
@@ -24,7 +24,7 @@ static void dead_load_opt(const Scope& scope) {
                 if (auto memop = mem->isa<MemOp>()) {
                     if (memop->isa<Load>() || memop->isa<Enter>()) {
                         if (memop->out(1)->num_uses() == 0)
-                            memop->replace(world.tuple({ memop->mem(), world.bottom(memop->out(1)->type()) }));
+                            memop->replace_uses(world.tuple({ memop->mem(), world.bottom(memop->out(1)->type()) }));
                     }
                     mem = memop->mem();
                 } else if (auto extract = mem->isa<Extract>()) {

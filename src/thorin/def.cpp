@@ -131,14 +131,8 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
-void Def::replace(Tracker with) const {
-    world().DLOG("replace: {} -> {}", this, with);
-    assert(type() == with->type());
-    assert(!is_replaced());
-
-    auto cont = with->isa<Continuation>();
-    assert(!(cont && cont->dead_));
-
+void Def::replace_uses(Tracker with) const {
+    world().DLOG("replace uses: {} -> {}", this, with);
     if (this != with) {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
@@ -148,8 +142,20 @@ void Def::replace(Tracker with) const {
         }
 
         uses_.clear();
-        substitute_ = with;
     }
+}
+
+void Def::replace(Tracker with) const {
+    world().DLOG("replace: {} -> {}", this, with);
+    assert(!is_replaced());
+    assert(isa_nom());
+
+    auto cont = with->isa<Continuation>();
+    assert(!(cont && cont->dead_));
+
+    replace_uses(with);
+    if (this != with)
+        substitute_ = with;
 }
 
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }

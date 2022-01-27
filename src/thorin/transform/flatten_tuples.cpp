@@ -203,15 +203,15 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            if (def->empty()) continue; // todo: can this be a continuation ?
+            auto old_cont = def->isa_nom<Continuation>();
+            if (old_cont && !old_cont->has_body()) continue;
 
             auto new_cont = wrap_pair.second->as_nom<Continuation>();
-            auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
+            auto wrapped_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
 
-            def->replace(old_cont);
-            if (auto cont = def->isa_nom<Continuation>()) {
-                cont->destroy("flatten_tuples");
-            }
+            def->replace_uses(wrapped_cont);
+            if (old_cont)
+                old_cont->destroy("flatten_tuples");
         }
     }
 

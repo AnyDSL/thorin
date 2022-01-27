@@ -112,7 +112,7 @@ void Cleaner::eta_conversion() {
                         callee->param(i)->replace(body->arg(i));
 
                     // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
-                    // actual_number_of_uses() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
+                    // can_be_inlined() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
                     assert(body->num_uses() == 1);
                     continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
                     callee->destroy("cleanup: continuation only called once");

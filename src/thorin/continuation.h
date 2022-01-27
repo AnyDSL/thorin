@@ -195,7 +195,7 @@ public:
         size_t used = 0;
         for (auto use : uses()) {
             if (auto app = use->isa<App>())
-                used+= app->num_uses();
+                used += app->num_uses();
             else if (!use->isa<Param>())
                 used++;
         }

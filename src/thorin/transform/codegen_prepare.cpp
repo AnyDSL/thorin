@@ -18,7 +18,7 @@ void codegen_prepare(World& world) {
                     auto nops = uapp->copy_ops();
                     nops[use.index()] = ret_cont;
                     auto napp = uapp->rebuild(world, uapp->type(), nops);
-                    uapp->replace(napp);
+                    uapp->replace_uses(napp);
                     dirty = true;
                 }
             }

@@ -119,7 +119,7 @@ void lift_builtins(World& world) {
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
 
                         new_ops[0] = ncontinuation;
-                        uapp->replace(uapp->rebuild(world, uapp->type(), new_ops));
+                        uapp->replace_uses(uapp->rebuild(world, uapp->type(), new_ops));
                     }
                 }
             }

@@ -57,7 +57,7 @@ public:
                 // If the loaded value is completely specified, replace the load
                 if (!contains_top(load_value)) {
                     todo_ = true;
-                    load->replace(world_.tuple({ load->mem(), load_value }));
+                    load->replace_uses(world_.tuple({ load->mem(), load_value }));
                 }
             }
             return load->out_mem();
@@ -66,7 +66,7 @@ public:
             auto slot = find_slot(store->ptr());
             if (slot) {
                 if (only_stores(slot)) {
-                    store->replace(store->mem());
+                    store->replace_uses(store->mem());
                 } else {
                     // If the slot has been found and is safe, try to find a value for it
                     auto slot_value = get_value(slot, mapping);

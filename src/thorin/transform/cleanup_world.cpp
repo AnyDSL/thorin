@@ -226,8 +226,6 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    verify(world());
-
     Importer importer(world_);
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.defs().capacity());
@@ -238,6 +236,9 @@ void Cleaner::rebuild() {
     }
 
     swap(importer.world(), world_);
+
+    verify(world());
+
     todo_ |= importer.todo();
 }
 

@@ -369,7 +369,6 @@ private:
     friend class Filter;
     friend class App;
     friend class Importer;
-    friend void Def::replace(Tracker) const;
 };
 
 }

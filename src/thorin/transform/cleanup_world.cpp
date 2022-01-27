@@ -109,7 +109,7 @@ void Cleaner::eta_conversion() {
                 if (callee->can_be_inlined() && callee->has_body() && !world().is_external(callee)) {
                     auto callee_body = callee->body();
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
-                        callee->param(i)->replace(body->arg(i));
+                        callee->param(i)->replace_uses(body->arg(i));
 
                     // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
                     // can_be_inlined() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
@@ -129,7 +129,7 @@ void Cleaner::eta_conversion() {
                     continue;
 
                 if (body->args() == continuation->params_as_defs()) {
-                    continuation->replace(body->callee());
+                    continuation->replace_uses(body->callee());
                     continuation->destroy("cleanup: calls a parameter (no perm)");
                     todo_ = todo = true;
                     continue;
@@ -200,7 +200,7 @@ void Cleaner::eliminate_params() {
                     ocontinuation->attributes(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
-                    ocontinuation->param(i)->replace(ncontinuation->param(j));
+                    ocontinuation->param(i)->replace_uses(ncontinuation->param(j));
                     ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
                 }
 

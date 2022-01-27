@@ -31,7 +31,6 @@ const Type* Importer::import(const Type* otype) {
 const Def* Importer::import(Tracker odef) {
     if (auto ndef = def_old2new_.lookup(odef)) {
         assert(&(*ndef)->world() == &world_);
-        assert(!(*ndef)->is_replaced());
         return *ndef;
     }
 
@@ -41,7 +40,6 @@ const Def* Importer::import(Tracker odef) {
         import(oparam->continuation())->as_nom<Continuation>();
         auto nparam = def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
-        assert(!nparam->is_replaced());
         return nparam;
     }
 
@@ -87,7 +85,6 @@ const Def* Importer::import(Tracker odef) {
     if (odef->isa_structural()) {
         auto ndef = odef->rebuild(world(), ntype, nops);
         todo_ |= odef->tag() != ndef->tag();
-        assert(!ndef->is_replaced());
         return def_old2new_[odef] = ndef;
     }
 
@@ -97,7 +94,6 @@ const Def* Importer::import(Tracker odef) {
         ncontinuation->set_body(napp);
     ncontinuation->set_filter(nops[1]->as<Filter>());
     ncontinuation->verify();
-    assert(!ncontinuation->is_replaced());
     return ncontinuation;
 }
 

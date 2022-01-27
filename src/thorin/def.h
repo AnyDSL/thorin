@@ -203,10 +203,9 @@ public:
     //@{
     virtual const Def* rebuild(World&, const Type*, Defs) const { THORIN_UNREACHABLE; }
     // TODO stub
-    void replace_uses(Tracker) const;
-    void replace(Tracker) const;                                ///< @deprecated
-    bool is_replaced() const { return substitute_ != nullptr; } ///< @deprecated
     //@}
+
+    void replace_uses(Tracker) const;
 
     /// @name hash/equal
     //@{

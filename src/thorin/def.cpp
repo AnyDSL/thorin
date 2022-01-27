@@ -145,19 +145,6 @@ void Def::replace_uses(Tracker with) const {
     }
 }
 
-void Def::replace(Tracker with) const {
-    world().DLOG("replace: {} -> {}", this, with);
-    assert(!is_replaced());
-    assert(isa_nom());
-
-    auto cont = with->isa<Continuation>();
-    assert(!(cont && cont->dead_));
-
-    replace_uses(with);
-    if (this != with)
-        substitute_ = with;
-}
-
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
 
 }

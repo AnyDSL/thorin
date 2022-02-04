@@ -8,10 +8,10 @@
 namespace thorin {
 
 void lift_pipeline(World& world) {
-    for (auto cont : world.copy_continuations()) {
+    for (auto cont : world.copy_lams()) {
         if (!cont->has_body()) continue;
         auto body = cont->body();
-        auto callee = body->callee()->isa_nom<Continuation>();
+        auto callee = body->callee()->isa_nom<Lam>();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && body->num_args() == 6) {
             auto cont_type = world.fn_type({ world.mem_type() });
@@ -68,7 +68,7 @@ void lift_builtins(World& world) {
     lift_pipeline(world);
 
     while (true) {
-        Continuation* cur = nullptr;
+        Lam* cur = nullptr;
         Scope::for_each(world, [&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
@@ -94,7 +94,7 @@ void lift_builtins(World& world) {
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (param->isa_nom<Continuation>()) {
+            if (param->isa_nom<Lam>()) {
                 // TODO: assert is actually top level
             } else if (!param->isa<Filter>()) { // don't lift the filter
                 assert(!param->isa<App>() && "an app should not be free");
@@ -106,7 +106,7 @@ void lift_builtins(World& world) {
         auto lifted = lift(scope, defs);
         for (auto use : cur->copy_uses()) {
             if (auto uapp = use->isa<App>()) {
-                if (auto callee = uapp->callee()->isa_nom<Continuation>()) {
+                if (auto callee = uapp->callee()->isa_nom<Lam>()) {
                     if (callee->is_intrinsic()) {
                         auto old_ops = uapp->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());

@@ -17,16 +17,16 @@ public:
     //@{
     const Scope& scope() const { return *scope_; }
     const F_CFG& cfg() const { return *cfg_; }
-    const CFNode* cfg(Continuation* cont) const { return cfg()[cont]; }
+    const CFNode* cfg(Lam* cont) const { return cfg()[cont]; }
     const DomTree& domtree() const { return *domtree_; }
     const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
     //@}
 
     /// @name compute schedules
     //@{
-    Continuation* early(const Def*);
-    Continuation* late (const Def*);
-    Continuation* smart(const Def*);
+    Lam* early(const Def*);
+    Lam* late (const Def*);
+    Lam* smart(const Def*);
     //@}
 
     friend void swap(Scheduler& s1, Scheduler& s2) {
@@ -44,13 +44,13 @@ private:
     const Scope* scope_     = nullptr;
     const F_CFG* cfg_       = nullptr;
     const DomTree* domtree_ = nullptr;
-    DefMap<Continuation*> early_;
-    DefMap<Continuation*> late_;
-    DefMap<Continuation*> smart_;
+    DefMap<Lam*> early_;
+    DefMap<Lam*> late_;
+    DefMap<Lam*> smart_;
     DefMap<Uses> def2uses_;
 };
 
-using Schedule = std::vector<Continuation*>;
+using Schedule = std::vector<Lam*>;
 Schedule schedule(const Scope&);
 
 }

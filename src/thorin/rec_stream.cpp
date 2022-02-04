@@ -18,7 +18,7 @@ public:
 
     Stream& s;
     size_t max;
-    unique_queue<ContinuationSet> conts;
+    unique_queue<LamSet> conts;
     DefSet defs;
 };
 
@@ -26,7 +26,7 @@ void RecStreamer::run(const Def* def) {
     if (def->no_dep() || !defs.emplace(def).second) return;
 
     for (auto op : def->ops()) { // for now, don't include debug info and type
-        if (auto cont = op->isa_nom<Continuation>()) {
+        if (auto cont = op->isa_nom<Lam>()) {
             if (max != 0) {
                 if (conts.push(cont)) --max;
             }
@@ -35,7 +35,7 @@ void RecStreamer::run(const Def* def) {
         }
     }
 
-    if (auto cont = def->isa_nom<Continuation>()) {
+    if (auto cont = def->isa_nom<Lam>()) {
         assert(cont->has_body());
         s.fmt("{}: {} = {}({, })", cont, cont->type(), cont->body()->callee(), cont->body()->args());
         run(cont->body());
@@ -83,7 +83,7 @@ Stream& Def::stream(Stream& s, size_t max) const {
             max -= 2;
             RecStreamer rec(s, max);
 
-            if (auto cont = isa_nom<Continuation>()) {
+            if (auto cont = isa_nom<Lam>()) {
                 rec.conts.push(cont);
                 rec.run();
             } else {
@@ -98,8 +98,8 @@ Stream& Def::stream(Stream& s, size_t max) const {
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
         return s.fmt("{}.{}", param->continuation(), param->unique_name());
-    } else if (isa<Continuation>()) {
-        return s.fmt("cont {}", unique_name());
+    } else if (isa<Lam>()) {
+        return s.fmt("lam {}", unique_name());
     } else if (auto app = isa<App>()) {
         return s.fmt("{}({, })", app->callee(), app->args());
     } else if (isa<Filter>()) {

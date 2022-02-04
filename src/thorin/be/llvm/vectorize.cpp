@@ -48,10 +48,10 @@ struct VectorizeArgs {
     };
 };
 
-Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
-    auto target = body->callee()->as_nom<Continuation>();
+    auto target = body->callee()->as_nom<Lam>();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(body->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
@@ -60,7 +60,7 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
     emit_unsafe(body->arg(0));
 
     // arguments
-    auto kernel = body->arg(VectorizeArgs::Body)->as<Global>()->init()->as_nom<Continuation>();
+    auto kernel = body->arg(VectorizeArgs::Body)->as<Global>()->init()->as_nom<Lam>();
     const size_t num_kernel_args = body->num_args() - VectorizeArgs::Num;
 
     // build simd-function signature
@@ -92,7 +92,7 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
     u32 vector_length_constant = body->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, emit_fun_decl(kernel), simd_kernel_call);
 
-    return body->arg(VectorizeArgs::Return)->as_nom<Continuation>();
+    return body->arg(VectorizeArgs::Return)->as_nom<Lam>();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

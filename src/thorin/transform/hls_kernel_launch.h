@@ -7,7 +7,7 @@ namespace thorin {
 
 class World;
 
-const auto hls_free_vars_offset = 4; // fn (mem, dev, kernel_ptr, cont, / free_vars /)
+const auto hls_free_vars_offset = 4; // fn (mem, dev, kernel_ptr, lam, / free_vars /)
 
 /**
  * removes all calls to individual kernels in host code

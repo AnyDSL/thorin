@@ -7,8 +7,8 @@
 
 namespace thorin {
 
-static Continuation*   wrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
-static Continuation* unwrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
+static Lam*   wrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
+static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
 
 // Computes the type of the wrapped function
 static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
@@ -29,13 +29,13 @@ static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
     return fn_type->table().fn_type(nops);
 }
 
-static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
+static Lam* jump(Lam* cont, Array<const Def*>& args) {
     cont->jump(args[0], args.skip_front(), args[0]->debug());
     return cont;
 }
 
-static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
-    if (args[0]->isa_nom<Continuation>()) {
+static Lam* try_inline(Lam* cont, Array<const Def*>& args) {
+    if (args[0]->isa_nom<Lam>()) {
         auto dropped = drop(args.front(), args.skip_front());
         assert(dropped->has_body());
         auto dapp = dropped->body();
@@ -46,7 +46,7 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     return cont;
 }
 
-static void inline_calls(Continuation* cont) {
+static void inline_calls(Lam* cont) {
     for (auto use : cont->copy_uses()) {
         auto app = use->isa<App>();
         if (!app || use.index() != 0) continue;
@@ -63,7 +63,7 @@ static void inline_calls(Continuation* cont) {
 }
 
 // Wraps around a def, flattening tuples passed as parameters (dual of unwrap)
-static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const FnType* new_type, size_t max_tuple_size) {
+static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const FnType* new_type, size_t max_tuple_size) {
     // Transform:
     //
     // old_def(a: T, b: (U, V), c: fn (W, (X, Y))):
@@ -79,7 +79,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
     //         f = extract(b, 1)
     //         d(a, (e, f))
 
-    if (wrapped.contains(old_def)) return (*wrapped[old_def]).as_nom<Continuation>();
+    if (wrapped.contains(old_def)) return (*wrapped[old_def]).as_nom<Lam>();
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<FnType>();
@@ -116,7 +116,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
 }
 
 // Unwrap a def, flattening tuples passed as arguments (dual of wrap)
-static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def, const FnType* old_type, size_t max_tuple_size) {
+static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def, const FnType* old_type, size_t max_tuple_size) {
     // Transform:
     //
     // new_def(a: T, b: U, c: V, d: fn (W, X, Y)):
@@ -132,7 +132,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
     //     wrap_d(a: W, b: X, c: Y):
     //         d(a, (b, c))
 
-    if (unwrapped.contains(new_def)) return (*unwrapped[new_def]).as_nom<Continuation>();
+    if (unwrapped.contains(new_def)) return (*unwrapped[new_def]).as_nom<Lam>();
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<FnType>();
@@ -177,7 +177,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto pair : unwrapped) unwrapped_codom.emplace(pair.second);
 
-        for (auto cont : world.copy_continuations()) {
+        for (auto cont : world.copy_lams()) {
             // do not change the signature of intrinsic/external functions
             if (!cont->has_body() ||
                 cont->is_intrinsic() ||
@@ -203,10 +203,10 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            auto old_cont = def->isa_nom<Continuation>();
+            auto old_cont = def->isa_nom<Lam>();
             if (old_cont && !old_cont->has_body()) continue;
 
-            auto new_cont = wrap_pair.second->as_nom<Continuation>();
+            auto new_cont = wrap_pair.second->as_nom<Lam>();
             auto wrapped_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
 
             def->replace_uses(wrapped_cont);
@@ -216,7 +216,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
     }
 
     for (auto unwrap_pair : unwrapped)
-        inline_calls(unwrap_pair.second->as_nom<Continuation>());
+        inline_calls(unwrap_pair.second->as_nom<Lam>());
 
     world.cleanup();
     debug_verify(world);

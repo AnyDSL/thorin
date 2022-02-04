@@ -11,7 +11,7 @@ namespace thorin {
 // TODO merge this with lift_builtins
 void clone_bodies(World& /*world*/) {
 #if 0
-    std::vector<Continuation*> todo;
+    std::vector<Lam*> todo;
 
     // TODO this looks broken: I guess we should do that in post-order as in lift_builtins
     for (auto continuation : world.copy_continuations()) {

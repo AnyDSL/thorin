@@ -12,7 +12,7 @@ public:
 
     bool resolve_loads() {
         todo_ = false;
-        for (auto continuation : world_.copy_continuations()) {
+        for (auto continuation : world_.copy_lams()) {
             for (auto param : continuation->params()) {
                 if (param->type()->isa<MemType>()) {
                     Def2Def mapping;

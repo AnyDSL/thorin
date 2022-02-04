@@ -12,7 +12,7 @@
 
 namespace thorin {
 
-Scope::Scope(Continuation* entry)
+Scope::Scope(Lam* entry)
     : world_(entry->world())
     , entry_(entry)
     , exit_(world().end_scope())
@@ -38,7 +38,7 @@ void Scope::run() {
         if (defs_.insert(def).second) {
             queue.push(def);
 
-            if (auto continuation = def->isa_nom<Continuation>()) {
+            if (auto continuation = def->isa_nom<Lam>()) {
                 // when a continuation is part of this scope, we also enqueue its params, and we assert those to be unique
                 // TODO most likely redundant once params have the continuation in their ops
                 for (auto param : continuation->params()) {
@@ -86,7 +86,7 @@ const ParamSet& Scope::free_params() const {
         auto enqueue = [&](const Def* def) {
             if (auto param = def->isa<Param>(); param && !param->continuation()->dead_)
                 free_params_->emplace(param);
-            else if (def->isa<Continuation>())
+            else if (def->isa<Lam>())
                 return;
             else
                 queue.push(def);
@@ -109,7 +109,7 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<ContinuationSet> continuation_queue;
+    unique_queue<LamSet> continuation_queue;
 
     for (auto&& [_, cont] : world.externals()) {
         if (cont->has_body()) continuation_queue.push(cont);
@@ -128,7 +128,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto continuation = def->isa_nom<Continuation>())
+            if (auto continuation = def->isa_nom<Lam>())
                 continuation_queue.push(continuation);
             else {
                 for (auto op : def->ops())

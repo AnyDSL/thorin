@@ -19,7 +19,7 @@
 
 namespace thorin::llvm {
 
-NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, bool debug)
+NVVMCodeGen::NVVMCodeGen(World& world, const Lam2Config& kernel_config, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, 0, debug)
     , kernel_config_(kernel_config)
 {
@@ -51,7 +51,7 @@ static AddrSpace resolve_addr_space(const Def* def) {
     return AddrSpace::Generic;
 }
 
-llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
+llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lam* continuation) {
     // skip non-global address-space parameters
     std::vector<const Type*> types;
     for (auto type : continuation->type()->ops()) {
@@ -63,7 +63,7 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
 }
 
-void NVVMCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
+void NVVMCodeGen::emit_fun_decl_hook(Lam* continuation, llvm::Function* f) {
     auto annotation = module().getOrInsertNamedMetadata("nvvm.annotations");
     auto int64_type = llvm::IntegerType::get(context(), 64);
 
@@ -129,12 +129,12 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun(llvm::IRBuilder<>& irbuilder
     return llvm::cast<llvm::Function>(module().getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
 }
 
-void NVVMCodeGen::prepare(Continuation* cont, llvm::Function* fct) {
+void NVVMCodeGen::prepare(Lam* cont, llvm::Function* fct) {
     CodeGen::prepare(cont, fct);
 
     if (cont != entry_ || !cont->is_exported()) return;
 
-    auto& irbuilder = *cont2bb_[cont].second;
+    auto& irbuilder = *lam2bb_[cont].second;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun(irbuilder);
     for (auto param : cont->params()) {
@@ -242,7 +242,7 @@ llvm::Value* NVVMCodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea)
     }
 }
 
-Continuation* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+Lam* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Lam* continuation) {
     return emit_reserve_shared(irbuilder, continuation);
 }
 

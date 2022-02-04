@@ -37,7 +37,7 @@ const Def* Importer::import(const Def* odef) {
     auto ntype = import(odef->type());
 
     if (auto oparam = odef->isa<Param>()) {
-        import(oparam->continuation())->as_nom<Continuation>();
+        import(oparam->continuation())->as_nom<Lam>();
         auto nparam = def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
         return nparam;
@@ -51,8 +51,8 @@ const Def* Importer::import(const Def* odef) {
         return nfilter;
     }
 
-    Continuation* ncontinuation = nullptr;
-    if (auto ocontinuation = odef->isa_nom<Continuation>()) { // create stub in new world
+    Lam* ncontinuation = nullptr;
+    if (auto ocontinuation = odef->isa_nom<Lam>()) { // create stub in new world
         assert(!ocontinuation->dead_);
         // TODO maybe we want to deal with intrinsics in a more streamlined way
         if (ocontinuation == ocontinuation->world().branch())

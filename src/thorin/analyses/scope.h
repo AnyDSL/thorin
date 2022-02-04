@@ -17,17 +17,17 @@ class CFA;
 class CFNode;
 
 /**
- * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
+ * A @p Scope represents a region of @p Lam%s which are live from the view of an @p entry @p Lam.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
  * @p entry() will be first, @p exit() will be last.
- * @warning All other @p Continuation%s are in no particular order.
+ * @warning All other @p Lam%s are in no particular order.
  */
 class Scope : public Streamable<Scope> {
 public:
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
-    explicit Scope(Continuation* entry);
+    explicit Scope(Lam* entry);
     ~Scope();
 
     /// Invoke if you have modified sth in this Scope.
@@ -35,8 +35,8 @@ public:
 
     //@{ misc getters
     World& world() const { return world_; }
-    Continuation* entry() const { return entry_; }
-    Continuation* exit() const { return exit_; }
+    Lam* entry() const { return entry_; }
+    Lam* exit() const { return exit_; }
     //@}
 
     //@{ get Def%s contained in this Scope
@@ -64,7 +64,7 @@ public:
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_empty whether you want to visit trivial Scope%s of Continuation%s without body.
+     * Select with @p elide_empty whether you want to visit trivial Scope%s of Lam%s without body.
      */
     template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(Scope&)>);
@@ -74,8 +74,8 @@ private:
 
     World& world_;
     DefSet defs_;
-    Continuation* entry_ = nullptr;
-    Continuation* exit_ = nullptr;
+    Lam* entry_ = nullptr;
+    Lam* exit_ = nullptr;
     mutable std::unique_ptr<DefSet> free_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;

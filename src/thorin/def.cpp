@@ -21,7 +21,7 @@ Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
     , debug_(dbg)
     , gid_(gid_counter_++)
     , nom_(false)
-    , dep_(tag == Node_Continuation ? Dep::Cont  :
+    , dep_(tag == Node_Continuation ? Dep::Lam  :
            tag == Node_Param        ? Dep::Param :
                                       Dep::Bot   )
 {
@@ -36,7 +36,7 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , debug_(dbg)
     , gid_(gid_counter_++)
     , nom_(true)
-    , dep_(tag == Node_Continuation ? Dep::Cont  :
+    , dep_(tag == Node_Continuation ? Dep::Lam  :
            tag == Node_Param        ? Dep::Param :
                                       Dep::Bot   )
 {}
@@ -55,9 +55,9 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    // A Param/Continuation should not have other bits than its own set.
+    // A Param/Lam should not have other bits than its own set.
     // (Right now, Param doesn't have ops, but this will change in the future).
-    if (!isa_nom<Continuation>() && !isa<Param>())
+    if (!isa_nom<Lam>() && !isa<Param>())
         dep_ |= def->dep(); // what about unset op then ? and cascading uses ?
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);

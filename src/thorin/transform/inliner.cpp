@@ -13,7 +13,7 @@ void force_inline(Scope& scope, int threshold) {
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
             if (!continuation->has_body()) continue;
-            if (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+            if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
                 if (callee->has_body() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
                     continuation->jump(drop(callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
@@ -29,7 +29,7 @@ void force_inline(Scope& scope, int threshold) {
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto continuation = n->continuation();
         if (!continuation->has_body()) continue;
-        if (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+        if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
             if (callee->has_body() && !scope.contains(callee))
                 scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
         }
@@ -42,16 +42,16 @@ void inliner(World& world) {
     static const int factor = 4;
     static const int offset = 4;
 
-    ContinuationMap<std::unique_ptr<Scope>> continuation2scope;
+    LamMap<std::unique_ptr<Scope>> continuation2scope;
 
-    auto get_scope = [&] (Continuation* continuation) -> Scope* {
+    auto get_scope = [&] (Lam* continuation) -> Scope* {
         auto i = continuation2scope.find(continuation);
         if (i == continuation2scope.end())
             i = continuation2scope.emplace(continuation, std::make_unique<Scope>(continuation)).first;
         return i->second.get();
     };
 
-    auto is_candidate = [&] (Continuation* continuation) -> Scope* {
+    auto is_candidate = [&] (Lam* continuation) -> Scope* {
         if (continuation->has_body() && continuation->order() > 1 && !continuation->is_external()) {
             auto scope = get_scope(continuation);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
@@ -73,7 +73,7 @@ void inliner(World& world) {
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
             if (!continuation->has_body()) continue;
-            if (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+            if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
                 world.DLOG("callee: {}", callee);

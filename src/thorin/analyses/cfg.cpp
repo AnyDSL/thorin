@@ -32,10 +32,10 @@ CFA::CFA(const Scope& scope)
     , entry_(node(scope.entry()))
     , exit_ (node(scope.exit() ))
 {
-    std::queue<Continuation*> cfg_queue;
-    ContinuationSet cfg_done;
+    std::queue<Lam*> cfg_queue;
+    LamSet cfg_done;
 
-    auto cfg_enqueue = [&] (Continuation* continuation) {
+    auto cfg_enqueue = [&] (Lam* continuation) {
         if (cfg_done.emplace(continuation).second)
             cfg_queue.push(continuation);
     };
@@ -49,7 +49,7 @@ CFA::CFA(const Scope& scope)
 
         auto enqueue = [&] (const Def* def) {
             if (def->order() > 0 && scope.contains(def) && done.emplace(def).second) {
-                if (auto dst = def->isa_nom<Continuation>()) {
+                if (auto dst = def->isa_nom<Lam>()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));
                 } else
@@ -71,7 +71,7 @@ CFA::CFA(const Scope& scope)
     verify();
 }
 
-const CFNode* CFA::node(Continuation* continuation) {
+const CFNode* CFA::node(Lam* continuation) {
     auto& n = nodes_[continuation];
     if (n == nullptr)
         n = new CFNode(continuation);

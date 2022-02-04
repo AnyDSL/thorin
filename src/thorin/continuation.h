@@ -11,30 +11,30 @@
 
 namespace thorin {
 
-class Continuation;
+class Lam;
 class Scope;
 
-typedef std::vector<Continuation*> Continuations;
+typedef std::vector<Lam*> Lams;
 
 //------------------------------------------------------------------------------
 
 /**
- * A parameter of a @p Continuation function.
+ * A parameter of a @p Lam function.
  * A @p Param knows its @p continuation() it belongs to.
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    Param(const Type* type, Lam* continuation, size_t index, Debug dbg);
 
 public:
-    Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
+    Lam* continuation() const { return op(0)->as_nom<Lam>(); }
     size_t index() const { return index_; }
 
 private:
     const size_t index_;
 
     friend class World;
-    friend class Continuation;
+    friend class Lam;
 };
 
 class Filter : public Def {
@@ -62,10 +62,10 @@ public:
     const Defs args() const { return ops().skip_front(); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
-    Continuations using_continuations() const {
-        std::vector<Continuation*> conts;
+    Lams using_continuations() const {
+        std::vector<Lam*> conts;
         for (auto use : uses()) {
-            if (auto cont = use->isa_nom<Continuation>())
+            if (auto cont = use->isa_nom<Lam>())
                 conts.push_back(cont);
         }
         return conts;
@@ -116,10 +116,10 @@ enum class Intrinsic : uint8_t {
 
 /**
  * A function abstraction.
- * A @p Continuation is always of function type @p FnTypeNode.
+ * A @p Lam is always of function type @p FnTypeNode.
  * Each element of this function type is associated a properly typed @p Param - retrieved via @p params().
  */
-class Continuation : public Def {
+class Lam : public Def {
 public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
@@ -130,16 +130,16 @@ public:
     };
 
 private:
-    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg);
-    virtual ~Continuation() { for (auto param : params()) delete param; }
+    Lam(const FnType* fn, const Attributes& attributes, Debug dbg);
+    virtual ~Lam() { for (auto param : params()) delete param; }
 
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* stub() const;
+    Lam* stub() const;
     const Param* append_param(const Type* type, Debug dbg = {});
-    Continuations preds() const;
-    Continuations succs() const;
+    Lams preds() const;
+    Lams succs() const;
     ArrayRef<const Param*> params() const { return params_; }
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
@@ -154,7 +154,7 @@ public:
     const Attributes& attributes() const { return attributes_; }
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
-    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
+    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }
@@ -178,7 +178,7 @@ public:
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
+    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> continuations, Debug dbg = {});
     void verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
@@ -212,12 +212,12 @@ public:
     friend class World;
 };
 
-bool visit_uses(Continuation*, std::function<bool(Continuation*)>, bool include_globals);
-bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)>, bool include_globals = true);
-bool is_passed_to_accelerator(Continuation*, bool include_globals = true);
-bool is_passed_to_intrinsic(Continuation*, Intrinsic, bool include_globals = true);
+bool visit_uses(Lam*, std::function<bool(Lam*)>, bool include_globals);
+bool visit_capturing_intrinsics(Lam*, std::function<bool(Lam*)>, bool include_globals = true);
+bool is_passed_to_accelerator(Lam*, bool include_globals = true);
+bool is_passed_to_intrinsic(Lam*, Intrinsic, bool include_globals = true);
 
-void jump_to_dropped_call(Continuation* continuation, Continuation* dropped, const Defs call);
+void jump_to_dropped_call(Lam* continuation, Lam* dropped, const Defs call);
 
 //------------------------------------------------------------------------------
 
@@ -227,9 +227,9 @@ using ParamSet    = GIDSet<const Param*>;
 using Param2Param = ParamMap<const Param*>;
 
 template<class To>
-using ContinuationMap           = GIDMap<Continuation*, To>;
-using ContinuationSet           = GIDSet<Continuation*>;
-using Continuation2Continuation = ContinuationMap<Continuation*>;
+using LamMap           = GIDMap<Lam*, To>;
+using LamSet           = GIDSet<Lam*>;
+using Lam2Lam          = LamMap<Lam*>;
 
 //------------------------------------------------------------------------------
 

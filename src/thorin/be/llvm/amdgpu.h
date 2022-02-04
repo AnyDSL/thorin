@@ -13,19 +13,19 @@ namespace llvm = ::llvm;
 
 class AMDGPUCodeGen : public CodeGen {
 public:
-    AMDGPUCodeGen(World& world, const Cont2Config&, int opt, bool debug);
+    AMDGPUCodeGen(World& world, const Lam2Config&, int opt, bool debug);
 
     const char* file_ext() const override { return ".amdgpu"; }
 
 protected:
-    void emit_fun_decl_hook(Continuation*, llvm::Function*) override;
-    llvm::Function* emit_fun_decl(Continuation*) override;
+    void emit_fun_decl_hook(Lam*, llvm::Function*) override;
+    llvm::Function* emit_fun_decl(Lam*) override;
     llvm::Value* emit_global(const Global*) override;
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
-    Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
+    Lam* emit_reserve(llvm::IRBuilder<>&, const Lam*) override;
     std::string get_alloc_name() const override { return "malloc"; }
 
-    const Cont2Config& kernel_config_;
+    const Lam2Config& kernel_config_;
 };
 
 }

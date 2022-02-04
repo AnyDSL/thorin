@@ -23,25 +23,25 @@ public:
 
     World& world() { return world_; }
     bool run();
-    void enqueue(Continuation* continuation) {
+    void enqueue(Lam* continuation) {
         if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
             queue_.push(continuation);
     }
-    void eat_pe_info(Continuation*);
+    void eat_pe_info(Lam*);
 
 private:
     World& world_;
     bool lower2cff_;
-    HashMap<const App*, Continuation*, HashApp> cache_;
-    ContinuationSet done_;
-    std::queue<Continuation*> queue_;
-    ContinuationMap<bool> top_level_;
+    HashMap<const App*, Lam*, HashApp> cache_;
+    LamSet done_;
+    std::queue<Lam*> queue_;
+    LamMap<bool> top_level_;
     size_t boundary_;
 };
 
 class CondEval {
 public:
-    CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
+    CondEval(Lam* callee, Defs args, LamMap<bool>& top_level)
         : callee_(callee)
         , top_level_(top_level)
     {
@@ -89,7 +89,7 @@ public:
         return callee_->filter()->is_empty() ? world().literal_bool(false, {}) : callee_->filter()->condition(i);
     }
 
-    bool is_top_level(Continuation* continuation) {
+    bool is_top_level(Lam* continuation) {
         auto p = top_level_.emplace(continuation, true);
         if (!p.second)
             return p.first->second;
@@ -103,9 +103,9 @@ public:
         while (!queue.empty()) {
             auto def = queue.pop();
 
-            if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
+            if (def->isa<Param>()) // if FV in this scope is a param, this lam can't be top-level
                 return top_level_[continuation] = false;
-            if (auto free_cn = def->isa_nom<Continuation>()) {
+            if (auto free_cn = def->isa_nom<Lam>()) {
                 // if we have a non-top level continuation in scope as a free variable,
                 // then it must be bound by some outer continuation, and so we aren't top-level
                 if (!is_top_level(free_cn))
@@ -120,12 +120,12 @@ public:
     }
 
 private:
-    Continuation* callee_;
+    Lam* callee_;
     Def2Def old2new_;
-    ContinuationMap<bool>& top_level_;
+    LamMap<bool>& top_level_;
 };
 
-void PartialEvaluator::eat_pe_info(Continuation* cur) {
+void PartialEvaluator::eat_pe_info(Lam* cur) {
     assert(cur->has_body());
     auto body = cur->body();
     assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
@@ -138,7 +138,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto continuation = next->isa_nom<Continuation>()) {
+    } else if (auto continuation = next->isa_nom<Lam>()) {
         queue_.push(continuation);
     }
 }
@@ -167,7 +167,7 @@ bool PartialEvaluator::run() {
             callee_def = run->def();
         }
 
-        if (auto callee = callee_def->isa_nom<Continuation>()) {
+        if (auto callee = callee_def->isa_nom<Lam>()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
                 eat_pe_info(continuation);
                 continue;
@@ -189,7 +189,7 @@ bool PartialEvaluator::run() {
 
                 if (fold) {
                     const auto& p = cache_.emplace(body, nullptr);
-                    Continuation*& target = p.first->second;
+                    Lam*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
                         target = drop(callee, specialize);

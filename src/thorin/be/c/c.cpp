@@ -23,14 +23,14 @@ namespace thorin::c {
 struct BB {
     BB() = default;
 
-    Continuation* cont = nullptr;
+    Lam* lam = nullptr;
     StringStream head;
     StringStream body;
     StringStream tail;
 
     friend void swap(BB& a, BB& b) {
         using std::swap;
-        swap(a.cont, b.cont);
+        swap(a.lam, b.lam);
         swap(a.head, b.head);
         swap(a.body, b.body);
         swap(a.tail, b.tail);
@@ -73,7 +73,7 @@ enum class HlsInterface : uint8_t {
 
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
-    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
+    CCodeGen(World& world, const Lam2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
         : world_(world)
         , kernel_config_(kernel_config)
         , lang_(lang)
@@ -86,7 +86,7 @@ public:
     World& world() const { return world_; }
     void emit_module();
     void emit_c_int();
-    void emit_epilogue(Continuation*);
+    void emit_epilogue(Lam*);
 
     std::string emit_bb(BB&, const Def*);
     std::string emit_constant(const Def*);
@@ -94,12 +94,12 @@ public:
     std::string emit_def(BB*, const Def*);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
-    std::string emit_fun_head(Continuation*, bool = false);
-    std::string emit_fun_decl(Continuation*);
+    std::string emit_fun_head(Lam*, bool = false);
+    std::string emit_fun_decl(Lam*);
     std::string prepare(const Scope&);
-    void prepare(Continuation*, const std::string&);
+    void prepare(Lam*, const std::string&);
     void finalize(const Scope&);
-    void finalize(Continuation*);
+    void finalize(Lam*);
 
 private:
     std::string convert(const Type*);
@@ -116,7 +116,7 @@ private:
     std::string tuple_name(const TupleType*);
 
     World& world_;
-    const Cont2Config& kernel_config_;
+    const Lam2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
     bool use_math_ = false;
@@ -140,7 +140,7 @@ private:
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
 
-    ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
+    LamMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
 
 static inline const std::string lang_as_string(Lang lang) {
@@ -168,7 +168,7 @@ inline bool is_channel_type(const StructType* struct_type) {
 
 /// Returns true when the def carries concrete data in the final generated code
 inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
-inline bool has_concrete_params(Continuation* cont) {
+inline bool has_concrete_params(Lam* cont) {
     return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
 }
 
@@ -352,7 +352,7 @@ HlsInterface interface, gmem_config;
 bool interface_status, hls_top_scope = false;
 
 void CCodeGen::emit_module() {
-    Continuation* hls_top = nullptr;
+    Lam* hls_top = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
     Scope::for_each(world(), [&] (const Scope& scope) {
@@ -566,9 +566,9 @@ std::string CCodeGen::prepare(const Scope& scope) {
     return {};
 }
 
-void CCodeGen::prepare(Continuation* cont, const std::string&) {
-    auto& bb = cont2bb_[cont];
-    bb.cont = cont;
+void CCodeGen::prepare(Lam* cont, const std::string&) {
+    auto& bb = lam2bb_[cont];
+    bb.lam = cont;
     bb.head.indent(2);
     bb.body.indent(2);
     bb.tail.indent(2);
@@ -607,7 +607,7 @@ inline std::string make_identifier(const std::string& str) {
 }
 
 inline std::string label_name(const Def* def) {
-    return make_identifier(def->as_nom<Continuation>()->unique_name());
+    return make_identifier(def->as_nom<Lam>()->unique_name());
 }
 
 void CCodeGen::finalize(const Scope&) {
@@ -619,15 +619,15 @@ void CCodeGen::finalize(const Scope&) {
     func_impls_.fmt("}}\n\n");
 }
 
-void CCodeGen::finalize(Continuation* cont) {
-    auto&& bb = cont2bb_[cont];
+void CCodeGen::finalize(Lam* cont) {
+    auto&& bb = lam2bb_[cont];
     if (cont != entry_)
         func_impls_.fmt("{}: \t", label_name(cont));
     func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
-void CCodeGen::emit_epilogue(Continuation* cont) {
-    auto&& bb = cont2bb_[cont];
+void CCodeGen::emit_epilogue(Lam* cont) {
+    auto&& bb = lam2bb_[cont];
     assert(cont->has_body());
     auto body = cont->body();
     emit_debug_info(bb.tail, body->arg(0));
@@ -662,7 +662,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         auto t = label_name(body->arg(1));
         auto f = label_name(body->arg(2));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
-    } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
+    } else if (auto callee = body->callee()->as_nom<Lam>(); callee && callee->intrinsic() == Intrinsic::Match) {
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(0)));
 
         for (size_t i = 2; i < body->num_args(); i++) {
@@ -674,20 +674,20 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
+    } else if (auto callee = body->callee()->isa_nom<Lam>(); callee && callee->is_basicblock()) { // ordinary jump
         assert(callee->num_params() == body->num_args());
         for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
             if (auto arg = emit_unsafe(body->arg(i)); !arg.empty())
                 bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
         bb.tail.fmt("goto {};", label_name(callee));
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
+    } else if (auto callee = body->callee()->isa_nom<Lam>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
             emit_unsafe(body->arg(0));
             if (!body->arg(1)->isa<PrimLit>())
                 world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
 
-            auto ret_cont = body->arg(2)->as_nom<Continuation>();
+            auto ret_cont = body->arg(2)->as_nom<Lam>();
             auto elem_type = ret_cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
             func_impls_.fmt("{}{} {}_reserved[{}];\n",
                 addr_space_prefix(AddrSpace::Shared), convert(elem_type),
@@ -731,7 +731,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail.fmt("\n");
             }
 
-            auto pbody = body->arg(4)->as_nom<Continuation>();
+            auto pbody = body->arg(4)->as_nom<Lam>();
             bb.tail.fmt("p_{} = i{};\n", pbody->param(1)->unique_name(), callee->gid());
             bb.tail.fmt("goto {};\n", label_name(pbody));
 
@@ -744,10 +744,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
             THORIN_UNREACHABLE;
         }
-    } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
+    } else if (auto callee = body->callee()->isa_nom<Lam>()) { // function/closure call
         auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
-            return arg->isa_nom<Continuation>();
-        }))->as_nom<Continuation>();
+            return arg->isa_nom<Lam>();
+        }))->as_nom<Lam>();
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
@@ -1247,7 +1247,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         auto fval = emit_unsafe(select->fval());
         s.fmt("({} ? {} : {})", cond, tval, fval);
     } else if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_nom<Continuation>());
+        assert(!global->init()->isa_nom<Lam>());
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
@@ -1287,7 +1287,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return "(" + s.str() + ")";
 }
 
-std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
+std::string CCodeGen::emit_fun_head(Lam* cont, bool is_proto) {
     StringStream s;
 
     // Emit function qualifiers
@@ -1385,7 +1385,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     return s.str();
 }
 
-std::string CCodeGen::emit_fun_decl(Continuation* cont) {
+std::string CCodeGen::emit_fun_decl(Lam* cont) {
     if (cont->cc() != CC::Device)
         func_decls_.fmt("{};\n", emit_fun_head(cont, true));
     return !world().is_external(cont) ? cont->unique_name() : cont->name();
@@ -1402,7 +1402,7 @@ void CCodeGen::emit_c_int() {
     world().cleanup();
 
     for (auto def : world().defs()) {
-        auto cont = def->isa_nom<Continuation>();
+        auto cont = def->isa_nom<Lam>();
         if (!cont)
             continue;
         if (!cont->is_external())

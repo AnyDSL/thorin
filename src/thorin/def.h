@@ -12,7 +12,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-class Continuation;
+class Lam;
 class Def;
 class Tracker;
 class Use;
@@ -86,9 +86,9 @@ using Def2Def = DefMap<const Def*>;
 namespace Dep {
 enum : unsigned {
     Bot,
-    Cont,
+    Lam,
     Param,
-    Top = Cont | Param
+    Top = Lam | Param
 };
 }
 
@@ -97,7 +97,7 @@ enum : unsigned {
  * These are:
  * - \p PrimOp%s
  * - \p Param%s and
- * - \p Continuation%s.
+ * - \p Lam%s.
  */
 class Def : public RuntimeCast<Def>, public Streamable<Def> {
 private:

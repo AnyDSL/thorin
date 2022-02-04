@@ -30,7 +30,7 @@ public:
 
 private:
     void cleanup_fix_point();
-    void clean_pe_info(std::queue<Continuation*>, Continuation*);
+    void clean_pe_info(std::queue<Lam*>, Lam*);
     World& world_;
     bool todo_ = true;
 };
@@ -98,13 +98,13 @@ void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
         for (auto def : world().copy_defs()) {
-            auto continuation = def->isa_nom<Continuation>();
-            if (!continuation || !continuation->has_body()) continue;
-            auto body = continuation->body();
+            auto lambda = def->isa_nom<Lam>();
+            if (!lambda || !lambda->has_body()) continue;
+            auto body = lambda->body();
 
-            // eat calls to known continuations that are only used once
-            while (auto callee = body->callee()->isa_nom<Continuation>()) {
-                if (callee == continuation) break;
+            // eat calls to known lambdas that are only used once
+            while (auto callee = body->callee()->isa_nom<Lam>()) {
+                if (callee == lambda) break;
 
                 if (callee->can_be_inlined() && callee->has_body() && !world().is_external(callee)) {
                     auto callee_body = callee->body();
@@ -114,23 +114,23 @@ void Cleaner::eta_conversion() {
                     // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
                     // can_be_inlined() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
                     assert(body->num_uses() == 1);
-                    continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
-                    callee->destroy("cleanup: continuation only called once");
+                    lambda->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
+                    callee->destroy("cleanup: lambda only called once");
                     assert(body->num_uses() == 0);
                     todo_ = todo = true;
                 } else
                     break;
             }
 
-            // try to subsume continuations which call a parameter
-            // (that is free within that continuation) with that parameter
+            // try to subsume lamdas which call a parameter
+            // (that is free within that lambda's body) with that parameter
             if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || world().is_external(continuation))
+                if (param->continuation() == lambda || world().is_external(lambda))
                     continue;
 
-                if (body->args() == continuation->params_as_defs()) {
-                    continuation->replace_uses(body->callee());
-                    continuation->destroy("cleanup: calls a parameter (no perm)");
+                if (body->args() == lambda->params_as_defs()) {
+                    lambda->replace_uses(body->callee());
+                    lambda->destroy("cleanup: calls a parameter (no perm)");
                     todo_ = todo = true;
                     continue;
                 }
@@ -139,23 +139,23 @@ void Cleaner::eta_conversion() {
                 Array<size_t> perm(body->num_args());
                 bool is_permutation = true;
                 for (size_t i = 0, e = body->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(continuation->params().begin(),
-                                                continuation->params().end(),
+                    auto param_it = std::find(lambda->params().begin(),
+                                                lambda->params().end(),
                                                 body->arg(i));
 
-                    if (param_it == continuation->params().end()) {
+                    if (param_it == lambda->params().end()) {
                         is_permutation = false;
                         break;
                     }
 
-                    perm[i] = param_it - continuation->params().begin();
+                    perm[i] = param_it - lambda->params().begin();
                 }
 
                 if (!is_permutation) continue;
 
-                // for every use of the continuation at a call site,
+                // for every use of the lambda at a call site,
                 // permute the arguments and call the parameter instead
-                for (auto use : continuation->copy_uses()) {
+                for (auto use : lambda->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
                         for (auto ucontinuation : uapp->using_continuations()) {
@@ -175,14 +175,14 @@ void Cleaner::eta_conversion() {
 
 void Cleaner::eliminate_params() {
     // TODO
-    for (auto ocontinuation : world().copy_continuations()) {
+    for (auto ocontinuation : world().copy_lams()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
         if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_nom<Continuation>())
+                if (use.index() != 0 || !use->isa_nom<Lam>())
                     goto next_continuation;
             }
 
@@ -266,7 +266,7 @@ void Cleaner::within(const Def* def) {
     assert_unused(world().defs().contains(def));
 }
 
-void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
+void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
     assert(cur->has_body());
     auto body = cur->body();
     assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
@@ -283,9 +283,9 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
 
 void Cleaner::clean_pe_infos() {
     world_.VLOG("cleaning remaining pe_infos");
-    std::queue<Continuation*> queue;
-    ContinuationSet done;
-    auto enqueue = [&](Continuation* continuation) {
+    std::queue<Lam*> queue;
+    LamSet done;
+    auto enqueue = [&](Lam* continuation) {
         if (done.emplace(continuation).second)
             queue.push(continuation);
     };
@@ -298,7 +298,7 @@ void Cleaner::clean_pe_infos() {
 
         if (continuation->has_body()) {
             if (auto body = continuation->body()->isa<App>()) {
-                if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
+                if (auto callee = body->callee()->isa_nom<Lam>(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
                     clean_pe_info(queue, continuation);
                     continue;
                 }
@@ -336,7 +336,7 @@ void Cleaner::cleanup() {
     if (!world().is_pe_done()) {
         world().mark_pe_done();
         for (auto def : world().defs()) {
-            if (auto cont = def->isa_nom<Continuation>())
+            if (auto cont = def->isa_nom<Lam>())
                 cont->destroy_filter();
         }
 

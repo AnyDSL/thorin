@@ -38,19 +38,19 @@ Scheduler::Scheduler(const Scope& s)
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             // all reachable continuations have already been registered above
             // NOTE we might still see references to unreachable continuations in the schedule
-            if (!def->op(i)->isa<Continuation>())
+            if (!def->op(i)->isa<Lam>())
                 enqueue(def, i, def->op(i));
         }
     }
 }
 
-Continuation* Scheduler::early(const Def* def) {
+Lam* Scheduler::early(const Def* def) {
     if (auto cont = early_.lookup(def)) return *cont;
     if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
 
     auto result = scope().entry();
     for (auto op : def->as_structural()->ops()) {
-        if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
+        if (!op->isa_nom<Lam>() && def2uses_.find(op) != def2uses_.end()) {
             auto cont = early(op);
             if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
                 result = cont;
@@ -60,11 +60,11 @@ Continuation* Scheduler::early(const Def* def) {
     return early_[def] = result;
 }
 
-Continuation* Scheduler::late(const Def* def) {
+Lam* Scheduler::late(const Def* def) {
     if (auto cont = late_.lookup(def)) return *cont;
 
-    Continuation* result = nullptr;
-    if (auto continuation = def->isa_nom<Continuation>()) {
+    Lam* result = nullptr;
+    if (auto continuation = def->isa_nom<Lam>()) {
         result = continuation;
     } else if (auto param = def->isa<Param>()) {
         result = param->continuation();
@@ -78,7 +78,7 @@ Continuation* Scheduler::late(const Def* def) {
     return late_[def] = result;
 }
 
-Continuation* Scheduler::smart(const Def* def) {
+Lam* Scheduler::smart(const Def* def) {
     if (auto cont = smart_.lookup(def)) return *cont;
 
     auto e = cfg(early(def));

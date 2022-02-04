@@ -41,8 +41,8 @@ struct LaunchArgs {
 struct DeviceBackends {
     DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);
 
-    Cont2Config kernel_config;
-    std::vector<Continuation*> kernels;
+    Lam2Config kernel_config;
+    std::vector<Lam*> kernels;
 
     enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;

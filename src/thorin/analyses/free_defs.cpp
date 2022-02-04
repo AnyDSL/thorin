@@ -59,7 +59,7 @@ queue_next:;
     return result;
 }
 
-DefSet free_defs(Continuation* entry) {
+DefSet free_defs(Lam* entry) {
     Scope scope(entry);
     return free_defs(scope, true);
 }

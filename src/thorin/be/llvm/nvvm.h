@@ -13,22 +13,22 @@ namespace llvm = ::llvm;
 
 class NVVMCodeGen : public CodeGen {
 public:
-    NVVMCodeGen(World& world, const Cont2Config&, bool debug); // NVVM-specific optimizations are run in the runtime
+    NVVMCodeGen(World& world, const Lam2Config&, bool debug); // NVVM-specific optimizations are run in the runtime
 
     const char* file_ext() const override { return ".nvvm"; }
 
 protected:
-    void emit_fun_decl_hook(Continuation*, llvm::Function*) override;
-    llvm::FunctionType* convert_fn_type(Continuation*) override;
+    void emit_fun_decl_hook(Lam*, llvm::Function*) override;
+    llvm::FunctionType* convert_fn_type(Lam*) override;
     llvm::Value* map_param(llvm::Function*, llvm::Argument*, const Param*) override;
-    void prepare(Continuation*, llvm::Function*) override;
+    void prepare(Lam*, llvm::Function*) override;
 
     llvm::Value* emit_load(llvm::IRBuilder<>&,   const Load*) override;
     llvm::Value* emit_store(llvm::IRBuilder<>&,  const Store*) override;
     llvm::Value* emit_lea(llvm::IRBuilder<>&,    const LEA*) override;
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
 
-    Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
+    Lam* emit_reserve(llvm::IRBuilder<>&, const Lam*) override;
 
     llvm::Value* emit_global(const Global*) override;
 
@@ -38,7 +38,7 @@ private:
     llvm::Function* get_texture_handle_fun(llvm::IRBuilder<>&);
     llvm::GlobalVariable* resolve_global_variable(const Param*);
 
-    const Cont2Config& kernel_config_;
+    const Lam2Config& kernel_config_;
     ParamMap<llvm::MDNode*> metadata_;
 };
 

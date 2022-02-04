@@ -242,7 +242,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
     return types_[type] = llvm_type;
 }
 
-llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
+llvm::FunctionType* CodeGen::convert_fn_type(Lam* continuation) {
     return llvm::cast<llvm::FunctionType>(convert(continuation->type()));
 }
 
@@ -297,7 +297,7 @@ CodeGen::emit_module() {
     return std::pair { std::move(context_), std::move(module_) };
 }
 
-llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
+llvm::Function* CodeGen::emit_fun_decl(Lam* continuation) {
     std::string name = world().is_external(continuation) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
@@ -354,10 +354,10 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
     return fct;
 }
 
-void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
+void CodeGen::prepare(Lam* cont, llvm::Function* fct) {
     // map all bb-like continuations to llvm bb stubs and handle params/phis
     auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
-    auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
+    auto [i, succ] = lam2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
     assert(succ);
     auto& irbuilder = *i->second.second;
     irbuilder.SetInsertPoint(bb);
@@ -406,11 +406,11 @@ void CodeGen::finalize(const Scope&) {
         defs_.erase(def);
 }
 
-void CodeGen::emit_epilogue(Continuation* continuation) {
+void CodeGen::emit_epilogue(Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
 
-    auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
+    auto& [bb, ptr_irbuilder] = lam2bb_[continuation];
     auto& irbuilder = *ptr_irbuilder;
 
     if (body->callee() == entry_->ret_param()) { // return
@@ -437,29 +437,29 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
     } else if (body->callee() == world().branch()) {
         auto cond = emit(body->arg(0));
-        auto tbb = cont2bb(body->arg(1)->as_nom<Continuation>());
-        auto fbb = cont2bb(body->arg(2)->as_nom<Continuation>());
+        auto tbb = lam2bb(body->arg(1)->as_nom<Lam>());
+        auto fbb = lam2bb(body->arg(2)->as_nom<Lam>());
         irbuilder.CreateCondBr(cond, tbb, fbb);
-    } else if (body->callee()->isa<Continuation>() && body->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+    } else if (body->callee()->isa<Lam>() && body->callee()->as<Lam>()->intrinsic() == Intrinsic::Match) {
         auto val = emit(body->arg(0));
-        auto otherwise_bb = cont2bb(body->arg(1)->as_nom<Continuation>());
+        auto otherwise_bb = lam2bb(body->arg(1)->as_nom<Lam>());
         auto match = irbuilder.CreateSwitch(val, otherwise_bb, body->num_args() - 2);
         for (size_t i = 2; i < body->num_args(); i++) {
             auto arg = body->arg(i)->as<Tuple>();
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
-            auto case_bb    = cont2bb(arg->op(1)->as_nom<Continuation>());
+            auto case_bb    = lam2bb(arg->op(1)->as_nom<Lam>());
             match->addCase(case_const, case_bb);
         }
     } else if (body->callee()->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
+    } else if (auto callee = body->callee()->isa_nom<Lam>(); callee && callee->is_basicblock()) { // ordinary jump
         for (size_t i = 0, e = body->num_args(); i != e; ++i) {
             if (auto val = emit_unsafe(body->arg(i))) emit_phi_arg(irbuilder, callee->param(i), val);
         }
-        irbuilder.CreateBr(cont2bb(callee));
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
+        irbuilder.CreateBr(lam2bb(callee));
+    } else if (auto callee = body->callee()->isa_nom<Lam>(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);
-        irbuilder.CreateBr(cont2bb(ret_continuation));
+        irbuilder.CreateBr(lam2bb(ret_continuation));
     } else { // function/closure call
         // put all first-order args into an array
         std::vector<llvm::Value*> args;
@@ -475,7 +475,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         llvm::CallInst* call = nullptr;
-        if (auto callee = body->callee()->isa_nom<Continuation>()) {
+        if (auto callee = body->callee()->isa_nom<Lam>()) {
             call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
             if (world().is_external(callee))
                 call->setCallingConv(kernel_calling_convention_);
@@ -492,7 +492,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
-        auto succ = ret_arg->as_nom<Continuation>();
+        auto succ = ret_arg->as_nom<Lam>();
 
         size_t n = 0;
         const Param* last_param = nullptr;
@@ -504,9 +504,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         if (n == 0) {
-            irbuilder.CreateBr(cont2bb(succ));
+            irbuilder.CreateBr(lam2bb(succ));
         } else if (n == 1) {
-            irbuilder.CreateBr(cont2bb(succ));
+            irbuilder.CreateBr(lam2bb(succ));
             emit_phi_arg(irbuilder, last_param, call);
         } else {
             Array<llvm::Value*> extracts(n);
@@ -518,7 +518,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 j++;
             }
 
-            irbuilder.CreateBr(cont2bb(succ));
+            irbuilder.CreateBr(lam2bb(succ));
 
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                 auto param = succ->param(i);
@@ -946,7 +946,7 @@ llvm::Value* CodeGen::emit_bitcast(llvm::IRBuilder<>& irbuilder, const Def* val,
 
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
-    if (auto continuation = global->init()->isa_nom<Continuation>())
+    if (auto continuation = global->init()->isa_nom<Lam>())
         val = emit(continuation);
     else {
         auto llvm_type = convert(global->alloced_type());
@@ -1116,10 +1116,10 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
  * emit intrinsic
  */
 
-Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
-    auto callee = body->callee()->as_nom<Continuation>();
+    auto callee = body->callee()->as_nom<Lam>();
 
     // Important: Must emit the memory object otherwise the memory
     // operations before the call to the intrinsic are all gone!
@@ -1156,7 +1156,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
     }
 }
 
-Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() == 7 && "required arguments are missing");
@@ -1176,13 +1176,13 @@ Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* c
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = body->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(6)->as_nom<Continuation>();
+    auto cont = body->arg(6)->as_nom<Lam>();
     auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
 
-Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() == 5 && "required arguments are missing");
@@ -1191,7 +1191,7 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(4)->as_nom<Continuation>();
+    auto cont = body->arg(4)->as_nom<Lam>();
     auto load = irbuilder.CreateLoad(ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     load->setAlignment(align);
@@ -1200,7 +1200,7 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     return cont;
 }
 
-Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() == 6 && "required arguments are missing");
@@ -1210,7 +1210,7 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(5)->as_nom<Continuation>();
+    auto cont = body->arg(5)->as_nom<Lam>();
     auto store = irbuilder.CreateStore(val, ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     store->setAlignment(align);
@@ -1218,7 +1218,7 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     return cont;
 }
 
-Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation, bool is_weak) {
+Lam* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Lam* continuation, bool is_weak) {
     assert(continuation->has_body());
     auto body = continuation->body();
 
@@ -1235,7 +1235,7 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
     auto success_order = (llvm::AtomicOrdering)success_order_tag;
     auto failure_order = (llvm::AtomicOrdering)failure_order_tag;
     auto scope = body->arg(6)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(7)->as_nom<Continuation>();
+    auto cont = body->arg(7)->as_nom<Lam>();
     auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, success_order, failure_order, context_->getOrInsertSyncScopeID(scope->as_string()));
     call->setWeak(is_weak);
     emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
@@ -1243,7 +1243,7 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
     return cont;
 }
 
-Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() == 4 && "required arguments are missing");
@@ -1251,24 +1251,24 @@ Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* co
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = body->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(3)->as_nom<Continuation>();
+    auto cont = body->arg(3)->as_nom<Lam>();
     irbuilder.CreateFence(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 
-Continuation* CodeGen::emit_reserve(llvm::IRBuilder<>&, const Continuation* continuation) {
+Lam* CodeGen::emit_reserve(llvm::IRBuilder<>&, const Lam* continuation) {
     world().edef(continuation, "reserve_shared: only allowed in device code"); // TODO debug
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Continuation* continuation, bool init_undef) {
+Lam* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Lam* continuation, bool init_undef) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() == 3 && "required arguments are missing");
     if (!body->arg(1)->isa<PrimLit>())
         world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = body->arg(1)->as<PrimLit>()->ps32_value();
-    auto cont = body->arg(2)->as_nom<Continuation>();
+    auto cont = body->arg(2)->as_nom<Lam>();
     auto type = convert(cont->param(1)->type());
     // construct array type
     auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
@@ -1286,19 +1286,19 @@ Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const C
  * backend-specific stuff
  */
 
-Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+Lam* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     std::vector<llvm::Value*> args(body->num_args()-3);
-    Continuation* ret = nullptr;
+    Lam* ret = nullptr;
     for (size_t i = 2, j = 0; i < body->num_args(); ++i) {
-        if (auto cont = body->arg(i)->isa_nom<Continuation>()) {
+        if (auto cont = body->arg(i)->isa_nom<Lam>()) {
             ret = cont;
             continue;
         }
         args[j++] = emit(body->arg(i));
     }
-    auto callee = body->arg(1)->as<Global>()->init()->as_nom<Continuation>();
+    auto callee = body->arg(1)->as<Global>()->init()->as_nom<Lam>();
     world().make_external(callee);
     irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);

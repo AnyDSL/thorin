@@ -10,7 +10,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Param::Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
+Param::Param(const Type* type, Lam* continuation, size_t index, Debug dbg)
     : Def(Node_Param, type, 1, dbg)
     , index_(index)
 {
@@ -34,7 +34,7 @@ void App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
-    if (auto cont = callee()->isa_nom<Continuation>()) {
+    if (auto cont = callee()->isa_nom<Lam>()) {
         assert(!cont->dead_);
     }
 }
@@ -49,7 +49,7 @@ const Filter* Filter::cut(ArrayRef<size_t> indices) const {
 
 //------------------------------------------------------------------------------
 
-Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
+Lam::Lam(const FnType* fn, const Attributes& attributes, Debug dbg)
     : Def(Node_Continuation, fn, 2, dbg)
     , attributes_(attributes)
 {
@@ -58,7 +58,7 @@ Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug
     set_op(1, world().filter({}, dbg));
 }
 
-Continuation* Continuation::stub() const {
+Lam* Lam::stub() const {
     Rewriter rewriter;
 
     auto result = world().continuation(type(), attributes(), debug_history());
@@ -78,14 +78,14 @@ Continuation* Continuation::stub() const {
     return result;
 }
 
-Array<const Def*> Continuation::params_as_defs() const {
+Array<const Def*> Lam::params_as_defs() const {
     Array<const Def*> params(num_params());
     for (size_t i = 0, e = num_params(); i != e; ++i)
         params[i] = param(i);
     return params;
 }
 
-const Param* Continuation::mem_param() const {
+const Param* Lam::mem_param() const {
     for (auto param : params()) {
         if (is_mem(param))
             return param;
@@ -93,7 +93,7 @@ const Param* Continuation::mem_param() const {
     return nullptr;
 }
 
-const Param* Continuation::ret_param() const {
+const Param* Lam::ret_param() const {
     const Param* result = nullptr;
     for (auto param : params()) {
         if (param->order() >= 1) {
@@ -104,7 +104,7 @@ const Param* Continuation::ret_param() const {
     return result;
 }
 
-void Continuation::destroy(const char* cause) {
+void Lam::destroy(const char* cause) {
     world().VLOG("{} has been destroyed by {}", this, cause);
     destroy_filter();
     unset_op(0);
@@ -112,7 +112,7 @@ void Continuation::destroy(const char* cause) {
     dead_ = true;
 }
 
-const FnType* Continuation::arg_fn_type() const {
+const FnType* Lam::arg_fn_type() const {
     assert(has_body());
     Array<const Type*> args(body()->num_args());
     for (size_t i = 0, e = body()->num_args(); i != e; ++i)
@@ -123,7 +123,7 @@ const FnType* Continuation::arg_fn_type() const {
            : world().fn_type(args);
 }
 
-const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
+const Param* Lam::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);
     *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
@@ -135,8 +135,8 @@ const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     return param;
 }
 
-Continuations Continuation::preds() const {
-    std::vector<Continuation*> preds;
+Lams Lam::preds() const {
+    std::vector<Lam*> preds;
     std::queue<Use> queue;
     DefSet done;
 
@@ -154,7 +154,7 @@ Continuations Continuation::preds() const {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto continuation = use->isa_nom<Continuation>()) {
+        if (auto continuation = use->isa_nom<Lam>()) {
             preds.push_back(continuation);
             continue;
         }
@@ -165,8 +165,8 @@ Continuations Continuation::preds() const {
     return preds;
 }
 
-Continuations Continuation::succs() const {
-    std::vector<Continuation*> succs;
+Lams Lam::succs() const {
+    std::vector<Lam*> succs;
     std::queue<const Def*> queue;
     DefSet done;
 
@@ -183,13 +183,13 @@ Continuations Continuation::succs() const {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto continuation = def->isa_nom<Continuation>()) {
+        if (auto continuation = def->isa_nom<Lam>()) {
             succs.push_back(continuation);
             continue;
         }
 
         for (auto op : def->ops()) {
-            if (op->has_dep(Dep::Cont))
+            if (op->has_dep(Dep::Lam))
                 enqueue(op);
         }
     }
@@ -197,18 +197,18 @@ Continuations Continuation::succs() const {
     return succs;
 }
 
-void Continuation::destroy_filter() {
+void Lam::destroy_filter() {
     set_filter(world().filter({}));
 }
 
 /// An all-true filter
-const Filter* Continuation::all_true_filter() const {
+const Filter* Lam::all_true_filter() const {
     auto conditions = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
     return world().filter(conditions, debug());
 }
 
-bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
-void Continuation::set_intrinsic() {
+bool Lam::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
+void Lam::set_intrinsic() {
     if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
     else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
     else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
@@ -232,21 +232,21 @@ void Continuation::set_intrinsic() {
     else world().ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
-bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
-bool Continuation::is_returning() const { return type()->is_returning(); }
-bool Continuation::is_external() const { return world().is_external(this); }
+bool Lam::is_basicblock() const { return type()->is_basicblock(); }
+bool Lam::is_returning() const { return type()->is_returning(); }
+bool Lam::is_external() const { return world().is_external(this); }
 
-void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
+void Lam::jump(const Def* callee, Defs args, Debug dbg) {
     set_body(world().app(callee, args, dbg));
     verify();
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
+void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
     set_body(world().app(world().branch(), {cond, t, f}, dbg));
     verify();
 }
 
-void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> continuations, Debug dbg) {
     Array<const Def*> args(patterns.size() + 2);
 
     args[0] = val;
@@ -259,7 +259,7 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     verify();
 }
 
-void Continuation::verify() const {
+void Lam::verify() const {
     if (!has_body()) {
         assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
 
@@ -279,7 +279,7 @@ void Continuation::verify() const {
 }
 
 /// Rewrites the body to only keep the non-specialized arguments
-void jump_to_dropped_call(Continuation* continuation, Continuation* dropped, const Defs specialized_args) {
+void jump_to_dropped_call(Lam* continuation, Lam* dropped, const Defs specialized_args) {
     assert(continuation->has_body());
     auto obody = continuation->body();
     std::vector<const Def*> nargs;
@@ -292,7 +292,7 @@ void jump_to_dropped_call(Continuation* continuation, Continuation* dropped, con
 }
 
 #if 0
-std::ostream& Continuation::stream_head(std::ostream& os) const {
+std::ostream& Lam::stream_head(std::ostream& os) const {
     os << unique_name();
     //stream_type_params(os, type());
     stream_list(os, params(), [&](const Param* param) { streamf(os, "{} {}", param->type(), param); }, "(", ")");
@@ -309,7 +309,7 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
     return os;
 }
 
-std::ostream& Continuation::stream_jump(std::ostream& os) const {
+std::ostream& Lam::stream_jump(std::ostream& os) const {
     if (!empty()) {
         os << callee();
         os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
@@ -317,13 +317,13 @@ std::ostream& Continuation::stream_jump(std::ostream& os) const {
     return os;
 }
 
-void Continuation::dump_head() const { stream_head(std::cout) << endl; }
-void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
+void Lam::dump_head() const { stream_head(std::cout) << endl; }
+void Lam::dump_jump() const { stream_jump(std::cout) << endl; }
 #endif
 
 //------------------------------------------------------------------------------
 
-bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
+bool visit_uses(Lam* cont, std::function<bool(Lam*)> func, bool include_globals) {
     if (!cont->is_intrinsic()) {
         for (auto use : cont->uses()) {
             auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
@@ -338,22 +338,22 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
     return false;
 }
 
-bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
+bool visit_capturing_intrinsics(Lam* cont, std::function<bool(Lam*)> func, bool include_globals) {
     return visit_uses(cont, [&] (auto continuation) {
         if (!continuation->has_body()) return false;
         auto body = continuation->body();
-        if (auto callee = body->callee()->template isa_nom<Continuation>())
+        if (auto callee = body->callee()->template isa_nom<Lam>())
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);
 }
 
-bool is_passed_to_accelerator(Continuation* cont, bool include_globals) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->is_accelerator(); }, include_globals);
+bool is_passed_to_accelerator(Lam* cont, bool include_globals) {
+    return visit_capturing_intrinsics(cont, [&] (Lam* continuation) { return continuation->is_accelerator(); }, include_globals);
 }
 
-bool is_passed_to_intrinsic(Continuation* cont, Intrinsic intrinsic, bool include_globals) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; }, include_globals);
+bool is_passed_to_intrinsic(Lam* cont, Intrinsic intrinsic, bool include_globals) {
+    return visit_capturing_intrinsics(cont, [&] (Lam* continuation) { return continuation->intrinsic() == intrinsic; }, include_globals);
 }
 
 }

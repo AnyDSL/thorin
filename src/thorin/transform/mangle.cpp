@@ -54,7 +54,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     }
 }
 
-Continuation* Mangler::mangle() {
+Lam* Mangler::mangle() {
     // create new_entry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
@@ -104,10 +104,10 @@ Continuation* Mangler::mangle() {
     return new_entry();
 }
 
-Continuation* Mangler::mangle_head(Continuation* old_continuation) {
+Lam* Mangler::mangle_head(Lam* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(old_continuation->has_body());
-    Continuation* new_continuation = old_continuation->stub();
+    Lam* new_continuation = old_continuation->stub();
     def2def_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
@@ -152,7 +152,7 @@ const Def* Mangler::mangle(const Def* old_def) {
         return *new_def;
     else if (!within(old_def))
         return old_def;  // we leave free variables alone
-    else if (auto old_continuation = old_def->isa_nom<Continuation>()) {
+    else if (auto old_continuation = old_def->isa_nom<Lam>()) {
         auto new_continuation = mangle_head(old_continuation);
         if (old_continuation->has_body())
             new_continuation->set_body(mangle_body(old_continuation->body()));
@@ -174,12 +174,12 @@ const Def* Mangler::mangle(const Def* old_def) {
 
 //------------------------------------------------------------------------------
 
-Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
+Lam* mangle(const Scope& scope, Defs args, Defs lift) {
     return Mangler(scope, args, lift).mangle();
 }
 
-Continuation* drop(const Def* callee, const Defs specialized_args) {
-    Scope scope(callee->as_nom<Continuation>());
+Lam* drop(const Def* callee, const Defs specialized_args) {
+    Scope scope(callee->as_nom<Lam>());
     return drop(scope, specialized_args);
 }
 

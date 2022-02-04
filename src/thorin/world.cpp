@@ -1097,8 +1097,8 @@ const Def* World::run(const Def* def, Debug dbg) {
  * continuations
  */
 
-Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto cont = put<Continuation>(fn, attributes, dbg);
+Lam* World::continuation(const FnType* fn, Lam::Attributes attributes, Debug dbg) {
+    auto cont = put<Lam>(fn, attributes, dbg);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
@@ -1109,7 +1109,7 @@ Continuation* World::continuation(const FnType* fn, Continuation::Attributes att
     return cont;
 }
 
-Continuation* World::match(const Type* type, size_t num_patterns) {
+Lam* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
     arg_types[0] = type;
     arg_types[1] = fn_type();
@@ -1118,7 +1118,7 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
-const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
+const Param* World::param(const Type* type, Lam* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
 #if THORIN_ENABLE_CHECKS
     if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
@@ -1132,7 +1132,7 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 
 /// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
-    if (auto continuation = callee->isa<Continuation>()) {
+    if (auto continuation = callee->isa<Lam>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
                 assert(args.size() == 3);
@@ -1174,11 +1174,11 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
  * misc
  */
 
-std::vector<Continuation*> World::copy_continuations() const {
-    std::vector<Continuation*> result;
+std::vector<Lam*> World::copy_lams() const {
+    std::vector<Lam*> result;
 
     for (auto def : data_.defs_) {
-        if (auto lam = def->isa_nom<Continuation>())
+        if (auto lam = def->isa_nom<Lam>())
             result.emplace_back(lam);
     }
 

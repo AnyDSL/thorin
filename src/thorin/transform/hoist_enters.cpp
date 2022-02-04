@@ -19,7 +19,7 @@ static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
     }
 }
 
-static void find_enters(std::deque<const Enter*>& enters, Continuation* continuation) {
+static void find_enters(std::deque<const Enter*>& enters, Lam* continuation) {
     if (auto mem_param = continuation->mem_param())
         find_enters(enters, mem_param);
 }

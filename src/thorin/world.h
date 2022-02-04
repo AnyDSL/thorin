@@ -34,9 +34,9 @@ enum class LogLevel { Debug, Verbose, Info, Warn, Error };
  *      - canonicalization of expressions
  *      - several local optimizations
  *
- *  @p PrimOp%s do not explicitly belong to a Continuation.
- *  Instead they either implicitly belong to a Continuation--when
- *  they (possibly via multiple levels of indirection) depend on a Continuation's Param--or they are dead.
+ *  @p PrimOp%s do not explicitly belong to a Lam.
+ *  Instead they either implicitly belong to a Lam--when
+ *  they (possibly via multiple levels of indirection) depend on a Lam's Param--or they are dead.
  *  Use @p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds.
@@ -65,7 +65,7 @@ public:
 
     using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
-    using Externals   = HashMap<std::string, Continuation*, ExternalsHash>;
+    using Externals   = HashMap<std::string, Lam*, ExternalsHash>;
 
     World(World&&) = delete;
     World& operator=(const World&) = delete;
@@ -90,10 +90,10 @@ public:
     //@{
     bool empty() { return data_.externals_.empty(); }
     const Externals& externals() const { return data_.externals_; }
-    void make_external(Continuation* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
-    void make_internal(Continuation* cont) { data_.externals_.erase(cont->unique_name()); }
-    bool is_external(const Continuation* cont) { return data_.externals_.contains(cont->unique_name()); }
-    Continuation* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
+    void make_external(Lam* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
+    void make_internal(Lam* cont) { data_.externals_.erase(cont->unique_name()); }
+    bool is_external(const Lam* cont) { return data_.externals_.contains(cont->unique_name()); }
+    Lam* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
 
     // literals
@@ -235,14 +235,14 @@ public:
 
     // continuations
 
-    Continuation* continuation(const FnType*, Continuation::Attributes, Debug = {});
-    Continuation* continuation(const FnType* fn_type, Debug dbg = {}) {
-        return continuation(fn_type, Continuation::Attributes(), dbg);
+    Lam* continuation(const FnType*, Lam::Attributes, Debug = {});
+    Lam* continuation(const FnType* fn_type, Debug dbg = {}) {
+        return continuation(fn_type, Lam::Attributes(), dbg);
     }
-    Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
-    Continuation* branch() const { return data_.branch_; }
-    Continuation* match(const Type* type, size_t num_patterns);
-    Continuation* end_scope() const { return data_.end_scope_; }
+    Lam* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
+    Lam* branch() const { return data_.branch_; }
+    Lam* match(const Type* type, size_t num_patterns);
+    Lam* end_scope() const { return data_.end_scope_; }
     const Filter* filter(const Defs, Debug dbg = {});
 
     /// Performs dead code, unreachable code and unused type elimination.
@@ -254,7 +254,7 @@ public:
     const std::string& name() const { return data_.name_; }
     const Sea& defs() const { return data_.defs_; }
     const Array<const Def*> copy_defs() const { return Array<const Def*>(data_.defs_.begin(), data_.defs_.end()); }
-    std::vector<Continuation*> copy_continuations() const; // TODO remove this
+    std::vector<Lam*> copy_lams() const; // TODO remove this
 
     /// @name partial evaluation done?
     //@{
@@ -319,7 +319,7 @@ public:
     }
 
 private:
-    const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    const Param* param(const Type* type, Lam* continuation, size_t index, Debug dbg);
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
@@ -357,15 +357,15 @@ private:
         std::string name_;
         Externals externals_;
         Sea defs_;
-        Continuation* branch_;
-        Continuation* end_scope_;
+        Lam* branch_;
+        Lam* end_scope_;
     } data_;
 
     std::shared_ptr<Stream> stream_;
 
     friend class Mangler;
     friend class Cleaner;
-    friend class Continuation;
+    friend class Lam;
     friend class Filter;
     friend class App;
     friend class Importer;

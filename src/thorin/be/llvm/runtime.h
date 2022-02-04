@@ -50,9 +50,9 @@ public:
     /// Emits a call to anydsl_sync_thread.
     llvm::Value* sync_thread(llvm::IRBuilder<>&, llvm::Value* id);
 
-    Continuation* emit_host_code(
+    Lam* emit_host_code(
         CodeGen& code_gen, llvm::IRBuilder<>& builder,
-        Platform platform, const std::string& ext, Continuation* continuation);
+        Platform platform, const std::string& ext, Lam* continuation);
 
     llvm::Function* get(const char* name);
 

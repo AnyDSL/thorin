@@ -16,8 +16,8 @@ public:
 
     void run() {
         // create a new continuation for every continuation taking a function as parameter
-        std::vector<std::pair<Continuation*, Continuation*>> converted;
-        for (auto continuation : world_.copy_continuations()) {
+        std::vector<std::pair<Lam*, Lam*>> converted;
+        for (auto continuation : world_.copy_lams()) {
             // do not convert empty continuations or intrinsics
             if (!continuation->has_body() || continuation->is_intrinsic()) {
                 new_defs_[continuation] = continuation;
@@ -57,11 +57,11 @@ public:
         }
     }
 
-    void convert_jump(Continuation* continuation) {
+    void convert_jump(Lam* continuation) {
         assert(continuation->has_body());
         auto body = continuation->body();
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
-        auto callee = body->callee()->isa_nom<Continuation>();
+        auto callee = body->callee()->isa_nom<Lam>();
         if (callee == continuation) return;
         if (!callee || !callee->is_intrinsic()) {
             Array<const Def*> new_args(body->num_args());
@@ -76,7 +76,7 @@ public:
         if (def->order() <= 1)
             return def;
 
-        if (auto continuation = def->isa_nom<Continuation>()) {
+        if (auto continuation = def->isa_nom<Lam>()) {
             if (!continuation->has_body())
                 return continuation;
             convert_jump(continuation);
@@ -91,7 +91,7 @@ public:
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));
-                auto continuation = def->isa_nom<Continuation>();
+                auto continuation = def->isa_nom<Lam>();
                 return continuation && (!continuation->has_body() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());

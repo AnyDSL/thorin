@@ -8,11 +8,11 @@
 
 namespace thorin {
 
-static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const DeviceParams& device_params) {
+static Lam* make_opencl_intrinsic(World& world, const Lam* cont_hls, const DeviceParams& device_params) {
     assert(cont_hls->has_body());
     auto body = cont_hls->body();
 
-    auto last_callee_continuation = body->arg(hls_free_vars_offset - 1)->isa_nom<Continuation>();
+    auto last_callee_continuation = body->arg(hls_free_vars_offset - 1)->isa_nom<Lam>();
     auto kernel_ptr = body->arg(hls_free_vars_offset - 2);
 
     // building OpenCL intrinsics corresponding to hls intrinsic
@@ -44,12 +44,12 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
     return opencl;
 }
 
-static Continuation* last_basic_block_with_intrinsic(const Intrinsic intrinsic, const Schedule& schedule) {
+static Lam* last_basic_block_with_intrinsic(const Intrinsic intrinsic, const Schedule& schedule) {
     for (int i = schedule.size() - 1; i >= 0; --i) {
         auto block = schedule[i];
         assert(block->has_body());
         auto body = block->body();
-        auto callee = body->callee()->isa_nom<Continuation>();
+        auto callee = body->callee()->isa_nom<Lam>();
         if (callee && callee->intrinsic() == intrinsic) {
             return block;
         }
@@ -57,10 +57,10 @@ static Continuation* last_basic_block_with_intrinsic(const Intrinsic intrinsic, 
     return nullptr;
 }
 
-const Def* has_hls_callee(Continuation* continuation) {
+const Def* has_hls_callee(Lam* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
-    auto callee = body->callee()->isa_nom<Continuation>();
+    auto callee = body->callee()->isa_nom<Lam>();
     if (callee && callee->intrinsic() == Intrinsic::HLS) {
         auto hls_cont_arg = body->arg(hls_free_vars_offset - 1);
         return hls_cont_arg;
@@ -71,7 +71,7 @@ const Def* has_hls_callee(Continuation* continuation) {
 // Finds instances of HLS kernel launches and wraps them in a OpenCL launch
 void hls_kernel_launch(World& world, DeviceParams& device_params) {
     bool last_hls_found = false;
-    Continuation* opencl = nullptr;
+    Lam* opencl = nullptr;
 
     const size_t base_opencl_param_num = 6;
     Array<const Def*> opencl_args(base_opencl_param_num + device_params.size());
@@ -86,8 +86,8 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
 
             if (auto hls_callee = has_hls_callee(block)) {
                 auto cont_mem_obj = block->mem_param();
-                auto callee_continuation = hls_callee->isa_nom<Continuation>();
-                Continuation* last_hls_cont;
+                auto callee_continuation = hls_callee->isa_nom<Lam>();
+                Lam* last_hls_cont;
                 if (!last_hls_found) {
                     // TODO I'm at a loss for what is intended here. This is an assignment - not a check, the net result
                     // is the _only the first_ block with an HLS callee will enter this, which means the first block in the schedule
@@ -135,7 +135,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                 // extracting hls kernels' arguments
                 // preparing OpenCL args
                 for (size_t index = hls_free_vars_offset; index < block_body->num_args(); ++index) {
-                    auto kernel = block_body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
+                    auto kernel = block_body->arg(2)->as<Global>()->init()->isa_nom<Lam>();
                     auto kernel_param =  kernel->param(index - hls_free_vars_offset + 2);
                     // determining the correct location of OpenCL arguments by comparing kernels params with
                     // the location of hls_top params on device code (device_params)

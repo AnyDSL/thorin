@@ -9,7 +9,7 @@ namespace thorin {
 
 static void verify_calls(World& world) {
     for (auto def : world.defs()) {
-        if (auto cont = def->isa<Continuation>())
+        if (auto cont = def->isa<Lam>())
             cont->verify();
     }
 }

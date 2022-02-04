@@ -7,7 +7,7 @@
 
 namespace thorin::llvm {
 
-AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
+AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Lam2Config& kernel_config, int opt, bool debug)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::AMDGPU_KERNEL, opt, debug)
     , kernel_config_(kernel_config)
 {
@@ -19,7 +19,7 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config, int
 // Kernel code
 //------------------------------------------------------------------------------
 
-void AMDGPUCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Function* f) {
+void AMDGPUCodeGen::emit_fun_decl_hook(Lam* continuation, llvm::Function* f) {
     auto config = kernel_config_.find(continuation);
     if (config != kernel_config_.end()) {
         auto block = config->second->as<GPUKernelConfig>()->block_size();
@@ -34,7 +34,7 @@ void AMDGPUCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Functio
     }
 }
 
-llvm::Function* AMDGPUCodeGen::emit_fun_decl(Continuation* continuation) {
+llvm::Function* AMDGPUCodeGen::emit_fun_decl(Lam* continuation) {
     if (continuation->name() == "llvm.amdgcn.implicitarg.ptr")
         if (auto f = defs_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
             llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-ptr");
@@ -84,7 +84,7 @@ llvm::Value* AMDGPUCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const Math
     return call_math_function(irbuilder, mathop, ocml_functions.at(key));
 }
 
-Continuation* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+Lam* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Lam* continuation) {
     return emit_reserve_shared(irbuilder, continuation, true);
 }
 

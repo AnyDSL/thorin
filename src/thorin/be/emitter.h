@@ -12,7 +12,7 @@ private:
     /// Internal wrapper for @p emit that checks and retrieves/puts the @c Value from @p defs_.
     Value emit_(const Def* def) {
         auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
-        auto& bb = cont2bb_[place];
+        auto& bb = lam2bb_[place];
         return child().emit_bb(bb, def);
     }
 
@@ -20,7 +20,7 @@ protected:
     //@{
     /// @name default implemantations
     void finalize(const Scope&) {}
-    void finalize(Continuation*) {}
+    void finalize(Lam*) {}
     //@}
 
     /// Recursively emits code. @c mem -typed @p Def%s return sth that is @c !child().is_valid(value) - this variant asserts in this case.
@@ -33,7 +33,7 @@ protected:
     /// As above but returning @c !child().is_valid(value) is permitted.
     Value emit_unsafe(const Def* def) {
         if (auto val = defs_.lookup(def)) return *val;
-        if (auto cont = def->isa_nom<Continuation>()) return defs_[cont] = child().emit_fun_decl(cont);
+        if (auto cont = def->isa_nom<Lam>()) return defs_[cont] = child().emit_fun_decl(cont);
 
         auto val = emit_(def);
         return defs_[def] = val;
@@ -67,8 +67,8 @@ protected:
     Scheduler scheduler_;
     DefMap<Value> defs_;
     TypeMap<Type> types_;
-    ContinuationMap<BB> cont2bb_;
-    Continuation* entry_ = nullptr;
+    LamMap<BB> lam2bb_;
+    Lam* entry_ = nullptr;
 };
 
 }

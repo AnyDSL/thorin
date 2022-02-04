@@ -19,7 +19,7 @@ static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode
             continue;
         auto app = continuation->body();
 
-        auto callee = app->callee()->isa_nom<Continuation>();
+        auto callee = app->callee()->isa_nom<Lam>();
         if (callee && callee->is_channel()) {
             if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
                 auto def= app->arg(1);
@@ -51,7 +51,7 @@ bool is_channel_type(const Type* type) {
     return false;
 }
 
-bool is_single_kernel(Continuation* kernel) {
+bool is_single_kernel(Lam* kernel) {
     for (auto param : kernel->params()) {
         if (is_channel_type(param->type()))
             return false;
@@ -59,15 +59,15 @@ bool is_single_kernel(Continuation* kernel) {
     return true;
 }
 
-void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& cont2config) {
+void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Lam2Config& cont2config) {
     auto find_kernel_by_name = [&] (const std::string& name) {
         for (auto def : world.defs()) {
-            auto continuation = def->isa_nom<Continuation>();
+            auto continuation = def->isa_nom<Lam>();
             if (!continuation) continue;
             if (continuation->is_exported() && continuation->name() == name)
                 return continuation;
         }
-        return (Continuation*)nullptr;
+        return (Lam*)nullptr;
     };
     // Extract and save param size info for hls_top then insert it into configuration map.
     auto hls_top = find_kernel_by_name("hls_top");
@@ -154,7 +154,7 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
 DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
     auto& world = importer.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
-    std::vector<Continuation*> new_kernels;
+    std::vector<Lam*> new_kernels;
     Def2Def kernel_new2old;
     Def2Def param2arg; // contains map from new kernel parameter to arguments of calls inside hls_top (for all kernels)
     Def2Def arg2param;
@@ -202,7 +202,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
                 param2arg[param] = pair.second; // (channel params, globals)
             }
             for (auto def : scope.defs()) {
-                if (auto cont = def->isa_nom<Continuation>()) {
+                if (auto cont = def->isa_nom<Lam>()) {
                     // Copy the basic block by calling stub
                     // Or reuse the newly created kernel copy if def is the old kernel
                     auto new_cont = def == old_kernel ? new_kernel : cont->stub();
@@ -213,10 +213,10 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             }
             // Rewriting the basic blocks of the kernel using the map
             for (auto def : scope.defs()) {
-                if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
+                if (auto cont = def->isa_nom<Lam>()) { // all basic blocks of the scope
                     assert(cont->has_body());
                     auto body = cont->body();
-                    auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
+                    auto new_cont = rewriter.old2new[cont]->isa_nom<Lam>();
                     auto new_callee = rewriter.instantiate(body->callee());
                     Array<const Def*> new_args(body->num_args());
                     for ( size_t i = 0; i < body->num_args(); ++i)
@@ -233,7 +233,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     std::vector<const Type*> top_param_types;
     top_param_types.emplace_back(world.mem_type());
     top_param_types.emplace_back(world.fn_type({ world.mem_type() }));
-    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param., index hls_top param.)
+    std::vector<std::tuple<Lam*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param., index hls_top param.)
     for (auto kernel : new_kernels) {
         for (size_t i = 0; i < kernel->num_params(); ++i) {
             auto param = kernel->param(i);
@@ -265,14 +265,14 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         if (arg2param.contains(param)) {
             auto new_kernel_param = arg2param[param]->as<Param>();
             auto old_kernel = kernel_new2old[new_kernel_param->continuation()];
-            old_kernels_params.emplace_back(old_kernel->as_nom<Continuation>()->param(new_kernel_param->index()));
+            old_kernels_params.emplace_back(old_kernel->as_nom<Lam>()->param(new_kernel_param->index()));
         }
     }
 
     // Maping hls world params (from old kernels) to old_world params. Required for host code (runtime) generation
     for (auto& elem : old_kernels_params) {
         for (auto def : old_world.defs()) {
-            if (auto ocontinuation = def->isa_nom<Continuation>()) {
+            if (auto ocontinuation = def->isa_nom<Lam>()) {
                 auto ncontinuation = elem->as<Param>()->continuation();
                 if (ncontinuation == importer.def_old2new_[ocontinuation]) {
                     elem = ocontinuation->param(elem->as<Param>()->index());

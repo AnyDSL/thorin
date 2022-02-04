@@ -14,16 +14,16 @@ namespace thorin {
 
 static void get_kernel_configs(
     Importer& importer,
-    const std::vector<Continuation*>& kernels,
-    Cont2Config& kernel_configs,
-    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
+    const std::vector<Lam*>& kernels,
+    Lam2Config& kernel_configs,
+    std::function<std::unique_ptr<KernelConfig> (Lam*, Lam*)> use_callback)
 {
     importer.world().opt();
 
     auto externals = importer.world().externals();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
-        Continuation* imported = nullptr;
+        Lam* imported = nullptr;
         for (auto [_, exported] : externals) {
             if (!exported->has_body()) continue;
             if (exported->name() == continuation->unique_name())
@@ -31,7 +31,7 @@ static void get_kernel_configs(
         }
         if (!imported) continue;
 
-        visit_uses(continuation, [&] (Continuation* use) {
+        visit_uses(continuation, [&] (Lam* use) {
             assert(use->has_body());
             auto config = use_callback(use, imported);
             if (config) {
@@ -84,7 +84,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
-        Continuation* imported = nullptr;
+        Lam* imported = nullptr;
 
         static const auto backend_intrinsics = std::array {
             std::pair { CUDA,   Intrinsic::CUDA   },
@@ -95,7 +95,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
+                imported = importers_[backend].import(continuation)->as_nom<Lam>();
                 break;
             }
         }
@@ -113,7 +113,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 
     for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
         if (!importers_[backend].world().empty()) {
-            get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
+            get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Lam *use, Lam * /* imported */) {
                 auto app = use->body();
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
@@ -148,7 +148,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     if (!importers_[HLS].world().empty()) {
         hls_host_params = hls_channels(importers_[HLS], top2kernel, world);
 
-        get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+        get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Lam* use, Lam* imported) {
             auto app = use->body();
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {

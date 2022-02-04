@@ -264,7 +264,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     for (auto param : hls_top->params()) {
         if (arg2param.contains(param)) {
             auto new_kernel_param = arg2param[param]->as<Param>();
-            auto old_kernel = kernel_new2old[new_kernel_param->continuation()];
+            auto old_kernel = kernel_new2old[new_kernel_param->lambda()];
             old_kernels_params.emplace_back(old_kernel->as_nom<Lam>()->param(new_kernel_param->index()));
         }
     }
@@ -273,7 +273,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     for (auto& elem : old_kernels_params) {
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Lam>()) {
-                auto ncontinuation = elem->as<Param>()->continuation();
+                auto ncontinuation = elem->as<Param>()->lambda();
                 if (ncontinuation == importer.def_old2new_[ocontinuation]) {
                     elem = ocontinuation->param(elem->as<Param>()->index());
                     break;

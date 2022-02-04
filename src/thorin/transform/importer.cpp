@@ -37,7 +37,7 @@ const Def* Importer::import(const Def* odef) {
     auto ntype = import(odef->type());
 
     if (auto oparam = odef->isa<Param>()) {
-        import(oparam->continuation())->as_nom<Lam>();
+        import(oparam->lambda())->as_nom<Lam>();
         auto nparam = def_old2new_[oparam];
         assert(nparam && &nparam->world() == &world_);
         return nparam;

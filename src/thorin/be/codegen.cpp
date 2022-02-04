@@ -53,7 +53,7 @@ static const App* get_alloc_call(const Def* def) {
     auto param = def->isa<Param>();
     if (!param) return nullptr;
 
-    auto ret = param->continuation();
+    auto ret = param->lambda();
     if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());

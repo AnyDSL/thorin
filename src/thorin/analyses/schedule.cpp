@@ -46,7 +46,7 @@ Scheduler::Scheduler(const Scope& s)
 
 Lam* Scheduler::early(const Def* def) {
     if (auto cont = early_.lookup(def)) return *cont;
-    if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
+    if (auto param = def->isa<Param>()) return early_[def] = param->lambda();
 
     auto result = scope().entry();
     for (auto op : def->as_structural()->ops()) {
@@ -67,7 +67,7 @@ Lam* Scheduler::late(const Def* def) {
     if (auto continuation = def->isa_nom<Lam>()) {
         result = continuation;
     } else if (auto param = def->isa<Param>()) {
-        result = param->continuation();
+        result = param->lambda();
     } else {
         for (auto use : uses(def)) {
             auto cont = late(use);

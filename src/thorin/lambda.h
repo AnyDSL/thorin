@@ -24,10 +24,10 @@ typedef std::vector<Lam*> Lams;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Lam* continuation, size_t index, Debug dbg);
+    Param(const Type* type, Lam* lambda, size_t index, Debug dbg);
 
 public:
-    Lam* continuation() const { return op(0)->as_nom<Lam>(); }
+    Lam* lambda() const { return op(0)->as_nom<Lam>(); }
     size_t index() const { return index_; }
 
 private:
@@ -62,13 +62,13 @@ public:
     const Defs args() const { return ops().skip_front(); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
-    Lams using_continuations() const {
-        std::vector<Lam*> conts;
+    Lams using_lambdas() const {
+        std::vector<Lam*> lams;
         for (auto use : uses()) {
-            if (auto cont = use->isa_nom<Lam>())
-                conts.push_back(cont);
+            if (auto lam = use->isa_nom<Lam>())
+                lams.push_back(lam);
         }
-        return conts;
+        return lams;
     }
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
@@ -178,7 +178,7 @@ public:
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> continuations, Debug dbg = {});
+    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lambdas, Debug dbg = {});
     void verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
@@ -217,7 +217,7 @@ bool visit_capturing_intrinsics(Lam*, std::function<bool(Lam*)>, bool include_gl
 bool is_passed_to_accelerator(Lam*, bool include_globals = true);
 bool is_passed_to_intrinsic(Lam*, Intrinsic, bool include_globals = true);
 
-void jump_to_dropped_call(Lam* continuation, Lam* dropped, const Defs call);
+void jump_to_dropped_call(Lam* lambda, Lam* dropped, const Defs call);
 
 //------------------------------------------------------------------------------
 

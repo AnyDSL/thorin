@@ -51,7 +51,7 @@ static void inline_calls(Lam* cont) {
         auto app = use->isa<App>();
         if (!app || use.index() != 0) continue;
 
-        for (auto ucont : app->using_continuations()) {
+        for (auto ucont : app->using_lambdas()) {
             assert(ucont->has_body());
 
             Array<const Def*> args(app->num_args() + 1);

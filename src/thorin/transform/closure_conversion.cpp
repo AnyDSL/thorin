@@ -15,7 +15,7 @@ public:
     {}
 
     void run() {
-        // create a new continuation for every lambda taking a function as parameter
+        // create a new lambda for every lambda taking a function as parameter
         std::vector<std::pair<Lam*, Lam*>> converted;
         for (auto continuation : world_.copy_lams()) {
             // do not convert empty continuations or intrinsics

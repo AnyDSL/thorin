@@ -19,7 +19,7 @@ static bool verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
-                world.ELOG("top-level continuation '{}' got free param '{}' belonging to lambda {}", scope.entry(), param, param->continuation());
+                world.ELOG("top-level lambda '{}' got free param '{}' belonging to lambda {}", scope.entry(), param, param->lambda());
             world.ELOG("here: {}", scope.entry());
             ok = false;
         }

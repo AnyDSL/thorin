@@ -97,7 +97,7 @@ Stream& Def::stream(Stream& s, size_t max) const {
 
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
-        return s.fmt("{}.{}", param->continuation(), param->unique_name());
+        return s.fmt("{}.{}", param->lambda(), param->unique_name());
     } else if (isa<Lam>()) {
         return s.fmt("lam {}", unique_name());
     } else if (auto app = isa<App>()) {

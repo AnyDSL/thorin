@@ -112,7 +112,7 @@ void NVVMCodeGen::emit_fun_decl_hook(Lam* continuation, llvm::Function* f) {
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    if (!param->continuation()->is_exported())
+    if (!param->lambda()->is_exported())
         return arg;
     else if (auto var = resolve_global_variable(param))
         return var;

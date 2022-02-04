@@ -158,8 +158,8 @@ const Def* Mangler::mangle(const Def* old_def) {
             new_continuation->set_body(mangle_body(old_continuation->body()));
         return new_continuation;
     } else if (auto param = old_def->isa<Param>()) {
-        assert(within(param->continuation()));
-        mangle(param->continuation());
+        assert(within(param->lambda()));
+        mangle(param->lambda());
         assert(def2def_.contains(param));
         return def2def_[param];
     } else {

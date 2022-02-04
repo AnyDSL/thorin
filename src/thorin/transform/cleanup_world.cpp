@@ -125,7 +125,7 @@ void Cleaner::eta_conversion() {
             // try to subsume lamdas which call a parameter
             // (that is free within that lambda's body) with that parameter
             if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == lambda || world().is_external(lambda))
+                if (param->lambda() == lambda || world().is_external(lambda))
                     continue;
 
                 if (body->args() == lambda->params_as_defs()) {
@@ -158,7 +158,7 @@ void Cleaner::eta_conversion() {
                 for (auto use : lambda->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
-                        for (auto ucontinuation : uapp->using_continuations()) {
+                        for (auto ucontinuation : uapp->using_lambdas()) {
                             Array<const Def*> new_args(perm.size());
                             for (size_t i = 0, e = perm.size(); i != e; ++i) {
                                 new_args[i] = uapp->arg(perm[i]);
@@ -213,7 +213,7 @@ void Cleaner::eliminate_params() {
                 for (auto use : ocontinuation->copy_uses()) {
                     auto uapp = use->as<App>();
                     assert(use.index() == 0);
-                    for (auto ucontinuation : uapp->using_continuations()) {
+                    for (auto ucontinuation : uapp->using_lambdas()) {
                         ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
                     }
                 }

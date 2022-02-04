@@ -72,10 +72,10 @@ void lift_builtins(World& world) {
         Scope::for_each(world, [&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
-                if (n->continuation()->order() <= 1)
+                if (n->lambda()->order() <= 1)
                     continue;
-                if (is_passed_to_accelerator(n->continuation(), false)) {
-                    cur = n->continuation();
+                if (is_passed_to_accelerator(n->lambda(), false)) {
+                    cur = n->lambda();
                     break;
                 }
             }

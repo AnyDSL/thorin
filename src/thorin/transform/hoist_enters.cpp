@@ -29,7 +29,7 @@ static void hoist_enters(const Scope& scope) {
     std::deque<const Enter*> enters;
 
     for (auto n : scope.f_cfg().reverse_post_order())
-        find_enters(enters, n->continuation());
+        find_enters(enters, n->lambda());
 
 
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {

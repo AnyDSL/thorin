@@ -28,8 +28,8 @@ Scheduler::Scheduler(const Scope& s)
     };
 
     for (auto n : cfg().reverse_post_order()) {
-        queue.push(n->continuation());
-        auto p = done.emplace(n->continuation());
+        queue.push(n->lambda());
+        auto p = done.emplace(n->lambda());
         assert_unused(p.second);
     }
 
@@ -71,7 +71,7 @@ Lam* Scheduler::late(const Def* def) {
     } else {
         for (auto use : uses(def)) {
             auto cont = late(use);
-            result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
+            result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->lambda() : cont;
         }
     }
 
@@ -103,14 +103,14 @@ Lam* Scheduler::smart(const Def* def) {
         }
     }
 
-    return smart_[def] = s->continuation();
+    return smart_[def] = s->lambda();
 }
 
 Schedule schedule(const Scope& scope) {
     // until we have sth better simply use the RPO of the CFG
     Schedule result;
     for (auto n : scope.f_cfg().reverse_post_order())
-        result.emplace_back(n->continuation());
+        result.emplace_back(n->lambda());
 
     return result;
 }

@@ -23,7 +23,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-Stream& CFNode::stream(Stream& s) const { return s << continuation(); }
+Stream& CFNode::stream(Stream& s) const { return s << lambda(); }
 
 //------------------------------------------------------------------------------
 
@@ -35,9 +35,9 @@ CFA::CFA(const Scope& scope)
     std::queue<Lam*> cfg_queue;
     LamSet cfg_done;
 
-    auto cfg_enqueue = [&] (Lam* continuation) {
-        if (cfg_done.emplace(continuation).second)
-            cfg_queue.push(continuation);
+    auto cfg_enqueue = [&] (Lam* lambda) {
+        if (cfg_done.emplace(lambda).second)
+            cfg_queue.push(lambda);
     };
 
     cfg_queue.push(scope.entry());
@@ -71,10 +71,10 @@ CFA::CFA(const Scope& scope)
     verify();
 }
 
-const CFNode* CFA::node(Lam* continuation) {
-    auto& n = nodes_[continuation];
+const CFNode* CFA::node(Lam* lambda) {
+    auto& n = nodes_[lambda];
     if (n == nullptr)
-        n = new CFNode(continuation);
+        n = new CFNode(lambda);
     return n;
 }
 
@@ -151,7 +151,7 @@ void CFA::verify() {
     for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
-            scope().world().VLOG("missing predecessors: {}", in->continuation());
+            scope().world().VLOG("missing predecessors: {}", in->lambda());
             error = true;
         }
     }

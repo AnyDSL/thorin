@@ -25,13 +25,13 @@ typedef GIDSet<const CFNode*> CFNodes;
  */
 class CFNode : public RuntimeCast<CFNode>, public Streamable<CFNode> {
 public:
-    CFNode(Lam* continuation)
-        : continuation_(continuation)
+    CFNode(Lam* lambda)
+        : lambda_(lambda)
         , gid_(gid_counter_++)
     {}
 
     uint64_t gid() const { return gid_; }
-    Lam* continuation() const { return continuation_; }
+    Lam* lambda() const { return lambda_; }
     Stream& stream(Stream&) const;
 
 private:
@@ -42,7 +42,7 @@ private:
     mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
 
-    Lam* continuation_;
+    Lam* lambda_;
     size_t gid_;
     static uint64_t gid_counter_;
     mutable CFNodes preds_;
@@ -60,7 +60,7 @@ public:
     CFA(const CFA&) = delete;
     CFA& operator= (CFA) = delete;
 
-    explicit CFA(const Scope& scope);
+    explicit CFA(const Scope& lambda);
     ~CFA();
 
     const Scope& scope() const { return scope_; }
@@ -73,8 +73,8 @@ public:
 private:
     void link_to_exit();
     void verify();
-    const CFNodes& preds(Lam* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->preds(); }
-    const CFNodes& succs(Lam* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->succs(); }
+    const CFNodes& preds(Lam* lambda) const { auto cn = nodes_.find(lambda)->second; assert(cn); return cn->preds(); }
+    const CFNodes& succs(Lam* lambda) const { auto cn = nodes_.find(lambda)->second; assert(cn); return cn->succs(); }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
     const CFNode* node(Lam*);
@@ -116,12 +116,12 @@ public:
     size_t size() const { return cfa().size(); }
     const CFNodes& preds(const CFNode* n) const;
     const CFNodes& succs(const CFNode* n) const;
-    const CFNodes& preds(Lam* continuation) const { return preds(cfa()[continuation]); }
-    const CFNodes& succs(Lam* continuation) const { return succs(cfa()[continuation]); }
+    const CFNodes& preds(Lam* lambda) const { return preds(cfa()[lambda]); }
+    const CFNodes& succs(Lam* lambda) const { return succs(cfa()[lambda]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
-    size_t num_preds(Lam* continuation) const { return num_preds(cfa()[continuation]); }
-    size_t num_succs(Lam* continuation) const { return num_succs(cfa()[continuation]); }
+    size_t num_preds(Lam* lambda) const { return num_preds(cfa()[lambda]); }
+    size_t num_succs(Lam* lambda) const { return num_succs(cfa()[lambda]); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
 
@@ -129,7 +129,7 @@ public:
     Range<ArrayRef<const CFNode*>::const_reverse_iterator> post_order() const { return reverse_range(rpo_.array()); }
     const CFNode* reverse_post_order(size_t i) const { return rpo_.array()[i]; }  ///< Maps from reverse post-order index to @p CFNode.
     const CFNode* post_order(size_t i) const { return rpo_.array()[size()-1-i]; } ///< Maps from post-order index to @p CFNode.
-    const CFNode* operator [] (Lam* continuation) const { return cfa()[continuation]; }    ///< Maps from @p l to @p CFNode.
+    const CFNode* operator [] (Lam* lambda) const { return cfa()[lambda]; }    ///< Maps from @p l to @p CFNode.
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DomFrontierBase<forward>& domfrontier() const;

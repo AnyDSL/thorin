@@ -11,7 +11,7 @@ void force_inline(Scope& scope, int threshold) {
     for (bool todo = true; todo && threshold-- != 0;) {
         todo = false;
         for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
+            auto continuation = n->lambda();
             if (!continuation->has_body()) continue;
             if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
                 if (callee->has_body() && !scope.contains(callee)) {
@@ -27,7 +27,7 @@ void force_inline(Scope& scope, int threshold) {
     }
 
     for (auto n : scope.f_cfg().reverse_post_order()) {
-        auto continuation = n->continuation();
+        auto continuation = n->lambda();
         if (!continuation->has_body()) continue;
         if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
             if (callee->has_body() && !scope.contains(callee))
@@ -71,7 +71,7 @@ void inliner(World& world) {
     Scope::for_each(world, [&] (Scope& scope) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
+            auto continuation = n->lambda();
             if (!continuation->has_body()) continue;
             if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
                 if (callee == scope.entry())

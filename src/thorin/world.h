@@ -319,7 +319,7 @@ public:
     }
 
 private:
-    const Param* param(const Type* type, Lam* continuation, size_t index, Debug dbg);
+    const Param* param(const Type* type, Lam* lambda, size_t index, Debug dbg);
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);

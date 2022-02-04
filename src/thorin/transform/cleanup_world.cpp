@@ -158,12 +158,12 @@ void Cleaner::eta_conversion() {
                 for (auto use : lambda->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == 0) {
-                        for (auto ucontinuation : uapp->using_lambdas()) {
+                        for (auto user : uapp->using_lambdas()) {
                             Array<const Def*> new_args(perm.size());
                             for (size_t i = 0, e = perm.size(); i != e; ++i) {
                                 new_args[i] = uapp->arg(perm[i]);
                             }
-                            ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
+                            user->jump(param, new_args, user->debug()); // TODO debug
                             todo_ = todo = true;
                         }
                     }
@@ -175,19 +175,19 @@ void Cleaner::eta_conversion() {
 
 void Cleaner::eliminate_params() {
     // TODO
-    for (auto ocontinuation : world().copy_lams()) {
+    for (auto olam : world().copy_lams()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
-            auto obody = ocontinuation->body();
-            for (auto use : ocontinuation->uses()) {
+        if (olam->has_body() && !world().is_external(olam)) {
+            auto obody = olam->body();
+            for (auto use : olam->uses()) {
                 if (use.index() != 0 || !use->isa_nom<Lam>())
-                    goto next_continuation;
+                    goto next_lam;
             }
 
-            for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-                auto param = ocontinuation->param(i);
+            for (size_t i = 0, e = olam->num_params(); i != e; ++i) {
+                auto param = olam->param(i);
                 if (param->num_uses() == 0)
                     proxy_idx.push_back(i);
                 else
@@ -195,33 +195,33 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto ncontinuation = world().lambda(
-                    world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
-                    ocontinuation->attributes(), ocontinuation->debug_history());
+                auto nlam = world().lambda(
+                    world().fn_type(olam->type()->ops().cut(proxy_idx)),
+                    olam->attributes(), olam->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
-                    ocontinuation->param(i)->replace_uses(ncontinuation->param(j));
-                    ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
+                    olam->param(i)->replace_uses(nlam->param(j));
+                    nlam->param(j++)->set_name(olam->param(i)->debug_history().name);
                 }
 
-                if (!ocontinuation->filter()->is_empty())
-                    ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
-                ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
-                ncontinuation->verify();
-                ocontinuation->destroy("cleanup: calls a parameter (permutated)");
+                if (!olam->filter()->is_empty())
+                    nlam->set_filter(olam->filter()->cut(proxy_idx));
+                nlam->jump(obody->callee(), obody->args(), olam->debug());
+                nlam->verify();
+                olam->destroy("cleanup: calls a parameter (permutated)");
 
-                for (auto use : ocontinuation->copy_uses()) {
+                for (auto use : olam->copy_uses()) {
                     auto uapp = use->as<App>();
                     assert(use.index() == 0);
-                    for (auto ucontinuation : uapp->using_lambdas()) {
-                        ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                    for (auto user : uapp->using_lambdas()) {
+                        user->jump(nlam, uapp->args().cut(proxy_idx), user->debug());
                     }
                 }
 
                 todo_ = true;
             }
         }
-next_continuation:;
+next_lam:;
     }
 }
 
@@ -230,9 +230,9 @@ void Cleaner::rebuild() {
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.defs().capacity());
 
-    for (auto&& [_, cont] : world().externals()) {
-        if (cont->is_exported())
-            importer.import(cont);
+    for (auto&& [_, lam] : world().externals()) {
+        if (lam->is_exported())
+            importer.import(lam);
     }
 
     swap(importer.world(), world_);
@@ -285,27 +285,27 @@ void Cleaner::clean_pe_infos() {
     world_.VLOG("cleaning remaining pe_infos");
     std::queue<Lam*> queue;
     LamSet done;
-    auto enqueue = [&](Lam* continuation) {
-        if (done.emplace(continuation).second)
-            queue.push(continuation);
+    auto enqueue = [&](Lam* lam) {
+        if (done.emplace(lam).second)
+            queue.push(lam);
     };
 
-    for (auto&& [_, cont] : world().externals())
-        if (cont->has_body()) enqueue(cont);
+    for (auto&& [_, lam] : world().externals())
+        if (lam->has_body()) enqueue(lam);
 
     while (!queue.empty()) {
-        auto continuation = pop(queue);
+        auto lambda = pop(queue);
 
-        if (continuation->has_body()) {
-            if (auto body = continuation->body()->isa<App>()) {
+        if (lambda->has_body()) {
+            if (auto body = lambda->body()->isa<App>()) {
                 if (auto callee = body->callee()->isa_nom<Lam>(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
-                    clean_pe_info(queue, continuation);
+                    clean_pe_info(queue, lambda);
                     continue;
                 }
             }
         }
 
-        for (auto succ : continuation->succs())
+        for (auto succ : lambda->succs())
             enqueue(succ);
     }
 }
@@ -336,8 +336,8 @@ void Cleaner::cleanup() {
     if (!world().is_pe_done()) {
         world().mark_pe_done();
         for (auto def : world().defs()) {
-            if (auto cont = def->isa_nom<Lam>())
-                cont->destroy_filter();
+            if (auto lam = def->isa_nom<Lam>())
+                lam->destroy_filter();
         }
 
         todo_ = true;

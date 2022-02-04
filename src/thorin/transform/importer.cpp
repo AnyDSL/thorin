@@ -51,27 +51,27 @@ const Def* Importer::import(const Def* odef) {
         return nfilter;
     }
 
-    Lam* ncontinuation = nullptr;
-    if (auto ocontinuation = odef->isa_nom<Lam>()) { // create stub in new world
-        assert(!ocontinuation->dead_);
+    Lam* nlam = nullptr;
+    if (auto olam = odef->isa_nom<Lam>()) { // create stub in new world
+        assert(!olam->dead_);
         // TODO maybe we want to deal with intrinsics in a more streamlined way
-        if (ocontinuation == ocontinuation->world().branch())
-            return def_old2new_[ocontinuation] = world().branch();
-        if (ocontinuation == ocontinuation->world().end_scope())
-            return def_old2new_[ocontinuation] = world().end_scope();
-        auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().lambda(npi, ocontinuation->attributes(), ocontinuation->debug_history());
-        assert(&ncontinuation->world() == &world());
+        if (olam == olam->world().branch())
+            return def_old2new_[olam] = world().branch();
+        if (olam == olam->world().end_scope())
+            return def_old2new_[olam] = world().end_scope();
+        auto npi = import(olam->type())->as<FnType>();
+        nlam = world().lambda(npi, olam->attributes(), olam->debug_history());
+        assert(&nlam->world() == &world());
         assert(&npi->table() == &world());
-        for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-            ncontinuation->param(i)->set_name(ocontinuation->param(i)->debug_history().name);
-            def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
+        for (size_t i = 0, e = olam->num_params(); i != e; ++i) {
+            nlam->param(i)->set_name(olam->param(i)->debug_history().name);
+            def_old2new_[olam->param(i)] = nlam->param(i);
         }
 
-        def_old2new_[ocontinuation] = ncontinuation;
+        def_old2new_[olam] = nlam;
 
-        if (ocontinuation->is_external())
-            world().make_external(ncontinuation);
+        if (olam->is_external())
+            world().make_external(nlam);
     }
 
     size_t size = odef->num_ops();
@@ -88,13 +88,13 @@ const Def* Importer::import(const Def* odef) {
         return def_old2new_[odef] = ndef;
     }
 
-    assert(ncontinuation && &ncontinuation->world() == &world());
+    assert(nlam && &nlam->world() == &world());
     auto napp = nops[0]->isa<App>();
     if (napp)
-        ncontinuation->set_body(napp);
-    ncontinuation->set_filter(nops[1]->as<Filter>());
-    ncontinuation->verify();
-    return ncontinuation;
+        nlam->set_body(napp);
+    nlam->set_filter(nops[1]->as<Filter>());
+    nlam->verify();
+    return nlam;
 }
 
 }

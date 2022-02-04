@@ -29,35 +29,35 @@ static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
     return fn_type->table().fn_type(nops);
 }
 
-static Lam* jump(Lam* cont, Array<const Def*>& args) {
-    cont->jump(args[0], args.skip_front(), args[0]->debug());
-    return cont;
+static Lam* jump(Lam* lam, Array<const Def*>& args) {
+    lam->jump(args[0], args.skip_front(), args[0]->debug());
+    return lam;
 }
 
-static Lam* try_inline(Lam* cont, Array<const Def*>& args) {
+static Lam* try_inline(Lam* lam, Array<const Def*>& args) {
     if (args[0]->isa_nom<Lam>()) {
         auto dropped = drop(args.front(), args.skip_front());
         assert(dropped->has_body());
         auto dapp = dropped->body();
-        cont->jump(dapp->callee(), dapp->args(), args[0]->debug());
+        lam->jump(dapp->callee(), dapp->args(), args[0]->debug());
     } else {
-        jump(cont, args);
+        jump(lam, args);
     }
-    return cont;
+    return lam;
 }
 
-static void inline_calls(Lam* cont) {
-    for (auto use : cont->copy_uses()) {
+static void inline_calls(Lam* lam) {
+    for (auto use : lam->copy_uses()) {
         auto app = use->isa<App>();
         if (!app || use.index() != 0) continue;
 
-        for (auto ucont : app->using_lambdas()) {
-            assert(ucont->has_body());
+        for (auto user_lam : app->using_lambdas()) {
+            assert(user_lam->has_body());
 
             Array<const Def*> args(app->num_args() + 1);
             for (size_t i = 0, e = app->num_args(); i != e; ++i) args[i + 1] = app->arg(i);
             args[0] = app->callee();
-            try_inline(ucont, args);
+            try_inline(user_lam, args);
         }
     }
 }
@@ -71,7 +71,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
     //
     // into:
     //
-    // new_cont(a: T, b: U, c: V, d: fn (W, X, Y)):
+    // new_lam(a: T, b: U, c: V, d: fn (W, X, Y)):
     //     old_def(a, (b, c), unwrap_d)
     //
     //     unwrap_d(a: W, b: (X, Y)):
@@ -83,10 +83,10 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<FnType>();
-    auto new_cont = world.lambda(new_type, old_def->debug());
+    auto new_lam = world.lambda(new_type, old_def->debug());
     Array<const Def*> call_args(old_type->num_ops() + 1);
 
-    wrapped.emplace(old_def, new_cont);
+    wrapped.emplace(old_def, new_lam);
 
     for (size_t i = 0, j = 0, e = old_type->num_ops(); i != e; ++i) {
         auto op = old_type->op(i);
@@ -94,25 +94,25 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
             if (tuple_type->num_ops() <= max_tuple_size) {
                 Array<const Def*> tuple_args(tuple_type->num_ops());
                 for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
-                    tuple_args[k] = new_cont->param(j++);
+                    tuple_args[k] = new_lam->param(j++);
                 call_args[i + 1] = world.tuple(tuple_args);
             } else
-                call_args[i + 1] = new_cont->param(j++);
+                call_args[i + 1] = new_lam->param(j++);
         } else if (auto fn_type = op->isa<FnType>()) {
-            auto fn_param = new_cont->param(j++);
+            auto fn_param = new_lam->param(j++);
             // no need to unwrap if the types are identical
             if (fn_param->type() != op)
                 call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_param, fn_type, max_tuple_size);
             else
                 call_args[i + 1] = fn_param;
         } else {
-            call_args[i + 1] = new_cont->param(j++);
+            call_args[i + 1] = new_lam->param(j++);
         }
     }
 
     call_args[0] = old_def;
     // inline the call, so that the old lambda is eliminated
-    return try_inline(new_cont, call_args);
+    return try_inline(new_lam, call_args);
 }
 
 // Unwrap a def, flattening tuples passed as arguments (dual of wrap)
@@ -124,7 +124,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
     //
     // into:
     //
-    // old_cont(a: T, b: (U, V), d: fn (W, (X, Y))):
+    // old_lam(a: T, b: (U, V), d: fn (W, (X, Y))):
     //     e = extract(b, 0)
     //     f = extract(b, 1)
     //     new_def(a, e, f, wrap_d)
@@ -136,13 +136,13 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<FnType>();
-    auto old_cont = world.lambda(old_type, new_def->debug());
+    auto old_lam = world.lambda(old_type, new_def->debug());
     Array<const Def*> call_args(new_type->num_ops() + 1);
 
-    unwrapped.emplace(new_def, old_cont);
+    unwrapped.emplace(new_def, old_lam);
 
-    for (size_t i = 0, j = 1, e = old_cont->num_params(); i != e; ++i) {
-        auto param = old_cont->param(i);
+    for (size_t i = 0, j = 1, e = old_lam->num_params(); i != e; ++i) {
+        auto param = old_lam->param(i);
         if (auto tuple_type = param->type()->isa<TupleType>()) {
             if (tuple_type->num_ops() <= max_tuple_size) {
                 for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
@@ -163,7 +163,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
 
     call_args[0] = new_def;
     // we do not inline the call, so that we keep the flattened version around
-    return jump(old_cont, call_args);
+    return jump(old_lam, call_args);
 }
 
 static void flatten_tuples(World& world, size_t max_tuple_size) {
@@ -177,41 +177,41 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto pair : unwrapped) unwrapped_codom.emplace(pair.second);
 
-        for (auto cont : world.copy_lams()) {
+        for (auto lam : world.copy_lams()) {
             // do not change the signature of intrinsic/external functions
-            if (!cont->has_body() ||
-                cont->is_intrinsic() ||
-                world.is_external(cont) ||
-                is_passed_to_accelerator(cont))
+            if (!lam->has_body() ||
+                lam->is_intrinsic() ||
+                world.is_external(lam) ||
+                is_passed_to_accelerator(lam))
                 continue;
 
-            auto new_type = wrapped_type(cont->type(), max_tuple_size)->as<FnType>();
-            if (new_type == cont->type()) continue;
+            auto new_type = wrapped_type(lam->type(), max_tuple_size)->as<FnType>();
+            if (new_type == lam->type()) continue;
 
-            // do not transform continuations multiple times
-            if (wrapped.contains(cont) || unwrapped_codom.contains(cont)) continue;
+            // do not transform lambdas multiple times
+            if (wrapped.contains(lam) || unwrapped_codom.contains(lam)) continue;
 
             // generate a version of that lambda that operates without tuples
-            wrap_def(wrapped, unwrapped, cont, new_type, max_tuple_size);
+            wrap_def(wrapped, unwrapped, lam, new_type, max_tuple_size);
 
             todo = true;
 
-            world.DLOG("flattened {}", cont);
+            world.DLOG("flattened {}", lam);
         }
 
         // remove original versions of wrapped functions
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
-            auto def = wrap_pair.first;
-            auto old_cont = def->isa_nom<Lam>();
-            if (old_cont && !old_cont->has_body()) continue;
+            auto old_def = wrap_pair.first;
+            auto old_lam = old_def->isa_nom<Lam>();
+            if (old_lam && !old_lam->has_body()) continue;
 
-            auto new_cont = wrap_pair.second->as_nom<Lam>();
-            auto wrapped_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
+            auto new_lam = wrap_pair.second->as_nom<Lam>();
+            auto unwrapped_lam = unwrap_def(wrapped, unwrapped, new_lam, old_def->type()->as<FnType>(), max_tuple_size);
 
-            def->replace_uses(wrapped_cont);
-            if (old_cont)
-                old_cont->destroy("flatten_tuples");
+            old_def->replace_uses(unwrapped_lam);
+            if (old_lam)
+                old_lam->destroy("flatten_tuples");
         }
     }
 

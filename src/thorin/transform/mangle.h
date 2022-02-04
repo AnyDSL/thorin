@@ -23,7 +23,7 @@ public:
 
 private:
     const App* mangle_body(const App* obody);
-    Lam* mangle_head(Lam* ocontinuation);
+    Lam* mangle_head(Lam* old_lam);
     const Def* mangle(const Def* odef);
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 

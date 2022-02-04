@@ -36,7 +36,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     assert(old_entry()->has_body());
     assert(args.size() == old_entry()->num_params());
 
-    // TODO correctly deal with continuations here
+    // TODO correctly deal with lambdas here
     std::queue<const Def*> queue;
     auto enqueue = [&](const Def* def) {
         if (!within(def)) {
@@ -104,16 +104,16 @@ Lam* Mangler::mangle() {
     return new_entry();
 }
 
-Lam* Mangler::mangle_head(Lam* old_continuation) {
-    assert(!def2def_.contains(old_continuation));
-    assert(old_continuation->has_body());
-    Lam* new_continuation = old_continuation->stub();
-    def2def_[old_continuation] = new_continuation;
+Lam* Mangler::mangle_head(Lam* old_lam) {
+    assert(!def2def_.contains(old_lam));
+    assert(old_lam->has_body());
+    Lam* new_lam = old_lam->stub();
+    def2def_[old_lam] = new_lam;
 
-    for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
-        def2def_[old_continuation->param(i)] = new_continuation->param(i);
+    for (size_t i = 0, e = old_lam->num_params(); i != e; ++i)
+        def2def_[old_lam->param(i)] = new_lam->param(i);
 
-    return new_continuation;
+    return new_lam;
 }
 
 const App* Mangler::mangle_body(const App* old_body) {
@@ -152,11 +152,11 @@ const Def* Mangler::mangle(const Def* old_def) {
         return *new_def;
     else if (!within(old_def))
         return old_def;  // we leave free variables alone
-    else if (auto old_continuation = old_def->isa_nom<Lam>()) {
-        auto new_continuation = mangle_head(old_continuation);
-        if (old_continuation->has_body())
-            new_continuation->set_body(mangle_body(old_continuation->body()));
-        return new_continuation;
+    else if (auto old_lam = old_def->isa_nom<Lam>()) {
+        auto new_lam = mangle_head(old_lam);
+        if (old_lam->has_body())
+            new_lam->set_body(mangle_body(old_lam->body()));
+        return new_lam;
     } else if (auto param = old_def->isa<Param>()) {
         assert(within(param->lambda()));
         mangle(param->lambda());

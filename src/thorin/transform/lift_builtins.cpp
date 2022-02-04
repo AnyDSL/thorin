@@ -8,9 +8,9 @@
 namespace thorin {
 
 void lift_pipeline(World& world) {
-    for (auto cont : world.copy_lams()) {
-        if (!cont->has_body()) continue;
-        auto body = cont->body();
+    for (auto lam : world.copy_lams()) {
+        if (!lam->has_body()) continue;
+        auto body = lam->body();
         auto callee = body->callee()->isa_nom<Lam>();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && body->num_args() == 6) {
@@ -53,7 +53,7 @@ void lift_pipeline(World& world) {
             auto new_pipeline = world.lambda(pipe_type, Intrinsic::Pipeline, callee->debug());
             auto old_body = body->arg(4);
             auto body_cont = world.lambda(body_type, old_body->debug());
-            cont->jump(new_pipeline, thorin::Defs { body->arg(0), body->arg(1), body->arg(2), body->arg(3), body_cont, body->arg(5), pipeline_continue });
+            lam->jump(new_pipeline, thorin::Defs { body->arg(0), body->arg(1), body->arg(2), body->arg(3), body_cont, body->arg(5), pipeline_continue });
             auto target = drop(old_body, {body_cont->param(0), body_cont->param(1), continue_wrapper});
             assert(target->has_body());
             continue_wrapper->jump(pipeline_continue, thorin::Defs { continue_wrapper->param(0), body->arg(5) });
@@ -91,7 +91,7 @@ void lift_builtins(World& world) {
 
         Scope scope(cur);
 
-        // remove all continuations - they should be top-level functions and can thus be ignored
+        // remove all lambdas - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
             if (param->isa_nom<Lam>()) {
@@ -116,9 +116,9 @@ void lift_builtins(World& world) {
 
                         // jump to new top-level dummy function with new args
                         auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
-                        auto ncontinuation = world.lambda(fn_type, callee->attributes(), callee->debug());
+                        auto new_lambda = world.lambda(fn_type, callee->attributes(), callee->debug());
 
-                        new_ops[0] = ncontinuation;
+                        new_ops[0] = new_lambda;
                         uapp->replace_uses(uapp->rebuild(world, uapp->type(), new_ops));
                     }
                 }

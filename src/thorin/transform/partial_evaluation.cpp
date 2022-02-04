@@ -23,9 +23,9 @@ public:
 
     World& world() { return world_; }
     bool run();
-    void enqueue(Lam* continuation) {
-        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
-            queue_.push(continuation);
+    void enqueue(Lam* lambda) {
+        if (lambda->gid() < 2 * boundary_ && done_.emplace(lambda).second)
+            queue_.push(lambda);
     }
     void eat_pe_info(Lam*);
 
@@ -89,12 +89,12 @@ public:
         return callee_->filter()->is_empty() ? world().literal_bool(false, {}) : callee_->filter()->condition(i);
     }
 
-    bool is_top_level(Lam* continuation) {
-        auto p = top_level_.emplace(continuation, true);
+    bool is_top_level(Lam* lambda) {
+        auto p = top_level_.emplace(lambda, true);
         if (!p.second)
             return p.first->second;
 
-        Scope scope(continuation);
+        Scope scope(lambda);
         unique_queue<DefSet> queue;
 
         for (auto def : scope.free())
@@ -104,19 +104,19 @@ public:
             auto def = queue.pop();
 
             if (def->isa<Param>()) // if FV in this scope is a param, this lam can't be top-level
-                return top_level_[continuation] = false;
+                return top_level_[lambda] = false;
             if (auto free_cn = def->isa_nom<Lam>()) {
                 // if we have a non-top level lambda in scope as a free variable,
                 // then it must be bound by some outer lambda, and so we aren't top-level
                 if (!is_top_level(free_cn))
-                    return top_level_[continuation] = false;
+                    return top_level_[lambda] = false;
             } else {
                 for (auto op : def->ops())
                     queue.push(op);
             }
         }
 
-        return top_level_[continuation] = true;
+        return top_level_[lambda] = true;
     }
 
 private:
@@ -138,29 +138,29 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto continuation = next->isa_nom<Lam>()) {
-        queue_.push(continuation);
+    } else if (auto lambda = next->isa_nom<Lam>()) {
+        queue_.push(lambda);
     }
 }
 
 bool PartialEvaluator::run() {
     bool todo = false;
 
-    for (auto&& [_, cont] : world().externals()) {
-        if (!cont->has_body()) continue;
-        enqueue(cont);
-        top_level_[cont] = true;
+    for (auto&& [_, lam] : world().externals()) {
+        if (!lam->has_body()) continue;
+        enqueue(lam);
+        top_level_[lam] = true;
     }
 
     while (!queue_.empty()) {
-        auto continuation = pop(queue_);
+        auto lam = pop(queue_);
 
         bool force_fold = false;
 
-        if (!continuation->has_body())
+        if (!lam->has_body())
             continue;
-        const App* body = continuation->body();
-        const Def* callee_def = continuation->body()->callee();
+        const App* body = lam->body();
+        const Def* callee_def = lam->body()->callee();
 
         if (auto run = callee_def->isa<Run>()) {
             force_fold = true;
@@ -169,7 +169,7 @@ bool PartialEvaluator::run() {
 
         if (auto callee = callee_def->isa_nom<Lam>()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
-                eat_pe_info(continuation);
+                eat_pe_info(lam);
                 continue;
             }
 
@@ -196,19 +196,19 @@ bool PartialEvaluator::run() {
                         todo = true;
                     }
 
-                    jump_to_dropped_call(continuation, target, specialize);
+                    jump_to_dropped_call(lam, target, specialize);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:
                         // maybe the specialization is not top-level anymore which might need further specialization
-                        queue_.push(continuation);
+                        queue_.push(lam);
                         continue;
                     }
                 }
             }
         }
 
-        for (auto succ : continuation->succs())
+        for (auto succ : lam->succs())
             enqueue(succ);
     }
 

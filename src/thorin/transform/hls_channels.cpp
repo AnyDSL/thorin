@@ -13,11 +13,11 @@ using Def2Mode = DefMap<ChannelMode>;
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // <From, To>
 
 static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
-    for (const auto& continuation : schedule) {
+    for (const auto& lam : schedule) {
 
-        if (!continuation->has_body())
+        if (!lam->has_body())
             continue;
-        auto app = continuation->body();
+        auto app = lam->body();
 
         auto callee = app->callee()->isa_nom<Lam>();
         if (callee && callee->is_channel()) {
@@ -33,7 +33,7 @@ static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode
                                 "Duplicated channel or \"WRITE\" mode channel redefined as READ!");
                         def2mode.emplace(def, ChannelMode::Read);
                     } else {
-                        continuation->world().ELOG("Not a channel / unsupported channel placeholder");
+                        lam->world().ELOG("Not a channel / unsupported channel placeholder");
                     }
                 }
             }
@@ -62,10 +62,10 @@ bool is_single_kernel(Lam* kernel) {
 void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Lam2Config& cont2config) {
     auto find_kernel_by_name = [&] (const std::string& name) {
         for (auto def : world.defs()) {
-            auto continuation = def->isa_nom<Lam>();
-            if (!continuation) continue;
-            if (continuation->is_exported() && continuation->name() == name)
-                return continuation;
+            auto lam = def->isa_nom<Lam>();
+            if (!lam) continue;
+            if (lam->is_exported() && lam->name() == name)
+                return lam;
         }
         return (Lam*)nullptr;
     };
@@ -272,10 +272,10 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     // Maping hls world params (from old kernels) to old_world params. Required for host code (runtime) generation
     for (auto& elem : old_kernels_params) {
         for (auto def : old_world.defs()) {
-            if (auto ocontinuation = def->isa_nom<Lam>()) {
-                auto ncontinuation = elem->as<Param>()->lambda();
-                if (ncontinuation == importer.def_old2new_[ocontinuation]) {
-                    elem = ocontinuation->param(elem->as<Param>()->index());
+            if (auto olam = def->isa_nom<Lam>()) {
+                auto nlam = elem->as<Param>()->lambda();
+                if (nlam == importer.def_old2new_[olam]) {
+                    elem = olam->param(elem->as<Param>()->index());
                     break;
                 }
             }

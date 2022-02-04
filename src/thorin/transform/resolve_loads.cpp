@@ -12,8 +12,8 @@ public:
 
     bool resolve_loads() {
         todo_ = false;
-        for (auto continuation : world_.copy_lams()) {
-            for (auto param : continuation->params()) {
+        for (auto lam : world_.copy_lams()) {
+            for (auto param : lam->params()) {
                 if (param->type()->isa<MemType>()) {
                     Def2Def mapping;
                     resolve_loads(param, mapping);

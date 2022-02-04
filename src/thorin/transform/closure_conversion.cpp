@@ -17,30 +17,30 @@ public:
     void run() {
         // create a new lambda for every lambda taking a function as parameter
         std::vector<std::pair<Lam*, Lam*>> converted;
-        for (auto continuation : world_.copy_lams()) {
-            // do not convert empty continuations or intrinsics
-            if (!continuation->has_body() || continuation->is_intrinsic()) {
-                new_defs_[continuation] = continuation;
+        for (auto lam : world_.copy_lams()) {
+            // do not convert empty lambdas or intrinsics
+            if (!lam->has_body() || lam->is_intrinsic()) {
+                new_defs_[lam] = lam;
                 continue;
             }
 
-            auto new_type = world_.fn_type(convert(continuation->type())->ops());
-            if (new_type != continuation->type()) {
-                auto new_continuation = world_.lambda(new_type->as<FnType>(), continuation->debug());
-                if (continuation->is_intrinsic())
-                    new_continuation->set_intrinsic();
+            auto new_type = world_.fn_type(convert(lam->type())->ops());
+            if (new_type != lam->type()) {
+                auto new_lam = world_.lambda(new_type->as<FnType>(), lam->debug());
+                if (lam->is_intrinsic())
+                    new_lam->set_intrinsic();
 
-                new_defs_[continuation] = new_continuation;
-                if (continuation->has_body()) {
-                    auto body = continuation->body();
-                    for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-                        new_defs_[continuation->param(i)] = new_continuation->param(i);
+                new_defs_[lam] = new_lam;
+                if (lam->has_body()) {
+                    auto body = lam->body();
+                    for (size_t i = 0, e = lam->num_params(); i != e; ++i)
+                        new_defs_[lam->param(i)] = new_lam->param(i);
                     // copy existing call from old lambda
-                    new_continuation->jump(body->callee(), body->args(), continuation->debug());
-                    converted.emplace_back(continuation, new_continuation);
+                    new_lam->jump(body->callee(), body->args(), lam->debug());
+                    converted.emplace_back(lam, new_lam);
                 }
-            } else if (continuation->has_body()) {
-                converted.emplace_back(continuation, continuation);
+            } else if (lam->has_body()) {
+                converted.emplace_back(lam, lam);
             }
         }
 
@@ -48,7 +48,7 @@ public:
         for (auto pair : converted)
             convert_jump(pair.second);
 
-        // remove old continuations
+        // remove old lambdas
         for (auto pair : converted) {
             if (pair.second != pair.first) {
                 pair.first->destroy("closure conversion");
@@ -57,17 +57,17 @@ public:
         }
     }
 
-    void convert_jump(Lam* continuation) {
-        assert(continuation->has_body());
-        auto body = continuation->body();
+    void convert_jump(Lam* lam) {
+        assert(lam->has_body());
+        auto body = lam->body();
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
         auto callee = body->callee()->isa_nom<Lam>();
-        if (callee == continuation) return;
+        if (callee == lam) return;
         if (!callee || !callee->is_intrinsic()) {
             Array<const Def*> new_args(body->num_args());
             for (size_t i = 0, e = body->num_args(); i != e; ++i)
                 new_args[i] = convert(body->arg(i));
-            continuation->jump(convert(body->callee(), true), new_args, continuation->debug());
+            lam->jump(convert(body->callee(), true), new_args, lam->debug());
         }
     }
 
@@ -76,23 +76,23 @@ public:
         if (def->order() <= 1)
             return def;
 
-        if (auto continuation = def->isa_nom<Lam>()) {
-            if (!continuation->has_body())
-                return continuation;
-            convert_jump(continuation);
+        if (auto lam = def->isa_nom<Lam>()) {
+            if (!lam->has_body())
+                return lam;
+            convert_jump(lam);
             if (as_callee)
-                return continuation;
+                return lam;
 
-            world_.WLOG("slow: closure generated for '{}'", continuation);
+            world_.WLOG("slow: closure generated for '{}'", lam);
 
             // lift the lambda from its scope
-            Scope scope(continuation);
+            Scope scope(lam);
             auto def_set = free_defs(scope, false);
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));
-                auto continuation = def->isa_nom<Lam>();
-                return continuation && (!continuation->has_body() || continuation->is_intrinsic());
+                auto lam = def->isa_nom<Lam>();
+                return lam && (!lam->has_body() || lam->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
             auto lifted = lift(scope, free_vars);
@@ -112,13 +112,13 @@ public:
             }
 
             // create a wrapper that takes a pointer to the environment
-            size_t env_param_index = continuation->num_params();
+            size_t env_param_index = lam->num_params();
             Array<const Type*> wrapper_param_types(env_param_index + 1);
-            for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-                wrapper_param_types[i] = continuation->param(i)->type();
+            for (size_t i = 0, e = lam->num_params(); i != e; ++i)
+                wrapper_param_types[i] = lam->param(i)->type();
             wrapper_param_types.back() = Closure::environment_type(world_);
             auto wrapper_type = world_.fn_type(wrapper_param_types);
-            auto wrapper = world_.lambda(wrapper_type, continuation->debug());
+            auto wrapper = world_.lambda(wrapper_type, lam->debug());
 
             Array<const Def*> wrapper_args(lifted->num_params());
             const Def* new_mem = wrapper->mem_param();
@@ -134,7 +134,7 @@ public:
                 for (size_t i = 0, e = free_vars.size(); i != e; ++i)
                     wrapper_args[env_param_index + i] = world_.extract(env, i);
             }
-            for (size_t i = 0, e = continuation->num_params(); i != e; ++i) {
+            for (size_t i = 0, e = lam->num_params(); i != e; ++i) {
                 auto param = wrapper->param(i);
                 if (param->type()->isa<MemType>()) {
                     // use the mem obtained after the load
@@ -145,8 +145,8 @@ public:
             }
             wrapper->jump(lifted, wrapper_args);
 
-            auto closure_type = convert(continuation->type());
-            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
+            auto closure_type = convert(lam->type());
+            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), lam->debug());
         } else {
             // TODO need to consider Params?
             Array<const Def*> ops(def->ops());

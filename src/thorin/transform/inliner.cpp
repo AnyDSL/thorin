@@ -11,12 +11,12 @@ void force_inline(Scope& scope, int threshold) {
     for (bool todo = true; todo && threshold-- != 0;) {
         todo = false;
         for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->lambda();
-            if (!continuation->has_body()) continue;
-            if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
+            auto lam = n->lambda();
+            if (!lam->has_body()) continue;
+            if (auto callee = lam->body()->callee()->isa_nom<Lam>()) {
                 if (callee->has_body() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
+                    lam->jump(drop(callee_scope, lam->body()->args()), {}, lam->debug()); // TODO debug
                     todo = true;
                 }
             }
@@ -27,11 +27,11 @@ void force_inline(Scope& scope, int threshold) {
     }
 
     for (auto n : scope.f_cfg().reverse_post_order()) {
-        auto continuation = n->lambda();
-        if (!continuation->has_body()) continue;
-        if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
+        auto lam = n->lambda();
+        if (!lam->has_body()) continue;
+        if (auto callee = lam->body()->callee()->isa_nom<Lam>()) {
             if (callee->has_body() && !scope.contains(callee))
-                scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
+                scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, lam->loc(), scope.entry());
         }
     }
 }
@@ -42,21 +42,21 @@ void inliner(World& world) {
     static const int factor = 4;
     static const int offset = 4;
 
-    LamMap<std::unique_ptr<Scope>> continuation2scope;
+    LamMap<std::unique_ptr<Scope>> lam2scope;
 
-    auto get_scope = [&] (Lam* continuation) -> Scope* {
-        auto i = continuation2scope.find(continuation);
-        if (i == continuation2scope.end())
-            i = continuation2scope.emplace(continuation, std::make_unique<Scope>(continuation)).first;
+    auto get_scope = [&] (Lam* lam) -> Scope* {
+        auto i = lam2scope.find(lam);
+        if (i == lam2scope.end())
+            i = lam2scope.emplace(lam, std::make_unique<Scope>(lam)).first;
         return i->second.get();
     };
 
-    auto is_candidate = [&] (Lam* continuation) -> Scope* {
-        if (continuation->has_body() && continuation->order() > 1 && !continuation->is_external()) {
-            auto scope = get_scope(continuation);
+    auto is_candidate = [&] (Lam* lam) -> Scope* {
+        if (lam->has_body() && lam->order() > 1 && !lam->is_external()) {
+            auto scope = get_scope(lam);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops
-                for (auto& use : continuation->uses()) {
+                for (auto& use : lam->uses()) {
                     // note that if there was an edge from parameter to lambda,
                     // we would need to check if the use is a parameter here.
                     if (!use->isa<Param>() && scope->contains(use.def()))
@@ -71,15 +71,15 @@ void inliner(World& world) {
     Scope::for_each(world, [&] (Scope& scope) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->lambda();
-            if (!continuation->has_body()) continue;
-            if (auto callee = continuation->body()->callee()->isa_nom<Lam>()) {
+            auto lam = n->lambda();
+            if (!lam->has_body()) continue;
+            if (auto callee = lam->body()->callee()->isa_nom<Lam>()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
                 world.DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
-                    world.DLOG("- here: {}", continuation);
-                    continuation->jump(drop(*callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
+                    world.DLOG("- here: {}", lam);
+                    lam->jump(drop(*callee_scope, lam->body()->args()), {}, lam->debug()); // TODO debug
                     dirty = true;
                 }
             }

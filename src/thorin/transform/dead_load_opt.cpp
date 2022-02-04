@@ -8,11 +8,11 @@ namespace thorin {
 static void dead_load_opt(const Scope& scope) {
     auto& world = scope.world();
     for (auto n : scope.f_cfg().post_order()) {
-        auto continuation = n->lambda();
-        if (!continuation->has_body()) continue;
+        auto lam = n->lambda();
+        if (!lam->has_body()) continue;
 
         const Def* mem;
-        for (auto arg : continuation->body()->args()) {
+        for (auto arg : lam->body()->args()) {
             if (is_mem(arg)) {
                 mem = arg;
                 break;

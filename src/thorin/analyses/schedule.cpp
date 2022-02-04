@@ -36,8 +36,8 @@ Scheduler::Scheduler(const Scope& s)
     while (!queue.empty()) {
         auto def = pop(queue);
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            // all reachable continuations have already been registered above
-            // NOTE we might still see references to unreachable continuations in the schedule
+            // all reachable lambdas have already been registered above
+            // NOTE we might still see references to unreachable lambdas in the schedule
             if (!def->op(i)->isa<Lam>())
                 enqueue(def, i, def->op(i));
         }
@@ -45,15 +45,15 @@ Scheduler::Scheduler(const Scope& s)
 }
 
 Lam* Scheduler::early(const Def* def) {
-    if (auto cont = early_.lookup(def)) return *cont;
+    if (auto scheduled = early_.lookup(def)) return *scheduled;
     if (auto param = def->isa<Param>()) return early_[def] = param->lambda();
 
     auto result = scope().entry();
     for (auto op : def->as_structural()->ops()) {
         if (!op->isa_nom<Lam>() && def2uses_.find(op) != def2uses_.end()) {
-            auto cont = early(op);
-            if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
-                result = cont;
+            auto lam = early(op);
+            if (domtree().depth(cfg(lam)) > domtree().depth(cfg(result)))
+                result = lam;
         }
     }
 
@@ -61,17 +61,17 @@ Lam* Scheduler::early(const Def* def) {
 }
 
 Lam* Scheduler::late(const Def* def) {
-    if (auto cont = late_.lookup(def)) return *cont;
+    if (auto scheduled = late_.lookup(def)) return *scheduled;
 
     Lam* result = nullptr;
-    if (auto continuation = def->isa_nom<Lam>()) {
-        result = continuation;
+    if (auto lam = def->isa_nom<Lam>()) {
+        result = lam;
     } else if (auto param = def->isa<Param>()) {
         result = param->lambda();
     } else {
         for (auto use : uses(def)) {
-            auto cont = late(use);
-            result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->lambda() : cont;
+            auto target = late(use);
+            result = result ? domtree().least_common_ancestor(cfg(result), cfg(target))->lambda() : target;
         }
     }
 
@@ -79,7 +79,7 @@ Lam* Scheduler::late(const Def* def) {
 }
 
 Lam* Scheduler::smart(const Def* def) {
-    if (auto cont = smart_.lookup(def)) return *cont;
+    if (auto scheduled = smart_.lookup(def)) return *scheduled;
 
     auto e = cfg(early(def));
     auto l = cfg(late (def));
@@ -123,8 +123,8 @@ void Schedule::verify() {
     Schedule::Map<const Def*> block2mem(*this);
 
     for (auto& block : *this) {
-        const Def* mem = block.continuation()->mem_param();
-        auto idom = block.continuation() != scope().entry() ? domtree.idom(block.node()) : block.node();
+        const Def* mem = block.lambda()->mem_param();
+        auto idom = block.lambda() != scope().entry() ? domtree.idom(block.node()) : block.node();
         mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
@@ -144,17 +144,17 @@ void Schedule::verify() {
 
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
-        auto continuation = block.continuation();
-        if (continuation->intrinsic() != Intrinsic::EndScope) {
-            bool indent = continuation != scope().entry();
+        auto lam = block.lambdas();
+        if (lam->intrinsic() != Intrinsic::EndScope) {
+            bool indent = lam != scope().entry();
             if (indent)
                 os << up;
             os << endl;
-            continuation->stream_head(os) << up_endl;
+            lam->stream_head(os) << up_endl;
             for (auto primop : block)
                 primop->stream_assignment(os);
 
-            continuation->stream_jump(os) << down_endl;
+            lam->stream_jump(os) << down_endl;
             if (indent)
                 os << down;
         }

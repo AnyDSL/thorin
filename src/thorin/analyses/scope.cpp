@@ -38,10 +38,10 @@ void Scope::run() {
         if (defs_.insert(def).second) {
             queue.push(def);
 
-            if (auto continuation = def->isa_nom<Lam>()) {
+            if (auto lam = def->isa_nom<Lam>()) {
                 // when a lambda is part of this scope, we also enqueue its params, and we assert those to be unique
                 // TODO most likely redundant once params have the lambda in their ops
-                for (auto param : continuation->params()) {
+                for (auto param : lam->params()) {
                     auto p = defs_.insert(param);
                     assert_unused(p.second);
                     queue.push(param);
@@ -109,17 +109,17 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<LamSet> continuation_queue;
+    unique_queue<LamSet> lambda_queue;
 
-    for (auto&& [_, cont] : world.externals()) {
-        if (cont->has_body()) continuation_queue.push(cont);
+    for (auto&& [_, lam] : world.externals()) {
+        if (lam->has_body()) lambda_queue.push(lam);
     }
 
-    while (!continuation_queue.empty()) {
-        auto continuation = continuation_queue.pop();
-        if (elide_empty && !continuation->has_body())
+    while (!lambda_queue.empty()) {
+        auto lam = lambda_queue.pop();
+        if (elide_empty && !lam->has_body())
             continue;
-        Scope scope(continuation);
+        Scope scope(lam);
         f(scope);
 
         unique_queue<DefSet> def_queue;
@@ -128,8 +128,8 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto continuation = def->isa_nom<Lam>())
-                continuation_queue.push(continuation);
+            if (auto lambda = def->isa_nom<Lam>())
+                lambda_queue.push(lambda);
             else {
                 for (auto op : def->ops())
                     def_queue.push(op);

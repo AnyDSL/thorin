@@ -1094,19 +1094,19 @@ const Def* World::run(const Def* def, Debug dbg) {
 }
 
 /*
- * continuations
+ * lambdas
  */
 
 Lam* World::lambda(const FnType* fn, Lam::Attributes attributes, Debug dbg) {
-    auto cont = put<Lam>(fn, attributes, dbg);
+    auto lam = put<Lam>(fn, attributes, dbg);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
-        auto p = param(op, cont, i++, dbg);
-        cont->params_.emplace_back(p);
+        auto p = param(op, lam, i++, dbg);
+        lam->params_.emplace_back(p);
     }
 
-    return cont;
+    return lam;
 }
 
 Lam* World::match(const Type* type, size_t num_patterns) {
@@ -1118,8 +1118,8 @@ Lam* World::match(const Type* type, size_t num_patterns) {
     return lambda(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
-const Param* World::param(const Type* type, Lam* continuation, size_t index, Debug dbg) {
-    auto param = new Param(type, continuation, index, dbg);
+const Param* World::param(const Type* type, Lam* lambda, size_t index, Debug dbg) {
+    auto param = new Param(type, lambda, index, dbg);
 #if THORIN_ENABLE_CHECKS
     if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
 #endif
@@ -1132,8 +1132,8 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 
 /// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
-    if (auto continuation = callee->isa<Lam>()) {
-        switch (continuation->intrinsic()) {
+    if (auto lamb = callee->isa<Lam>()) {
+        switch (lamb->intrinsic()) {
             case Intrinsic::Branch: {
                 assert(args.size() == 3);
                 auto cond = args[0], t = args[1], f = args[2];

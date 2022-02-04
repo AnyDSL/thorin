@@ -1,5 +1,5 @@
 #include "thorin/world.h"
-#include "thorin/continuation.h"
+#include "thorin/lambda.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/hls_channels.h"
 #include "thorin/analyses/scope.h"

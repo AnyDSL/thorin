@@ -1,4 +1,4 @@
-#include "thorin/continuation.h"
+#include "thorin/lambda.h"
 
 #include <iostream>
 

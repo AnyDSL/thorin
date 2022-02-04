@@ -1,4 +1,4 @@
-#include "thorin/continuation.h"
+#include "thorin/lambda.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/analyses/verify.h"

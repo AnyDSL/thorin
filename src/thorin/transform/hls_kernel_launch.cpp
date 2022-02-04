@@ -1,7 +1,7 @@
 #include "thorin/transform/hls_kernel_launch.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/world.h"
-#include "thorin/continuation.h"
+#include "thorin/lambda.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"

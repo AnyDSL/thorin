@@ -1,5 +1,5 @@
-#ifndef THORIN_CONTINUATION_H
-#define THORIN_CONTINUATION_H
+#ifndef THORIN_LAMBDA_H
+#define THORIN_LAMBDA_H
 
 #include <list>
 #include <vector>

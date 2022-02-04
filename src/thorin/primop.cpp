@@ -1,5 +1,5 @@
 #include "thorin/primop.h"
-#include "thorin/continuation.h"
+#include "thorin/lambda.h"
 
 #include "thorin/config.h"
 #include "thorin/type.h"

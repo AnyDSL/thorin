@@ -1,6 +1,6 @@
 set(THORIN_SOURCES
-    continuation.cpp
-    continuation.h
+    lambda.cpp
+    lambda.h
     debug.cpp
     debug.h
     def.cpp

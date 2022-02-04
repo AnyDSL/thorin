@@ -7,7 +7,7 @@
 #include <llvm/Target/TargetMachine.h>
 
 #include "thorin/config.h"
-#include "thorin/continuation.h"
+#include "thorin/lambda.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/be/codegen.h"
 #include "thorin/be/emitter.h"

@@ -306,7 +306,7 @@ llvm::Function* CodeGen::emit_fun_decl(Lam* continuation) {
     if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
         if (continuation->is_imported()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
-        } else if (continuation->is_exported()) {
+        } else if (lambda->is_exported()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
         }
     }
@@ -491,7 +491,7 @@ void CodeGen::emit_epilogue(Lam* continuation) {
             call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getElementType()), func, args);
         }
 
-        // must be call + continuation --- call + return has been removed by codegen_prepare
+        // must be call + lambda --- call + return has been removed by codegen_prepare
         auto succ = ret_arg->as_nom<Lam>();
 
         size_t n = 0;

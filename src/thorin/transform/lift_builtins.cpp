@@ -48,11 +48,11 @@ void lift_pipeline(World& world) {
             // Note the use of 'return' as the second argument to pipeline_continue.
             // This is required to encode the dependence of the loop body over the call to pipeline,
             // so that lift_builtins can extract the correct free variables.
-            auto pipeline_continue = world.continuation(p_cont_type, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
-            auto continue_wrapper = world.continuation(cont_type, Debug("continue_wrapper"));
-            auto new_pipeline = world.continuation(pipe_type, Intrinsic::Pipeline, callee->debug());
+            auto pipeline_continue = world.lambda(p_cont_type, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
+            auto continue_wrapper = world.lambda(cont_type, Debug("continue_wrapper"));
+            auto new_pipeline = world.lambda(pipe_type, Intrinsic::Pipeline, callee->debug());
             auto old_body = body->arg(4);
-            auto body_cont = world.continuation(body_type, old_body->debug());
+            auto body_cont = world.lambda(body_type, old_body->debug());
             cont->jump(new_pipeline, thorin::Defs { body->arg(0), body->arg(1), body->arg(2), body->arg(3), body_cont, body->arg(5), pipeline_continue });
             auto target = drop(old_body, {body_cont->param(0), body_cont->param(1), continue_wrapper});
             assert(target->has_body());
@@ -112,11 +112,11 @@ void lift_builtins(World& world) {
                         Array<const Def*> new_ops(old_ops.size() + defs.size());
                         std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin())); // old ops + former free defs
                         assert(old_ops[use.index()] == cur);
-                        new_ops[use.index()] = world.global(lifted, false, lifted->debug()); // update to new lifted continuation
+                        new_ops[use.index()] = world.global(lifted, false, lifted->debug()); // update to new lifted lambda
 
                         // jump to new top-level dummy function with new args
                         auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
-                        auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
+                        auto ncontinuation = world.lambda(fn_type, callee->attributes(), callee->debug());
 
                         new_ops[0] = ncontinuation;
                         uapp->replace_uses(uapp->rebuild(world, uapp->type(), new_ops));

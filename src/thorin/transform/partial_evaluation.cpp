@@ -70,14 +70,14 @@ public:
     }
 
     bool eval(size_t i, bool lower2cff) {
-        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
+        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level lambda
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<FnType>()
                             || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            world().DLOG("bad param({}) {} of lambda {}", i, callee_->param(i), callee_);
             return true;
         }
 
@@ -106,8 +106,8 @@ public:
             if (def->isa<Param>()) // if FV in this scope is a param, this lam can't be top-level
                 return top_level_[continuation] = false;
             if (auto free_cn = def->isa_nom<Lam>()) {
-                // if we have a non-top level continuation in scope as a free variable,
-                // then it must be bound by some outer continuation, and so we aren't top-level
+                // if we have a non-top level lambda in scope as a free variable,
+                // then it must be bound by some outer lambda, and so we aren't top-level
                 if (!is_top_level(free_cn))
                     return top_level_[continuation] = false;
             } else {

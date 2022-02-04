@@ -22,8 +22,8 @@ const Def* Rewriter::instantiate(const Def* odef) {
     return old2new[odef] = odef;
 }
 
-/// Mangles a continuation's scope
-/// @p args has the size of the original continuation, a null entry means the parameter remains, non-null substitutes it in scope and removes it from the signature
+/// Mangles a lambda's scope
+/// @p args has the size of the original lambda, a null entry means the parameter remains, non-null substitutes it in scope and removes it from the signature
 /// @p lift lists defs that should be replaced by a fresh param, to be appended at the end of the signature
 Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
@@ -63,7 +63,7 @@ Lam* Mangler::mangle() {
     }
 
     auto fn_type = world().fn_type(param_types);
-    new_entry_ = world().continuation(fn_type, old_entry()->debug_history());
+    new_entry_ = world().lambda(fn_type, old_entry()->debug_history());
 
     // map value params
     def2def_[old_entry()] = old_entry();
@@ -136,7 +136,7 @@ const App* Mangler::mangle_body(const App* old_body) {
         }
 
         if (substitute) {
-            // Q: why not always change to the mangled continuation ?
+            // Q: why not always change to the mangled lambda ?
             // A: if you drop a parameter it is replaced by some def (likely a free param), which will be identical for all recursive calls, since they live in the same scope (that's how scopes work)
             // so if there originally was a recursive call that specified the to-be-dropped parameter to something else, we need to call the unmangled original to preserve semantics
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));

@@ -233,13 +233,13 @@ public:
     const Def* known(const Def* def, Debug dbg = {});
     const Def* run(const Def* def, Debug dbg = {});
 
-    // continuations
+    // lambdas
 
-    Lam* continuation(const FnType*, Lam::Attributes, Debug = {});
-    Lam* continuation(const FnType* fn_type, Debug dbg = {}) {
-        return continuation(fn_type, Lam::Attributes(), dbg);
+    Lam* lambda(const FnType*, Lam::Attributes, Debug = {});
+    Lam* lambda(const FnType* fn_type, Debug dbg = {}) {
+        return lambda(fn_type, Lam::Attributes(), dbg);
     }
-    Lam* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
+    Lam* lambda(Debug dbg = {}) { return lambda(fn_type(), dbg); }
     Lam* branch() const { return data_.branch_; }
     Lam* match(const Type* type, size_t num_patterns);
     Lam* end_scope() const { return data_.end_scope_; }

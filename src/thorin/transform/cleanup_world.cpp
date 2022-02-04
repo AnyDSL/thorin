@@ -195,7 +195,7 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto ncontinuation = world().continuation(
+                auto ncontinuation = world().lambda(
                     world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
                     ocontinuation->attributes(), ocontinuation->debug_history());
                 size_t j = 0;

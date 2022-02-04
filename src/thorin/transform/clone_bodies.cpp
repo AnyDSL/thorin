@@ -24,7 +24,7 @@ void clone_bodies(World& /*world*/) {
         bool first = true;
         for (auto use : continuation->copy_uses()) {
             if (first) {
-                first = false; // re-use the initial continuation as first clone
+                first = false; // re-use the initial lambda as first clone
             } else {
                 auto ncontinuation = clone(scope);
                 if (auto uapp = use->isa<App>()) {

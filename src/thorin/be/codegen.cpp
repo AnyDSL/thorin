@@ -22,7 +22,7 @@ static void get_kernel_configs(
 
     auto externals = importer.world().externals();
     for (auto continuation : kernels) {
-        // recover the imported continuation (lost after the call to opt)
+        // recover the imported lambda (lost after the call to opt)
         Lam* imported = nullptr;
         for (auto [_, exported] : externals) {
             if (!exported->has_body()) continue;

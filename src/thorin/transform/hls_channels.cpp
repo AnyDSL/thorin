@@ -181,7 +181,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
-            auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
+            auto new_kernel = world.lambda(world.fn_type(new_param_types), old_kernel->debug());
             world.make_external(new_kernel);
 
             kernel_new2old.emplace(new_kernel, old_kernel);
@@ -248,7 +248,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         }
     }
 
-    auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
+    auto hls_top = world.lambda(world.fn_type(top_param_types), Debug("hls_top"));
     for (auto tuple : param_index) {
         // (non-channel params, top params as kernel call args)
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
@@ -374,7 +374,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         auto ret_param = kernel->ret_param();
         auto mem_param = kernel->mem_param();
         auto ret_type = ret_param->type()->as<FnType>();
-        auto ret = world.continuation(ret_type, kernel->debug());
+        auto ret = world.lambda(ret_type, kernel->debug());
         // Fill the array of arguments
         Array<const Def*> args(kernel->type()->num_ops());
         for (size_t i = 0; i < kernel->type()->num_ops(); ++i) {

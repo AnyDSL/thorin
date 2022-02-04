@@ -60,7 +60,7 @@ const Def* Importer::import(const Def* odef) {
         if (ocontinuation == ocontinuation->world().end_scope())
             return def_old2new_[ocontinuation] = world().end_scope();
         auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->attributes(), ocontinuation->debug_history());
+        ncontinuation = world().lambda(npi, ocontinuation->attributes(), ocontinuation->debug_history());
         assert(&ncontinuation->world() == &world());
         assert(&npi->table() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {

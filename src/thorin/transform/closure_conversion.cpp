@@ -15,7 +15,7 @@ public:
     {}
 
     void run() {
-        // create a new continuation for every continuation taking a function as parameter
+        // create a new continuation for every lambda taking a function as parameter
         std::vector<std::pair<Lam*, Lam*>> converted;
         for (auto continuation : world_.copy_lams()) {
             // do not convert empty continuations or intrinsics
@@ -26,7 +26,7 @@ public:
 
             auto new_type = world_.fn_type(convert(continuation->type())->ops());
             if (new_type != continuation->type()) {
-                auto new_continuation = world_.continuation(new_type->as<FnType>(), continuation->debug());
+                auto new_continuation = world_.lambda(new_type->as<FnType>(), continuation->debug());
                 if (continuation->is_intrinsic())
                     new_continuation->set_intrinsic();
 
@@ -35,7 +35,7 @@ public:
                     auto body = continuation->body();
                     for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                         new_defs_[continuation->param(i)] = new_continuation->param(i);
-                    // copy existing call from old continuation
+                    // copy existing call from old lambda
                     new_continuation->jump(body->callee(), body->args(), continuation->debug());
                     converted.emplace_back(continuation, new_continuation);
                 }
@@ -44,7 +44,7 @@ public:
             }
         }
 
-        // convert the calls to each continuation
+        // convert the calls to each lambda
         for (auto pair : converted)
             convert_jump(pair.second);
 
@@ -85,7 +85,7 @@ public:
 
             world_.WLOG("slow: closure generated for '{}'", continuation);
 
-            // lift the continuation from its scope
+            // lift the lambda from its scope
             Scope scope(continuation);
             auto def_set = free_defs(scope, false);
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
@@ -118,7 +118,7 @@ public:
                 wrapper_param_types[i] = continuation->param(i)->type();
             wrapper_param_types.back() = Closure::environment_type(world_);
             auto wrapper_type = world_.fn_type(wrapper_param_types);
-            auto wrapper = world_.continuation(wrapper_type, continuation->debug());
+            auto wrapper = world_.lambda(wrapper_type, continuation->debug());
 
             Array<const Def*> wrapper_args(lifted->num_params());
             const Def* new_mem = wrapper->mem_param();
@@ -126,7 +126,7 @@ public:
                 wrapper_args[env_param_index] = world_.cast(free_vars[0]->type(), wrapper->param(env_param_index));
             } else {
                 // make the wrapper load the pointer and pass each
-                // variable of the environment to the lifted continuation
+                // variable of the environment to the lifted lambda
                 auto env_ptr = world_.cast(Closure::environment_ptr_type(world_), wrapper->param(env_param_index));
                 auto loaded_env = world_.load(wrapper->mem_param(), world_.bitcast(world_.ptr_type(env_type), env_ptr));
                 auto env = world_.extract(loaded_env, 1_u32);
@@ -172,7 +172,7 @@ public:
             new_types_[type] = new_type;
         }
 
-        // accept one parameter of order 1 (the return continuation) for function types
+        // accept one parameter of order 1 (the return lambda) for function types
         bool ret = !type->isa<FnType>();
         for (auto& op : ops) {
             op = convert(op);

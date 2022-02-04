@@ -20,7 +20,7 @@ typedef std::vector<Lam*> Lams;
 
 /**
  * A parameter of a @p Lam function.
- * A @p Param knows its @p continuation() it belongs to.
+ * A @p Param knows its @p lambda() it belongs to.
  */
 class Param : public Def {
 private:
@@ -173,7 +173,7 @@ public:
         set_op(0, app);
     }
 
-    /// Called to kill the continuation
+    /// Called to kill the lambda
     void destroy(const char*);
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
@@ -189,7 +189,7 @@ public:
     void destroy_filter();
     const Filter* all_true_filter() const;
 
-    /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
+    /// Counts how many time that lambda is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
     bool can_be_inlined() const {
         size_t used = 0;

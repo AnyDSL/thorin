@@ -44,8 +44,8 @@ namespace thorin {
 
 World::World(const std::string& name) {
     data_.name_   = name;
-    data_.branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
-    data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
+    data_.branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    data_.end_scope_ = lambda(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -1097,7 +1097,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  * continuations
  */
 
-Lam* World::continuation(const FnType* fn, Lam::Attributes attributes, Debug dbg) {
+Lam* World::lambda(const FnType* fn, Lam::Attributes attributes, Debug dbg) {
     auto cont = put<Lam>(fn, attributes, dbg);
 
     size_t i = 0;
@@ -1115,7 +1115,7 @@ Lam* World::match(const Type* type, size_t num_patterns) {
     arg_types[1] = fn_type();
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = tuple_type({type, fn_type()});
-    return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
+    return lambda(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
 const Param* World::param(const Type* type, Lam* continuation, size_t index, Debug dbg) {

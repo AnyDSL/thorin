@@ -259,7 +259,7 @@ Lam* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Lam* continuation) {
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
 
-    // bind parameter of continuation to received handle
+    // bind parameter of lambda to received handle
     auto cont = body->arg(SPAWN_ARG_RETURN)->as_nom<Lam>();
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;

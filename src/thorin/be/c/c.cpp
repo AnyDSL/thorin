@@ -572,7 +572,7 @@ void CCodeGen::prepare(Lam* cont, const std::string&) {
     bb.head.indent(2);
     bb.body.indent(2);
     bb.tail.indent(2);
-    // The parameters of the entry continuation have already been emitted.
+    // The parameters of the entry lambda have already been emitted.
     if (cont != entry_) {
         for (auto param : cont->params()) {
             if (!is_concrete(param)) {
@@ -813,7 +813,7 @@ void CCodeGen::emit_epilogue(Lam* cont) {
         if (!no_function_call)
             bb.tail.fmt("{}({, });\n", emit(callee), args);
 
-        // Pass the result to the phi nodes of the return continuation
+        // Pass the result to the phi nodes of the return lambda
         if (!is_type_unit(ret_type)) {
             size_t i = 0;
             for (auto param : ret_cont->params()) {

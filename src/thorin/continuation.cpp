@@ -61,7 +61,7 @@ Lam::Lam(const FnType* fn, const Attributes& attributes, Debug dbg)
 Lam* Lam::stub() const {
     Rewriter rewriter;
 
-    auto result = world().continuation(type(), attributes(), debug_history());
+    auto result = world().lambda(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->set_name(debug_history().name);
         rewriter.old2new[param(i)] = result->param(i);
@@ -265,7 +265,7 @@ void Lam::verify() const {
 
         if (world().is_external(this)) {} // external (imported) continuations can of course have no body
         else if (dead_) {}
-        else if (num_uses() == 0) {} // front-ends (ie Artic) may create such orphan continuation stubs currently, ideally these should only be tolerated until the first rebuild
+        else if (num_uses() == 0) {} // front-ends (ie Artic) may create such orphan lambda stubs currently, ideally these should only be tolerated until the first rebuild
         else if (intrinsic() != Intrinsic::None) {} // intrinsics don't have a body TODO: or do they ?
         else {
             // assertf(false, "{} has no body but does not correspond to any legitimate case where that may happen", *this);

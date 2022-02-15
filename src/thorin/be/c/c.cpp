@@ -145,7 +145,7 @@ private:
 
 static inline const std::string lang_as_string(Lang lang) {
     switch (lang) {
-        default:
+        default:     THORIN_UNREACHABLE;
         case Lang::C99:    return "C99";
         case Lang::HLS:    return "HLS";
         case Lang::CUDA:   return "CUDA";

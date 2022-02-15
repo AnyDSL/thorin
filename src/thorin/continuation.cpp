@@ -22,6 +22,9 @@ Param::Param(const Type* type, Continuation* continuation, size_t index, Debug d
 App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
+    if (auto cont = callee()->isa_nom<Continuation>())
+        assert(!cont->dead_); // debugging hint, apps should not be built with dead continuations
+        // this cannot live in verify because continuations are mutable and may die later
 #endif
 }
 
@@ -33,9 +36,6 @@ void App::verify() const {
         auto pt = callee_type->op(i);
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
-    }
-    if (auto cont = callee()->isa_nom<Continuation>()) {
-        assert(!cont->dead_);
     }
 }
 

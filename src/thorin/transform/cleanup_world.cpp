@@ -100,10 +100,10 @@ void Cleaner::eta_conversion() {
         for (auto def : world().copy_defs()) {
             auto continuation = def->isa_nom<Continuation>();
             if (!continuation || !continuation->has_body()) continue;
-            auto body = continuation->body();
 
             // eat calls to known continuations that are only used once
-            while (auto callee = body->callee()->isa_nom<Continuation>()) {
+            while (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+                auto body = continuation->body();
                 if (callee == continuation) break;
 
                 if (callee->can_be_inlined() && callee->has_body() && !world().is_external(callee)) {
@@ -122,6 +122,7 @@ void Cleaner::eta_conversion() {
                     break;
             }
 
+            auto body = continuation->body();
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
             if (auto param = body->callee()->isa<Param>()) {

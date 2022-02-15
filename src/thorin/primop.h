@@ -640,6 +640,8 @@ public:
     bool has_multiple_outs() const override { return true; }
     const Def* out_frame() const { return out(1); }
 
+    static const Enter* is_out_mem(const Def*);
+
     friend class World;
 };
 

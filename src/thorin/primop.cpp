@@ -316,6 +316,14 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     THORIN_UNREACHABLE;
 }
 
+const Enter* Enter::is_out_mem(const Def* def) {
+    if (auto extract = def->isa_structural<Extract>())
+        if (is_primlit(extract->index(), 0))
+            if (auto enter = extract->agg()->isa_structural<Enter>())
+                return enter;
+    return nullptr;
+}
+
 const Type* Closure::environment_type(World& world) {
     // We assume that ptrs are <= 64 bits, if they're not, god help you
     return world.type_qu64();

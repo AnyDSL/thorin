@@ -1033,6 +1033,10 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
+    // while hoist_enters performs this task too, this is still necessary for PE
+    // in order to simplify as we go and prevent code size from exploding
+    if (auto e = Enter::is_out_mem(mem))
+        return e;
     return cse(new Enter(mem, dbg));
 }
 

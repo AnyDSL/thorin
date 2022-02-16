@@ -4,6 +4,8 @@
 namespace thorin {
 
 class World;
+class Vectorizer;
+class DivergenceAnalysis;
 
 void vectorize(World& world);
 

@@ -194,14 +194,24 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
-                assert(args.size() == 3);
-                auto cond = args[0], t = args[1], f = args[2];
-                if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, dbg);
-                if (t == f)
-                    return jump(t, {}, dbg);
-                if (is_not(cond))
-                    return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
+                assert(args.size() == 3 || args.size() == 4);
+                if (args.size() == 3) {
+                    auto cond = args[0], t = args[1], f = args[2];
+                    if (auto lit = cond->isa<PrimLit>())
+                        return jump(lit->value().get_bool() ? t : f, {}, dbg);
+                    if (t == f)
+                        return jump(t, {}, dbg);
+                    if (is_not(cond))
+                        return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
+                } else {
+                    auto mem = args[0], cond = args[1], t = args[2], f = args[3];
+                    if (auto lit = cond->isa<PrimLit>())
+                        return jump(lit->value().get_bool() ? t : f, {mem}, dbg);
+                    if (t == f)
+                        return jump(t, {mem}, dbg);
+                    if (is_not(cond))
+                        return jump(callee, {mem, cond->as<ArithOp>()->rhs(), f, t}, dbg);
+                }
                 break;
             }
             case Intrinsic::Match:

@@ -194,6 +194,29 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
     , flags_(flags)
 {}
 
+Variant::Variant(const Type* type, const Def* value, size_t index, Debug dbg)
+    : PrimOp(Node_Variant, type, {value}, dbg), index_(index)
+{
+    if (auto variant_type = type->isa<VariantType>())
+        assert(variant_type->op(index) == value->type());
+    else if (auto vec_type = type->isa<VectorExtendedType>()) {
+        auto variant_type = vec_type->element()->as<VariantType>();
+        auto value_vector_type = value->type()->isa<VectorType>();
+        if (!value_vector_type) {//Instead, we might see a tuple of vectors here.
+            auto value_tuple_type = value->type()->as<TupleType>();
+            Array<const Type*> elements(value_tuple_type->num_ops());
+            for (size_t i = 0; i < value_tuple_type->num_ops(); ++i) {
+                elements[i] = value_tuple_type->op(i)->as<VectorType>()->scalarize();
+            }
+            auto value_type =  world().tuple_type(elements);
+            assert(variant_type->op(index) == value_type);
+        } else {
+            auto value_type = value_vector_type->scalarize();
+            assert(variant_type->op(index) == value_type);
+        }
+    }
+}
+
 //------------------------------------------------------------------------------
 
 /*

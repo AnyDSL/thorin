@@ -350,7 +350,7 @@ const PrimOp * Flatten::flatten_primop(const PrimOp *primop) {
         if (newtype->like(agg->type())) {
             new_primop = primop->rebuild(world, newtype, nops)->as<PrimOp>();
         } else {
-            auto element_type = newtype->op(0);
+            //auto element_type = newtype->op(0);
             size_t vector_width = primop->type()->as<VectorType>()->length();
             //assert(element_type->isa<VariantType>());
 

@@ -393,28 +393,28 @@ void CCodeGen::emit_module() {
 
             stream_ << "#else\n"
                        " #define PIPE pipe\n";
-            stream_ << "#endif" << "\n";
-
-            if (use_fp_16_)
-                stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << "\n";
-            if (use_fp_64_)
-                stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << "\n";
-
-            stream_.fmt(    "\n"
-                            "typedef   char  i8;\n"
-                            "typedef  uchar  u8;\n"
-                            "typedef  short i16;\n"
-                            "typedef ushort u16;\n"
-                            "typedef    int i32;\n"
-                            "typedef   uint u32;\n"
-                            "typedef   long i64;\n"
-                            "typedef  ulong u64;\n");
-            if (use_fp_16_)
-                stream_.fmt("typedef   half f16;\n");
-            stream_.fmt(    "typedef  float f32;\n");
-            if (use_fp_64_)
-                stream_.fmt("typedef double f64;\n");
+            stream_ << "#endif\n";
         }
+
+        if (use_fp_16_)
+            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
+        if (use_fp_64_)
+            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
+
+        stream_.fmt(    "\n"
+                        "typedef   char  i8;\n"
+                        "typedef  uchar  u8;\n"
+                        "typedef  short i16;\n"
+                        "typedef ushort u16;\n"
+                        "typedef    int i32;\n"
+                        "typedef   uint u32;\n"
+                        "typedef   long i64;\n"
+                        "typedef  ulong u64;\n");
+        if (use_fp_16_)
+            stream_.fmt("typedef   half f16;\n");
+        stream_.fmt(    "typedef  float f32;\n");
+        if (use_fp_64_)
+            stream_.fmt("typedef double f64;\n");
     }
 
     stream_.endl();

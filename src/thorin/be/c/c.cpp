@@ -222,18 +222,18 @@ std::string CCodeGen::convert(const Type* type) {
         s << "void";
     else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     s << "bool";                      break;
-            case PrimType_ps8:  case PrimType_qs8:  s << "char";                      break;
-            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";             break;
-            case PrimType_ps16: case PrimType_qs16: s << "short";                     break;
-            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";            break;
-            case PrimType_ps32: case PrimType_qs32: s << "int";                       break;
-            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";              break;
-            case PrimType_ps64: case PrimType_qs64: s << "long";                      break;
-            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";             break;
-            case PrimType_pf32: case PrimType_qf32: s << "float";                     break;
-            case PrimType_pf16: case PrimType_qf16: s << "half";   use_fp_16_ = true; break;
-            case PrimType_pf64: case PrimType_qf64: s << "double"; use_fp_64_ = true; break;
+            case PrimType_bool:                     s << "bool";                     break;
+            case PrimType_ps8:  case PrimType_qs8:  s <<   "i8";                     break;
+            case PrimType_pu8:  case PrimType_qu8:  s <<   "u8";                     break;
+            case PrimType_ps16: case PrimType_qs16: s <<  "i16";                     break;
+            case PrimType_pu16: case PrimType_qu16: s <<  "u16";                     break;
+            case PrimType_ps32: case PrimType_qs32: s <<  "i32";                     break;
+            case PrimType_pu32: case PrimType_qu32: s <<  "u32";                     break;
+            case PrimType_ps64: case PrimType_qs64: s <<  "i64";                     break;
+            case PrimType_pu64: case PrimType_qu64: s <<  "u64";                     break;
+            case PrimType_pf16: case PrimType_qf16: s <<  "f16";  use_fp_16_ = true; break;
+            case PrimType_pf32: case PrimType_qf32: s <<  "f32";                     break;
+            case PrimType_pf64: case PrimType_qf64: s <<  "f64";  use_fp_64_ = true; break;
             default: THORIN_UNREACHABLE;
         }
         if (primtype->is_vector())
@@ -392,37 +392,81 @@ void CCodeGen::emit_module() {
             stream_ << macro_intel_.str();
 
             stream_ << "#else\n"
-                    << " #define PIPE pipe\n";
+                       " #define PIPE pipe\n";
             stream_ << "#endif" << "\n";
 
             if (use_fp_16_)
                 stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << "\n";
             if (use_fp_64_)
                 stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << "\n";
+
+            stream_.fmt(    "\n"
+                            "typedef   char  i8;\n"
+                            "typedef  uchar  u8;\n"
+                            "typedef  short i16;\n"
+                            "typedef ushort u16;\n"
+                            "typedef    int i32;\n"
+                            "typedef   uint u32;\n"
+                            "typedef   long i64;\n"
+                            "typedef  ulong u64;\n");
+            if (use_fp_16_)
+                stream_.fmt("typedef   half f16;\n");
+            stream_.fmt(    "typedef  float f32;\n");
+            if (use_fp_64_)
+                stream_.fmt("typedef double f64;\n");
         }
     }
 
     stream_.endl();
 
     if (lang_ == Lang::C99) {
-        stream_.fmt("#include <stdbool.h>\n"); // for the 'bool' type
+        stream_.fmt(    "#include <stdbool.h>\n"    // for the 'bool' type
+                        "#include <stdint.h>\n");   // for the fixed-width integer types
         if (use_align_of_)
             stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
         if (use_memcpy_)
-            stream_.fmt("#include <string.h>\n"); // for 'memcpy'
+            stream_.fmt("#include <string.h>\n");   // for 'memcpy'
         if (use_malloc_)
-            stream_.fmt("#include <stdlib.h>\n"); // for 'malloc'
+            stream_.fmt("#include <stdlib.h>\n");   // for 'malloc'
         if (use_math_)
-            stream_.fmt("#include <math.h>\n"); // for 'cos'/'sin'/...
-        stream_.fmt("\n");
+            stream_.fmt("#include <math.h>\n");     // for 'cos'/'sin'/...
+        stream_.fmt(    "\n"
+                        "typedef   int8_t  i8;\n"
+                        "typedef  uint8_t  u8;\n"
+                        "typedef  int16_t i16;\n"
+                        "typedef uint16_t u16;\n"
+                        "typedef  int32_t i32;\n"
+                        "typedef uint32_t u32;\n"
+                        "typedef  int64_t i64;\n"
+                        "typedef uint64_t u64;\n"
+                        "typedef    float f32;\n"
+                        "typedef   double f64;\n"
+                        "\n");
     }
 
-    if (lang_ == Lang::CUDA && use_fp_16_) {
-        stream_.fmt("#include <cuda_fp16.h>\n\n");
-        stream_.fmt("#if __CUDACC_VER_MAJOR__ > 8\n");
-        stream_.fmt("#define half __half_raw\n");
-        stream_.fmt("#endif\n\n");
+    if (lang_ == Lang::CUDA) {
+        if (use_fp_16_)
+            stream_.fmt("#include <cuda_fp16.h>\n\n");
+        stream_.fmt(    "typedef               char  i8;\n"
+                        "typedef      unsigned char  u8;\n"
+                        "typedef              short i16;\n"
+                        "typedef     unsigned short u16;\n"
+                        "typedef                int i32;\n"
+                        "typedef       unsigned int u32;\n"
+                        "typedef          long long i64;\n"
+                        "typedef unsigned long long u64;\n"
+                        "\n");
+        if (use_fp_16_)
+            stream_.fmt("#if __CUDACC_VER_MAJOR__ <= 8\n"
+                        "typedef               half f16;\n"
+                        "#else\n"
+                        "typedef         __half_raw f16;\n"
+                        "#endif\n");
+        stream_.fmt(    "typedef              float f32;\n"
+                        "typedef             double f64;\n"
+                        "\n");
     }
+
     if (lang_ == Lang::HLS)
         stream_ << "#include \"hls_stream.h\""<< "\n" << "#include \"hls_math.h\""<< "\n";
 

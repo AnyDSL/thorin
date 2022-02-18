@@ -337,7 +337,7 @@ std::string CCodeGen::device_prefix() {
         default:           return "";
         case Lang::CUDA:   return "__device__ ";
         case Lang::OpenCL:
-            if(use_channels_)
+            if (use_channels_)
                 return "PIPE ";
             else
                 return "__constant ";
@@ -378,17 +378,17 @@ void CCodeGen::emit_module() {
                 if (map.first->is_channel()) {
                     if (map.second == FuncMode::Write) {
                         macro_xilinx_ << " #define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)\n";
-                        macro_intel_  << " #define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
+                        macro_intel_  << " #define " << map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
                     } else if (map.second == FuncMode::Read) {
                         macro_xilinx_ << " #define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)\n";
                         macro_intel_  << " #define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)\n";
                     }
                 }
             }
-            stream_ << "#if defined(__xilinx__)" << "\n";
+            stream_ << "#if defined(__xilinx__)\n";
             stream_ << macro_xilinx_.str();
 
-            stream_ << "#elif defined(INTELFPGA_CL)" << "\n";
+            stream_ << "#elif defined(INTELFPGA_CL)\n";
             stream_ << macro_intel_.str();
 
             stream_ << "#else\n"

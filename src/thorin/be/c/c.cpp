@@ -430,6 +430,16 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <stdlib.h>\n");   // for 'malloc'
         if (use_math_)
             stream_.fmt("#include <math.h>\n");     // for 'cos'/'sin'/...
+    }
+
+    if (lang_ == Lang::HLS) {
+        stream_.fmt("#include <hls_stream.h>\n"
+                    "#include <hls_math.h>\n");
+        if (use_fp_16_)
+            stream_.fmt("#include <hls_half.h>\n");
+    }
+
+    if (lang_ == Lang::C99 || lang_ == Lang::HLS) {
         stream_.fmt(    "\n"
                         "typedef   int8_t  i8;\n"
                         "typedef  uint8_t  u8;\n"
@@ -442,6 +452,9 @@ void CCodeGen::emit_module() {
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
                         "\n");
+
+         if (use_fp_16_ && lang_ == Lang::HLS)
+            stream_.fmt("typedef     half f16;\n");
     }
 
     if (lang_ == Lang::CUDA) {
@@ -466,9 +479,6 @@ void CCodeGen::emit_module() {
                         "typedef             double f64;\n"
                         "\n");
     }
-
-    if (lang_ == Lang::HLS)
-        stream_ << "#include \"hls_stream.h\""<< "\n" << "#include \"hls_math.h\""<< "\n";
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
         stream_.fmt("extern \"C\" {{\n");

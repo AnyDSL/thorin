@@ -260,17 +260,9 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
 }
 
 void Continuation::verify() const {
-    if (!has_body()) {
+    if (!has_body())
         assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
-
-        if (world().is_external(this)) {} // external (imported) continuations can of course have no body
-        else if (dead_) {}
-        else if (num_uses() == 0) {} // front-ends (ie Artic) may create such orphan continuation stubs currently, ideally these should only be tolerated until the first rebuild
-        else if (intrinsic() != Intrinsic::None) {} // intrinsics don't have a body TODO: or do they ?
-        else {
-            // assertf(false, "{} has no body but does not correspond to any legitimate case where that may happen", *this);
-        }
-    } else {
+    else {
         body()->verify();
         assert(!dead_); // destroy() should remove the body
         assert(intrinsic() == Intrinsic::None);

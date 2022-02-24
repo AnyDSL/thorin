@@ -13,6 +13,17 @@ private:
     Value emit_(const Def* def) {
         auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
         auto& bb = cont2bb_[place];
+
+        if (place->num_params() == 2) {
+            auto *mask_param = place->param(1);
+            assert(mask_param);
+
+            auto *mask_param_type = mask_param->type()->isa<PrimType>();
+            if (mask_param_type && mask_param_type->is_vector() && mask_param_type->primtype_tag() == PrimTypeTag::PrimType_bool) {
+                return child().emit_bb(bb, def, mask_param);
+            }
+        }
+
         return child().emit_bb(bb, def);
     }
 

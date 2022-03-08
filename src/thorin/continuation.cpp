@@ -194,36 +194,28 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
-                assert(args.size() == 3 || args.size() == 4);
-                if (args.size() == 3) {
-                    auto cond = args[0], t = args[1], f = args[2];
-                    if (auto lit = cond->isa<PrimLit>())
-                        return jump(lit->value().get_bool() ? t : f, {}, dbg);
-                    if (t == f)
-                        return jump(t, {}, dbg);
-                    if (is_not(cond))
-                        return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
-                } else {
-                    auto mem = args[0], cond = args[1], t = args[2], f = args[3];
-                    if (auto lit = cond->isa<PrimLit>())
-                        return jump(lit->value().get_bool() ? t : f, {mem}, dbg);
-                    if (t == f)
-                        return jump(t, {mem}, dbg);
-                    if (is_not(cond))
-                        return jump(callee, {mem, cond->as<ArithOp>()->rhs(), f, t}, dbg);
+                assert(args.size() == 4);
+                auto mem = args[0], cond = args[1], t = args[2], f = args[3];
+                if (auto lit = cond->isa<PrimLit>())
+                    return jump(lit->value().get_bool() ? t : f, {mem}, dbg);
+                if (t == f)
+                    return jump(t, {mem}, dbg);
+                if (is_not(cond))
+                    return branch(mem, cond->as<ArithOp>()->rhs(), f, t, dbg);
+                break;
+            }
+            case Intrinsic::Match: {
+                auto mem = args[0], cond = args[1], otherwise = args[2];
+                if (args.size() == 3) return jump(otherwise, {mem}, dbg);
+                if (auto lit = cond->isa<PrimLit>()) {
+                    for (size_t i = 3; i < args.size(); i++) {
+                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
+                            return jump(world().extract(args[i], 1), {mem}, dbg);
+                    }
+                    return jump(otherwise, {mem}, dbg);
                 }
                 break;
             }
-            case Intrinsic::Match:
-                if (args.size() == 2) return jump(args[1], {}, dbg);
-                if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
-                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().extract(args[i], 1), {}, dbg);
-                    }
-                    return jump(args[1], {}, dbg);
-                }
-                break;
             default:
                 break;
         }
@@ -240,18 +232,19 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     verify();
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    return jump(world().branch(), {cond, t, f}, dbg);
+void Continuation::branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg) {
+    return jump(world().branch(), {mem, cond, t, f}, dbg);
 }
 
-void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
-    Array<const Def*> args(patterns.size() + 2);
+void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+    Array<const Def*> args(patterns.size() + 3);
 
-    args[0] = val;
-    args[1] = otherwise;
+    args[0] = mem;
+    args[1] = val;
+    args[2] = otherwise;
     assert(patterns.size() == continuations.size());
     for (size_t i = 0; i < patterns.size(); i++)
-        args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
+        args[i + 3] = world().tuple({patterns[i], continuations[i]}, dbg);
 
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }

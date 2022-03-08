@@ -436,15 +436,21 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 irbuilder.CreateRet(agg);
         }
     } else if (body->callee() == world().branch()) {
-        auto cond = emit(body->arg(0));
-        auto tbb = cont2bb(body->arg(1)->as_nom<Continuation>());
-        auto fbb = cont2bb(body->arg(2)->as_nom<Continuation>());
+        auto mem = body->arg(0);
+        emit_unsafe(mem);
+
+        auto cond = emit(body->arg(1));
+        auto tbb = cont2bb(body->arg(2)->as_nom<Continuation>());
+        auto fbb = cont2bb(body->arg(3)->as_nom<Continuation>());
         irbuilder.CreateCondBr(cond, tbb, fbb);
     } else if (body->callee()->isa<Continuation>() && body->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
-        auto val = emit(body->arg(0));
-        auto otherwise_bb = cont2bb(body->arg(1)->as_nom<Continuation>());
-        auto match = irbuilder.CreateSwitch(val, otherwise_bb, body->num_args() - 2);
-        for (size_t i = 2; i < body->num_args(); i++) {
+        auto mem = body->arg(0);
+        emit_unsafe(mem);
+
+        auto val = emit(body->arg(1));
+        auto otherwise_bb = cont2bb(body->arg(2)->as_nom<Continuation>());
+        auto match = irbuilder.CreateSwitch(val, otherwise_bb, body->num_args() - 3);
+        for (size_t i = 3; i < body->num_args(); i++) {
             auto arg = body->arg(i)->as<Tuple>();
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
             auto case_bb    = cont2bb(arg->op(1)->as_nom<Continuation>());

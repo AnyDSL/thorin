@@ -118,21 +118,26 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
     if (auto callee = old_continuation->callee()->isa_continuation()) {
         switch (callee->intrinsic()) {
             case Intrinsic::Branch: {
-                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
-                    auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
-                    return new_continuation->jump(mangle(cont), {}, old_continuation->debug()); // TODO debug
+                if (auto lit = mangle(old_continuation->arg(1))->isa<PrimLit>()) {
+                    auto cont = lit->value().get_bool() ? old_continuation->arg(2) : old_continuation->arg(3);
+                    auto mem = mangle(old_continuation->arg(0));
+                    return new_continuation->jump(mangle(cont), {mem}, old_continuation->debug()); // TODO debug
                 }
                 break;
             }
             case Intrinsic::Match:
-                if (old_continuation->num_args() == 2)
-                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->debug()); // TODO debug
+                if (old_continuation->num_args() == 3) {
+                    auto mem = mangle(old_continuation->arg(0));
+                    return new_continuation->jump(mangle(old_continuation->arg(2)), {mem}, old_continuation->debug()); // TODO debug
+                }
 
-                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
-                    for (size_t i = 2; i < old_continuation->num_args(); i++) {
+                if (auto lit = mangle(old_continuation->arg(1))->isa<PrimLit>()) {
+                    for (size_t i = 3; i < old_continuation->num_args(); i++) {
                         auto new_arg = mangle(old_continuation->arg(i));
-                        if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
-                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->debug()); // TODO debug
+                        if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit) {
+                            auto mem = mangle(old_continuation->arg(0));
+                            return new_continuation->jump(world().extract(new_arg, 1), {mem}, old_continuation->debug()); // TODO debug
+                        }
                     }
                 }
                 break;

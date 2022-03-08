@@ -44,7 +44,7 @@ namespace thorin {
 World::World(const std::string& name)
     : name_(name)
 {
-    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    branch_ = continuation(fn_type({mem_type(), type_bool(), fn_type({mem_type()}), fn_type({mem_type()})}), Intrinsic::Branch, {"br"});
     end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
@@ -1117,11 +1117,13 @@ Continuation* World::continuation(const FnType* fn, Continuation::Attributes att
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
-    Array<const Type*> arg_types(num_patterns + 2);
-    arg_types[0] = type;
-    arg_types[1] = fn_type();
-    for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = tuple_type({type, fn_type()});
+    Array<const Type*> arg_types(num_patterns + 3);
+    arg_types[0] = mem_type();
+    arg_types[1] = type;
+    arg_types[2] = fn_type({mem_type()});
+    for (size_t i = 0; i < num_patterns; i++) {
+        arg_types[i + 3] = tuple_type({type, fn_type({mem_type()})});
+    }
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 

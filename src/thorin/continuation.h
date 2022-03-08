@@ -108,8 +108,8 @@ enum class Intrinsic : uint8_t {
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
-    Branch,                     ///< branch(cond, T, F).
-    Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
+    Branch,                     ///< branch(mem, cond, T, F).
+    Match,                      ///< match(mem, val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
@@ -186,8 +186,8 @@ public:
     void destroy(const char*);
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
+    void branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     void verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }

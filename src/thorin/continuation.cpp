@@ -243,19 +243,20 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     verify();
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    set_body(world().app(world().branch(), {cond, t, f}, dbg));
+void Continuation::branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg) {
+    set_body(world().app(world().branch(), {mem, cond, t, f}, dbg));
     verify();
 }
 
-void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
-    Array<const Def*> args(patterns.size() + 2);
+void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+    Array<const Def*> args(patterns.size() + 3);
 
-    args[0] = val;
-    args[1] = otherwise;
+    args[0] = mem;
+    args[1] = val;
+    args[2] = otherwise;
     assert(patterns.size() == continuations.size());
     for (size_t i = 0; i < patterns.size(); i++)
-        args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
+        args[i + 3] = world().tuple({patterns[i], continuations[i]}, dbg);
 
     set_body(world().app(world().match(val->type(), patterns.size()), args, dbg));
     verify();

@@ -1273,28 +1273,23 @@ Continuation* CodeGen::emit_rv_intrinsic(llvm::IRBuilder<>& irbuilder, Continuat
 
     auto cont = continuation->arg(2)->as_continuation();
 
-    auto val = emit(continuation->arg(1));
-    assert(val);
+    auto mask = emit(continuation->arg(1));
+    assert(mask);
+
+    assert(is_mem(cont->param(0)));
+
+    int index_param_index = 1;
+    if (cont->param(1)->type()->isa<VectorType>() && cont->param(1)->type()->as<VectorType>()->is_vector()) {
+        index_param_index = 2;
+    }
+
+    llvm::Value* call = nullptr;
 
     if (de.name.rfind("rv_ballot", 0) == 0) {
-        assert(is_mem(cont->param(0)));
-
-        const Def* mask = nullptr;
-        llvm::Value * llvm_mask = nullptr;
-        int index_param_index = 1;
-        if (cont->param(1)->type()->isa<VectorType>() && cont->param(1)->type()->as<VectorType>()->is_vector()) {
-            mask = cont->param(1);
-            llvm_mask = emit(mask);
-            index_param_index = 2;
-        }
-
         auto * indexTy = convert(cont->param(index_param_index)->type());
-        auto vecWidth = llvm::cast<llvm::FixedVectorType>(val->getType())->getNumElements();
+        auto vecWidth = llvm::cast<llvm::FixedVectorType>(mask->getType())->getNumElements();
         auto * intVecTy = llvm::FixedVectorType::get(indexTy, vecWidth);
         uint32_t bits = intVecTy->getScalarSizeInBits();
-
-        if (mask)
-            val = irbuilder.CreateAnd(val, llvm_mask);
 
         llvm::Intrinsic::ID id;
         switch (vecWidth) {
@@ -1305,28 +1300,25 @@ Continuation* CodeGen::emit_rv_intrinsic(llvm::IRBuilder<>& irbuilder, Continuat
           assert(false && "Unsupported vector width in ballot !");
         }
 
-        auto * extVal = irbuilder.CreateSExt(val, llvm::FixedVectorType::get(irbuilder.getIntNTy(bits), vecWidth), de.name);
+        auto * extVal = irbuilder.CreateSExt(mask, llvm::FixedVectorType::get(irbuilder.getIntNTy(bits), vecWidth), de.name);
         auto * simdVal = irbuilder.CreateBitCast(extVal, llvm::FixedVectorType::get(bits == 32 ? irbuilder.getFloatTy() : irbuilder.getDoubleTy(), vecWidth), de.name);
 
         auto movMaskDecl = llvm::Intrinsic::getDeclaration(module_.get(), id);
-        auto call = irbuilder.CreateCall(movMaskDecl, simdVal, de.name);
-
-        if (mask) {
-            emit_phi_arg(irbuilder, cont->param(1), llvm_mask);
-        }
-        emit_phi_arg(irbuilder, cont->param(index_param_index), call);
-        return cont;
+        call = irbuilder.CreateCall(movMaskDecl, simdVal, de.name);
     } else if (de.name.rfind("rv_any", 0) == 0) {
-        auto call = irbuilder.CreateOrReduce(val);
-        emit_phi_arg(irbuilder, cont->param(1), call);
-        return cont;
+        call = irbuilder.CreateOrReduce(mask);
     } else if (de.name.rfind("rv_all", 0) == 0) {
-        auto call = irbuilder.CreateAndReduce(val);
-        emit_phi_arg(irbuilder, cont->param(1), call);
-        return cont;
+        call = irbuilder.CreateAndReduce(mask);
     } else {
         THORIN_UNREACHABLE;
     }
+
+    if (index_param_index == 2) {
+        emit_phi_arg(irbuilder, cont->param(1), mask);
+    }
+    emit_phi_arg(irbuilder, cont->param(index_param_index), call);
+
+    return cont;
 }
 
 Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {

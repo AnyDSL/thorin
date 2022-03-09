@@ -200,7 +200,7 @@ void RecStreamer2::run() {
 
         if (!cont->empty()) {
             s.fmt("{}: {} = {{ ", cont->unique_name(), cont->type());
-            s.fmt("[in:{} out:{}]", block2firstmem[cont], block2mem[cont]);
+            s.fmt("[in:{} out:{} pred:{}]", block2firstmem[cont], block2mem[cont], div_analysis->isPredicated[cont] ? "pred" : "no_pred");
             s.fmt("\t\n");
             run(cont);
             s.fmt("\b\n}}");
@@ -888,103 +888,6 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
     old_def->dump();
 #endif
 
-    //check if the continuation is a mem input and output and instead a parameter should be used.
-    if (is_mem(old_def)) {
-        Continuation * in_cont = nullptr; //"current" block
-        Continuation * out_cont = nullptr; //"predecessor" block
-        for (auto mem_out_it : oldblock2mem) {
-            auto mem_out = mem_out_it.second;
-            if (mem_out == old_def)
-                out_cont = mem_out_it.first;
-        }
-        //TODO: Find the "lowest" in_cont candidate.
-        for (auto mem_in_it : oldblock2firstmem) {
-            auto mem_in = mem_in_it.second;
-            assert(context);
-            if (mem_in.contains(context))
-                in_cont = mem_in_it.first;
-            //This is just a temporary fix.
-            if (in_cont && in_cont == context)
-                break;
-        }
-
-        if (in_cont && out_cont) {
-            if (auto mem_param = in_cont->mem_param(); !mem_param || mem_param != old_def) {
-                auto new_in_cont = def2def_[in_cont];
-                if (!(new_in_cont && new_in_cont->isa_continuation())) {
-                    std::cerr << "Error in_cont candidates:\n";
-                    for (auto mem_in_it : oldblock2firstmem) {
-                        auto mem_in = mem_in_it.second;
-                        assert(context);
-                        const Continuation* in_cont = nullptr;
-                        if (mem_in.contains(context)) {
-                            in_cont = mem_in_it.first;
-                        }
-                        if (in_cont) {
-                            in_cont->dump();
-                        }
-                        if (in_cont && in_cont == context) {
-                            std::cerr << "break\n";
-                        }
-                    }
-                    DUMP_BLOCK(out_cont);
-                }
-                assert(new_in_cont && new_in_cont->isa_continuation());
-                auto newmemparam = new_in_cont->as<Continuation>()->mem_param();
-                if (!newmemparam) {
-                    DUMP_BLOCK(out_cont);
-                    new_in_cont->dump();
-                    new_in_cont->type()->dump();
-                }
-                assert(newmemparam);
-#ifdef DUMP_WIDEN
-                std::cout << "Make new param instead\n";
-                std::cerr << "context ";
-                context->dump();
-                if (def2def_.contains(old_def)) {
-                    std::cerr << "Stored def ";
-                    def2def_[old_def]->dump();
-                }
-                std::cerr << "newmem ";
-                newmemparam->dump();
-#endif
-                return newmemparam;
-            }
-        }
-
-#ifdef DUMP_WIDEN
-        std::cerr << "Not a vaiable option\n";
-        for (auto mem_in_it : oldblock2firstmem) {
-            auto mem_in = mem_in_it.second;
-            assert(context);
-            if (mem_in.contains(context)) {
-                std::cerr << "in_cont_candidate ";
-                mem_in_it.first->dump();
-            }
-        }
-        if (in_cont) {
-            std::cerr << "in_cont ";
-            in_cont->dump();
-        } else
-            std::cerr << "No in_cont\n";
-
-        if (out_cont) {
-            std::cerr << "out_cont ";
-            out_cont->dump();
-        } else
-            std::cerr << "No out_cont\n";
-        if (context) {
-            std::cerr << "context ";
-            context->dump();
-        } else
-            std::cerr << "No context\n";
-        if (def2def_.contains(old_def)) {
-            std::cerr << "Stored def ";
-            def2def_[old_def]->dump();
-        }
-#endif
-    }
-
     if (def2def_.contains(old_def)) {
 #ifdef DUMP_WIDEN
         std::cout << "Found\n";
@@ -994,11 +897,12 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
     } else if (!widen_within(old_def)) {
 #ifdef DUMP_WIDEN
         std::cout << "NWithin\n";
+        old_def->dump();
 #endif
         if (auto cont = old_def->isa_continuation()) {
             if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Match) {
                 auto type = old_def->type();
-                auto match = world_.match(widen(type->op(0)), type->num_ops() - 2);
+                auto match = world_.match(widen(type->op(1)), type->num_ops() - 3);
                 assert(match);
                 return def2def_[old_def] = match;
             }
@@ -1266,11 +1170,6 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     const Def* ntarget = nops.front();   // new target of new_continuation
 
     if (auto callee = old_continuation->callee()->isa_continuation()) {
-        if (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match) {
-            if (auto vectype = nops[1]->type()->isa<VectorType>(); !vectype || !vectype->is_vector()) {
-                ntarget = old_continuation->op(0);
-            }
-        }
         if (callee->is_imported()) {
             auto old_fn_type = callee->type()->as<FnType>();
             Array<const Type*> ops(old_fn_type->num_ops());
@@ -1358,6 +1257,7 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
     Scope scope(kernel);
 
 #ifdef DUMP_WIDEN
+    std::cerr << "Ntarget:\n";
     ntarget->dump();
     ntarget->type()->dump();
 #endif
@@ -1407,10 +1307,6 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                 nargs[1] = new_continuation->param(1);
             }
         }
-    } else if (auto cont = old_continuation->callee()->isa<Continuation>(); cont && (cont->intrinsic() == Intrinsic::Branch || cont->intrinsic() == Intrinsic::Match)) {
-        nargs[0] = widen(oldblock2mem[old_continuation], old_continuation);
-        for (size_t i = 1; i < nops.size(); i++)
-            nargs[i] = nops[i];
     } else {
         for (size_t i = 0; i < nops.size() - 1; i++)
             nargs[i] = nops[i + 1];
@@ -1428,6 +1324,27 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                     elements[j] = nargs[i];
                 nargs[i] = world_.vector(elements, nargs[i]->debug_history());
             }
+    }
+
+    if (ntarget->isa<Continuation>() && ntarget->as<Continuation>()->is_intrinsic() && (ntarget->as<Continuation>()->intrinsic() == Intrinsic::Match || ntarget->as<Continuation>()->intrinsic() == Intrinsic::Branch)) {
+        for (size_t i = 0, e = nops.size() - 1; i != e; ++i) {
+            auto ntarget_type = ntarget->type()->op(i);
+            auto nargs_type = nargs[i]->type();
+            if (ntarget_type != nargs_type) {
+                assert(i <= 4 && "Only seen with 'otherwise' for match, or true/false for branch");
+                assert(ntarget_type->isa<FnType>());
+                assert(nargs_type->isa<FnType>());
+                assert(ntarget_type->num_ops() == 2);
+                assert(nargs_type->num_ops() == 1);
+
+                auto bool_vec_ty = widen(world_.type_bool());
+                auto buffer_continuation = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}));
+
+                buffer_continuation->jump(nargs[i], {buffer_continuation->param(0)});
+
+                nargs[i] = buffer_continuation;
+            }
+        }
     }
 
     new_continuation->jump(ntarget, nargs, old_continuation->debug());
@@ -1949,6 +1866,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
 #ifdef DUMP_VECTORIZER_LINEARIZER
             std::cerr << "Reached loop header\n";
+            latch_old->dump();
             latch->dump();
             DUMP_BLOCK(vectorized);
 #endif
@@ -1964,8 +1882,25 @@ void Vectorizer::linearize(Continuation * vectorized) {
             for (auto exit_old : exits) {
                 auto exit_new = def2def_[exit_old];
 
-                assert(exit_new->isa_continuation());
-                assert(exit_new->isa_continuation()->preds().size() == 1);
+                auto exit_new_continuation = exit_new->isa_continuation();
+                assert(exit_new_continuation);
+
+                int contained_predecessors = 0;
+                for (auto pred_old : exit_old->isa_continuation()->preds()) {
+                    if (div_analysis_->loopBodies[latch_old].contains(const_cast<Continuation*>(pred_old)))
+                        contained_predecessors++;
+                }
+                if(contained_predecessors != 1) {
+                    std::cerr << "\e[31mError during lin\e[39m\n";
+                    DUMP_BLOCK(latch_old);
+                    std::cerr << "\e[35mnew Latch\e[39m\n";
+                    DUMP_BLOCK(latch);
+                    std::cerr << "\e[35mend\e[39m\n";
+                    exit_old->dump();
+                    exit_new->dump();
+                    std::cerr << "contains " << contained_predecessors << " predecessors\n";
+                }
+                //assert(contained_predecessors == 1);
             }
 
             ContinuationMap<const Def*> block2mem;
@@ -2009,9 +1944,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
             std::cerr << "Loop exits\n";
 #endif
             for (auto exit_old : exits) {
-                auto exit_new = def2def_[exit_old]->as<Continuation>();
-
-                auto exits = div_analysis_->loopExits[latch_old];
                 bool smallerloopsfound = false;
                 bool largerloopsfound = false;
                 std::vector<Continuation*> largerloops;
@@ -2019,25 +1951,29 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 //TODO: After a loop exits, we need to reload the predicate of a larger loop!
                 //TODO: Back-Edges that set predicates are not handled correctly in backend. This can be done by ensuring the loop predicate to be handled by a phi node if multiple predicated entries are present.
                 //If such a predicate is present: ensure that all jumps to the predicated block set a propper predicate, probably use the currently present predicate if no other predicate is set manually.
+                auto loopBody = div_analysis_->loopBodies[latch_old];
                 for (auto loop : div_analysis_->loopExits) {
                     if (loop.first == latch_old)
                         continue;
                     if (loop.second.contains(exit_old)) {
                         //figure out if larger or smaller loop
-                        auto loopBody = div_analysis_->loopBodies[loop.first];
-                        bool larger = loopBody.contains(latch_old);
+                        auto other_loopBody = div_analysis_->loopBodies[loop.first];
+                        bool larger = other_loopBody.contains(latch_old);
+                        bool smaller = loopBody.contains(loop.first);
 
-                        if (!larger) {
+                        if (smaller) {
                             smallerloopsfound = true;
-                        } else {
+                        }
+                        if (larger) {
                             largerloopsfound = true;
                             largerloops.emplace_back(loop.first);
                         }
                     }
                 }
 
-                if (smallerloopsfound)
+                if (smallerloopsfound) {
                     continue;
+                }
                 if (largerloopsfound) {
                     // build a chain of loops
                     sort(largerloops.begin(), largerloops.end(), [&](Continuation * a, Continuation * b) {
@@ -2065,9 +2001,12 @@ void Vectorizer::linearize(Continuation * vectorized) {
                     }
                 }
 
-                for (auto pred : exit_new->preds()) {
+                for (auto pred_old : exit_old->preds()) {
                     //if smaller loops are present:
                     //  put everything in a dedicated return-block.
+                    if (!div_analysis_->loopBodies[latch_old].contains(const_cast<Continuation*>(pred_old)))
+                        continue;
+                    auto pred = const_cast<Continuation*>(def2def_[pred_old]->as<Continuation>());
                     auto index_pred = is_mem(pred->op(1)) ? 2 : 1;
                     auto index_then = index_pred + 1;
                     auto index_else = index_then + 1;
@@ -2187,6 +2126,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
             auto vec_mask = widen(world_.type_bool());
             auto variant_index = latch->arg(1);
 
+#if 0
             //Add memory parameters to make rewiring easier.
             for (auto split_old : encloses_splits[latch_old]) {
                 for (size_t i = 1; i < split_old->num_args(); i++) {
@@ -2213,6 +2153,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
                     //Continuation_MemParam(new_case, vector_scope, block2mem, block2firstmem);
                 }
             }
+#endif
 
             //Allocate cache for overwritten objects.
             size_t cache_size = join->num_params();
@@ -2226,8 +2167,11 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
             Array<const Def *> join_cache(cache_size);
             {
-                const Def *mem = block2mem[latch];
+                //const Def *mem = block2mem[latch];
+                const Def* mem = latch->arg(0);
                 assert(mem);
+                assert(is_mem(mem));
+
                 if (cache_size && !current_frame) {
                     auto mem = vectorized->mem_param();
                     if (!enter)
@@ -2255,8 +2199,9 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 }
 
                 block2mem[latch] = mem;
+
+                latch->update_arg(0, mem);
             }
-            //block2mem is considered incorrect at this point, as latch does not use the mem parameter.
 
             //Larger cases might be possible?
             assert(encloses_splits[latch_old].size() <= 1);
@@ -2297,12 +2242,18 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                 Array<const Def*> split_predicates = local_predicates;
 
-                const Def * otherwise_old = split_old->arg(1);
-                Continuation * otherwise = const_cast<Continuation*>(def2def_[otherwise_old]->as<Continuation>());
+                Continuation * otherwise = const_cast<Continuation*>(split->arg(2)->as<Continuation>());
                 assert(otherwise);
 
-                Continuation * case_old = const_cast<Continuation*>(otherwise_old->as<Continuation>());
+                Continuation* join_old = *joins_old.begin();
+                const Continuation* join = def2def_[join_old]->as<Continuation>();
+                assert(join);
+
                 Continuation * current_case = otherwise;
+
+                const Def * otherwise_old = split_old->arg(2);
+                Continuation * case_old = const_cast<Continuation*>(otherwise_old->as<Continuation>());
+
                 auto bool_vec_ty = widen(world_.type_bool());
                 Continuation * case_back = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}), Debug("otherwise_back"));
             
@@ -2310,12 +2261,14 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 assert(current_case != case_back);
                 { //mem scope
                     assert(!split_predicates[0]->isa<Vector>());
-                    const Def *mem = block2mem[split];
+                    //const Def *mem = block2mem[split];
+                    const Def * mem = split->arg(0);
+                    assert(is_mem(mem));
                     split->jump(new_jump_split, { mem, split_predicates[0], current_case, case_back }, split->debug());
                 }
 
                 Continuation * pre_join = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}), Debug("match_merge"));
-                for (size_t i = 2; i < split_old->num_args() + 1; i++) {
+                for (size_t i = 3; i < split_old->num_args() + 1; i++) {
                     Continuation *next_case_old = nullptr;
                     Continuation *next_case = nullptr;
                     Continuation *next_case_back = nullptr;
@@ -2334,17 +2287,18 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                     bool case_back_has_jump = false;
 
-                    Continuation* join_old = *joins_old.begin();
-
                     for (auto pred_old : join_old->preds()) {
-                        if (!div_analysis_->dominatedBy[pred_old].contains(const_cast<Continuation*>(case_old)) && pred_old != case_old)
-                            continue;
+                        if (i != 3 || pred_old != split_old) {
+                            if (!div_analysis_->dominatedBy[pred_old].contains(const_cast<Continuation*>(case_old)) && pred_old != case_old) {
+                                continue;
+                            }
+                        }
                         
                         auto pred = const_cast<Continuation*>(def2def_[pred_old]->as<Continuation>());
                         assert(pred);
 
                         assert(pred->arg(0)->type()->isa<MemType>());
-                        { //mem scope
+                        if (pred_old != split_old) {
                             const Def* mem = block2mem[pred];
                             assert(mem);
 
@@ -2354,12 +2308,17 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                             pred->jump(case_back, { mem, pred->param(1) });
                             block2mem[pred] = mem;
+                        } else {
+                            const Def* mem = block2mem[pred];
+                            assert(mem);
+
+                            pred->jump(case_back, { mem, pred->arg(1) }); //was a predicated call originally.
                         }
 
                         auto new_jump_case = world_.predicated(vec_mask);
                         const Def* predicate;
                         if (i < split_old->num_args())
-                            predicate = split_predicates[i - 1];
+                            predicate = split_predicates[i - 2];
                         else {
                             auto true_elem = world_.literal_bool(true, {});
                             Array<const Def *> elements(vector_width);
@@ -2601,11 +2560,11 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 auto split = const_cast<Continuation*>(def2def_[split_old]->as<Continuation>());
                 assert(split);
 
-                const Continuation * then_old = split_old->arg(1)->as<Continuation>();
+                const Continuation * then_old = split_old->arg(2)->as<Continuation>();
                 Continuation * then_new = const_cast<Continuation*>(def2def_[then_old]->as<Continuation>());
                 assert(then_new);
 
-                const Continuation * else_old = split_old->arg(2)->as<Continuation>();
+                const Continuation * else_old = split_old->arg(3)->as<Continuation>();
                 Continuation * else_new = const_cast<Continuation*>(def2def_[else_old]->as<Continuation>());
                 assert(else_new);
 
@@ -2659,6 +2618,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                     assert(then_new != then_new_back);
                     split->jump(new_jump_latch, { mem, predicate_true, then_new, then_new_back }, latch->debug());
+                    rewired_predecessors.emplace(split, nullptr);
                 }
 
                 //Connect then-nodes to then-back
@@ -2685,9 +2645,14 @@ void Vectorizer::linearize(Continuation * vectorized) {
                             mem = pred->arg(0);
                         assert(mem);
 
-                        for (size_t j = 0; j < pred->num_args(); j++) {
-                            if (j == 0)
-                                continue;
+                        if (join_cache.size() < pred->num_args() - 1) {
+                            std::cerr << "Error\n";
+                            DUMP_BLOCK(split);
+                            std::cerr << "pred\n";
+                            DUMP_BLOCK(pred);
+                        }
+
+                        for (size_t j = 1; j < pred->num_args(); j++) {
                             assert(join_cache[j - 1]);
                             mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
                         }
@@ -2732,9 +2697,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
                             mem = pred->arg(0);
                         assert(mem);
 
-                        for (size_t j = 0; j < pred->num_args(); j++) {
-                            if (j == 0)
-                                continue;
+                        for (size_t j = 1; j < pred->num_args(); j++) {
                             assert(join_cache[j - 1]);
                             mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
                         }
@@ -2829,7 +2792,8 @@ bool Vectorizer::run() {
 #ifdef DUMP_VECTORIZER
                 ret_param->dump();
 #endif
-                if (ret_param->uses().size() > 1) {
+                //if (ret_param->uses().size() > 1) {
+                {
                     auto ret_type = const_cast<FnType*>(ret_param->type()->as<FnType>());
                     Continuation * ret_join = world_.continuation(ret_type, Debug("shim"));
                     ret_param->replace(ret_join);

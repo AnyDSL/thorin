@@ -54,16 +54,16 @@ static const App* get_alloc_call(const Def* def) {
     if (!param) return nullptr;
 
     auto ret = param->continuation();
-    if (ret->num_uses() != 1) return nullptr;
+    for (auto use : ret->uses()) {
+        auto call = use.def()->isa<App>();
+        if (!call || use.index() == 0) continue;
 
-    auto use = *(ret->uses().begin());
-    auto call = use.def()->isa<App>();
-    if (!call || use.index() == 0) return nullptr;
+        auto callee = call->callee();
+        if (callee->name() != "anydsl_alloc") continue;
 
-    auto callee = call->callee();
-    if (callee->name() != "anydsl_alloc") return nullptr;
-
-    return call;
+        return call;
+    }
+    return nullptr;
 }
 
 static uint64_t get_alloc_size(const Def* def) {

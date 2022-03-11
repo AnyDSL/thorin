@@ -318,11 +318,14 @@ void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
 bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     if (!cont->is_intrinsic()) {
         for (auto use : cont->uses()) {
-            auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto app = def->isa<App>()) {
-                for (auto ucontinuation : app->using_continuations()) {
-                    if (func(ucontinuation))
-                        return true;
+            auto actual_uses = include_globals && use->isa<Global>() ? use->uses() : Uses { use };
+            for (auto actual_use : actual_uses) {
+                auto def = actual_use.def();
+                if (auto app = def->isa<App>()) {
+                    for (auto ucontinuation : app->using_continuations()) {
+                        if (func(ucontinuation))
+                            return true;
+                    }
                 }
             }
         }

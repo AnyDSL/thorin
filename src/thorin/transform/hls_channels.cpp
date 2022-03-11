@@ -214,7 +214,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // Rewriting the basic blocks of the kernel using the map
             for (auto def : scope.defs()) {
                 if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
-                    assert(cont->has_body());
+                    if (!cont->has_body()) continue;
                     auto body = cont->body();
                     auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
                     auto new_callee = rewriter.instantiate(body->callee());

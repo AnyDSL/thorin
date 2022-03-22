@@ -123,7 +123,7 @@ private:
     }
 
     const Type *widen(const Type *);
-    const Def *widen(const Def*, const Def* context = nullptr);
+    const Def *widen(const Def*, const Continuation*);
     Continuation *widen();
 
     ContinuationMap<const Def*> oldblock2mem;
@@ -882,7 +882,7 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
     return new_continuation;
 }
 
-const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
+const Def* Vectorizer::widen(const Def* old_def, const Continuation* context) {
 #ifdef DUMP_WIDEN
     std::cout << "Widen\n";
     old_def->dump();
@@ -930,25 +930,25 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
         Array<const Def*> nops(old_def->num_ops());
 
         for (unsigned i = 0; i < old_def->num_ops(); i++) {
-            nops[i] = (widen(old_def->op(i), old_def)); //These should all be uniform as well.
+            nops[i] = (widen(old_def->op(i), context)); //These should all be uniform as well.
         }
 
         auto r = old_def->as<PrimOp>()->rebuild(world_, old_def->type(), nops);
         return r; //TODO: this def could contain a continuation inside a tuple for match cases!
-    } else if (auto extract = old_def->isa<Param>()) {
+    } else if (auto param = old_def->isa<Param>()) {
 #ifdef DUMP_WIDEN
         std::cout << "Param\n";
 #endif
-        widen(extract->continuation());
-        assert(def2def_.contains(extract));
-        return def2def_[extract];
+        widen(param->continuation(), param->continuation());
+        assert(def2def_.contains(param));
+        return def2def_[param];
     } else if (auto extract = old_def->isa<Extract>()) {
 #ifdef DUMP_WIDEN
         std::cout << "Extract\n";
 #endif
         Array<const Def*> nops(extract->num_ops());
 
-        nops[0] = widen(extract->op(0), extract);
+        nops[0] = widen(extract->op(0), context);
         if (auto vectype = nops[0]->type()->isa<VectorType>(); vectype && vectype->is_vector())
             nops[1] = world_.tuple({world_.top(extract->op(1)->type()), extract->op(1)});
         else
@@ -974,7 +974,7 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
 #endif
         Array<const Def*> nops(varextract->num_ops());
 
-        nops[0] = widen(varextract->op(0), varextract);
+        nops[0] = widen(varextract->op(0), context);
 
         auto type = widen(varextract->type());
         const Def* new_primop;
@@ -997,7 +997,7 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
         Array<const Def*> nops(arithop->num_ops());
         bool any_vector = false;
         for (size_t i = 0, e = arithop->num_ops(); i != e; ++i) {
-            nops[i] = widen(arithop->op(i), arithop);
+            nops[i] = widen(arithop->op(i), context);
             if (auto vector = nops[i]->type()->isa<VectorType>())
                 any_vector |= vector->is_vector();
             if (nops[i]->type()->isa<VariantVectorType>())
@@ -1044,7 +1044,7 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
         Array<const Def*> nops(old_primop->num_ops());
         bool any_vector = false;
         for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i) {
-            nops[i] = widen(old_primop->op(i), old_primop);
+            nops[i] = widen(old_primop->op(i), context);
             auto oldtype = old_primop->op(i)->type();
             auto newtype_vec = widen(oldtype);
             if(newtype_vec == oldtype)
@@ -1052,13 +1052,8 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
             auto newtype_actual = nops[i]->type();
             if (newtype_vec == newtype_actual)
                 any_vector = true;
-            if (newtype_actual != oldtype) {
-                //std::cerr << "test\n";
-                //newtype_actual->dump();
-                //newtype_vec->dump();
-                //oldtype->dump();
+            if (newtype_actual != oldtype)
                 any_vector = true;
-            }
 
             if (auto vectype = nops[i]->type()->isa<VectorType>(); vectype && vectype->is_vector())
                 assert(any_vector);
@@ -1109,6 +1104,24 @@ const Def* Vectorizer::widen(const Def* old_def, const Def* context) {
 
         if (old_primop->isa<PrimLit>()) {
             assert(false && "Primlits are uniform");
+
+        } else if (old_primop->isa<Access>()) {
+            if (div_analysis_->isPredicated[const_cast<Continuation*>(context)]) {
+                auto new_cont = def2def_[context]->isa_continuation();
+                assert(new_cont);
+
+                new_cont->param(1);
+
+                if (old_primop->isa<Store>()) {
+                    new_primop = world_.maskedstore(nops[0], nops[1], nops[2], new_cont->param(1));
+                } else if (old_primop->isa<Load>()) {
+                    new_primop = world_.maskedload(nops[0], nops[1], new_cont->param(1));
+                } else {
+                    THORIN_UNREACHABLE;
+                }
+            } else {
+                new_primop = old_primop->rebuild(world_, type, nops);
+            }
         } else {
             new_primop = old_primop->rebuild(world_, type, nops);
         }
@@ -1142,7 +1155,7 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
             case Intrinsic::Branch: {
                 if (auto lit = widen(old_continuation->arg(0), old_continuation)->isa<PrimLit>()) {
                     auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
-                    return new_continuation->jump(widen(cont), {}, old_continuation->debug());
+                    return new_continuation->jump(widen(cont, old_continuation), {}, old_continuation->debug());
                 }
                 break;
             }
@@ -1385,7 +1398,7 @@ Continuation *Vectorizer::widen() {
         Array<const Def*> new_filter(ncontinuation->num_params());
         size_t j = 0;
         for (size_t i = 0, e = kernel->num_params(); i != e; ++i) {
-            new_filter[j++] = widen(kernel->filter(i));
+            new_filter[j++] = widen(kernel->filter(i), kernel);
         }
 
         for (size_t e = ncontinuation->num_params(); j != e; ++j)
@@ -1921,13 +1934,18 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 auto pred = const_cast<Continuation*>(def2def_[pred_old]->as<Continuation>());
                 auto mem = block2mem[pred];
 
-                auto true_elem = world_.literal_bool(true, {});
-                Array<const Def *> elements(vector_width);
-                for (size_t i = 0; i < vector_width; i++)
-                    elements[i] = true_elem;
-                auto true_predicate = world_.vector(elements);
+                if(div_analysis_->isPredicated[pred_old]) {
+                    auto new_running_pred = pred->param(1);
+                    mem = world_.store(mem, running_var, new_running_pred);
+                } else {
+                    auto true_elem = world_.literal_bool(true, {});
+                    Array<const Def *> elements(vector_width);
+                    for (size_t i = 0; i < vector_width; i++)
+                        elements[i] = true_elem;
+                    auto true_predicate = world_.vector(elements);
 
-                mem = world_.store(mem, running_var, true_predicate);
+                    mem = world_.store(mem, running_var, true_predicate);
+                }
                 block2mem[pred] = mem;
 
                 pred->unset_op(1);
@@ -2021,14 +2039,21 @@ void Vectorizer::linearize(Continuation * vectorized) {
                         predicate = world_.vector(elements);
                     }
 
-                    Continuation * loop_continue = const_cast<Continuation*>(pred->op(index_then)->as<Continuation>());
-                    Continuation * loop_exit;
-                    if (div_analysis_->loopBodies[latch_old].contains(loop_continue)) {
-                        loop_exit = loop_continue;
-                        loop_continue = const_cast<Continuation*>(pred->op(index_else)->as<Continuation>());
+                    Continuation * loop_continue_old = const_cast<Continuation*>(pred_old->op(index_then)->as<Continuation>());
+                    Continuation * loop_exit_old;
+                    if (!div_analysis_->loopBodies[latch_old].contains(loop_continue_old)) {
+                        predicate = world_.arithop_not(predicate);
+                        loop_exit_old = loop_continue_old;
+                        loop_continue_old = const_cast<Continuation*>(pred_old->op(index_else)->as<Continuation>());
                     } else {
-                        loop_exit = const_cast<Continuation*>(pred->op(index_else)->as<Continuation>());
+                        loop_exit_old = const_cast<Continuation*>(pred_old->op(index_else)->as<Continuation>());
                     }
+
+                    assert (div_analysis_->loopBodies[latch_old].contains(loop_continue_old));
+                    assert (!div_analysis_->loopBodies[latch_old].contains(loop_exit_old));
+
+                    Continuation * loop_continue = const_cast<Continuation*>(def2def_[loop_continue_old]->as<Continuation>());
+                    Continuation * loop_exit = const_cast<Continuation*>(def2def_[loop_exit_old]->as<Continuation>());
 
                     auto mem = block2mem[pred];
                     const Def* current_running_inner = nullptr;
@@ -2553,7 +2578,15 @@ void Vectorizer::linearize(Continuation * vectorized) {
 #ifdef DUMP_VECTORIZER_LINEARIZER
             std::cerr << "Before rewiring\n";
             DUMP_BLOCK(vectorized);
+
+            for (size_t current_split_index = 0; current_split_index < splits.size(); current_split_index++) {
+                auto split_old = splits[current_split_index];
+                auto split = const_cast<Continuation*>(def2def_[split_old]->as<Continuation>());
+                assert(split);
+            }
 #endif
+
+            auto bool_vec_ty = widen(world_.type_bool());
 
             for (size_t current_split_index = 0; current_split_index < splits.size(); current_split_index++) {
                 auto split_old = splits[current_split_index];
@@ -2564,10 +2597,21 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 Continuation * then_new = const_cast<Continuation*>(def2def_[then_old]->as<Continuation>());
                 assert(then_new);
 
+                if (then_new->num_params() == 1) {
+                    Continuation * predicated_buffer = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}));
+                    predicated_buffer->jump(then_new, {predicated_buffer->param(0)});
+                    then_new = predicated_buffer;
+                }
+
                 const Continuation * else_old = split_old->arg(3)->as<Continuation>();
                 Continuation * else_new = const_cast<Continuation*>(def2def_[else_old]->as<Continuation>());
                 assert(else_new);
 
+                if (else_new->num_params() == 1) {
+                    Continuation * predicated_buffer = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}));
+                    predicated_buffer->jump(else_new, {predicated_buffer->param(0)});
+                    else_new = predicated_buffer;
+                }
 
                 //TODO: These predicates need to be extended to include the cached predicates as well.
                 //TODO: We need to store predicates as well!
@@ -2606,7 +2650,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                             all_one = false;
                 assert(!all_one);
 
-                auto bool_vec_ty = widen(world_.type_bool());
                 Continuation * then_new_back = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}), Debug("branch_true_back"));
                 Continuation * else_new_back = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}), Debug("branch_false_back"));
 
@@ -2726,7 +2769,14 @@ void Vectorizer::linearize(Continuation * vectorized) {
                     //TODO: This should also imply that the current mask is no fully populated, as the else-block is only reachable once all loop instances are done executing.
                     
                     //else_new_back->jump(else_new->op(0), { else_new_back->mem_param() });
-                    else_new_back->jump(new_jump_else, { else_new_back->mem_param(), one_predicate, else_new->op(0), else_new->op(0)}, latch->debug()); //TODO: This is only correct if the target is a return.
+                    const Continuation * return_cont = else_new->op(0)->isa_continuation();
+                    if (return_cont->num_params() == 1) {
+                        Continuation * predicated_buffer = world_.continuation(world_.fn_type({world_.mem_type(), bool_vec_ty}));
+                        predicated_buffer->jump(return_cont, {predicated_buffer->param(0)});
+                        return_cont = predicated_buffer;
+                    }
+
+                    else_new_back->jump(new_jump_else, { else_new_back->mem_param(), one_predicate, return_cont, return_cont}, latch->debug()); //TODO: This is only correct if the target is a return.
                 } else {
                     //connect else-back to the cached join.
                     

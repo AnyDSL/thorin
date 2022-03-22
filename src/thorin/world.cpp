@@ -1072,6 +1072,17 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     return cse(new Load(mem, ptr, dbg));
 }
 
+const Def* World::maskedload(const Def* mem, const Def* ptr, const Def* mask, Debug dbg) {
+    if (ptr->type()->isa<PtrType>())
+        if(auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
+            // loading an empty tuple can only result in an empty tuple
+            if (tuple_type->num_ops() == 0) {
+                return tuple({mem, tuple({}, dbg)});
+            }
+        }
+    return cse(new MaskedLoad(mem, ptr, mask, dbg));
+}
+
 bool is_agg_const(const Def* def) {
     return def->isa<DefiniteArray>() || def->isa<StructAgg>() || def->isa<Tuple>();
 }
@@ -1080,6 +1091,12 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
     if (value->isa<Bottom>())
         return mem;
     return cse(new Store(mem, ptr, value, dbg));
+}
+
+const Def* World::maskedstore(const Def* mem, const Def* ptr, const Def* value, const Def* mask, Debug dbg) {
+    if (value->isa<Bottom>())
+        return mem;
+    return cse(new MaskedStore(mem, ptr, value, mask, dbg));
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {

@@ -666,6 +666,18 @@ public:
     const Def* ptr() const { return op(1); }
 };
 
+class MaskedAccess : public MemOp {
+protected:
+    MaskedAccess(NodeTag tag, const Type* type, Defs args, Debug dbg)
+        : MemOp(tag, type, args, dbg)
+    {
+        assert(args.size() >= 2);
+    }
+
+public:
+    const Def* ptr() const { return op(1); }
+};
+
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
 class Load : public Access {
 private:
@@ -685,6 +697,24 @@ private:
     friend class World;
 };
 
+class MaskedLoad : public MaskedAccess {
+private:
+    MaskedLoad(const Def* mem, const Def* ptr, const Def* mask, Debug dbg);
+
+public:
+    bool has_multiple_outs() const override { return true; }
+    const Def* out_val() const { return out(1); }
+    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+    const Type* out_val_type() const { return type()->op(1); }
+    static const MaskedLoad* is_out_mem(const Def* def) { return is_out<0, MaskedLoad>(def); }
+    static const MaskedLoad* is_out_val(const Def* def) { return is_out<1, MaskedLoad>(def); }
+
+private:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
 /// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
 class Store : public Access {
 private:
@@ -697,6 +727,21 @@ private:
 public:
     const Def* val() const { return op(2); }
     const MemType* type() const { return Access::type()->as<MemType>(); }
+
+    friend class World;
+};
+
+class MaskedStore : public MaskedAccess {
+private:
+    MaskedStore(const Def* mem, const Def* ptr, const Def* value, const Def* mask, Debug dbg)
+        : MaskedAccess(Node_MaskedStore, mem->type(), {mem, ptr, value, mask}, dbg)
+    {}
+
+    const Def* rebuild(World&, const Type*, Defs) const override;
+
+public:
+    const Def* val() const { return op(2); }
+    const MemType* type() const { return MaskedAccess::type()->as<MemType>(); }
 
     friend class World;
 };

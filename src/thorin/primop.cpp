@@ -178,6 +178,20 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     set_type(w.tuple_type({w.mem_type(), return_type}));
 }
 
+MaskedLoad::MaskedLoad(const Def* mem, const Def* ptr, const Def* mask, Debug dbg)
+    : MaskedAccess(Node_MaskedLoad, nullptr, {mem, ptr, mask}, dbg)
+{
+    World& w = mem->world();
+    const Type* return_type;
+    if (auto vec_type = ptr->type()->as<VectorType>(); vec_type && vec_type->is_vector()) {
+        auto inner_type = vec_type->scalarize()->as<PtrType>()->pointee();
+        return_type = w.vec_type(inner_type, vec_type->length());
+    } else {
+        return_type = ptr->type()->as<PtrType>()->pointee();
+    }
+    set_type(w.tuple_type({w.mem_type(), return_type}));
+}
+
 Enter::Enter(const Def* mem, Debug dbg)
     : MemOp(Node_Enter, nullptr, {mem}, dbg)
 {
@@ -286,6 +300,7 @@ const Def* Run           ::rebuild(World& w, const Type*  , Defs o) const { retu
 const Def* Insert        ::rebuild(World& w, const Type*  , Defs o) const { return w.insert(o[0], o[1], o[2], debug()); }
 const Def* LEA           ::rebuild(World& w, const Type*  , Defs o) const { return w.lea(o[0], o[1], debug()); }
 const Def* Load          ::rebuild(World& w, const Type*  , Defs o) const { return w.load(o[0], o[1], debug()); }
+const Def* MaskedLoad    ::rebuild(World& w, const Type*  , Defs o) const { return w.maskedload(o[0], o[1], o[2], debug()); }
 const Def* PrimLit       ::rebuild(World& w, const Type*  , Defs  ) const { return w.literal(primtype_tag(), value(), debug()); }
 const Def* Select        ::rebuild(World& w, const Type*  , Defs o) const { return w.select(o[0], o[1], o[2], debug()); }
 const Def* AlignOf       ::rebuild(World& w, const Type*  , Defs o) const { return w.align_of(o[0]->type(), debug()); }
@@ -305,6 +320,7 @@ const Def* Slot          ::rebuild(World& w, const Type* t, Defs o) const {
     return w.slot(ttype, o[0], debug());
 }
 const Def* Store         ::rebuild(World& w, const Type*  , Defs o) const { return w.store(o[0], o[1], o[2], debug()); }
+const Def* MaskedStore   ::rebuild(World& w, const Type*  , Defs o) const { return w.maskedstore(o[0], o[1], o[2], o[3], debug()); }
 const Def* Tuple         ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple(o, debug()); }
 const Def* Variant       ::rebuild(World& w, const Type* t, Defs o) const { return w.variant(t, o[0], index(), debug()); }
 const Def* VariantIndex  ::rebuild(World& w, const Type*  , Defs o) const { return w.variant_index(o[0], debug()); }

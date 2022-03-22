@@ -53,7 +53,7 @@ public:
         std::unique_ptr<llvm::Module>> emit_module();
     llvm::Function* prepare(const Scope&);
     virtual void prepare(Continuation*, llvm::Function*);
-    llvm::Value* emit_bb(BB&, const Def* def, const Def* mask = nullptr);
+    llvm::Value* emit_bb(BB&, const Def* def);
     virtual llvm::Function* emit_fun_decl(Continuation*);
     bool is_valid(llvm::Value* value) { return value != nullptr; }
     void finalize(const Scope&);
@@ -73,11 +73,13 @@ protected:
     virtual void emit_fun_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
 
-    virtual llvm::Value* emit_mathop  (llvm::IRBuilder<>&, const MathOp*);
-    virtual llvm::Value* emit_load    (llvm::IRBuilder<>&, const Load*, const Def*);
-    virtual llvm::Value* emit_store   (llvm::IRBuilder<>&, const Store*, const Def*);
-    virtual llvm::Value* emit_lea     (llvm::IRBuilder<>&, const LEA*);
-    virtual llvm::Value* emit_assembly(llvm::IRBuilder<>&, const Assembly* assembly);
+    virtual llvm::Value* emit_mathop      (llvm::IRBuilder<>&, const MathOp*);
+    virtual llvm::Value* emit_load        (llvm::IRBuilder<>&, const Load*);
+    virtual llvm::Value* emit_masked_load (llvm::IRBuilder<>&, const MaskedLoad*);
+    virtual llvm::Value* emit_store       (llvm::IRBuilder<>&, const Store*);
+    virtual llvm::Value* emit_masked_store(llvm::IRBuilder<>&, const MaskedStore*);
+    virtual llvm::Value* emit_lea         (llvm::IRBuilder<>&, const LEA*);
+    virtual llvm::Value* emit_assembly    (llvm::IRBuilder<>&, const Assembly* assembly);
 
     virtual Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*);
     Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);

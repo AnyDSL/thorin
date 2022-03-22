@@ -89,7 +89,6 @@ public:
     void emit_epilogue(Continuation*);
 
     std::string emit_bb(BB&, const Def*);
-    std::string emit_bb(BB&, const Def*, const Def*);
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
@@ -903,12 +902,6 @@ static inline bool is_const_primop(const Def* def) {
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
     return emit_def(&bb, def);
 }
-
-std::string CCodeGen::emit_bb(BB& bb, const Def* def, const Def* mask) {
-    assert(!mask);
-    return emit_def(&bb, def);
-}
-
 
 std::string CCodeGen::emit_constant(const Def* def) {
     return emit_def(nullptr, def);

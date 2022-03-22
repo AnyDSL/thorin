@@ -14,7 +14,9 @@
             THORIN_NODE(Alloc, alloc)
             // Access
                 THORIN_NODE(Load, load)
+                THORIN_NODE(MaskedLoad, masked_load)
                 THORIN_NODE(Store, store)
+                THORIN_NODE(MaskedStore, masked_store)
             THORIN_NODE(Enter, enter)
             THORIN_NODE(Leave, leave)
         THORIN_NODE(Select, select)

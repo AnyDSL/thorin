@@ -198,7 +198,9 @@ public:
     // memory stuff
 
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
+    const Def* maskedload(const Def* mem, const Def* ptr, const Def* mask, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
+    const Def* maskedstore(const Def* mem, const Def* ptr, const Def* val, const Def* mask, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
     const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});

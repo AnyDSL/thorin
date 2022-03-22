@@ -145,7 +145,7 @@ private:
 
 static inline const std::string lang_as_string(Lang lang) {
     switch (lang) {
-        default:
+        default:     THORIN_UNREACHABLE;
         case Lang::C99:    return "C99";
         case Lang::HLS:    return "HLS";
         case Lang::CUDA:   return "CUDA";
@@ -222,18 +222,18 @@ std::string CCodeGen::convert(const Type* type) {
         s << "void";
     else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     s << "bool";                      break;
-            case PrimType_ps8:  case PrimType_qs8:  s << "char";                      break;
-            case PrimType_pu8:  case PrimType_qu8:  s << "unsigned char";             break;
-            case PrimType_ps16: case PrimType_qs16: s << "short";                     break;
-            case PrimType_pu16: case PrimType_qu16: s << "unsigned short";            break;
-            case PrimType_ps32: case PrimType_qs32: s << "int";                       break;
-            case PrimType_pu32: case PrimType_qu32: s << "unsigned int";              break;
-            case PrimType_ps64: case PrimType_qs64: s << "long";                      break;
-            case PrimType_pu64: case PrimType_qu64: s << "unsigned long";             break;
-            case PrimType_pf32: case PrimType_qf32: s << "float";                     break;
-            case PrimType_pf16: case PrimType_qf16: s << "half";   use_fp_16_ = true; break;
-            case PrimType_pf64: case PrimType_qf64: s << "double"; use_fp_64_ = true; break;
+            case PrimType_bool:                     s << "bool";                     break;
+            case PrimType_ps8:  case PrimType_qs8:  s <<   "i8";                     break;
+            case PrimType_pu8:  case PrimType_qu8:  s <<   "u8";                     break;
+            case PrimType_ps16: case PrimType_qs16: s <<  "i16";                     break;
+            case PrimType_pu16: case PrimType_qu16: s <<  "u16";                     break;
+            case PrimType_ps32: case PrimType_qs32: s <<  "i32";                     break;
+            case PrimType_pu32: case PrimType_qu32: s <<  "u32";                     break;
+            case PrimType_ps64: case PrimType_qs64: s <<  "i64";                     break;
+            case PrimType_pu64: case PrimType_qu64: s <<  "u64";                     break;
+            case PrimType_pf16: case PrimType_qf16: s <<  "f16";  use_fp_16_ = true; break;
+            case PrimType_pf32: case PrimType_qf32: s <<  "f32";                     break;
+            case PrimType_pf64: case PrimType_qf64: s <<  "f64";  use_fp_64_ = true; break;
             default: THORIN_UNREACHABLE;
         }
         if (primtype->is_vector())
@@ -337,7 +337,7 @@ std::string CCodeGen::device_prefix() {
         default:           return "";
         case Lang::CUDA:   return "__device__ ";
         case Lang::OpenCL:
-            if(use_channels_)
+            if (use_channels_)
                 return "PIPE ";
             else
                 return "__constant ";
@@ -378,53 +378,107 @@ void CCodeGen::emit_module() {
                 if (map.first->is_channel()) {
                     if (map.second == FuncMode::Write) {
                         macro_xilinx_ << " #define " << map.first->name() << write_channel_params << "write_pipe_block(channel, &val)\n";
-                        macro_intel_  << " #define "<< map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
+                        macro_intel_  << " #define " << map.first->name() << write_channel_params << "write_channel_intel(channel, val)\n";
                     } else if (map.second == FuncMode::Read) {
                         macro_xilinx_ << " #define " << map.first->name() << read_channel_params << "read_pipe_block(channel, &val)\n";
                         macro_intel_  << " #define " << map.first->name() << read_channel_params << "val = read_channel_intel(channel)\n";
                     }
                 }
             }
-            stream_ << "#if defined(__xilinx__)" << "\n";
+            stream_ << "#if defined(__xilinx__)\n";
             stream_ << macro_xilinx_.str();
 
-            stream_ << "#elif defined(INTELFPGA_CL)" << "\n";
+            stream_ << "#elif defined(INTELFPGA_CL)\n";
             stream_ << macro_intel_.str();
 
             stream_ << "#else\n"
-                    << " #define PIPE pipe\n";
-            stream_ << "#endif" << "\n";
-
-            if (use_fp_16_)
-                stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << "\n";
-            if (use_fp_64_)
-                stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << "\n";
+                       " #define PIPE pipe\n";
+            stream_ << "#endif\n";
         }
+
+        if (use_fp_16_)
+            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
+        if (use_fp_64_)
+            stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
+
+        stream_.fmt(    "\n"
+                        "typedef   char  i8;\n"
+                        "typedef  uchar  u8;\n"
+                        "typedef  short i16;\n"
+                        "typedef ushort u16;\n"
+                        "typedef    int i32;\n"
+                        "typedef   uint u32;\n"
+                        "typedef   long i64;\n"
+                        "typedef  ulong u64;\n");
+        if (use_fp_16_)
+            stream_.fmt("typedef   half f16;\n");
+        stream_.fmt(    "typedef  float f32;\n");
+        if (use_fp_64_)
+            stream_.fmt("typedef double f64;\n");
     }
 
     stream_.endl();
 
     if (lang_ == Lang::C99) {
-        stream_.fmt("#include <stdbool.h>\n"); // for the 'bool' type
+        stream_.fmt(    "#include <stdbool.h>\n"    // for the 'bool' type
+                        "#include <stdint.h>\n");   // for the fixed-width integer types
         if (use_align_of_)
             stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
         if (use_memcpy_)
-            stream_.fmt("#include <string.h>\n"); // for 'memcpy'
+            stream_.fmt("#include <string.h>\n");   // for 'memcpy'
         if (use_malloc_)
-            stream_.fmt("#include <stdlib.h>\n"); // for 'malloc'
+            stream_.fmt("#include <stdlib.h>\n");   // for 'malloc'
         if (use_math_)
-            stream_.fmt("#include <math.h>\n"); // for 'cos'/'sin'/...
-        stream_.fmt("\n");
+            stream_.fmt("#include <math.h>\n");     // for 'cos'/'sin'/...
     }
 
-    if (lang_ == Lang::CUDA && use_fp_16_) {
-        stream_.fmt("#include <cuda_fp16.h>\n\n");
-        stream_.fmt("#if __CUDACC_VER_MAJOR__ > 8\n");
-        stream_.fmt("#define half __half_raw\n");
-        stream_.fmt("#endif\n\n");
+    if (lang_ == Lang::HLS) {
+        stream_.fmt("#include <hls_stream.h>\n"
+                    "#include <hls_math.h>\n");
+        if (use_fp_16_)
+            stream_.fmt("#include <hls_half.h>\n");
     }
-    if (lang_ == Lang::HLS)
-        stream_ << "#include \"hls_stream.h\""<< "\n" << "#include \"hls_math.h\""<< "\n";
+
+    if (lang_ == Lang::C99 || lang_ == Lang::HLS) {
+        stream_.fmt(    "\n"
+                        "typedef   int8_t  i8;\n"
+                        "typedef  uint8_t  u8;\n"
+                        "typedef  int16_t i16;\n"
+                        "typedef uint16_t u16;\n"
+                        "typedef  int32_t i32;\n"
+                        "typedef uint32_t u32;\n"
+                        "typedef  int64_t i64;\n"
+                        "typedef uint64_t u64;\n"
+                        "typedef    float f32;\n"
+                        "typedef   double f64;\n"
+                        "\n");
+
+         if (use_fp_16_ && lang_ == Lang::HLS)
+            stream_.fmt("typedef     half f16;\n");
+    }
+
+    if (lang_ == Lang::CUDA) {
+        if (use_fp_16_)
+            stream_.fmt("#include <cuda_fp16.h>\n\n");
+        stream_.fmt(    "typedef               char  i8;\n"
+                        "typedef      unsigned char  u8;\n"
+                        "typedef              short i16;\n"
+                        "typedef     unsigned short u16;\n"
+                        "typedef                int i32;\n"
+                        "typedef       unsigned int u32;\n"
+                        "typedef          long long i64;\n"
+                        "typedef unsigned long long u64;\n"
+                        "\n");
+        if (use_fp_16_)
+            stream_.fmt("#if __CUDACC_VER_MAJOR__ <= 8\n"
+                        "typedef               half f16;\n"
+                        "#else\n"
+                        "typedef         __half_raw f16;\n"
+                        "#endif\n");
+        stream_.fmt(    "typedef              float f32;\n"
+                        "typedef             double f64;\n"
+                        "\n");
+    }
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
         stream_.fmt("extern \"C\" {{\n");
@@ -464,13 +518,13 @@ void CCodeGen::emit_module() {
         stream_.fmt("}} /* extern \"C\" */\n");
 }
 
-inline bool is_passed_via_buffer(const Param* param) {
+static inline bool is_passed_via_buffer(const Param* param) {
     return param->type()->isa<DefiniteArrayType>()
         || param->type()->isa<StructType>()
         || param->type()->isa<TupleType>();
 }
 
-inline const Type* ret_type(const FnType* fn_type) {
+static inline const Type* ret_type(const FnType* fn_type) {
     auto ret_fn_type = (*std::find_if(
         fn_type->ops().begin(), fn_type->ops().end(), [] (const Type* op) {
             return op->order() % 2 == 1;
@@ -592,7 +646,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
     }
 }
 
-inline std::string make_identifier(const std::string& str) {
+static inline std::string make_identifier(const std::string& str) {
     auto copy = str;
     // Transform non-alphanumeric characters
     std::transform(copy.begin(), copy.end(), copy.begin(), [] (auto c) {
@@ -606,7 +660,7 @@ inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
-inline std::string label_name(const Def* def) {
+static inline std::string label_name(const Def* def) {
     return make_identifier(def->as_continuation()->unique_name());
 }
 
@@ -1442,6 +1496,17 @@ void CCodeGen::emit_c_int() {
     stream_.fmt("#ifdef __cplusplus\n");
     stream_.fmt("extern \"C\" {{\n");
     stream_.fmt("#endif\n\n");
+
+    stream_.fmt("typedef   int8_t  i8;\n"
+                "typedef  uint8_t  u8;\n"
+                "typedef  int16_t i16;\n"
+                "typedef uint16_t u16;\n"
+                "typedef  int32_t i32;\n"
+                "typedef uint32_t u32;\n"
+                "typedef  int64_t i64;\n"
+                "typedef uint64_t u64;\n"
+                "typedef    float f32;\n"
+                "typedef   double f64;\n\n");
 
     if (!type_decls_.str().empty())
         stream_.fmt("{}\n", type_decls_.str());

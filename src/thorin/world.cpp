@@ -899,7 +899,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* left, const Def* righ
 }
 
 template <class F>
-inline bool float_predicate(const PrimLit* lit, F&& f) {
+static inline bool float_predicate(const PrimLit* lit, F&& f) {
     switch (lit->primtype_tag()) {
         case PrimType_qf16:
         case PrimType_pf16:

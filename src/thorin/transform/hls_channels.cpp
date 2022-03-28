@@ -182,7 +182,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
-            world.make_external(new_kernel);
+            // world.make_external(new_kernel);
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -374,7 +374,9 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         auto ret_param = kernel->ret_param();
         auto mem_param = kernel->mem_param();
         auto ret_type = ret_param->type()->as<FnType>();
-        auto ret = world.continuation(ret_type, kernel->debug());
+        bool last_kernel = kernel == new_kernels.back();
+        const Def* hls_top_ret = hls_top->param(1);
+        const Def* ret = last_kernel ? hls_top_ret : world.continuation(ret_type, Debug("next_kernel"));
         // Fill the array of arguments
         Array<const Def*> args(kernel->type()->num_ops());
         for (size_t i = 0; i < kernel->type()->num_ops(); ++i) {
@@ -391,8 +393,11 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         }
 
         cur_bb->jump(kernel, args);
-        cur_bb = ret;
-        cur_mem = ret->mem_param();
+        if (!last_kernel) {
+            auto next = ret->as_nom<Continuation>();
+            cur_bb = next;
+            cur_mem = next->mem_param();
+        }
     }
 
     world.make_external(hls_top);

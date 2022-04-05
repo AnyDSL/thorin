@@ -64,10 +64,11 @@ const Def* Importer::import(Tracker odef) {
         def_old2new_[ocontinuation] = ncontinuation;
 
         if (ocontinuation->num_ops() > 0 && ocontinuation->callee() == ocontinuation->world().branch()) {
-            auto cond = import(ocontinuation->arg(0));
+            auto cond = import(ocontinuation->arg(1));
             if (auto lit = cond->isa<PrimLit>()) {
-                auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
-                ncontinuation->jump(callee, {}, ocontinuation->debug()); // TODO debug
+                auto callee = import(lit->value().get_bool() ? ocontinuation->arg(2) : ocontinuation->arg(3));
+                auto mem = import(ocontinuation->arg(0));
+                ncontinuation->jump(callee, {mem}, ocontinuation->debug()); // TODO debug
 
                 assert(!ncontinuation->is_replaced());
                 return ncontinuation;

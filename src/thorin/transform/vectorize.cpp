@@ -126,9 +126,6 @@ private:
     const Def *widen(const Def*, const Continuation*);
     Continuation *widen();
 
-    ContinuationMap<const Def*> oldblock2mem;
-    ContinuationMap<GIDSet<const Def*>> oldblock2firstmem;
-
     void widen_setup(Continuation *);
     Continuation *kernel;
     Scope *current_scope;
@@ -138,24 +135,15 @@ private:
     Continuation* widen_head(Continuation* old_continuation);
 
     void linearize(Continuation * vectorized);
-
-    void Continuation_MemParam(Continuation* continuation, Scope& vector_scope, ContinuationMap<const Def*>& block2mem, ContinuationMap<GIDSet<const Def*>>& block2firstmem);
-    void analyze_mem(Scope &vector_scope,
-                     ContinuationMap<const Def*> &block2mem,
-                     ContinuationMap<GIDSet<const Def*>> &block2firstmem);
 };
 
 class RecStreamer2 {
 public:
     RecStreamer2(Stream& s
             , DivergenceAnalysis* div_analysis
-            , ContinuationMap<const Def*>& block2mem
-            , ContinuationMap<GIDSet<const Def*>>& block2firstmem
             , size_t max)
         : s(s)
         , div_analysis(div_analysis)
-        , block2mem(block2mem)
-        , block2firstmem(block2firstmem)
         , max(max)
     {}
 
@@ -164,8 +152,6 @@ public:
 
     Stream& s;
     DivergenceAnalysis* div_analysis;
-    ContinuationMap<const Def*>& block2mem;
-    ContinuationMap<GIDSet<const Def*>>& block2firstmem;
     size_t max;
     unique_queue<ContinuationSet> conts;
     DefSet defs;
@@ -200,7 +186,7 @@ void RecStreamer2::run() {
 
         if (!cont->empty()) {
             s.fmt("{}: {} = {{ ", cont->unique_name(), cont->type());
-            s.fmt("[in:{} out:{} pred:{}]", block2firstmem[cont], block2mem[cont], div_analysis->isPredicated[cont] ? "pred" : "no_pred");
+            s.fmt("[pred:{}]", div_analysis->isPredicated[cont] ? "pred" : "no_pred");
             s.fmt("\t\n");
             run(cont);
             s.fmt("\b\n}}");
@@ -210,9 +196,9 @@ void RecStreamer2::run() {
     }
 }
 
-void dump_block(const Continuation* cont, ContinuationMap<const Def*>& oldblock2mem, ContinuationMap<GIDSet<const Def*>>& oldblock2firstmem, DivergenceAnalysis* div_analysis) {
+void dump_block(const Continuation* cont, DivergenceAnalysis* div_analysis) {
     Stream s(std::cout);
-    RecStreamer2 rec(s, div_analysis, oldblock2mem, oldblock2firstmem, std::numeric_limits<size_t>::max());
+    RecStreamer2 rec(s, div_analysis, std::numeric_limits<size_t>::max());
     for (auto& block : schedule(Scope(const_cast<Continuation*>(cont)))) {
         rec.conts.push(block);
         rec.run();
@@ -572,10 +558,6 @@ void DivergenceAnalysis::run() {
     //This might not be so significant, stuff resides in memory for a reason.
 
     //Step 3.2.1: Mark incomming trip counter as varying.
-    //for (auto def : base->params_as_defs()) {
-    //    uniform[def] = Varying;
-    //    def_queue.push(def);
-    //}
     auto def = base->params_as_defs()[1];
     uniform[def] = Varying;
     def_queue.push(def);
@@ -853,7 +835,6 @@ Continuation* Vectorizer::widen_head(Continuation* old_continuation) {
     def2def_[old_continuation] = new_continuation;
 
     //TODO: Under some conditions, the mem parameter of other continuations might be relevant also.
-    //
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i) {
         if (div_analysis_->isPredicated[old_continuation]) {
             if (is_mem(old_continuation->param(i))) {
@@ -1423,97 +1404,6 @@ bool Vectorizer::widen_within(const Def* def) {
     return current_scope->contains(def);
 }
 
-/* Extend a continuation with a new memory parameter.
- * The first memory operation acording to block2firstmem is updated.
- * Both block2mem and block2firstmem are modified to reflect the new parameter.
- */
-void Vectorizer::Continuation_MemParam(Continuation* continuation, Scope &vector_scope, ContinuationMap<const Def*>& block2mem, ContinuationMap<GIDSet<const Def*>>& block2firstmem) {
-    //std::cerr << "\n";
-    //std::cerr << "Adding mem to " << continuation->to_string() << "\n";
-    assert(false && "Deprecated");
-
-    auto& cfg = vector_scope.f_cfg();
-    auto& domtree = cfg.domtree();
-    Continuation* old_continuation = nullptr;
-    for (auto it : def2def_) { //TODO: Make this FAST!
-        if (it.second == continuation)
-            old_continuation = const_cast<Continuation*>(it.first->as<Continuation>());
-    }
-    assert(old_continuation);
-
-    for (auto param : continuation->params()) {
-        assert(!is_mem(param));
-    }
-    auto continuation_mem = continuation->append_param(world_.mem_type()); //TODO: prepend instead of append?
-
-    auto idom = domtree.idom(cfg[continuation]);
-
-    auto mem_last = block2mem[idom->continuation()];
-    assert(mem_last);
-
-    auto continuation_first_mem_set = block2firstmem[continuation];
-
-    //if(!continuation_first_mem_set.size()) {
-        //std::cerr << "No Mem uses\n";
-    //}
-
-    ContinuationSet toUpdate;
-    for (auto it : block2mem) {
-        if (it.second == mem_last) {
-            if (it.first == continuation || domtree.least_common_ancestor(cfg[it.first], cfg[continuation])->continuation() == continuation) {
-                //std::cerr << "Relevant block2mem: " << it.first->to_string() << "\n";
-                toUpdate.emplace(it.first);
-            }
-        }
-    }
-    for (auto it : toUpdate) {
-        block2mem[it] = continuation_mem;
-    }
-
-    for (auto continuation_first_mem : continuation_first_mem_set) {
-        //std::cerr << "first mem used by " << continuation_first_mem->to_string() << "\n";
-        //std::cerr << "This uses memory " << mem_last->to_string() << " from " << idom->continuation()->to_string() << "\n";
-
-        if (auto using_cont = continuation_first_mem->isa_continuation()) {
-            unsigned opnum = 0;
-            for (auto out : using_cont->ops()) {
-                if  (is_mem(out)) {
-                    break;
-                }
-                opnum++;
-            }
-
-            using_cont->unset_op(opnum);
-            using_cont->set_op(opnum, continuation_mem);
-        } else {
-            //Replace mem parameter in this particular instance.
-            assert(continuation_first_mem->isa<MemOp>());
-            assert(is_mem(continuation_first_mem->as<MemOp>()->op(0)));
-            auto memop = const_cast<MemOp*>(continuation_first_mem->as<MemOp>());
-            memop->unset_op(0);
-            memop->set_op(0, continuation_mem);
-        }
-
-        ContinuationSet toUpdate;
-
-        //TODO: Update block2firstmem accordingly.
-        for (auto it : block2firstmem) {
-            if (it.second.contains(continuation_first_mem)) {
-                if (it.first != continuation && domtree.least_common_ancestor(cfg[it.first], cfg[continuation])->continuation() != continuation) {
-                    //std::cerr << "Relevant block2firstmem: " << it.first->to_string() << "\n";
-                    toUpdate.emplace(it.first);
-                }
-            }
-        }
-
-        for (auto it : toUpdate) {
-            GIDSet<const Def*> firstmem = block2firstmem[it];
-            firstmem.erase(continuation_first_mem);
-            block2firstmem[it] = firstmem;
-        }
-    }
-}
-
 class MemCleaner {
 public:
     MemCleaner(const Continuation* cont) {
@@ -1564,198 +1454,6 @@ void MemCleaner::run() {
 
         if (!cont->empty()) {
             run(cont);
-        }
-    }
-}
-
-/* Find the ingoing and outgoing memory of each continuation. */
-void Vectorizer::analyze_mem(Scope &vector_scope,
-                        ContinuationMap<const Def*> &block2mem,
-                        ContinuationMap<GIDSet<const Def*>> &block2firstmem) {
-    for (auto n : vector_scope.f_cfg().post_order()) {
-        if (n->continuation() == world_.end_scope())
-            continue;
-        const Def* out_mem = nullptr;
-        for (auto out : n->continuation()->ops())
-            if  (is_mem(out)) {
-                out_mem = out;
-                break;
-            }
-        if (out_mem) {
-            block2mem[n->continuation()] = out_mem;
-        } else {
-            std::queue <const Def*> queue;
-            Def2Def coloring;
-            DefSet current_colors;
-            for (auto succ : n->continuation()->succs()) {
-                const Def* out_mem = block2mem[succ];
-                if(!out_mem) //Can happen if succ is not in cfg.
-                    continue;
-                assert(out_mem);
-                queue.push(out_mem);
-                coloring[out_mem] = out_mem;
-                current_colors.emplace(out_mem);
-            }
-            while (!queue.empty() && current_colors.size() > 1) {
-                const Def* next = pop(queue);
-                assert(is_mem(next));
-
-                if (next->isa<Param>())
-                    continue;
-
-                const Def* pred;
-                if (auto extract = next->isa<Extract>()) {
-                    if (auto memop = extract->agg()->isa<MemOp>())
-                        pred = memop->mem();
-                    else if (auto tuple = extract->agg()->isa<Tuple>()) {
-                        assert(extract->index()->isa<PrimLit>());
-                        auto index = extract->index()->as<PrimLit>()->qu32_value();
-                        pred = tuple->op(index);
-                        assert(is_mem(pred));
-                    }
-                } else {
-                    pred = next->as<MemOp>()->mem();
-                }
-
-                //if (pred->isa<Param>())
-                //    continue;
-
-                assert(is_mem(pred));
-
-                if (coloring[pred] && ! current_colors.contains(coloring[pred])) { //Treat this node as if it was not colored.
-                    coloring[pred] = coloring[next];
-                    queue.push(pred);
-                } else if (coloring[pred] && coloring[pred] != pred && coloring[pred] != coloring[next]) {
-                    auto old_color = coloring[pred];
-                    assert(old_color);
-                    auto next_color = coloring[next];
-                    assert(next_color);
-
-                    current_colors.erase(old_color);
-                    current_colors.erase(next_color);
-                    current_colors.emplace(pred);
-
-                    coloring[pred] = pred;
-                    queue.push(pred);
-                } else if (coloring[pred] && coloring[pred] == pred) {
-                    //We reached a previous join node. End current branch.
-                    auto next_color = coloring[next];
-                    assert(next_color);
-                    current_colors.erase(next_color);
-                } else if (! coloring[pred]){
-                    coloring[pred] = coloring[next];
-                    queue.push(pred);
-                }
-            }
-            if (current_colors.size() > 1) {
-                /*for (auto color : current_colors) {
-                    color->dump();
-                }*/
-                std::vector<const Def*> to_remove;
-                for (auto color : current_colors) {
-                    if (color->isa<Param>()) {
-                        to_remove.emplace_back(color);
-                    }
-                }
-                for (auto color : to_remove) {
-                    current_colors.erase(color);
-                }
-            }
-            if (current_colors.size() > 1) {
-                std::cerr << "too many colors\n";
-                n->continuation()->dump();
-                for (auto color : current_colors) {
-                    color->dump();
-                }
-            }
-            assert(current_colors.size() == 1);
-            block2mem[n->continuation()] = *current_colors.begin();
-        }
-    }
-
-    for (auto n : vector_scope.f_cfg().post_order()) {
-        if (n->continuation() == world_.end_scope() || n->continuation()->is_intrinsic())
-            continue;
-        const Def* mem_param = nullptr;
-        for (auto in : n->continuation()->params())
-            if  (is_mem(in)) {
-                mem_param = in;
-                break;
-            }
-
-        auto last_mem = mem_param;
-        if (!last_mem) {
-            auto& cfg = vector_scope.f_cfg();
-            auto& domtree = cfg.domtree();
-            auto idom = domtree.idom(cfg[n->continuation()]);
-            last_mem = block2mem[idom->continuation()];
-        }
-
-        const Def* result_mem = block2mem[n->continuation()];
-
-        const Def* out_mem = nullptr;
-        unsigned opnum = 0;
-        for (auto out : n->continuation()->ops()) {
-            if  (is_mem(out)) {
-                out_mem = out;
-                break;
-            }
-            opnum++;
-        }
-
-        if (result_mem != last_mem) {
-            const Def* continuation_first_mem = result_mem;
-
-            while (true) {
-                bool contained = false;
-                for (auto use : last_mem->copy_uses()) {
-                    if (use.def() == continuation_first_mem) {
-                        contained = true;
-                        break;
-                    }
-                }
-                if (contained)
-                    break;
-
-                if (auto extract = continuation_first_mem->isa<Extract>()) {
-                    continuation_first_mem = extract->agg();
-                } else if (auto memop = continuation_first_mem->isa<MemOp>()) {
-                    continuation_first_mem = memop->mem();
-                } else if (auto tuple = continuation_first_mem->isa<Tuple>()) {
-                    assert(is_mem(tuple->op(0)));
-                    continuation_first_mem = tuple->op(0);
-                } else {
-                    Continuation* c = n->continuation();
-                    std::cerr << "Error in analyze_mem\n";
-                    DUMP_BLOCK(c);
-                    std::cerr << "\n";
-                    continuation_first_mem->dump();
-                    continuation_first_mem->type()->dump();
-                    std::cerr << "\n";
-                    THORIN_UNREACHABLE;
-                }
-            }
-
-            block2firstmem[n->continuation()] = { continuation_first_mem };
-        } else if (out_mem) {
-            assert(out_mem == result_mem);
-            block2firstmem[n->continuation()] = { n->continuation() };
-        } else {
-            // collect firstmem for children. Defined by postorder.
-            GIDSet<const Def*> childsfirstmem;
-            for (auto child : n->continuation()->succs()) {
-                if (child == world_.end_scope() || child->is_intrinsic())
-                    continue;
-                auto childfirstmem = block2firstmem[child];
-                //if(!childfirstmem.size()) {
-                //    child->dump();
-                //}
-                assert(childfirstmem.size());
-                for (auto firstmem : childfirstmem)
-                    childsfirstmem.emplace(firstmem);
-            }
-            assert(childsfirstmem.size());
-            block2firstmem[n->continuation()] = childsfirstmem;
         }
     }
 }
@@ -1916,13 +1614,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 //assert(contained_predecessors == 1);
             }
 
-            ContinuationMap<const Def*> block2mem;
-            ContinuationMap<GIDSet<const Def*>> block2firstmem;
-
-            Scope vector_scope(vectorized); //TODO: Might still be borked.
-            Schedule vector_schedule = schedule(vector_scope);
-            analyze_mem(vector_scope, block2mem, block2firstmem);
-
             const Def * running_var;
             running_var = runningVars[latch];
             assert(running_var);
@@ -1932,7 +1623,11 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 if (div_analysis_->loopBodies[latch_old].contains(pred_old))
                     continue;
                 auto pred = const_cast<Continuation*>(def2def_[pred_old]->as<Continuation>());
-                auto mem = block2mem[pred];
+
+                assert(pred->arg(0)->type()->isa<MemType>());
+                const Def * mem = pred->arg(0);
+                assert(mem);
+                assert(is_mem(mem));
 
                 if(div_analysis_->isPredicated[pred_old]) {
                     auto new_running_pred = pred->param(1);
@@ -1946,8 +1641,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                     mem = world_.store(mem, running_var, true_predicate);
                 }
-                block2mem[pred] = mem;
-
                 pred->unset_op(1);
                 pred->set_op(1, mem);
             }
@@ -2055,7 +1748,11 @@ void Vectorizer::linearize(Continuation * vectorized) {
                     Continuation * loop_continue = const_cast<Continuation*>(def2def_[loop_continue_old]->as<Continuation>());
                     Continuation * loop_exit = const_cast<Continuation*>(def2def_[loop_exit_old]->as<Continuation>());
 
-                    auto mem = block2mem[pred];
+                    assert(pred->arg(0)->type()->isa<MemType>());
+                    const Def * mem = pred->arg(0);
+                    assert(mem);
+                    assert(is_mem(mem));
+
                     const Def* current_running_inner = nullptr;
 
                     for (auto loop_old : largerloops) {
@@ -2077,8 +1774,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                     assert(current_running_inner);
 
-                    block2mem[pred] = mem;
-
                     auto new_jump = world_.predicated(vec_mask);
 
                     pred->jump(new_jump, { mem, current_running_inner, loop_continue, loop_exit } );
@@ -2088,7 +1783,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
 #ifdef DUMP_VECTORIZER_LINEARIZER
             DUMP_BLOCK(vectorized);
 #endif
-            //assert(false);
             continue;
         } else if (isLoopExit) {
             assert(cont->intrinsic() == Intrinsic::Branch || cont->intrinsic() == Intrinsic::Predicated);
@@ -2128,57 +1822,12 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
             assert(joins_old.size() <= 1 && "no complex controll flow match");
 
-            Scope vector_scope(vectorized); // This might still be borked.
-            Schedule vector_schedule = schedule(vector_scope);
-
-            //auto& cfg = vector_scope.f_cfg();
-            //auto& domtree = cfg.domtree();
-            //TODO: This code is currently duplicated between branch and match!
-            ContinuationMap<const Def*> block2mem;
-            ContinuationMap<GIDSet<const Def*>> block2firstmem;
-
-            analyze_mem(vector_scope, block2mem, block2firstmem);
-
 #ifdef DUMP_VECTORIZER_LINEARIZER
             DUMP_BLOCK(vectorized);
-            for (auto it : block2mem) {
-                std::cout << "\n";
-                it.first->dump();
-                it.second->dump();
-            }
 #endif
 
             auto vec_mask = widen(world_.type_bool());
             auto variant_index = latch->arg(1);
-
-#if 0
-            //Add memory parameters to make rewiring easier.
-            for (auto split_old : encloses_splits[latch_old]) {
-                for (size_t i = 1; i < split_old->num_args(); i++) {
-                    const Def * old_case = split_old->arg(i);
-                    if (i != 1) {
-                        assert(old_case->isa<Tuple>());
-                        old_case = old_case->as<Tuple>()->op(1);
-                    }
-                    Continuation * new_case = const_cast<Continuation*>(def2def_[old_case]->as<Continuation>());
-                    assert(new_case);
-                    //Continuation_MemParam(new_case, vector_scope, block2mem, block2firstmem);
-                }
-            }
-
-            {//Also extend everything related to the top-level latch.
-                for (size_t i = 1; i < latch_old->num_args(); i++) {
-                    const Def * old_case = latch_old->arg(i);
-                    if (i != 1) {
-                        assert(old_case->isa<Tuple>());
-                        old_case = old_case->as<Tuple>()->op(1);
-                    }
-                    Continuation * new_case = const_cast<Continuation*>(def2def_[old_case]->as<Continuation>());
-                    assert(new_case);
-                    //Continuation_MemParam(new_case, vector_scope, block2mem, block2firstmem);
-                }
-            }
-#endif
 
             //Allocate cache for overwritten objects.
             size_t cache_size = join->num_params();
@@ -2192,7 +1841,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
             Array<const Def *> join_cache(cache_size);
             {
-                //const Def *mem = block2mem[latch];
+                assert(latch->arg(0)->type()->isa<MemType>());
                 const Def* mem = latch->arg(0);
                 assert(mem);
                 assert(is_mem(mem));
@@ -2213,8 +1862,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                         olduse->unset_op(index);
                         olduse->set_op(index, newmem);
                     }
-                    if (block2mem[vectorized] == mem)
-                        block2mem[vectorized] = newmem;
                 }
 
                 for (size_t i = 0; i < cache_size; i++) {
@@ -2222,8 +1869,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                     auto t = world_.slot(join->param(join_is_first_mem ? i + 1: i)->type(), current_frame, Debug("join_cache_match"));
                     join_cache[i] = t;
                 }
-
-                block2mem[latch] = mem;
 
                 latch->update_arg(0, mem);
             }
@@ -2286,7 +1931,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 assert(current_case != case_back);
                 { //mem scope
                     assert(!split_predicates[0]->isa<Vector>());
-                    //const Def *mem = block2mem[split];
                     const Def * mem = split->arg(0);
                     assert(is_mem(mem));
                     split->jump(new_jump_split, { mem, split_predicates[0], current_case, case_back }, split->debug());
@@ -2323,20 +1967,17 @@ void Vectorizer::linearize(Continuation * vectorized) {
                         assert(pred);
 
                         assert(pred->arg(0)->type()->isa<MemType>());
-                        if (pred_old != split_old) {
-                            const Def* mem = block2mem[pred];
-                            assert(mem);
+                        const Def * mem = pred->arg(0);
+                        assert(mem);
+                        assert(is_mem(mem));
 
+                        if (pred_old != split_old) {
                             for (size_t j = 1; j < pred->num_args(); j++) {
                                 mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], pred->arg(j));
                             }
 
                             pred->jump(case_back, { mem, pred->param(1) });
-                            block2mem[pred] = mem;
                         } else {
-                            const Def* mem = block2mem[pred];
-                            assert(mem);
-
                             pred->jump(case_back, { mem, pred->arg(1) }); //was a predicated call originally.
                         }
 
@@ -2429,16 +2070,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
             DUMP_BLOCK(latch);
 #endif
 
-            Scope vector_scope(vectorized); //TODO: Might still be borked.
-            Schedule vector_schedule = schedule(vector_scope);
-
-            //auto& cfg = vector_scope.f_cfg();
-            //auto& domtree = cfg.domtree();
-            ContinuationMap<const Def*> block2mem;
-            ContinuationMap<GIDSet<const Def*>> block2firstmem;
-
-            analyze_mem(vector_scope, block2mem, block2firstmem);
-
 #ifdef DUMP_VECTORIZER_LINEARIZER
             std::cerr << "PreAll\n";
             DUMP_BLOCK(latch);
@@ -2456,8 +2087,10 @@ void Vectorizer::linearize(Continuation * vectorized) {
             GIDMap<const Continuation*, const Def *> predicate_caches(num_enclosed_splits ? num_enclosed_splits : 1); //Size must not be 0.
 
             { //mem scope
-                const Def *mem = block2mem[latch];
+                assert(latch->arg(0)->type()->isa<MemType>());
+                const Def * mem = latch->arg(0);
                 assert(mem);
+                assert(is_mem(mem));
 
                 for (auto join_old : joins_old) {
                     auto join = def2def_[join_old]->as<Continuation>();
@@ -2480,8 +2113,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                             olduse->unset_op(index);
                             olduse->set_op(index, newmem);
                         }
-                        if (block2mem[vectorized] == mem)
-                            block2mem[vectorized] = newmem;
                     }
 
                     for (size_t i = 0; i < cache_size; i++) {
@@ -2508,8 +2139,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                             olduse->unset_op(index);
                             olduse->set_op(index, newmem);
                         }
-                        if (block2mem[vectorized] == mem)
-                            block2mem[vectorized] = newmem;
                     }
 
                     auto false_elem = world_.literal_bool(false, {});
@@ -2528,8 +2157,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 }
 
                 //TODO: This new mem should replace all old mem instances!
-
-                block2mem[latch] = mem;
             }
 
             GIDMap<const Continuation*, const Continuation *> pre_joins(joins_old.size());
@@ -2656,8 +2283,10 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 auto new_jump_latch = world_.predicated(vec_mask);
 
                 { //mem scope
-                    const Def* mem = block2mem[split];
+                    assert(split->arg(0)->type()->isa<MemType>());
+                    const Def* mem = split->arg(0);
                     assert(mem);
+                    assert(is_mem(mem));
 
                     assert(then_new != then_new_back);
                     split->jump(new_jump_latch, { mem, predicate_true, then_new, then_new_back }, latch->debug());
@@ -2682,11 +2311,9 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         //get old mem parameter, if possible.
                         assert(pred->arg(0)->type()->isa<MemType>());
-                        const Def* mem;
-                        mem = block2mem[pred];
-                        if (!mem)
-                            mem = pred->arg(0);
+                        const Def* mem = pred->arg(0);
                         assert(mem);
+                        assert(is_mem(mem));
 
                         if (join_cache.size() < pred->num_args() - 1) {
                             std::cerr << "Error\n";
@@ -2702,8 +2329,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         pred->jump(then_new_back, { mem, pred->param(1) });
                         rewired_predecessors.emplace(pred, nullptr);
-
-                        block2mem[pred] = mem;
                     }
                 }
 
@@ -2734,11 +2359,9 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         //get old mem parameter, if possible.
                         assert(pred->arg(0)->type()->isa<MemType>());
-                        const Def* mem;
-                        mem = block2mem[pred];
-                        if (!mem)
-                            mem = pred->arg(0);
+                        const Def* mem = pred->arg(0);
                         assert(mem);
+                        assert(is_mem(mem));
 
                         for (size_t j = 1; j < pred->num_args(); j++) {
                             assert(join_cache[j - 1]);
@@ -2750,8 +2373,6 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         pred->jump(else_new_back, { mem, pred->param(1) });
                         rewired_predecessors.emplace(pred, pre_join);
-
-                        block2mem[pred] = mem;
                     }
                 }
 
@@ -2790,7 +2411,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 //Scope(vectorized).dump();
             }
         } else {
-            assert(false);
+            THORIN_UNREACHABLE;
         }
 
 #ifdef DUMP_VECTORIZER_LINEARIZER
@@ -2871,11 +2492,8 @@ bool Vectorizer::run() {
                     div_analysis_->run();
                 }
 
-                Scope kernscope(kerndef);
-                analyze_mem(kernscope, oldblock2mem, oldblock2firstmem);
-
 #ifdef DUMP_VECTORIZER
-                dump_block(kerndef, oldblock2mem, oldblock2firstmem, div_analysis_);
+                dump_block(kerndef, div_analysis_);
 #endif
 
     //Task 2: Widening

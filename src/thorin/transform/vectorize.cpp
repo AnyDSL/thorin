@@ -1170,13 +1170,23 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
             bool any_vector = false;
             size_t vector_width = 1;
             for (size_t i = 0; i < old_fn_type->num_ops(); i++) {
-                ops[i] = nops[i + 1]->type(); //TODO: this feels like a bad hack. At least it's working for now.
+                ops[i] = nops[i + 1]->type();
                 if (auto vectype = ops[i]->isa<VectorType>(); vectype && vectype->is_vector()) {
                     any_vector = true;
+                    assert((vector_width == 1 || vector_width == vectype->length()) && "No mixed vector types allowed.");
                     vector_width = vectype->length();
                 }
             }
             Debug de = callee->debug();
+
+            std::stringstream vi1_suffix;
+            vi1_suffix << "v" << vector_width << "i1";
+            std::stringstream vp0i8_suffix;
+            vp0i8_suffix << "v" << vector_width << "p0i8";
+            std::stringstream vf32_suffix;
+            vf32_suffix << "v" << vector_width << "f32";
+            std::stringstream vf64_suffix;
+            vf64_suffix << "v" << vector_width << "f64";
 
             if (de.name.rfind("rv_", 0) == 0) {
                 //leave unchanged, will be lowered in backend.
@@ -1185,35 +1195,35 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                 //ntarget = world_.continuation(world_.fn_type(ops), callee->attributes(), de);
             } else if (any_vector) {
                 if (de.name == "llvm.exp.f32")
-                    de.name = "llvm.exp.v8f32"; //TODO: Use vectorlength to find the correct intrinsic.
+                    de.name = "llvm.exp." + vf32_suffix.str();
                 else if (de.name == "llvm.exp.f64")
-                    de.name = "llvm.exp.v8f64";
+                    de.name = "llvm.exp." + vf64_suffix.str();
                 else if (de.name == "llvm.sqrt.f32")
-                    de.name = "llvm.sqrt.v8f32";
+                    de.name = "llvm.sqrt." + vf32_suffix.str();
                 else if (de.name == "llvm.sqrt.f64")
-                    de.name = "llvm.sqrt.v8f64";
+                    de.name = "llvm.sqrt." + vf64_suffix.str();
                 else if (de.name == "llvm.sin.f32")
-                    de.name = "llvm.sin.v8f32";
+                    de.name = "llvm.sin." + vf32_suffix.str();
                 else if (de.name == "llvm.sin.f64")
-                    de.name = "llvm.sin.v8f64";
+                    de.name = "llvm.sin." + vf64_suffix.str();
                 else if (de.name == "llvm.cos.f32")
-                    de.name = "llvm.cos.v8f32";
+                    de.name = "llvm.cos." + vf32_suffix.str();
                 else if (de.name == "llvm.cos.f64")
-                    de.name = "llvm.cos.v8f64";
+                    de.name = "llvm.cos." + vf64_suffix.str();
                 else if (de.name == "llvm.minnum.f32")
-                    de.name = "llvm.minnum.v8f32";
+                    de.name = "llvm.minnum." + vf32_suffix.str();
                 else if (de.name == "llvm.minnum.f64")
-                    de.name = "llvm.minnum.v8f64";
+                    de.name = "llvm.minnum." + vf64_suffix.str();
                 else if (de.name == "llvm.floor.f32")
-                    de.name = "llvm.floor.v8f32";
+                    de.name = "llvm.floor." + vf32_suffix.str();
                 else if (de.name == "llvm.floor.f64")
-                    de.name = "llvm.floor.v8f64";
+                    de.name = "llvm.floor." + vf64_suffix.str();
                 else if (de.name == "llvm.expect.i1")
-                    de.name = "llvm.expect.v8i1";
+                    de.name = "llvm.expect." + vi1_suffix.str();
                 else if (de.name == "llvm.prefetch.p0i8")
-                    de.name = "llvm.prefetch.v8p0i8";
+                    de.name = "llvm.prefetch." + vp0i8_suffix.str();
                 else if (de.name == "llvm.fabs.f32")
-                    de.name = "llvm.fabs.v8f32";
+                    de.name = "llvm.fabs." + vf32_suffix.str();
                 else {
                     std::cerr << "Not supported: " << de.name << "\n";
                     assert(false && "Import not supported in vectorize.");

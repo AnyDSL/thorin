@@ -657,7 +657,7 @@ void DivergenceAnalysis::run() {
                             }
                         }
                     } else if (target && is_op) {
-                        if (target->is_imported()) {
+                        if (target->is_imported() || (target->is_intrinsic() && target->intrinsic() != Intrinsic::Match && target->intrinsic() != Intrinsic::Branch)) {
                             auto actualtarget = const_cast<Continuation*>(cont->op(cont->num_ops() - 1)->isa<Continuation>());
                             assert(actualtarget);
                             Debug de = target->debug();
@@ -1255,6 +1255,68 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
             }
             assert(ntarget);
             def2def_[callee] = ntarget;
+        } else {
+            if(ntarget == old_continuation->callee()) {
+                auto cont = ntarget->isa_continuation();
+                assert(cont);
+
+                auto return_param = cont->ret_param();
+                assert(return_param);
+                auto new_return_param = nops[return_param->index() + 1];
+                assert(new_return_param);
+
+                auto num_parameters = cont->type()->num_ops();
+                auto narg_types = std::vector<const Type*>(num_parameters);
+                for (size_t i = 0; i < num_parameters; i++) {
+                    narg_types[i] = nops[i + 1]->type();
+                }
+                auto cascade = world_.continuation(world_.fn_type(narg_types), {"cascade"});
+                size_t vector_width = 8;
+
+                auto true_elem = world_.literal_bool(true, {});
+                Array<const Def *> elements(vector_width);
+                for (size_t i = 0; i < vector_width; i++)
+                    elements[i] = true_elem;
+                auto one_predicate = world_.vector(elements);
+
+                Array <const Def*> args (num_parameters);
+                auto current_lane = cascade;
+
+                Array<const Def*> return_cache(vector_width);
+
+                for (size_t i = 0; i < vector_width; i++) {
+                    auto parameters = std::vector<Def*>(num_parameters);
+                    for (size_t j = 0; j < num_parameters; j++) {
+                        const Def* arg = cascade->param(j);
+                        assert(arg);
+                        if (arg->type()->isa<VectorType>() && arg->type()->as<VectorType>()->is_vector()) {
+                            arg = world_.extract(arg, world_.literal_qs32(i, {}));
+                        }
+                        args[j] = arg;
+                    }
+
+                    auto next_lane = world_.continuation(cont->param(6)->type()->as<FnType>(), {"cascade"});
+
+                    auto return_parameter = 6;
+                    args[return_parameter] = next_lane;
+
+                    current_lane->jump(cont, args);
+                    current_lane = next_lane;
+
+                    return_cache[i] = current_lane->param(1);
+                }
+
+                const Def* return_value;
+                if (new_return_param->type()->op(2)->isa<VectorType>()) {
+                    return_value = world_.vector(return_cache, {});
+                } else {
+                    return_value = return_cache[vector_width - 1];
+                }
+
+                current_lane->jump(new_return_param, {current_lane->param(0), one_predicate, return_value});
+
+                ntarget = cascade;
+            }
         }
     }
 
@@ -1498,8 +1560,15 @@ void Vectorizer::linearize(Continuation * vectorized) {
                 std::cerr << "Found split node: ";
                 it.first->dump();
 #endif
-                split_queue.push(it.first);
-                done.emplace(it.first);
+                auto cont = it.first->op(0)->isa_continuation();
+                if (cont && cont->is_intrinsic() && (cont->intrinsic() == Intrinsic::Match || cont->intrinsic() == Intrinsic::Branch)) {
+                    auto new_cont = def2def_[it.first]->as<Continuation>();
+                    assert(new_cont);
+                    if (new_cont->arg(1)->type()->isa<VectorType>() && new_cont->arg(1)->type()->as<VectorType>()->is_vector()) {
+                        split_queue.push(it.first);
+                        done.emplace(it.first);
+                    }
+                }
             }
         }
 

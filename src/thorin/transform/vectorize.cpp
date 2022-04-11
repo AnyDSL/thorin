@@ -18,40 +18,14 @@
 //#define DBG_TIME(v, t) llvm::TimeRegion v(t)
 #define DBG_TIME(v, t) (void)(t)
 
-#define DUMP_BLOCK(block) { \
-                    Stream s(std::cout); \
-                    RecStreamer rec(s, std::numeric_limits<size_t>::max()); \
-                    for (auto& block : schedule(Scope(const_cast<Continuation*>(block)))) { \
-                        rec.conts.push(block); \
-                        rec.run(); \
-                    } \
-                    s.endl(); \
-}
+#define DUMP_BLOCK(block) block->dump(std::numeric_limits<size_t>::max())
 
 namespace thorin {
-
-    //Forward declaration to support DUMP_BLOCK.
-class RecStreamer {
-public:
-    RecStreamer(Stream& s, size_t max)
-        : s(s)
-        , max(max)
-    {}
-
-    void run();
-    void run(const Def*);
-
-    Stream& s;
-    size_t max;
-    unique_queue<ContinuationSet> conts;
-    DefSet defs;
-};
 
 class Vectorizer {
 public:
     Vectorizer(World &world)
         : world_(world)
-        , boundary_(Def::gid_counter())
         , time("Vec", "Vectorize")
         , time_div("Div", "Divergence Analysis")
         , time_widen("Widen", "Widen")
@@ -64,7 +38,6 @@ public:
 
 private:
     World& world_;
-    size_t boundary_;
 
     llvm::Timer time;
     llvm::Timer time_div;
@@ -73,7 +46,6 @@ private:
     llvm::Timer time_lin;
 
     ContinuationSet done_;
-    ContinuationMap<bool> top_level_;
     Def2Def def2def_;
     DivergenceAnalysis * div_analysis_;
 
@@ -81,7 +53,7 @@ private:
 
     std::queue<Continuation*> queue_;
     void enqueue(Continuation* continuation) {
-        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
+        if (done_.emplace(continuation).second)
             queue_.push(continuation);
     }
 
@@ -1884,7 +1856,6 @@ bool Vectorizer::run() {
 
     for (auto continuation : world_.exported_continuations()) {
         enqueue(continuation);
-        top_level_[continuation] = true;
     }
 
     //Task 1: Divergence Analysis
@@ -2009,16 +1980,7 @@ bool Vectorizer::run() {
     }
 
 #ifdef DUMP_VECTORIZER
-    std::cout << "Pre Cleanup\n";
-    world_.dump();
-    std::cout << "Cleanup\n";
-#endif
-    {
-        //DBG_TIME(clean_time, time_clean);
-        //world_.cleanup();
-    }
-#ifdef DUMP_VECTORIZER
-    std::cout << "Post Cleanup\n";
+    std::cout << "End vectorizer\n";
     world_.dump();
 #endif
 

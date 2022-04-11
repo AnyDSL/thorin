@@ -186,6 +186,10 @@ void RecStreamer2::run() {
 
         if (!cont->empty()) {
             s.fmt("{}: {} = {{ ", cont->unique_name(), cont->type());
+            for (size_t i = 0; i < cont->num_params(); i++) {
+                auto param = cont->param(i);
+                s.fmt("[{}:{}]", param, (div_analysis->getUniform(param) == DivergenceAnalysis::State::Uniform)  ? "Uni" : "Div");
+            }
             s.fmt("[pred:{}]", div_analysis->isPredicated[cont] ? "pred" : "no_pred");
             s.fmt("\t\n");
             run(cont);
@@ -1257,6 +1261,13 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
             def2def_[callee] = ntarget;
         } else {
             if(ntarget == old_continuation->callee()) {
+
+                bool predicated = div_analysis_->isPredicated[old_continuation];
+                const Def* pred_param;
+                if (predicated) {
+                    pred_param = new_continuation->param(1);
+                }
+
                 auto cont = ntarget->isa_continuation();
                 assert(cont);
 
@@ -1272,12 +1283,6 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                 }
                 auto cascade = world_.continuation(world_.fn_type(narg_types), {"cascade"});
                 size_t vector_width = 8;
-
-                auto true_elem = world_.literal_bool(true, {});
-                Array<const Def *> elements(vector_width);
-                for (size_t i = 0; i < vector_width; i++)
-                    elements[i] = true_elem;
-                auto one_predicate = world_.vector(elements);
 
                 Array <const Def*> args (num_parameters);
                 auto current_lane = cascade;
@@ -1300,8 +1305,30 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                     auto return_parameter = 6;
                     args[return_parameter] = next_lane;
 
-                    current_lane->jump(cont, args);
-                    current_lane = next_lane;
+                    if (predicated) {
+                        auto mask = world_.extract(pred_param, world_.literal_qs32(i, {}));
+
+                        auto then_cont = world_.continuation(world_.fn_type({world_.mem_type()}), {"then"});
+                        auto next_cont = world_.continuation(world_.fn_type({world_.mem_type()}), {"next"});
+                        auto return_cont = world_.continuation(args[num_parameters - 1]->type()->as<FnType>(), {"in_return"});
+
+                        current_lane->branch(args[0], mask, then_cont, next_cont);
+
+                        Array <const Def*> inner_args (num_parameters);
+                        inner_args[0] = then_cont->param(0);
+                        for (size_t n = 1; n < num_parameters - 1; n++)
+                            inner_args[n] = args[n];
+                        inner_args[num_parameters - 1] = return_cont;
+
+                        then_cont->jump(cont, inner_args);
+
+                        next_cont->jump(return_cont, {next_cont->param(0), world_.literal_qs32(0, {})});
+
+                        current_lane = return_cont;
+                    } else {
+                        current_lane->jump(cont, args);
+                        current_lane = next_lane;
+                    }
 
                     return_cache[i] = current_lane->param(1);
                 }
@@ -1313,7 +1340,19 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                     return_value = return_cache[vector_width - 1];
                 }
 
-                current_lane->jump(new_return_param, {current_lane->param(0), one_predicate, return_value});
+                const Def* out_predicate;
+
+                if (div_analysis_->isPredicated[old_continuation]) {
+                    out_predicate = pred_param;
+                } else {
+                    auto true_elem = world_.literal_bool(true, {});
+                    Array<const Def *> elements(vector_width);
+                    for (size_t i = 0; i < vector_width; i++)
+                        elements[i] = true_elem;
+                    out_predicate = world_.vector(elements);
+                }
+
+                current_lane->jump(new_return_param, {current_lane->param(0), out_predicate, return_value});
 
                 ntarget = cascade;
             }
@@ -1945,7 +1984,7 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                 for (size_t i = 0; i < cache_size; i++) {
                     assert(current_frame);
-                    auto t = world_.slot(join->param(join_is_first_mem ? i + 1: i)->type(), current_frame, Debug("join_cache_match"));
+                    auto t = world_.slot(join->param(i + 1)->type(), current_frame, Debug("join_cache_match"));
                     join_cache[i] = t;
                 }
 
@@ -2052,7 +2091,15 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         if (pred_old != split_old) {
                             for (size_t j = 1; j < pred->num_args(); j++) {
-                                mem = world_.store(mem, join_cache[join_is_first_mem ? j - 1 : j], pred->arg(j));
+                                assert(join_cache[j - 1]);
+
+                                bool predicated = div_analysis_->isPredicated[pred_old];
+                                if (predicated) {
+                                    const Def* pred_param = pred->param(1);
+                                    mem = world_.maskedstore(mem, join_cache[j - 1], pred->arg(j), pred_param);
+                                } else {
+                                    mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                                }
                             }
 
                             pred->jump(case_back, { mem, pred->param(1) });
@@ -2403,7 +2450,14 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         for (size_t j = 1; j < pred->num_args(); j++) {
                             assert(join_cache[j - 1]);
-                            mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+
+                            bool predicated = div_analysis_->isPredicated[pred_old];
+                            if (predicated) {
+                                const Def* pred_param = pred->param(1);
+                                mem = world_.maskedstore(mem, join_cache[j - 1], pred->arg(j), pred_param);
+                            } else {
+                                mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                            }
                         }
 
                         pred->jump(then_new_back, { mem, pred->param(1) });
@@ -2444,7 +2498,13 @@ void Vectorizer::linearize(Continuation * vectorized) {
 
                         for (size_t j = 1; j < pred->num_args(); j++) {
                             assert(join_cache[j - 1]);
-                            mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                            bool predicated = div_analysis_->isPredicated[pred_old];
+                            if (predicated) {
+                                const Def* pred_param = pred->param(1);
+                                mem = world_.maskedstore(mem, join_cache[j - 1], pred->arg(j), pred_param);
+                            } else {
+                                mem = world_.store(mem, join_cache[j - 1], pred->arg(j));
+                            }
                         }
 
                         auto pre_join = pre_joins[join];

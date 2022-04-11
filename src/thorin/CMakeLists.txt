@@ -20,6 +20,8 @@ set(THORIN_SOURCES
     analyses/domfrontier.h
     analyses/domtree.cpp
     analyses/domtree.h
+    analyses/divergence.cpp
+    analyses/divergence.h
     analyses/free_defs.cpp
     analyses/free_defs.h
     analyses/looptree.cpp

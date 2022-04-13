@@ -571,7 +571,6 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                     narg_types[i] = nops[i + 1]->type();
                 }
                 auto cascade = world_.continuation(world_.fn_type(narg_types), {"cascade"});
-                size_t vector_width = 8;
 
                 Array <const Def*> args (num_parameters);
                 auto current_lane = cascade;
@@ -589,17 +588,16 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                         args[j] = arg;
                     }
 
-                    auto next_lane = world_.continuation(cont->param(6)->type()->as<FnType>(), {"cascade"});
+                    auto next_lane = world_.continuation(return_param->type()->as<FnType>(), {"cascade"});
 
-                    auto return_parameter = 6;
-                    args[return_parameter] = next_lane;
+                    args[return_param->index()] = next_lane;
 
                     if (predicated) {
                         auto mask = world_.extract(pred_param, world_.literal_qs32(i, {}));
 
                         auto then_cont = world_.continuation(world_.fn_type({world_.mem_type()}), {"then"});
                         auto next_cont = world_.continuation(world_.fn_type({world_.mem_type()}), {"next"});
-                        auto return_cont = world_.continuation(args[num_parameters - 1]->type()->as<FnType>(), {"in_return"});
+                        auto return_cont = world_.continuation(return_param->type()->as<FnType>(), {"in_return"});
 
                         current_lane->branch(args[0], mask, then_cont, next_cont);
 
@@ -611,7 +609,13 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
 
                         then_cont->jump(cont, inner_args);
 
-                        next_cont->jump(return_cont, {next_cont->param(0), world_.literal_qs32(0, {})});
+                        Array <const Def*> zero_args (return_cont->num_params());
+                        zero_args[0] = next_cont->param(0);
+                        for (size_t i = 1; i < return_cont->num_params(); i++) {
+                            zero_args[i] = world_.zero(return_cont->param(i)->type());
+                        }
+
+                        next_cont->jump(return_cont, zero_args);
 
                         current_lane = return_cont;
                     } else {
@@ -619,29 +623,44 @@ void Vectorizer::widen_body(Continuation* old_continuation, Continuation* new_co
                         current_lane = next_lane;
                     }
 
-                    return_cache[i] = current_lane->param(1);
+                    if (current_lane->num_params() >= 2) {
+                        Array <const Def*> cache_value (current_lane->num_params() - 1);
+                        for (size_t n = 0; n < current_lane->num_params() - 1; n++) {
+                            cache_value[n] = current_lane->param(n + 1);
+                        }
+                        return_cache[i] = world_.tuple(cache_value);
+                    }
                 }
 
-                const Def* return_value;
-                if (new_return_param->type()->op(2)->isa<VectorType>()) {
-                    return_value = world_.vector(return_cache, {});
-                } else {
-                    return_value = return_cache[vector_width - 1];
-                }
+                Array <const Def*> return_values (new_return_param->type()->num_ops());
 
-                const Def* out_predicate;
+                return_values[0] = current_lane->param(0);
 
                 if (div_analysis_->isPredicated[old_continuation]) {
-                    out_predicate = pred_param;
+                    return_values[1] = pred_param;
                 } else {
                     auto true_elem = world_.literal_bool(true, {});
                     Array<const Def *> elements(vector_width);
                     for (size_t i = 0; i < vector_width; i++)
                         elements[i] = true_elem;
-                    out_predicate = world_.vector(elements);
+                    return_values[1] = world_.vector(elements);
                 }
 
-                current_lane->jump(new_return_param, {current_lane->param(0), out_predicate, return_value});
+                for (size_t n = 2; n < new_return_param->type()->num_ops(); n++) {
+                    if (new_return_param->type()->op(2)->isa<VectorType>() && new_return_param->type()->op(2)->isa<VectorType>()->is_vector()) {
+                        Array<const Def *> elements(vector_width);
+                        for (size_t lane = 0; lane < vector_width; lane++) {
+                            elements[lane] = world_.extract(return_cache[lane], n - 2);
+                        }
+                        return_values[n] = world_.vector(elements);
+                    } else {
+                        auto value = world_.extract(return_cache[vector_width - 1], world_.literal_qs32(n - 2, {}));
+                        return_values[n] = value;
+                    }
+                }
+
+
+                current_lane->jump(new_return_param, return_values);
 
                 ntarget = cascade;
             }

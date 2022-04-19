@@ -105,12 +105,9 @@ if(LLVM_FOUND)
     )
 endif()
 
-if(SPIRV_ENABLED)
+if (shady_FOUND)
     list(APPEND THORIN_SOURCES
-        be/spirv/spirv.cpp
-        be/spirv/spirv.h
-        be/spirv/spirv_transform.cpp
-        be/spirv/spirv_datatypes.cpp
+        be/shady/shady.cpp
     )
 endif()
 
@@ -123,4 +120,8 @@ if(LLVM_FOUND)
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
+endif()
+
+if (shady_FOUND)
+    target_link_libraries(thorin PRIVATE shady)
 endif()

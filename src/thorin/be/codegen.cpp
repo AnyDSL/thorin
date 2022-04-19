@@ -6,8 +6,8 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
 #endif
-#if THORIN_ENABLE_SPIRV
-#include "thorin/be/spirv/spirv.h"
+#if THORIN_ENABLE_SHADY
+#include "thorin/be/shady/shady.h"
 #endif
 #include "thorin/be/c/c.h"
 
@@ -182,8 +182,8 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
 #else
     (void)opt;
 #endif
-#if THORIN_ENABLE_SPIRV
-    if (!importers_[SpirV].world().empty()) cgs[SpirV] = std::make_unique<spirv::CodeGen>(importers_[SpirV].world(), kernel_config, debug);
+#if THORIN_ENABLE_SHADY
+    if (!importers_[SpirV].world().empty()) cgs[SpirV] = std::make_unique<shady::CodeGen>(importers_[SpirV].world(), kernel_config, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);

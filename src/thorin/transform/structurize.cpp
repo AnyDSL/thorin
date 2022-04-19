@@ -5,7 +5,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/world.h"
 
-namespace thorin::spirv {
+namespace thorin {
 
 using Head = LoopTree<true>::Head;
 using Base = LoopTree<true>::Base;

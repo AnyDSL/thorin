@@ -1,10 +1,9 @@
-#include <thorin/analyses/looptree.h>
-#include "thorin/be/spirv/spirv.h"
-#include "thorin/analyses/scope.h"
-#include "thorin/analyses/cfg.h"
+#include "structurize.h"
 
-#include <algorithm>
-#include <thorin/analyses/domtree.h>
+//#include <algorithm>
+
+#include "thorin/analyses/domtree.h"
+#include "thorin/world.h"
 
 namespace thorin::spirv {
 
@@ -421,24 +420,24 @@ inline void rewire_loops(World& world, ScopeContext& ctx, const Base* base) {
     }
 }
 
-void CodeGen::structure_loops() {
-    Scope::for_each(world(), [&](Scope& scope) {
+void structure_loops(World& world) {
+    Scope::for_each(world, [&](Scope& scope) {
         ScopeContext context(scope);
 
         const LoopTree<true>& looptree = context.cfa.f_cfg().looptree();
         tag_continuations(context, looptree.root(), nullptr);
-        collect_dispatch_targets(world(), context, looptree.root());
+        collect_dispatch_targets(world, context, looptree.root());
 
-        create_headers(world(), context, looptree.root());
-        create_epilogues(world(), context, looptree.root());
+        create_headers(world, context, looptree.root());
+        create_epilogues(world, context, looptree.root());
 
-        rewire_loops(world(), context, looptree.root());
+        rewire_loops(world, context, looptree.root());
         scope.update();
     });
 }
 
-void CodeGen::structure_flow() {
-    Scope::for_each(world(), [&](const Scope& scope) {
+void structure_flow(World& world) {
+    Scope::for_each(world, [&](const Scope& scope) {
         CFA cfa(scope);
         auto& dom_tree = cfa.f_cfg().domtree();
         auto& post_dom_tree = cfa.b_cfg().domtree();

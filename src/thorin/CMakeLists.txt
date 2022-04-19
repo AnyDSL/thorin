@@ -70,6 +70,8 @@ set(THORIN_SOURCES
     transform/partial_evaluation.h
     transform/split_slots.cpp
     transform/split_slots.h
+    transform/structurize.cpp
+    transform/structurize.h
     util/array.h
     util/cast.h
     util/hash.h

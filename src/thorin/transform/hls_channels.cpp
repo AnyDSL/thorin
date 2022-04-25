@@ -76,8 +76,8 @@ void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& c
     for (auto& tuple : top2kernel) {
         auto& name = std::get<1>(tuple);
         auto kernel = find_kernel_by_name(name);
+        assert(kernel && "where did my kernel go");
         auto param  = kernel->param(std::get<2>(tuple));
-        assert(kernel);
         auto config = cont2config[kernel]->as<HLSKernelConfig>();
         param_sizes[hls_top->param(std::get<0>(tuple))] = config->param_size(param);
     }

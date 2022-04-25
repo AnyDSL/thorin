@@ -182,7 +182,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
-            // world.make_external(new_kernel);
+            world.make_external(new_kernel);
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 

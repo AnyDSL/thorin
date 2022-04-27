@@ -43,12 +43,15 @@ void Cleaner::eliminate_tail_rec() {
         bool recursive = false;
         for (auto use : entry->uses()) {
             if (scope.contains(use)) {
-                if (use.index() != 0 || !use->isa<App>()) {
-                    only_tail_calls = false;
-                    break;
-                } else {
+                if (use.index() == 0 && use->isa<App>()) {
                     recursive = true;
-                }
+                    continue;
+                } else if (use->isa_nom<Param>())
+                    continue; // ignore params
+
+                world().ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
+                only_tail_calls = false;
+                break;
             }
         }
 
@@ -60,8 +63,10 @@ void Cleaner::eliminate_tail_rec() {
                 args[i] = entry->param(i);
 
                 for (auto use : entry->uses()) {
-                    if (scope.contains(use)) {
-                        auto arg = use->as<App>()->arg(i);
+                    if (scope.contains(use.def())) {
+                        auto app = use->isa<App>();
+                        if (!app) continue;
+                        auto arg = app->arg(i);
                         if (!arg->isa<Bottom>() && arg != args[i]) {
                             args[i] = nullptr;
                             break;

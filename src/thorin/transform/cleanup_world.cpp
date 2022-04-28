@@ -111,7 +111,7 @@ void Cleaner::eta_conversion() {
                 auto body = continuation->body();
                 if (callee == continuation) break;
 
-                if (callee->can_be_inlined() && callee->has_body() && !world().is_external(callee)) {
+                if (callee->has_body() && !world().is_external(callee) && callee->can_be_inlined()) {
                     auto callee_body = callee->body();
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace_uses(body->arg(i));
@@ -253,10 +253,10 @@ void Cleaner::verify_closedness() {
         size_t i = 0;
         for (auto op : def->ops()) {
             within(op);
-            assert_unused(op->uses_.contains(Use(i++, def)) && "can't find def in op's uses");
+            assert_unused(op->uses().contains(Use(i++, def)) && "can't find def in op's uses");
         }
 
-        for (const auto& use : def->uses_) {
+        for (const auto& use : def->uses()) {
             within(use);
             assert(use->op(use.index()) == def && "use doesn't point to def");
         }

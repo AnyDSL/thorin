@@ -606,7 +606,7 @@ inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
-inline std::string label_name(const Def* def) {
+static inline std::string label_name(const Def* def) {
     return make_identifier(def->as_nom<Continuation>()->unique_name());
 }
 

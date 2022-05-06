@@ -11,7 +11,7 @@ static void dead_load_opt(const Scope& scope) {
         auto continuation = n->continuation();
         if (!continuation->has_body()) continue;
 
-        const Def* mem;
+        const Def* mem = nullptr;
         for (auto arg : continuation->body()->args()) {
             if (is_mem(arg)) {
                 mem = arg;

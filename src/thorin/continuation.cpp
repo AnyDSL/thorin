@@ -336,8 +336,8 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
 bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     return visit_uses(cont, [&] (auto continuation) {
         if (!continuation->has_body()) return false;
-        auto body = continuation->body();
-        if (auto callee = body->callee()->template isa_nom<Continuation>())
+        auto callee = continuation->body()->callee()->template isa_nom<Continuation>();
+        if (callee)
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);

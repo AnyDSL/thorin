@@ -16,6 +16,7 @@
 #include "thorin/continuation.h"
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/verify.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/closure_conversion.h"
@@ -41,16 +42,14 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(const std::string& name)
-    : name_(name)
-{
-    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
-    end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
+World::World(const std::string& name) {
+    data_.name_   = name;
+    data_.branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
-    for (auto continuation : continuations_) delete continuation;
-    for (auto primop : primops_) delete primop;
+    for (auto def : data_.defs_) delete def;
 }
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
@@ -1034,6 +1033,8 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
+    // while hoist_enters performs this task too, this is still necessary for PE
+    // in order to simplify as we go and prevent code size from exploding
     if (auto e = Enter::is_out_mem(mem))
         return e;
     return cse(new Enter(mem, dbg));
@@ -1101,11 +1102,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto cont = new Continuation(fn, attributes, dbg);
-#if THORIN_ENABLE_CHECKS
-    if (state_.breakpoints.contains(cont->gid())) THORIN_BREAK;
-#endif
-    continuations_.insert(cont);
+    auto cont = put<Continuation>(fn, attributes, dbg);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
@@ -1133,10 +1130,64 @@ const Param* World::param(const Type* type, Continuation* continuation, size_t i
     return param;
 }
 
+const Filter* World::filter(const Defs defs, Debug dbg) {
+    return cse(new Filter(*this, defs, dbg));
+}
+
+/// App node does its own folding during construction, and it only sets the ops once
+const App* World::app(const Def* callee, const Defs args, Debug dbg) {
+    if (auto continuation = callee->isa<Continuation>()) {
+        switch (continuation->intrinsic()) {
+            case Intrinsic::Branch: {
+                assert(args.size() == 3);
+                auto cond = args[0], t = args[1], f = args[2];
+                if (auto lit = cond->isa<PrimLit>())
+                    return app(lit->value().get_bool() ? t : f, {}, dbg);
+                if (t == f)
+                    return app(t, {}, dbg);
+                if (is_not(cond)) {
+                    auto inverted = cond->as<ArithOp>()->rhs();
+                    return app(branch(), {inverted, f, t}, dbg);
+                }
+                break;
+            }
+            case Intrinsic::Match:
+                if (args.size() == 2) return app(args[1], {}, dbg);
+                if (auto lit = args[0]->isa<PrimLit>()) {
+                    for (size_t i = 2; i < args.size(); i++) {
+                        if (extract(args[i], 0_s)->as<PrimLit>() == lit)
+                            return app(extract(args[i], 1), {}, dbg);
+                    }
+                    return app(args[1], {}, dbg);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    Array<const Def*> ops(1 + args.size());
+    ops[0] = callee;
+    for (size_t i = 0; i < args.size(); i++)
+        ops[i + 1] = args[i];
+
+    return cse(new App(ops, dbg));
+}
+
 /*
  * misc
  */
 
+std::vector<Continuation*> World::copy_continuations() const {
+    std::vector<Continuation*> result;
+
+    for (auto def : data_.defs_) {
+        if (auto lam = def->isa_nom<Continuation>())
+            result.emplace_back(lam);
+    }
+
+    return result;
+}
 #if THORIN_ENABLE_CHECKS
 
 void World::    breakpoint(size_t number) { state_.    breakpoints.insert(number); }
@@ -1145,8 +1196,8 @@ void World::enable_history(bool flag)     { state_.track_history = flag; }
 bool World::track_history() const         { return state_.track_history; }
 
 const Def* World::gid2def(u32 gid) {
-    auto i = std::find_if(primops_.begin(), primops_.end(), [&](const Def* def) { return def->gid() == gid; });
-    if (i == primops_.end()) return nullptr;
+    auto i = std::find_if(data_.defs_.begin(), data_.defs_.end(), [&](const Def* def) { return def->gid() == gid; });
+    if (i == data_.defs_.end()) return nullptr;
     return *i;
 }
 
@@ -1203,36 +1254,22 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
     return from && from->type() == agg->type() ? from : agg;
 }
 
-Array<Continuation*> World::copy_continuations() const {
-    Array<Continuation*> result(continuations().size());
-    std::copy(continuations().begin(), continuations().end(), result.begin());
-    return result;
-}
-
-Array<Continuation*> World::exported_continuations() const {
-    std::vector<Continuation*> exported;
-    for (auto continuation : continuations()) {
-        if (continuation->is_exported())
-            exported.push_back(continuation);
-    }
-    return exported;
-}
-
-const Def* World::cse_base(const PrimOp* primop) {
+const Def* World::cse_base(const Def* def) {
+    assert(def->isa_structural());
 #if THORIN_ENABLE_CHECKS
-    if (state_.breakpoints.contains(primop->gid())) THORIN_BREAK;
+    if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
-    auto i = primops_.find(primop);
-    if (i != primops_.end()) {
-        primop->unregister_uses();
+    auto i = data_.defs_.find(def);
+    if (i != data_.defs_.end()) {
+        def->unregister_uses();
         --Def::gid_counter_;
-        delete primop;
+        delete def;
         return *i;
     }
 
-    const auto& p = primops_.insert(primop);
+    const auto& p = data_.defs_.insert(def);
     assert_unused(p.second && "hash/equal broken");
-    return primop;
+    return def;
 }
 
 /*
@@ -1242,18 +1279,25 @@ const Def* World::cse_base(const PrimOp* primop) {
 void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
-    cleanup();
-    while (partial_evaluation(*this, true)); // lower2cff
-    flatten_tuples(*this);
-    clone_bodies(*this);
-    split_slots(*this);
-    closure_conversion(*this);
-    lift_builtins(*this);
-    inliner(*this);
-    hoist_enters(*this);
-    dead_load_opt(*this);
-    cleanup();
-    codegen_prepare(*this);
+#define RUN_PASS(pass) \
+{ \
+    VLOG("running pass {}", #pass); \
+    pass; \
+    debug_verify(*this); \
+}
+
+    RUN_PASS(cleanup())
+    RUN_PASS(while (partial_evaluation(*this, true))); // lower2cff
+    RUN_PASS(flatten_tuples(*this))
+    RUN_PASS(clone_bodies(*this))
+    RUN_PASS(split_slots(*this))
+    RUN_PASS(closure_conversion(*this))
+    RUN_PASS(lift_builtins(*this))
+    RUN_PASS(inliner(*this))
+    RUN_PASS(hoist_enters(*this))
+    RUN_PASS(dead_load_opt(*this))
+    RUN_PASS(cleanup())
+    RUN_PASS(codegen_prepare(*this))
 }
 
 }

@@ -9,9 +9,11 @@ namespace thorin {
 
 void lift_pipeline(World& world) {
     for (auto cont : world.copy_continuations()) {
-        auto callee = cont->callee()->isa_continuation();
+        if (!cont->has_body()) continue;
+        auto body = cont->body();
+        auto callee = body->callee()->isa_nom<Continuation>();
         // Binding to the number of arguments to avoid repeated optimization
-        if (callee && callee->intrinsic() == Intrinsic::Pipeline && cont->num_args() == 6) {
+        if (callee && callee->intrinsic() == Intrinsic::Pipeline && body->num_args() == 6) {
             auto cont_type = world.fn_type({ world.mem_type() });
             auto p_cont_type = world.fn_type({ world.mem_type(), cont_type });
             auto body_type = world.fn_type({ world.mem_type(), world.type_qs32() });
@@ -49,17 +51,13 @@ void lift_pipeline(World& world) {
             auto pipeline_continue = world.continuation(p_cont_type, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
             auto continue_wrapper = world.continuation(cont_type, Debug("continue_wrapper"));
             auto new_pipeline = world.continuation(pipe_type, Intrinsic::Pipeline, callee->debug());
-            auto old_body = cont->arg(4);
+            auto old_body = body->arg(4);
             auto body_cont = world.continuation(body_type, old_body->debug());
-            cont->jump(new_pipeline, thorin::Defs { cont->arg(0), cont->arg(1), cont->arg(2), cont->arg(3), body_cont, cont->arg(5), pipeline_continue });
-            Call call(4);
-            call.callee() = old_body;
-            call.arg(0) = body_cont->param(0);
-            call.arg(1) = body_cont->param(1);
-            call.arg(2) = continue_wrapper;
-            auto target = drop(call);
-            continue_wrapper->jump(pipeline_continue, thorin::Defs { continue_wrapper->param(0), cont->arg(5) });
-            body_cont->jump(target->callee(), target->args());
+            cont->jump(new_pipeline, thorin::Defs { body->arg(0), body->arg(1), body->arg(2), body->arg(3), body_cont, body->arg(5), pipeline_continue });
+            auto target = drop(old_body, {body_cont->param(0), body_cont->param(1), continue_wrapper});
+            assert(target->has_body());
+            continue_wrapper->jump(pipeline_continue, thorin::Defs { continue_wrapper->param(0), body->arg(5) });
+            body_cont->jump(target->body()->callee(), target->body()->args());
         }
     }
 
@@ -96,7 +94,10 @@ void lift_builtins(World& world) {
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (!param->isa_continuation()) {
+            if (param->isa_nom<Continuation>()) {
+                // TODO: assert is actually top level
+            } else if (!param->isa<Filter>()) { // don't lift the filter
+                assert(!param->isa<App>() && "an app should not be free");
                 assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }
@@ -104,19 +105,21 @@ void lift_builtins(World& world) {
 
         auto lifted = lift(scope, defs);
         for (auto use : cur->copy_uses()) {
-            if (auto ucontinuation = use->isa_continuation()) {
-                if (auto callee = ucontinuation->callee()->isa_continuation()) {
+            if (auto uapp = use->isa<App>()) {
+                if (auto callee = uapp->callee()->isa_nom<Continuation>()) {
                     if (callee->is_intrinsic()) {
-                        auto old_ops = ucontinuation->ops();
+                        auto old_ops = uapp->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());
-                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free defs
+                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin())); // old ops + former free defs
                         assert(old_ops[use.index()] == cur);
-                        new_ops[use.index()] = world.global(lifted, false, lifted->debug());                                // update to new lifted continuation
+                        new_ops[use.index()] = world.global(lifted, false, lifted->debug()); // update to new lifted continuation
 
                         // jump to new top-level dummy function with new args
                         auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
-                        ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->debug()); // TODO debug
+
+                        new_ops[0] = ncontinuation;
+                        uapp->replace_uses(uapp->rebuild(world, uapp->type(), new_ops));
                     }
                 }
             }

@@ -9,8 +9,11 @@
 namespace thorin {
 
 static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const DeviceParams& device_params) {
-    auto last_callee_continuation = cont_hls->arg(hls_free_vars_offset - 1)->as_continuation();
-    auto kernel_ptr = cont_hls->arg(hls_free_vars_offset - 2);
+    assert(cont_hls->has_body());
+    auto body = cont_hls->body();
+
+    auto last_callee_continuation = body->arg(hls_free_vars_offset - 1)->isa_nom<Continuation>();
+    auto kernel_ptr = body->arg(hls_free_vars_offset - 2);
 
     // building OpenCL intrinsics corresponding to hls intrinsic
     std::vector<const Type*> opencl_param_types;
@@ -44,7 +47,9 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
 static Continuation* last_basic_block_with_intrinsic(const Intrinsic intrinsic, const Schedule& schedule) {
     for (int i = schedule.size() - 1; i >= 0; --i) {
         auto block = schedule[i];
-        auto callee = block->callee()->isa_continuation();
+        if (!block->has_body()) continue;
+        auto body = block->body();
+        auto callee = body->callee()->isa_nom<Continuation>();
         if (callee && callee->intrinsic() == intrinsic) {
             return block;
         }
@@ -53,9 +58,11 @@ static Continuation* last_basic_block_with_intrinsic(const Intrinsic intrinsic, 
 }
 
 const Def* has_hls_callee(Continuation* continuation) {
-    auto callee = continuation->callee()->isa_continuation();
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    auto callee = body->callee()->isa_nom<Continuation>();
     if (callee && callee->intrinsic() == Intrinsic::HLS) {
-        auto hls_cont_arg = continuation->arg(hls_free_vars_offset - 1);
+        auto hls_cont_arg = body->arg(hls_free_vars_offset - 1);
         return hls_cont_arg;
     }
     return nullptr;
@@ -73,12 +80,13 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
         Schedule scheduled = schedule(scope);
 
         for (auto& block : scheduled) {
-            if (block->empty())
+            if (!block->has_body())
                 continue;
+            auto block_body = block->body();
 
             if (auto hls_callee = has_hls_callee(block)) {
                 auto cont_mem_obj = block->mem_param();
-                auto callee_continuation = hls_callee->as_continuation();
+                auto callee_continuation = hls_callee->isa_nom<Continuation>();
                 Continuation* last_hls_cont;
                 if (!last_hls_found) {
                     // TODO I'm at a loss for what is intended here. This is an assignment - not a check, the net result
@@ -108,7 +116,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                         if (param == opencl_mem_param)
                             opencl_args[i] = cont_mem_obj;
                         else if (param == opencl_device_param)
-                            opencl_args[i] = block->arg(hls_free_vars_offset - 3);
+                            opencl_args[i] = block_body->arg(hls_free_vars_offset - 3);
                         else if (param->type()->isa<TupleType>()) {
                             // Block and grid fixed on 'one'
                             for (size_t j = 0; j < opencl_tuples_elems.size(); ++j) {
@@ -120,21 +128,21 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
                                 // pointer to function is assigned where hls_top is created
                                 continue;
                         } else if ( param->type()->isa<FnType>() && param->order() == 1)
-                            opencl_args[i] = last_hls_cont->arg(hls_free_vars_offset - 1);
+                            opencl_args[i] = last_hls_cont->body()->arg(hls_free_vars_offset - 1);
                     }
                 }
 
                 // extracting hls kernels' arguments
                 // preparing OpenCL args
-                for (size_t index = hls_free_vars_offset; index < block->num_args(); ++index) {
-                    auto kernel = block->arg(2)->as<Global>()->init()->as_continuation();
+                for (size_t index = hls_free_vars_offset; index < block_body->num_args(); ++index) {
+                    auto kernel = block_body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
                     auto kernel_param =  kernel->param(index - hls_free_vars_offset + 2);
                     // determining the correct location of OpenCL arguments by comparing kernels params with
                     // the location of hls_top params on device code (device_params)
                     auto param_on_device_it = std::find(device_params.begin(), device_params.end(), kernel_param);
                     size_t opencl_arg_index = std::distance(device_params.begin(), param_on_device_it);
                     assert(opencl_arg_index < device_params.size());
-                    opencl_args[opencl_arg_index + base_opencl_param_num] = block->arg(index);
+                    opencl_args[opencl_arg_index + base_opencl_param_num] = block_body->arg(index);
                 }
 
                 Array<const Def*> args(callee_continuation->type()->num_ops());

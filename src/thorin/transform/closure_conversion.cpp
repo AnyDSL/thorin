@@ -18,8 +18,8 @@ public:
         // create a new continuation for every continuation taking a function as parameter
         std::vector<std::pair<Continuation*, Continuation*>> converted;
         for (auto continuation : world_.copy_continuations()) {
-            // do not convert empty continuations or intrinsics, except graph intrinsics
-            if (continuation->empty() || continuation->is_intrinsic()) {
+            // do not convert empty continuations or intrinsics
+            if (!continuation->has_body() || continuation->is_intrinsic()) {
                 new_defs_[continuation] = continuation;
                 continue;
             }
@@ -31,14 +31,15 @@ public:
                     new_continuation->set_intrinsic();
 
                 new_defs_[continuation] = new_continuation;
-                if (!continuation->empty()) {
+                if (continuation->has_body()) {
+                    auto body = continuation->body();
                     for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                         new_defs_[continuation->param(i)] = new_continuation->param(i);
                     // copy existing call from old continuation
-                    new_continuation->jump(continuation->callee(), continuation->args(), continuation->debug());
+                    new_continuation->jump(body->callee(), body->args(), continuation->debug());
                     converted.emplace_back(continuation, new_continuation);
                 }
-            } else if (!continuation->empty()) {
+            } else if (continuation->has_body()) {
                 converted.emplace_back(continuation, continuation);
             }
         }
@@ -50,21 +51,23 @@ public:
         // remove old continuations
         for (auto pair : converted) {
             if (pair.second != pair.first) {
-                pair.first->destroy_body();
-                pair.first->make_internal();
+                pair.first->destroy("closure conversion");
+                world_.make_internal(pair.first);
             }
         }
     }
 
     void convert_jump(Continuation* continuation) {
+        assert(continuation->has_body());
+        auto body = continuation->body();
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
-        auto callee = continuation->callee()->isa_continuation();
+        auto callee = body->callee()->isa_nom<Continuation>();
         if (callee == continuation) return;
         if (!callee || !callee->is_intrinsic()) {
-            Array<const Def*> new_args(continuation->num_args());
-            for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                new_args[i] = convert(continuation->arg(i));
-            continuation->jump(convert(continuation->callee(), true), new_args, continuation->debug());
+            Array<const Def*> new_args(body->num_args());
+            for (size_t i = 0, e = body->num_args(); i != e; ++i)
+                new_args[i] = convert(body->arg(i));
+            continuation->jump(convert(body->callee(), true), new_args, continuation->debug());
         }
     }
 
@@ -73,12 +76,8 @@ public:
         if (def->order() <= 1)
             return def;
 
-        if (auto primop = def->isa<PrimOp>()) {
-            Array<const Def*> ops(primop->ops());
-            for (auto& op : ops) op = convert(op);
-            return new_defs_[def] = primop->rebuild(world_, convert(primop->type()), ops);
-        } else if (auto continuation = def->isa_continuation()) {
-            if (continuation->empty())
+        if (auto continuation = def->isa_nom<Continuation>()) {
+            if (!continuation->has_body())
                 return continuation;
             convert_jump(continuation);
             if (as_callee)
@@ -92,8 +91,8 @@ public:
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));
-                auto continuation = def->isa_continuation();
-                return continuation && (continuation->empty() || continuation->is_intrinsic());
+                auto continuation = def->isa_nom<Continuation>();
+                return continuation && (!continuation->has_body() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
             auto lifted = lift(scope, free_vars);
@@ -148,6 +147,11 @@ public:
 
             auto closure_type = convert(continuation->type());
             return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
+        } else {
+            // TODO need to consider Params?
+            Array<const Def*> ops(def->ops());
+            for (auto& op : ops) op = convert(op);
+            return new_defs_[def] = def->rebuild(world_, convert(def->type()), ops);
         }
         THORIN_UNREACHABLE;
     }

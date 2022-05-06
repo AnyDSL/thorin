@@ -15,7 +15,7 @@
 #include <regex>
 #include <sstream>
 #include <type_traits>
-#include <unordered_map>
+#include <unordered_map> // TODO don't use std::unordered_*
 #include <variant>
 
 namespace thorin::c {
@@ -661,7 +661,7 @@ static inline std::string make_identifier(const std::string& str) {
 }
 
 static inline std::string label_name(const Def* def) {
-    return make_identifier(def->as_continuation()->unique_name());
+    return make_identifier(def->as_nom<Continuation>()->unique_name());
 }
 
 void CCodeGen::finalize(const Scope&) {
@@ -682,16 +682,18 @@ void CCodeGen::finalize(Continuation* cont) {
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
-    emit_debug_info(bb.tail, cont->arg(0));
+    assert(cont->has_body());
+    auto body = cont->body();
+    emit_debug_info(bb.tail, body->arg(0));
 
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
-    if (cont->callee() == entry_->ret_param()) { // return
+    if (body->callee() == entry_->ret_param()) { // return
         std::vector<std::string> values;
         std::vector<const Type*> types;
 
-        for (auto arg : cont->args()) {
+        for (auto arg : body->args()) {
             if (auto val = emit_unsafe(arg); !val.empty()) {
                 values.emplace_back(val);
                 types.emplace_back(arg->type());
@@ -709,41 +711,41 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail.fmt("return ret_val;");
                 break;
         }
-    } else if (cont->callee() == world().branch()) {
-        auto c = emit(cont->arg(0));
-        auto t = label_name(cont->arg(1));
-        auto f = label_name(cont->arg(2));
+    } else if (body->callee() == world().branch()) {
+        auto c = emit(body->arg(0));
+        auto t = label_name(body->arg(1));
+        auto f = label_name(body->arg(2));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
-    } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->intrinsic() == Intrinsic::Match) {
-        bb.tail.fmt("switch ({}) {{\t\n", emit(cont->arg(0)));
+    } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
+        bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(0)));
 
-        for (size_t i = 2; i < cont->num_args(); i++) {
-            auto arg = cont->arg(i)->as<Tuple>();
+        for (size_t i = 2; i < body->num_args(); i++) {
+            auto arg = body->arg(i)->as<Tuple>();
             bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), label_name(arg->op(1)));
         }
 
-        bb.tail.fmt("default: goto {};", label_name(cont->arg(1)));
+        bb.tail.fmt("default: goto {};", label_name(body->arg(1)));
         bb.tail.fmt("\b\n}}");
-    } else if (cont->callee()->isa<Bottom>()) {
+    } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
-    } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
-        assert(callee->num_params() == cont->num_args());
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
+        assert(callee->num_params() == body->num_args());
         for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
-            if (auto arg = emit_unsafe(cont->arg(i)); !arg.empty())
+            if (auto arg = emit_unsafe(body->arg(i)); !arg.empty())
                 bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
         }
         bb.tail.fmt("goto {};", label_name(callee));
-    } else if (auto callee = cont->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
-            emit_unsafe(cont->arg(0));
-            if (!cont->arg(1)->isa<PrimLit>())
-                world().edef(cont->arg(1), "reserve_shared: couldn't extract memory size");
+            emit_unsafe(body->arg(0));
+            if (!body->arg(1)->isa<PrimLit>())
+                world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
 
-            auto ret_cont = cont->arg(2)->as_continuation();
+            auto ret_cont = body->arg(2)->as_nom<Continuation>();
             auto elem_type = ret_cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
             func_impls_.fmt("{}{} {}_reserved[{}];\n",
                 addr_space_prefix(AddrSpace::Shared), convert(elem_type),
-                cont->unique_name(), emit_constant(cont->arg(1)));
+                cont->unique_name(), emit_constant(body->arg(1)));
             if (lang_ == Lang::HLS && !hls_top_scope) {
                 func_impls_.fmt("#pragma HLS dependence variable={}_reserved inter false\n", cont->unique_name());
                 func_impls_.fmt("#pragma HLS data_pack  variable={}_reserved\n", cont->unique_name());
@@ -754,15 +756,16 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
 
-            emit_unsafe(cont->arg(0));
+            emit_unsafe(body->arg(0));
             std::string interval;
-            if (cont->arg(1)->as<PrimLit>()->value().get_s32() != 0)
-                interval = emit_constant(cont->arg(1));
+            if (body->arg(1)->as<PrimLit>()->value().get_s32() != 0)
+                interval = emit_constant(body->arg(1));
 
-            auto begin = emit(cont->arg(2));
-            auto end   = emit(cont->arg(3));
+
+            auto begin = emit(body->arg(2));
+            auto end   = emit(body->arg(3));
             // HLS/OpenCL Pipeline loop-index
-            bb.tail.fmt("int i{};\n", cont->callee()->gid());
+            bb.tail.fmt("int i{};\n", body->callee()->gid());
             if (lang_ == Lang::OpenCL) {
                 bb.tail << guarded_statement(cl_dialect_guard(CLDialect::INTEL), [&](Stream& s){
                     s.fmt("#pragma ii {}\n", !interval.empty() ? interval : "1");
@@ -782,26 +785,26 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail.fmt("\n");
             }
 
-            auto body = cont->arg(4)->as_continuation();
-            bb.tail.fmt("p_{} = i{};\n", body->param(1)->unique_name(), callee->gid());
-            bb.tail.fmt("goto {};\n", label_name(body));
+            auto pbody = body->arg(4)->as_nom<Continuation>();
+            bb.tail.fmt("p_{} = i{};\n", pbody->param(1)->unique_name(), callee->gid());
+            bb.tail.fmt("goto {};\n", label_name(pbody));
 
             // Emit a label that can be used by the "pipeline_continue()" intrinsic.
-            bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(cont->arg(6)));
-            bb.tail.fmt("goto {};", label_name(cont->arg(5)));
+            bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(body->arg(6)));
+            bb.tail.fmt("goto {};", label_name(body->arg(5)));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
-            emit_unsafe(cont->arg(0));
+            emit_unsafe(body->arg(0));
             bb.tail.fmt("goto {};", label_name(callee));
         } else {
             THORIN_UNREACHABLE;
         }
-    } else if (auto callee = cont->callee()->isa_continuation()) { // function/closure call
-        auto ret_cont = (*std::find_if(cont->args().begin(), cont->args().end(), [] (const Def* arg) {
-            return arg->isa_continuation();
-        }))->as_continuation();
+    } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
+        auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
+            return arg->isa_nom<Continuation>();
+        }))->as_nom<Continuation>();
 
         std::vector<std::string> args;
-        for (auto arg : cont->args()) {
+        for (auto arg : body->args()) {
             if (arg == ret_cont) continue;
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
@@ -837,7 +840,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             channel_transaction = true;
         } else if (lang_ == Lang::HLS && callee->is_channel()) {
             int i = 0;
-            for (auto arg : cont->args()) {
+            for (auto arg : body->args()) {
                 if (!is_concrete(arg)) continue;
                 if (i == 0)
                     bb.tail.fmt("*{}", emit(arg));
@@ -950,7 +953,7 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
 }
 
 static inline bool is_const_primop(const Def* def) {
-    return def->isa<PrimOp>() && !def->has_dep(Dep::Param);
+    return def->isa_structural() && !def->has_dep(Dep::Param);
 }
 
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {
@@ -1298,7 +1301,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         auto fval = emit_unsafe(select->fval());
         s.fmt("({} ? {} : {})", cond, tval, fval);
     } else if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_continuation());
+        assert(!global->init()->isa_nom<Continuation>());
         if (global->is_mutable() && lang_ != Lang::C99)
             world().wdef(global, "{}: Global variable '{}' will not be synced with host", lang_as_string(lang_), global);
 
@@ -1377,13 +1380,13 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
         }
     } else if (lang_ == Lang::CUDA) {
         s << "__device__ ";
-    } else if (cont->is_internal()) {
+    } else if (!world().is_external(cont)) {
         s << "static ";
     }
 
     s.fmt("{} {}(",
         convert(ret_type(cont->type())),
-        cont->is_internal() ? cont->unique_name() : cont->name());
+        !world().is_external(cont) ? cont->unique_name() : cont->name());
 
     // Emit and store all first-order params
     bool needs_comma = false;
@@ -1439,7 +1442,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
 std::string CCodeGen::emit_fun_decl(Continuation* cont) {
     if (cont->cc() != CC::Device)
         func_decls_.fmt("{};\n", emit_fun_head(cont, true));
-    return cont->is_internal() ? cont->unique_name() : cont->name();
+    return !world().is_external(cont) ? cont->unique_name() : cont->name();
 }
 
 Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {
@@ -1452,7 +1455,10 @@ void CCodeGen::emit_c_int() {
     // Do not emit C interfaces for definitions that are not used
     world().cleanup();
 
-    for (auto cont : world().continuations()) {
+    for (auto def : world().defs()) {
+        auto cont = def->isa_nom<Continuation>();
+        if (!cont)
+            continue;
         if (!cont->is_external())
             continue;
         if (cont->cc() != CC::C && cont->is_imported())

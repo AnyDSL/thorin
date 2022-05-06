@@ -4,8 +4,13 @@
 
 namespace thorin {
 
+/*
+ * TODO rewrite
+ */
+
 // TODO merge this with lift_builtins
-void clone_bodies(World& world) {
+void clone_bodies(World& /*world*/) {
+#if 0
     std::vector<Continuation*> todo;
 
     // TODO this looks broken: I guess we should do that in post-order as in lift_builtins
@@ -22,10 +27,11 @@ void clone_bodies(World& world) {
                 first = false; // re-use the initial continuation as first clone
             } else {
                 auto ncontinuation = clone(scope);
-                if (auto ucontinuation = use->isa_continuation())
-                    ucontinuation->update_op(use.index(), ncontinuation);
-                else {
-                    auto primop = use->as<PrimOp>();
+                if (auto uapp = use->isa<App>()) {
+                    if (uapp->is_replaced()) continue; // dead app node
+                    auto napp = uapp->with_different_op(use.index(), ncontinuation);
+                    uapp->replace(napp);
+                } else if (auto primop = use->isa<PrimOp>()) {
                     Array<const Def*> nops(primop->num_ops());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
                     nops[use.index()] = ncontinuation;
@@ -34,6 +40,7 @@ void clone_bodies(World& world) {
             }
         }
     }
+#endif
 }
 
 }

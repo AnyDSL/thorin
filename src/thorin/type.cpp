@@ -33,18 +33,16 @@ const Type* NominalType::rebuild(TypeTable&, Types) const {
     return this;
 }
 
-const Type* TupleType          ::rebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* DefiniteArrayType  ::rebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* FnType             ::rebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
-const Type* ClosureType        ::rebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
-const Type* FrameType          ::rebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::rebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
-const Type* MemType            ::rebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
-const Type* PrimType           ::rebuild(TypeTable& to, Types    ) const { return to.prim_type(primtype_tag(), length()); }
-
-const Type* PtrType::rebuild(TypeTable& to, Types ops) const {
-    return to.ptr_type(ops.front(), length(), device(), addr_space());
-}
+const Type* BottomType         ::rebuild(TypeTable& t, Types  ) const { return t.bottom_type(); }
+const Type* ClosureType        ::rebuild(TypeTable& t, Types o) const { return t.closure_type(o); }
+const Type* DefiniteArrayType  ::rebuild(TypeTable& t, Types o) const { return t.definite_array_type(o[0], dim()); }
+const Type* FnType             ::rebuild(TypeTable& t, Types o) const { return t.fn_type(o); }
+const Type* FrameType          ::rebuild(TypeTable& t, Types  ) const { return t.frame_type(); }
+const Type* IndefiniteArrayType::rebuild(TypeTable& t, Types o) const { return t.indefinite_array_type(o[0]); }
+const Type* MemType            ::rebuild(TypeTable& t, Types  ) const { return t.mem_type(); }
+const Type* PrimType           ::rebuild(TypeTable& t, Types  ) const { return t.prim_type(primtype_tag(), length()); }
+const Type* PtrType            ::rebuild(TypeTable& t, Types o) const { return t.ptr_type(o.front(), length(), device(), addr_space()); }
+const Type* TupleType          ::rebuild(TypeTable& t, Types o) const { return t.tuple_type(o); }
 
 /*
  * stub
@@ -140,8 +138,9 @@ bool PtrType::equal(const Type* other) const {
 
 Stream& Type::stream(Stream& s) const {
     if (false) {}
-    else if (isa<  MemType>()) return s.fmt("mem");
-    else if (isa<FrameType>()) return s.fmt("frame");
+    else if (isa<BottomType>()) return s.fmt("!!");
+    else if (isa<   MemType>()) return s.fmt("mem");
+    else if (isa< FrameType>()) return s.fmt("frame");
     else if (auto t = isa<DefiniteArrayType>()) {
         return s.fmt("[{} x {}]", t->dim(), t->elem_type());
     } else if (auto t = isa<FnType>()) {
@@ -188,10 +187,11 @@ Stream& Type::stream(Stream& s) const {
 //------------------------------------------------------------------------------
 
 TypeTable::TypeTable()
-    : unit_ (insert<TupleType>(*this, Types()))
-    , fn0_  (insert<FnType   >(*this, Types()))
-    , mem_  (insert<MemType  >(*this))
-    , frame_(insert<FrameType>(*this))
+    : unit_     (insert<TupleType >(*this, Types()))
+    , fn0_      (insert<FnType    >(*this, Types()))
+    , bottom_ty_(insert<BottomType>(*this))
+    , mem_      (insert<MemType   >(*this))
+    , frame_    (insert<FrameType >(*this))
 {
 #define THORIN_ALL_TYPE(T, M) \
     primtypes_[PrimType_##T - Begin_PrimType] = insert<PrimType>(*this, PrimType_##T, 1);

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include <unordered_map>
+#include <unordered_map> // TODO don't used std::unordered_*
 
 #include <llvm/ADT/Triple.h>
 #include <llvm/IR/Constant.h>
@@ -298,7 +298,7 @@ CodeGen::emit_module() {
 }
 
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
-    std::string name = continuation->is_external() ? continuation->name() : continuation->unique_name();
+    std::string name = world().is_external(continuation) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
@@ -313,7 +313,7 @@ llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
 #endif
 
     // set linkage
-    if (continuation->is_external())
+    if (world().is_external(continuation))
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
@@ -337,8 +337,9 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
 
     discope_ = dicompile_unit_;
     if (debug()) {
-        auto src_file = llvm::sys::path::filename(entry_->loc().file);
-        auto src_dir = llvm::sys::path::parent_path(entry_->loc().file);
+        auto file = entry_->loc().file;
+        auto src_file = llvm::sys::path::filename(file);
+        auto src_dir = llvm::sys::path::parent_path(file);
         auto difile = dibuilder_.createFile(src_file, src_dir);
         auto disub_program = dibuilder_.createFunction(
             discope_, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
@@ -406,14 +407,17 @@ void CodeGen::finalize(const Scope&) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
+    assert(continuation->has_body());
+    auto body = continuation->body();
+
     auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
     auto& irbuilder = *ptr_irbuilder;
 
-    if (continuation->callee() == entry_->ret_param()) { // return
+    if (body->callee() == entry_->ret_param()) { // return
         std::vector<llvm::Value*> values;
         std::vector<llvm::Type *> types;
 
-        for (auto arg : continuation->args()) {
+        for (auto arg : body->args()) {
             if (auto val = emit_unsafe(arg)) {
                 values.emplace_back(val);
                 types.emplace_back(val->getType());
@@ -431,37 +435,36 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
                 irbuilder.CreateRet(agg);
         }
-    } else if (continuation->callee() == world().branch()) {
-        auto cond = emit(continuation->arg(0));
-        auto tbb = cont2bb(continuation->arg(1)->as_continuation());
-        auto fbb = cont2bb(continuation->arg(2)->as_continuation());
+    } else if (body->callee() == world().branch()) {
+        auto cond = emit(body->arg(0));
+        auto tbb = cont2bb(body->arg(1)->as_nom<Continuation>());
+        auto fbb = cont2bb(body->arg(2)->as_nom<Continuation>());
         irbuilder.CreateCondBr(cond, tbb, fbb);
-    } else if (continuation->callee()->isa<Continuation>() &&
-                continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
-        auto val = emit(continuation->arg(0));
-        auto otherwise_bb = cont2bb(continuation->arg(1)->as_continuation());
-        auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
-        for (size_t i = 2; i < continuation->num_args(); i++) {
-            auto arg = continuation->arg(i)->as<Tuple>();
+    } else if (body->callee()->isa<Continuation>() && body->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+        auto val = emit(body->arg(0));
+        auto otherwise_bb = cont2bb(body->arg(1)->as_nom<Continuation>());
+        auto match = irbuilder.CreateSwitch(val, otherwise_bb, body->num_args() - 2);
+        for (size_t i = 2; i < body->num_args(); i++) {
+            auto arg = body->arg(i)->as<Tuple>();
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
-            auto case_bb    = cont2bb(arg->op(1)->as_continuation());
+            auto case_bb    = cont2bb(arg->op(1)->as_nom<Continuation>());
             match->addCase(case_const, case_bb);
         }
-    } else if (continuation->callee()->isa<Bottom>()) {
+    } else if (body->callee()->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
-        for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
-            if (auto val = emit_unsafe(continuation->arg(i))) emit_phi_arg(irbuilder, callee->param(i), val);
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
+        for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+            if (auto val = emit_unsafe(body->arg(i))) emit_phi_arg(irbuilder, callee->param(i), val);
         }
         irbuilder.CreateBr(cont2bb(callee));
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         auto ret_continuation = emit_intrinsic(irbuilder, continuation);
         irbuilder.CreateBr(cont2bb(ret_continuation));
     } else { // function/closure call
         // put all first-order args into an array
         std::vector<llvm::Value*> args;
         const Def* ret_arg = nullptr;
-        for (auto arg : continuation->args()) {
+        for (auto arg : body->args()) {
             if (arg->order() == 0) {
                 if (auto val = emit_unsafe(arg))
                     args.push_back(val);
@@ -472,9 +475,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         llvm::CallInst* call = nullptr;
-        if (auto callee = continuation->callee()->isa_continuation()) {
+        if (auto callee = body->callee()->isa_nom<Continuation>()) {
             call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
-            if (callee->is_exported())
+            if (world().is_external(callee))
                 call->setCallingConv(kernel_calling_convention_);
             else if (callee->cc() == CC::Device)
                 call->setCallingConv(device_calling_convention_);
@@ -482,14 +485,14 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 call->setCallingConv(function_calling_convention_);
         } else {
             // must be a closure
-            auto closure = emit(continuation->callee());
+            auto closure = emit(callee);
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);
             call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getElementType()), func, args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
-        auto succ = ret_arg->as_continuation();
+        auto succ = ret_arg->as_nom<Continuation>();
 
         size_t n = 0;
         const Param* last_param = nullptr;
@@ -888,6 +891,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
 }
 
 void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llvm::Value* value) {
+    assert(defs_[param]);
     llvm::cast<llvm::PHINode>(defs_[param])->addIncoming(value, irbuilder.GetInsertBlock());
 }
 
@@ -942,7 +946,7 @@ llvm::Value* CodeGen::emit_bitcast(llvm::IRBuilder<>& irbuilder, const Def* val,
 
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
-    if (auto continuation = global->init()->isa_continuation())
+    if (auto continuation = global->init()->isa_nom<Continuation>())
         val = emit(continuation);
     else {
         auto llvm_type = convert(global->alloced_type());
@@ -1113,16 +1117,19 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
  */
 
 Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    auto callee = body->callee()->as_nom<Continuation>();
+
     // Important: Must emit the memory object otherwise the memory
     // operations before the call to the intrinsic are all gone!
-    for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
-        if (is_mem(continuation->arg(i))) {
-            emit_unsafe(continuation->arg(i));
+    for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+        if (is_mem(body->arg(i))) {
+            emit_unsafe(body->arg(i));
             break;
         }
     }
 
-    auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
         case Intrinsic::Atomic:      return emit_atomic(irbuilder, continuation);
         case Intrinsic::AtomicLoad:  return emit_atomic_load(irbuilder, continuation);
@@ -1150,37 +1157,41 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
 }
 
 Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() == 7 && "required arguments are missing");
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == 7 && "required arguments are missing");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min UMax UMin FAdd FSub
-    u32 binop_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    u32 binop_tag = body->arg(1)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(binop_tag) && int(binop_tag) <= int(llvm::AtomicRMWInst::BinOp::FSub) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)binop_tag;
-    auto is_valid_fop = is_type_f(continuation->arg(3)->type()) &&
+    auto is_valid_fop = is_type_f(body->arg(3)->type()) &&
                         (binop == llvm::AtomicRMWInst::BinOp::Xchg || binop == llvm::AtomicRMWInst::BinOp::FAdd || binop == llvm::AtomicRMWInst::BinOp::FSub);
-    if (is_type_f(continuation->arg(3)->type()) && !is_valid_fop)
-        world().edef(continuation->arg(3), "atomic {} is not supported for float types", binop_tag);
-    else if (!is_type_i(continuation->arg(3)->type()) && !is_valid_fop)
-        world().edef(continuation->arg(3), "atomic {} is only supported for int types", binop_tag);
-    auto ptr = emit(continuation->arg(2));
-    auto val = emit(continuation->arg(3));
-    u32 order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
+    if (is_type_f(body->arg(3)->type()) && !is_valid_fop)
+        world().edef(body->arg(3), "atomic {} is not supported for float types", binop_tag);
+    else if (!is_type_i(body->arg(3)->type()) && !is_valid_fop)
+        world().edef(body->arg(3), "atomic {} is only supported for int types", binop_tag);
+    auto ptr = emit(body->arg(2));
+    auto val = emit(body->arg(3));
+    u32 order_tag = body->arg(4)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(6)->as_continuation();
+    auto scope = body->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = body->arg(6)->as_nom<Continuation>();
     auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, order, context_->getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
 
 Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto ptr = emit(continuation->arg(1));
-    u32 tag = continuation->arg(2)->as<PrimLit>()->qu32_value();
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == 5 && "required arguments are missing");
+    auto ptr = emit(body->arg(1));
+    u32 tag = body->arg(2)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(4)->as_continuation();
+    auto scope = body->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = body->arg(4)->as_nom<Continuation>();
     auto load = irbuilder.CreateLoad(ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     load->setAlignment(align);
@@ -1190,14 +1201,16 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
 }
 
 Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() == 6 && "required arguments are missing");
-    auto ptr = emit(continuation->arg(1));
-    auto val = emit(continuation->arg(2));
-    u32 tag = continuation->arg(3)->as<PrimLit>()->qu32_value();
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == 6 && "required arguments are missing");
+    auto ptr = emit(body->arg(1));
+    auto val = emit(body->arg(2));
+    u32 tag = body->arg(3)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
-    auto scope = continuation->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(5)->as_continuation();
+    auto scope = body->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = body->arg(5)->as_nom<Continuation>();
     auto store = irbuilder.CreateStore(val, ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     store->setAlignment(align);
@@ -1206,20 +1219,23 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
 }
 
 Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* continuation, bool is_weak) {
-    assert(continuation->num_args() == 8 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        world().edef(continuation->arg(3), "cmpxchg only supported for integer types");
-    auto ptr = emit(continuation->arg(1));
-    auto cmp = emit(continuation->arg(2));
-    auto val = emit(continuation->arg(3));
-    u32 success_order_tag = continuation->arg(4)->as<PrimLit>()->qu32_value();
-    u32 failure_order_tag = continuation->arg(5)->as<PrimLit>()->qu32_value();
+    assert(continuation->has_body());
+    auto body = continuation->body();
+
+    assert(body->num_args() == 8 && "required arguments are missing");
+    if (!is_type_i(body->arg(3)->type()))
+        world().edef(body->arg(3), "cmpxchg only supported for integer types");
+    auto ptr = emit(body->arg(1));
+    auto cmp = emit(body->arg(2));
+    auto val = emit(body->arg(3));
+    u32 success_order_tag = body->arg(4)->as<PrimLit>()->qu32_value();
+    u32 failure_order_tag = body->arg(5)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(success_order_tag) && int(success_order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(failure_order_tag) && int(failure_order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto success_order = (llvm::AtomicOrdering)success_order_tag;
     auto failure_order = (llvm::AtomicOrdering)failure_order_tag;
-    auto scope = continuation->arg(6)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(7)->as_continuation();
+    auto scope = body->arg(6)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = body->arg(7)->as_nom<Continuation>();
     auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, success_order, failure_order, context_->getOrInsertSyncScopeID(scope->as_string()));
     call->setWeak(is_weak);
     emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
@@ -1228,12 +1244,14 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
 }
 
 Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    assert(continuation->num_args() == 4 && "required arguments are missing");
-    u32 order_tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == 4 && "required arguments are missing");
+    u32 order_tag = body->arg(1)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
-    auto scope = continuation->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = continuation->arg(3)->as_continuation();
+    auto scope = body->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto cont = body->arg(3)->as_nom<Continuation>();
     irbuilder.CreateFence(order, context_->getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
@@ -1244,11 +1262,13 @@ Continuation* CodeGen::emit_reserve(llvm::IRBuilder<>&, const Continuation* cont
 }
 
 Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Continuation* continuation, bool init_undef) {
-    assert(continuation->num_args() == 3 && "required arguments are missing");
-    if (!continuation->arg(1)->isa<PrimLit>())
-        world().edef(continuation->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
-    auto cont = continuation->arg(2)->as_continuation();
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == 3 && "required arguments are missing");
+    if (!body->arg(1)->isa<PrimLit>())
+        world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
+    auto num_elems = body->arg(1)->as<PrimLit>()->ps32_value();
+    auto cont = body->arg(2)->as_nom<Continuation>();
     auto type = convert(cont->param(1)->type());
     // construct array type
     auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
@@ -1267,17 +1287,19 @@ Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const C
  */
 
 Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    std::vector<llvm::Value*> args(continuation->num_args()-3);
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    std::vector<llvm::Value*> args(body->num_args()-3);
     Continuation* ret = nullptr;
-    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
-        if (auto cont = continuation->arg(i)->isa_continuation()) {
+    for (size_t i = 2, j = 0; i < body->num_args(); ++i) {
+        if (auto cont = body->arg(i)->isa_nom<Continuation>()) {
             ret = cont;
             continue;
         }
-        args[j++] = emit(continuation->arg(i));
+        args[j++] = emit(body->arg(i));
     }
-    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
-    callee->make_external();
+    auto callee = body->arg(1)->as<Global>()->init()->as_nom<Continuation>();
+    world().make_external(callee);
     irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);
     return ret;

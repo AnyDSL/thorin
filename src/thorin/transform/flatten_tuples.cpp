@@ -35,9 +35,11 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
 }
 
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
-    if (args[0]->isa_continuation()) {
-        auto dropped = drop(Call(args));
-        cont->jump(dropped->callee(), dropped->args(), args[0]->debug());
+    if (args[0]->isa_nom<Continuation>()) {
+        auto dropped = drop(args.front(), args.skip_front());
+        assert(dropped->has_body());
+        auto dapp = dropped->body();
+        cont->jump(dapp->callee(), dapp->args(), args[0]->debug());
     } else {
         jump(cont, args);
     }
@@ -46,13 +48,17 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
 
 static void inline_calls(Continuation* cont) {
     for (auto use : cont->copy_uses()) {
-        auto ucont = use->isa_continuation();
-        if (!ucont || use.index() != 0) continue;
+        auto app = use->isa<App>();
+        if (!app || use.index() != 0) continue;
 
-        Array<const Def*> args(ucont->num_args() + 1);
-        for (size_t i = 0, e = ucont->num_args(); i != e; ++i) args[i + 1] = ucont->arg(i);
-        args[0] = ucont->callee();
-        try_inline(ucont, args);
+        for (auto ucont : app->using_continuations()) {
+            assert(ucont->has_body());
+
+            Array<const Def*> args(app->num_args() + 1);
+            for (size_t i = 0, e = app->num_args(); i != e; ++i) args[i + 1] = app->arg(i);
+            args[0] = app->callee();
+            try_inline(ucont, args);
+        }
     }
 }
 
@@ -73,7 +79,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
     //         f = extract(b, 1)
     //         d(a, (e, f))
 
-    if (wrapped.contains(old_def)) return (*wrapped[old_def]).as_continuation();
+    if (wrapped.contains(old_def)) return (*wrapped[old_def]).as_nom<Continuation>();
 
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<FnType>();
@@ -126,7 +132,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
     //     wrap_d(a: W, b: X, c: Y):
     //         d(a, (b, c))
 
-    if (unwrapped.contains(new_def)) return (*unwrapped[new_def]).as_continuation();
+    if (unwrapped.contains(new_def)) return (*unwrapped[new_def]).as_nom<Continuation>();
 
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<FnType>();
@@ -173,9 +179,9 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto cont : world.copy_continuations()) {
             // do not change the signature of intrinsic/external functions
-            if (cont->empty() ||
+            if (!cont->has_body() ||
                 cont->is_intrinsic() ||
-                cont->is_exported() ||
+                world.is_external(cont) ||
                 is_passed_to_accelerator(cont))
                 continue;
 
@@ -197,19 +203,20 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            if (def->empty()) continue;
+            auto old_cont = def->isa_nom<Continuation>();
+            if (old_cont && !old_cont->has_body()) continue;
 
-            auto new_cont = wrap_pair.second->as_continuation();
-            auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
+            auto new_cont = wrap_pair.second->as_nom<Continuation>();
+            auto wrapped_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
 
-            def->replace(old_cont);
-            if (auto cont = def->isa_continuation())
-                cont->destroy_body();
+            def->replace_uses(wrapped_cont);
+            if (old_cont)
+                old_cont->destroy("flatten_tuples");
         }
     }
 
     for (auto unwrap_pair : unwrapped)
-        inline_calls(unwrap_pair.second->as_continuation());
+        inline_calls(unwrap_pair.second->as_nom<Continuation>());
 
     world.cleanup();
     debug_verify(world);

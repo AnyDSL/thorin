@@ -49,7 +49,7 @@ CFA::CFA(const Scope& scope)
 
         auto enqueue = [&] (const Def* def) {
             if (def->order() > 0 && scope.contains(def) && done.emplace(def).second) {
-                if (auto dst = def->isa_continuation()) {
+                if (auto dst = def->isa_nom<Continuation>()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));
                 } else
@@ -57,7 +57,8 @@ CFA::CFA(const Scope& scope)
             }
         };
 
-        queue.push(src);
+        if (src->has_body())
+            queue.push(src->body());
 
         while (!queue.empty()) {
             auto def = pop(queue);

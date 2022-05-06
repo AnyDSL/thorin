@@ -4,15 +4,58 @@
 
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
 
 //------------------------------------------------------------------------------
 
-const Def* Continuation::callee() const {
-    return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
+Param::Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
+    : Def(Node_Param, type, 1, dbg)
+    , index_(index)
+{
+    set_op(0, continuation);
+}
+
+//------------------------------------------------------------------------------
+
+App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+#if THORIN_ENABLE_CHECKS
+    verify();
+    if (auto cont = callee()->isa_nom<Continuation>())
+        assert(!cont->dead_); // debugging hint, apps should not be built with dead continuations
+        // this cannot live in verify because continuations are mutable and may die later
+#endif
+}
+
+void App::verify() const {
+    auto callee_type = callee()->type()->isa<FnType>(); // works for closures too, no need for a special case
+    assertf(callee_type, "callee type must be a FnType");
+    assertf(callee_type->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
+    for (size_t i = 0; i < num_args(); i++) {
+        auto pt = callee_type->op(i);
+        auto at = arg(i)->type();
+        assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
+    }
+}
+
+//------------------------------------------------------------------------------
+
+Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs, dbg) {}
+
+const Filter* Filter::cut(ArrayRef<size_t> indices) const {
+    return world().filter(ops().cut(indices), debug());
+}
+
+//------------------------------------------------------------------------------
+
+Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
+    : Def(Node_Continuation, fn, 2, dbg)
+    , attributes_(attributes)
+{
+    params_.reserve(fn->num_ops());
+    set_op(0, world().bottom(world().bottom_type()));
+    set_op(1, world().filter({}, dbg));
 }
 
 Continuation* Continuation::stub() const {
@@ -24,12 +67,12 @@ Continuation* Continuation::stub() const {
         rewriter.old2new[param(i)] = result->param(i);
     }
 
-    if (!filter().empty()) {
-        Array<const Def*> new_filter(num_params());
+    if (!filter()->is_empty()) {
+        Array<const Def*> new_conditions(num_params());
         for (size_t i = 0, e = num_params(); i != e; ++i)
-            new_filter[i] = rewriter.instantiate(filter(i));
+            new_conditions[i] = rewriter.instantiate(filter()->condition(i));
 
-        result->set_filter(new_filter);
+        result->set_filter(world().filter(new_conditions, filter()->debug()));
     }
 
     return result;
@@ -61,19 +104,23 @@ const Param* Continuation::ret_param() const {
     return result;
 }
 
-void Continuation::destroy_body() {
-    unset_ops();
-    resize(0);
+void Continuation::destroy(const char* cause) {
+    world().VLOG("{} has been destroyed by {}", this, cause);
+    destroy_filter();
+    unset_op(0);
+    set_op(0, world().bottom(world().bottom_type()));
+    dead_ = true;
 }
 
 const FnType* Continuation::arg_fn_type() const {
-    Array<const Type*> args(num_args());
-    for (size_t i = 0, e = num_args(); i != e; ++i)
-        args[i] = arg(i)->type();
+    assert(has_body());
+    Array<const Type*> args(body()->num_args());
+    for (size_t i = 0, e = body()->num_args(); i != e; ++i)
+        args[i] = body()->arg(i)->type();
 
-    return callee()->type()->isa<ClosureType>()
-        ? world().closure_type(args)->as<FnType>()
-        : world().fn_type(args);
+    return body()->callee()->type()->isa<ClosureType>()
+           ? world().closure_type(args)->as<FnType>()
+           : world().fn_type(args);
 }
 
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
@@ -107,7 +154,7 @@ Continuations Continuation::preds() const {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto continuation = use->isa_continuation()) {
+        if (auto continuation = use->isa_nom<Continuation>()) {
             preds.push_back(continuation);
             continue;
         }
@@ -131,15 +178,12 @@ Continuations Continuation::succs() const {
     };
 
     done.insert(this);
-    if (!empty())
-        enqueue(callee());
-
-    for (auto arg : args())
-        enqueue(arg);
+    if (has_body())
+        enqueue(body());
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto continuation = def->isa_continuation()) {
+        if (auto continuation = def->isa_nom<Continuation>()) {
             succs.push_back(continuation);
             continue;
         }
@@ -153,8 +197,14 @@ Continuations Continuation::succs() const {
     return succs;
 }
 
-void Continuation::set_all_true_filter() {
-    filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
+void Continuation::destroy_filter() {
+    set_filter(world().filter({}));
+}
+
+/// An all-true filter
+const Filter* Continuation::all_true_filter() const {
+    auto conditions = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
+    return world().filter(conditions, debug());
 }
 
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
@@ -184,53 +234,16 @@ void Continuation::set_intrinsic() {
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
-
-/*
- * terminate
- */
+bool Continuation::is_external() const { return world().is_external(this); }
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
-    if (auto continuation = callee->isa<Continuation>()) {
-        switch (continuation->intrinsic()) {
-            case Intrinsic::Branch: {
-                assert(args.size() == 3);
-                auto cond = args[0], t = args[1], f = args[2];
-                if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, dbg);
-                if (t == f)
-                    return jump(t, {}, dbg);
-                if (is_not(cond))
-                    return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
-                break;
-            }
-            case Intrinsic::Match:
-                if (args.size() == 2) return jump(args[1], {}, dbg);
-                if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
-                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().extract(args[i], 1), {}, dbg);
-                    }
-                    return jump(args[1], {}, dbg);
-                }
-                break;
-            default:
-                break;
-        }
-    }
-
-    unset_ops();
-    resize(args.size()+1);
-    set_op(0, callee);
-
-    size_t x = 1;
-    for (auto arg : args)
-        set_op(x++, arg);
-
+    set_body(world().app(callee, args, dbg));
     verify();
 }
 
 void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    return jump(world().branch(), {cond, t, f}, dbg);
+    set_body(world().app(world().branch(), {cond, t, f}, dbg));
+    verify();
 }
 
 void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
@@ -242,24 +255,32 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     for (size_t i = 0; i < patterns.size(); i++)
         args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
 
-    return jump(world().match(val->type(), patterns.size()), args, dbg);
+    set_body(world().app(world().match(val->type(), patterns.size()), args, dbg));
+    verify();
 }
 
-void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
+void Continuation::verify() const {
+    if (!has_body())
+        assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
+    else {
+        body()->verify();
+        assert(!dead_); // destroy() should remove the body
+        assert(intrinsic() == Intrinsic::None);
+        assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
+    }
+}
+
+/// Rewrites the body to only keep the non-specialized arguments
+void jump_to_dropped_call(Continuation* continuation, Continuation* dropped, const Defs specialized_args) {
+    assert(continuation->has_body());
+    auto obody = continuation->body();
     std::vector<const Def*> nargs;
-    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (!call.arg(i))
-            nargs.push_back(src->arg(i));
+    for (size_t i = 0, e = obody->num_args(); i != e; ++i) {
+        if (!specialized_args[i])
+            nargs.push_back(obody->arg(i));
     }
 
-    src->jump(dst, nargs);
-}
-
-Continuation* Continuation::update_op(size_t i, const Def* def) {
-    Array<const Def*> new_ops(ops());
-    new_ops[i] = def;
-    jump(new_ops.front(), new_ops.skip_front());
-    return this;
+    continuation->jump(dropped, nargs);
 }
 
 #if 0
@@ -297,10 +318,16 @@ void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
 bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     if (!cont->is_intrinsic()) {
         for (auto use : cont->uses()) {
-            auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto continuation = def->isa_continuation())
-                if (func(continuation))
-                    return true;
+            auto actual_uses = include_globals && use->isa<Global>() ? use->uses() : Uses { use };
+            for (auto actual_use : actual_uses) {
+                auto def = actual_use.def();
+                if (auto app = def->isa<App>()) {
+                    for (auto ucontinuation : app->using_continuations()) {
+                        if (func(ucontinuation))
+                            return true;
+                    }
+                }
+            }
         }
     }
     return false;
@@ -308,7 +335,9 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
 
 bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     return visit_uses(cont, [&] (auto continuation) {
-        if (auto callee = continuation->callee()->isa_continuation())
+        if (!continuation->has_body()) return false;
+        auto body = continuation->body();
+        if (auto callee = body->callee()->template isa_nom<Continuation>())
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);

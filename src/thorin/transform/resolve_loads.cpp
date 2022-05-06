@@ -12,15 +12,7 @@ public:
 
     bool resolve_loads() {
         todo_ = false;
-        Scope::for_each(world_, [&] (const Scope& scope) {
-            resolve_loads(scope);
-        });
-        return todo_;
-    }
-
-    void resolve_loads(const Scope& scope) {
-        for (auto node : scope.f_cfg().reverse_post_order()) {
-            auto continuation = node->continuation();
+        for (auto continuation : world_.copy_continuations()) {
             for (auto param : continuation->params()) {
                 if (param->type()->isa<MemType>()) {
                     Def2Def mapping;
@@ -28,6 +20,7 @@ public:
                 }
             }
         }
+        return todo_;
     }
 
     void resolve_loads(const Def* mem, Def2Def& mapping) {
@@ -64,7 +57,7 @@ public:
                 // If the loaded value is completely specified, replace the load
                 if (!contains_top(load_value)) {
                     todo_ = true;
-                    load->replace(world_.tuple({ load->mem(), load_value }));
+                    load->replace_uses(world_.tuple({ load->mem(), load_value }));
                 }
             }
             return load->out_mem();
@@ -73,7 +66,7 @@ public:
             auto slot = find_slot(store->ptr());
             if (slot) {
                 if (only_stores(slot)) {
-                    store->replace(store->mem());
+                    store->replace_uses(store->mem());
                 } else {
                     // If the slot has been found and is safe, try to find a value for it
                     auto slot_value = get_value(slot, mapping);
@@ -176,8 +169,8 @@ public: \
     CACHED(contains_top, {
         if (def->isa<Top>()) {
             return true;
-        } else if (auto primop = def->isa<PrimOp>()) {
-            for (auto op : primop->ops()) {
+        } else if (def->isa_structural()) {
+            for (auto op : def->ops()) {
                 if (contains_top(op))
                     return true;
             }

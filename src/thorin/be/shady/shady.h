@@ -2,7 +2,9 @@
 
 namespace thorin::shady {
 
+extern "C" {
 #include <shady/ir.h>
+}
 
 class CodeGen : public thorin::CodeGen {
 public:

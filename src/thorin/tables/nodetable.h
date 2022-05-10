@@ -44,6 +44,7 @@
         THORIN_NODE(Run, run)
         THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
+    THORIN_NODE(Filter, filter)
     // Type
         // PrimType
         THORIN_NODE(App, app)
@@ -54,6 +55,7 @@
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
         THORIN_NODE(Lambda, lambda)
         THORIN_NODE(MemType, mem)
+        THORIN_NODE(BotType, bot_ty)
         THORIN_NODE(PtrType, ptr)
         THORIN_NODE(StructType, struct_type)
         THORIN_NODE(VariantType, variant_type)

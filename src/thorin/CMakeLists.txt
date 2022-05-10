@@ -72,6 +72,10 @@ set(THORIN_SOURCES
     transform/split_slots.h
     transform/structurize.cpp
     transform/structurize.h
+    transform/hls_channels.cpp
+    transform/hls_channels.h
+    transform/hls_kernel_launch.h
+    transform/hls_kernel_launch.cpp
     util/array.h
     util/cast.h
     util/hash.h
@@ -112,10 +116,14 @@ if (shady_FOUND)
 endif()
 
 add_library(thorin ${THORIN_SOURCES})
+target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${Thorin_ROOT_DIR}/src ${CMAKE_BINARY_DIR}/include)
 
 if(LLVM_FOUND)
     set(Thorin_LLVM_COMPONENTS core support ipo target ${LLVM_TARGETS_TO_BUILD})
+    target_include_directories(thorin SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+    target_compile_definitions(thorin PRIVATE ${LLVM_DEFINITIONS})
     if(RV_FOUND)
+        target_include_directories(thorin PRIVATE ${RV_INCLUDE_DIRS})
         target_link_libraries(thorin PRIVATE ${RV_LIBRARIES})
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()

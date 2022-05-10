@@ -43,12 +43,15 @@ void Cleaner::eliminate_tail_rec() {
         bool recursive = false;
         for (auto use : entry->uses()) {
             if (scope.contains(use)) {
-                if (use.index() != 0 || !use->isa<Continuation>()) {
-                    only_tail_calls = false;
-                    break;
-                } else {
+                if (use.index() == 0 && use->isa<App>()) {
                     recursive = true;
-                }
+                    continue;
+                } else if (use->isa_nom<Param>())
+                    continue; // ignore params
+
+                world().ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
+                only_tail_calls = false;
+                break;
             }
         }
 
@@ -60,8 +63,10 @@ void Cleaner::eliminate_tail_rec() {
                 args[i] = entry->param(i);
 
                 for (auto use : entry->uses()) {
-                    if (scope.contains(use)) {
-                        auto arg = use->as_continuation()->arg(i);
+                    if (scope.contains(use.def())) {
+                        auto app = use->isa<App>();
+                        if (!app) continue;
+                        auto arg = app->arg(i);
                         if (!arg->isa<Bottom>() && arg != args[i]) {
                             args[i] = nullptr;
                             break;
@@ -97,43 +102,52 @@ void Cleaner::eliminate_tail_rec() {
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
-        for (auto continuation : world().continuations()) {
-            if (continuation->empty()) continue;
+        for (auto def : world().copy_defs()) {
+            auto continuation = def->isa_nom<Continuation>();
+            if (!continuation || !continuation->has_body()) continue;
 
             // eat calls to known continuations that are only used once
-            while (auto callee = continuation->callee()->isa_continuation()) {
+            while (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+                auto body = continuation->body();
                 if (callee == continuation) break;
 
-                if (callee->num_uses() == 1 && !callee->empty() && !callee->is_exported()) {
-                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                        callee->param(i)->replace(continuation->arg(i));
-                    continuation->jump(callee->callee(), callee->args(), callee->debug()); // TODO debug
-                    callee->destroy_body();
+                if (callee->has_body() && !world().is_external(callee) && callee->can_be_inlined()) {
+                    auto callee_body = callee->body();
+                    for (size_t i = 0, e = body->num_args(); i != e; ++i)
+                        callee->param(i)->replace_uses(body->arg(i));
+
+                    // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
+                    // can_be_inlined() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
+                    assert(body->num_uses() == 1);
+                    continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
+                    callee->destroy("cleanup: continuation only called once");
+                    assert(body->num_uses() == 0);
                     todo_ = todo = true;
                 } else
                     break;
             }
 
+            auto body = continuation->body();
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
-            if (auto param = continuation->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || continuation->is_exported())
+            if (auto param = body->callee()->isa<Param>()) {
+                if (param->continuation() == continuation || world().is_external(continuation))
                     continue;
 
-                if (continuation->args() == continuation->params_as_defs()) {
-                    continuation->replace(continuation->callee());
-                    continuation->destroy_body();
+                if (body->args() == continuation->params_as_defs()) {
+                    continuation->replace_uses(body->callee());
+                    continuation->destroy("cleanup: calls a parameter (no perm)");
                     todo_ = todo = true;
                     continue;
                 }
 
                 // build the permutation of the arguments
-                Array<size_t> perm(continuation->num_args());
+                Array<size_t> perm(body->num_args());
                 bool is_permutation = true;
-                for (size_t i = 0, e = continuation->num_args(); i != e; ++i)  {
+                for (size_t i = 0, e = body->num_args(); i != e; ++i)  {
                     auto param_it = std::find(continuation->params().begin(),
                                                 continuation->params().end(),
-                                                continuation->arg(i));
+                                                body->arg(i));
 
                     if (param_it == continuation->params().end()) {
                         is_permutation = false;
@@ -148,14 +162,16 @@ void Cleaner::eta_conversion() {
                 // for every use of the continuation at a call site,
                 // permute the arguments and call the parameter instead
                 for (auto use : continuation->copy_uses()) {
-                    auto ucontinuation = use->isa_continuation();
-                    if (ucontinuation && use.index() == 0) {
-                        Array<const Def*> new_args(perm.size());
-                        for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                            new_args[i] = ucontinuation->arg(perm[i]);
+                    auto uapp = use->isa<App>();
+                    if (uapp && use.index() == 0) {
+                        for (auto ucontinuation : uapp->using_continuations()) {
+                            Array<const Def*> new_args(perm.size());
+                            for (size_t i = 0, e = perm.size(); i != e; ++i) {
+                                new_args[i] = uapp->arg(perm[i]);
+                            }
+                            ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
+                            todo_ = todo = true;
                         }
-                        ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
-                        todo_ = todo = true;
                     }
                 }
             }
@@ -164,13 +180,15 @@ void Cleaner::eta_conversion() {
 }
 
 void Cleaner::eliminate_params() {
+    // TODO
     for (auto ocontinuation : world().copy_continuations()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (!ocontinuation->empty() && !ocontinuation->is_exported()) {
+        if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
+            auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_continuation())
+                if (use.index() != 0 || !use->isa_nom<Continuation>())
                     goto next_continuation;
             }
 
@@ -188,19 +206,22 @@ void Cleaner::eliminate_params() {
                     ocontinuation->attributes(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
-                    ocontinuation->param(i)->replace(ncontinuation->param(j));
+                    ocontinuation->param(i)->replace_uses(ncontinuation->param(j));
                     ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
                 }
 
-                if (!ocontinuation->filter().empty())
-                    ncontinuation->set_filter(ocontinuation->filter().cut(proxy_idx));
-                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->debug());
-                ocontinuation->destroy_body();
+                if (!ocontinuation->filter()->is_empty())
+                    ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
+                ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
+                ncontinuation->verify();
+                ocontinuation->destroy("cleanup: calls a parameter (permutated)");
 
                 for (auto use : ocontinuation->copy_uses()) {
-                    auto ucontinuation = use->as_continuation();
+                    auto uapp = use->as<App>();
                     assert(use.index() == 0);
-                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->debug());
+                    for (auto ucontinuation : uapp->using_continuations()) {
+                        ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                    }
                 }
 
                 todo_ = true;
@@ -213,12 +234,17 @@ next_continuation:;
 void Cleaner::rebuild() {
     Importer importer(world_);
     importer.type_old2new_.rehash(world_.types().capacity());
-    importer.def_old2new_.rehash(world_.primops().capacity());
+    importer.def_old2new_.rehash(world_.defs().capacity());
 
-    for (auto continuation : world().exported_continuations())
-        importer.import(continuation);
+    for (auto&& [_, cont] : world().externals()) {
+        if (cont->is_exported())
+            importer.import(cont);
+    }
 
     swap(importer.world(), world_);
+
+    verify(world());
+
     todo_ |= importer.todo();
 }
 
@@ -227,41 +253,34 @@ void Cleaner::verify_closedness() {
         size_t i = 0;
         for (auto op : def->ops()) {
             within(op);
-            assert_unused(op->uses_.contains(Use(i++, def)) && "can't find def in op's uses");
+            assert_unused(op->uses().contains(Use(i++, def)) && "can't find def in op's uses");
         }
 
-        for (const auto& use : def->uses_) {
+        for (const auto& use : def->uses()) {
             within(use);
             assert(use->op(use.index()) == def && "use doesn't point to def");
         }
     };
 
-    for (auto primop : world().primops())
-        check(primop);
-    for (auto continuation : world().continuations()) {
-        check(continuation);
-        for (auto param : continuation->params())
-            check(param);
-    }
+    for (auto def : world().defs())
+        check(def);
 }
 
 void Cleaner::within(const Def* def) {
+    if (def->isa<Param>()) return; // TODO remove once Params are within World's sea of nodes
     assert(world().types().contains(def->type()));
-    if (auto primop = def->isa<PrimOp>())
-        assert_unused(world().primops().contains(primop));
-    else if (auto continuation = def->isa_continuation())
-        assert_unused(world().continuations().contains(continuation));
-    else
-        within(def->as<Param>()->continuation());
+    assert_unused(world().defs().contains(def));
 }
 
 void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
-    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->arg(3);
-    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    assert(cur->has_body());
+    auto body = cur->body();
+    assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = body->arg(3);
+    auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    world_.idef(cur->callee(), "pe_info was not constant: {}: {}", msg->as_string(), cur->arg(2));
-    cur->jump(next, {cur->arg(0)}, cur->debug()); // TODO debug
+    world_.idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
+    cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
     todo_ = true;
 
     // always re-insert into queue because we've changed cur's jump
@@ -277,16 +296,18 @@ void Cleaner::clean_pe_infos() {
             queue.push(continuation);
     };
 
-    for (auto continuation : world().exported_continuations())
-        enqueue(continuation);
+    for (auto&& [_, cont] : world().externals())
+        if (cont->has_body()) enqueue(cont);
 
     while (!queue.empty()) {
         auto continuation = pop(queue);
 
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            if (callee->intrinsic() == Intrinsic::PeInfo) {
-                clean_pe_info(queue, continuation);
-                continue;
+        if (continuation->has_body()) {
+            if (auto body = continuation->body()->isa<App>()) {
+                if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::PeInfo) {
+                    clean_pe_info(queue, continuation);
+                    continue;
+                }
             }
         }
 
@@ -320,8 +341,11 @@ void Cleaner::cleanup() {
 
     if (!world().is_pe_done()) {
         world().mark_pe_done();
-        for (auto continuation : world().continuations())
-            continuation->destroy_filter();
+        for (auto def : world().defs()) {
+            if (auto cont = def->isa_nom<Continuation>())
+                cont->destroy_filter();
+        }
+
         todo_ = true;
         cleanup_fix_point();
     }

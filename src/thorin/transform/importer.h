@@ -11,7 +11,7 @@ public:
     Importer(World& src)
         : world_(src)
     {
-        if  (src.is_pe_done())
+        if (src.is_pe_done())
             world_.mark_pe_done();
 #if THORIN_ENABLE_CHECKS
         if (src.track_history())
@@ -21,7 +21,7 @@ public:
 
     World& world() { return world_; }
     const Type* import(const Type*);
-    const Def* import(Tracker);
+    const Def* import(const Def*);
     bool todo() const { return todo_; }
 
 public:

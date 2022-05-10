@@ -22,7 +22,7 @@ public:
     Continuation* new_entry() const { return new_entry_; }
 
 private:
-    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
+    const App* mangle_body(const App* obody);
     Continuation* mangle_head(Continuation* ocontinuation);
     const Def* mangle(const Def* odef);
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
@@ -44,7 +44,7 @@ inline Continuation* drop(const Scope& scope, Defs args) {
     return mangle(scope, args, Array<const Def*>());
 }
 
-Continuation* drop(const Call&);
+Continuation* drop(const Def* callee, const Defs specialized_args);
 
 inline Continuation* lift(const Scope& scope, Defs defs) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);

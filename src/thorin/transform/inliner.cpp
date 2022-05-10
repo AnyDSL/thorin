@@ -12,10 +12,11 @@ void force_inline(Scope& scope, int threshold) {
         todo = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
-                if (!callee->empty() && !scope.contains(callee)) {
+            if (!continuation->has_body()) continue;
+            if (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+                if (callee->has_body() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
+                    continuation->jump(drop(callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
                     todo = true;
                 }
             }
@@ -27,8 +28,9 @@ void force_inline(Scope& scope, int threshold) {
 
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto continuation = n->continuation();
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            if (!callee->empty() && !scope.contains(callee))
+        if (!continuation->has_body()) continue;
+        if (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
+            if (callee->has_body() && !scope.contains(callee))
                 scope.world().WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->loc(), scope.entry());
         }
     }
@@ -50,14 +52,14 @@ void inliner(World& world) {
     };
 
     auto is_candidate = [&] (Continuation* continuation) -> Scope* {
-        if (!continuation->empty() && continuation->order() > 1) {
+        if (continuation->has_body() && continuation->order() > 1 && !continuation->is_external()) {
             auto scope = get_scope(continuation);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops
                 for (auto& use : continuation->uses()) {
                     // note that if there was an edge from parameter to continuation,
                     // we would need to check if the use is a parameter here.
-                    if (scope->contains(use.def()))
+                    if (!use->isa<Param>() && scope->contains(use.def()))
                         return nullptr;
                 }
                 return scope;
@@ -70,13 +72,14 @@ void inliner(World& world) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
+            if (!continuation->has_body()) continue;
+            if (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
                 world.DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
                     world.DLOG("- here: {}", continuation);
-                    continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->debug()); // TODO debug
+                    continuation->jump(drop(*callee_scope, continuation->body()->args()), {}, continuation->debug()); // TODO debug
                     dirty = true;
                 }
             }
@@ -93,6 +96,7 @@ void inliner(World& world) {
     world.VLOG("stop inliner");
     debug_verify(world);
     world.cleanup();
+
 }
 
 }

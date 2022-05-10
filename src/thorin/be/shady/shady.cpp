@@ -15,7 +15,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     structure_loops(world());
     structure_flow(world());
 
-    auto config = shady::IrConfig {
+    auto config = shady::ArenaConfig {
         .check_types = true,
     };
     arena = shady::new_arena(config);
@@ -23,15 +23,12 @@ void CodeGen::emit_stream(std::ostream& out) {
     Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
 
     // build root node with the top level stuff that got emitted
-    auto defs = std::vector<shady::Node*>(top_level.size(), nullptr);
-    auto vars = std::vector<shady::Node*>(top_level.size(), nullptr);
+    auto decls = std::vector<shady::Node*>(top_level.size(), nullptr);
     for (size_t i = 0; i < top_level.size(); i++) {
-        defs[i] = top_level[i].first;
-        vars[i] = top_level[i].second;
+        decls[i] = top_level[i].first;
     }
     auto root = shady::root(arena, (shady::Root) {
-        .variables = shady::nodes(arena, top_level.size(), const_cast<const shady::Node**>(vars.data())),
-        .definitions = shady::nodes(arena, top_level.size(), const_cast<const shady::Node**>(defs.data())),
+        .declarations = shady::nodes(arena, top_level.size(), const_cast<const shady::Node**>(decls.data())),
     });
 
     shady::print_node(root);

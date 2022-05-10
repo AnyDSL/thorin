@@ -22,7 +22,7 @@ find_path(Thorin_DIR
 
 find_path(Thorin_ROOT_DIR
     NAMES cmake/thorin-config.cmake.in src/thorin/world.h
-    PATHS ${Thorin_DIR} $ENV{Thorin_DIR} ${Thorin_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
+    PATHS ${Thorin_DIR} $ENV{Thorin_DIR} ${Thorin_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@Thorin_ROOT_DIR@" "@CMAKE_SOURCE_DIR@")
 list(APPEND CMAKE_MODULE_PATH "${Thorin_ROOT_DIR}/cmake/modules")
 
 find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")

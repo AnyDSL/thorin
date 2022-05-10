@@ -38,7 +38,9 @@ void Scope::run() {
         if (defs_.insert(def).second) {
             queue.push(def);
 
-            if (auto continuation = def->isa_continuation()) {
+            if (auto continuation = def->isa_nom<Continuation>()) {
+                // when a continuation is part of this scope, we also enqueue its params, and we assert those to be unique
+                // TODO most likely redundant once params have the continuation in their ops
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);
                     assert_unused(p.second);
@@ -82,7 +84,7 @@ const ParamSet& Scope::free_params() const {
         unique_queue<DefSet> queue;
 
         auto enqueue = [&](const Def* def) {
-            if (auto param = def->isa<Param>())
+            if (auto param = def->isa<Param>(); param && !param->continuation()->dead_)
                 free_params_->emplace(param);
             else if (def->isa<Continuation>())
                 return;
@@ -92,7 +94,6 @@ const ParamSet& Scope::free_params() const {
 
         for (auto def : free())
             enqueue(def);
-
         while (!queue.empty()) {
             for (auto op : queue.pop()->ops())
                 enqueue(op);
@@ -110,14 +111,13 @@ template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     unique_queue<ContinuationSet> continuation_queue;
 
-    for (auto continuation : world.exported_continuations()) {
-        assert(!continuation->empty() && "exported continuation must not be empty");
-        continuation_queue.push(continuation);
+    for (auto&& [_, cont] : world.externals()) {
+        if (cont->has_body()) continuation_queue.push(cont);
     }
 
     while (!continuation_queue.empty()) {
         auto continuation = continuation_queue.pop();
-        if (elide_empty && continuation->empty())
+        if (elide_empty && !continuation->has_body())
             continue;
         Scope scope(continuation);
         f(scope);
@@ -128,7 +128,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto continuation = def->isa_continuation())
+            if (auto continuation = def->isa_nom<Continuation>())
                 continuation_queue.push(continuation);
             else {
                 for (auto op : def->ops())

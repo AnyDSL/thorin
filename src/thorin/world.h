@@ -45,15 +45,27 @@ enum class LogLevel { Debug, Verbose, Info, Warn, Error };
  */
 class World : public TypeTable, public Streamable<World> {
 public:
-    typedef HashSet<const PrimOp*, PrimOpHash> PrimOpSet;
+    struct SeaHash {
+        static hash_t hash(const Def* def) { return def->hash(); }
+        static bool eq(const Def* d1, const Def* d2) { return d1->equal(d2); }
+        static const Def* sentinel() { return (const Def*)(1); }
+    };
 
     struct BreakHash {
-        static uint64_t hash(size_t i) { return i; }
+        static hash_t hash(size_t i) { return i; }
         static bool eq(size_t i1, size_t i2) { return i1 == i2; }
         static size_t sentinel() { return size_t(-1); }
     };
 
-    typedef HashSet<size_t, BreakHash> Breakpoints;
+    struct ExternalsHash {
+        static hash_t hash(const std::string& s) { return thorin::hash(s.c_str()); }
+        static bool eq(const std::string& s1, const std::string& s2) { return s1 == s2; }
+        static std::string sentinel() { return std::string(); }
+    };
+
+    using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
+    using Breakpoints = HashSet<size_t, BreakHash>;
+    using Externals   = HashMap<std::string, Continuation*, ExternalsHash>;
 
     World(World&&) = delete;
     World& operator=(const World&) = delete;
@@ -72,6 +84,16 @@ public:
     //@{
     //u32 cur_gid() const { return state_.cur_gid; }
     //u32 next_gid() { return ++state_.cur_gid; }
+    //@}
+
+    /// @name manage externals
+    //@{
+    bool empty() { return data_.externals_.empty(); }
+    const Externals& externals() const { return data_.externals_; }
+    void make_external(Continuation* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
+    void make_internal(Continuation* cont) { data_.externals_.erase(cont->unique_name()); }
+    bool is_external(const Continuation* cont) { return data_.externals_.contains(cont->unique_name()); }
+    Continuation* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
 
     // literals
@@ -218,9 +240,10 @@ public:
         return continuation(fn_type, Continuation::Attributes(), dbg);
     }
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
-    Continuation* branch() const { return branch_; }
+    Continuation* branch() const { return data_.branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
-    Continuation* end_scope() const { return end_scope_; }
+    Continuation* end_scope() const { return data_.end_scope_; }
+    const Filter* filter(const Defs, Debug dbg = {});
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -228,12 +251,10 @@ public:
 
     // getters
 
-    const std::string& name() const { return name_; }
-    const PrimOpSet& primops() const { return primops_; }
-    const ContinuationSet& continuations() const { return continuations_; }
-    Array<Continuation*> copy_continuations() const;
-    Array<Continuation*> exported_continuations() const;
-    bool empty() const { return continuations().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
+    const std::string& name() const { return data_.name_; }
+    const Sea& defs() const { return data_.defs_; }
+    const Array<const Def*> copy_defs() const { return Array<const Def*>(data_.defs_.begin(), data_.defs_.end()); }
+    std::vector<Continuation*> copy_continuations() const; // TODO remove this
 
     /// @name partial evaluation done?
     //@{
@@ -292,21 +313,34 @@ public:
     friend void swap(World& w1, World& w2) {
         using std::swap;
         swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
-        swap(w1.name_,          w2.name_);
-        swap(w1.continuations_, w2.continuations_);
-        swap(w1.primops_,       w2.primops_);
-        swap(w1.branch_,        w2.branch_);
-        swap(w1.end_scope_,     w2.end_scope_);
-        swap(w1.state_,         w2.state_);
+        swap(w1.state_,  w2.state_);
+        swap(w1.data_,   w2.data_);
+        swap(w1.stream_, w2.stream_);
     }
 
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
-    const Def* cse_base(const PrimOp*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
+
+    /// @name put into see of nodes
+    //@{
     template <class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+    const Def* cse_base(const Def*);
+
+    template<class T, class... Args>
+    T* put(Args&&... args) {
+        auto def = new T(args...);
+#ifndef NDEBUG
+        if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
+#endif
+        auto p = data_.defs_.emplace(def);
+        assert_unused(p.second);
+        return def;
+    }
+    //@}
 
     struct State {
         LogLevel min_level = LogLevel::Error;
@@ -319,16 +353,22 @@ private:
 #endif
     } state_;
 
-    std::string name_;
-    ContinuationSet continuations_;
-    PrimOpSet primops_;
-    Continuation* branch_;
-    Continuation* end_scope_;
+    struct Data {
+        std::string name_;
+        Externals externals_;
+        Sea defs_;
+        Continuation* branch_;
+        Continuation* end_scope_;
+    } data_;
+
     std::shared_ptr<Stream> stream_;
 
+    friend class Mangler;
     friend class Cleaner;
     friend class Continuation;
-    friend void Def::replace(Tracker) const;
+    friend class Filter;
+    friend class App;
+    friend class Importer;
 };
 
 }

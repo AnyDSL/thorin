@@ -1,5 +1,7 @@
 #include "thorin/be/codegen.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_kernel_launch.h"
 
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
@@ -16,35 +18,37 @@ namespace thorin {
 static void get_kernel_configs(
     Importer& importer,
     const std::vector<Continuation*>& kernels,
-    Cont2Config& kernel_config,
+    Cont2Config& kernel_configs,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
 
-    auto exported_continuations = importer.world().exported_continuations();
+    auto externals = importer.world().externals();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto exported : exported_continuations) {
+        for (auto [_, exported] : externals) {
+            if (!exported->has_body()) continue;
             if (exported->name() == continuation->unique_name())
                 imported = exported;
         }
         if (!imported) continue;
 
         visit_uses(continuation, [&] (Continuation* use) {
+            assert(use->has_body());
             auto config = use_callback(use, imported);
             if (config) {
-                auto p = kernel_config.emplace(imported, std::move(config));
+                auto p = kernel_configs.emplace(imported, std::move(config));
                 assert_unused(p.second && "single kernel config entry expected");
             }
             return false;
         }, true);
 
-        continuation->destroy_body();
+        continuation->destroy("codegen");
     }
 }
 
-static const Continuation* get_alloc_call(const Def* def) {
+static const App* get_alloc_call(const Def* def) {
     // look through casts
     while (auto conv_op = def->isa<ConvOp>())
         def = conv_op->op(0);
@@ -53,16 +57,16 @@ static const Continuation* get_alloc_call(const Def* def) {
     if (!param) return nullptr;
 
     auto ret = param->continuation();
-    if (ret->num_uses() != 1) return nullptr;
+    for (auto use : ret->uses()) {
+        auto call = use.def()->isa<App>();
+        if (!call || use.index() == 0) continue;
 
-    auto use = *(ret->uses().begin());
-    auto call = use.def()->isa_continuation();
-    if (!call || use.index() == 0) return nullptr;
+        auto callee = call->callee();
+        if (callee->name() != "anydsl_alloc") continue;
 
-    auto callee = call->callee();
-    if (callee->name() != "anydsl_alloc") return nullptr;
-
-    return call;
+        return call;
+    }
+    return nullptr;
 }
 
 static uint64_t get_alloc_size(const Def* def) {
@@ -74,7 +78,7 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
+DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& flags)
     : cgs {}
 {
     for (size_t i = 0; i < cgs.size(); ++i)
@@ -95,7 +99,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_continuation();
+                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
                 break;
             }
         }
@@ -105,9 +109,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
 
         // Necessary so that the names match in the original and imported worlds
         imported->set_name(continuation->unique_name());
-        imported->make_external();
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->set_name(continuation->param(i)->name());
+        imported->world().make_external(imported);
 
         kernels.emplace_back(continuation);
     });
@@ -115,11 +119,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, SpirV }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
+                auto app = use->body();
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
                 DefSet allocs;
-                for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
-                    auto arg = use->arg(i);
+                for (size_t i = LaunchArgs::Num, e = app->num_args(); has_restrict && i != e; ++i) {
+                    auto arg = app->arg(i);
                     if (!arg->type()->isa<PtrType>()) continue;
                     auto alloc = get_alloc_call(arg);
                     if (!alloc) has_restrict = false;
@@ -127,7 +132,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
                     has_restrict &= p.second;
                 }
 
-                auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+                auto it_config = app->arg(LaunchArgs::Config)->as<Tuple>();
                 if (it_config->op(0)->isa<PrimLit>() &&
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
@@ -143,11 +148,16 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     }
 
     // get the HLS kernel configurations
+    Top2Kernel top2kernel;
+    DeviceParams hls_host_params;
     if (!importers_[HLS].world().empty()) {
+        hls_host_params = hls_channels(importers_[HLS], top2kernel, world);
+
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+            auto app = use->body();
             HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
-                auto arg = use->arg(i);
+            for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {
+                auto arg = app->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);
@@ -170,11 +180,13 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
                     world.edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
-                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
+                param_sizes.emplace(imported->param(i - hls_free_vars_offset + 2), num_elems);
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
+        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
     }
+    hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
     if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
@@ -186,7 +198,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug)
     if (!importers_[SpirV].world().empty()) cgs[SpirV] = std::make_unique<shady::CodeGen>(importers_[SpirV].world(), kernel_config, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
-        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug);
+        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
 }
 
 CodeGen::CodeGen(World& world, bool debug)

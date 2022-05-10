@@ -14,12 +14,28 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
+Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
+    : tag_(tag)
+    , ops_(ops.size())
+    , type_(type)
+    , debug_(dbg)
+    , gid_(gid_counter_++)
+    , nom_(false)
+    , dep_(tag == Node_Continuation ? Dep::Cont  :
+           tag == Node_Param        ? Dep::Param :
+                                      Dep::Bot   )
+{
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        set_op(i, ops[i]);
+}
+
 Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
     , ops_(size)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
+    , nom_(true)
     , dep_(tag == Node_Continuation ? Dep::Cont  :
            tag == Node_Param        ? Dep::Param :
                                       Dep::Bot   )
@@ -41,8 +57,8 @@ void Def::set_op(size_t i, const Def* def) {
     ops_[i] = def;
     // A Param/Continuation should not have other bits than its own set.
     // (Right now, Param doesn't have ops, but this will change in the future).
-    if (!isa_continuation() && !isa<Param>())
-        dep_ |= def->dep();
+    if (!isa_nom<Continuation>() && !isa<Param>())
+        dep_ |= def->dep(); // what about unset op then ? and cascading uses ?
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
@@ -61,6 +77,7 @@ void Def::unregister_use(size_t i) const {
 }
 
 void Def::unset_op(size_t i) {
+    // Note: if replace() didn't touch the uses, we could assert for nominalness here !
     assert(ops_[i] && "must be set");
     unregister_use(i);
     ops_[i] = nullptr;
@@ -114,11 +131,8 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
-void Def::replace(Tracker with) const {
-    world().DLOG("replace: {} -> {}", this, with);
-    assert(type() == with->type());
-    assert(!is_replaced());
-
+void Def::replace_uses(const Def* with) const {
+    world().DLOG("replace uses: {} -> {}", this, with);
     if (this != with) {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
@@ -128,12 +142,9 @@ void Def::replace(Tracker with) const {
         }
 
         uses_.clear();
-        substitute_ = with;
     }
 }
 
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
-Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
-Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 
 }

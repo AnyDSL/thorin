@@ -1,6 +1,6 @@
 #include "structurize.h"
 
-//#include <algorithm>
+#include <unordered_map>
 
 #include "thorin/analyses/domtree.h"
 #include "thorin/world.h"
@@ -148,7 +148,7 @@ inline void collect_dispatch_targets(World& world, ScopeContext& ctx, const Base
             return;
         for (size_t i = 0; i < cont->num_ops(); i++) {
             auto def = cont->op(i);
-            if (auto dest = def->isa_continuation()) {
+            if (auto dest = def->isa_nom<Continuation>()) {
                 if (dest->intrinsic() == Intrinsic::Branch || dest->is_imported()) {
                     continue;
                 }
@@ -443,7 +443,7 @@ void structure_flow(World& world) {
         auto& post_dom_tree = cfa.b_cfg().domtree();
 
         for (auto def : scope.defs()) {
-            if (auto cont = def->isa_continuation()) {
+            if (auto cont = def->isa_nom<Continuation>()) {
                 if (cont->preds().size() <= 1)
                     continue;
 

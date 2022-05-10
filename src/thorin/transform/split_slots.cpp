@@ -29,14 +29,14 @@ static void split(const Slot* slot) {
 
     for (auto use : slot->copy_uses()) {
         if (auto lea = use->isa<LEA>()) {
-            lea->replace(elem_slot(lea->index()->as<PrimLit>()->value().get_u32()));
+            lea->replace_uses(elem_slot(lea->index()->as<PrimLit>()->value().get_u32()));
         } else if (auto store = use->isa<Store>()) {
             auto in_mem = store->op(0);
             for (size_t i = 0, e = dim; i != e; ++i) {
                 auto elem = world.extract(store->op(2), i, store->debug());
                 in_mem = world.store(in_mem, elem_slot(i), elem, store->debug());
             }
-            store->replace(in_mem);
+            store->replace_uses(in_mem);
         } else if (auto load = use->isa<Load>()) {
             auto in_mem = load->op(0);
             auto array = world.bottom(array_type, load->debug());
@@ -46,7 +46,7 @@ static void split(const Slot* slot) {
                 in_mem = world.extract(tuple, 0_u32, load->debug());
                 array = world.insert(array, i, elem, load->debug());
             }
-            load->replace(world.tuple({ in_mem, array }, load->debug()));
+            load->replace_uses(world.tuple({ in_mem, array }, load->debug()));
         }
     }
 }

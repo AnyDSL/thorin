@@ -45,16 +45,16 @@ static void hoist_enters(const Scope& scope) {
         auto old_enter = *i;
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
-            slot->replace(world.slot(slot->alloced_type(), frame, slot->debug()));
+            slot->replace_uses(world.slot(slot->alloced_type(), frame, slot->debug()));
             assert(slot->num_uses() == 0);
         }
     }
 
     for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i)
-        (*i)->out_mem()->replace((*i)->mem());
+        (*i)->out_mem()->replace_uses((*i)->mem());
 
     if (frame->num_uses() == 0)
-        entry_enter->out_mem()->replace(entry_enter->mem());
+        entry_enter->out_mem()->replace_uses(entry_enter->mem());
 }
 
 void hoist_enters(World& world) {

@@ -333,7 +333,7 @@ private:
     template<class T, class... Args>
     T* put(Args&&... args) {
         auto def = new T(args...);
-#ifndef NDEBUG
+#if !defined(NDEBUG) && THORIN_ENABLE_CHECKS
         if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
         auto p = data_.defs_.emplace(def);

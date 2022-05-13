@@ -245,6 +245,10 @@ public:
     Continuation* end_scope() const { return data_.end_scope_; }
     const Filter* filter(const Defs, Debug dbg = {});
 
+    Continuation* loop_enter(Types types, Continuations, Continuations);
+    Continuation* loop_continue(Types types);
+    Continuation* loop_break(Types types);
+
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
     void opt();

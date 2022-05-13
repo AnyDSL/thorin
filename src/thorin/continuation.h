@@ -111,14 +111,10 @@ enum class Intrinsic : uint8_t {
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
-    SCFBegin,
-    SCFLoopHeader = SCFBegin,   ///< A header for a structured loop
-    SCFLoopMerge,               ///< A merge block for a structured loop
-    SCFLoopContinue,            ///< A continue block in a structured loop
-    SCFNonLocalJump,            ///< A non-local jump in a structured control flow graph
-    SCFBackEdge,                ///< A back edge a structured loop,
-    SCFEnd,
-    PeInfo = SCFEnd,            ///< Partial evaluation debug info.
+    LoopBegin,                  ///<
+    LoopBreak,                  ///<
+    LoopContinue,               ///<
+    PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
 
@@ -211,9 +207,9 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    void structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets);
-    void structured_loop_continue(const Continuation* loop_header);
-    void structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets);
+    //void structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets);
+    //void structured_loop_continue(const Continuation* loop_header);
+    //void structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets);
     void verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }

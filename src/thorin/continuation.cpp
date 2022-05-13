@@ -260,7 +260,7 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     verify();
 }
 
-void Continuation::structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
+/*void Continuation::structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
     attributes_.intrinsic = Intrinsic::SCFLoopMerge;
     attributes_.scf_metadata.loop_epilogue.loop_header = loop_header;
     resize(targets.size());
@@ -283,7 +283,7 @@ void Continuation::structured_loop_header(const Continuation* loop_epilogue, con
     size_t x = 0;
     for (auto target : targets)
         set_op(x++, target);
-}
+}*/
 
 void Continuation::verify() const {
     if (!has_body())

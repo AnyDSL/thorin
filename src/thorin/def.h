@@ -37,7 +37,7 @@ public:
     size_t index() const { return uptr_ >> 48ull; }
     const Def* def() const {
         // sign extend to make pointer canonical
-        return reinterpret_cast<const Def*>((iptr_  << 16) >> 16) ;
+        return reinterpret_cast<const Def*>(((iptr_ & 0x0000FFFFFFFFFFFF) << 16) >> 16) ;
     }
 #else
     Use(size_t index, const Def* def)

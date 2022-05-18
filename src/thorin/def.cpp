@@ -147,4 +147,11 @@ void Def::replace_uses(const Def* with) const {
 
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
 
+uint64_t UseHash::hash(Use use) {
+    assert(use->gid() != uint32_t(-1));
+    hash_t seed = hash_begin(use.index());
+    seed = hash_combine(seed, uint32_t(use->gid()));
+    return seed;
+}
+
 }

@@ -68,7 +68,7 @@ private:
 //------------------------------------------------------------------------------
 
 struct UseHash {
-    inline static uint64_t hash(Use use);
+    static uint64_t hash(Use use);
     inline static bool eq(Use u1, Use u2) { return u1 == u2; }
     inline static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
@@ -244,11 +244,6 @@ private:
     friend class Scope;
     friend class World;
 };
-
-uint64_t UseHash::hash(Use use) {
-    assert(use->gid() != uint32_t(-1));
-    return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid()));
-}
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);

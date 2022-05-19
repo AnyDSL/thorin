@@ -485,7 +485,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 call->setCallingConv(function_calling_convention_);
         } else {
             // must be a closure
-            auto closure = emit(callee);
+            auto closure = emit(body->callee());
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);
             call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getElementType()), func, args);

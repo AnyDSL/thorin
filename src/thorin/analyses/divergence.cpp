@@ -422,8 +422,18 @@ void DivergenceAnalysis::run() {
     std::queue <const Def*> def_queue;
 
     //Step 3.2: Mark varying defs
-    //TODO: Memory Analysis: We need to track values that lie in memory slots!
-    //This might not be so significant, stuff resides in memory for a reason.
+    //Mark memory slots inside the vectorized region as varying.
+    auto enter_mem = base->param(0);
+    for (auto use : enter_mem->uses()) {
+        auto enter = use->isa<Enter>();
+        if (enter) {
+            auto frame = enter->out_frame();
+            for (auto frame_use : frame->uses()) {
+                uniform[frame_use] = Varying;
+                def_queue.push(frame_use);
+            }
+        }
+    }
 
     //Step 3.2.1: Mark incomming trip counter as varying.
     auto def = base->params_as_defs()[1];

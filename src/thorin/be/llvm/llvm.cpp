@@ -497,22 +497,25 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 irbuilder.CreateBr(target_bb);
             } else if (all_zero) {
                 auto new_mask = emit(mask);
-                emit_phi_arg(irbuilder, continuation->arg(3)->as_continuation()->param(1), new_mask);
+                auto inv_mask = irbuilder.CreateNot(new_mask);
+                emit_phi_arg(irbuilder, continuation->arg(3)->as_continuation()->param(1), inv_mask);
                 irbuilder.CreateBr(over_bb);
             } else {
                 assert(over_bb);
                 auto new_mask = emit(mask);
+                auto inv_mask = irbuilder.CreateNot(new_mask);
                 llvm::Value *any_set = irbuilder.CreateOrReduce(new_mask);
                 emit_phi_arg(irbuilder, continuation->arg(2)->as_continuation()->param(1), new_mask);
-                emit_phi_arg(irbuilder, continuation->arg(3)->as_continuation()->param(1), new_mask);
+                emit_phi_arg(irbuilder, continuation->arg(3)->as_continuation()->param(1), inv_mask);
                 irbuilder.CreateCondBr(any_set, target_bb, over_bb);
             }
         } else {
             assert(over_bb);
             auto new_mask = emit(mask);
+            auto inv_mask = irbuilder.CreateNot(new_mask);
             llvm::Value *any_set = irbuilder.CreateOrReduce(new_mask);
             emit_phi_arg(irbuilder, continuation->arg(2)->as_continuation()->param(1), new_mask);
-            emit_phi_arg(irbuilder, continuation->arg(3)->as_continuation()->param(1), new_mask);
+            emit_phi_arg(irbuilder, continuation->arg(3)->as_continuation()->param(1), inv_mask);
             irbuilder.CreateCondBr(any_set, target_bb, over_bb);
         }
     } else if (continuation->callee()->isa<Bottom>()) {
@@ -1137,14 +1140,20 @@ llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) 
 llvm::Value* CodeGen::emit_masked_load(llvm::IRBuilder<>& irbuilder, const MaskedLoad* masked_load) {
     emit_unsafe(masked_load->mem());
     auto ptr = emit(masked_load->ptr());
-    auto mask = emit(masked_load->op(2));
 
     auto vectype = masked_load->out_val_type()->isa<VectorType>();
-    assert(vectype && vectype->is_vector());
+    assert(vectype);
 
-    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getScalarType()->getPointerElementType());
-    auto result = irbuilder.CreateMaskedGather(ptr, align, mask);
-    return result;
+    if (!vectype->is_vector()) {
+        auto result = irbuilder.CreateLoad(ptr);
+        return result;
+    } else {
+        //assert(vectype && vectype->is_vector());
+        auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getScalarType()->getPointerElementType());
+        auto mask = emit(masked_load->op(2));
+        auto result = irbuilder.CreateMaskedGather(ptr, align, mask);
+        return result;
+    }
 }
 
 llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* store) {

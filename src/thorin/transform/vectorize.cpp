@@ -53,7 +53,7 @@ private:
 
     const Def* current_frame;
 
-    size_t vector_width = 8;
+    size_t vector_width = INT_MAX;
 
     std::queue<Continuation*> queue_;
     void enqueue(Continuation* continuation) {
@@ -208,6 +208,7 @@ const Def* Vectorizer::widen(const Def* old_def, const Continuation* context) {
         }
 
         auto r = old_def->as<PrimOp>()->rebuild(world_, old_def->type(), nops);
+        def2def_[old_def] = r;
         return r; //TODO: this def could contain a continuation inside a tuple for match cases!
     } else if (auto param = old_def->isa<Param>()) {
 #ifdef DUMP_WIDEN
@@ -383,8 +384,6 @@ const Def* Vectorizer::widen(const Def* old_def, const Continuation* context) {
             if (div_analysis_->isPredicated[const_cast<Continuation*>(context)]) {
                 auto new_cont = def2def_[context]->isa_continuation();
                 assert(new_cont);
-
-                new_cont->param(1);
 
                 if (old_primop->isa<Store>()) {
                     new_primop = world_.maskedstore(nops[0], nops[1], nops[2], new_cont->param(1));
@@ -1332,10 +1331,20 @@ void Vectorizer::linearize(Continuation * vectorized) {
     std::queue <Continuation*> split_queue;
     GIDMap<const Continuation*, const Def*> runningVars;
 
-    //TODO: find enter definition if already present.
     {
         auto mem = vectorized->mem_param();
-        const Enter* enter = world_.enter(mem)->as<Enter>();
+
+        const Enter* enter = nullptr;
+        for (auto use : mem->uses()) {
+            auto penter = use->isa<Enter>();
+            if (penter) {
+                enter = penter;
+                break;
+            }
+        }
+        if (!enter)
+            enter = world_.enter(mem)->as<Enter>();
+
         current_frame = enter->out_frame();
         auto newmem = enter->out_mem();
         for (auto use : mem->copy_uses()) {
@@ -1631,6 +1640,11 @@ bool Vectorizer::run() {
 #endif
 
             for (auto pred : cont->preds()) {
+                auto vector_width_const = pred->arg(1)->isa<PrimLit>();
+                assert(vector_width_const);
+                assert(vector_width_const->primtype_tag() == PrimType_qs32);
+                vector_width = vector_width_const->qs32_value();
+
                 auto *kernarg = dynamic_cast<const Global *>(pred->arg(2));
                 assert(kernarg && "Not sure if all kernels are always declared globally");
                 assert(!kernarg->is_mutable() && "Self transforming code is not supported here!");

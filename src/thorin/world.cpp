@@ -44,7 +44,7 @@ namespace thorin {
 
 World::World(const std::string& name) {
     data_.name_   = name;
-    data_.branch_ = continuation(fn_type({mem_type(), type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    data_.branch_ = continuation(fn_type({mem_type(), type_bool(), fn_type({mem_type()}), fn_type({mem_type()})}), Intrinsic::Branch, {"br"});
     data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 

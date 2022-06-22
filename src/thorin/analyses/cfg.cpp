@@ -62,6 +62,8 @@ CFA::CFA(const Scope& scope)
 
         while (!queue.empty()) {
             auto def = pop(queue);
+            if (def->isa<Param>())
+                continue;
             for (auto op : def->ops())
                 enqueue(op);
         }

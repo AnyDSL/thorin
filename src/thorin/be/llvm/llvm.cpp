@@ -1093,13 +1093,14 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
 
     std::string constraints;
     for (auto con : assembly->output_constraints())
-        constraints += con + ",";
+        constraints += (constraints.empty() ? "" : ",") + con;
     for (auto con : assembly->input_constraints())
-        constraints += con + ",";
+        constraints += (constraints.empty() ? "" : ",") + con;
     for (auto clob : assembly->clobbers())
-        constraints += "~{" + clob + "},";
+        constraints += (constraints.empty() ? "" : ",") + std::string("~{") + clob + "}";
     // clang always marks those registers as clobbered, so we will do so as well
-    constraints += "~{dirflag},~{fpsr},~{flags}";
+    if (llvm::Triple(module().getTargetTriple()).isX86())
+        constraints += (constraints.empty() ? "" : ",") + std::string("~{dirflag},~{fpsr},~{flags}");
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
         world().edef(assembly, "constraints and input and output types of inline assembly do not match");

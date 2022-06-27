@@ -18,7 +18,7 @@ private:
 
 protected:
     //@{
-    /// @name default implemantations
+    /// @name default implementations
     void finalize(const Scope&) {}
     void finalize(Continuation*) {}
     //@}

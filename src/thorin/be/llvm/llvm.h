@@ -99,6 +99,7 @@ private:
     Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_intrinsic(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_hls(llvm::IRBuilder<>&, Continuation*);
+    Continuation* emit_cgra(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_parallel(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_fibers(llvm::IRBuilder<>&, Continuation*);
     Continuation* emit_spawn(llvm::IRBuilder<>&, Continuation*);

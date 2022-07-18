@@ -1144,6 +1144,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
         case Intrinsic::AMDGPU:      return runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
         case Intrinsic::HLS:         return emit_hls(irbuilder, continuation);
+        case Intrinsic::CGRA:        return emit_cgra(irbuilder, continuation);
         case Intrinsic::Parallel:    return emit_parallel(irbuilder, continuation);
         case Intrinsic::Fibers:      return emit_fibers(irbuilder, continuation);
         case Intrinsic::Spawn:       return emit_spawn(irbuilder, continuation);

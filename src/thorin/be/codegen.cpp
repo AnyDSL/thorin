@@ -91,7 +91,8 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             std::pair { NVVM,   Intrinsic::NVVM   },
             std::pair { OpenCL, Intrinsic::OpenCL },
             std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    }
+            std::pair { HLS,    Intrinsic::HLS    },
+            std::pair { CGRA,   Intrinsic::CGRA   }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -190,7 +191,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 #else
     (void)opt;
 #endif
-    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
+    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS }, std::pair { CGRA, c::Lang::CGRA } })
         if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
 }
 

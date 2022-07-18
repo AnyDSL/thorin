@@ -148,6 +148,7 @@ static inline const std::string lang_as_string(Lang lang) {
         default:     THORIN_UNREACHABLE;
         case Lang::C99:    return "C99";
         case Lang::HLS:    return "HLS";
+        case Lang::CGRA:   return "CGRA";
         case Lang::CUDA:   return "CUDA";
         case Lang::OpenCL: return "OpenCL";
     }

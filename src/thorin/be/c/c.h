@@ -12,7 +12,7 @@ class World;
 
 namespace c {
 
-enum class Lang : uint8_t { C99, HLS, CUDA, OpenCL };
+enum class Lang : uint8_t { C99, HLS, CGRA, CUDA, OpenCL };
 
 class CodeGen : public thorin::CodeGen {
 public:
@@ -30,6 +30,7 @@ public:
         switch (lang_) {
             case Lang::C99:    return ".c";
             case Lang::HLS:    return ".hls";
+            case Lang::CGRA:   return ".cgra";
             case Lang::CUDA:   return ".cu";
             case Lang::OpenCL: return ".cl";
             default: THORIN_UNREACHABLE;

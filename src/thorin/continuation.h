@@ -92,6 +92,7 @@ enum class Intrinsic : uint8_t {
     OpenCL,                     ///< Internal OpenCL-Backend.
     AMDGPU,                     ///< Internal AMDGPU-Backend.
     HLS,                        ///< Internal HLS-Backend.
+    CGRA,                       ///< Internal CGRA-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.

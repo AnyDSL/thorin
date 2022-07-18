@@ -1291,9 +1291,9 @@ Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const C
 Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
-    std::vector<llvm::Value*> args(body->num_args()-3);
+    std::vector<llvm::Value*> args(body->num_args() - 4);
     Continuation* ret = nullptr;
-    for (size_t i = 2, j = 0; i < body->num_args(); ++i) {
+    for (size_t i = 3, j = 0; i < body->num_args(); ++i) {
         if (auto cont = body->arg(i)->isa_nom<Continuation>()) {
             ret = cont;
             continue;

@@ -1293,6 +1293,7 @@ Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* cont
     auto body = continuation->body();
     std::vector<llvm::Value*> args(body->num_args() - 4);
     Continuation* ret = nullptr;
+
     for (size_t i = 3, j = 0; i < body->num_args(); ++i) {
         if (auto cont = body->arg(i)->isa_nom<Continuation>()) {
             ret = cont;
@@ -1312,7 +1313,7 @@ Continuation* CodeGen::emit_cgra(llvm::IRBuilder<>& irbuilder, Continuation* con
     assert(continuation->has_body());
     auto body = continuation->body();
 
-    std::vector<llvm::Value*> args(body->num_args() - 4);
+    std::vector<llvm::Value*> args;
     Continuation* ret = nullptr;
     for (size_t i = 3; i < body->num_args(); ++i) {
         if (auto cont = body->arg(i)->isa_nom<Continuation>()) {
@@ -1324,6 +1325,7 @@ Continuation* CodeGen::emit_cgra(llvm::IRBuilder<>& irbuilder, Continuation* con
 
     auto callee = body->arg(2)->as<Global>()->init()->as_nom<Continuation>();
     world().make_external(callee);
+    // calling cgra kernel
     irbuilder.CreateCall(emit_fun_decl(callee), args);
     assert(ret);
     return ret;

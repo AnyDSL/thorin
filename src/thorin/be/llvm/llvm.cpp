@@ -718,11 +718,11 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         llvm::Value* args[2] = { irbuilder.getInt64(0), nullptr };
         for (auto op : array->ops()) {
             args[1] = irbuilder.getInt64(i++);
-            auto gep = irbuilder.CreateInBoundsGEP(alloca, args, op->name().c_str());
+            auto gep = irbuilder.CreateInBoundsGEP(type, alloca, args, op->name().c_str());
             irbuilder.CreateStore(emit(op), gep);
         }
 
-        return irbuilder.CreateLoad(alloca);
+        return irbuilder.CreateLoad(alloca->getAllocatedType(), alloca);
     } else if (auto array = def->isa<IndefiniteArray>()) {
         return llvm::UndefValue::get(convert(array->type()));
     } else if (auto agg = def->isa<Aggregate>()) {
@@ -770,7 +770,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             irbuilder.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder.getInt64(0), llvm_idx };
-            auto gep = irbuilder.CreateInBoundsGEP(alloca, args);
+            auto gep = irbuilder.CreateInBoundsGEP(llvm_agg->getType(), alloca, args);
             return std::make_pair(alloca, gep);
         };
         auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
@@ -778,14 +778,15 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                 auto global = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
                 global->setLinkage(llvm::GlobalValue::InternalLinkage);
                 global->setInitializer(constant);
-                return irbuilder.CreateInBoundsGEP(global, { irbuilder.getInt64(0), llvm_idx });
+                return irbuilder.CreateInBoundsGEP(llvm_agg->getType(), global, { irbuilder.getInt64(0), llvm_idx });
             }
             return copy_to_alloca().second;
         };
 
         if (auto extract = aggop->isa<Extract>()) {
             if (aggop->agg()->type()->isa<ArrayType>()) {
-                return irbuilder.CreateLoad(copy_to_alloca_or_global());
+                auto alloca_or_global = copy_to_alloca_or_global();
+                return irbuilder.CreateLoad(alloca_or_global->getType()->getPointerElementType(), alloca_or_global);
             } else if (extract->agg()->type()->isa<VectorType>()) {
                 return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
             }
@@ -810,7 +811,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         if (insert->agg()->type()->isa<ArrayType>()) {
             auto p = copy_to_alloca();
             irbuilder.CreateStore(emit(aggop->as<Insert>()->value()), p.second);
-            return irbuilder.CreateLoad(p.first);
+            return irbuilder.CreateLoad(p.first->getType(), p.first);
         } else if (insert->agg()->type()->isa<VectorType>()) {
             return irbuilder.CreateInsertElement(llvm_agg, emit(aggop->as<Insert>()->value()), llvm_idx);
         }
@@ -832,25 +833,25 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
             irbuilder.CreateStore(payload_value, alloca);
             auto addr_space = alloca->getType()->getPointerAddressSpace();
             auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(convert(target_type), addr_space));
-            return irbuilder.CreateLoad(payload_addr);
+            return irbuilder.CreateLoad(payload_addr->getType()->getPointerElementType(), payload_addr);
         });
     } else if (auto variant_ctor = def->isa<Variant>()) {
         auto llvm_type = convert(variant_ctor->type());
         auto tag_value = irbuilder.getIntN(llvm_type->getStructElementType(1)->getScalarSizeInBits(), variant_ctor->index());
 
         return create_tmp_alloca(irbuilder, llvm_type, [&] (llvm::AllocaInst* alloca) {
-            auto tag_addr = irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(1) });
+            auto tag_addr = irbuilder.CreateInBoundsGEP(llvm_type, alloca, { irbuilder.getInt32(0), irbuilder.getInt32(1) });
             irbuilder.CreateStore(tag_value, tag_addr);
 
             // Do not store anything if the payload is unit
             if (!is_type_unit(variant_ctor->op(0)->type())) {
                 auto payload_value = emit(variant_ctor->op(0));
                 auto payload_addr = irbuilder.CreatePointerCast(
-                    irbuilder.CreateInBoundsGEP(alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
+                    irbuilder.CreateInBoundsGEP(llvm_type, alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
                     llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
                 irbuilder.CreateStore(payload_value, payload_addr);
             }
-            return irbuilder.CreateLoad(alloca);
+            return irbuilder.CreateLoad(alloca->getAllocatedType(), alloca);
         });
     } else if (auto primlit = def->isa<PrimLit>()) {
         llvm::Type* llvm_type = convert(primlit->type());
@@ -1041,7 +1042,7 @@ llvm::Value* CodeGen::call_math_function(llvm::IRBuilder<>& irbuilder, const Mat
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
     emit_unsafe(load->mem());
     auto ptr = emit(load->ptr());
-    auto result = irbuilder.CreateLoad(ptr);
+    auto result = irbuilder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     result->setAlignment(align);
     return result;
@@ -1062,7 +1063,8 @@ llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
 
     assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
     llvm::Value* args[2] = { irbuilder.getInt64(0), emit(lea->index()) };
-    return irbuilder.CreateInBoundsGEP(emit(lea->ptr()), args);
+    auto ptr = emit(lea->ptr());
+    return irbuilder.CreateInBoundsGEP(ptr->getType()->getPointerElementType(), ptr, args);
 }
 
 llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
@@ -1193,7 +1195,7 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = body->arg(4)->as_nom<Continuation>();
-    auto load = irbuilder.CreateLoad(ptr);
+    auto load = irbuilder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     load->setAlignment(align);
     load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));

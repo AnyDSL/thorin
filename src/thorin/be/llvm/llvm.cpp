@@ -477,7 +477,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         llvm::CallInst* call = nullptr;
         if (auto callee = body->callee()->isa_nom<Continuation>()) {
             call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
-            if (world().is_external(callee))
+            if (callee->is_exported())
                 call->setCallingConv(kernel_calling_convention_);
             else if (callee->cc() == CC::Device)
                 call->setCallingConv(device_calling_convention_);

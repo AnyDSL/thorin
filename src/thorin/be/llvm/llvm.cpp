@@ -60,7 +60,7 @@ CodeGen::CodeGen(
 
 void CodeGen::optimize() {
     llvm::PassBuilder PB;
-    llvm::PassBuilder::OptimizationLevel opt_level;
+    llvm::OptimizationLevel opt_level;
 
     llvm::LoopAnalysisManager LAM;
     llvm::FunctionAnalysisManager FAM;
@@ -74,11 +74,11 @@ void CodeGen::optimize() {
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
     switch (opt()) {
-        case 0:  opt_level = llvm::PassBuilder::OptimizationLevel::O0; break;
-        case 1:  opt_level = llvm::PassBuilder::OptimizationLevel::O1; break;
-        case 2:  opt_level = llvm::PassBuilder::OptimizationLevel::O2; break;
-        case 3:  opt_level = llvm::PassBuilder::OptimizationLevel::O3; break;
-        default: opt_level = llvm::PassBuilder::OptimizationLevel::Os; break;
+        case 0:  opt_level = llvm::OptimizationLevel::O0; break;
+        case 1:  opt_level = llvm::OptimizationLevel::O1; break;
+        case 2:  opt_level = llvm::OptimizationLevel::O2; break;
+        case 3:  opt_level = llvm::OptimizationLevel::O3; break;
+        default: opt_level = llvm::OptimizationLevel::Os; break;
     }
 
     if (opt() == 3) {
@@ -488,7 +488,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             auto closure = emit(body->callee());
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);
-            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getElementType()), func, args);
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getPointerElementType()), func, args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare

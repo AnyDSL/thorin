@@ -109,7 +109,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     // ensure proper loop forms
     llvm::FunctionPassManager FPM;
     FPM.addPass(llvm::SimplifyCFGPass());
-    FPM.addPass(llvm::SROA());
+    FPM.addPass(llvm::SROAPass());
     FPM.addPass(llvm::EarlyCSEPass());
     FPM.addPass(llvm::SCCPPass());
     FPM.addPass(llvm::FixIrreduciblePass()); // make all loops reducible (has to run first!)

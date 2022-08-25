@@ -131,5 +131,5 @@ if(LLVM_FOUND)
 endif()
 
 if (shady_FOUND)
-    target_link_libraries(thorin PRIVATE shady)
+    target_link_libraries(thorin PRIVATE shady::shady)
 endif()

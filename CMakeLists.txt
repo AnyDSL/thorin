@@ -47,8 +47,6 @@ endif()
 find_package(shady REQUIRED CONFIG)
 if (shady_FOUND)
     message(STATUS "Found shady at ${shady_DIR}")
-    message(STATUS "Found shady headers ${shady_INCLUDE_DIRS}")
-    include_directories(${shady_INCLUDE_DIRS})
     set(THORIN_ENABLE_SHADY TRUE)
 endif()
 

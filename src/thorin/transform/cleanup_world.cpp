@@ -243,7 +243,7 @@ void Cleaner::rebuild() {
 
     swap(importer.world(), world_);
 
-    verify(world());
+    // verify(world());
 
     todo_ |= importer.todo();
 }

@@ -477,7 +477,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         llvm::CallInst* call = nullptr;
         if (auto callee = body->callee()->isa_nom<Continuation>()) {
             call = irbuilder.CreateCall(llvm::cast<llvm::Function>(emit(callee)), args);
-            if (world().is_external(callee))
+            if (callee->is_exported())
                 call->setCallingConv(kernel_calling_convention_);
             else if (callee->cc() == CC::Device)
                 call->setCallingConv(device_calling_convention_);
@@ -485,7 +485,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 call->setCallingConv(function_calling_convention_);
         } else {
             // must be a closure
-            auto closure = emit(callee);
+            auto closure = emit(body->callee());
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);
             call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getElementType()), func, args);
@@ -1093,13 +1093,14 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
 
     std::string constraints;
     for (auto con : assembly->output_constraints())
-        constraints += con + ",";
+        constraints += (constraints.empty() ? "" : ",") + con;
     for (auto con : assembly->input_constraints())
-        constraints += con + ",";
+        constraints += (constraints.empty() ? "" : ",") + con;
     for (auto clob : assembly->clobbers())
-        constraints += "~{" + clob + "},";
+        constraints += (constraints.empty() ? "" : ",") + std::string("~{") + clob + "}";
     // clang always marks those registers as clobbered, so we will do so as well
-    constraints += "~{dirflag},~{fpsr},~{flags}";
+    if (llvm::Triple(module().getTargetTriple()).isX86())
+        constraints += (constraints.empty() ? "" : ",") + std::string("~{dirflag},~{fpsr},~{flags}");
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
         world().edef(assembly, "constraints and input and output types of inline assembly do not match");

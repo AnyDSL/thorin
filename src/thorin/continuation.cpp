@@ -142,6 +142,8 @@ Continuations Continuation::preds() const {
 
     auto enqueue = [&] (const Def* def) {
         for (auto use : def->uses()) {
+            if (use->isa<Param>())
+                continue;
             if (done.find(use) == done.end()) {
                 queue.push(use);
                 done.insert(use);

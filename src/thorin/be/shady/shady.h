@@ -1,10 +1,12 @@
 #include "thorin/be/codegen.h"
 
-namespace thorin::shady {
-
+namespace shady {
 extern "C" {
 #include <shady/ir.h>
 }
+}
+
+namespace thorin::shady_be {
 
 class CodeGen : public thorin::CodeGen {
 public:
@@ -13,8 +15,10 @@ public:
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".shady"; }
 
-    shady::Type* convert(const Type*);
+    const shady::Type* convert(const Type*);
 protected:
+    shady::AddressSpace convert_address_space(AddrSpace);
+
     void emit(const Scope& scope);
     //void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
     //shady::Node* emit(const Def* def, BasicBlockBuilder* bb);
@@ -25,8 +29,8 @@ protected:
     std::vector<std::pair<shady::Node*, shady::Node*>> top_level;
 
     Continuation* entry_ = nullptr;
-    TypeMap<std::unique_ptr<shady::Type*>> types_;
-    DefMap<shady::Node*> defs_;
+    TypeMap<const shady::Type*> types_;
+    DefMap<const shady::Node*> defs_;
     const Cont2Config& kernel_config_;
 
 };

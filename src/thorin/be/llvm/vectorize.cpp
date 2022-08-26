@@ -98,27 +98,33 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     verify();
 
-    llvm::PassBuilder PB;
+    // setup LLVM analysis infrastructure
     llvm::LoopAnalysisManager LAM;
     llvm::FunctionAnalysisManager FAM;
-    LAM.registerPass([&] { return llvm::FunctionAnalysisManagerLoopProxy(FAM); });
-    FAM.registerPass([&] { return llvm::LoopAnalysisManagerFunctionProxy(LAM); });
+    llvm::CGSCCAnalysisManager CGAM;
+    llvm::ModuleAnalysisManager MAM;
+
+    llvm::PassBuilder PB;
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
     PB.registerFunctionAnalyses(FAM);
     PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
     // ensure proper loop forms
     llvm::FunctionPassManager FPM;
     FPM.addPass(llvm::SimplifyCFGPass());
-    FPM.addPass(llvm::SROA());
+    FPM.addPass(llvm::SROAPass());
     FPM.addPass(llvm::EarlyCSEPass());
     FPM.addPass(llvm::SCCPPass());
     FPM.addPass(llvm::FixIrreduciblePass()); // make all loops reducible (has to run first!)
     FPM.addPass(llvm::PromotePass()); // CNSPass relies on mem2reg for now
 
+    FPM.addPass(llvm::RequireAnalysisPass<llvm::OptimizationRemarkEmitterAnalysis, llvm::Function>());
+
     llvm::LoopPassManager LPM;
     LPM.addPass(llvm::LICMPass());
-    FPM.addPass(llvm::RequireAnalysisPass<llvm::OptimizationRemarkEmitterAnalysis, llvm::Function>());
-    FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
+    FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM), /*UseMemorySSA=*/true));
 
     FPM.addPass(llvm::LCSSAPass());
 
@@ -168,7 +174,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         }
 
         llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, true, retVec);
+        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, llvm::CloneFunctionChangeType::DifferentModule, retVec);
 
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
@@ -190,10 +196,20 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
             canonicalizer.canonicalize(*kernel_func);
         }
 
-        llvm::PassBuilder PB;
+        // setup LLVM analysis infrastructure
+        llvm::LoopAnalysisManager LAM;
         llvm::FunctionAnalysisManager FAM;
+        llvm::CGSCCAnalysisManager CGAM;
+        llvm::ModuleAnalysisManager MAM;
+
+        llvm::PassBuilder PB;
+        PB.registerModuleAnalyses(MAM);
+        PB.registerCGSCCAnalyses(CGAM);
         PB.registerFunctionAnalyses(FAM);
-        FAM.getResult<llvm::LoopAnalysis>(vec_info.getScalarFunction());
+        PB.registerLoopAnalyses(LAM);
+        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+        FAM.getResult<llvm::LoopAnalysis>(*kernel_func);
 
         vectorizer.analyze(vec_info, FAM);
 

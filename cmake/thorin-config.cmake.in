@@ -7,7 +7,7 @@
 # Thorin_HAS_LLVM_SUPPORT | Thorin_HAS_RV_SUPPORT
 # AnyDSL_LLVM_LINK_SHARED
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.13.4)
 
 find_path(Thorin_DIR
     NAMES thorin-config.cmake

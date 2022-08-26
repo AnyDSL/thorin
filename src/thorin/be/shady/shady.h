@@ -30,7 +30,7 @@ public:
     shady::Node* prepare(const Scope&);
     void prepare(Continuation*, shady::Node*);
     void emit_epilogue(Continuation*);
-    const shady::Node* emit_(const Def* def);
+    // const shady::Node* emit_(const Def* def);
     void finalize(const Scope&);
     void finalize(Continuation*);
 
@@ -41,9 +41,7 @@ public:
         return n;
     }
 
-    shady::Node* emit_fun_decl(Def* def) {
-        return get_decl(def);
-    }
+    const shady::Node* emit_fun_decl(Continuation*);
 protected:
     shady::AddressSpace convert_address_space(AddrSpace);
     shady::Node* def_to_decl(Def*);

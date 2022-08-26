@@ -95,7 +95,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             std::pair { OpenCL, Intrinsic::OpenCL },
             std::pair { AMDGPU, Intrinsic::AMDGPU },
             std::pair { HLS,    Intrinsic::HLS    },
-            std::pair { SpirV,  Intrinsic::SpirV  }
+            std::pair { Shady,  Intrinsic::SpirV  }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -116,7 +116,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, SpirV }) {
+    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, Shady }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 auto app = use->body();
@@ -195,7 +195,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     (void)opt;
 #endif
 #if THORIN_ENABLE_SHADY
-    if (!importers_[SpirV].world().empty()) cgs[SpirV] = std::make_unique<shady::CodeGen>(importers_[SpirV].world(), kernel_config, debug);
+    if (!importers_[Shady].world().empty()) cgs[Shady] = std::make_unique<shady_be::CodeGen>(importers_[Shady].world(), kernel_config, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);

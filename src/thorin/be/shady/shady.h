@@ -1,4 +1,6 @@
 #include "thorin/be/codegen.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/be/emitter.h"
 
 namespace shady {
 extern "C" {
@@ -8,29 +10,56 @@ extern "C" {
 
 namespace thorin::shady_be {
 
-class CodeGen : public thorin::CodeGen {
+// using BB = std::pair<shady::BlockBuilder*, shady::Node*>;
+
+struct BB {
+    /// For an entry BB, this will also be the head of the entire function
+    shady::Node* head;
+    shady::BlockBuilder* builder;
+    const shady::Node* terminator;
+    const shady::Node* block;
+};
+
+class CodeGen : public thorin::CodeGen, public thorin::Emitter<const shady::Node*, const shady::Type*, BB, CodeGen> {
 public:
     CodeGen(World&, Cont2Config&, bool debug);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".shady"; }
 
+    shady::Node* prepare(const Scope&);
+    void prepare(Continuation*, shady::Node*);
+    void emit_epilogue(Continuation*);
+    const shady::Node* emit_(const Def* def);
+    void finalize(const Scope&);
+    void finalize(Continuation*);
+
     const shady::Type* convert(const Type*);
+    const shady::Node* emit_bb(BB&, const Def*);
+
+    bool is_valid(const shady::Node* n) {
+        return n;
+    }
+
+    shady::Node* emit_fun_decl(Def* def) {
+        return get_decl(def);
+    }
 protected:
     shady::AddressSpace convert_address_space(AddrSpace);
+    shady::Node* def_to_decl(Def*);
+    shady::Node* get_decl(Def*);
 
-    void emit(const Scope& scope);
-    //void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
-    //shady::Node* emit(const Def* def, BasicBlockBuilder* bb);
-    //std::vector<SpvId> emit_builtin(const Continuation*, const Continuation*, BasicBlockBuilder*);
+    using NodeVec = std::vector<const shady::Node*>;
 
-    //SpvId get_codom_type(const Continuation* fn);
+    inline shady::Nodes vec2nodes(NodeVec& vec) {
+        return shady::nodes(arena, vec.size(), vec.data());
+    }
+
     shady::IrArena* arena = nullptr;
-    std::vector<std::pair<shady::Node*, shady::Node*>> top_level;
+    std::vector<shady::Node*> top_level;
 
-    Continuation* entry_ = nullptr;
-    TypeMap<const shady::Type*> types_;
-    DefMap<const shady::Node*> defs_;
+    shady::Node* curr_fn;
+
     const Cont2Config& kernel_config_;
 
 };

@@ -28,6 +28,18 @@ private:
     bool has_restrict_;
 };
 
+class CGRAKernelConfig : public KernelConfig {
+public:
+    CGRAKernelConfig(bool has_restrict = false)
+        : has_restrict_(has_restrict)
+    {}
+
+    bool has_restrict() const { return has_restrict_; }
+
+private:
+    bool has_restrict_;
+};
+
 class HLSKernelConfig : public KernelConfig {
 public:
     typedef GIDMap<const Param*, uint32_t> Param2Size;

@@ -65,21 +65,21 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = body->callee()->as_nom<Continuation>();
     assert_unused(target->is_intrinsic());
-    assert(body->num_args() >= LaunchArgs::Num && "required arguments are missing");
+    assert(body->num_args() >= LaunchArgs<GPU>::Num && "required arguments are missing");
 
     // arguments
-    auto target_device_id = code_gen.emit(body->arg(LaunchArgs::Device));
+    auto target_device_id = code_gen.emit(body->arg(LaunchArgs<GPU>::Device));
     auto target_platform = builder.getInt32(platform);
     auto target_device = builder.CreateOr(target_platform, builder.CreateShl(target_device_id, builder.getInt32(4)));
 
-    auto it_space = body->arg(LaunchArgs::Space);
-    auto it_config = body->arg(LaunchArgs::Config);
-    auto kernel = body->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
+    auto it_space = body->arg(LaunchArgs<GPU>::Space);
+    auto it_config = body->arg(LaunchArgs<GPU>::Config);
+    auto kernel = body->arg(LaunchArgs<GPU>::Body)->as<Global>()->init()->as<Continuation>();
 
     auto& world = continuation->world();
     auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->unique_name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
-    const size_t num_kernel_args = body->num_args() - LaunchArgs::Num;
+    const size_t num_kernel_args = body->num_args() - LaunchArgs<GPU>::Num;
 
     // allocate argument pointers, sizes, and types
     llvm::Value* args   = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8PtrTy(), num_kernel_args), "args");
@@ -90,7 +90,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
 
     // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto target_arg = body->arg(i + LaunchArgs::Num);
+        auto target_arg = body->arg(i + LaunchArgs<GPU>::Num);
         const auto target_val = code_gen.emit(target_arg);
 
         KernelArgType arg_type;
@@ -182,7 +182,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
                   args, sizes, aligns, allocs, types,
                   builder.getInt32(num_kernel_args));
 
-    return body->arg(LaunchArgs::Return)->as_nom<Continuation>();
+    return body->arg(LaunchArgs<GPU>::Return)->as_nom<Continuation>();
 }
 
 llvm::Value* Runtime::launch_kernel(

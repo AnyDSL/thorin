@@ -158,7 +158,7 @@ bool has_cgra_callee(World& world) {
             auto body = block->body();
             auto callee = body->callee()->isa_nom<Continuation>();
            // if (callee && callee->is_channel()) {
-           //     std::cout<< "channneeeeel" << std::endl;
+           //     std::cout<< "channel" << std::endl;
            //     std::cout << "name-->" << callee->name()<< std::endl;
            //     body->dump();
            // }

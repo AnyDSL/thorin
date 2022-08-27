@@ -1139,6 +1139,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::CmpXchgWeak: return emit_cmpxchg(irbuilder, continuation, true);
         case Intrinsic::Fence:       return emit_fence(irbuilder, continuation);
         case Intrinsic::Reserve:     return emit_reserve(irbuilder, continuation);
+        case Intrinsic::Pipeline:    return emit_pipeline(irbuilder, continuation);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
@@ -1260,6 +1261,12 @@ Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* co
 
 Continuation* CodeGen::emit_reserve(llvm::IRBuilder<>&, const Continuation* continuation) {
     world().edef(continuation, "reserve_shared: only allowed in device code"); // TODO debug
+    THORIN_UNREACHABLE;
+}
+
+
+Continuation* CodeGen::emit_pipeline(llvm::IRBuilder<>&, const Continuation* continuation) {
+    world().edef(continuation, "pipeline: only allowed in device code"); // TODO debug
     THORIN_UNREACHABLE;
 }
 

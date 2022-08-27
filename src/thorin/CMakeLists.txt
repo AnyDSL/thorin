@@ -75,6 +75,8 @@ set(THORIN_SOURCES
     transform/hls_channels.h
     transform/hls_kernel_launch.h
     transform/hls_kernel_launch.cpp
+    transform/cgra_graphs.cpp
+    transform/cgra_graphs.h
     util/array.h
     util/cast.h
     util/hash.h

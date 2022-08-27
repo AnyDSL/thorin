@@ -3,6 +3,7 @@
 
 #include "thorin/be/kernel_config.h"
 #include "thorin/transform/importer.h"
+#include "thorin/analyses/schedule.h"
 
 namespace thorin {
 
@@ -10,6 +11,7 @@ enum class ChannelMode : uint8_t {
     Read,       ///< Read-channel
     Write       ///< Write-channe
 };
+using Def2Mode = DefMap<ChannelMode>;
 
 using Top2Kernel = std::vector<std::tuple<size_t, std::string, size_t>>;
 using DeviceParams   = std::vector<const Def*>;
@@ -25,6 +27,7 @@ class World;
  */
 DeviceParams hls_channels(Importer&, Top2Kernel&, World&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
+void extract_kernel_channels(const Schedule&, Def2Mode&); 
 
 }
 

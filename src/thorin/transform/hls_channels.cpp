@@ -9,10 +9,11 @@
 
 namespace thorin {
 
-using Def2Mode = DefMap<ChannelMode>;
+//using Def2Mode = DefMap<ChannelMode>;
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // <From, To>
 
-static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
+//static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
+void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& continuation : schedule) {
 
         if (!continuation->has_body())
@@ -40,6 +41,9 @@ static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode
         }
     }
 }
+
+
+//TODO: Extract channels used in CGRAs
 
 bool is_channel_type(const Type* type) {
     if (auto ptr_type = type->isa<PtrType>()) {
@@ -144,6 +148,31 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
     return remaining_dependencies == 0;
 }
 
+bool has_cgra_callee(World& world) {
+    auto found_cgra = false;
+    Scope::for_each(world, [&] (Scope& scope) {
+        for (auto& block : schedule(scope)) {
+            if (!block->has_body())
+                continue;
+            assert(block->has_body());
+            auto body = block->body();
+            auto callee = body->callee()->isa_nom<Continuation>();
+           // if (callee && callee->is_channel()) {
+           //     std::cout<< "channneeeeel" << std::endl;
+           //     std::cout << "name-->" << callee->name()<< std::endl;
+           //     body->dump();
+           // }
+            if (callee && callee->intrinsic() == Intrinsic::CGRA) {
+                //body->dump();
+                //body->arg(2)->as<Global>()->init()->isa_nom<Continuation>()->dump();
+                //std::cout << "TEST-->" << callee->name() << std::endl;
+                found_cgra = true;
+            }
+        }
+    });
+    return found_cgra;
+}
+
 /**
  * @param importer hls world
  * @param Top2Kernel annonating hls_top configuration
@@ -159,8 +188,13 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     Def2Def param2arg; // contains map from new kernel parameter to arguments of calls inside hls_top (for all kernels)
     Def2Def arg2param;
 
+    // hls_top should be transformed whenever there is a CGRA 
+    if (has_cgra_callee(old_world)) std::cout << "FOUND CGRA!" << std::endl;
+
+// TODO: channels used both by CGRA and HLS  must be append to hls_top parameters
 
     Scope::for_each(world, [&] (Scope& scope) {
+            //world.dump();
             auto old_kernel = scope.entry();
             Def2Mode def2mode;
             extract_kernel_channels(schedule(scope), def2mode);
@@ -175,6 +209,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // - The old global definition for the channel
             std::vector<std::pair<size_t, const Def*>> index2def;
             for (auto map : def2mode) {
+                //map.first->dump();
                 index2def.emplace_back(i, map.first);
                 new_param_types[i++] = map.first->type();
             }

@@ -3,7 +3,7 @@
 #include "thorin/world.h"
 #include "thorin/continuation.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/schedule.h"
+//#include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {

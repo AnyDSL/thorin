@@ -26,12 +26,28 @@ private:
     bool debug_;
 };
 
-struct LaunchArgs {
+enum device_code {GPU, FPGA_HLS, FPGA_CL, AIE_CGRA};
+template<device_code T>
+struct LaunchArgs {};
+template <>
+struct LaunchArgs<GPU> {
     enum {
         Mem = 0,
         Device,
         Space,
         Config,
+        Body,
+        Return,
+        Num
+    };
+
+};
+
+template<>
+struct LaunchArgs<AIE_CGRA> {
+    enum {
+        Mem = 0,
+        Device,
         Body,
         Return,
         Num
@@ -44,8 +60,7 @@ struct DeviceBackends {
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, CGRA, BackendCount };
-//    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, BackendCount };
+    enum { CUDA, NVVM, OpenCL, AMDGPU, CGRA, HLS, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
 private:
     std::vector<Importer> importers_;

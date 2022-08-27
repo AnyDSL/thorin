@@ -755,7 +755,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("p_{} = {}_reserved;\n", ret_cont->param(1)->unique_name(), cont->unique_name());
             bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
-            assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
+            assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS || lang_ == Lang::CGRA) && "pipelining not supported on this backend");
 
             emit_unsafe(body->arg(0));
             std::string interval;

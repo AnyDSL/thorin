@@ -15,17 +15,17 @@ void CodeGen::emit_stream(std::ostream& out) {
     structure_loops(world());
     structure_flow(world());
 
-    auto config = shady::ArenaConfig {
-        .check_types = true,
-    };
+    shady::ArenaConfig config = { 0 };
+    config.check_types = true;
     arena = shady::new_arena(config);
 
     Scope::for_each(world(), [&](const Scope& scope) { emit_scope(scope); });
 
     // build root node with the top level stuff that got emitted
-    auto root = shady::root(arena, (shady::Root) {
-        .declarations = shady::nodes(arena, top_level.size(), const_cast<const shady::Node**>(top_level.data())),
-    });
+    shady::Root root_payload = {
+        shady::nodes(arena, top_level.size(), const_cast<const shady::Node**>(top_level.data()))
+    };
+    auto root = shady::root(arena, root_payload);
 
     char* bufptr;
     size_t size;
@@ -82,10 +82,11 @@ const shady::Type* CodeGen::convert(const Type* type) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto ptr = type->isa<PtrType>()) {
-        t = shady::ptr_type(arena, (shady::PtrType) {
+        shady::PtrType payload = {
             convert_address_space(ptr->addr_space()),
             convert(ptr->pointee())
-        });
+        };
+        t = shady::ptr_type(arena, payload);
     } else if (auto arr = type->isa<ArrayType>()) {
         shady::ArrType payload = {};
         payload.element_type = convert(arr->elem_type());
@@ -210,7 +211,7 @@ shady::Node* CodeGen::get_decl(Def* def) {
 }
 
 shady::Node* CodeGen::prepare(const Scope& scope) {
-    cont2bb_[scope.entry()].head = curr_fn = get_decl(scope.entry());
+    return cont2bb_[scope.entry()].head = curr_fn = get_decl(scope.entry());
 }
 
 void CodeGen::prepare(Continuation* cont, shady::Node*) {
@@ -273,7 +274,7 @@ void CodeGen::emit_epilogue(Continuation* cont) {
         shady::Callc payload = {};
         int ret_param = find_return_parameter(callee->type());
         assert(ret_param >= 0);
-        payload.ret_cont = args[ret_param];
+        payload.join_at = args[ret_param];
         args.erase(args.begin() + ret_param);
         args.erase(std::remove_if(args.begin(), args.end(), [&](const auto& item){ return item == nullptr || !shady::is_value(item); }), args.end());
         payload.args = vec2nodes(args);

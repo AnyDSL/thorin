@@ -1186,7 +1186,7 @@ Continuation* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* c
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = body->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = body->arg(6)->as_nom<Continuation>();
-    auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(), order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(), order, context().getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), call);
     return cont;
 }
@@ -1204,7 +1204,7 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     auto load = irbuilder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     load->setAlignment(align);
-    load->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    load->setAtomic(order, context().getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), load);
     return cont;
 }
@@ -1223,7 +1223,7 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     auto store = irbuilder.CreateStore(val, ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     store->setAlignment(align);
-    store->setAtomic(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    store->setAtomic(order, context().getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 
@@ -1245,7 +1245,7 @@ Continuation* CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Continuation* 
     auto failure_order = (llvm::AtomicOrdering)failure_order_tag;
     auto scope = body->arg(6)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = body->arg(7)->as_nom<Continuation>();
-    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(), success_order, failure_order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(), success_order, failure_order, context().getOrInsertSyncScopeID(scope->as_string()));
     call->setWeak(is_weak);
     emit_phi_arg(irbuilder, cont->param(1), irbuilder.CreateExtractValue(call, 0));
     emit_phi_arg(irbuilder, cont->param(2), irbuilder.CreateExtractValue(call, 1));
@@ -1261,7 +1261,7 @@ Continuation* CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* co
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = body->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = body->arg(3)->as_nom<Continuation>();
-    irbuilder.CreateFence(order, context_->getOrInsertSyncScopeID(scope->as_string()));
+    irbuilder.CreateFence(order, context().getOrInsertSyncScopeID(scope->as_string()));
     return cont;
 }
 

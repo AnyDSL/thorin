@@ -28,8 +28,10 @@ Runtime::Runtime(
         throw std::logic_error("runtime could not be loaded");
 }
 
-llvm::Function* Runtime::get(const char* name) {
+llvm::Function* Runtime::get(CodeGen& code_gen, const char* name) {
     auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()).getCallee()->stripPointerCasts());
+    result->addFnAttr("target-cpu", code_gen.machine().getTargetCPU());
+    result->addFnAttr("target-features", code_gen.machine().getTargetFeatureString());
     assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }
@@ -176,7 +178,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     allocs     = builder.CreateInBoundsGEP(allocs->getType()->getPointerElementType(),     allocs,     gep_first_elem);
     types      = builder.CreateInBoundsGEP(types->getType()->getPointerElementType(),      types,      gep_first_elem);
 
-    launch_kernel(builder, target_device,
+    launch_kernel(code_gen, builder, target_device,
                   file_name, kernel_name,
                   grid_size, block_size,
                   args, sizes, aligns, allocs, types,
@@ -186,18 +188,18 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
 }
 
 llvm::Value* Runtime::launch_kernel(
-    llvm::IRBuilder<>& builder, llvm::Value* device,
+    CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* device,
     llvm::Value* file, llvm::Value* kernel,
     llvm::Value* grid, llvm::Value* block,
     llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
     llvm::Value* num_args)
 {
     llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, aligns, allocs, types, num_args };
-    return builder.CreateCall(get("anydsl_launch_kernel"), launch_args);
+    return builder.CreateCall(get(code_gen, "anydsl_launch_kernel"), launch_args);
 }
 
 llvm::Value* Runtime::parallel_for(
-    llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
+    CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
     llvm::Value* closure_ptr, llvm::Value* fun_ptr)
 {
     llvm::Value* parallel_args[] = {
@@ -205,11 +207,11 @@ llvm::Value* Runtime::parallel_for(
         builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
         builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
     };
-    return builder.CreateCall(get("anydsl_parallel_for"), parallel_args);
+    return builder.CreateCall(get(code_gen, "anydsl_parallel_for"), parallel_args);
 }
 
 llvm::Value* Runtime::spawn_fibers(
-    llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
+    CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
     llvm::Value* closure_ptr, llvm::Value* fun_ptr)
 {
     llvm::Value* fibers_args[] = {
@@ -217,19 +219,19 @@ llvm::Value* Runtime::spawn_fibers(
         builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
         builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
     };
-    return builder.CreateCall(get("anydsl_fibers_spawn"), fibers_args);
+    return builder.CreateCall(get(code_gen, "anydsl_fibers_spawn"), fibers_args);
 }
 
-llvm::Value* Runtime::spawn_thread(llvm::IRBuilder<>& builder, llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+llvm::Value* Runtime::spawn_thread(CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* spawn_args[] = {
         builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
         builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
     };
-    return builder.CreateCall(get("anydsl_spawn_thread"), spawn_args);
+    return builder.CreateCall(get(code_gen, "anydsl_spawn_thread"), spawn_args);
 }
 
-llvm::Value* Runtime::sync_thread(llvm::IRBuilder<>& builder, llvm::Value* id) {
-    return builder.CreateCall(get("anydsl_sync_thread"), id);
+llvm::Value* Runtime::sync_thread(CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* id) {
+    return builder.CreateCall(get(code_gen, "anydsl_sync_thread"), id);
 }
 
 }

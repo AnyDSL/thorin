@@ -73,6 +73,8 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
 
     auto simd_type = llvm::FunctionType::get(irbuilder.getVoidTy(), llvm_ref(simd_args), false);
     auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type).getCallee()->stripPointerCasts();
+    kernel_simd_func->addFnAttr("target-cpu", machine().getTargetCPU());
+    kernel_simd_func->addFnAttr("target-features", machine().getTargetFeatureString());
 
     // build iteration loop and wire the calls
     Array<llvm::Value*> args(num_kernel_args + 1);
@@ -179,9 +181,6 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
     } else {
-        // Annotate kernel function
-        kernel_func->removeFnAttr("target-features");
-        kernel_func->addFnAttr("target-features", machine_->getTargetFeatureString());
         rv::Config config = rv::Config::createForFunction(*kernel_func);
         config.enableIRPolish = config.useAVX2;
 

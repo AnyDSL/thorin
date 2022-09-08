@@ -300,6 +300,8 @@ CodeGen::emit_module() {
 llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
     std::string name = world().is_external(continuation) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
+    f->addFnAttr("target-cpu", machine().getTargetCPU());
+    f->addFnAttr("target-features", machine().getTargetFeatureString());
 
 #ifdef _MSC_VER
     // set dll storage class for MSVC
@@ -901,7 +903,7 @@ void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llv
  */
 
 llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type, const Def* extra) {
-    auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
+    auto llvm_malloc = runtime_->get(*this, get_alloc_name().c_str());
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module().getDataLayout();
@@ -1027,6 +1029,8 @@ llvm::Value* CodeGen::call_math_function(llvm::IRBuilder<>& irbuilder, const Mat
         auto arg = emit(mathop->op(0));
         auto fn_type = llvm::FunctionType::get(arg->getType(), { arg->getType() }, false);
         auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
+        fn->addFnAttr("target-cpu", machine().getTargetCPU());
+        fn->addFnAttr("target-features", machine().getTargetFeatureString());
         return irbuilder.CreateCall(fn, { arg });
     } else if (mathop->num_ops() == 2) {
         // Binary mathematical operations
@@ -1034,6 +1038,8 @@ llvm::Value* CodeGen::call_math_function(llvm::IRBuilder<>& irbuilder, const Mat
         auto right = emit(mathop->op(1));
         auto fn_type = llvm::FunctionType::get(left->getType(), { left->getType(), right->getType() }, false);
         auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction(function_name, fn_type).getCallee()->stripPointerCasts());
+        fn->addFnAttr("target-cpu", machine().getTargetCPU());
+        fn->addFnAttr("target-features", machine().getTargetFeatureString());
         return irbuilder.CreateCall(fn, { left, right });
     }
     THORIN_UNREACHABLE;

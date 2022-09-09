@@ -118,12 +118,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         if (!importers_[backend].world().empty()) {
             size_t launch_args_num;
             switch (backend) {
-                case CUDA: case NVVM: case OpenCL: case AMDGPU: {
-                    cgra_graphs(importers_[CGRA]);
+                case CUDA: case NVVM: case OpenCL: case AMDGPU:
                     launch_args_num = LaunchArgs<GPU>::Num; break;
-                }
-                case CGRA:
+                case CGRA: {
+                    cgra_graphs(importers_[CGRA]);
                     launch_args_num = LaunchArgs<AIE_CGRA>::Num; break;
+                }
                 default:
                     THORIN_UNREACHABLE;
             }

@@ -796,7 +796,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("goto {};\n", label_name(pbody));
 
             // Emit a label that can be used by the "pipeline_continue()" intrinsic.
-            //bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(body->arg(6)));
             bb.tail.fmt("\b{}: continue;\n}}\n", label_name(body->arg(6)));
             bb.tail.fmt("goto {};", label_name(body->arg(5)));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {

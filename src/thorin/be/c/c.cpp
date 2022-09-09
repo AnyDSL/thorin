@@ -777,6 +777,11 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             }
             // The next instruction pipeline pragmas/attributes need to see is just a loop-head.
             // No any other instructions should come in between.
+            if (lang_ == Lang::CGRA) {
+                bb.tail.fmt("for (i{} = {}; i{} < {}; i{}++)\nchess_prepare_for_pipeline {{\t\n",
+                    callee->gid(), begin, callee->gid(), end, callee->gid());
+                //bb.tail << "{\t\n";
+            } else
             bb.tail.fmt("for (i{} = {}; i{} < {}; i{}++) {{\t\n",
                 callee->gid(), begin, callee->gid(), end, callee->gid());
             if (lang_ == Lang::HLS) {
@@ -791,7 +796,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("goto {};\n", label_name(pbody));
 
             // Emit a label that can be used by the "pipeline_continue()" intrinsic.
-            bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(body->arg(6)));
+            //bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(body->arg(6)));
+            bb.tail.fmt("\b{}: continue;\n}}\n", label_name(body->arg(6)));
             bb.tail.fmt("goto {};", label_name(body->arg(5)));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
             emit_unsafe(body->arg(0));

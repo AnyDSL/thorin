@@ -28,6 +28,7 @@ class World;
 DeviceParams hls_channels(Importer&, Top2Kernel&, World&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
 void extract_kernel_channels(const Schedule&, Def2Mode&); 
+bool is_single_kernel(Continuation*);
 
 }
 

@@ -1345,7 +1345,7 @@ bool Thorin::ensure_stack_size(size_t new_size) {
 }
 
 bool World::register_plugin(std::string plugin_name) {
-    void *handle = dlopen(plugin_name.c_str(), RTLD_LAZY);
+    void *handle = dlopen(plugin_name.c_str(), RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
         ELOG("Is plugin contained in LD_LIBRARY_PATH?");

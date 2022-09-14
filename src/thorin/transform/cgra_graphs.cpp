@@ -13,21 +13,24 @@ namespace thorin {
 void cgra_graphs(Importer& importer) {
 
     auto& world = importer.world();
-    Def2Def kernel_new2old;
+    //Def2Def kernel_new2old;
     std::vector<Continuation*> new_kernels;
-    //world.dump();
+    //Def2Def param2arg; // contains map from new kernel parameter to arguments of calls (globals)
+
     Scope::for_each(world, [&] (Scope& scope) {
         Def2Mode def2mode; // channels and their R/W modes
         extract_kernel_channels(schedule(scope), def2mode);
+        world.dump();
 
         auto old_kernel = scope.entry();
+        // for each kernel new_param_types contains both the type of kernel parameters and the channels used inside that kernel
         Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
             std::copy(old_kernel->type()->ops().begin(),
                     old_kernel->type()->ops().end(),
                     new_param_types.begin());
 
             size_t channel_index = old_kernel->num_params();
-            // The position of the channel parameter for the new kernel and channel defintion
+            // The position of the channel parameters in new kernels and their corresponding channel defintion
             std::vector<std::pair<size_t, const Def*>> channel_param_index2def;
             for (auto [channel, _ ]: def2mode) {
                 channel_param_index2def.emplace_back(channel_index, channel);
@@ -39,7 +42,7 @@ void cgra_graphs(Importer& importer) {
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
             world.make_external(new_kernel);
 
-            kernel_new2old.emplace(new_kernel, old_kernel);
+            //kernel_new2old.emplace(new_kernel, old_kernel);
 
             // Kernels without any channels are scheduled in the begening
             if (is_single_kernel(new_kernel))
@@ -51,11 +54,47 @@ void cgra_graphs(Importer& importer) {
 
             Rewriter rewriter;
 
+          // rewriting channel parameters
+            for (auto [channel_param_index, channel] : channel_param_index2def) {
+                auto channel_param = new_kernel->param(channel_param_index);
+                rewriter.old2new[channel] = channel_param;
+                // In CGRA ADF only connected nodes (params) are concerned and there is no need to
+                // introduce a new variable (like channels) to connect them together. so at this point param2arg map is not required.
+          //      param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
+            }
+
+          // rewriting basicblocks and their parameters
+            for (auto def : scope.defs()) {
+                if (auto cont = def->isa_nom<Continuation>()) {
+                    // Copy the basic block by calling stub
+                    // Or reuse the newly created kernel copy if def is the old kernel
+                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
+                    rewriter.old2new[cont] = new_cont;
+                    for (size_t i = 0; i < cont->num_params(); ++i)
+                        rewriter.old2new[cont->param(i)] = new_cont->param(i);
+                }
+            }
+
+            // Rewriting the basic blocks of the kernel using the map
+            // The rewrite eventually maps the parameters of the old kernel to the first N parameters of the new one
+            // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
+            for (auto def : scope.defs()) {
+                if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
+                    if (!cont->has_body()) continue;
+                    auto body = cont->body();
+                    auto new_callee = rewriter.instantiate(body->callee());
+
+                    Array<const Def*> new_args(body->num_args());
+                    for ( size_t i = 0; i < body->num_args(); ++i)
+                        new_args[i] = rewriter.instantiate(body->arg(i));
+
+                    auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
+                    new_cont->jump(new_callee, new_args, cont->debug());
+                }
+            }
     });
 
     world.cleanup();
-
-
 }
 
 }

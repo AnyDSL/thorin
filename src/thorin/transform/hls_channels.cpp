@@ -188,7 +188,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     Def2Def param2arg; // contains map from new kernel parameter to arguments of calls inside hls_top (for all kernels)
     Def2Def arg2param;
 
-    // hls_top should be transformed whenever there is a CGRA 
+    // hls_top should be transformed whenever there is a CGRA
     if (has_cgra_callee(old_world)) std::cout << "FOUND CGRA!" << std::endl;
 
 // TODO: channels used both by CGRA and HLS  must be append to hls_top parameters

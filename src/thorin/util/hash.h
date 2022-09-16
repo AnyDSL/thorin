@@ -217,6 +217,7 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
+        , array_()
         , nodes_(array_.data())
 #if THORIN_ENABLE_CHECKS
         , id_(0)

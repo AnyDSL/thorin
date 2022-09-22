@@ -72,16 +72,23 @@ Continuation* Scheduler::early_intern() {
         return early_[def] = param->continuation();
     }
 
+    bool todo_empty = true;
+    for (auto op : def->as_structural()->ops()) {
+        if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
+            if (!early_.lookup(op)) {
+                early_todo.push(op);
+                todo_empty = false;
+            }
+        }
+    }
+    if (!todo_empty)
+        return nullptr;
+
     auto result = scope().entry();
     for (auto op : def->as_structural()->ops()) {
         if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
-            Continuation *cont;
-            if (early_.lookup(op)) {
-                cont = *early_.lookup(op);
-            } else {
-                early_todo.push(op);
-                return nullptr;
-            }
+            Continuation *cont = *early_.lookup(op);
+            assert(cont);
             if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
                 result = cont;
         }
@@ -119,14 +126,18 @@ Continuation* Scheduler::late_intern() {
     } else if (auto param = def->isa<Param>()) {
         result = param->continuation();
     } else {
+        bool todo_empty = true;
         for (auto use : uses(def)) {
-            Continuation* cont;
-            if (late_.lookup(use)) {
-                cont = *late_.lookup(use);
-            } else {
+            if (!late_.lookup(use)) {
                 late_todo.push(use);
-                return nullptr;
+                todo_empty = false;
             }
+        }
+        if (!todo_empty)
+            return nullptr;
+        for (auto use : uses(def)) {
+            Continuation* cont = *late_.lookup(use);
+            assert(cont);
             result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
         }
     }

@@ -1,6 +1,9 @@
 #ifndef THORIN_BE_EMITTER_H
 #define THORIN_BE_EMITTER_H
 
+#include<stack>
+#include<queue>
+
 namespace thorin {
 
 template<class Value, class Type, class BB, class Child>
@@ -11,6 +14,32 @@ private:
 
     /// Internal wrapper for @p emit that checks and retrieves/puts the @c Value from @p defs_.
     Value emit_(const Def* def) {
+        std::stack<const Def*> required_defs;
+        std::queue<const Def*> todo;
+        todo.push(def);
+
+        while (!todo.empty()) {
+            auto def = todo.front();
+            todo.pop();
+            if (defs_.lookup(def)) continue;
+
+            if (auto memop = def->isa<MemOp>()) {
+                todo.push(memop->mem());
+                required_defs.push(memop->mem());
+            } else if (auto extract = def->isa<Extract>()) {
+                if (is_mem(extract)) {
+                    todo.push(extract->agg());
+                    required_defs.push(extract->agg());
+                }
+            }
+        }
+
+        while (!required_defs.empty()) {
+            auto r = required_defs.top();
+            required_defs.pop();
+            emit_unsafe(r);
+        }
+
         auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
         auto& bb = cont2bb_[place];
         return child().emit_bb(bb, def);

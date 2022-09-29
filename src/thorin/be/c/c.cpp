@@ -504,6 +504,8 @@ void CCodeGen::emit_module() {
 
     if (lang_ == Lang::CUDA) {
         stream_.endl();
+        stream_.fmt("extern \"C\" __device__ int __nvvm_reflect(const char*);\n");
+        stream_.fmt("__device__ __forceinline__ int cuda_device_arch() {{ return __nvvm_reflect(\"__CUDA_ARCH\"); }}\n");
         for (auto x : std::array {'x', 'y', 'z'}) {
             stream_.fmt("__device__ inline int threadIdx_{}() {{ return threadIdx.{}; }}\n", x, x);
             stream_.fmt("__device__ inline int blockIdx_{}() {{ return blockIdx.{}; }}\n", x, x);

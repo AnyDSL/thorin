@@ -132,6 +132,7 @@ public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         CC cc = CC::Thorin;
+        const Continuation* depends = nullptr;
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(CC cc = CC::Thorin) : cc(cc) {}

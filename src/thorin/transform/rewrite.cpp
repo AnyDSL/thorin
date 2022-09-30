@@ -48,6 +48,10 @@ const Def* Rewriter::rewrite(const Def* odef) {
     if (odef->isa_nom()) {
         stub = odef->stub(*this, ntype);
         insert(odef, stub);
+
+        if (auto ocont = odef->isa_nom<Continuation>())
+            if (ocont->attributes().depends)
+                stub->as_nom<Continuation>()->attributes().depends = instantiate(ocont->attributes().depends)->as<Continuation>();
     }
 
     if (odef->isa_structural()) {

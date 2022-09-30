@@ -63,8 +63,11 @@ void RecStreamer::run() {
             s.fmt("// free frontier: {, }\n", scope.free_frontier());
         }
 
-        if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Plugin)
+        if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Plugin) {
             s.fmt("plugin ");
+            if (cont->attributes().depends)
+                s.fmt("[depends {}] ", cont->attributes().depends->unique_name());
+        }
 
         if (cont->has_body()) {
             std::vector<std::string> param_names;

@@ -125,6 +125,7 @@ public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         CC cc = CC::C;
+        const Continuation* depends = nullptr;
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(CC cc = CC::C) : cc(cc) {}

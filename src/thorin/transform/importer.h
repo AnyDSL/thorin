@@ -20,9 +20,12 @@ public:
     }
 
     World& world() { return world_; }
-    const Type* import(const Type*);
+    const Type* import_type(const Type*);
     const Def* import(const Def*);
     bool todo() const { return todo_; }
+
+private:
+    const Def* import_nonrecursive();
 
 public:
     Type2Type type_old2new_;

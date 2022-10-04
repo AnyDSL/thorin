@@ -48,6 +48,9 @@ private:
     DefMap<Continuation*> late_;
     DefMap<Continuation*> smart_;
     DefMap<Uses> def2uses_;
+
+    Continuation* early_intern();
+    Continuation* late_intern();
 };
 
 using Schedule = std::vector<Continuation*>;

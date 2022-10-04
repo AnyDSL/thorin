@@ -41,6 +41,7 @@ public:
     llvm::LLVMContext& context() { return *context_; }
     llvm::Module& module() { return *module_; }
     const llvm::Module& module() const { return *module_; }
+    llvm::TargetMachine& machine() { return *machine_; }
     int opt() const { return opt_; }
     //@}
 

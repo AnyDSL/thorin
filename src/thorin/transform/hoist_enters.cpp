@@ -27,8 +27,7 @@ static void find_enters(std::deque<const Enter*>& enters, Continuation* continua
     if (auto mem_param = continuation->mem_param()) {
         todo.push(mem_param);
         while (!todo.empty()) {
-            auto next_item = todo.top();
-            todo.pop();
+            auto next_item = pop(todo);
 
             find_enters(enters, next_item);
         }

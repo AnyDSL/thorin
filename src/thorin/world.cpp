@@ -10,6 +10,7 @@
 #endif
 
 #include <cmath>
+#include <execinfo.h>
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -1102,7 +1103,15 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
+    void *array[10];
+    size_t size = backtrace(array, 10);
+    assert(size >= 2);
+    char ** symbols = backtrace_symbols(array, 10);
+
+    dbg.creation_context = symbols[1];
+
     auto cont = put<Continuation>(fn, attributes, dbg);
+    free(symbols);
 
     size_t i = 0;
     for (auto op : fn->ops()) {

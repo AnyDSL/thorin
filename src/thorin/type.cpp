@@ -143,10 +143,10 @@ Stream& Type::stream(Stream& s) const {
     else if (isa< FrameType>()) return s.fmt("frame");
     else if (auto t = isa<DefiniteArrayType>()) {
         return s.fmt("[{} x {}]", t->dim(), t->elem_type());
+    } else if (auto t = isa<ClosureType>()) {
+        return s.fmt("closure[{, }]", t->ops());
     } else if (auto t = isa<FnType>()) {
         return s.fmt("fn[{, }]", t->ops());
-    } else if (auto t = isa<ClosureType>()) {
-        return s.fmt("closure [{, }]", t->ops());
     } else if (auto t = isa<IndefiniteArrayType>()) {
         return s.fmt("[{}]", t->elem_type());
     } else if (auto t = isa<StructType>()) {

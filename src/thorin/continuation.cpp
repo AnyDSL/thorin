@@ -28,7 +28,7 @@ App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(
 #endif
 }
 
-void App::verify() const {
+bool App::verify() const {
     auto callee_type = callee()->type()->isa<FnType>(); // works for closures too, no need for a special case
     assertf(callee_type, "callee type must be a FnType");
     assertf(callee_type->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
@@ -37,6 +37,7 @@ void App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
+    return true;
 }
 
 //------------------------------------------------------------------------------
@@ -262,15 +263,17 @@ void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise
     verify();
 }
 
-void Continuation::verify() const {
+bool Continuation::verify() const {
+    bool ok = true;
     if (!has_body())
         assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
     else {
-        body()->verify();
+        ok &= body()->verify();
         assert(!dead_); // destroy() should remove the body
         assert(intrinsic() == Intrinsic::None);
         assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
     }
+    return ok;
 }
 
 /// Rewrites the body to only keep the non-specialized arguments

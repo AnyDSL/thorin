@@ -72,7 +72,7 @@ public:
     }
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void verify() const;
+    bool verify() const;
 
     friend class World;
 };
@@ -188,7 +188,7 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    void verify() const;
+    bool verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
     void set_filter(const Filter* f) {

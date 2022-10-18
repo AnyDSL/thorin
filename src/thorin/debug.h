@@ -43,11 +43,21 @@ public:
     Debug() = default; // TODO remove
     Debug(std::string name, Loc loc = {}, const Def* meta = nullptr)
         : name(name)
+        , creation_context("")
         , loc(loc)
         , meta(meta)
     {}
     Debug(const char* name, Loc loc = {}, const Def* meta = nullptr)
         : Debug(std::string(name), loc, meta)
+    {}
+    Debug(std::string name, std::string creation_context, Loc loc = {}, const Def* meta = nullptr)
+        : name(name)
+        , creation_context(creation_context)
+        , loc(loc)
+        , meta(meta)
+    {}
+    Debug(const char* name, const char* creation_context, Loc loc = {}, const Def* meta = nullptr)
+        : Debug(std::string(name), std::string(creation_context), loc, meta)
     {}
     Debug(Loc loc)
         : Debug("", loc)
@@ -55,6 +65,7 @@ public:
     //Debug(const Def*);
 
     std::string name;
+    std::string creation_context;
     Loc loc;
     const Def* meta = nullptr;
 };

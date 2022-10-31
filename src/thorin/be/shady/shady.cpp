@@ -10,32 +10,26 @@ CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
 {}
 
 void CodeGen::emit_stream(std::ostream& out) {
-    assert(top_level.empty());
+    // structure_loops(world());
+    // structure_flow(world());
 
-    structure_loops(world());
-    structure_flow(world());
+    assert(!module);
 
     shady::ArenaConfig config = { 0 };
     config.check_types = true;
-    arena = shady::new_arena(config);
+    arena = shady::new_ir_arena(config);
+    module = shady::new_module(arena, world().name().c_str());
 
     Scope::for_each(world(), [&](const Scope& scope) { emit_scope(scope); });
 
-    // build root node with the top level stuff that got emitted
-    shady::Root root_payload = {
-        shady::nodes(arena, top_level.size(), const_cast<const shady::Node**>(top_level.data()))
-    };
-    auto root = shady::root(arena, root_payload);
-
     char* bufptr;
     size_t size;
-    shady::print_node_into_str(root, &bufptr, &size);
+    shady::print_module_into_str(module, &bufptr, &size);
     out.write(bufptr, static_cast<std::streamsize>(size));
     free(bufptr);
 
-    shady::destroy_arena(arena);
+    shady::destroy_ir_arena(arena);
     arena = nullptr;
-    top_level.clear();
 }
 
 shady::AddressSpace CodeGen::convert_address_space(AddrSpace as) {
@@ -103,13 +97,12 @@ const shady::Type* CodeGen::convert(const Type* type) {
         shady::RecordType payload = {};
         payload.members = shady::nodes(arena, strct->num_ops(), members.data());
         payload.names = shady::strings(arena, 0, nullptr);
-        payload.special = shady::RecordType::NotSpecial;
+        payload.special = shady::NotSpecial;
         t = shady::record_type(arena, payload);
     } else if (auto variant = type->isa<VariantType>()) {
         assert(false && "TODO");
     } else if (auto fn_type = type->isa<FnType>()) {
         shady::FnType payload = {};
-        payload.is_basic_block = fn_type->is_basicblock();
         NodeVec dom, codom;
 
         int return_param_i = find_return_parameter(fn_type);
@@ -151,9 +144,10 @@ const shady::Type* CodeGen::convert(const Type* type) {
     return t;
 }
 
-shady::Node* CodeGen::def_to_decl(Def* def) {
+shady::Node* CodeGen::emit_decl_head(Def* def) {
     NodeVec annotations;
     if (auto cont = def->isa_nom<Continuation>()) {
+        assert(!cont->is_basicblock());
         NodeVec params;
         NodeVec returns;
 
@@ -173,26 +167,22 @@ shady::Node* CodeGen::def_to_decl(Def* def) {
             params.push_back(param);
         }
 
-        if (!cont->is_basicblock() && ret_param_i >= 0) {
-            auto ret_fn_type = cont->type()->op(ret_param_i);
+        auto ret_fn_type = cont->type()->op(ret_param_i);
 
-            for (auto t : ret_fn_type->ops()) {
-                auto ret_type = convert(t);
-                if (!ret_type)
-                    continue; // Eliminate mem types
-                returns.push_back(ret_type);
-            }
+        for (auto t : ret_fn_type->ops()) {
+            auto ret_type = convert(t);
+            if (!ret_type)
+                continue; // Eliminate mem types
+            returns.push_back(ret_type);
         }
 
-        return shady::fn(arena, vec2nodes(annotations), def->unique_name().c_str(), cont->is_basicblock(), vec2nodes(params), vec2nodes(returns));
+        return shady::function(module, vec2nodes(params), def->unique_name().c_str(), vec2nodes(annotations), vec2nodes(returns));
     } else if (auto global = def->isa<Global>()) {
         if (global->is_mutable()) {
-            return shady::global_var(arena, vec2nodes(annotations), convert(global->alloced_type()), global->unique_name().c_str(), convert_address_space(AddrSpace::Private));
+            return shady::global_var(module, vec2nodes(annotations), convert(global->alloced_type()), global->unique_name().c_str(), convert_address_space(AddrSpace::Private));
         } else {
             // Tentatively make those things constants...
-            auto constant = shady::constant(arena, vec2nodes(annotations), global->unique_name().c_str());;
-            constant->payload.constant.type_hint = convert(global->alloced_type());
-            return constant;
+            return shady::constant(module, vec2nodes(annotations), convert(global->alloced_type()), global->unique_name().c_str());
         }
     } else {
         assert(false && "This doesn't map to a decl !");
@@ -200,14 +190,14 @@ shady::Node* CodeGen::def_to_decl(Def* def) {
 }
 
 shady::Node* CodeGen::get_decl(Def* def) {
-    for (auto& e : top_level) {
+    shady::Nodes already_done = shady::get_module_declarations(module);
+    for (size_t i = 0; i < already_done.count; i++) {
+        auto& e = already_done.nodes[i];
         if (shady::get_decl_name(e) == def->unique_name())
-            return e;
+            return (shady::Node*) e;
     }
 
-    auto decl = def_to_decl(def);
-    top_level.push_back(decl);
-    return decl;
+    return emit_decl_head(def);
 }
 
 shady::Node* CodeGen::prepare(const Scope& scope) {
@@ -216,17 +206,37 @@ shady::Node* CodeGen::prepare(const Scope& scope) {
 
 void CodeGen::prepare(Continuation* cont, shady::Node*) {
     BB& bb = cont2bb_[cont];
-    if (cont->is_basicblock())
-        bb.head = def_to_decl(cont);
-    else
+    if (cont->is_basicblock()) {
+        NodeVec params;
+
+        for (size_t i = 0; i < cont->num_params(); i++) {
+            auto type = convert(cont->param(i)->type());
+            if (!type) continue; // Eliminate mem tokens
+            shady::QualifiedType qtype;
+            qtype.type = type;
+            qtype.is_uniform = false;
+            type = shady::qualified_type(arena, qtype);
+            auto param = shady::var(arena, type, cont->param(i)->name().c_str());
+            defs_[cont->param(i)] = param; // Register the param as emitted already
+            params.push_back(param);
+        }
+
+        bb.head = shady::basic_block(arena, curr_fn, vec2nodes(params), cont->name().c_str());
+    } else
         assert(bb.head);
 
-    // Register params
-    // for (size_t i = 0; i < cont->num_params(); i++)
-    //     defs_[cont->param(i)] = bb.head->payload.fn.params.nodes[i];
-
-    bb.builder = shady::begin_block(arena);
+    bb.builder = shady::begin_body(arena);
 }
+
+static std::optional<shady::Op> is_shady_prim_op(const Continuation* cont) {
+    for (int i = 0; i < shady::PRIMOPS_COUNT; i++) {
+        if (cont->name() == shady::primop_names[i])
+            return std::make_optional((shady::Op) i);
+    }
+    return std::nullopt;
+}
+
+static std::vector<const shady::Node*> emit_instruction(shady::BodyBuilder* builder, const shady::Node* instruction);
 
 void CodeGen::emit_epilogue(Continuation* cont) {
     BB& bb = cont2bb_[cont];
@@ -236,10 +246,11 @@ void CodeGen::emit_epilogue(Continuation* cont) {
     for (auto& arg : body->args()) {
         if (convert(arg->type()) == nullptr) {
             args.push_back(nullptr);
-        } else if (auto callee = arg->isa_nom<Continuation>(); callee && callee->is_basicblock()) {
+        } else if (auto target = arg->isa_nom<Continuation>(); target && target->is_basicblock()) {
             // Emitting basic blocks as values isn't legal - but for convenience we'll put them in our list.
-            BB& callee_bb = cont2bb_[callee];
-            assert(callee_bb.head && callee_bb.head->payload.fn.is_basic_block);
+            assert(cont2bb_.contains(target));
+            BB& callee_bb = cont2bb_[target];
+            assert(callee_bb.head && shady::is_basic_block(callee_bb.head));
             args.push_back(callee_bb.head);
         } else {
             args.push_back(emit(arg));
@@ -250,11 +261,10 @@ void CodeGen::emit_epilogue(Continuation* cont) {
         shady::Return payload = {};
         payload.fn = curr_fn;
         args.erase(std::remove_if(args.begin(), args.end(), [&](const auto& item){ return item == nullptr || !shady::is_value(item); }), args.end());
-        payload.values = vec2nodes(args);
+        payload.args = vec2nodes(args);
         bb.terminator = shady::fn_ret(arena, payload);
     } else if (body->callee() == world().branch()) {
         shady::Branch payload = {};
-        payload.branch_mode = shady::Branch::BrIfElse;
         payload.args = shady::nodes(arena, 0, nullptr);
         payload.branch_condition = args[0];
         payload.true_target      = args[1];
@@ -263,24 +273,43 @@ void CodeGen::emit_epilogue(Continuation* cont) {
     } else if (auto match = body->callee()->as_nom<Continuation>(); match && match->intrinsic() == Intrinsic::Match) {
         assert(false);
     } else if (auto destination = body->callee()->isa_nom<Continuation>(); destination && destination->is_basicblock()) {
-        shady::Branch payload = {};
+        shady::Jump payload = {};
         args.erase(std::remove_if(args.begin(), args.end(), [&](const auto& item){ return item == nullptr || !shady::is_value(item); }), args.end());
         payload.args = vec2nodes(args);
-        payload.branch_mode = shady::Branch_::BrJump;
-        bb.terminator = shady::branch(arena, payload);
+        payload.target = args[0];
+        bb.terminator = shady::jump(arena, payload);
     } else if (auto intrinsic = body->callee()->isa_nom<Continuation>(); intrinsic && intrinsic->is_intrinsic()) {
         assert(false);
     } else if (auto callee = body->callee()->isa_nom<Continuation>()) {
-        shady::Callc payload = {};
         int ret_param = find_return_parameter(callee->type());
         assert(ret_param >= 0);
-        payload.join_at = args[ret_param];
+
         args.erase(args.begin() + ret_param);
         args.erase(std::remove_if(args.begin(), args.end(), [&](const auto& item){ return item == nullptr || !shady::is_value(item); }), args.end());
+
+        // shady primop called as imported continuations look like continuation calls to thorin, but not to shady
+        // we just need to carefully emit the primop as an instruction, then jump to the target BB, passing the stuff as we do
+        if (auto op = is_shady_prim_op(callee); op.has_value()) {
+            shady::bind_instruction(bb.builder, shady::prim_op(arena, (shady::PrimOp) {
+                .op = op.value(),
+                .type_arguments = empty(arena),
+                .operands = vec2nodes(args),
+            }));
+            shady::Jump jump;
+            jump.target = args[ret_param];
+            bb.terminator = shady::jump(arena, jump);
+            return;
+        }
+
+        shady::Call payload;
         payload.args = vec2nodes(args);
-        payload.is_return_indirect = false;
         payload.callee = emit(callee);
-        bb.terminator = shady::callc(arena, payload);
+        auto call = shady::call_instr(arena, payload);
+
+        shady::LetInto payload2;
+        payload2.instruction = call;
+        payload2.tail = args[ret_param];
+        bb.terminator = shady::let_into(arena, payload2);
     } else {
         assert(false);
     }
@@ -289,13 +318,17 @@ void CodeGen::emit_epilogue(Continuation* cont) {
 void CodeGen::finalize(Continuation* cont) {
     BB& bb = cont2bb_[cont];
     assert(bb.head && bb.builder && bb.terminator);
-    bb.block = shady::finish_block(bb.builder, bb.terminator);
-    bb.head->payload.fn.block = bb.block;
+    if (shady::is_basic_block(bb.head))
+        bb.head->payload.basic_block.body = shady::finish_body(bb.builder, bb.terminator);
+    else if (shady::is_function(bb.head))
+        bb.head->payload.fun.body = shady::finish_body(bb.builder, bb.terminator);
+    else
+        assert(false);
 }
 
 void CodeGen::finalize(const Scope& scope) {
     BB& bb = cont2bb_[scope.entry()];
-    assert(bb.head->payload.fn.block != nullptr);
+    assert(bb.head->payload.fun.body != nullptr);
     curr_fn = nullptr;
 }
 

@@ -15,9 +15,8 @@ namespace thorin::shady_be {
 struct BB {
     /// For an entry BB, this will also be the head of the entire function
     shady::Node* head;
-    shady::BlockBuilder* builder;
+    shady::BodyBuilder* builder;
     const shady::Node* terminator;
-    const shady::Node* block;
 };
 
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<const shady::Node*, const shady::Type*, BB, CodeGen> {
@@ -44,7 +43,7 @@ public:
     const shady::Node* emit_fun_decl(Continuation*);
 protected:
     shady::AddressSpace convert_address_space(AddrSpace);
-    shady::Node* def_to_decl(Def*);
+    shady::Node* emit_decl_head(Def*);
     shady::Node* get_decl(Def*);
 
     using NodeVec = std::vector<const shady::Node*>;
@@ -54,7 +53,8 @@ protected:
     }
 
     shady::IrArena* arena = nullptr;
-    std::vector<shady::Node*> top_level;
+    shady::Module* module = nullptr;
+    //std::vector<shady::Node*> top_level;
 
     shady::Node* curr_fn;
 

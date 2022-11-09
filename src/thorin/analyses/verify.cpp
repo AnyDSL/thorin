@@ -30,16 +30,17 @@ static bool verify_top_level(World& world) {
     return ok;
 }
 
-static bool verify_mem(World& world) {
+static bool verify_param(World& world) {
     bool ok = true;
-    Scope::for_each(world, [&] (const Scope& scope) {
-        for (auto def : free_defs(scope)) {
-            if (is_mem(def)) {
-                world.ELOG("scope '{}' got free mem '{}' with {} uses", scope.entry(), def, def->num_uses());
+    for (auto def : world.defs()) {
+        if (auto param = def->isa<Param>()) {
+            auto cont = param->continuation();
+            if (cont->dead_) {
+                world.ELOG("param '{}' originates in dead continuation {}", param, cont);
                 ok = false;
             }
         }
-    });
+    }
     return ok;
 }
 
@@ -47,9 +48,10 @@ void verify(World& world) {
     bool ok = true;
     ok &= verify_calls(world);
     ok &= verify_top_level(world);
-    ok &= verify_mem(world);
+    ok &= verify_param(world);
     if (!ok)
         world.dump();
+    assert(ok);
 }
 
 }

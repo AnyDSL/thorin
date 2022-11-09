@@ -4,6 +4,7 @@
 #cmakedefine01 THORIN_ENABLE_CHECKS
 #cmakedefine01 THORIN_ENABLE_PROFILING
 #cmakedefine01 THORIN_ENABLE_LLVM
+#cmakedefine01 THORIN_ENABLE_JSON
 #cmakedefine01 THORIN_ENABLE_RV
 
 #endif

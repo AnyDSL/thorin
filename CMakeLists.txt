@@ -26,6 +26,12 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 find_package(Half REQUIRED)
 message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
 
+# find json package for json output support.
+find_package(nlohmann_json 3.2.0)
+if(nlohmann_json_FOUND)
+    set(THORIN_ENABLE_JSON TRUE)
+endif()
+
 # check for possible llvm extension
 find_package(LLVM QUIET CONFIG)
 if(LLVM_FOUND)

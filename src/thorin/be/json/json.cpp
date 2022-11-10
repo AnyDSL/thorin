@@ -111,6 +111,53 @@ public:
             auto name = expected_name != "" ? expected_name : param->continuation()->unique_name() + "." + std::to_string(param->index());
             known_defs[def] = name;
             return name;
+        } else if (auto load = def->isa<Load>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            json args = json::array();
+            args.push_back(translate_def(load->mem()));
+            args.push_back(translate_def(load->ptr()));
+
+            result["name"] = name;
+            result["type"] = "load";
+            result["args"] = args;
+        } else if (auto cast = def->isa<Cast>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto source = translate_def(cast->from());
+            auto target_type = type_table_.translate_type(cast->type());
+
+            result["name"] = name;
+            result["type"] = "cast";
+            result["source"] = source;
+            result["target_type"] = target_type;
+        } else if (auto lea = def->isa<LEA>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            json args = json::array();
+            args.push_back(translate_def(lea->ptr()));
+            args.push_back(translate_def(lea->index()));
+
+            result["name"] = name;
+            result["type"] = "lea";
+            result["args"] = args;
+        } else if (auto extract = def->isa<Extract>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            json args = json::array();
+            args.push_back(translate_def(extract->agg()));
+            args.push_back(translate_def(extract->index()));
+
+            result["name"] = name;
+            result["type"] = "extract";
+            result["args"] = args;
+        } else if (auto arithop = def->isa<ArithOp>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto op = arithop->op_name();
+            json args = json::array();
+            args.push_back(translate_def(arithop->lhs()));
+            args.push_back(translate_def(arithop->rhs()));
+
+            result["name"] = name;
+            result["type"] = "arithop";
+            result["op"] = op;
+            result["args"] = args;
         } else {
             THORIN_UNREACHABLE;
         }

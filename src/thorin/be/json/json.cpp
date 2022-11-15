@@ -48,7 +48,16 @@ public:
             result["type"] = "indef_array";
             result["args"] = { elem_type };
             result["name"] = elem_type + "_iarr";
+        } else if (auto arr = type->isa<DefiniteArrayType>()) {
+            auto elem_type = translate_type(arr->elem_type());
+
+            result["type"] = "def_array";
+            result["args"] = { elem_type };
+            result["length"] = arr->dim();
+            result["name"] = elem_type + "_iarr";
         } else {
+            std::cerr << "type cannot be translated\n";
+            type->dump();
             THORIN_UNREACHABLE;
         }
         known_types[type] = result["name"];
@@ -81,6 +90,15 @@ public:
                 result["name"] = "branch";
                 result["type"] = "continuation";
                 result["intrinsic"] = "branch";
+            } else if (cont->is_imported()) {
+                auto name = cont->name();
+                auto type = type_table_.translate_type(def->type());
+
+                result["name"] = name;
+                result["type"] = "continuation";
+                result["fn_type"] = type;
+                result["imported"] = true;
+                result["external"] = cont->is_external();
             } else {
                 assert(cont->has_body());
 
@@ -99,6 +117,8 @@ public:
                 forward_decl["arg_names"] = arg_names;
                 forward_decl["external"] = cont->is_external();
                 decl_table.push_back(forward_decl);
+
+                known_defs[def] = name;
 
                 auto app = cont->body();
                 auto target = translate_def(app->callee());
@@ -134,6 +154,16 @@ public:
 
             result["name"] = name;
             result["type"] = "load";
+            result["args"] = args;
+        } else if (auto store = def->isa<Store>()) {
+            json args = json::array();
+            args.push_back(translate_def(store->mem()));
+            args.push_back(translate_def(store->ptr()));
+            args.push_back(translate_def(store->val()));
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+
+            result["name"] = name;
+            result["type"] = "store";
             result["args"] = args;
         } else if (auto cast = def->isa<Cast>()) {
             auto source = translate_def(cast->from());
@@ -184,7 +214,41 @@ public:
             result["type"] = "cmp";
             result["op"] = op;
             result["args"] = args;
+        } else if (auto run = def->isa<Run>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto target = translate_def(run->def());
+
+            result["name"] = name;
+            result["type"] = "run";
+            result["target"] = target;
+        } else if (auto hlt = def->isa<Hlt>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            json args = json::array();
+            auto target = translate_def(hlt->def());
+
+            result["name"] = name;
+            result["type"] = "hlt";
+            result["target"] = target;
+        } else if (auto enter = def->isa<Enter>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            json args = json::array();
+            auto mem = translate_def(enter->mem());
+
+            result["name"] = name;
+            result["type"] = "enter";
+            result["mem"] = mem;
+        } else if (auto slot = def->isa<Slot>()) {
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto frame = translate_def(slot->frame());
+            auto target_type = type_table_.translate_type(slot->alloced_type());
+
+            result["name"] = name;
+            result["type"] = "slot";
+            result["frame"] = frame;
+            result["target_type"] = target_type;
         } else {
+            def->dump(2);
+            std::cerr << "cannot be translated\n";
             THORIN_UNREACHABLE;
         }
         known_defs[def] = result["name"];

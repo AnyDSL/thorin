@@ -15,9 +15,81 @@ public:
         }
 
         json result;
-        if (type->isa<MemType>()) {
+        if (auto arr = type->isa<DefiniteArrayType>()) {
+            auto elem_type = translate_type(arr->elem_type());
+
+            result["type"] = "def_array";
+            result["args"] = { elem_type };
+            result["length"] = arr->dim();
+            result["name"] = elem_type + "_darr";
+        } else if (auto arr = type->isa<IndefiniteArrayType>()) {
+            auto elem_type = translate_type(arr->elem_type());
+
+            result["type"] = "indef_array";
+            result["args"] = { elem_type };
+            result["name"] = elem_type + "_iarr";
+        } else if (type->isa<BottomType>()) {
+            result["name"] = "bottom_t";
+            result["type"] = "bottom";
+        } else if (auto fntype = type->isa<FnType>()) {
+            json arg_types = json::array();
+            for (auto arg : fntype->ops()) {
+                arg_types.push_back(translate_type(arg));
+            }
+
+            result["type"] = "function";
+            result["name"] = "_" + std::to_string(type_table.size());
+            result["args"] = arg_types;
+        } else if (auto closuretype = type->isa<ClosureType>()) {
+            json args = json::array();
+            for (auto arg : closuretype->ops()) {
+                args.push_back(translate_type(arg));
+            }
+
+            result["type"] = "closure";
+            result["name"] = "_" + std::to_string(type_table.size());
+            result["args"] = args;
+        } else if (type->isa<FrameType>()) {
+            result["name"] = "frame_t";
+            result["type"] = "frame";
+        } else if (type->isa<MemType>()) {
             result["name"] = "mem_t";
             result["type"] = "mem";
+        } else if (auto structtype = type->isa<StructType>()) {
+            json args = json::array();
+            json arg_names = json::array();
+            for (size_t i = 0; i < structtype->num_ops(); ++i) {
+                args.push_back(translate_type(structtype->op(i)));
+                arg_names.push_back(structtype->op_name(i).str());
+            }
+
+            result["type"] = "struct";
+            result["name"] = "_" + std::to_string(type_table.size());
+            result["struct_name"] = structtype->name().str();
+            result["args"] = args;
+            result["arg_names"] = arg_names;
+        } else if (auto varianttype = type->isa<VariantType>()) {
+            json args = json::array();
+            json arg_names = json::array();
+            for (size_t i = 0; i < varianttype->num_ops(); ++i) {
+                args.push_back(translate_type(varianttype->op(i)));
+                arg_names.push_back(varianttype->op_name(i).str());
+            }
+
+            result["type"] = "variant";
+            result["name"] = "_" + std::to_string(type_table.size());
+            result["variant_name"] = varianttype->name().str();
+            result["args"] = args;
+            result["arg_names"] = arg_names;
+        } else if (auto tupletype = type->isa<TupleType>()) {
+            json args = json::array();
+            for (size_t i = 0; i < tupletype->num_ops(); ++i) {
+                args.push_back(translate_type(tupletype->op(i)));
+            }
+
+            result["type"] = "tuple";
+            result["name"] = "_" + std::to_string(type_table.size());
+            result["args"] = args;
         } else if (auto prim = type->isa<PrimType>()) {
             result["name"] = "_" + std::to_string(type_table.size());
             result["length"] = prim->length();
@@ -26,15 +98,6 @@ public:
 #define THORIN_ALL_TYPE(T, M) case PrimTypeTag::PrimType_##T: { result["tag"] = #T; break; }
 #include <thorin/tables/primtypetable.h>
             }
-        } else if (auto fntype = type->isa<FnType>()) {
-            json arg_types = json::array();
-            for (auto arg : fntype->ops()) {
-                arg_types.push_back(translate_type(arg));
-            }
-
-            result["type"] = "fn";
-            result["name"] = "_" + std::to_string(type_table.size());
-            result["args"] = arg_types;
         } else if (auto ptrtype = type->isa<PtrType>()) {
             auto pointee_type = translate_type(ptrtype->pointee());
 
@@ -42,19 +105,6 @@ public:
             result["args"] = { pointee_type };
             result["name"] = pointee_type + "_p";
             result["length"] = ptrtype->length();
-        } else if (auto arr = type->isa<IndefiniteArrayType>()) {
-            auto elem_type = translate_type(arr->elem_type());
-
-            result["type"] = "indef_array";
-            result["args"] = { elem_type };
-            result["name"] = elem_type + "_iarr";
-        } else if (auto arr = type->isa<DefiniteArrayType>()) {
-            auto elem_type = translate_type(arr->elem_type());
-
-            result["type"] = "def_array";
-            result["args"] = { elem_type };
-            result["length"] = arr->dim();
-            result["name"] = elem_type + "_iarr";
         } else {
             std::cerr << "type cannot be translated\n";
             type->dump();
@@ -85,11 +135,26 @@ public:
         json result;
         if (auto cont = def->isa<Continuation>()) {
             if (cont->is_intrinsic()) {
-                assert(cont->intrinsic() == Intrinsic::Branch && "TODO: anything else is unsupported RN");
+                if (cont->intrinsic() == Intrinsic::Branch) {
+                    result["name"] = "branch";
+                    result["type"] = "continuation";
+                    result["intrinsic"] = "branch";
+                } else if (cont->intrinsic() == Intrinsic::Match) {
+                    //TODO: These will change in the memory branch!
+                    assert(!is_mem(cont->param(0)));
 
-                result["name"] = "branch";
-                result["type"] = "continuation";
-                result["intrinsic"] = "branch";
+                    size_t num_patterns = cont->num_params() - 2;
+                    auto variant_type = type_table_.translate_type(cont->param(0)->type());
+                    auto name = expected_name != "" ? expected_name : "_match_" + std::to_string(def_table.size());
+
+                    result["name"] = name;
+                    result["type"] = "continuation";
+                    result["intrinsic"] = "match";
+                    result["variant_type"] = variant_type;
+                    result["num_patterns"] = num_patterns;
+                } else {
+                    assert(false && "TODO: only Branch and Match supported RN");
+                }
             } else if (cont->is_imported()) {
                 auto name = cont->name();
                 auto type = type_table_.translate_type(def->type());
@@ -333,6 +398,18 @@ public:
             result["type"] = "arithop";
             result["op"] = op;
             result["args"] = args;
+        } else if (auto mathop = def->isa<MathOp>()) {
+            auto op = mathop->op_name();
+            json args = json::array();
+            for (auto arg : mathop->ops()) {
+                args.push_back(translate_def(arg));
+            }
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+
+            result["name"] = name;
+            result["type"] = "mathop";
+            result["op"] = op;
+            result["args"] = args;
         } else if (auto select = def->isa<Select>()) {
             json args = json::array();
             args.push_back(translate_def(select->cond()));
@@ -411,6 +488,79 @@ public:
             result["type"] = "global";
             result["init"] = init;
             result["mutable"] = is_mutable;
+        } else if (auto variant = def->isa<Variant>()) {
+            auto variant_type = type_table_.translate_type(variant->type());
+            auto value = translate_def(variant->value());
+            size_t index = variant->index();
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+
+            result["name"] = name;
+            result["type"] = "variant";
+            result["variant_type"] = variant_type;
+            result["value"] = value;
+            result["index"] = index;
+        } else if (auto variant_extract = def->isa<VariantExtract>()) {
+            auto value = translate_def(variant_extract->value());
+            size_t index = variant_extract->index();
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+
+            result["name"] = name;
+            result["type"] = "variant_extract";
+            result["value"] = value;
+            result["index"] = index;
+        } else if (auto variant_index = def->isa<VariantIndex>()) {
+            auto value = translate_def(variant_index->op(0));
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+
+            result["name"] = name;
+            result["type"] = "variant_index";
+            result["value"] = value;
+        } else if (auto assembly = def->isa<Assembly>()) {
+            auto asm_type = type_table_.translate_type(assembly->type());
+            json inputs = json::array();
+            for (auto input : assembly->inputs()) {
+                inputs.push_back(translate_def(input));
+            }
+            auto asm_template = assembly->asm_template();
+            json out_constraints = json::array();
+            for (auto constraint : assembly->output_constraints()) {
+                out_constraints.push_back(constraint);
+            }
+            json in_constraints = json::array();
+            for (auto constraint : assembly->input_constraints()) {
+                in_constraints.push_back(constraint);
+            }
+            json clobbers = json::array();
+            for (auto c : assembly->clobbers()) {
+                clobbers.push_back(c);
+            }
+
+            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+
+            result["name"] = name;
+            result["type"] = "assembly";
+
+            result["asm_type"] = asm_type;
+            result["inputs"] = inputs;
+            result["asm_template"] = asm_template;
+
+            result["output_constraints"] = out_constraints;
+            result["input_constraints"] = in_constraints;
+            result["clobbers"] = clobbers;
+            switch (assembly->flags()) {
+            case Assembly::Flags::NoFlag:
+                result["flags"] = "noflag";
+                break;
+            case Assembly::Flags::HasSideEffects:
+                result["flags"] = "hassideeffects";
+                break;
+            case Assembly::Flags::IsAlignStack:
+                result["flags"] = "isalignstack";
+                break;
+            case Assembly::Flags::IsIntelDialect:
+                result["flags"] = "isinteldialect";
+                break;
+            }
         } else {
             def->dump();
             def->dump(2);

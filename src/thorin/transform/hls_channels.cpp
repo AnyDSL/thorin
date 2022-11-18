@@ -761,12 +761,17 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             global2slot.emplace(global, channel_slots.back());
         }
 
-        // Finding all dependencies between the kernels
+        // Finding all dependencies between the kernels (building a dependency graph)
         // for each global variables find the kernels which use it,
         // check the mode on each kernel and fill a dpendency data structure: < Write, Read> => <From, To>
         // It is not possible to read a channel before writing that, so dependencies are "From write To read"
         size_t from, to = 0;
         for(size_t index_from = 0; index_from < kernels_ch_modes.size() ; ++index_from) {
+          //  std::cout << "-----global----" << std::endl;
+          //  global->dump();
+          //  std::cout << "-----MAP----" << std::endl;
+          //  for (auto [chan, _] : kernels_ch_modes[index_from])
+          //      chan->dump();
             auto channel_it = kernels_ch_modes[index_from].find(global);
             if (channel_it != kernels_ch_modes[index_from].end()) {
                 auto mode = channel_it->second;
@@ -785,6 +790,10 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
                 }
             }
         }
+     //   auto cgra_channel_it = def2mode_cgra.find(global);
+     //   if (cgra_channel_it != def2mode_cgra.end()) {
+     //       std::cout << "global_inside_cgra" << std::endl;
+     //   }
     }
 
     // resolving dependencies

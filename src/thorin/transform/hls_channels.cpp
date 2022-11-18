@@ -648,6 +648,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         for (size_t i = 0; i < kernel->num_params(); ++i) {
             auto param = kernel->param(i);
             // If the parameter is not a channel, save the details and add it to the hls_top parameter list
+            // TODO: if the paramete is not a channel or is a channel connected to a CGRA kernel then ...
             if (!is_channel_type(param->type())) {
                 if (param != kernel->ret_param() && param != kernel->mem_param()) {
                     param_index.emplace_back(kernel, i, top_param_types.size());
@@ -679,7 +680,9 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         }
     }
 
-    // Maping hls world params (from old kernels) to old_world params. Required for host code (runtime) generation
+
+    // Searching in all old continuations for maping hls world params (non-channels from old kernels) to old_world params.
+    // Required for host code (runtime) generation
     for (auto& elem : old_kernels_params) {
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Continuation>()) {
@@ -691,6 +694,24 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             }
         }
     }
+
+
+
+// probably need to use old2new or sending globals from cgra_graphs to here befor rewrite
+
+    for (auto def : cgra_world.defs()) {
+       // if (auto continuation = def->isa_nom<Continuation>())
+       //     continuation->dump();
+        //def->dump();
+    }
+
+
+// std::cout << "_-------------------" <<std::endl;
+//    for (auto def : world.defs()) {
+//       // if (auto continuation = def->isa_nom<Continuation>())
+//       //     continuation->dump();
+//        def->dump();
+//    }
 
     // --------------------------------------------------------------------
 

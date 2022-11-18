@@ -87,6 +87,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
             if (auto hls_callee = has_hls_callee(block)) {
                 auto cont_mem_obj = block->mem_param();
                 auto callee_continuation = hls_callee->isa_nom<Continuation>();
+                callee_continuation->dump();
                 Continuation* last_hls_cont;
                 if (!last_hls_found) {
                     // TODO I'm at a loss for what is intended here. This is an assignment - not a check, the net result

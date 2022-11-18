@@ -172,36 +172,39 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, CGRA }) {
+    //for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, CGRA }) {
+    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU}) {
         if (!importers_[backend].world().empty()) {
-            size_t launch_args_num;
-            switch (backend) {
-                case CUDA: case NVVM: case OpenCL: case AMDGPU:
-                    launch_args_num = LaunchArgs<GPU>::Num; break;
-                case CGRA: {
-                    cgra_graphs(importers_[CGRA]);
-                    launch_args_num = LaunchArgs<AIE_CGRA>::Num; break;
-                }
-                default:
-                    THORIN_UNREACHABLE;
-            }
+            //size_t launch_args_num;
+           // switch (backend) {
+             //   case CUDA: case NVVM: case OpenCL: case AMDGPU:
+                    //launch_args_num = LaunchArgs<GPU>::Num; break;
+              //  case CGRA: {
+                    //cgra_graphs(importers_[CGRA]);
+              //      launch_args_num = LaunchArgs<AIE_CGRA>::Num; break;
+        //        }
+          //      default:
+           //         THORIN_UNREACHABLE;
+           // }
 
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
-                bool has_restrict = true;
-                auto app = use->body();
+               // bool has_restrict = true;
+                auto has_restrict = has_restrict_pointer(LaunchArgs<GPU>::Num, use);
+                //dfki travel
+                //passport
+                //auto app = use->body();
                 // determine whether or not this kernel uses restrict pointers
-                DefSet allocs;
-                for (size_t i = launch_args_num, e = app->num_args(); has_restrict && i != e; ++i) {
-                    auto arg = app->arg(i);
-                    if (!arg->type()->isa<PtrType>()) continue;
-                    auto alloc = get_alloc_call(arg);
-                    if (!alloc) has_restrict = false;
-                    auto p = allocs.insert(alloc);
-                    has_restrict &= p.second;
-                }
-            if (backend != CGRA) {
-
-                auto it_config = app->arg(LaunchArgs<GPU>::Config)->as<Tuple>();
+            //    DefSet allocs;
+            //    for (size_t i = launch_args_num, e = app->num_args(); has_restrict && i != e; ++i) {
+            //        auto arg = app->arg(i);
+            //        if (!arg->type()->isa<PtrType>()) continue;
+            //        auto alloc = get_alloc_call(arg);
+            //        if (!alloc) has_restrict = false;
+            //        auto p = allocs.insert(alloc);
+            //        has_restrict &= p.second;
+            //    }
+           // if (backend != CGRA) {
+                auto it_config = use->body()->arg(LaunchArgs<GPU>::Config)->as<Tuple>();
                 if (it_config->op(0)->isa<PrimLit>() &&
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
@@ -211,7 +214,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                         it_config->op(2)->as<PrimLit>()->qu32_value().data()
                     }, has_restrict);
                 }
-            }
+           // }
                 return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
             });
         }
@@ -225,7 +228,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     Top2Kernel top2kernel;
     DeviceParams hls_host_params;
     if (!importers_[HLS].world().empty()) {
-        hls_host_params = hls_channels(importers_[HLS], top2kernel, world);
+        hls_host_params = hls_channels(importers_[HLS], top2kernel, world, importers_[CGRA]);
 
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto app = use->body();
@@ -260,15 +263,19 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         });
         hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
     }
+//    cgra_graphs(importers_[CGRA]);
     hls_kernel_launch(world, hls_host_params);
-    //cgra_graphs(importers_[CGRA]);
     //
+//        cgra_graphs(importers_[CGRA]);
 
-//    if (!importers_[CGRA].world().empty()) {
-//        get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
-//            return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, true);
-//        });
-//    }
+    if (!importers_[CGRA].world().empty()) {
+        cgra_graphs(importers_[CGRA]);
+        get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+            auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
+            //return std::make_unique<CGRAKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, true);
+            return std::make_unique<CGRAKernelConfig>(has_restrict);
+        });
+    }
 
 #if THORIN_ENABLE_LLVM
     if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);

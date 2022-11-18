@@ -26,8 +26,8 @@ private:
     bool debug_;
 };
 
-enum device_code {GPU, FPGA_HLS, FPGA_CL, AIE_CGRA};
-template<device_code T>
+enum Device_code {GPU, FPGA_HLS, FPGA_CL, AIE_CGRA};
+template<Device_code T>
 struct LaunchArgs {};
 template <>
 struct LaunchArgs<GPU> {
@@ -53,6 +53,14 @@ struct LaunchArgs<AIE_CGRA> {
         Num
     };
 };
+
+//template<Device_code T>
+//LaunchArgs<T> launch_args(Device_code device_code) {
+//    if (device_code == GPU)
+//        return LaunchArgs<GPU>{};
+//    else if (device_code == AIE_CGRA)
+//        return LaunchArgs<AIE_CGRA>{};
+//}
 
 struct DeviceBackends {
     DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);

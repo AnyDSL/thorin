@@ -563,10 +563,10 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             // - The position of the channel parameter for the new kernel
             // - The old global definition for the channel
             std::vector<std::pair<size_t, const Def*>> index2def;
-            for (auto map : def2mode) {
+            for (auto [def, _] : def2mode) {
                 //map.first->dump();
-                index2def.emplace_back(i, map.first);
-                new_param_types[i++] = map.first->type();
+                index2def.emplace_back(i, def);
+                new_param_types[i++] = def->type();
             }
 
             // new kernels signature

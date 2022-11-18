@@ -76,6 +76,64 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
+//template<typename T>
+//static bool has_restrict_pointer(const T device, Continuation* use) {
+//    bool has_restrict = true;
+//    auto app = use->body();
+//    // determine whether or not this kernel uses restrict pointers
+//    DefSet allocs;
+//    for (size_t i = LaunchArgs<device>::Num, e = app->num_args(); has_restrict && i != e; ++i) {
+//        auto arg = app->arg(i);
+//        if (!arg->type()->isa<PtrType>()) continue;
+//        auto alloc = get_alloc_call(arg);
+//        if (!alloc) has_restrict = false;
+//        auto p = allocs.insert(alloc);
+//        has_restrict &= p.second;
+//    }
+//    return has_restrict;
+//}
+//
+//
+//
+//
+//
+
+//static bool has_restrict_pointer(int launch_args_num, Continuation* use) {
+static bool has_restrict_pointer(int launch_args_num, Continuation* use) {
+// determines whether or not a kernel uses restrict pointers
+    auto has_restrict = true;
+    auto app = use->body();
+    DefSet allocs;
+    for (size_t i = launch_args_num, e = app->num_args(); has_restrict && i != e; ++i) {
+        auto arg = app->arg(i);
+        if (!arg->type()->isa<PtrType>()) continue;
+        auto alloc = get_alloc_call(arg);
+        if (!alloc) has_restrict = false;
+        auto p = allocs.insert(alloc);
+        has_restrict &= p.second;
+    }
+    return has_restrict;
+}
+
+
+////template<typename T>
+//static bool has_restrict_pointer(Device_code device, Continuation* use) {
+//    bool has_restrict = true;
+//    auto app = use->body();
+//    // determine whether or not this kernel uses restrict pointers
+//    DefSet allocs;
+//    //for (size_t i = LaunchArgs<device>::Num, e = app->num_args(); has_restrict && i != e; ++i) {
+//    for (size_t i = launch_args(device)::Num, e = app->num_args(); has_restrict && i != e; ++i) {
+//        auto arg = app->arg(i);
+//        if (!arg->type()->isa<PtrType>()) continue;
+//        auto alloc = get_alloc_call(arg);
+//        if (!alloc) has_restrict = false;
+//        auto p = allocs.insert(alloc);
+//        has_restrict &= p.second;
+//    }
+//    return has_restrict;
+//}
+
 DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& flags)
     : cgs {}
 {

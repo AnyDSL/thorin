@@ -13,6 +13,13 @@ namespace thorin {
 void cgra_graphs(Importer& importer) {
 
     auto& world = importer.world();
+
+// std::cout << "_--------cgra before rewrite--------" <<std::endl;
+//    for (auto def : world.defs()) {
+       // if (auto continuation = def->isa_nom<Continuation>())
+       //     continuation->dump();
+       // def->dump();
+//    }
     //Def2Def kernel_new2old;
     std::vector<Continuation*> new_kernels;
     //Def2Def param2arg; // contains map from new kernel parameter to arguments of calls (globals)
@@ -20,7 +27,12 @@ void cgra_graphs(Importer& importer) {
     Scope::for_each(world, [&] (Scope& scope) {
         Def2Mode def2mode; // channels and their R/W modes
         extract_kernel_channels(schedule(scope), def2mode);
-        world.dump();
+        //world.dump();
+
+            for (auto [elem,_] : def2mode) {
+                std::cout << "cgra: " <<  elem->unique_name()<< std::endl;
+
+            }
 
         auto old_kernel = scope.entry();
         // for each kernel new_param_types contains both the type of kernel parameters and the channels used inside that kernel
@@ -59,8 +71,9 @@ void cgra_graphs(Importer& importer) {
                 auto channel_param = new_kernel->param(channel_param_index);
                 rewriter.old2new[channel] = channel_param;
                 // In CGRA ADF only connected nodes (params) are concerned and there is no need to
-                // introduce a new variable (like channels) to connect them together. so at this point param2arg map is not required.
-          //      param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
+                // introduce a new variable (like mem slots for channels) to connect them together.
+                // so at this point param2arg map is not required.
+                //  param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
             }
 
           // rewriting basicblocks and their parameters
@@ -94,6 +107,7 @@ void cgra_graphs(Importer& importer) {
             }
     });
 
+    //world.dump();
     world.cleanup();
 }
 

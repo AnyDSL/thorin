@@ -724,9 +724,34 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     std::vector<const Def*> channel_slots;
     std::vector<const Global*> globals;
     for (auto def : world.defs()) {
-        if (auto global = def->isa<Global>())
+        if (auto global = def->isa<Global>()) {
+           // auto cont = def->isa_nom<Continuation>();
+            //if (cont)
+            //    cont->dump();
+            //def->dump();
+            //def->as_nom<Continuation>();
+            std::cout << " HLS world global_name: "<<global->unique_name() << std::endl;
             globals.emplace_back(global);
+        }
     }
+
+
+    for (auto def : cgra_world.defs()) {
+        if (auto global = def->isa<Global>()) {
+            std::cout << "CGRA world global_name: "<<global->unique_name() << std::endl;
+            //globals.emplace_back(global);
+        }
+    }
+
+    for (auto def : old_world.defs()) {
+        if (auto global = def->isa<Global>()) {
+            if (global->init()->isa<Bottom>()) { // make sure it is a only a global variable
+                std::cout << "old world global_name: "<< global->unique_name() << std::endl;
+                //globals.emplace_back(global);
+            }
+        }
+    }
+
 
     Dependencies dependencies;
     // We need to iterate over globals twice because we cannot iterate over primops while creating new primops

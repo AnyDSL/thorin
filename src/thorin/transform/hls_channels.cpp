@@ -387,20 +387,23 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
                 if (auto same_global_it = next_map.find(cur_global); same_global_it != next_map.end()) {
                     //found
                     auto [next_basic_block, next_intrinsic] = same_global_it->second;
-                    if (cur_intrinsic != next_intrinsic && cur_intrinsic == Intrinsic::HLS) {
+                    if (cur_intrinsic != next_intrinsic) {
                         // HLS-CGR
+                        // We assume that the current basic block blongs to HLS
                         auto hls_basic_block  = cur_basic_block;
                         auto cgra_basic_block = next_basic_block;
+                        if (cur_intrinsic == Intrinsic::CGRA)
+                            std::swap(hls_basic_block, next_basic_block);
                         global2dependent_blocks.emplace(cur_global, std::make_pair(hls_basic_block, cgra_basic_block));
+                        break;
                     } else {
                         //HLS-HLS or CGRA-CGRA dependencies are filtered out
                         continue;
                     }
-
-                    visited_globals.emplace_back(cur_global);
                 }
             }
-         }
+        visited_globals.emplace_back(cur_global);
+        }
     }
 
 //    for (const auto& map : old_global_maps) {

@@ -198,7 +198,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
     Def2Def kernel_new2old;
-    Def2Def param2arg; // contains map from new kernel parameter to arguments of calls inside hls_top (for all kernels)
+    Def2Def param2arg; // contains a map from new kernel parameters to their corresponding arguments in call-site at hls_top (for all kernels)
     Def2Def arg2param;
 
     std::cout << "------- OLD WORLD----------"<< std::endl;
@@ -302,7 +302,6 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
            //It seems the only way is searching over all defs and look for scope.entry in 2nd arg of callee
            // in fact the scope.entry should be equal to --> 2nd arg of HLS/CGRA callee->as Global->init
            // then the HLS/CGRA intrinsic can mark a flag for all basic blocks in that scope
-                
             //body->dump();
             //auto scope_callee = scope.entry()->body()->callee();
       //      std::cout<< "*** SCOPE *** " <<std::endl;
@@ -323,7 +322,6 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
                         if (def->isa_structural() && !def->has_dep(Dep::Param)) {
                             cgra_global.emplace_back(def);
                             std::cout << "***cgra size: "  <<  cgra_global.size()<<"******" << std::endl;
-
                         }
                     }
                 }

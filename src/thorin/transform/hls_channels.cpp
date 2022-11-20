@@ -376,10 +376,10 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     Def2DependentBlocks global2dependent_blocks;// [common_global, (HLS_basicblock, CGRA_basicblock)]
     std::vector<const Def*> visited_globals;
     for (auto cur_kernel_it = old_global_maps.cbegin(); cur_kernel_it != old_global_maps.cend(); ++cur_kernel_it) {
-         auto cur_map = *cur_kernel_it;
-         for (const auto& [cur_global, cur_pair] : cur_map) {
-             // Filtereing out already visited globals from seach space
-             if (std::find(visited_globals.cbegin(), visited_globals.cend(), cur_global) != visited_globals.cend())
+        auto cur_map = *cur_kernel_it;
+        for (const auto& [cur_global, cur_pair] : cur_map) {
+            // Filtereing out already visited globals from the search space
+            if (std::find(visited_globals.cbegin(), visited_globals.cend(), cur_global) != visited_globals.cend())
                  continue;
             auto [cur_basic_block, cur_intrinsic] = cur_pair;
             for(auto next_kernel_it = cur_kernel_it + 1; next_kernel_it != old_global_maps.cend(); ++next_kernel_it){

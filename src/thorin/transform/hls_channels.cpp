@@ -662,14 +662,15 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
     for (auto tuple : param_index) {
-        // (non-channel params, top params as kernel call args)
+        // Mapping hls_top params as args for new_kernels' params
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
         auto arg   = hls_top->param(std::get<2>(tuple));
-        param2arg.emplace(param, arg);
-        arg2param.emplace(arg, param);
+        param2arg.emplace(param, arg); // adding (non-channel params, hls_top params as args)
+        arg2param.emplace(arg, param); // channel-params are not here
     }
 
     // ---------- Preparing args for calling hls_top from host ------------
+    // new_kernels hls world-->old_kernels in hls world-->kenels in old_world
 
     // Maping new_kernels params to old kernels params
     std::vector<const Def*> old_kernels_params;
@@ -683,11 +684,10 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 
 
     // Searching in all old continuations for maping hls world params (non-channels from old kernels) to old_world params.
-    // Required for host code (runtime) generation
     for (auto& elem : old_kernels_params) {
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Continuation>()) {
-                auto ncontinuation = elem->as<Param>()->continuation();
+                auto ncontinuation = elem->as<Param>()->continuation(); //TODO: for optimization This line can go out of inner loop
                 if (ncontinuation == importer.def_old2new_[ocontinuation]) {
                     elem = ocontinuation->param(elem->as<Param>()->index());
                     break;
@@ -695,6 +695,8 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             }
         }
     }
+
+   // --------------------------------------------------------------
 
 
 

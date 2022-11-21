@@ -108,7 +108,7 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                            //     }
                            // }
                                 //cont->dump(); TODO: we need to find corresponding continuations in the HLS world
-                                //importer.def_old2new_[
+                                //importer_hls.def_old2new_[
                                 hls_global.emplace_back(def);
                         }
                     }
@@ -344,15 +344,15 @@ bool has_cgra_callee(World& world) {
 void hls_cgra_dependecy_analysis();
 
 /**
- * @param importer hls world
+ * @param importer_hls hls world
  * @param Top2Kernel annonating hls_top configuration
  * @param old_world to connect with runtime (host) world
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
 //DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-    auto& world = importer.world(); // world is hls world
+DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+    auto& world = importer_hls.world(); // world is hls world
     auto& cgra_world = importer_cgra.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
@@ -419,6 +419,13 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     old_global_maps.clear();
 
 
+
+        for (const auto& [common_global, pair] : global2dependent_blocks) {
+            for (auto def : old_world.defs()) {
+            //if (ncontinuation == importer_hls.def_old2new_[ocontinuation]) {
+                std::cout << "TIIIIIIIIIIIIIIIIIIIICK" <<std::endl;
+            }
+        }
 
 //    for (const auto& map : old_global_maps) {
 //        auto map_base_addr = map.begin();
@@ -526,7 +533,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 //                           //     }
 //                           // }
 //                                //cont->dump(); TODO: we need to find corresponding continuations in the HLS world
-//                                //importer.def_old2new_[
+//                                //importer_hls.def_old2new_[
 //                                hls_global.emplace_back(def);
 //                        }
 //                //body->dump();
@@ -636,12 +643,12 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 //            for (auto def_old : old_world.defs()) {
 //                if (auto ocontinuation = def_old->isa_nom<Continuation>()) {
 //                    auto ncontinuation = chan->isa_nom<Continuation>();
-//                    if (auto new_ = importer.def_old2new_[ocontinuation]) {
+//                    if (auto new_ = importer_hls.def_old2new_[ocontinuation]) {
 //                        ocontinuation->dump();
 //                        new_->dump();
 //                        chan->as<Global>()->init()->dump();
 //                    }
-//                    if (ncontinuation == importer.def_old2new_[ocontinuation]) {
+//                    if (ncontinuation == importer_hls.def_old2new_[ocontinuation]) {
 //                        if (ncontinuation) {
 //                        //    ncontinuation->dump();
 //                            std::cout << "TICK" <<std::endl;
@@ -701,7 +708,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Continuation>()) {
                 auto ncontinuation = elem->as<Param>()->continuation(); //TODO: for optimization This line can go out of inner loop
-                if (ncontinuation == importer.def_old2new_[ocontinuation]) {
+                if (ncontinuation == importer_hls.def_old2new_[ocontinuation]) {
                     elem = ocontinuation->param(elem->as<Param>()->index());
                     break;
                 }

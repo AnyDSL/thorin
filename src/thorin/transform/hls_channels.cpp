@@ -17,10 +17,166 @@ std::vector<const Def*> hls_global;
 std::vector<const Def*> cgra_global;
 
 
+void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
+    Scope::for_each(world, [&] (Scope& scope) {
+            std::cout<< "*** SCOPE entry*** " <<std::endl;
+            scope.entry()->dump();
+            auto kernel = scope.entry();
+            // Decide about scope intrinsic here by seach or use a stack on main scope!
+             //for (auto n : scope.f_cfg().post_order()) { n->continuation()->dump();}
+            //std::cout<< "*** blocks *** " <<std::endl;
+            Def2Block global2block; // global, using basic block, HLS/CGRA
+            for (auto& block : schedule(scope)) {
+                if (!block->has_body())
+                    continue;
+                // block->dump();
+                assert(block->has_body());
+                auto body = block->body();
+                auto callee = body->callee()->isa_nom<Continuation>();
+                if (callee && callee->is_channel()) {
+                    if (body->arg(1)->order() == 0 && !(is_mem(body->arg(1)) || is_unit(body->arg(1)))) {
+                        std::cout<< "*** target callee *** " <<std::endl;
+                        // global is here
+                       // TODO: more checks on global def
+                        auto def = body->arg(1);
+                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
+                            callee->dump();
+                        //   std::cout << "~~~~~~~~Global uses~~~~~~" << std::endl;
+                        //   for (auto use : body->arg(1)->uses())
+                        //       use->dump();
+                            for (auto preds_scope : scope.entry()->preds()) {
+                            //auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>();
+                                if (auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>(); pred_scope_callee
+                                        && pred_scope_callee->is_intrinsic()) {
+                                    if (pred_scope_callee->intrinsic() == Intrinsic::HLS ||
+                                            pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
+                                        std::cout << "~~~~~~~~Pred callee~~~~~~" << std::endl;
+                                        pred_scope_callee->dump();
+                                        global2block.emplace(def, std::make_pair(callee, pred_scope_callee->intrinsic()));
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+           //TODO:  scope is static in all corresponding basic blocks,
+           //It seems the only way is searching over all defs and look for scope.entry in 2nd arg of callee
+           // in fact the scope.entry should be equal to --> 2nd arg of HLS/CGRA callee->as Global->init
+           // then the HLS/CGRA intrinsic can mark a flag for all basic blocks in that scope
+            //body->dump();
+            //auto scope_callee = scope.entry()->body()->callee();
+      //      std::cout<< "*** SCOPE *** " <<std::endl;
+      //      scope.entry()->dump();
+      //      //scope_callee->dump();
+      //      std::cout<< "*** Defs *** " <<std::endl;
+      //      for (auto def : scope.defs())
+      //          def->dump();
+                //TODO: look for read and write in defs of scopes then look at the scope then search inside all block to find that scope then look at the corresponding callee to see whether it is HLS or CGRA
+
+            auto callee_ = body->callee()->isa_nom<Continuation>();
+            if (callee_ && callee_->intrinsic() == Intrinsic::CGRA) {
+                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
+                auto callee_ = cont->body()->callee()->isa_nom<Continuation>(); 
+                if (callee_ && callee_->is_channel()) {
+                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
+                        auto def = cont->body()->arg(1);
+                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
+                            cgra_global.emplace_back(def);
+                            std::cout << "***cgra size: "  <<  cgra_global.size()<<"******" << std::endl;
+                        }
+                    }
+                }
+            }
+            if (callee_ && callee_->intrinsic() == Intrinsic::HLS) {
+                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
+                auto callee_ = cont->body()->callee()->isa_nom<Continuation>();
+                if (callee_ && callee_->is_channel()) {
+                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
+                        auto def = cont->body()->arg(1);
+                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
+                //if (cont->body()->callee()->is_channel())
+                           // for (auto use : def->uses()) {
+                           //     //auto test = use->isa<App>();
+                           //     auto test = use->isa<App>();
+                           //     if (test) {
+                           //         auto conts = test->using_continuations();
+                           //         for (auto cont : conts)
+                           //             cont->dump();
+                           //     }
+                           // }
+                                //cont->dump(); TODO: we need to find corresponding continuations in the HLS world
+                                //importer.def_old2new_[
+                                hls_global.emplace_back(def);
+                        }
+                    }
+                }
+        }
+        }
+    if (!global2block.empty()) {
+        // size of this vector should be the same as the number of kernels in HLS world
+        // TODO: think about if repeating globals in different bb is required!
+        old_global_maps.emplace_back(global2block);
+        std::cout << " kernel number = " << old_global_maps.size() << std::endl;
+        std::cout << " old_map_size = " << global2block.size() << std::endl;
+        std::cout << " ####inside map #####" << std::endl;
+        for (auto [k, v] : global2block)
+            k->dump();
+
+    }
+
+
+          //  std::cout<< "*** scope conts *** " <<std::endl;
+          //  for (auto def : scope.defs())
+          //      if (auto cont = def->isa<Continuation>())
+          //          cont->dump();
+    });
+    }
+
 bool CheckCommon(std::vector<const Def*> const& inVectorA, std::vector<const Def*> const& nVectorB) {
     return std::find_first_of (inVectorA.begin(), inVectorA.end(),
             nVectorB.begin(), nVectorB.end()) != inVectorA.end();
 }
+
+
+
+// HLS-CGRA dependency search algorithm
+void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, const std::vector<Def2Block>& old_global_maps) {
+    std::vector<const Def*> visited_globals;
+    for (auto cur_kernel_it = old_global_maps.cbegin(); cur_kernel_it != old_global_maps.cend(); ++cur_kernel_it) {
+        auto cur_map = *cur_kernel_it;
+        for (const auto& [cur_global, cur_pair] : cur_map) {
+            // Filtereing out already visited globals from the search space
+            if (std::find(visited_globals.cbegin(), visited_globals.cend(), cur_global) != visited_globals.cend())
+                continue;
+            auto [cur_basic_block, cur_intrinsic] = cur_pair;
+            for(auto next_kernel_it = cur_kernel_it + 1; next_kernel_it != old_global_maps.cend(); ++next_kernel_it){
+                auto next_map = *next_kernel_it;
+                if (auto same_global_it = next_map.find(cur_global); same_global_it != next_map.end()) {
+                    //found
+                    auto [next_basic_block, next_intrinsic] = same_global_it->second;
+                    if (cur_intrinsic != next_intrinsic) {
+                        // HLS-CGR
+                        // We assume that the current basic block blongs to HLS
+                        auto hls_basic_block  = cur_basic_block;
+                        auto cgra_basic_block = next_basic_block;
+                        if (cur_intrinsic == Intrinsic::CGRA)
+                            std::swap(hls_basic_block, next_basic_block);
+                        global2dependent_blocks.emplace(cur_global, std::make_pair(hls_basic_block, cgra_basic_block));
+                        break;
+                    } else {
+                        //HLS-HLS or CGRA-CGRA dependencies are filtered out
+                        continue;
+                    }
+                }
+            }
+            visited_globals.emplace_back(cur_global);
+        }
+    }
+}
+
 
 
 //static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
@@ -184,6 +340,9 @@ bool has_cgra_callee(World& world) {
     return found_cgra;
 }
 
+
+void hls_cgra_dependecy_analysis();
+
 /**
  * @param importer hls world
  * @param Top2Kernel annonating hls_top configuration
@@ -254,157 +413,12 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 //        std::cout << old_world_globals.size() <<std::endl;
 
     std::vector<Def2Block> old_global_maps;
-    Scope::for_each(old_world, [&] (Scope& scope) {
-            std::cout<< "*** SCOPE entry*** " <<std::endl;
-            scope.entry()->dump();
-            auto kernel = scope.entry();
-            // Decide about scope intrinsic here by seach or use a stack on main scope!
-             //for (auto n : scope.f_cfg().post_order()) { n->continuation()->dump();}
-            //std::cout<< "*** blocks *** " <<std::endl;
-            Def2Block global2block; // global, using basic block, HLS/CGRA
-            for (auto& block : schedule(scope)) {
-                if (!block->has_body())
-                    continue;
-                // block->dump();
-                assert(block->has_body());
-                auto body = block->body();
-                auto callee = body->callee()->isa_nom<Continuation>();
-                if (callee && callee->is_channel()) {
-                    if (body->arg(1)->order() == 0 && !(is_mem(body->arg(1)) || is_unit(body->arg(1)))) {
-                        std::cout<< "*** target callee *** " <<std::endl;
-                        // global is here
-                       // TODO: more checks on global def
-                        auto def = body->arg(1);
-                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                            callee->dump();
-                        //   std::cout << "~~~~~~~~Global uses~~~~~~" << std::endl;
-                        //   for (auto use : body->arg(1)->uses())
-                        //       use->dump();
-                            for (auto preds_scope : scope.entry()->preds()) {
-                            //auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>();
-                                if (auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>(); pred_scope_callee
-                                        && pred_scope_callee->is_intrinsic()) {
-                                    if (pred_scope_callee->intrinsic() == Intrinsic::HLS ||
-                                            pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
-                                        std::cout << "~~~~~~~~Pred callee~~~~~~" << std::endl;
-                                        pred_scope_callee->dump();
-                                        global2block.emplace(def, std::make_pair(callee, pred_scope_callee->intrinsic()));
-                                    }
+    hls_cgra_global_analysis(old_world, old_global_maps);
 
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-           //TODO:  scope is static in all corresponding basic blocks,
-           //It seems the only way is searching over all defs and look for scope.entry in 2nd arg of callee
-           // in fact the scope.entry should be equal to --> 2nd arg of HLS/CGRA callee->as Global->init
-           // then the HLS/CGRA intrinsic can mark a flag for all basic blocks in that scope
-            //body->dump();
-            //auto scope_callee = scope.entry()->body()->callee();
-      //      std::cout<< "*** SCOPE *** " <<std::endl;
-      //      scope.entry()->dump();
-      //      //scope_callee->dump();
-      //      std::cout<< "*** Defs *** " <<std::endl;
-      //      for (auto def : scope.defs())
-      //          def->dump();
-                //TODO: look for read and write in defs of scopes then look at the scope then search inside all block to find that scope then look at the corresponding callee to see whether it is HLS or CGRA
-
-            auto callee_ = body->callee()->isa_nom<Continuation>();
-            if (callee_ && callee_->intrinsic() == Intrinsic::CGRA) {
-                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
-                auto callee_ = cont->body()->callee()->isa_nom<Continuation>(); 
-                if (callee_ && callee_->is_channel()) {
-                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
-                        auto def = cont->body()->arg(1);
-                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                            cgra_global.emplace_back(def);
-                            std::cout << "***cgra size: "  <<  cgra_global.size()<<"******" << std::endl;
-                        }
-                    }
-                }
-            }
-            if (callee_ && callee_->intrinsic() == Intrinsic::HLS) {
-                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
-                auto callee_ = cont->body()->callee()->isa_nom<Continuation>();
-                if (callee_ && callee_->is_channel()) {
-                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
-                        auto def = cont->body()->arg(1);
-                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                //if (cont->body()->callee()->is_channel())
-                           // for (auto use : def->uses()) {
-                           //     //auto test = use->isa<App>();
-                           //     auto test = use->isa<App>();
-                           //     if (test) {
-                           //         auto conts = test->using_continuations();
-                           //         for (auto cont : conts)
-                           //             cont->dump();
-                           //     }
-                           // }
-                                //cont->dump(); TODO: we need to find corresponding continuations in the HLS world
-                                //importer.def_old2new_[
-                                hls_global.emplace_back(def);
-                        }
-                    }
-                }
-        }
-        }
-    if (!global2block.empty()) {
-        // size of this vector should be the same as the number of kernels in HLS world
-        // TODO: think about if repeating globals in different bb is required!
-        old_global_maps.emplace_back(global2block);
-        std::cout << " kernel number = " << old_global_maps.size() << std::endl;
-        std::cout << " old_map_size = " << global2block.size() << std::endl;
-        std::cout << " ####inside map #####" << std::endl;
-        for (auto [k, v] : global2block)
-            k->dump();
-
-    }
-
-
-          //  std::cout<< "*** scope conts *** " <<std::endl;
-          //  for (auto def : scope.defs())
-          //      if (auto cont = def->isa<Continuation>())
-          //          cont->dump();
-    });
-
-
-
-    // HLS-CGRA dependency search algorithm
     Def2DependentBlocks global2dependent_blocks;// [common_global, (HLS_basicblock, CGRA_basicblock)]
-    std::vector<const Def*> visited_globals;
-    for (auto cur_kernel_it = old_global_maps.cbegin(); cur_kernel_it != old_global_maps.cend(); ++cur_kernel_it) {
-        auto cur_map = *cur_kernel_it;
-        for (const auto& [cur_global, cur_pair] : cur_map) {
-            // Filtereing out already visited globals from the search space
-            if (std::find(visited_globals.cbegin(), visited_globals.cend(), cur_global) != visited_globals.cend())
-                 continue;
-            auto [cur_basic_block, cur_intrinsic] = cur_pair;
-            for(auto next_kernel_it = cur_kernel_it + 1; next_kernel_it != old_global_maps.cend(); ++next_kernel_it){
-                auto next_map = *next_kernel_it;
-                if (auto same_global_it = next_map.find(cur_global); same_global_it != next_map.end()) {
-                    //found
-                    auto [next_basic_block, next_intrinsic] = same_global_it->second;
-                    if (cur_intrinsic != next_intrinsic) {
-                        // HLS-CGR
-                        // We assume that the current basic block blongs to HLS
-                        auto hls_basic_block  = cur_basic_block;
-                        auto cgra_basic_block = next_basic_block;
-                        if (cur_intrinsic == Intrinsic::CGRA)
-                            std::swap(hls_basic_block, next_basic_block);
-                        global2dependent_blocks.emplace(cur_global, std::make_pair(hls_basic_block, cgra_basic_block));
-                        break;
-                    } else {
-                        //HLS-HLS or CGRA-CGRA dependencies are filtered out
-                        continue;
-                    }
-                }
-            }
-        visited_globals.emplace_back(cur_global);
-        }
-    }
+    hls_cgra_dependency_analysis(global2dependent_blocks, old_global_maps);
+
+
 
 //    for (const auto& map : old_global_maps) {
 //        auto map_base_addr = map.begin();
@@ -431,7 +445,6 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
         std::cout << "Found HLS-CGRA dependency" << std::endl;
     else
         std::cout << "No HLS-CGRA dependecy" << std::endl;
-
 
 
 

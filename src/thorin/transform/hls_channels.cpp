@@ -79,7 +79,7 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
             auto callee_ = body->callee()->isa_nom<Continuation>();
             if (callee_ && callee_->intrinsic() == Intrinsic::CGRA) {
                 auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
-                auto callee_ = cont->body()->callee()->isa_nom<Continuation>(); 
+                auto callee_ = cont->body()->callee()->isa_nom<Continuation>();
                 if (callee_ && callee_->is_channel()) {
                     if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
                         auto def = cont->body()->arg(1);
@@ -414,9 +414,9 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 
     std::vector<Def2Block> old_global_maps;
     hls_cgra_global_analysis(old_world, old_global_maps);
-
     Def2DependentBlocks global2dependent_blocks;// [common_global, (HLS_basicblock, CGRA_basicblock)]
     hls_cgra_dependency_analysis(global2dependent_blocks, old_global_maps);
+    old_global_maps.clear();
 
 
 
@@ -431,7 +431,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
       //    auto map =old_global_maps[it];
         //  auto def_global = map.first;
           //auto current_global = at(*it);
-        //for (next_map = it + 1 ; old_global_maps.end(); ++it) 
+        //for (next_map = it + 1 ; old_global_maps.end(); ++it)
     //for (size_t index_vector = 0; const auto& map : old_global_maps) {
       //      const auto& [global, pair] = map;
         //    for (search_index = index_vector + 1; )
@@ -489,7 +489,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 //                //cont->body()->callee()->as_nom<Continuation>()->dump();
 //                //TODO: Arg(1) is sometimes empty and it makes problem
 //                //cont->body()->arg(1)->dump();
-//                auto callee = cont->body()->callee()->isa_nom<Continuation>(); 
+//                auto callee = cont->body()->callee()->isa_nom<Continuation>();
 //                if (callee && callee->is_channel()) {
 //                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
 //                        auto def = cont->body()->arg(1);

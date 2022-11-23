@@ -126,7 +126,7 @@ public:
 
     DefMap<std::string> known_defs;
 
-    std::string translate_def (const Def * def, std::string expected_name = "") {
+    std::string translate_def (const Def * def) {
         auto it = known_defs.find(def);
         if (it != known_defs.end()) {
             return it->second;
@@ -145,7 +145,7 @@ public:
 
                     size_t num_patterns = cont->num_params() - 2;
                     auto variant_type = type_table_.translate_type(cont->param(0)->type());
-                    auto name = expected_name != "" ? expected_name : "_match_" + std::to_string(def_table.size());
+                    auto name = "_match_" + std::to_string(def_table.size());
 
                     result["name"] = name;
                     result["type"] = "continuation";
@@ -153,54 +153,64 @@ public:
                     result["variant_type"] = variant_type;
                     result["num_patterns"] = num_patterns;
                 } else {
-                    assert(false && "TODO: only Branch and Match supported RN");
+                    auto intrinsic_name = cont->name();
+                    auto intrinsic_type = type_table_.translate_type(cont->type());
+                    auto name = "_in_" + std::to_string(def_table.size());
+
+                    result["name"] = name;
+                    result["type"] = "continuation";
+                    result["intrinsic"] = intrinsic_name;
+                    result["fn_type"] = intrinsic_type;
                 }
-            } else if (cont->is_imported()) {
-                auto name = cont->name();
-                auto type = type_table_.translate_type(def->type());
-
-                result["name"] = name;
-                result["type"] = "continuation";
-                result["fn_type"] = type;
-                result["imported"] = true;
-                result["external"] = cont->is_external();
+                if (cont->filter() && !cont->filter()->empty())
+                    result["filter"] = translate_def(cont->filter());
             } else {
-                assert(cont->has_body());
-
                 auto type = type_table_.translate_type(def->type());
+
+                //Make the name available in known_defs as early as possible to prevent recursion issues.
+                auto name = "_cont_" + std::to_string(decl_table.size());
+                known_defs[def] = name;
+
+                //TODO: Is this actually required for imported functions?
                 json arg_names = json::array();
                 for (auto arg : cont->params()) {
                     arg_names.push_back(translate_def(arg));
                 }
-
-                auto name = expected_name != "" ? expected_name : "_cont_" + std::to_string(decl_table.size());
 
                 json forward_decl;
                 forward_decl["name"] = name;
                 forward_decl["type"] = "continuation";
                 forward_decl["fn_type"] = type;
                 forward_decl["arg_names"] = arg_names;
-                forward_decl["external"] = cont->is_external();
+                if (cont->is_external())
+                    forward_decl["external"] = cont->name();
                 decl_table.push_back(forward_decl);
 
-                known_defs[def] = name;
+                if(cont->has_body()) {
+                    auto app = cont->body();
+                    auto target = translate_def(app->callee());
+                    json args = json::array();
+                    for (auto arg : app->args()) {
+                        args.push_back(translate_def(arg));
+                    }
 
-                auto app = cont->body();
-                auto target = translate_def(app->callee());
-                json args = json::array();
-                for (auto arg : app->args()) {
-                    args.push_back(translate_def(arg));
+                    result["name"] = name;
+                    result["type"] = "continuation";
+                    if (cont->filter() && !cont->filter()->empty())
+                        result["filter"] = translate_def(cont->filter());
+                    result["app"] = {
+                        {"target", target},
+                        {"args", args}
+                    };
+                } else {
+                    //Early return. We do not have a body, so there is no point in writing something to the def table.
+                    if (cont->filter() && !cont->filter()->empty())
+                        assert(false && "These filters cannot be generated RN");
+                    return name;
                 }
-
-                result["name"] = name;
-                result["type"] = "continuation";
-                result["app"] = {
-                    {"target", target},
-                    {"args", args}
-                };
             }
         } else if (auto lit = def->isa<PrimLit>()) {
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
             auto type = type_table_.translate_type(lit->type());
 
             result["name"] = name;
@@ -216,28 +226,28 @@ public:
                 assert(false && "not implemented");
             }
         } else if (def->isa<Top>()) {
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
             auto type = type_table_.translate_type(def->type());
 
             result["name"] = name;
             result["type"] = "top";
             result["const_type"] = type;
         } else if (def->isa<Bottom>()) {
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
             auto type = type_table_.translate_type(def->type());
 
             result["name"] = name;
             result["type"] = "bottom";
             result["const_type"] = type;
         } else if (auto param = def->isa<Param>()) {
-            auto name = expected_name != "" ? expected_name : param->continuation()->unique_name() + "." + std::to_string(param->index());
+            auto name = param->continuation()->unique_name() + "." + std::to_string(param->index());
             known_defs[def] = name;
             return name;
         } else if (auto load = def->isa<Load>()) {
             json args = json::array();
             args.push_back(translate_def(load->mem()));
             args.push_back(translate_def(load->ptr()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "load";
@@ -247,21 +257,21 @@ public:
             args.push_back(translate_def(store->mem()));
             args.push_back(translate_def(store->ptr()));
             args.push_back(translate_def(store->val()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "store";
             result["args"] = args;
         } else if (auto size_of = def->isa<SizeOf>()) {
             auto target_type = type_table_.translate_type(size_of->of());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "sizeof";
             result["target_type"] = target_type;
         } else if (auto align_of = def->isa<AlignOf>()) {
             auto target_type = type_table_.translate_type(align_of->of());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "alignof";
@@ -269,7 +279,7 @@ public:
         } else if (auto cast = def->isa<Cast>()) {
             auto source = translate_def(cast->from());
             auto target_type = type_table_.translate_type(cast->type());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "cast";
@@ -278,7 +288,7 @@ public:
          } else if (auto bitcast = def->isa<Bitcast>()) {
             auto source = translate_def(bitcast->from());
             auto target_type = type_table_.translate_type(bitcast->type());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "bitcast";
@@ -286,7 +296,7 @@ public:
             result["target_type"] = target_type;
         } else if (auto indef_array = def->isa<IndefiniteArray>()) {
             auto dim = translate_def(indef_array->op(0));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
             auto element_type = type_table_.translate_type(indef_array->elem_type());
 
             result["name"] = name;
@@ -299,7 +309,7 @@ public:
                 args.push_back(translate_def(arg));
             }
 
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
             auto element_type = type_table_.translate_type(def_array->elem_type());
 
             result["name"] = name;
@@ -310,7 +320,7 @@ public:
             json args = json::array();
             args.push_back(translate_def(lea->ptr()));
             args.push_back(translate_def(lea->index()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "lea";
@@ -319,7 +329,7 @@ public:
             json args = json::array();
             args.push_back(translate_def(extract->agg()));
             args.push_back(translate_def(extract->index()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "extract";
@@ -329,7 +339,7 @@ public:
             args.push_back(translate_def(insert->agg()));
             args.push_back(translate_def(insert->index()));
             args.push_back(translate_def(insert->value()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "insert";
@@ -339,7 +349,7 @@ public:
             args.push_back(translate_def(closure->op(0)));
             args.push_back(translate_def(closure->op(1)));
             auto closure_type = type_table_.translate_type(closure->type());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "closure";
@@ -351,7 +361,7 @@ public:
                 args.push_back(translate_def(arg));
             }
             auto struct_type = type_table_.translate_type(struct_agg->type());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "struct";
@@ -362,7 +372,7 @@ public:
             for (auto arg : tuple->ops()) {
                 args.push_back(translate_def(arg));
             }
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "tuple";
@@ -372,7 +382,7 @@ public:
             for (auto arg : vector->ops()) {
                 args.push_back(translate_def(arg));
             }
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "vector";
@@ -382,7 +392,7 @@ public:
             for (auto arg : filter->ops()) {
                 args.push_back(translate_def(arg));
             }
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "filter";
@@ -392,7 +402,7 @@ public:
             json args = json::array();
             args.push_back(translate_def(arithop->lhs()));
             args.push_back(translate_def(arithop->rhs()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "arithop";
@@ -404,7 +414,7 @@ public:
             for (auto arg : mathop->ops()) {
                 args.push_back(translate_def(arg));
             }
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "mathop";
@@ -415,7 +425,7 @@ public:
             args.push_back(translate_def(select->cond()));
             args.push_back(translate_def(select->tval()));
             args.push_back(translate_def(select->fval()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "select";
@@ -425,7 +435,7 @@ public:
             json args = json::array();
             args.push_back(translate_def(cmp->lhs()));
             args.push_back(translate_def(cmp->rhs()));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "cmp";
@@ -433,28 +443,28 @@ public:
             result["args"] = args;
         } else if (auto run = def->isa<Run>()) {
             auto target = translate_def(run->def());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "run";
             result["target"] = target;
         } else if (auto hlt = def->isa<Hlt>()) {
             auto target = translate_def(hlt->def());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "hlt";
             result["target"] = target;
         } else if (auto known = def->isa<Known>()) {
             auto def = translate_def(known->def());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "known";
             result["def"] = def;
         } else if (auto enter = def->isa<Enter>()) {
             auto mem = translate_def(enter->mem());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "enter";
@@ -462,7 +472,7 @@ public:
         } else if (auto slot = def->isa<Slot>()) {
             auto frame = translate_def(slot->frame());
             auto target_type = type_table_.translate_type(slot->alloced_type());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "slot";
@@ -473,7 +483,7 @@ public:
             args.push_back(translate_def(alloc->mem()));
             args.push_back(translate_def(alloc->extra()));
             auto target_type = type_table_.translate_type(alloc->alloced_type());
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "alloc";
@@ -482,7 +492,7 @@ public:
         } else if (auto global = def->isa<Global>()) {
             auto init = translate_def(global->init());
             bool is_mutable = global->is_mutable();
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "global";
@@ -492,7 +502,7 @@ public:
             auto variant_type = type_table_.translate_type(variant->type());
             auto value = translate_def(variant->value());
             size_t index = variant->index();
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "variant";
@@ -502,7 +512,7 @@ public:
         } else if (auto variant_extract = def->isa<VariantExtract>()) {
             auto value = translate_def(variant_extract->value());
             size_t index = variant_extract->index();
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "variant_extract";
@@ -510,7 +520,7 @@ public:
             result["index"] = index;
         } else if (auto variant_index = def->isa<VariantIndex>()) {
             auto value = translate_def(variant_index->op(0));
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "variant_index";
@@ -535,7 +545,7 @@ public:
                 clobbers.push_back(c);
             }
 
-            auto name = expected_name != "" ? expected_name : "_" + std::to_string(def_table.size());
+            auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "assembly";
@@ -583,8 +593,7 @@ void CodeGen::emit_stream(std::ostream& stream) {
 
     for (auto external : world().externals()) {
         const Continuation* continuation = external.second;
-        auto expected_name = continuation->name();
-        def_table.translate_def(continuation, expected_name);
+        def_table.translate_def(continuation);
     }
 
     j["type_table"] = type_table.type_table;

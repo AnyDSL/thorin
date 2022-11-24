@@ -528,6 +528,7 @@ public:
         } else if (auto assembly = def->isa<Assembly>()) {
             auto asm_type = type_table_.translate_type(assembly->type());
             json inputs = json::array();
+            inputs.push_back(translate_def(assembly->mem()));
             for (auto input : assembly->inputs()) {
                 inputs.push_back(translate_def(input));
             }

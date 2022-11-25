@@ -100,11 +100,31 @@ public:
             }
         } else if (auto ptrtype = type->isa<PtrType>()) {
             auto pointee_type = translate_type(ptrtype->pointee());
+            auto device = ptrtype->device();
 
             result["type"] = "ptr";
             result["args"] = { pointee_type };
-            result["name"] = pointee_type + "_p";
+            result["name"] = pointee_type + "_p_" + std::to_string(type_table.size());
             result["length"] = ptrtype->length();
+            if (device != -1)
+                result["device"] = device;
+            switch (ptrtype->addr_space()) {
+            case AddrSpace::Generic:
+                //result["addrspace"] = "generic"; //Default
+                break;
+            case AddrSpace::Global:
+                result["addrspace"] = "global";
+                break;
+            case AddrSpace::Texture:
+                result["addrspace"] = "texture";
+                break;
+            case AddrSpace::Shared:
+                result["addrspace"] = "shared";
+                break;
+            case AddrSpace::Constant:
+                result["addrspace"] = "constant";
+                break;
+            }
         } else {
             std::cerr << "type cannot be translated\n";
             type->dump();

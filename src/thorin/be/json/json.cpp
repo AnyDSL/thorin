@@ -204,6 +204,8 @@ public:
                 forward_decl["arg_names"] = arg_names;
                 if (cont->is_external())
                     forward_decl["external"] = cont->name();
+                if (cont->cc() == CC::DeviceHostCode)
+                    forward_decl["device"] = cont->name();
                 decl_table.push_back(forward_decl);
 
                 if(cont->has_body()) {
@@ -608,6 +610,12 @@ void CodeGen::emit_stream(std::ostream& stream) {
     json j;
 
     j["module"] = world().name();
+    if (target_triple != "")
+        j["target_triple"] = target_triple;
+    if (target_cpu != "")
+        j["target_cpu"] = target_cpu;
+    if (target_attr != "")
+        j["target_attr"] = target_attr;
 
     TypeTable type_table;
     DefTable def_table(type_table);

@@ -17,9 +17,11 @@ using json = nlohmann::json;
 
 class CodeGen : public thorin::CodeGen {
 public:
-    CodeGen(World& world, const Cont2Config& kernel_config, bool debug)
+    CodeGen(World& world, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
         : thorin::CodeGen(world, debug)
-        , kernel_config_(kernel_config)
+        , target_triple(target_triple)
+        , target_cpu(target_cpu)
+        , target_attr(target_attr)
     {}
     
     void emit_stream(std::ostream& stream) override;
@@ -27,9 +29,10 @@ public:
     const char* file_ext() const override {
         return ".thorin.json";
     }
-
 private:
-    const Cont2Config& kernel_config_;
+    std::string& target_triple;
+    std::string& target_cpu;
+    std::string& target_attr;
 };
 
 }

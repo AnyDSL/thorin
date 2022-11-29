@@ -26,7 +26,7 @@ static void get_kernel_configs(
         Continuation* imported = nullptr;
         for (auto [_, exported] : externals) {
             if (!exported->has_body()) continue;
-            if (exported->name() == continuation->unique_name())
+            if (exported->name() == continuation->name())
                 imported = exported;
         }
         if (!imported) continue;
@@ -41,6 +41,7 @@ static void get_kernel_configs(
             return false;
         }, true);
 
+        continuation->attributes().cc = CC::DeviceHostCode;
         continuation->destroy("codegen");
     }
 }
@@ -105,6 +106,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 
         // Necessary so that the names match in the original and imported worlds
         imported->set_name(continuation->unique_name());
+        continuation->set_name(continuation->unique_name());
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->set_name(continuation->param(i)->name());
         imported->world().make_external(imported);

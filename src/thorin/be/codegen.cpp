@@ -10,6 +10,8 @@
 #endif
 #if THORIN_ENABLE_SHADY
 #include "thorin/be/shady/shady.h"
+#undef empty
+#undef nodes
 #endif
 #include "thorin/be/c/c.h"
 

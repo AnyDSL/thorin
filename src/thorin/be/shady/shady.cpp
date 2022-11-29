@@ -1,4 +1,5 @@
 #include "shady.h"
+#undef empty
 
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/structurize.h"
@@ -15,7 +16,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     assert(!module);
 
-    shady::ArenaConfig config = { 0 };
+    shady::ArenaConfig config = { };
     config.check_types = true;
     arena = shady::new_ir_arena(config);
     module = shady::new_module(arena, world().name().c_str());
@@ -225,7 +226,7 @@ void CodeGen::prepare(Continuation* cont, shady::Node*) {
     } else
         assert(bb.head);
 
-    bb.builder = shady::begin_body(arena);
+    bb.builder = shady::begin_body(module);
 }
 
 static std::optional<shady::Op> is_shady_prim_op(const Continuation* cont) {
@@ -280,38 +281,43 @@ void CodeGen::emit_epilogue(Continuation* cont) {
         bb.terminator = shady::jump(arena, payload);
     } else if (auto intrinsic = body->callee()->isa_nom<Continuation>(); intrinsic && intrinsic->is_intrinsic()) {
         assert(false);
-    } else if (auto callee = body->callee()->isa_nom<Continuation>()) {
-        int ret_param = find_return_parameter(callee->type());
+    } else {
+        int ret_param = find_return_parameter(body->callee()->type()->as<FnType>());
+        // TODO handle tail calls ?
         assert(ret_param >= 0);
 
         args.erase(args.begin() + ret_param);
         args.erase(std::remove_if(args.begin(), args.end(), [&](const auto& item){ return item == nullptr || !shady::is_value(item); }), args.end());
 
-        // shady primop called as imported continuations look like continuation calls to thorin, but not to shady
-        // we just need to carefully emit the primop as an instruction, then jump to the target BB, passing the stuff as we do
-        if (auto op = is_shady_prim_op(callee); op.has_value()) {
-            shady::bind_instruction(bb.builder, shady::prim_op(arena, (shady::PrimOp) {
-                .op = op.value(),
-                .type_arguments = empty(arena),
-                .operands = vec2nodes(args),
-            }));
-            shady::Jump jump;
-            jump.target = args[ret_param];
-            bb.terminator = shady::jump(arena, jump);
-            return;
+        const shady::Node* call;
+        if (auto callee = body->callee()->isa_nom<Continuation>()) {
+            // shady primop called as imported continuations look like continuation calls to thorin, but not to shady
+            // we just need to carefully emit the primop as an instruction, then jump to the target BB, passing the stuff as we do
+            if (auto op = is_shady_prim_op(callee); op.has_value()) {
+                shady::bind_instruction(bb.builder, shady::prim_op(arena, (shady::PrimOp) {
+                        .op = op.value(),
+                        .type_arguments = shady::nodes(arena, 0, nullptr),
+                        .operands = vec2nodes(args),
+                }));
+                shady::Jump jump;
+                jump.target = args[ret_param];
+                bb.terminator = shady::jump(arena, jump);
+                return;
+            }
+
+            shady::LeafCall payload;
+            payload.args = vec2nodes(args);
+            payload.callee = emit(callee);
+            call = shady::leaf_call(arena, payload);
+        } else {
+            shady::IndirectCall payload;
+            payload.args = vec2nodes(args);
+            payload.callee = emit(callee);
+            call = shady::indirect_call(arena, payload);
         }
 
-        shady::Call payload;
-        payload.args = vec2nodes(args);
-        payload.callee = emit(callee);
-        auto call = shady::call_instr(arena, payload);
-
-        shady::LetInto payload2;
-        payload2.instruction = call;
-        payload2.tail = args[ret_param];
-        bb.terminator = shady::let_into(arena, payload2);
-    } else {
-        assert(false);
+        assert(args[ret_param]->tag == shady::BasicBlock_TAG);
+        bb.terminator = shady::let_into(arena, call, args[ret_param]);
     }
 }
 

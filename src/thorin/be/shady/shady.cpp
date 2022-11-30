@@ -17,6 +17,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     assert(!module);
 
     shady::ArenaConfig config = { };
+    config.name_bound = true;
     config.check_types = true;
     arena = shady::new_ir_arena(config);
     module = shady::new_module(arena, world().name().c_str());
@@ -175,6 +176,20 @@ shady::Node* CodeGen::emit_decl_head(Def* def) {
             if (!ret_type)
                 continue; // Eliminate mem types
             returns.push_back(ret_type);
+        }
+
+        auto config = kernel_config_.find(cont);
+        if (config != kernel_config_.end()) {
+            if (auto gpu_config = config->second->isa<GPUKernelConfig>()) {
+                annotations.push_back(shady::annotation_value(arena, { .name = "EntryPoint", .value = shady::string_lit(arena, { .string = "compute" })}));
+                std::vector<const shady::Node*> block_size;
+                block_size.emplace_back(shady::int32_literal(arena, get<0>(gpu_config->block_size())));
+                block_size.emplace_back(shady::int32_literal(arena, get<1>(gpu_config->block_size())));
+                block_size.emplace_back(shady::int32_literal(arena, get<2>(gpu_config->block_size())));
+                annotations.push_back(shady::annotation_values(arena, { .name = "WorkgroupSize", .values = vec2nodes(block_size) }));
+            } else {
+                assert(false && "Only GPU kernel configs are currently supported");
+            }
         }
 
         return shady::function(module, vec2nodes(params), def->unique_name().c_str(), vec2nodes(annotations), vec2nodes(returns));

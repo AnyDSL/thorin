@@ -301,6 +301,7 @@ void CodeGen::emit_epilogue(Continuation* cont) {
                 }));
                 shady::Jump jump;
                 jump.target = args[ret_param];
+                jump.args = shady::nodes(arena, 0, NULL);
                 bb.terminator = shady::jump(arena, jump);
                 return;
             }

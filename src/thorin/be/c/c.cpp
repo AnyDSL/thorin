@@ -277,7 +277,7 @@ std::string CCodeGen::convert(const Type* type) {
         s.fmt("{} tag;", convert(tag_type));
         s.fmt("\b\n}} {};\n", name);
     } else if (auto struct_type = type->isa<StructType>()) {
-        name = struct_type->name().str();
+        types_[struct_type] = name = struct_type->name().str();
         if ((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && is_channel_type(struct_type))
             use_channels_ = true;
         if (lang_ == Lang::OpenCL && use_channels_) {

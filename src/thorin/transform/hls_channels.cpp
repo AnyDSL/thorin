@@ -17,6 +17,7 @@ std::vector<const Def*> hls_global;
 std::vector<const Def*> cgra_global;
 
 
+
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
             std::cout<< "*** SCOPE entry*** " <<std::endl;
@@ -31,6 +32,7 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                     continue;
                 // block->dump();
                 assert(block->has_body());
+
                 auto body = block->body();
                 auto callee = body->callee()->isa_nom<Continuation>();
                 if (callee && callee->is_channel()) {
@@ -52,7 +54,8 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                                             pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
                                         std::cout << "~~~~~~~~Pred callee~~~~~~" << std::endl;
                                         pred_scope_callee->dump();
-                                        global2block.emplace(def, std::make_pair(callee, pred_scope_callee->intrinsic()));
+                                        //global2block.emplace(def, std::make_pair(callee, pred_scope_callee->intrinsic()));
+                                        global2block.emplace(def, std::make_pair(block, pred_scope_callee->intrinsic()));
                                     }
 
                                 }
@@ -191,6 +194,10 @@ void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
         if (callee && callee->is_channel()) {
             if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
                 auto def = app->arg(1);
+
+                // TODO: first solution: Saving contunations to find correct basic block containing the global variable
+                //continuation->dump();
+
                 if (def->isa_structural() && !def->has_dep(Dep::Param)) {
                     if (callee->name().find("write_channel") != std::string::npos) {
                         assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Write) &&
@@ -362,8 +369,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
 
     std::cout << "------- OLD WORLD----------"<< std::endl;
     old_world.dump();
-//    std::cout << "-------HLS----------"<< std::endl;
-//    world.dump();
+    std::cout << "-------HLS----------"<< std::endl;
+    world.dump();
 //
 //    std::cout << "-------CGRA----------"<< std::endl;
 //    cgra_world.dump();
@@ -414,18 +421,34 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
 
     std::vector<Def2Block> old_global_maps;
     hls_cgra_global_analysis(old_world, old_global_maps);
-    Def2DependentBlocks global2dependent_blocks;// [common_global, (HLS_basicblock, CGRA_basicblock)]
-    hls_cgra_dependency_analysis(global2dependent_blocks, old_global_maps);
+
+    Def2DependentBlocks old_globals2old_dependent_blocks;// [common_global, (HLS_basicblock, CGRA_basicblock)]
+    hls_cgra_dependency_analysis(old_globals2old_dependent_blocks, old_global_maps);
     old_global_maps.clear();
 
 
-
-        for (const auto& [common_global, pair] : global2dependent_blocks) {
+    std::vector<const Def*> target_blocks_in_hls_world; // hls_world basic blocks that connect to CGRA
+    for (const auto& [old_common_global, pair] : old_globals2old_dependent_blocks) {
+        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
             for (auto def : old_world.defs()) {
-            //if (ncontinuation == importer_hls.def_old2new_[ocontinuation]) {
-                std::cout << "TIIIIIIIIIIIIIIIIIIIICK" <<std::endl;
+                    if (importer_hls.def_old2new_.contains(old_hls_basicblock)) {
+                    //std::cout << "TIIIIIIIIIIIIIIIIIIIICK" <<std::endl;
+                    //importer_hls.def_old2new_[old_hls_basicblock]->dump();
+                    target_blocks_in_hls_world.emplace_back(importer_hls.def_old2new_[old_hls_basicblock]);
+                    //hls_basicblock->dump();
+                    //importer_cgra.def_old2new_[cgra_basicblock]->dump();
+                    //hls_basicblock->dump();
+                    //cgra_basicblock->dump();
+                    break;
+                    }
             }
-        }
+    }
+
+    //testing
+    std::cout << "###### TARGET HLS BLOCKS####" <<std::endl;
+    for (const auto& elem : target_blocks_in_hls_world) {
+        elem->dump();
+    }
 
 //    for (const auto& map : old_global_maps) {
 //        auto map_base_addr = map.begin();
@@ -585,6 +608,16 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
             // - The old global definition for the channel
             std::vector<std::pair<size_t, const Def*>> index2def;
             for (auto [def, _] : def2mode) {
+            //TODO: solution 2 : finding the continuation by using_continuation
+     //       std::cout << ">>>>>>>>>>>>> using cont <<<<<<<<< " << std::endl;
+     //       std::cout << def->unique_name() << std::endl;
+     //           for (auto use : def->uses()) {
+     //               if (auto test = use->isa<App>()) {
+     //                   auto tests = test->using_continuations();
+     //               for (auto a : tests)
+     //                   a->dump();
+     //               }
+     //           }
                 //map.first->dump();
                 index2def.emplace_back(i, def);
                 new_param_types[i++] = def->type();

@@ -652,7 +652,7 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
                     auto new_cont = def == old_kernel ? new_kernel : cont->stub();
                     rewriter.old2new[cont] = new_cont;
                     for (size_t i = 0; i < cont->num_params(); ++i)
-                        rewriter.old2new[cont->param(i)] = new_cont->param(i);
+                        rewriter.old2new[cont->param(i)] = new_cont->param(i); //non-channel params
                 }
             }
             // Rewriting the basic blocks of the kernel using the map
@@ -697,11 +697,29 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     std::vector<const Type*> top_param_types;
     top_param_types.emplace_back(world.mem_type());
     top_param_types.emplace_back(world.fn_type({ world.mem_type() }));
-    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param., index hls_top param.)
+    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param, index hls_top param.)
+
+    auto is_used_for_cgra = [&] (const Def* param) -> bool  {
+    if (is_channel_type(param->type())) {
+        if (auto global = param2arg[param]; !global->empty()) {// at this point only (channel params, globals) are available inside the map
+            for (auto use : global->uses()) {
+                if (auto app = use->isa<App>()) {
+                    auto ucontinuations = app->using_continuations();
+                    for (const auto& block : target_blocks_in_hls_world) {
+                        if (std::find(ucontinuations.begin(), ucontinuations.end(), block) != ucontinuations.end())
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    return false;
+    };
+
     for (auto kernel : new_kernels) {
         for (size_t i = 0; i < kernel->num_params(); ++i) {
             auto param = kernel->param(i);
-            // If the parameter is not a channel, save the details and add it to the hls_top parameter list
+            // If the parameter is not a channel, save the index and add it to the hls_top parameter list
             // TODO: if the paramete is not a channel or is a channel connected to a CGRA kernel then ...
             if (!is_channel_type(param->type())) {
                 if (param != kernel->ret_param() && param != kernel->mem_param()) {
@@ -709,17 +727,31 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
                     top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
                     top_param_types.emplace_back(param->type());
                 }
+            } else if (is_used_for_cgra(param)) {
+                    std::cout << "cgra param found!" << std::endl;
+                    // We can put the cgra param inside the param_index with no problem
+                    param_index.emplace_back(kernel, i, top_param_types.size());
+                    //top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
+                    top_param_types.emplace_back(param->type());
+                }
             }
         }
-    }
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
     for (auto tuple : param_index) {
         // Mapping hls_top params as args for new_kernels' params
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
         auto arg   = hls_top->param(std::get<2>(tuple));
-        param2arg.emplace(param, arg); // adding (non-channel params, hls_top params as args)
-        arg2param.emplace(arg, param); // channel-params are not here
+        if (is_used_for_cgra(param)) {
+            //param2arg.insert_or_assign(std::make_pair(param,arg));
+            param2arg[param] = arg;
+          //  if (param2arg.contains(param)) {
+          //      std::cout << "This param is already in the map" << std::endl;
+          //  }
+                continue;
+        }
+        param2arg.emplace(param, arg); // adding (non-channel params, hls_top params as args). Channel params were added before
+        arg2param.emplace(arg, param); // channel-params are not here.
     }
 
     // ---------- Preparing args for calling hls_top from host ------------
@@ -914,6 +946,7 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         }
 
         cur_bb->jump(kernel, args);
+
         if (!last_kernel) {
             auto next = ret->as_nom<Continuation>();
             cur_bb = next;
@@ -924,6 +957,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     world.make_external(hls_top);
 
     debug_verify(world);
+    std::cout << "--------HLS after rewrite -----" << std::endl;
+    world.dump();
     world.cleanup();
 
     return old_kernels_params;

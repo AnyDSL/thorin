@@ -813,11 +813,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     std::vector<const Global*> globals;
     for (auto def : world.defs()) {
         if (auto global = def->isa<Global>()) {
-           // auto cont = def->isa_nom<Continuation>();
-            //if (cont)
-            //    cont->dump();
-            //def->dump();
-            //def->as_nom<Continuation>();
             std::cout << " HLS world global_name: "<<global->unique_name() << std::endl;
             globals.emplace_back(global);
         }

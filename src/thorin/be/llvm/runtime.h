@@ -16,7 +16,7 @@ class CodeGen;
 
 class Runtime {
 public:
-    Runtime(llvm::LLVMContext&, llvm::Module& target);
+    Runtime(llvm::LLVMContext&, llvm::Module&);
 
     enum Platform {
         CPU_PLATFORM,
@@ -28,7 +28,7 @@ public:
 
     /// Emits a call to anydsl_launch_kernel.
     llvm::Value* launch_kernel(
-        llvm::IRBuilder<>&, llvm::Value* device,
+        CodeGen&, llvm::IRBuilder<>&, llvm::Value* device,
         llvm::Value* file, llvm::Value* kernel,
         llvm::Value* grid, llvm::Value* block,
         llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
@@ -36,26 +36,26 @@ public:
 
     /// Emits a call to anydsl_parallel_for.
     llvm::Value* parallel_for(
-        llvm::IRBuilder<>&,
+        CodeGen&, llvm::IRBuilder<>&,
         llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
         llvm::Value* closure_ptr, llvm::Value* fun_ptr);
 
     /// Emits a call to anydsl_fibers_spawn.
     llvm::Value* spawn_fibers(
-        llvm::IRBuilder<>&,
+        CodeGen&, llvm::IRBuilder<>&,
         llvm::Value* num_threads, llvm::Value* num_blocks, llvm::Value* num_warps,
         llvm::Value* closure_ptr, llvm::Value* fun_ptr);
 
     /// Emits a call to anydsl_spawn_thread.
-    llvm::Value* spawn_thread(llvm::IRBuilder<>&, llvm::Value* closure_ptr, llvm::Value* fun_ptr);
+    llvm::Value* spawn_thread(CodeGen&, llvm::IRBuilder<>&, llvm::Value* closure_ptr, llvm::Value* fun_ptr);
     /// Emits a call to anydsl_sync_thread.
-    llvm::Value* sync_thread(llvm::IRBuilder<>&, llvm::Value* id);
+    llvm::Value* sync_thread(CodeGen&, llvm::IRBuilder<>&, llvm::Value* id);
 
     Continuation* emit_host_code(
         CodeGen& code_gen, llvm::IRBuilder<>& builder,
         Platform platform, const std::string& ext, Continuation* continuation);
 
-    llvm::Function* get(const char* name);
+    llvm::Function* get(CodeGen& code_gen, const char* name);
 
 protected:
     llvm::Module& target_;
@@ -67,4 +67,3 @@ protected:
 }
 
 #endif
-

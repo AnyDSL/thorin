@@ -1145,8 +1145,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             case PrimType_pu16: case PrimType_qu16: return std::to_string(primlit->pu16_value());
             case PrimType_ps32: case PrimType_qs32: return std::to_string(primlit->ps32_value());
             case PrimType_pu32: case PrimType_qu32: return std::to_string(primlit->pu32_value());
-            case PrimType_ps64: case PrimType_qs64: return std::to_string(primlit->ps64_value());
-            case PrimType_pu64: case PrimType_qu64: return std::to_string(primlit->pu64_value());
+            case PrimType_ps64: case PrimType_qs64: return std::to_string(primlit->ps64_value()) + "LL";
+            case PrimType_pu64: case PrimType_qu64: return std::to_string(primlit->pu64_value()) + "ULL";
             case PrimType_pf16:
             case PrimType_qf16:
                 return emit_float<half>(primlit->pf16_value(),

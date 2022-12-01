@@ -236,9 +236,11 @@ void Cleaner::rebuild() {
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.defs().capacity());
 
-    for (auto&& [_, cont] : world().externals()) {
-        if (cont->is_exported())
+    for (auto&& [_, def] : world().externals()) {
+        if (auto cont = def->isa<Continuation>(); cont && cont->is_exported())
             importer.import(cont);
+        if (auto global = def->isa<Global>(); global && global->is_external())
+            importer.import(global);
     }
 
     swap(importer.world(), world_);
@@ -296,8 +298,8 @@ void Cleaner::clean_pe_infos() {
             queue.push(continuation);
     };
 
-    for (auto&& [_, cont] : world().externals())
-        if (cont->has_body()) enqueue(cont);
+    for (auto&& [_, def] : world().externals())
+        if (auto cont = def->isa<Continuation>(); cont && cont->has_body()) enqueue(cont);
 
     while (!queue.empty()) {
         auto continuation = pop(queue);

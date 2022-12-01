@@ -514,12 +514,15 @@ public:
         } else if (auto global = def->isa<Global>()) {
             auto init = translate_def(global->init());
             bool is_mutable = global->is_mutable();
+            bool is_external = global->is_external();
             auto name = "_" + std::to_string(def_table.size());
 
             result["name"] = name;
             result["type"] = "global";
             result["init"] = init;
             result["mutable"] = is_mutable;
+            if (is_external)
+                result["external"] = global->name();
         } else if (auto variant = def->isa<Variant>()) {
             auto variant_type = type_table_.translate_type(variant->type());
             auto value = translate_def(variant->value());
@@ -621,8 +624,7 @@ void CodeGen::emit_stream(std::ostream& stream) {
     DefTable def_table(type_table);
 
     for (auto external : world().externals()) {
-        const Continuation* continuation = external.second;
-        def_table.translate_def(continuation);
+        def_table.translate_def(external.second);
     }
 
     j["type_table"] = type_table.type_table;

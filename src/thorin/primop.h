@@ -534,6 +534,8 @@ public:
     const Type* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
 
+    bool is_external() const;
+
 private:
     hash_t vhash() const override { return murmur3(gid()); }
     bool equal(const Def* other) const override { return this == other; }

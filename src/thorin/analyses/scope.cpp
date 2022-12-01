@@ -111,8 +111,9 @@ template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     unique_queue<ContinuationSet> continuation_queue;
 
-    for (auto&& [_, cont] : world.externals()) {
-        if (cont->has_body()) continuation_queue.push(cont);
+    for (auto&& [_, def] : world.externals()) {
+        if (auto cont = def->template isa<Continuation>())
+            if (cont->has_body()) continuation_queue.push(cont);
     }
 
     while (!continuation_queue.empty()) {

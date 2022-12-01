@@ -146,7 +146,9 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 bool PartialEvaluator::run() {
     bool todo = false;
 
-    for (auto&& [_, cont] : world().externals()) {
+    for (auto&& [_, def] : world().externals()) {
+        auto cont = def->isa<Continuation>();
+        if (!cont) continue;
         if (!cont->has_body()) continue;
         enqueue(cont);
         top_level_[cont] = true;

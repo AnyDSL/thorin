@@ -24,7 +24,9 @@ static void get_kernel_configs(
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto [_, exported] : externals) {
+        for (auto [_, def] : externals) {
+            auto exported = def->isa<Continuation>();
+            if (!exported) continue;
             if (!exported->has_body()) continue;
             if (exported->name() == continuation->name())
                 imported = exported;

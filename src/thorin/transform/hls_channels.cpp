@@ -17,7 +17,6 @@ std::vector<const Def*> hls_global;
 std::vector<const Def*> cgra_global;
 
 
-
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
             std::cout<< "*** SCOPE entry*** " <<std::endl;
@@ -58,9 +57,9 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                     }
                 }
         }
-    if (!global2block.empty()) {
-        old_global_maps.emplace_back(global2block);
-    }
+
+        if (!global2block.empty())
+            old_global_maps.emplace_back(global2block);
 
     });
     }

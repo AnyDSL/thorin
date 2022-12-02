@@ -23,14 +23,10 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
             std::cout<< "*** SCOPE entry*** " <<std::endl;
             scope.entry()->dump();
             auto kernel = scope.entry();
-            // Decide about scope intrinsic here by seach or use a stack on main scope!
-             //for (auto n : scope.f_cfg().post_order()) { n->continuation()->dump();}
-            //std::cout<< "*** blocks *** " <<std::endl;
             Def2Block global2block; // global, using basic block, HLS/CGRA
             for (auto& block : schedule(scope)) {
                 if (!block->has_body())
                     continue;
-                // block->dump();
                 assert(block->has_body());
 
                 auto body = block->body();
@@ -38,7 +34,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                 if (callee && callee->is_channel()) {
                     if (body->arg(1)->order() == 0 && !(is_mem(body->arg(1)) || is_unit(body->arg(1)))) {
                         std::cout<< "*** target callee *** " <<std::endl;
-                        // global is here
                        // TODO: more checks on global def
                         auto def = body->arg(1);
                         if (def->isa_structural() && !def->has_dep(Dep::Param)) {
@@ -105,11 +100,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
 
     }
 
-
-          //  std::cout<< "*** scope conts *** " <<std::endl;
-          //  for (auto def : scope.defs())
-          //      if (auto cont = def->isa<Continuation>())
-          //          cont->dump();
     });
     }
 
@@ -157,7 +147,6 @@ void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, 
 
 
 
-//static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
 void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& continuation : schedule) {
 
@@ -191,8 +180,6 @@ void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     }
 }
 
-
-//TODO: Extract channels used in CGRAs
 
 bool is_channel_type(const Type* type) {
     if (auto ptr_type = type->isa<PtrType>()) {
@@ -368,13 +355,7 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         auto [old_hls_basicblock, old_cgra_basicblock] = pair;
             for (auto def : old_world.defs()) {
                     if (importer_hls.def_old2new_.contains(old_hls_basicblock)) {
-                    //std::cout << "TIIIIIIIIIIIIIIIIIIIICK" <<std::endl;
-                    //importer_hls.def_old2new_[old_hls_basicblock]->dump();
                     target_blocks_in_hls_world.emplace_back(importer_hls.def_old2new_[old_hls_basicblock]);
-                    //hls_basicblock->dump();
-                    //importer_cgra.def_old2new_[cgra_basicblock]->dump();
-                    //hls_basicblock->dump();
-                    //cgra_basicblock->dump();
                     break;
                     }
             }
@@ -393,7 +374,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         std::cout << "No HLS-CGRA dependecy" << std::endl;
 
     Scope::for_each(world, [&] (Scope& scope) {
-            //world.dump();
             auto old_kernel = scope.entry();
             //std::cout<< "____HLS KERNEL____" << std::endl;
             //old_kernel->dump();
@@ -636,10 +616,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
                 }
             }
         }
-     //   auto cgra_channel_it = def2mode_cgra.find(global);
-     //   if (cgra_channel_it != def2mode_cgra.end()) {
-     //       std::cout << "global_inside_cgra" << std::endl;
-     //   }
     }
 
     // resolving dependencies
@@ -715,8 +691,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     world.make_external(hls_top);
 
     debug_verify(world);
-    std::cout << "--------HLS after rewrite -----" << std::endl;
-    world.dump();
+//    std::cout << "--------HLS after rewrite -----" << std::endl;
+//    world.dump();
     world.cleanup();
 
     return old_kernels_params;

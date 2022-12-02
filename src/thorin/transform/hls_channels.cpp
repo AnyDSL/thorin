@@ -85,7 +85,6 @@ void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, 
 }
 
 
-
 void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& continuation : schedule) {
 
@@ -98,7 +97,7 @@ void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
             if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
                 auto def = app->arg(1);
 
-                // TODO: first solution: Saving contunations to find correct basic block containing the global variable
+                // TODO: Alt. solution: Saving contunations to find correct basic block containing the global variable
                 //continuation->dump();
 
                 if (def->isa_structural() && !def->has_dep(Dep::Param)) {
@@ -233,15 +232,7 @@ bool has_cgra_callee(World& world) {
             assert(block->has_body());
             auto body = block->body();
             auto callee = body->callee()->isa_nom<Continuation>();
-           // if (callee && callee->is_channel()) {
-           //     std::cout<< "channel" << std::endl;
-           //     std::cout << "name-->" << callee->name()<< std::endl;
-           //     body->dump();
-           // }
             if (callee && callee->intrinsic() == Intrinsic::CGRA) {
-                //body->dump();
-                //body->arg(2)->as<Global>()->init()->isa_nom<Continuation>()->dump();
-                //std::cout << "TEST-->" << callee->name() << std::endl;
                 found_cgra = true;
             }
         }
@@ -249,8 +240,6 @@ bool has_cgra_callee(World& world) {
     return found_cgra;
 }
 
-
-void hls_cgra_dependecy_analysis();
 
 /**
  * @param importer_hls hls world
@@ -318,17 +307,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
             // - The old global definition for the channel
             std::vector<std::pair<size_t, const Def*>> index2def;
             for (auto [def, _] : def2mode) {
-            //TODO: solution 2 : finding the continuation by using_continuation
-     //       std::cout << ">>>>>>>>>>>>> using cont <<<<<<<<< " << std::endl;
-     //       std::cout << def->unique_name() << std::endl;
-     //           for (auto use : def->uses()) {
-     //               if (auto test = use->isa<App>()) {
-     //                   auto tests = test->using_continuations();
-     //               for (auto a : tests)
-     //                   a->dump();
-     //               }
-     //           }
-                //map.first->dump();
                 index2def.emplace_back(i, def);
                 new_param_types[i++] = def->type();
             }

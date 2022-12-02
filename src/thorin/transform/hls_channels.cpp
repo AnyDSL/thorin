@@ -64,19 +64,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                     }
                 }
 
-
-           //TODO:  scope is static in all corresponding basic blocks,
-           //It seems the only way is searching over all defs and look for scope.entry in 2nd arg of callee
-           // in fact the scope.entry should be equal to --> 2nd arg of HLS/CGRA callee->as Global->init
-           // then the HLS/CGRA intrinsic can mark a flag for all basic blocks in that scope
-            //body->dump();
-            //auto scope_callee = scope.entry()->body()->callee();
-      //      std::cout<< "*** SCOPE *** " <<std::endl;
-      //      scope.entry()->dump();
-      //      //scope_callee->dump();
-      //      std::cout<< "*** Defs *** " <<std::endl;
-      //      for (auto def : scope.defs())
-      //          def->dump();
                 //TODO: look for read and write in defs of scopes then look at the scope then search inside all block to find that scope then look at the corresponding callee to see whether it is HLS or CGRA
 
             auto callee_ = body->callee()->isa_nom<Continuation>();
@@ -100,18 +87,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                     if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
                         auto def = cont->body()->arg(1);
                         if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                //if (cont->body()->callee()->is_channel())
-                           // for (auto use : def->uses()) {
-                           //     //auto test = use->isa<App>();
-                           //     auto test = use->isa<App>();
-                           //     if (test) {
-                           //         auto conts = test->using_continuations();
-                           //         for (auto cont : conts)
-                           //             cont->dump();
-                           //     }
-                           // }
-                                //cont->dump(); TODO: we need to find corresponding continuations in the HLS world
-                                //importer_hls.def_old2new_[
                                 hls_global.emplace_back(def);
                         }
                     }

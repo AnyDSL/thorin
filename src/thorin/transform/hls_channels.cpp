@@ -30,13 +30,12 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                         auto def = body->arg(1);
                         if (def->isa_structural() && !def->has_dep(Dep::Param)) {
                             for (auto preds_scope : scope.entry()->preds()) {
-                                if (auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>(); pred_scope_callee
-                                        && pred_scope_callee->is_intrinsic()) {
+                                if (auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>();
+                                        pred_scope_callee && pred_scope_callee->is_intrinsic()) {
                                     if (pred_scope_callee->intrinsic() == Intrinsic::HLS ||
-                                            pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
+                                        pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
                                         global2block.emplace(def, std::make_pair(block, pred_scope_callee->intrinsic()));
                                     }
-
                                 }
                             }
                         }

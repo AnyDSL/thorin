@@ -380,45 +380,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
 
 
 
-
-//    std::vector<std::tuple<const Def*, Intrinsic>> old_world_globals;
-//    for (auto def : old_world.defs()) {
-//        if (auto block = def->isa_nom<Continuation>()) {
-//            if (!block->has_body())
-//                continue;
-//            assert(block->has_body());
-//            auto body = block->body();
-//            auto callee = body->callee()->isa_nom<Continuation>();
-//
-//    auto used_globals_in_backend = [&] (Intrinsic backend) {
-//            if (callee && callee->intrinsic() == backend) { //only first block of scope with be intrinsic
-//                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
-//                auto callee = cont->body()->callee()->isa_nom<Continuation>();
-//                if (callee && callee->is_channel()) {
-//                    auto arg = cont->body()->arg(1);
-//                    if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
-//                        if (arg->isa_structural() && !arg->has_dep(Dep::Param)) {
-//                            //cgra_global.emplace_back(arg);
-//                            for (auto use : arg->uses()){
-//                                //if (use->as<Continuation>())
-//                                    //use->dump();
-//                            }
-//                            std::cout << "*************" <<std::endl;
-//                            //maybe using scope.defs() to acess all bbs
-//                            old_world_globals.emplace_back(arg, backend);
-//                        }
-//                    }
-//                }
-//            }
-//    };
-//
-//        //used_globals_in_backend(Intrinsic::CGRA);
-//       //used_globals_in_backend(Intrinsic::HLS);
-//        }
-//    }
-//
-//        std::cout << old_world_globals.size() <<std::endl;
-
     std::vector<Def2Block> old_global_maps;
     hls_cgra_global_analysis(old_world, old_global_maps);
 
@@ -783,9 +744,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
 
    // --------------------------------------------------------------
 
-
-
-// probably need to use old2new or sending globals from cgra_graphs to here befor rewrite
 
     for (auto def : cgra_world.defs()) {
        // if (auto continuation = def->isa_nom<Continuation>())

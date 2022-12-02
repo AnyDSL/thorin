@@ -57,35 +57,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                         }
                     }
                 }
-
-                //TODO: look for read and write in defs of scopes then look at the scope then search inside all block to find that scope then look at the corresponding callee to see whether it is HLS or CGRA
-
-            auto callee_ = body->callee()->isa_nom<Continuation>();
-            if (callee_ && callee_->intrinsic() == Intrinsic::CGRA) {
-                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
-                auto callee_ = cont->body()->callee()->isa_nom<Continuation>();
-                if (callee_ && callee_->is_channel()) {
-                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
-                        auto def = cont->body()->arg(1);
-                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                            cgra_global.emplace_back(def);
-                            std::cout << "***cgra size: "  <<  cgra_global.size()<<"******" << std::endl;
-                        }
-                    }
-                }
-            }
-            if (callee_ && callee_->intrinsic() == Intrinsic::HLS) {
-                auto cont = body->arg(2)->as<Global>()->init()->isa_nom<Continuation>();
-                auto callee_ = cont->body()->callee()->isa_nom<Continuation>();
-                if (callee_ && callee_->is_channel()) {
-                    if (cont->body()->arg(1)->order() == 0 && !(is_mem(cont->body()->arg(1)) || is_unit(cont->body()->arg(1)))) {
-                        auto def = cont->body()->arg(1);
-                        if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                                hls_global.emplace_back(def);
-                        }
-                    }
-                }
-        }
         }
     if (!global2block.empty()) {
         old_global_maps.emplace_back(global2block);

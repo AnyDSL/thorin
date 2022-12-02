@@ -606,26 +606,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
             }
             if (!is_single_kernel(new_kernel))
                 kernels_ch_modes.emplace_back(def2mode);
-
-
-//    for (auto [chan, mode] : def2mode) {
-//            for (auto def_old : old_world.defs()) {
-//                if (auto ocontinuation = def_old->isa_nom<Continuation>()) {
-//                    auto ncontinuation = chan->isa_nom<Continuation>();
-//                    if (auto new_ = importer_hls.def_old2new_[ocontinuation]) {
-//                        ocontinuation->dump();
-//                        new_->dump();
-//                        chan->as<Global>()->init()->dump();
-//                    }
-//                    if (ncontinuation == importer_hls.def_old2new_[ocontinuation]) {
-//                        if (ncontinuation) {
-//                        //    ncontinuation->dump();
-//                            std::cout << "TICK" <<std::endl;
-//                        }
-//                    }
-//                }
-//            }
-//    }
     });
 
 

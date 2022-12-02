@@ -355,8 +355,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         auto [old_hls_basicblock, old_cgra_basicblock] = pair;
             for (auto def : old_world.defs()) {
                     if (importer_hls.def_old2new_.contains(old_hls_basicblock)) {
-                    target_blocks_in_hls_world.emplace_back(importer_hls.def_old2new_[old_hls_basicblock]);
-                    break;
+                        target_blocks_in_hls_world.emplace_back(importer_hls.def_old2new_[old_hls_basicblock]);
+                        break;
                     }
             }
     }

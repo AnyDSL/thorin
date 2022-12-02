@@ -315,9 +315,9 @@ void CodeGen::emit_epilogue(Continuation* cont) {
                 shady::Jump jump;
                 jump.target = args[ret_param];
                 jump.args = shady::bind_instruction(bb.builder, shady::prim_op(arena, (shady::PrimOp) {
-                        .op = op.value(),
-                        .type_arguments = shady::nodes(arena, 0, nullptr),
-                        .operands = vec2nodes(args),
+                    .op = op.value(),
+                    .type_arguments = shady::nodes(arena, 0, nullptr),
+                    .operands = vec2nodes(args),
                 }));
                 bb.terminator = shady::jump(arena, jump);
                 return;
@@ -365,6 +365,21 @@ const shady::Node* CodeGen::emit_fun_decl(Continuation* cont) {
 
 const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
     const shady::Node* v = nullptr;
+
+    auto mk_primop = [&](shady::Op op, std::vector<const Def*> args, std::vector<const Type*> types = {}) -> const shady::Node* {
+        shady::PrimOp payload = {};
+        payload.op = op;
+        std::vector<const shady::Node*> operands;
+        for (auto arg : args)
+            operands.push_back(emit_bb(bb, arg));
+        std::vector<const shady::Node*> type_arguments;
+        for (auto type_arg : types)
+            type_arguments.push_back(convert(type_arg));
+        payload.operands = vec2nodes(operands);
+        payload.type_arguments = vec2nodes(type_arguments);
+        return shady::first(shady::bind_instruction(bb.builder, shady::prim_op(arena, payload)));
+    };
+
     if (auto prim_lit = def->isa<PrimLit>()) {
         const auto& box = prim_lit->value();
         switch (prim_lit->primtype_tag()) {
@@ -392,6 +407,28 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
         payload.element_type = convert(arr->elem_type());
         payload.contents = vec2nodes(contents);
         v = shady::arr_lit(arena, payload);
+    } else if (auto cmp = def->isa<Cmp>()) {
+        switch (cmp->cmp_tag()) {
+            case Cmp_eq: v = mk_primop(shady::Op::eq_op,  { cmp->lhs(), cmp->rhs() }); break;
+            case Cmp_ne: v = mk_primop(shady::Op::neq_op, { cmp->lhs(), cmp->rhs() }); break;
+            case Cmp_gt: v = mk_primop(shady::Op::gt_op,  { cmp->lhs(), cmp->rhs() }); break;
+            case Cmp_ge: v = mk_primop(shady::Op::gte_op, { cmp->lhs(), cmp->rhs() }); break;
+            case Cmp_lt: v = mk_primop(shady::Op::lt_op,  { cmp->lhs(), cmp->rhs() }); break;
+            case Cmp_le: v = mk_primop(shady::Op::lte_op, { cmp->lhs(), cmp->rhs() }); break;
+        }
+    } else if (auto arith = def->isa<ArithOp>()) {
+        switch (arith->arithop_tag()) {
+            case ArithOp_add: v = mk_primop(shady::Op::add_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_sub: v = mk_primop(shady::Op::sub_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_mul: v = mk_primop(shady::Op::mul_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_div: v = mk_primop(shady::Op::div_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_rem: v = mk_primop(shady::Op::mod_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_and: v = mk_primop(shady::Op::and_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_or:  v = mk_primop(shady::Op::or_op,     { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_xor: v = mk_primop(shady::Op::xor_op,    { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_shl: v = mk_primop(shady::Op::lshift_op, { arith->lhs(), arith->rhs() }); break;
+            case ArithOp_shr: v = mk_primop(shady::Op::rshift_logical_op, { arith->lhs(), arith->rhs() }); break;
+        }
     }
     assert(v && shady::is_value(v));
     defs_[def] = v;

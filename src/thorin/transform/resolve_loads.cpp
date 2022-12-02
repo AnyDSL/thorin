@@ -95,7 +95,7 @@ public:
             return it->second;
         if (auto global = alloc->isa<Global>()) {
             // Immutable globals will remain set to their initial value
-            if (!global->is_mutable() && (!global->is_external()) || !global->init()->isa<Bottom>())
+            if (!global->is_mutable() && (!global->is_external() || !global->init()->isa<Bottom>()))
                 return mapping[alloc] = global->init();
         }
         // Nothing is known about this allocation yet

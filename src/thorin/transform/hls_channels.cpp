@@ -318,12 +318,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         elem->dump();
     }
 
-
-    if(CheckCommon(cgra_global,hls_global))
-        std::cout << "Found HLS-CGRA dependency" << std::endl;
-    else
-        std::cout << "No HLS-CGRA dependecy" << std::endl;
-
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();
             //std::cout<< "____HLS KERNEL____" << std::endl;

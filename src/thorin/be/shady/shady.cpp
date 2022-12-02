@@ -178,6 +178,8 @@ shady::Node* CodeGen::emit_decl_head(Def* def) {
             returns.push_back(ret_type);
         }
 
+        std::string name = def->unique_name();
+
         auto config = kernel_config_.find(cont);
         if (config != kernel_config_.end()) {
             if (auto gpu_config = config->second->isa<GPUKernelConfig>()) {
@@ -187,12 +189,13 @@ shady::Node* CodeGen::emit_decl_head(Def* def) {
                 block_size.emplace_back(shady::int32_literal(arena, get<1>(gpu_config->block_size())));
                 block_size.emplace_back(shady::int32_literal(arena, get<2>(gpu_config->block_size())));
                 annotations.push_back(shady::annotation_values(arena, { .name = "WorkgroupSize", .values = vec2nodes(block_size) }));
+                name = "main";
             } else {
                 assert(false && "Only GPU kernel configs are currently supported");
             }
         }
 
-        return shady::function(module, vec2nodes(params), def->unique_name().c_str(), vec2nodes(annotations), vec2nodes(returns));
+        return shady::function(module, vec2nodes(params), name.c_str(), vec2nodes(annotations), vec2nodes(returns));
     } else if (auto global = def->isa<Global>()) {
         if (global->is_mutable()) {
             return shady::global_var(module, vec2nodes(annotations), convert(global->alloced_type()), global->unique_name().c_str(), convert_address_space(AddrSpace::Private));
@@ -237,7 +240,7 @@ void CodeGen::prepare(Continuation* cont, shady::Node*) {
             params.push_back(param);
         }
 
-        bb.head = shady::basic_block(arena, curr_fn, vec2nodes(params), cont->name().c_str());
+        bb.head = shady::basic_block(arena, curr_fn, vec2nodes(params), cont->unique_name().c_str());
     } else
         assert(bb.head);
 
@@ -309,14 +312,13 @@ void CodeGen::emit_epilogue(Continuation* cont) {
             // shady primop called as imported continuations look like continuation calls to thorin, but not to shady
             // we just need to carefully emit the primop as an instruction, then jump to the target BB, passing the stuff as we do
             if (auto op = is_shady_prim_op(callee); op.has_value()) {
-                shady::bind_instruction(bb.builder, shady::prim_op(arena, (shady::PrimOp) {
+                shady::Jump jump;
+                jump.target = args[ret_param];
+                jump.args = shady::bind_instruction(bb.builder, shady::prim_op(arena, (shady::PrimOp) {
                         .op = op.value(),
                         .type_arguments = shady::nodes(arena, 0, nullptr),
                         .operands = vec2nodes(args),
                 }));
-                shady::Jump jump;
-                jump.target = args[ret_param];
-                jump.args = shady::nodes(arena, 0, NULL);
                 bb.terminator = shady::jump(arena, jump);
                 return;
             }

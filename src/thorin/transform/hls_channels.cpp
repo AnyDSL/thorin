@@ -16,8 +16,6 @@ using Def2DependentBlocks = DefMap<std::pair<Continuation*, Continuation*>>; // 
 
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
-            std::cout<< "*** SCOPE entry*** " <<std::endl;
-            scope.entry()->dump();
             auto kernel = scope.entry();
             Def2Block global2block; // global, using basic block, HLS/CGRA
             for (auto& block : schedule(scope)) {
@@ -29,22 +27,13 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                 auto callee = body->callee()->isa_nom<Continuation>();
                 if (callee && callee->is_channel()) {
                     if (body->arg(1)->order() == 0 && !(is_mem(body->arg(1)) || is_unit(body->arg(1)))) {
-                        std::cout<< "*** target callee *** " <<std::endl;
-                       // TODO: more checks on global def
                         auto def = body->arg(1);
                         if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                            callee->dump();
-                        //   std::cout << "~~~~~~~~Global uses~~~~~~" << std::endl;
-                        //   for (auto use : body->arg(1)->uses())
-                        //       use->dump();
                             for (auto preds_scope : scope.entry()->preds()) {
-                            //auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>();
                                 if (auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>(); pred_scope_callee
                                         && pred_scope_callee->is_intrinsic()) {
                                     if (pred_scope_callee->intrinsic() == Intrinsic::HLS ||
                                             pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
-                                        std::cout << "~~~~~~~~Pred callee~~~~~~" << std::endl;
-                                        pred_scope_callee->dump();
                                         global2block.emplace(def, std::make_pair(block, pred_scope_callee->intrinsic()));
                                     }
 
@@ -312,16 +301,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
             }
     }
 
-    //testing
-    std::cout << "###### TARGET HLS BLOCKS####" <<std::endl;
-    for (const auto& elem : target_blocks_in_hls_world) {
-        elem->dump();
-    }
-
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();
-            //std::cout<< "____HLS KERNEL____" << std::endl;
-            //old_kernel->dump();
             Def2Mode def2mode;
             extract_kernel_channels(schedule(scope), def2mode);
             for (auto [elem,_] : def2mode)

@@ -13,9 +13,6 @@ namespace thorin {
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // (From, To)
 using Def2Block = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def , (basicblock, HLS/CGRA intrinsic)]
 using Def2DependentBlocks = DefMap<std::pair<Continuation*, Continuation*>>; // [global_def, (HLS_basicblock, CGRA_basicblock)]
-std::vector<const Def*> hls_global;
-std::vector<const Def*> cgra_global;
-
 
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
@@ -63,13 +60,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
 
     });
     }
-
-bool CheckCommon(std::vector<const Def*> const& inVectorA, std::vector<const Def*> const& nVectorB) {
-    return std::find_first_of (inVectorA.begin(), inVectorA.end(),
-            nVectorB.begin(), nVectorB.end()) != inVectorA.end();
-}
-
-
 
 // HLS-CGRA dependency search algorithm
 void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, const std::vector<Def2Block>& old_global_maps) {

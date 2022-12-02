@@ -160,6 +160,7 @@ void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& c
         auto config = cont2config[kernel]->as<HLSKernelConfig>();
         param_sizes[hls_top->param(std::get<0>(tuple))] = config->param_size(param);
     }
+    // adding hls_top param sizes to configuraion
     cont2config.emplace(hls_top, std::make_unique<HLSKernelConfig>(param_sizes));
 }
 
@@ -268,10 +269,10 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     Def2Def param2arg; // contains a map from new kernel parameters to their corresponding arguments in call-site at hls_top (for all kernels)
     Def2Def arg2param;
 
-    std::cout << "------- OLD WORLD----------"<< std::endl;
-    old_world.dump();
-    std::cout << "-------HLS----------"<< std::endl;
-    world.dump();
+//    std::cout << "------- OLD WORLD----------"<< std::endl;
+//    old_world.dump();
+//    std::cout << "-------HLS----------"<< std::endl;
+//    world.dump();
 //
 //    std::cout << "-------CGRA----------"<< std::endl;
 //    cgra_world.dump();
@@ -417,9 +418,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
                     top_param_types.emplace_back(param->type());
                 }
             } else if (is_used_for_cgra(param)) {
-                    std::cout << "cgra param found!" << std::endl;
-                    // We can put the cgra param inside the param_index with no problem
                     param_index.emplace_back(kernel, i, top_param_types.size());
+                    // cgra_channels on hls_top are scalar vars, probably we don't need to add them to top2kernel
                     //top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
                     top_param_types.emplace_back(param->type());
                 }

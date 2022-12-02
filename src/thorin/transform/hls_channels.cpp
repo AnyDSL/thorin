@@ -49,7 +49,6 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                                             pred_scope_callee->intrinsic() == Intrinsic::CGRA) {
                                         std::cout << "~~~~~~~~Pred callee~~~~~~" << std::endl;
                                         pred_scope_callee->dump();
-                                        //global2block.emplace(def, std::make_pair(callee, pred_scope_callee->intrinsic()));
                                         global2block.emplace(def, std::make_pair(block, pred_scope_callee->intrinsic()));
                                     }
 

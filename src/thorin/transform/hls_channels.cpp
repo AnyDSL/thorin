@@ -88,15 +88,7 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
         }
         }
     if (!global2block.empty()) {
-        // size of this vector should be the same as the number of kernels in HLS world
-        // TODO: think about if repeating globals in different bb is required!
         old_global_maps.emplace_back(global2block);
-        std::cout << " kernel number = " << old_global_maps.size() << std::endl;
-        std::cout << " old_map_size = " << global2block.size() << std::endl;
-        std::cout << " ####inside map #####" << std::endl;
-        for (auto [k, v] : global2block)
-            k->dump();
-
     }
 
     });

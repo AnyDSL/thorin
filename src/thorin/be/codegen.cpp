@@ -92,12 +92,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         Continuation* imported = nullptr;
 
         static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,   Intrinsic::CUDA   },
-            std::pair { NVVM,   Intrinsic::NVVM   },
-            std::pair { OpenCL, Intrinsic::OpenCL },
-            std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    },
-            std::pair { Shady,  Intrinsic::SpirV  }
+            std::pair { CUDA,   Intrinsic::CUDA         },
+            std::pair { NVVM,   Intrinsic::NVVM         },
+            std::pair { OpenCL, Intrinsic::OpenCL       },
+            std::pair { AMDGPU, Intrinsic::AMDGPU       },
+            std::pair { HLS,    Intrinsic::HLS          },
+            std::pair { Shady,  Intrinsic::ShadyCompute }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {

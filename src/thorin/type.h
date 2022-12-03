@@ -235,7 +235,7 @@ enum class AddrSpace : uint32_t {
     Texture  = 2,
     Shared   = 3,
     Constant = 4,
-    Private =  5, // Corresponds to the 'private' storage class in SPIR-V
+    Private =  5, // Corresponds to the 'private' storage class in compute kernels/shaders, as in thread-private
 };
 
 /// Pointer type.

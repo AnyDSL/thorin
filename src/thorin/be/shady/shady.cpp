@@ -371,7 +371,7 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
         payload.op = op;
         std::vector<const shady::Node*> operands;
         for (auto arg : args)
-            operands.push_back(emit_bb(bb, arg));
+            operands.push_back(emit(arg));
         std::vector<const shady::Node*> type_arguments;
         for (auto type_arg : types)
             type_arguments.push_back(convert(type_arg));
@@ -429,6 +429,10 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             case ArithOp_shl: v = mk_primop(shady::Op::lshift_op, { arith->lhs(), arith->rhs() }); break;
             case ArithOp_shr: v = mk_primop(shady::Op::rshift_logical_op, { arith->lhs(), arith->rhs() }); break;
         }
+    } else if (auto param = def->isa<Param>()) {
+        assert(param->type() == world().mem_type());
+        defs_[def] = nullptr;
+        return nullptr;
     }
     assert(v && shady::is_value(v));
     defs_[def] = v;

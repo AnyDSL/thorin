@@ -175,6 +175,11 @@ shady::Node* CodeGen::emit_decl_head(Def* def) {
             auto ret_type = convert(t);
             if (!ret_type)
                 continue; // Eliminate mem types
+
+            shady::QualifiedType qtype;
+            qtype.type = ret_type;
+            qtype.is_uniform = false;
+            ret_type = shady::qualified_type(arena, qtype);
             returns.push_back(ret_type);
         }
 

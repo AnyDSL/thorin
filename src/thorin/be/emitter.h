@@ -41,8 +41,13 @@ private:
         }
 
         auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
-        auto& bb = cont2bb_[place];
-        return child().emit_bb(bb, def);
+
+        if (place) {
+            auto& bb = cont2bb_[place];
+            return child().emit_bb(bb, def);
+        } else {
+            return child().emit_constant(def);
+        }
     }
 
 protected:

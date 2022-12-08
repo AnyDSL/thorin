@@ -107,6 +107,13 @@ if(LLVM_FOUND)
     )
 endif()
 
+if(nlohmann_json_FOUND)
+    list(APPEND THORIN_SOURCES
+        be/json/json.cpp
+        be/json/json.h
+    )
+endif()
+
 add_library(thorin ${THORIN_SOURCES})
 target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${Thorin_ROOT_DIR}/src ${CMAKE_BINARY_DIR}/include)
 
@@ -120,4 +127,8 @@ if(LLVM_FOUND)
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
+endif()
+
+if(nlohmann_json_FOUND)
+    target_link_libraries(thorin PRIVATE nlohmann_json::nlohmann_json)
 endif()

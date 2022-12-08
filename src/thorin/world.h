@@ -65,7 +65,7 @@ public:
 
     using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
-    using Externals   = HashMap<std::string, Continuation*, ExternalsHash>;
+    using Externals   = HashMap<std::string, Def*, ExternalsHash>;
 
     World(World&&) = delete;
     World& operator=(const World&) = delete;
@@ -90,10 +90,10 @@ public:
     //@{
     bool empty() { return data_.externals_.empty(); }
     const Externals& externals() const { return data_.externals_; }
-    void make_external(Continuation* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
-    void make_internal(Continuation* cont) { data_.externals_.erase(cont->unique_name()); }
-    bool is_external(const Continuation* cont) { return data_.externals_.contains(cont->unique_name()); }
-    Continuation* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
+    void make_external(Def* cont) { data_.externals_.emplace(cont->unique_name(), cont).second; }
+    void make_internal(Def* cont) { data_.externals_.erase(cont->unique_name()); }
+    bool is_external(const Def* cont) { return data_.externals_.contains(cont->unique_name()); }
+    Def* lookup(const std::string& name) { return const_cast<Def*>(data_.externals_.lookup(name).value_or(nullptr)); }
     //@}
 
     // literals

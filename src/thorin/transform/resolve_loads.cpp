@@ -95,7 +95,7 @@ public:
             return it->second;
         if (auto global = alloc->isa<Global>()) {
             // Immutable globals will remain set to their initial value
-            if (!global->is_mutable())
+            if (!global->is_mutable() && (!global->is_external() || !global->init()->isa<Bottom>()))
                 return mapping[alloc] = global->init();
         }
         // Nothing is known about this allocation yet
@@ -233,7 +233,7 @@ public: \
         while (true) {
             while (auto bitcast = ptr->isa<Bitcast>())
                 ptr = bitcast->from();
-            if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable())
+            if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable() && (!ptr->as<Global>()->is_external() || !ptr->as<Global>()->init()->isa<Bottom>()))
                 return ptr;
             // If first == ptr, we are looking at the pointed value.
             // In that case, we need to make sure the pointer does not escape.

@@ -54,7 +54,9 @@ public:
         std::unique_ptr<llvm::Module>> emit_module();
     llvm::Function* prepare(const Scope&);
     virtual void prepare(Continuation*, llvm::Function*);
+    llvm::Value* emit_constant(const Def* def);
     llvm::Value* emit_bb(BB&, const Def* def);
+    llvm::Value* emit_builder(llvm::IRBuilder<>&, const Def* def);
     virtual llvm::Function* emit_fun_decl(Continuation*);
     bool is_valid(llvm::Value* value) { return value != nullptr; }
     void finalize(const Scope&);

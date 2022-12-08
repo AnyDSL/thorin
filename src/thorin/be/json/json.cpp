@@ -21,13 +21,13 @@ public:
             result["type"] = "def_array";
             result["args"] = { elem_type };
             result["length"] = arr->dim();
-            result["name"] = elem_type + "_darr";
+            result["name"] = elem_type + "_darr_" + std::to_string(type_table.size());
         } else if (auto arr = type->isa<IndefiniteArrayType>()) {
             auto elem_type = translate_type(arr->elem_type());
 
             result["type"] = "indef_array";
             result["args"] = { elem_type };
-            result["name"] = elem_type + "_iarr";
+            result["name"] = elem_type + "_iarr_" + std::to_string(type_table.size());
         } else if (type->isa<BottomType>()) {
             result["name"] = "bottom_t";
             result["type"] = "bottom";

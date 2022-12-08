@@ -160,11 +160,8 @@ public:
                     result["type"] = "continuation";
                     result["intrinsic"] = "branch";
                 } else if (cont->intrinsic() == Intrinsic::Match) {
-                    //TODO: These will change in the memory branch!
-                    assert(!is_mem(cont->param(0)));
-
-                    size_t num_patterns = cont->num_params() - 2;
-                    auto variant_type = type_table_.translate_type(cont->param(0)->type());
+                    size_t num_patterns = cont->num_params() - 3;
+                    auto variant_type = type_table_.translate_type(cont->param(1)->type());
                     auto name = "_match_" + std::to_string(def_table.size());
 
                     result["name"] = name;

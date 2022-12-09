@@ -361,12 +361,15 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     });
 
 
-    // Building the type of hls_top
+    // Building the hls_top kernel
     std::vector<const Type*> top_param_types;
     top_param_types.emplace_back(world.mem_type());
     top_param_types.emplace_back(world.fn_type({ world.mem_type() }));
     std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param, index hls_top param.)
 
+    // We check for the corresponding globals that channel-params are mapped to
+    // then we look for all using basic blocks and check if they are among the blocks that are connected to CGRA
+    // note that in each basic block only one unique global can be read or written
     auto is_used_for_cgra = [&] (const Def* param) -> bool  {
     if (is_channel_type(param->type())) {
         if (auto global = param2arg[param]; !global->empty()) {// at this point only (channel params, globals) are available inside the map
@@ -387,8 +390,8 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
     for (auto kernel : new_kernels) {
         for (size_t i = 0; i < kernel->num_params(); ++i) {
             auto param = kernel->param(i);
-            // If the parameter is not a channel, save the index and add it to the hls_top parameter list
-            // TODO: if the paramete is not a channel or is a channel connected to a CGRA kernel then ...
+            // If the parameter is not a channel or is a channel but connected to a CGRA kernel then
+            // save the index and add it to the hls_top parameter list
             if (!is_channel_type(param->type())) {
                 if (param != kernel->ret_param() && param != kernel->mem_param()) {
                     param_index.emplace_back(kernel, i, top_param_types.size());
@@ -405,12 +408,15 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         }
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
+
+
     for (auto tuple : param_index) {
         // Mapping hls_top params as args for new_kernels' params
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
         auto arg   = hls_top->param(std::get<2>(tuple));
         if (is_used_for_cgra(param)) {
-            //param2arg.insert_or_assign(std::make_pair(param,arg));
+            // updating the args of the the already inserted channel-params
+            // note that emplace method only adds a new (keys,value) and does not update/rewrite values for already inserted keys
             param2arg[param] = arg;
           //  if (param2arg.contains(param)) {
           //      std::cout << "This param is already in the map" << std::endl;
@@ -496,11 +502,6 @@ DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World&
         // It is not possible to read a channel before writing that, so dependencies are "From write To read"
         size_t from, to = 0;
         for(size_t index_from = 0; index_from < kernels_ch_modes.size() ; ++index_from) {
-          //  std::cout << "-----global----" << std::endl;
-          //  global->dump();
-          //  std::cout << "-----MAP----" << std::endl;
-          //  for (auto [chan, _] : kernels_ch_modes[index_from])
-          //      chan->dump();
             auto channel_it = kernels_ch_modes[index_from].find(global);
             if (channel_it != kernels_ch_modes[index_from].end()) {
                 auto mode = channel_it->second;

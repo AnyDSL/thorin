@@ -4,8 +4,11 @@
 *.ll
 *.nvvm
 *.amdgpu
+*.hls
+*.cgra
 *.s
 *.out
+*.patch
 CMakeCache.txt
 CMakeFiles/
 build*

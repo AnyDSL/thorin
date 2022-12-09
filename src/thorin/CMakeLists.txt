@@ -71,8 +71,8 @@ set(THORIN_SOURCES
     transform/partial_evaluation.h
     transform/split_slots.cpp
     transform/split_slots.h
-    transform/hls_channels.cpp
-    transform/hls_channels.h
+    transform/hls_dataflow.cpp
+    transform/hls_dataflow.h
     transform/hls_kernel_launch.h
     transform/hls_kernel_launch.cpp
     transform/cgra_graphs.cpp

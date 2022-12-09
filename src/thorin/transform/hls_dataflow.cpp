@@ -1,7 +1,7 @@
 #include "thorin/world.h"
 #include "thorin/continuation.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_dataflow.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
@@ -248,8 +248,8 @@ bool has_cgra_callee(World& world) {
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
-//DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-DeviceParams hls_channels(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+//DeviceParams hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
+DeviceParams hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
     auto& world = importer_hls.world(); // world is hls world
     auto& cgra_world = importer_cgra.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)

@@ -5,7 +5,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_dataflow.h"
 #include "thorin/be/emitter.h"
 #include "thorin/util/stream.h"
 #include "c.h"

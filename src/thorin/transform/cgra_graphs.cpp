@@ -1,7 +1,7 @@
 #include "thorin/world.h"
 #include "thorin/continuation.h"
 #include "thorin/transform/cgra_graphs.h"
-#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_dataflow.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"

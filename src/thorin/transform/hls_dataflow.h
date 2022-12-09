@@ -1,5 +1,5 @@
-#ifndef THORIN_TRANSFORM_HLS_CHANNELS_H
-#define THORIN_TRANSFORM_HLS_CHANNELS_H
+#ifndef THORIN_TRANSFORM_HLS_DATAFLOW_H
+#define THORIN_TRANSFORM_HLS_DATAFLOW_H
 
 #include "thorin/be/kernel_config.h"
 #include "thorin/transform/importer.h"
@@ -25,8 +25,8 @@ class World;
  * resolves all dependency requirements between kernel calls
  * provides hls_top parameters for hls runtime
  */
-//DeviceParams hls_channels(Importer&, Top2Kernel&, World&);
-DeviceParams hls_channels(Importer&, Top2Kernel&, World&, Importer&);
+//DeviceParams hls_dataflow(Importer&, Top2Kernel&, World&);
+DeviceParams hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
 void extract_kernel_channels(const Schedule&, Def2Mode&); 
 bool is_single_kernel(Continuation*);

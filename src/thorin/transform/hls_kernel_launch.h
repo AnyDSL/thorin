@@ -1,7 +1,7 @@
 #ifndef THORIN_TRANSFORM_HLS_KERNEL_LAUNCH_H
 #define THORIN_TRANSFORM_HLS_KERNEL_LAUNCH_H
 #include "thorin/transform/importer.h"
-#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_dataflow.h"
 
 namespace thorin {
 

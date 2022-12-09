@@ -1,6 +1,6 @@
 #include "thorin/be/codegen.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/transform/hls_channels.h"
+#include "thorin/transform/hls_dataflow.h"
 #include "thorin/transform/hls_kernel_launch.h"
 #include "thorin/transform/cgra_graphs.h"
 
@@ -228,7 +228,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     Top2Kernel top2kernel;
     DeviceParams hls_host_params;
     if (!importers_[HLS].world().empty()) {
-        hls_host_params = hls_channels(importers_[HLS], top2kernel, world, importers_[CGRA]);
+        hls_host_params = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
 
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto app = use->body();

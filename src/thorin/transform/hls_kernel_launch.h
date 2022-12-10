@@ -13,7 +13,7 @@ const auto cgra_free_vars_offset = 4;
  * removes all calls to individual kernels in host code
  * and replaces them with a single call to a kernel named hls_top
  */
-void hls_kernel_launch(World&, DeviceParams&);
+void hls_kernel_launch(World&, HlsDeviceParams&);
 
 }
 

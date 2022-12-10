@@ -12,7 +12,6 @@ namespace thorin {
 //using Def2Mode = DefMap<ChannelMode>;
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // (From, To)
 using Def2Block = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def , (basicblock, HLS/CGRA intrinsic)]
-using Def2DependentBlocks = DefMap<std::pair<Continuation*, Continuation*>>; // [global_def, (HLS_basicblock, CGRA_basicblock)]
 
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
@@ -249,7 +248,8 @@ bool has_cgra_callee(World& world) {
  */
 
 //DeviceParams hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-DeviceParams hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+//DeviceParams hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+DeviceDefs hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
     auto& world = importer_hls.world(); // world is hls world
     auto& cgra_world = importer_cgra.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
@@ -599,7 +599,7 @@ DeviceParams hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World&
 //    world.dump();
     world.cleanup();
 
-    return old_kernels_params;
+    return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks);
 }
 
 }

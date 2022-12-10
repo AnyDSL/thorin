@@ -226,9 +226,10 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 //TODO: Integrating HLS configuration into the main backend loop above
     // get the HLS kernel configurations
     Top2Kernel top2kernel;
-    DeviceParams hls_host_params;
+    DeviceDefs device_defs;
     if (!importers_[HLS].world().empty()) {
-        hls_host_params = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
+        //hls_host_params = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
+        device_defs = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
 
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto app = use->body();
@@ -264,7 +265,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
     }
 //    cgra_graphs(importers_[CGRA]);
-    hls_kernel_launch(world, hls_host_params);
+    hls_kernel_launch(world, std::get<0>(device_defs));
     //
 //        cgra_graphs(importers_[CGRA]);
 

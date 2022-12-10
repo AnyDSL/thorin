@@ -13,8 +13,10 @@ enum class ChannelMode : uint8_t {
 };
 using Def2Mode = DefMap<ChannelMode>;
 
-using Top2Kernel = std::vector<std::tuple<size_t, std::string, size_t>>;
-using DeviceParams   = std::vector<const Def*>;
+using Top2Kernel          = std::vector<std::tuple<size_t, std::string, size_t>>;
+using HlsDeviceParams     = std::vector<const Def*>;
+using Def2DependentBlocks = DefMap<std::pair<Continuation*, Continuation*>>; // [global_def, (HLS_basicblock, CGRA_basicblock)]
+using DeviceDefs          = std::tuple<HlsDeviceParams, Def2DependentBlocks>;
 class World;
 
 /**
@@ -26,7 +28,8 @@ class World;
  * provides hls_top parameters for hls runtime
  */
 //DeviceParams hls_dataflow(Importer&, Top2Kernel&, World&);
-DeviceParams hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
+//DeviceParams hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
+DeviceDefs hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
 void extract_kernel_channels(const Schedule&, Def2Mode&); 
 bool is_single_kernel(Continuation*);

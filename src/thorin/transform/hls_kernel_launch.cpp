@@ -8,7 +8,7 @@
 
 namespace thorin {
 
-static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const DeviceParams& device_params) {
+static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const HlsDeviceParams& device_params) {
     assert(cont_hls->has_body());
     auto body = cont_hls->body();
 
@@ -69,7 +69,7 @@ const Def* has_hls_callee(Continuation* continuation) {
 }
 
 // Finds instances of HLS kernel launches and wraps them in a OpenCL launch
-void hls_kernel_launch(World& world, DeviceParams& device_params) {
+void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
     bool last_hls_found = false;
     Continuation* opencl = nullptr;
 

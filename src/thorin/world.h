@@ -90,10 +90,10 @@ public:
     //@{
     bool empty() { return data_.externals_.empty(); }
     const Externals& externals() const { return data_.externals_; }
-    void make_external(Def* cont) { data_.externals_.emplace(cont->unique_name(), cont).second; }
+    void make_external(Def* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
     void make_internal(Def* cont) { data_.externals_.erase(cont->unique_name()); }
     bool is_external(const Def* cont) { return data_.externals_.contains(cont->unique_name()); }
-    Def* lookup(const std::string& name) { return const_cast<Def*>(data_.externals_.lookup(name).value_or(nullptr)); }
+    Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
     //@}
 
     // literals

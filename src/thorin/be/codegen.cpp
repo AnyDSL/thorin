@@ -270,7 +270,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 //        cgra_graphs(importers_[CGRA]);
 
     if (!importers_[CGRA].world().empty()) {
-        cgra_graphs(importers_[CGRA]);
+        cgra_graphs(importers_[CGRA], world);
         get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
             //return std::make_unique<CGRAKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, true);

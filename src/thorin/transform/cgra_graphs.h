@@ -7,7 +7,7 @@ namespace thorin {
 
 class World;
 
-void cgra_graphs(Importer&);
+void cgra_graphs(Importer&, World&);
 
 }
 

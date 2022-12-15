@@ -15,7 +15,8 @@ using Def2Mode = DefMap<ChannelMode>;
 
 using Top2Kernel          = std::vector<std::tuple<size_t, std::string, size_t>>;
 using HlsDeviceParams     = std::vector<const Def*>;
-using Def2DependentBlocks = DefMap<std::pair<Continuation*, Continuation*>>; // [global_def, (HLS_basicblock, CGRA_basicblock)]
+using DependentBlocks     = std::pair<Continuation*, Continuation*>;
+using Def2DependentBlocks = DefMap<DependentBlocks>; // [global_def, (HLS_basicblock, CGRA_basicblock)]
 using DeviceDefs          = std::tuple<HlsDeviceParams, Def2DependentBlocks>;
 class World;
 

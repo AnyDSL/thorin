@@ -10,7 +10,8 @@
 
 namespace thorin {
 
-void cgra_graphs(Importer& importer) {
+
+void cgra_graphs(Importer& importer, World& old_world) {
 
     auto& world = importer.world();
 

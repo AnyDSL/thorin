@@ -13,11 +13,10 @@ namespace thorin {
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // (From, To)
 using Def2Block = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def , (basicblock, HLS/CGRA intrinsic)]
 
-void connecting_blocks_old2new(std::vector<const Def*>& target_blocks,const Def2DependentBlocks def2dependent_blocks, Importer& importer, World& old_world, std::function<Continuation*(DependentBlocks)> select_block) {
+void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer, World& old_world, std::function<Continuation*(DependentBlocks)> select_block) {
     for (const auto& [old_common_global, pair] : def2dependent_blocks) {
         auto [old_hls_basicblock, old_cgra_basicblock] = pair;
         auto old_basicblock = select_block(pair);
-        //use old_bb in the rest
             for (auto def : old_world.defs()) {
                     if (importer.def_old2new_.contains(old_basicblock)) {
                         target_blocks.emplace_back(importer.def_old2new_[old_basicblock]);
@@ -293,17 +292,11 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     old_global_maps.clear();
 
 
-
-
-
     std::vector<const Def*> target_blocks_in_hls_world; // hls_world basic blocks that connect to CGRA`
-                                                        
-
-
-    connecting_blocks_old2new(target_blocks_in_hls_world, old_globals2old_dependent_blocks,importer,old_world, [&](DependentBlocks dependent_blocks){ auto old_hls_basicblock = dependent_blocks.first;
-            return old_hls_basicblock;
-            });
-//    // TODO: make it like a function and share it with CGRA_graphs (decide on HLS/CGRA using default/optional parameter) 
+    connecting_blocks_old2new(target_blocks_in_hls_world, old_globals2old_dependent_blocks, importer, old_world, [&] (DependentBlocks dependent_blocks) {
+        auto old_hls_basicblock = dependent_blocks.first;
+        return old_hls_basicblock;
+    });
 //    for (const auto& [old_common_global, pair] : old_globals2old_dependent_blocks) {
 //        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
 //            for (auto def : old_world.defs()) {

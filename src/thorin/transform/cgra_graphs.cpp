@@ -11,9 +11,13 @@
 namespace thorin {
 
 
-void cgra_graphs(Importer& importer, World& old_world) {
+void cgra_graphs(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 
     auto& world = importer.world();
+    std::vector<const Def*> target_blocks_in_cgra_world; // hls_world basic blocks that connect to CGRA`
+    connecting_blocks_old2new(target_blocks_in_cgra_world, def2dependent_blocks ,importer,old_world, [&](DependentBlocks dependent_blocks){ auto old_cgra_basicblock = dependent_blocks.second;
+            return old_cgra_basicblock;
+            });
 
 // std::cout << "_--------cgra before rewrite--------" <<std::endl;
 //    for (auto def : world.defs()) {

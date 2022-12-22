@@ -32,8 +32,10 @@ class World;
 //DeviceParams hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
 DeviceDefs hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
-void extract_kernel_channels(const Schedule&, Def2Mode&); 
+void extract_kernel_channels(const Schedule&, Def2Mode&);
 bool is_single_kernel(Continuation*);
+void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer,
+        World& old_world, std::function<Continuation*(DependentBlocks)> select_block);
 
 }
 

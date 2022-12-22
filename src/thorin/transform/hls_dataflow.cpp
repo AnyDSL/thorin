@@ -13,6 +13,20 @@ namespace thorin {
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // (From, To)
 using Def2Block = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def , (basicblock, HLS/CGRA intrinsic)]
 
+void connecting_blocks_old2new(std::vector<const Def*>& target_blocks,const Def2DependentBlocks def2dependent_blocks, Importer& importer, World& old_world, std::function<Continuation*(DependentBlocks)> select_block) {
+    for (const auto& [old_common_global, pair] : def2dependent_blocks) {
+        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
+        auto old_basicblock = select_block(pair);
+        //use old_bb in the rest
+            for (auto def : old_world.defs()) {
+                    if (importer.def_old2new_.contains(old_basicblock)) {
+                        target_blocks.emplace_back(importer.def_old2new_[old_basicblock]);
+                        break;
+                    }
+            }
+    }
+}
+
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
             auto kernel = scope.entry();
@@ -241,16 +255,16 @@ bool has_cgra_callee(World& world) {
 
 
 /**
- * @param importer_hls hls world
+ * @param importer hls world
  * @param Top2Kernel annonating hls_top configuration
  * @param old_world to connect with runtime (host) world
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
 //DeviceParams hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-//DeviceParams hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-DeviceDefs hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-    auto& world = importer_hls.world(); // world is hls world
+//DeviceParams hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+    auto& world = importer.world(); // world is hls world
     auto& cgra_world = importer_cgra.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
@@ -279,19 +293,31 @@ DeviceDefs hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& o
     old_global_maps.clear();
 
 
-    std::vector<const Def*> target_blocks_in_hls_world; // hls_world basic blocks that connect to CGRA
-    for (const auto& [old_common_global, pair] : old_globals2old_dependent_blocks) {
-        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
-            for (auto def : old_world.defs()) {
-                    if (importer_hls.def_old2new_.contains(old_hls_basicblock)) {
-                        target_blocks_in_hls_world.emplace_back(importer_hls.def_old2new_[old_hls_basicblock]);
-                        break;
-                    }
-            }
-    }
+
+
+
+    std::vector<const Def*> target_blocks_in_hls_world; // hls_world basic blocks that connect to CGRA`
+                                                        
+
+
+    connecting_blocks_old2new(target_blocks_in_hls_world, old_globals2old_dependent_blocks,importer,old_world, [&](DependentBlocks dependent_blocks){ auto old_hls_basicblock = dependent_blocks.first;
+            return old_hls_basicblock;
+            });
+//    // TODO: make it like a function and share it with CGRA_graphs (decide on HLS/CGRA using default/optional parameter) 
+//    for (const auto& [old_common_global, pair] : old_globals2old_dependent_blocks) {
+//        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
+//            for (auto def : old_world.defs()) {
+//                    if (importer.def_old2new_.contains(old_hls_basicblock)) {
+//                        target_blocks_in_hls_world.emplace_back(importer.def_old2new_[old_hls_basicblock]);
+//                        break;
+//                    }
+//            }
+//    }
 
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();
+            old_kernel->dump();
+            std::cout << old_kernel->num_params() << std::endl;
             Def2Mode def2mode;
             extract_kernel_channels(schedule(scope), def2mode);
             for (auto [elem,_] : def2mode)
@@ -446,7 +472,7 @@ DeviceDefs hls_dataflow(Importer& importer_hls, Top2Kernel& top2kernel, World& o
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Continuation>()) {
                 auto ncontinuation = elem->as<Param>()->continuation(); //TODO: for optimization This line can go out of inner loop
-                if (ncontinuation == importer_hls.def_old2new_[ocontinuation]) {
+                if (ncontinuation == importer.def_old2new_[ocontinuation]) {
                     elem = ocontinuation->param(elem->as<Param>()->index());
                     break;
                 }

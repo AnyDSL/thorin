@@ -79,10 +79,10 @@ void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, 
                     if (cur_intrinsic != next_intrinsic) {
                         // HLS-CGR
                         // We assume that the current basic block blongs to HLS
+                        if (cur_intrinsic == Intrinsic::CGRA)
+                            std::swap(cur_basic_block, next_basic_block);
                         auto hls_basic_block  = cur_basic_block;
                         auto cgra_basic_block = next_basic_block;
-                        if (cur_intrinsic == Intrinsic::CGRA)
-                            std::swap(hls_basic_block, next_basic_block);
                         global2dependent_blocks.emplace(cur_global, std::make_pair(hls_basic_block, cgra_basic_block));
                         break;
                     } else {

@@ -4,6 +4,7 @@ namespace thorin::json {
 
 class TypeTable {
 public:
+    json nominal_fwd_table = json::array();
     json type_table = json::array();
 
     TypeMap<std::string> known_types;
@@ -56,28 +57,54 @@ public:
             result["name"] = "mem_t";
             result["type"] = "mem";
         } else if (auto structtype = type->isa<StructType>()) {
-            json args = json::array();
+            auto name = "_struct_" + std::to_string(nominal_fwd_table.size());
+            known_types[type] = name;
+
             json arg_names = json::array();
             for (size_t i = 0; i < structtype->num_ops(); ++i) {
-                args.push_back(translate_type(structtype->op(i)));
                 arg_names.push_back(structtype->op_name(i).str());
             }
 
-            result["type"] = "struct";
-            result["name"] = "_" + std::to_string(type_table.size());
-            result["struct_name"] = structtype->name().str();
-            result["args"] = args;
-            result["arg_names"] = arg_names;
-        } else if (auto varianttype = type->isa<VariantType>()) {
+            json forward_decl;
+            forward_decl["name"] = name;
+            forward_decl["type"] = "struct";
+            forward_decl["struct_name"] = structtype->name().str();
+            forward_decl["arg_names"] = arg_names;
+            nominal_fwd_table.push_back(forward_decl);
+
             json args = json::array();
+            for (size_t i = 0; i < structtype->num_ops(); ++i) {
+                args.push_back(translate_type(structtype->op(i)));
+            }
+
+            result["type"] = "struct";
+            result["name"] = name;
+            result["struct_name"] = structtype->name().str();
+            result["arg_names"] = arg_names;
+            result["args"] = args;
+        } else if (auto varianttype = type->isa<VariantType>()) {
+            auto name = "_variant_" + std::to_string(nominal_fwd_table.size());
+            known_types[type] = name;
+
             json arg_names = json::array();
             for (size_t i = 0; i < varianttype->num_ops(); ++i) {
-                args.push_back(translate_type(varianttype->op(i)));
                 arg_names.push_back(varianttype->op_name(i).str());
             }
 
+            json forward_decl;
+            forward_decl["name"] = name;
+            forward_decl["type"] = "variant";
+            forward_decl["variant_name"] = varianttype->name().str();
+            forward_decl["arg_names"] = arg_names;
+            nominal_fwd_table.push_back(forward_decl);
+
+            json args = json::array();
+            for (size_t i = 0; i < varianttype->num_ops(); ++i) {
+                args.push_back(translate_type(varianttype->op(i)));
+            }
+
             result["type"] = "variant";
-            result["name"] = "_" + std::to_string(type_table.size());
+            result["name"] = name;
             result["variant_name"] = varianttype->name().str();
             result["args"] = args;
             result["arg_names"] = arg_names;
@@ -627,7 +654,10 @@ void CodeGen::emit_stream(std::ostream& stream) {
         def_table.translate_def(external.second);
     }
 
-    j["type_table"] = type_table.type_table;
+    j["type_table"] = type_table.nominal_fwd_table;
+    for (auto it : type_table.type_table)
+        j["type_table"] += it;
+
     j["defs"] = def_table.decl_table;
     for (auto it : def_table.def_table)
         j["defs"] += it;

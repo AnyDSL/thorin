@@ -1,9 +1,5 @@
 #include "thorin/transform/importer.h"
 
-#include <set>
-#include <stack>
-#include <utility>
-
 namespace thorin {
 
 const Type* Importer::import_type(const Type* otype) {
@@ -32,10 +28,7 @@ const Type* Importer::import_type(const Type* otype) {
     return ntype;
 }
 
-std::stack<std::pair<const Def*, bool>> required_defs;
-std::set<const Def *> analyzed_conts;
-
-void enqueue(const Def* elem) {
+void Importer::enqueue(const Def* elem) {
     if (elem->isa_nom<Continuation>()) {
         if (analyzed_conts.find(elem) != analyzed_conts.end()) {
             required_defs.push(std::pair(elem, false));

@@ -35,8 +35,7 @@ private:
         }
 
         while (!required_defs.empty()) {
-            auto r = required_defs.top();
-            required_defs.pop();
+            auto r = pop(required_defs);
             emit_unsafe(r);
         }
 

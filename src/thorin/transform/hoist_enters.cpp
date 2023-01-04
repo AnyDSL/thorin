@@ -8,7 +8,7 @@
 
 namespace thorin {
 
-std::stack<const Def*> todo;
+static std::stack<const Def*> hoist_enters_todo;
 
 static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
     if (auto enter = def->isa<Enter>())
@@ -19,16 +19,15 @@ static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
 
     for (auto use : def->uses()) {
         if (auto memop = use->isa<MemOp>())
-            todo.push(memop);
+            hoist_enters_todo.push(memop);
     }
 }
 
 static void find_enters(std::deque<const Enter*>& enters, Continuation* continuation) {
     if (auto mem_param = continuation->mem_param()) {
-        todo.push(mem_param);
-        while (!todo.empty()) {
-            auto next_item = todo.top();
-            todo.pop();
+        hoist_enters_todo.push(mem_param);
+        while (!hoist_enters_todo.empty()) {
+            auto next_item = pop(hoist_enters_todo);
 
             find_enters(enters, next_item);
         }

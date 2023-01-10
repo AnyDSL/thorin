@@ -407,10 +407,11 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             assert(emit(e));
             contents.push_back(emit(e));
         }
-        shady::ArrayLiteral payload;
+        shady::ArrType payload;
+        const shady::Type* arr_type = shady::arr_type(arena, payload);
         payload.element_type = convert(arr->elem_type());
-        payload.contents = vec2nodes(contents);
-        v = shady::arr_lit(arena, payload);
+        payload.size = shady::int32_literal(arena, contents.size());
+        v = shady::composite(arena, arr_type, vec2nodes(contents));
     } else if (auto cmp = def->isa<Cmp>()) {
         switch (cmp->cmp_tag()) {
             case Cmp_eq: v = mk_primop(shady::Op::eq_op,  { cmp->lhs(), cmp->rhs() }); break;

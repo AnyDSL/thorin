@@ -2,7 +2,6 @@
 #undef empty
 
 #include "thorin/analyses/scope.h"
-#include "thorin/transform/structurize.h"
 
 namespace thorin::shady_be {
 
@@ -11,12 +10,9 @@ CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
 {}
 
 void CodeGen::emit_stream(std::ostream& out) {
-    // structure_loops(world());
-    // structure_flow(world());
-
     assert(!module);
 
-    shady::ArenaConfig config = { };
+    shady::ArenaConfig config = shady::default_arena_config();
     config.name_bound = true;
     config.check_types = true;
     arena = shady::new_ir_arena(config);

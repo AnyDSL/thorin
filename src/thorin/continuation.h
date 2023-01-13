@@ -214,6 +214,18 @@ public:
         }
         return true;
     }
+    bool never_called() const {
+        for (auto use : uses()) {
+            if (auto app = use->isa<App>()) {
+                if (app->num_uses() != 0) {
+                    return false;
+                }
+            } else if (!use->isa<Param>()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     bool dead_ = false;
     std::vector<const Param*> params_;

@@ -55,6 +55,7 @@ void RecStreamer::run() {
             std::vector<std::string> param_names;
             for (auto param : cont->params()) param_names.push_back(param->unique_name());
             s.fmt("{}: {} = ({, }) => {{\t\n", cont->unique_name(), cont->type(), param_names);
+            run(cont->filter());
             run(cont->body()); // TODO app node
             s.fmt("\b\n}}");
         } else {

@@ -13,6 +13,7 @@ namespace thorin {
 
 class Continuation;
 class Scope;
+struct Rewriter;
 
 typedef std::vector<Continuation*> Continuations;
 
@@ -137,6 +138,7 @@ public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
     Continuation* stub() const;
+    Continuation* stub(Rewriter& rewriter) const;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;

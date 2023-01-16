@@ -60,7 +60,10 @@ Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug
 
 Continuation* Continuation::stub() const {
     Rewriter rewriter;
+    return stub(rewriter);
+}
 
+Continuation* Continuation::stub(Rewriter& rewriter) const {
     auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->set_name(debug_history().name);

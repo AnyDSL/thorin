@@ -111,9 +111,6 @@ enum class Intrinsic : uint8_t {
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
-    LoopBegin,                  ///<
-    LoopBreak,                  ///<
-    LoopContinue,               ///<
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
@@ -125,24 +122,9 @@ enum class Intrinsic : uint8_t {
  */
 class Continuation : public Def {
 public:
-    /// Stores information about structured control flow that should not be encoded in ops, as ops encode control flow
-    union SCFMetadata {
-        struct {
-            const Continuation* continue_target;
-            const Continuation* merge_target;
-        } loop_header;
-        struct {
-            const Continuation* loop_header;
-        } loop_epilogue;
-        struct {
-            const Continuation* merge_target;
-        } selection_header;
-    };
-
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         CC cc = CC::C;
-        SCFMetadata scf_metadata = {};
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(CC cc = CC::C) : cc(cc) {}
@@ -207,9 +189,6 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    //void structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets);
-    //void structured_loop_continue(const Continuation* loop_header);
-    //void structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets);
     void verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }

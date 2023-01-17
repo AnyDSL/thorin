@@ -262,31 +262,6 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     verify();
 }
 
-/*void Continuation::structured_loop_merge(const Continuation* loop_header, ArrayRef<const Continuation*> targets) {
-    attributes_.intrinsic = Intrinsic::SCFLoopMerge;
-    attributes_.scf_metadata.loop_epilogue.loop_header = loop_header;
-    resize(targets.size());
-    size_t x = 0;
-    for (auto target : targets)
-        set_op(x++, target);
-}
-
-void Continuation::structured_loop_continue(const Continuation* loop_header) {
-    attributes_.intrinsic = Intrinsic::SCFLoopContinue;
-    resize(1);
-    set_op(0, loop_header);
-}
-
-void Continuation::structured_loop_header(const Continuation* loop_epilogue, const Continuation* loop_continue, ArrayRef<const Continuation*> targets) {
-    attributes_.intrinsic = Intrinsic::SCFLoopHeader;
-    resize(targets.size());
-    attributes_.scf_metadata.loop_header.continue_target = loop_continue;
-    attributes_.scf_metadata.loop_header.merge_target = loop_epilogue;
-    size_t x = 0;
-    for (auto target : targets)
-        set_op(x++, target);
-}*/
-
 void Continuation::verify() const {
     if (!has_body())
         assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");

@@ -44,7 +44,7 @@ else()
     message(STATUS "Building without LLVM and RV. Specify LLVM_DIR to compile with LLVM.")
 endif()
 
-find_package(shady REQUIRED CONFIG)
+find_package(shady CONFIG)
 if (shady_FOUND)
     message(STATUS "Found shady at ${shady_DIR}")
     set(THORIN_ENABLE_SHADY TRUE)

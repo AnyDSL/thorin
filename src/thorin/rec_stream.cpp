@@ -56,7 +56,15 @@ void RecStreamer::run() {
             for (auto param : cont->params()) param_names.push_back(param->unique_name());
             s.fmt("{}: {} = ({, }) => {{\t\n", cont->unique_name(), cont->type(), param_names);
             run(cont->filter());
-            run(cont->body()); // TODO app node
+            if (defs.contains(cont->body())) {
+                auto body = cont->body();
+                if (auto cont2 = body->isa_nom<Continuation>()) {
+                    s.fmt("{}: {} = {}({, })", cont2->unique_name(), cont2->type(), cont2->body()->callee(), cont2->body()->args());
+                } else if (!body->no_dep() && !body->isa<Param>())
+                    body->stream_let(s);
+            } else {
+                run(cont->body()); // TODO app node
+            }
             s.fmt("\b\n}}");
         } else {
             s.fmt("{}: {} = {{ <no body> }}", cont->unique_name(), cont->type());
@@ -140,7 +148,7 @@ Stream& Def::stream1(Stream& s) const {
 }
 
 Stream& Def::stream_let(Stream& s) const {
-    return stream1(s.fmt("{}: {} = ", this, type())).endl();
+    return stream1(s.fmt("{}: {} = ", this->unique_name(), type())).endl();
 }
 
 Stream& World::stream(Stream& s) const {

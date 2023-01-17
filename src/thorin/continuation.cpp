@@ -61,7 +61,7 @@ Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug
 
 Continuation* Continuation::stub() const {
     Rewriter rewriter;
-    stub(rewriter);
+    return stub(rewriter);
 }
 
 Continuation* Continuation::stub(Rewriter& rewriter) const {

@@ -199,7 +199,7 @@ TypeTable::TypeTable()
 }
 
 const Type* TypeTable::tuple_type(Types ops) {
-    return (ops.size() == 1 && is_thin(ops[0])) ? ops.front() : insert<TupleType>(*this, ops);
+    return ops.size() == 1 ? ops.front() : insert<TupleType>(*this, ops);
 }
 
 const StructType* TypeTable::struct_type(Symbol name, size_t size) {

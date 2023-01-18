@@ -43,13 +43,16 @@ public:
     Debug() = default; // TODO remove
     Debug(std::string name, Loc loc = {}, const Def* meta = nullptr)
         : name(name)
+#if THORIN_ENABLE_CREATION_CONTEXT
         , creation_context("")
+#endif
         , loc(loc)
         , meta(meta)
     {}
     Debug(const char* name, Loc loc = {}, const Def* meta = nullptr)
         : Debug(std::string(name), loc, meta)
     {}
+#if THORIN_ENABLE_CREATION_CONTEXT
     Debug(std::string name, std::string creation_context, Loc loc = {}, const Def* meta = nullptr)
         : name(name)
         , creation_context(creation_context)
@@ -59,13 +62,16 @@ public:
     Debug(const char* name, const char* creation_context, Loc loc = {}, const Def* meta = nullptr)
         : Debug(std::string(name), std::string(creation_context), loc, meta)
     {}
+#endif
     Debug(Loc loc)
         : Debug("", loc)
     {}
     //Debug(const Def*);
 
     std::string name;
+#if THORIN_ENABLE_CREATION_CONTEXT
     std::string creation_context;
+#endif
     Loc loc;
     const Def* meta = nullptr;
 };

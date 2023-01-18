@@ -99,9 +99,11 @@ Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
         return s.fmt("{}.{}", param->continuation(), param->unique_name());
     } else if (isa<Continuation>()) {
+#if THORIN_ENABLE_CREATION_CONTEXT
         if (debug().creation_context != "")
             return s.fmt("cont {} [{}]", unique_name(), debug().creation_context);
         else
+#endif
             return s.fmt("cont {}", unique_name());
     } else if (auto app = isa<App>()) {
         return s.fmt("{}({, })", app->callee(), app->args());

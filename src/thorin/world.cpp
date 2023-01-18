@@ -1103,15 +1103,20 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
+#if THORIN_ENABLE_CREATION_CONTEXT
     void *array[10];
     size_t size = backtrace(array, 10);
     assert(size >= 2);
     char ** symbols = backtrace_symbols(array, 10);
 
     dbg.creation_context = symbols[1];
+#endif
 
     auto cont = put<Continuation>(fn, attributes, dbg);
+
+#if THORIN_ENABLE_CREATION_CONTEXT
     free(symbols);
+#endif
 
     size_t i = 0;
     for (auto op : fn->ops()) {

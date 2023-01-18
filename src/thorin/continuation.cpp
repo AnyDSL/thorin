@@ -112,17 +112,6 @@ void Continuation::destroy(const char* cause) {
     dead_ = true;
 }
 
-const FnType* Continuation::arg_fn_type() const {
-    assert(has_body());
-    Array<const Type*> args(body()->num_args());
-    for (size_t i = 0, e = body()->num_args(); i != e; ++i)
-        args[i] = body()->arg(i)->type();
-
-    return body()->callee()->type()->isa<ClosureType>()
-           ? world().closure_type(args)->as<FnType>()
-           : world().fn_type(args);
-}
-
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);

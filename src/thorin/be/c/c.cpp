@@ -525,12 +525,9 @@ static inline bool is_passed_via_buffer(const Param* param) {
 }
 
 static inline const Type* ret_type(const FnType* fn_type) {
-    auto ret_fn_type = (*std::find_if(
-        fn_type->ops().begin(), fn_type->ops().end(), [] (const Type* op) {
-            return op->order() % 2 == 1;
-        }))->as<FnType>();
     std::vector<const Type*> types;
-    for (auto op : ret_fn_type->ops()) {
+    for (auto op : fn_type->ret_cont_type()->ops()) {
+        // TODO: support function pointers in returns ?
         if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0) continue;
         types.push_back(op);
     }

@@ -94,14 +94,8 @@ const Param* Continuation::mem_param() const {
 }
 
 const Param* Continuation::ret_param() const {
-    const Param* result = nullptr;
-    for (auto param : params()) {
-        if (param->order() >= 1) {
-            assertf(result == nullptr, "only one ret_param allowed");
-            result = param;
-        }
-    }
-    return result;
+    int ret_param = type()->ret_param();
+    return (ret_param > 0) ? param(ret_param) : nullptr;
 }
 
 void Continuation::destroy(const char* cause) {

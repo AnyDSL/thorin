@@ -295,16 +295,11 @@ private:
     ClosureType(TypeTable& table, Types ops)
         : FnType(table, ops, Node_ClosureType)
     {
-        inner_order_ = order_;
         order_ = 0;
     }
 
-public:
-    int inner_order() const { return inner_order_; }
-    const Type* rebuild(TypeTable&, Types) const override;
-
 private:
-    int inner_order_;
+    const Type* rebuild(TypeTable&, Types) const override;
 
     friend class TypeTable;
 };

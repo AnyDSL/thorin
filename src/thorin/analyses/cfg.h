@@ -132,7 +132,6 @@ public:
     const CFNode* operator [] (Continuation* continuation) const { return cfa()[continuation]; }    ///< Maps from @p l to @p CFNode.
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
-    const DomFrontierBase<forward>& domfrontier() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
 
@@ -143,7 +142,6 @@ private:
     Map<const CFNode*> rpo_;
     mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;
     mutable std::unique_ptr<const LoopTree<forward>> looptree_;
-    mutable std::unique_ptr<const DomFrontierBase<forward>> domfrontier_;
 };
 
 //------------------------------------------------------------------------------

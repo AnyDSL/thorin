@@ -172,16 +172,8 @@ public:
             new_types_[type] = new_type;
         }
 
-        // accept one parameter of order 1 (the return continuation) for function types
-        bool ret = !type->isa<FnType>();
         for (auto& op : ops) {
             op = convert(op);
-            if (!ret &&
-                op->isa<ClosureType>() &&
-                op->as<ClosureType>()->inner_order() == 1) {
-                ret = true;
-                op = world_.fn_type(op->ops());
-            }
         }
 
         if (type->isa<StructType>()) {

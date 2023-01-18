@@ -94,14 +94,8 @@ const Param* Continuation::mem_param() const {
 }
 
 const Param* Continuation::ret_param() const {
-    const Param* result = nullptr;
-    for (auto param : params()) {
-        if (param->order() >= 1) {
-            assertf(result == nullptr, "only one ret_param allowed");
-            result = param;
-        }
-    }
-    return result;
+    int ret_param = type()->ret_param();
+    return (ret_param > 0) ? param(ret_param) : nullptr;
 }
 
 void Continuation::destroy(const char* cause) {
@@ -110,17 +104,6 @@ void Continuation::destroy(const char* cause) {
     unset_op(0);
     set_op(0, world().bottom(world().bottom_type()));
     dead_ = true;
-}
-
-const FnType* Continuation::arg_fn_type() const {
-    assert(has_body());
-    Array<const Type*> args(body()->num_args());
-    for (size_t i = 0, e = body()->num_args(); i != e; ++i)
-        args[i] = body()->arg(i)->type();
-
-    return body()->callee()->type()->isa<ClosureType>()
-           ? world().closure_type(args)->as<FnType>()
-           : world().fn_type(args);
 }
 
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {

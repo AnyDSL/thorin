@@ -3,9 +3,9 @@
 
 namespace thorin {
 
-class World;
+class Thorin;
 
-void plugin_execute(World&);
+void plugin_execute(Thorin&);
 
 }
 

@@ -339,9 +339,6 @@ public:
     static std::string colorize(const std::string& str, int color);
     //@}
 
-    bool register_plugin(std::string plugin_name);
-    void * search_plugin_function(std::string function_name);
-
 private:
     const Param* param(const Type* type, const Continuation*, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
@@ -390,7 +387,6 @@ private:
     } data_;
 
     TypeTable types_;
-    std::vector<void*> plugin_handles;
 
     std::shared_ptr<Stream> stream_;
 
@@ -419,8 +415,11 @@ public:
 
     bool ensure_stack_size(size_t new_size);
 
+    bool register_plugin(std::string plugin_name);
+    void * search_plugin_function(std::string function_name);
 private:
     std::unique_ptr<World> world_;
+    std::vector<void*> plugin_handles;
 };
 
 }

@@ -1315,8 +1315,8 @@ void Thorin::opt() {
     RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
-    if (world().plugin_handles.size() > 0) {
-        RUN_PASS(plugin_execute(world()));
+    if (plugin_handles.size() > 0) {
+        RUN_PASS(plugin_execute(*this));
         RUN_PASS(cleanup());
     }
     RUN_PASS(closure_conversion(world()))
@@ -1344,11 +1344,11 @@ bool Thorin::ensure_stack_size(size_t new_size) {
 #endif
 }
 
-bool World::register_plugin(std::string plugin_name) {
+bool Thorin::register_plugin(std::string plugin_name) {
     void *handle = dlopen(plugin_name.c_str(), RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
-        ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
-        ELOG("Is plugin contained in LD_LIBRARY_PATH?");
+        world().ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
+        world().ELOG("Is plugin contained in LD_LIBRARY_PATH?");
         return false;
     }
     dlerror();
@@ -1357,7 +1357,7 @@ bool World::register_plugin(std::string plugin_name) {
     char *error;
     initfunc = (void(*)())(dlsym(handle, "init"));
     if ((error = dlerror()) != NULL) {
-        ILOG("Plugin {} did not supply an init function", plugin_name);
+        world().ILOG("Plugin {} did not supply an init function", plugin_name);
     } else {
         initfunc();
     }
@@ -1366,7 +1366,7 @@ bool World::register_plugin(std::string plugin_name) {
     return true;
 }
 
-void * World::search_plugin_function(std::string function_name) {
+void * Thorin::search_plugin_function(std::string function_name) {
     for (auto plugin : plugin_handles) {
         if (void * plugin_function = dlsym(plugin, function_name.c_str())) {
             return plugin_function;

@@ -246,6 +246,10 @@ public:
                         result["type"] = "continuation";
                         result["plugin"] = true;
                         result["depends"] = translate_def(cont->attributes().depends);
+                    } else if (cont->filter() && !cont->filter()->empty()) {
+                        result["name"] = name;
+                        result["type"] = "continuation";
+                        result["plugin"] = true;
                     } else {
                         return name;
                     }

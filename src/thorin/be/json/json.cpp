@@ -227,6 +227,28 @@ public:
                     result["intrinsic"] = "match";
                     result["variant_type"] = variant_type;
                     result["num_patterns"] = num_patterns;
+                } else if (cont->intrinsic() == Intrinsic::Plugin) {
+                    auto intrinsic_name = cont->name();
+                    auto intrinsic_type = type_table_.translate_type(cont->type());
+                    auto name = "_plugin_" + std::to_string(decl_table.size());
+                    known_defs[def] = name;
+
+                    json forward_decl;
+                    forward_decl["name"] = name;
+                    forward_decl["type"] = "continuation";
+                    forward_decl["intrinsic"] = intrinsic_name;
+                    forward_decl["fn_type"] = intrinsic_type;
+                    forward_decl["plugin"] = true;
+                    decl_table.push_back(forward_decl);
+
+                    if (cont->attributes().depends) {
+                        result["name"] = name;
+                        result["type"] = "continuation";
+                        result["plugin"] = true;
+                        result["depends"] = translate_def(cont->attributes().depends);
+                    } else {
+                        return name;
+                    }
                 } else {
                     auto intrinsic_name = cont->name();
                     auto intrinsic_type = type_table_.translate_type(cont->type());

@@ -1122,6 +1122,19 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
+Continuation* World::create_join_point_intrinsic(const Continuation* dest) {
+    auto ret_cont_type = fn_type({join_point_type(dest)});
+    return continuation(fn_type({ dest->type(), ret_cont_type }), Intrinsic::CreateJoinPoint, { "create_join_point" });
+}
+
+Continuation* World::join_intrinsic(const Continuation* dest) {
+    auto ret_cont_type = fn_type({join_point_type(dest)});
+    std::vector<const Type*> types = {join_point_type(dest), ret_cont_type };
+    for (auto& t : dest->type()->ops())
+        types.push_back(t);
+    return continuation(fn_type(types), Intrinsic::Join, { "join" });
+}
+
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
 #if THORIN_ENABLE_CHECKS

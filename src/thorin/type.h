@@ -10,6 +10,7 @@
 
 namespace thorin {
 
+class Continuation;
 class TypeTable;
 class Type;
 using Types = ArrayRef<const Type*>;
@@ -304,6 +305,26 @@ private:
     friend class TypeTable;
 };
 
+class JoinPointType : public Type {
+private:
+    JoinPointType(TypeTable& table, const Continuation* destination, size_t gid)
+    : Type(table, Node_ClosureType, {})
+    {
+        destination_ = destination;
+        nominal_ = true;
+        gid_ = gid;
+    }
+
+public:
+    const Continuation* destination() const { return destination_; }
+
+private:
+    const Type* rebuild(TypeTable&, Types) const override {};
+    const Continuation* destination_;
+
+    friend class TypeTable;
+};
+
 //------------------------------------------------------------------------------
 
 class ArrayType : public Type {
@@ -383,6 +404,7 @@ public:
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args);
     const ClosureType* closure_type(Types args);
+    const JoinPointType* join_point_type(const Continuation*);
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
     const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 

@@ -237,6 +237,7 @@ const FnType*              TypeTable::fn_type(Types args) { return insert<FnType
 const ClosureType*         TypeTable::closure_type(Types args) { return insert<ClosureType>(*this, args); }
 const DefiniteArrayType*   TypeTable::definite_array_type(const Type* elem, u64 dim) { return insert<DefiniteArrayType>(*this, elem, dim); }
 const IndefiniteArrayType* TypeTable::indefinite_array_type(const Type* elem) { return insert<IndefiniteArrayType>(*this, elem); }
+const JoinPointType*       TypeTable::join_point_type(const Continuation* cont) { return insert<JoinPointType>(*this, cont, types_.size()); }
 
 template <typename T, typename... Args>
 const T* TypeTable::insert(Args&&... args) {

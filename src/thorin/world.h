@@ -242,6 +242,8 @@ public:
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
     Continuation* branch() const { return data_.branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
+    Continuation* create_join_point_intrinsic(const Continuation*);
+    Continuation* join_intrinsic(const Continuation*);
     Continuation* end_scope() const { return data_.end_scope_; }
     const Filter* filter(const Defs, Debug dbg = {});
 

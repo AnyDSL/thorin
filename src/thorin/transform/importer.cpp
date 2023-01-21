@@ -17,6 +17,11 @@ const Type* Importer::import(const Type* otype) {
         return ntype;
     }
 
+    if (auto jp_type = otype->isa<JoinPointType>()) {
+        auto ncont = import(jp_type->destination())->as<Continuation>();
+        return world().join_point_type(ncont);
+    }
+
     Array<const Type*> nops(size);
     for (size_t i = 0; i != size; ++i)
         nops[i] = import(otype->op(i));

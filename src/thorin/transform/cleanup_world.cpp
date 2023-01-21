@@ -135,9 +135,8 @@ void Cleaner::eta_conversion() {
                     continue;
 
                 if (body->args() == continuation->params_as_defs()) {
+                    todo_ = todo = continuation->num_uses() > 0;
                     continuation->replace_uses(body->callee());
-                    continuation->destroy("cleanup: calls a parameter (no perm)");
-                    todo_ = todo = true;
                     continue;
                 }
 
@@ -221,10 +220,9 @@ void Cleaner::eliminate_params() {
                     assert(use.index() == 0);
                     for (auto ucontinuation : uapp->using_continuations()) {
                         ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                        todo_ = true;
                     }
                 }
-
-                todo_ = true;
             }
         }
 next_continuation:;

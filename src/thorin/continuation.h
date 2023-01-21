@@ -201,6 +201,10 @@ public:
     /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
     bool can_be_inlined() const {
+        // join destinations are referenced once but are jumped to potentially multiple times!
+        // writing a pass to optimise them is TODO
+        if (is_join_dest_)
+            return false;
         size_t potentially_called = 0;
         for (auto use : uses()) {
             if (auto app = use->isa<App>())
@@ -214,6 +218,7 @@ public:
         return true;
     }
 
+    mutable bool is_join_dest_ = false;
     bool dead_ = false;
     std::vector<const Param*> params_;
     Attributes attributes_;

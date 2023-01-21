@@ -35,7 +35,7 @@ void App::verify() const {
     for (size_t i = 0; i < num_args(); i++) {
         auto pt = callee_type->op(i);
         auto at = arg(i)->type();
-        assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
+        assertf(pt == at, "app node {} argument {} has type {} but the callee was expecting {}", this, i, at, pt);
     }
 }
 

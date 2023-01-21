@@ -307,20 +307,19 @@ private:
 
 class JoinPointType : public Type {
 private:
-    JoinPointType(TypeTable& table, const Continuation* destination, size_t gid)
-    : Type(table, Node_ClosureType, {})
-    {
-        destination_ = destination;
-        nominal_ = true;
-        gid_ = gid;
-    }
+    JoinPointType(TypeTable& table, const Continuation* destination);
 
 public:
     const Continuation* destination() const { return destination_; }
 
 private:
-    const Type* rebuild(TypeTable&, Types) const override {};
+    const Type* rebuild(TypeTable&, Types) const override { return nullptr; };
     const Continuation* destination_;
+
+    hash_t vhash() const override { return hash_combine(Type::vhash(), destination_); }
+    bool equal(const Type* other) const override {
+        return Type::equal(other) && this->destination_ == other->as<JoinPointType>()->destination_;
+    }
 
     friend class TypeTable;
 };

@@ -91,6 +91,13 @@ int FnType::ret_param() const {
     return p;
 }
 
+JoinPointType::JoinPointType(TypeTable& table, const Continuation* destination)
+: Type(table, Node_ClosureType, {})
+{
+    destination_ = destination;
+    destination_->is_join_dest_ = true;
+}
+
 bool VariantType::has_payload() const {
     return !std::all_of(ops().begin(), ops().end(), is_type_unit);
 }
@@ -162,6 +169,8 @@ Stream& Type::stream(Stream& s) const {
         return s.fmt("variant {}", t->name());
     } else if (auto t = isa<TupleType>()) {
         return s.fmt("[{, }]", t->ops());
+    } else if (auto t = isa<JoinPointType>()) {
+        return s.fmt("join_point[{}]", t->destination()->name());
     } else if (auto t = isa<PtrType>()) {
         if (t->is_vector()) s.fmt("<{} x", t->length());
         s.fmt("{}*", t->pointee());
@@ -237,7 +246,7 @@ const FnType*              TypeTable::fn_type(Types args) { return insert<FnType
 const ClosureType*         TypeTable::closure_type(Types args) { return insert<ClosureType>(*this, args); }
 const DefiniteArrayType*   TypeTable::definite_array_type(const Type* elem, u64 dim) { return insert<DefiniteArrayType>(*this, elem, dim); }
 const IndefiniteArrayType* TypeTable::indefinite_array_type(const Type* elem) { return insert<IndefiniteArrayType>(*this, elem); }
-const JoinPointType*       TypeTable::join_point_type(const Continuation* cont) { return insert<JoinPointType>(*this, cont, types_.size()); }
+const JoinPointType*       TypeTable::join_point_type(const Continuation* cont) { return insert<JoinPointType>(*this, cont); }
 
 template <typename T, typename... Args>
 const T* TypeTable::insert(Args&&... args) {

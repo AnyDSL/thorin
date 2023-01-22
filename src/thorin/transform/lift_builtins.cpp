@@ -63,8 +63,9 @@ void lift_pipeline(World& world) {
 
 }
 
-void lift_builtins(World& world) {
+void lift_builtins(Thorin& thorin) {
     // This must be run first
+    World& world = thorin.world();
     lift_pipeline(world);
 
     while (true) {
@@ -125,7 +126,7 @@ void lift_builtins(World& world) {
             }
         }
 
-        world.cleanup();
+        thorin.cleanup();
     }
 }
 

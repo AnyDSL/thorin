@@ -42,14 +42,14 @@
 namespace thorin::llvm {
 
 CodeGen::CodeGen(
-    World& world,
+    Thorin& thorin,
     llvm::CallingConv::ID function_calling_convention,
     llvm::CallingConv::ID device_calling_convention,
     llvm::CallingConv::ID kernel_calling_convention,
     int opt, bool debug)
-    : thorin::CodeGen(world, debug)
+    : thorin::CodeGen(thorin, debug)
     , context_(std::make_unique<llvm::LLVMContext>())
-    , module_(std::make_unique<llvm::Module>(world.name(), context()))
+    , module_(std::make_unique<llvm::Module>(world().name(), context()))
     , opt_(opt)
     , dibuilder_(module())
     , function_calling_convention_(function_calling_convention)

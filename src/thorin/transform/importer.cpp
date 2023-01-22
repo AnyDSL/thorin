@@ -4,13 +4,13 @@ namespace thorin {
 
 const Type* Importer::import(const Type* otype) {
     if (auto ntype = type_old2new_.lookup(otype)) {
-        assert(&(*ntype)->table() == &world_);
+        assert(&(*ntype)->table() == &world());
         return *ntype;
     }
     size_t size = otype->num_ops();
 
     if (auto nominal_type = otype->isa<NominalType>()) {
-        auto ntype = nominal_type->stub(world_);
+        auto ntype = nominal_type->stub(world());
         type_old2new_[otype] = ntype;
         for (size_t i = 0; i != size; ++i)
             ntype->set(i, import(otype->op(i)));
@@ -21,16 +21,16 @@ const Type* Importer::import(const Type* otype) {
     for (size_t i = 0; i != size; ++i)
         nops[i] = import(otype->op(i));
 
-    auto ntype = otype->rebuild(world_, nops);
+    auto ntype = otype->rebuild(world(), nops);
     type_old2new_[otype] = ntype;
-    assert(&ntype->table() == &world_);
+    assert(&ntype->table() == &world());
 
     return ntype;
 }
 
 const Def* Importer::import(const Def* odef) {
     if (auto ndef = def_old2new_.lookup(odef)) {
-        assert(&(*ndef)->world() == &world_);
+        assert(&(*ndef)->world() == &world());
         return *ndef;
     }
 
@@ -39,7 +39,7 @@ const Def* Importer::import(const Def* odef) {
     if (auto oparam = odef->isa<Param>()) {
         import(oparam->continuation())->as_nom<Continuation>();
         auto nparam = def_old2new_[oparam];
-        assert(nparam && &nparam->world() == &world_);
+        assert(nparam && &nparam->world() == &world());
         return nparam;
     }
 

@@ -11,7 +11,7 @@ class World;
  * If there still remain functions to be inlined, warnings will be emitted
  */
 void force_inline(Scope& scope, int threshold);
-void inliner(World& world);
+void inliner(Thorin&);
 
 }
 

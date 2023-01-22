@@ -56,6 +56,7 @@ void Def::set_name(const std::string& name) const { debug_.name = name; }
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
+    assert(&def->world() == &world());
     ops_[i] = def;
     // A Param/Continuation should not have other bits than its own set.
     // (Right now, Param doesn't have ops, but this will change in the future).
@@ -136,6 +137,7 @@ bool is_minus_zero(const Def* def) {
 void Def::replace_uses(const Def* with) const {
     world().DLOG("replace uses: {} -> {}", this, with);
     if (this != with) {
+        assert(&with->world() == &this->world());
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
             auto index = use.index();

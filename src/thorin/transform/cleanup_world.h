@@ -5,7 +5,7 @@ namespace thorin {
 
 class World;
 
-void cleanup_world(World& world);
+void cleanup_world(std::unique_ptr<World>& world);
 
 }
 

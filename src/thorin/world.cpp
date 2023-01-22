@@ -1276,28 +1276,32 @@ const Def* World::cse_base(const Def* def) {
  * optimizations
  */
 
-void World::cleanup() { cleanup_world(*this); }
+Thorin::Thorin(const std::string& name)
+    : world_(std::make_unique<World>(name))
+{}
 
-void World::opt() {
+void Thorin::cleanup() { cleanup_world(world_); }
+
+void Thorin::opt() {
 #define RUN_PASS(pass) \
 { \
-    VLOG("running pass {}", #pass); \
+    world().VLOG("running pass {}", #pass); \
     pass; \
-    debug_verify(*this); \
+    debug_verify(world()); \
 }
 
     RUN_PASS(cleanup())
-    RUN_PASS(while (partial_evaluation(*this, true))); // lower2cff
+    RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
-    RUN_PASS(clone_bodies(*this))
+    RUN_PASS(clone_bodies(world()))
     RUN_PASS(split_slots(*this))
-    RUN_PASS(closure_conversion(*this))
+    RUN_PASS(closure_conversion(world()))
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
-    RUN_PASS(dead_load_opt(*this))
+    RUN_PASS(dead_load_opt(world()))
     RUN_PASS(cleanup())
-    RUN_PASS(codegen_prepare(*this))
+    RUN_PASS(codegen_prepare(world()))
 }
 
 }

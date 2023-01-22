@@ -245,10 +245,6 @@ public:
     Continuation* end_scope() const { return data_.end_scope_; }
     const Filter* filter(const Defs, Debug dbg = {});
 
-    /// Performs dead code, unreachable code and unused type elimination.
-    void cleanup();
-    void opt();
-
     // getters
 
     const std::string& name() const { return data_.name_; }
@@ -310,14 +306,6 @@ public:
     static std::string colorize(const std::string& str, int color);
     //@}
 
-    friend void swap(World& w1, World& w2) {
-        using std::swap;
-        swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
-        swap(w1.state_,  w2.state_);
-        swap(w1.data_,   w2.data_);
-        swap(w1.stream_, w2.stream_);
-    }
-
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
@@ -369,6 +357,21 @@ private:
     friend class Filter;
     friend class App;
     friend class Importer;
+    friend class Thorin;
+};
+
+class Thorin {
+public:
+    /// Initial world constructor
+    explicit Thorin(const std::string& name);
+
+    World& world() { return *world_; };
+
+    /// Performs dead code, unreachable code and unused type elimination.
+    void cleanup();
+    void opt();
+private:
+    std::unique_ptr<World> world_;
 };
 
 }

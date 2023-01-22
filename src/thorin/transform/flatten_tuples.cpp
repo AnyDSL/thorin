@@ -166,7 +166,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
     return jump(old_cont, call_args);
 }
 
-static void flatten_tuples(World& world, size_t max_tuple_size) {
+static void flatten_tuples(Thorin& thorin, size_t max_tuple_size) {
     // flatten tuples passed as arguments to functions
     bool todo = true;
     Def2Def wrapped, unwrapped;
@@ -177,11 +177,11 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto pair : unwrapped) unwrapped_codom.emplace(pair.second);
 
-        for (auto cont : world.copy_continuations()) {
+        for (auto cont : thorin.world().copy_continuations()) {
             // do not change the signature of intrinsic/external functions
             if (!cont->has_body() ||
                 cont->is_intrinsic() ||
-                world.is_external(cont) ||
+                thorin.world().is_external(cont) ||
                 is_passed_to_accelerator(cont))
                 continue;
 
@@ -196,7 +196,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
             todo = true;
 
-            world.DLOG("flattened {}", cont);
+            thorin.world().DLOG("flattened {}", cont);
         }
 
         // remove original versions of wrapped functions
@@ -218,12 +218,12 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
     for (auto unwrap_pair : unwrapped)
         inline_calls(unwrap_pair.second->as_nom<Continuation>());
 
-    world.cleanup();
-    debug_verify(world);
+    thorin.cleanup();
+    debug_verify(thorin.world());
 }
 
-void flatten_tuples(World& world) {
-    flatten_tuples(world, std::numeric_limits<size_t>::max());
+void flatten_tuples(Thorin& thorin) {
+    flatten_tuples(thorin, std::numeric_limits<size_t>::max());
 }
 
 }

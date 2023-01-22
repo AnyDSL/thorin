@@ -8,18 +8,19 @@ namespace thorin {
 
 class Importer {
 public:
-    Importer(World& src)
-        : world_(src)
+    explicit Importer(World& src, World& dst)
+        : src(src)
+        , dst(dst)
     {
         if (src.is_pe_done())
-            world_.mark_pe_done();
+            world().mark_pe_done();
 #if THORIN_ENABLE_CHECKS
         if (src.track_history())
-            world_.enable_history(true);
+            world().enable_history(true);
 #endif
     }
 
-    World& world() { return world_; }
+    World& world() { return dst; }
     const Type* import(const Type*);
     const Def* import(const Def*);
     bool todo() const { return todo_; }
@@ -27,7 +28,8 @@ public:
 public:
     Type2Type type_old2new_;
     Def2Def def_old2new_;
-    World world_;
+    World& src;
+    World& dst;
     bool todo_ = false;
 };
 

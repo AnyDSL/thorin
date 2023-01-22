@@ -73,17 +73,17 @@ enum class HlsInterface : uint8_t {
 
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
-    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
-        : world_(world)
+    CCodeGen(Thorin& thorin, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
+        : thorin_(thorin)
         , kernel_config_(kernel_config)
         , lang_(lang)
-        , fn_mem_(world.fn_type({world.mem_type()}))
+        , fn_mem_(world().fn_type({world().mem_type()}))
         , debug_(debug)
         , flags_(flags)
         , stream_(stream)
     {}
 
-    World& world() const { return world_; }
+    World& world() const { return thorin_.world(); }
     void emit_module();
     void emit_c_int();
     void emit_epilogue(Continuation*);
@@ -115,7 +115,7 @@ private:
     std::string array_name(const DefiniteArrayType*);
     std::string tuple_name(const TupleType*);
 
-    World& world_;
+    Thorin& thorin_;
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
@@ -257,10 +257,10 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (auto variant = type->isa<VariantType>()) {
         types_[variant] = name = variant->name().str();
         auto tag_type =
-            variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
-            variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
-            variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() :
-                                                        world_.type_qu64();
+            variant->num_ops() < (UINT64_C(1) <<  8u) ? world().type_qu8()  :
+            variant->num_ops() < (UINT64_C(1) << 16u) ? world().type_qu16() :
+            variant->num_ops() < (UINT64_C(1) << 32u) ? world().type_qu32() :
+                                                        world().type_qu64();
         s.fmt("typedef struct {{\t\n");
 
         // This is required because we have zero-sized types but C/C++ do not
@@ -1453,7 +1453,7 @@ Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {
 
 void CCodeGen::emit_c_int() {
     // Do not emit C interfaces for definitions that are not used
-    world().cleanup();
+    thorin_.cleanup();
 
     for (auto def : world().defs()) {
         auto cont = def->isa_nom<Continuation>();
@@ -1586,12 +1586,12 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 
 void CodeGen::emit_stream(std::ostream& stream) {
     Stream s(stream);
-    CCodeGen(world(), kernel_config_, s, lang_, debug_, flags_).emit_module();
+    CCodeGen(thorin(), kernel_config_, s, lang_, debug_, flags_).emit_module();
 }
 
-void emit_c_int(World& world, Stream& stream) {
+void emit_c_int(Thorin& thorin, Stream& stream) {
     std::string flags;
-    CCodeGen(world, {}, stream, Lang::C99, false, flags).emit_c_int();
+    CCodeGen(thorin, {}, stream, Lang::C99, false, flags).emit_c_int();
 }
 
 //------------------------------------------------------------------------------

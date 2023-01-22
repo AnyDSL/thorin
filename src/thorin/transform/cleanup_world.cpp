@@ -14,11 +14,11 @@ namespace thorin {
 
 class Cleaner {
 public:
-    Cleaner(World& world)
+    Cleaner(std::unique_ptr<World>& world)
         : world_(world)
     {}
 
-    World& world() { return world_; }
+    World& world() { return *world_; }
     void cleanup();
     void eliminate_tail_rec();
     void eta_conversion();
@@ -31,12 +31,12 @@ public:
 private:
     void cleanup_fix_point();
     void clean_pe_info(std::queue<Continuation*>, Continuation*);
-    World& world_;
+    std::unique_ptr<World>& world_;
     bool todo_ = true;
 };
 
 void Cleaner::eliminate_tail_rec() {
-    Scope::for_each(world_, [&](Scope& scope) {
+    Scope::for_each(*world_, [&](Scope& scope) {
         auto entry = scope.entry();
 
         bool only_tail_calls = true;
@@ -232,16 +232,17 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    Importer importer(world_);
-    importer.type_old2new_.rehash(world_.types().capacity());
-    importer.def_old2new_.rehash(world_.defs().capacity());
+    auto fresh_world = std::make_unique<World>(world());
+    Importer importer(*world_, *fresh_world);
+    importer.type_old2new_.rehash(world_->types().capacity());
+    importer.def_old2new_.rehash(world_->defs().capacity());
 
     for (auto&& [_, cont] : world().externals()) {
         if (cont->is_exported())
             importer.import(cont);
     }
 
-    swap(importer.world(), world_);
+    std::swap(world_, fresh_world);
 
     // verify(world());
 
@@ -279,7 +280,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
     auto next = body->arg(3);
     auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    world_.idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
+    world_->idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
     cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
     todo_ = true;
 
@@ -288,7 +289,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
 }
 
 void Cleaner::clean_pe_infos() {
-    world_.VLOG("cleaning remaining pe_infos");
+    world_->VLOG("cleaning remaining pe_infos");
     std::queue<Continuation*> queue;
     ContinuationSet done;
     auto enqueue = [&](Continuation* continuation) {
@@ -319,9 +320,9 @@ void Cleaner::clean_pe_infos() {
 void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
-        world_.VLOG("iteration: {}", i);
+        world_->VLOG("iteration: {}", i);
         todo_ = false;
-        if (world_.is_pe_done())
+        if (world_->is_pe_done())
             eliminate_tail_rec();
         eta_conversion();
         eliminate_params();
@@ -329,14 +330,14 @@ void Cleaner::cleanup_fix_point() {
         todo_ |= resolve_loads(world());
         rebuild();
         if (!world().is_pe_done())
-            todo_ |= partial_evaluation(world_);
+            todo_ |= partial_evaluation(*world_);
         else
             clean_pe_infos();
     }
 }
 
 void Cleaner::cleanup() {
-    world_.VLOG("start cleanup");
+    world_->VLOG("start cleanup");
     cleanup_fix_point();
 
     if (!world().is_pe_done()) {
@@ -350,13 +351,13 @@ void Cleaner::cleanup() {
         cleanup_fix_point();
     }
 
-    world_.VLOG("end cleanup");
+    world_->VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
     debug_verify(world());
 #endif
 }
 
-void cleanup_world(World& world) { Cleaner(world).cleanup(); }
+void cleanup_world(std::unique_ptr<World>& world) { Cleaner(world).cleanup(); }
 
 }

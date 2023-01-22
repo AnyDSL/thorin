@@ -110,8 +110,8 @@ public:
     const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
     const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(type, dbg)), length); }
-    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
+    const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(*this, type, dbg)), length); }
+    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(*this, type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(prim_type(tag), dbg, length); }
 
     // arithops
@@ -156,15 +156,15 @@ public:
         return cse(new IndefiniteArray(*this, elem, dim, dbg));
     }
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
+        return try_fold_aggregate(cse(new StructAgg(*this, struct_type, args, dbg)));
     }
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
 
-    const Def* variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg = {}) { return cse(new Variant(variant_type, value, index, dbg)); }
+    const Def* variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg = {}) { return cse(new Variant(*this, variant_type, value, index, dbg)); }
     const Def* variant_index  (const Def* value, Debug dbg = {});
     const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
 
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(closure_type, fn, env, dbg)); }
+    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(*this, closure_type, fn, env, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(cse(new Vector(*this, args, dbg)));
@@ -216,7 +216,7 @@ public:
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
-    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(type, frame, dbg)); }
+    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});

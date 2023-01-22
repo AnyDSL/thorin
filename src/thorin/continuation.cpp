@@ -10,8 +10,8 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Param::Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
-    : Def(Node_Param, type, 1, dbg)
+Param::Param(World& world, const Type* type, Continuation* continuation, size_t index, Debug dbg)
+    : Def(Node_Param, world, type, 1, dbg)
     , index_(index)
 {
     set_op(0, continuation);
@@ -19,7 +19,7 @@ Param::Param(const Type* type, Continuation* continuation, size_t index, Debug d
 
 //------------------------------------------------------------------------------
 
-App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+App::App(World& world, const Defs ops, Debug dbg) : Def(Node_App, world, ops[0]->world().bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
     if (auto cont = callee()->isa_nom<Continuation>())
@@ -41,7 +41,7 @@ void App::verify() const {
 
 //------------------------------------------------------------------------------
 
-Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs, dbg) {}
+Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
     return world().filter(ops().cut(indices), debug());
@@ -49,8 +49,8 @@ const Filter* Filter::cut(ArrayRef<size_t> indices) const {
 
 //------------------------------------------------------------------------------
 
-Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
-    : Def(Node_Continuation, fn, 2, dbg)
+Continuation::Continuation(World& w, const FnType* fn, const Attributes& attributes, Debug dbg)
+    : Def(Node_Continuation, w, fn, 2, dbg)
     , attributes_(attributes)
 {
     params_.reserve(fn->num_ops());

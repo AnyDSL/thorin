@@ -24,7 +24,7 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    Param(World&, const Type* type, Continuation* continuation, size_t index, Debug dbg);
 
 public:
     Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
@@ -53,7 +53,7 @@ public:
 
 class App : public Def {
 private:
-    App(const Defs ops, Debug dbg);
+    App(World&, const Defs ops, Debug dbg);
 
 public:
     const Def* callee() const { return op(0); }
@@ -130,7 +130,7 @@ public:
     };
 
 private:
-    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg);
+    Continuation(World&, const FnType* fn, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:

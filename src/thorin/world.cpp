@@ -55,14 +55,14 @@ World::~World() {
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto variant = value->isa<Variant>())
         return literal_qu64(variant->index(), dbg);
-    return cse(new VariantIndex(type_qu64(), value, dbg));
+    return cse(new VariantIndex(*this, type_qu64(), value, dbg));
 }
 
 const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
     auto type = value->type()->as<VariantType>()->op(index);
     if (auto variant = value->isa<Variant>())
         return variant->index() == index ? variant->value() : bottom(type);
-    return cse(new VariantExtract(type, value, index, dbg));
+    return cse(new VariantExtract(*this, type, value, index, dbg));
 }
 
 /*
@@ -391,7 +391,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
-    return cse(new ArithOp(tag, a, b, dbg));
+    return cse(new ArithOp(tag, *this, a, b, dbg));
 }
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
@@ -483,7 +483,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         }
     }
 
-    return cse(new Cmp(tag, a, b, dbg));
+    return cse(new Cmp(tag, *this, a, b, dbg));
 }
 
 /*
@@ -616,7 +616,7 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         }
     }
 
-    return cse(new Cast(to, from, dbg));
+    return cse(new Cast(*this, to, from, dbg));
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
@@ -655,7 +655,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
-    return cse(new Bitcast(to, from, dbg));
+    return cse(new Bitcast(*this, to, from, dbg));
 }
 
 /*
@@ -712,7 +712,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         }
     }
 
-    return cse(new Extract(agg, index, dbg));
+    return cse(new Extract(*this, agg, index, dbg));
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
@@ -760,14 +760,14 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         }
     }
 
-    return cse(new Insert(agg, index, value, dbg));
+    return cse(new Insert(*this, agg, index, value, dbg));
 }
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     if (fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
         return ptr;
 
-    return cse(new LEA(ptr, index, dbg));
+    return cse(new LEA(*this, ptr, index, dbg));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
@@ -785,21 +785,21 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     if (a == b)
         return a;
 
-    return cse(new Select(cond, a, b, dbg));
+    return cse(new Select(*this, cond, a, b, dbg));
 }
 
 const Def* World::align_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
-    return cse(new AlignOf(bottom(type, dbg), dbg));
+    return cse(new AlignOf(*this, bottom(type, dbg), dbg));
 }
 
 const Def* World::size_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
-    return cse(new SizeOf(bottom(type, dbg), dbg));
+    return cse(new SizeOf(*this, bottom(type, dbg), dbg));
 }
 
 /*
@@ -824,7 +824,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* arg, Debug dbg, F&& f
                 THORIN_UNREACHABLE;
         }
     }
-    return cse(new MathOp(tag, arg->type(), { arg }, dbg));
+    return cse(new MathOp(tag, *this, arg->type(), { arg }, dbg));
 }
 
 template <class F>
@@ -846,7 +846,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* left, const Def* righ
                 THORIN_UNREACHABLE;
         }
     }
-    return cse(new MathOp(tag, left->type(), { left, right }, dbg));
+    return cse(new MathOp(tag, *this, left->type(), { left, right }, dbg));
 }
 
 template <class F>
@@ -1019,7 +1019,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return tuple({mem, tuple({}, dbg)});
         }
     }
-    return cse(new Load(mem, ptr, dbg));
+    return cse(new Load(*this, mem, ptr, dbg));
 }
 
 bool is_agg_const(const Def* def) {
@@ -1029,7 +1029,7 @@ bool is_agg_const(const Def* def) {
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
-    return cse(new Store(mem, ptr, value, dbg));
+    return cse(new Store(*this, mem, ptr, value, dbg));
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
@@ -1037,15 +1037,15 @@ const Def* World::enter(const Def* mem, Debug dbg) {
     // in order to simplify as we go and prevent code size from exploding
     if (auto e = Enter::is_out_mem(mem))
         return e;
-    return cse(new Enter(mem, dbg));
+    return cse(new Enter(*this, mem, dbg));
 }
 
 const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg) {
-    return cse(new Alloc(type, mem, extra, dbg));
+    return cse(new Alloc(*this, type, mem, extra, dbg));
 }
 
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
-    return cse(new Global(init, is_mutable, dbg));
+    return cse(new Global(*this, init, is_mutable, dbg));
 }
 
 const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
@@ -1060,7 +1060,7 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 }
 
 const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
-    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
+    return cse(new Assembly(*this, type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
 }
 
 const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
@@ -1081,7 +1081,7 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
 
 const Def* World::hlt(const Def* def, Debug dbg) {
     if (is_pe_done()) return def;
-    return cse(new Hlt(def, dbg));
+    return cse(new Hlt(*this, def, dbg));
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
@@ -1089,12 +1089,12 @@ const Def* World::known(const Def* def, Debug dbg) {
         return literal_bool(false, dbg);
     if (!def->has_dep(Dep::Param))
         return literal_bool(true, dbg);
-    return cse(new Known(def, dbg));
+    return cse(new Known(*this, def, dbg));
 }
 
 const Def* World::run(const Def* def, Debug dbg) {
     if (is_pe_done()) return def;
-    return cse(new Run(def, dbg));
+    return cse(new Run(*this, def, dbg));
 }
 
 /*
@@ -1102,7 +1102,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto cont = put<Continuation>(fn, attributes, dbg);
+    auto cont = put<Continuation>(*this, fn, attributes, dbg);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
@@ -1123,7 +1123,7 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
 }
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
-    auto param = new Param(type, continuation, index, dbg);
+    auto param = new Param(*this, type, continuation, index, dbg);
 #if THORIN_ENABLE_CHECKS
     if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
 #endif
@@ -1171,7 +1171,7 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     for (size_t i = 0; i < args.size(); i++)
         ops[i + 1] = args[i];
 
-    return cse(new App(ops, dbg));
+    return cse(new App(*this, ops, dbg));
 }
 
 /*

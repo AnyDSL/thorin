@@ -14,9 +14,10 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
-Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
+Def::Def(NodeTag tag, World& world, const Type* type, Defs ops, Debug dbg)
     : tag_(tag)
     , ops_(ops.size())
+    , world_(world)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
@@ -29,9 +30,10 @@ Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
         set_op(i, ops[i]);
 }
 
-Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
+Def::Def(NodeTag tag, World& world, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
     , ops_(size)
+    , world_(world)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
@@ -145,7 +147,7 @@ void Def::replace_uses(const Def* with) const {
     }
 }
 
-World& Def::world() const { return *static_cast<World*>(&type()->table()); }
+World& Def::world() const { return world_; }
 
 uint64_t UseHash::hash(Use use) {
     assert(use->gid() != uint32_t(-1));

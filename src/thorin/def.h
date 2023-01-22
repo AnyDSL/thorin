@@ -106,9 +106,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, const Type* type, Defs args, Debug dbg);
+    Def(NodeTag tag, World&, const Type* type, Defs args, Debug dbg);
     /// Constructor for a @em nom Def.
-    Def(NodeTag tag, const Type* type, size_t size, Debug);
+    Def(NodeTag tag, World&, const Type* type, size_t size, Debug);
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
@@ -230,6 +230,7 @@ public:
 private:
     const NodeTag tag_;
     std::vector<const Def*> ops_;
+    World& world_;
     const Type* type_;
     mutable Uses uses_;
     mutable Debug debug_;

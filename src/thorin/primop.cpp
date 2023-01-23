@@ -246,32 +246,13 @@ const Def* IndefiniteArray::rebuild(World& w, const Type* t, Defs o) const {
 
 const char* Def::op_name() const {
     switch (tag()) {
+#define THORIN_GLUE(pre, next)
 #define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
-#include "thorin/tables/nodetable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* ArithOp::op_name() const {
-    switch (tag()) {
+#define THORIN_PRIMTYPE(T) case Node_PrimType_##T: return #T;
 #define THORIN_ARITHOP(op) case ArithOp_##op: return #op;
-#include "thorin/tables/arithoptable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* Cmp::op_name() const {
-    switch (tag()) {
 #define THORIN_CMP(op) case Cmp_##op: return #op;
-#include "thorin/tables/cmptable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* MathOp::op_name() const {
-    switch (tag()) {
 #define THORIN_MATHOP(op) case MathOp_##op: return #op;
-#include "thorin/tables/mathoptable.h"
+#include "thorin/tables/allnodes.h"
         default: THORIN_UNREACHABLE;
     }
 }

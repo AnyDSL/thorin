@@ -150,7 +150,6 @@ private:
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
-    const char* op_name() const override;
 
     friend class World;
 };
@@ -165,7 +164,6 @@ private:
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) tag(); }
-    const char* op_name() const override;
 
     friend class World;
 };
@@ -182,7 +180,6 @@ private:
 public:
     const PrimType* type() const { return Def::type()->as<PrimType>(); }
     MathOpTag mathop_tag() const { return (MathOpTag) tag(); }
-    const char* op_name() const override;
 
     friend class World;
 };

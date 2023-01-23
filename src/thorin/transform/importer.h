@@ -21,7 +21,6 @@ public:
     }
 
     World& world() { return dst; }
-    //const Type* import(const Type*);
     const Def* import(const Def*);
     bool todo() const { return todo_; }
 

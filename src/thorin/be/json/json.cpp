@@ -183,6 +183,33 @@ public:
             return it->second;
         }
 
+        if (def->isa<MemOp>()) {
+            std::stack<const Def*> required_defs;
+            std::queue<const Def*> todo;
+            todo.push(def);
+
+            while (!todo.empty()) {
+                auto def = todo.front();
+                todo.pop();
+                if (known_defs.lookup(def)) continue;
+
+                if (auto memop = def->isa<MemOp>()) {
+                    todo.push(memop->mem());
+                    required_defs.push(memop->mem());
+                } else if (auto extract = def->isa<Extract>()) {
+                    if (is_mem(extract)) {
+                        todo.push(extract->agg());
+                        required_defs.push(extract->agg());
+                    }
+                }
+            }
+
+            while (!required_defs.empty()) {
+                auto r = pop(required_defs);
+                translate_def(r);
+            }
+        }
+
         json result;
         if (auto cont = def->isa<Continuation>()) {
             if (cont->is_intrinsic()) {

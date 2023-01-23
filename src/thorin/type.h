@@ -27,6 +27,7 @@ protected:
 
 public:
     int order() const override { return order_; }
+    void set_op(size_t i, const Def *def) override;
     Stream& stream(Stream&) const;
 
     std::vector<const Type*> filter_type_ops() const {

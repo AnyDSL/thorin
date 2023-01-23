@@ -11,8 +11,18 @@
 
 namespace thorin {
 
-Type::Type(World& w, NodeTag tag, Defs args, Debug dbg) : Type(w, tag, w.star(), args, dbg) {}
+Type::Type(World& w, NodeTag tag, Defs args, Debug dbg) : Type(w, tag, w.star(), args, dbg) {
+    // The overridden version of set_op is ignored in the Def ctor, because according to the C++ spec, virtuals are disabled in ctors (!)
+    // So this is not actually duplicate code - for the nominal types Type::set_op will do what we want.
+    for (auto& def : args)
+        order_ = std::max(order_, def->order());
+}
 Type::Type(World& w, NodeTag tag, size_t size, Debug dbg) : Type(w, tag, w.star(), size, dbg) {}
+
+void Type::set_op(size_t i, const Def* def) {
+    Def::set_op(i, def);
+    order_ = std::max(order_, def->order());
+}
 
 Array<const Def*> types2defs(ArrayRef<const Type*> types) {
     Array<const Def*> defs(types.size());

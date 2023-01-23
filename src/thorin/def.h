@@ -157,7 +157,7 @@ public:
     //@{
     const Def* out(size_t i) const;
     bool empty() const { return ops_.empty(); }
-    void set_op(size_t i, const Def* def);
+    virtual void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
     virtual bool has_multiple_outs() const { return false; }

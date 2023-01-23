@@ -54,7 +54,7 @@ static AddrSpace resolve_addr_space(const Def* def) {
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     // skip non-global address-space parameters
     std::vector<const Type*> types;
-    for (auto type : continuation->type()->ops()) {
+    for (auto type : continuation->type()->types()) {
         if (auto ptr = type->isa<PtrType>())
             if (ptr->addr_space() == AddrSpace::Texture)
                 continue;

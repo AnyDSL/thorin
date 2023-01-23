@@ -15,16 +15,16 @@ namespace thorin {
  */
 
 PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
-    : Literal((NodeTag) tag, world, world.prim_type(tag), dbg)
+    : Literal(world, (NodeTag) tag, world.prim_type(tag), dbg)
     , box_(box)
 {}
 
 Cmp::Cmp(CmpTag tag, World& world, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp((NodeTag) tag, world, world.type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+    : BinOp(world, (NodeTag) tag, world.type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)
-    : Aggregate(Node_DefiniteArray, world, args, dbg)
+    : Aggregate(world, Node_DefiniteArray, args, dbg)
 {
     set_type(world.definite_array_type(elem, args.size()));
 #if THORIN_ENABLE_CHECKS
@@ -34,13 +34,13 @@ DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug db
 }
 
 IndefiniteArray::IndefiniteArray(World& world, const Type* elem, const Def* dim, Debug dbg)
-    : Aggregate(Node_IndefiniteArray, world, {dim}, dbg)
+    : Aggregate(world, Node_IndefiniteArray, {dim}, dbg)
 {
     set_type(world.indefinite_array_type(elem));
 }
 
 Tuple::Tuple(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Tuple, world, args, dbg)
+    : Aggregate(world, Node_Tuple, args, dbg)
 {
     Array<const Type*> elems(num_ops());
     for (size_t i = 0, e = num_ops(); i != e; ++i)
@@ -50,7 +50,7 @@ Tuple::Tuple(World& world, Defs args, Debug dbg)
 }
 
 Vector::Vector(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Vector, world, args, dbg)
+    : Aggregate(world, Node_Vector, args, dbg)
 {
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
@@ -63,15 +63,15 @@ Vector::Vector(World& world, Defs args, Debug dbg)
 }
 
 LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
-    : Def(Node_LEA, world, nullptr, {ptr, index}, dbg)
+    : Def(world, Node_LEA, nullptr, {ptr, index}, dbg)
 {
     auto type = ptr_type();
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(tuple->types(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->ops(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(struct_type->types(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
         assert(prim_type->length() > 1);
         set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->device(), type->addr_space()));
@@ -81,50 +81,50 @@ LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
 }
 
 Known::Known(World& world, const Def* def, Debug dbg)
-    : Def(Node_Known, world, world.type_bool(), {def}, dbg)
+    : Def(world, Node_Known, world.type_bool(), {def}, dbg)
 {}
 
 AlignOf::AlignOf(World& world, const Def* def, Debug dbg)
-    : Def(Node_AlignOf, world, world.type_qs64(), {def}, dbg)
+    : Def(world, Node_AlignOf, world.type_qs64(), {def}, dbg)
 {}
 
 SizeOf::SizeOf(World& world, const Def* def, Debug dbg)
-    : Def(Node_SizeOf, world, world.type_qs64(), {def}, dbg)
+    : Def(world, Node_SizeOf, world.type_qs64(), {def}, dbg)
 {}
 
 Slot::Slot(World& world, const Type* type, const Def* frame, Debug dbg)
-    : Def(Node_Slot, world, type->table().ptr_type(type), {frame}, dbg)
+    : Def(world, Node_Slot, world.ptr_type(type), {frame}, dbg)
 {
     assert(frame->type()->isa<FrameType>());
 }
 
 Global::Global(World& world, const Def* init, bool is_mutable, Debug dbg)
-    : Def(Node_Global, world, init->type()->table().ptr_type(init->type()), {init}, dbg)
+    : Def(world, Node_Global, world.ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
     assert(!init->has_dep(Dep::Param));
 }
 
 Alloc::Alloc(World& world, const Type* type, const Def* mem, const Def* extra, Debug dbg)
-    : MemOp(Node_Alloc, world, nullptr, {mem, extra}, dbg)
+    : MemOp(world, Node_Alloc, nullptr, {mem, extra}, dbg)
 {
     set_type(world.tuple_type({world.mem_type(), world.ptr_type(type)}));
 }
 
 Load::Load(World& world, const Def* mem, const Def* ptr, Debug dbg)
-    : Access(Node_Load, world, nullptr, {mem, ptr}, dbg)
+    : Access(world, Node_Load, nullptr, {mem, ptr}, dbg)
 {
     set_type(world.tuple_type({world.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
 }
 
 Enter::Enter(World& world, const Def* mem, Debug dbg)
-    : MemOp(Node_Enter, world, nullptr, {mem}, dbg)
+    : MemOp(world, Node_Enter, nullptr, {mem}, dbg)
 {
     set_type(world.tuple_type({world.mem_type(), world.frame_type()}));
 }
 
 Assembly::Assembly(World& world, const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
-    : MemOp(Node_Assembly, world, type, inputs, dbg)
+    : MemOp(world, Node_Assembly, type, inputs, dbg)
     , asm_template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
@@ -301,13 +301,13 @@ const Def* Def::out(size_t i) const {
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type()->isa<TupleType>())
-        return get(tuple->ops(), index);
+        return get(tuple->types(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
-        return get(struct_type->ops(), index);
+        return get(struct_type->types(), index);
 
     THORIN_UNREACHABLE;
 }

@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "thorin/enums.h"
-#include "thorin/type.h"
 #include "thorin/debug.h"
+#include "thorin/util/array.h"
 
 namespace thorin {
 
@@ -17,6 +17,7 @@ class Def;
 class Tracker;
 class Use;
 class World;
+class Type;
 
 typedef ArrayRef<const Def*> Defs;
 
@@ -76,6 +77,23 @@ struct UseHash {
 // using a StackCapacity of 8 covers almost 99% of all real-world use-lists
 typedef HashSet<Use, UseHash> Uses;
 
+template<class T>
+struct GIDLt {
+    bool operator()(T a, T b) const { return a->gid() < b->gid(); }
+};
+
+template<class T>
+struct GIDHash {
+    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static bool eq(T a, T b) { return a == b; }
+    static T sentinel() { return T(1); }
+};
+
+template<class Key, class Value>
+using GIDMap = thorin::HashMap<Key, Value, GIDHash<Key>>;
+template<class Key>
+using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
+
 template<class To>
 using DefMap  = GIDMap<const Def*, To>;
 using DefSet  = GIDSet<const Def*>;
@@ -106,9 +124,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, World&, const Type* type, Defs args, Debug dbg);
+    Def(World&, NodeTag tag, const Type* type, Defs args, Debug dbg);
     /// Constructor for a @em nom Def.
-    Def(NodeTag tag, World&, const Type* type, size_t size, Debug);
+    Def(World&, NodeTag tag, const Type* type, size_t size, Debug);
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
@@ -122,7 +140,7 @@ public:
     //@{
     NodeTag tag() const { return tag_; }
     size_t gid() const { return gid_; }
-    World& world() const;
+    World& world() const { return world_; };
     //@}
 
     /// @name ops
@@ -155,7 +173,8 @@ public:
     /// @name type
     //@{
     const Type* type() const { return type_; }
-    int order() const { return type()->order(); }
+
+    virtual int order() const;
     //@}
 
     /// @name dependence checks
@@ -202,7 +221,8 @@ public:
     /// @name rebuild/stub
     //@{
     virtual const Def* rebuild(World&, const Type*, Defs) const { THORIN_UNREACHABLE; }
-    // TODO stub
+    virtual       Def* stub(World&, const Type*) const { THORIN_UNREACHABLE; }
+    virtual       void rebuild_from(const Def* old, Defs new_ops);
     //@}
 
     void replace_uses(const Def*) const;
@@ -251,7 +271,6 @@ size_t vector_length(const Def*);
 bool is_unit(const Def*);
 bool is_primlit(const Def*, int64_t);
 bool is_minus_zero(const Def*);
-inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
 inline bool is_one        (const Def* def) { return is_primlit(def, 1); }
 inline bool is_allset     (const Def* def) { return is_primlit(def, -1); }

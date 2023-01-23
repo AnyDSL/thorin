@@ -46,7 +46,7 @@ void Cleaner::eliminate_tail_rec() {
                 if (use.index() == 0 && use->isa<App>()) {
                     recursive = true;
                     continue;
-                } else if (use->isa_nom<Param>())
+                } else if (use->isa<Param>())
                     continue; // ignore params
 
                 world().ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
@@ -202,7 +202,7 @@ void Cleaner::eliminate_params() {
 
             if (!proxy_idx.empty()) {
                 auto ncontinuation = world().continuation(
-                    world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
+                    world().fn_type(ocontinuation->type()->types().cut(proxy_idx)),
                     ocontinuation->attributes(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
@@ -234,7 +234,6 @@ next_continuation:;
 void Cleaner::rebuild() {
     auto fresh_world = std::make_unique<World>(world());
     Importer importer(*world_, *fresh_world);
-    importer.type_old2new_.rehash(world_->types().capacity());
     importer.def_old2new_.rehash(world_->defs().capacity());
 
     for (auto&& [_, cont] : world().externals()) {
@@ -269,7 +268,7 @@ void Cleaner::verify_closedness() {
 
 void Cleaner::within(const Def* def) {
     if (def->isa<Param>()) return; // TODO remove once Params are within World's sea of nodes
-    assert(world().types().contains(def->type()));
+    assert(&def->type()->world() == &world());
     assert_unused(world().defs().contains(def));
 }
 

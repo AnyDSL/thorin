@@ -107,7 +107,7 @@ Continuation* Mangler::mangle() {
 Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(old_continuation->has_body());
-    Continuation* new_continuation = old_continuation->stub();
+    Continuation* new_continuation = old_continuation->mangle_stub();
     def2def_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)

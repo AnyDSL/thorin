@@ -3,6 +3,7 @@
 
 #include "thorin/config.h"
 #include "thorin/def.h"
+#include "thorin/type.h"
 #include "thorin/enums.h"
 #include "thorin/util/hash.h"
 
@@ -10,8 +11,8 @@ namespace thorin {
 
 class Literal : public Def {
 protected:
-    Literal(NodeTag tag, World& world, const Type* type, Debug dbg)
-        : Def(tag, world, type, Defs{}, dbg)
+    Literal(World& world, NodeTag tag, const Type* type, Debug dbg)
+        : Def(world, tag, type, Defs{}, dbg)
     {}
 };
 
@@ -19,7 +20,7 @@ protected:
 class Bottom : public Literal {
 private:
     Bottom(World& world, const Type* type, Debug dbg)
-        : Literal(Node_Bottom, world, type, dbg)
+        : Literal(world, Node_Bottom, type, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -31,7 +32,7 @@ private:
 class Top : public Literal {
 private:
     Top(World& world, const Type* type, Debug dbg)
-        : Literal(Node_Top, world, type, dbg)
+        : Literal(world, Node_Top, type, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -80,7 +81,7 @@ T get(ArrayRef<T> array, const Def* def) { return array[primlit_value<size_t>(de
 class Select : public Def {
 private:
     Select(World& world, const Def* cond, const Def* tval, const Def* fval, Debug dbg)
-        : Def(Node_Select, world, tval->type(), {cond, tval, fval}, dbg)
+        : Def(world, Node_Select, tval->type(), {cond, tval, fval}, dbg)
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
@@ -126,8 +127,8 @@ public:
 /// Base class for all side-effect free binary \p Def%s.
 class BinOp : public Def {
 protected:
-    BinOp(NodeTag tag, World& world, const Type* type, const Def* lhs, const Def* rhs, Debug dbg)
-        : Def(tag, world, type, {lhs, rhs}, dbg)
+    BinOp(World& world, NodeTag tag, const Type* type, const Def* lhs, const Def* rhs, Debug dbg)
+        : Def(world, tag, type, {lhs, rhs}, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
     }
@@ -141,7 +142,7 @@ public:
 class ArithOp : public BinOp {
 private:
     ArithOp(ArithOpTag tag, World& world, const Def* lhs, const Def* rhs, Debug dbg)
-        : BinOp((NodeTag) tag, world, lhs->type(), lhs, rhs, dbg)
+        : BinOp(world, (NodeTag) tag, lhs->type(), lhs, rhs, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -172,8 +173,8 @@ public:
 /// Common mathematical function such as `sin()` or `cos()`.
 class MathOp : public Def {
 private:
-    MathOp(MathOpTag tag, World& world, const Type* type, Defs args, Debug dbg)
-        : Def((NodeTag)tag, world, type, args, dbg)
+    MathOp(World& world, MathOpTag tag, const Type* type, Defs args, Debug dbg)
+        : Def(world, (NodeTag)tag, type, args, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -189,8 +190,8 @@ public:
 /// Base class for @p Bitcast and @p Cast.
 class ConvOp : public Def {
 protected:
-    ConvOp(NodeTag tag, World& world, const Def* from, const Type* to, Debug dbg)
-        : Def(tag, world, to, {from}, dbg)
+    ConvOp(World& world, NodeTag tag, const Def* from, const Type* to, Debug dbg)
+        : Def(world, tag, to, {from}, dbg)
     {}
 
 public:
@@ -201,7 +202,7 @@ public:
 class Cast : public ConvOp {
 private:
     Cast(World& world, const Type* to, const Def* from, Debug dbg)
-        : ConvOp(Node_Cast, world, from, to, dbg)
+        : ConvOp(world, Node_Cast, from, to, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -213,7 +214,7 @@ private:
 class Bitcast : public ConvOp {
 private:
     Bitcast(World& world, const Type* to, const Def* from, Debug dbg)
-        : ConvOp(Node_Bitcast, world, from, to, dbg)
+        : ConvOp(world, Node_Bitcast, from, to, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -224,8 +225,8 @@ private:
 /// Base class for all aggregate data constructers.
 class Aggregate : public Def {
 protected:
-    Aggregate(NodeTag tag, World& world, Defs args, Debug dbg)
-        : Def(tag, world, nullptr /*set later*/, args, dbg)
+    Aggregate(World& world, NodeTag tag, Defs args, Debug dbg)
+        : Def(world, tag, nullptr /*set later*/, args, dbg)
     {}
 };
 
@@ -275,7 +276,7 @@ public:
 class Variant : public Def {
 private:
     Variant(World& world, const VariantType* variant_type, const Def* value, size_t index, Debug dbg)
-        : Def(Node_Variant, world, variant_type, {value}, dbg), index_(index)
+        : Def(world, Node_Variant, variant_type, {value}, dbg), index_(index)
     {
         assert(variant_type->op(index) == value->type());
     }
@@ -298,7 +299,7 @@ public:
 class VariantIndex : public Def {
 private:
     VariantIndex(World& world, const Type* int_type, const Def* value, Debug dbg)
-        : Def(Node_VariantIndex, world, int_type, {value}, dbg)
+        : Def(world, Node_VariantIndex, int_type, {value}, dbg)
     {
         assert(value->type()->isa<VariantType>());
         assert(is_type_s(int_type) || is_type_u(int_type));
@@ -312,7 +313,7 @@ private:
 class VariantExtract : public Def {
 private:
     VariantExtract(World& world, const Type* type, const Def* value, size_t index, Debug dbg)
-        : Def(Node_VariantExtract, world, type, {value}, dbg), index_(index)
+        : Def(world, Node_VariantExtract, type, {value}, dbg), index_(index)
     {
         assert(value->type()->as<VariantType>()->op(index) == type);
     }
@@ -334,7 +335,7 @@ public:
 class Closure : public Aggregate {
 private:
     Closure(World& world, const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg)
-        : Aggregate(Node_Closure, world, {fn, env}, dbg)
+        : Aggregate(world, Node_Closure, {fn, env}, dbg)
     {
         set_type(closure_type);
     }
@@ -352,7 +353,7 @@ public:
 class StructAgg : public Aggregate {
 private:
     StructAgg(World& world, const StructType* struct_type, Defs args, Debug dbg)
-        : Aggregate(Node_StructAgg, world, args, dbg)
+        : Aggregate(world, Node_StructAgg, args, dbg)
     {
 #if THORIN_ENABLE_CHECKS
         assert(struct_type->num_ops() == args.size());
@@ -383,8 +384,8 @@ private:
 /// Base class for functional @p Insert and @p Extract.
 class AggOp : public Def {
 protected:
-    AggOp(NodeTag tag, World& world, const Type* type, Defs args, Debug dbg)
-        : Def(tag, world, type, args, dbg)
+    AggOp(World& world, NodeTag tag, const Type* type, Defs args, Debug dbg)
+        : Def(world, tag, type, args, dbg)
     {}
 
 public:
@@ -398,7 +399,7 @@ public:
 class Extract : public AggOp {
 private:
     Extract(World& world, const Def* agg, const Def* index, Debug dbg)
-        : AggOp(Node_Extract, world, extracted_type(agg, index), {agg, index}, dbg)
+        : AggOp(world, Node_Extract, extracted_type(agg, index), {agg, index}, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -418,7 +419,7 @@ public:
 class Insert : public AggOp {
 private:
     Insert(World& world, const Def* agg, const Def* index, const Def* value, Debug dbg)
-        : AggOp(Node_Insert, world, agg->type(), {agg, index, value}, dbg)
+        : AggOp(world, Node_Insert, agg->type(), {agg, index, value}, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -455,7 +456,7 @@ public:
 class Hlt : public Def {
 private:
     Hlt(World& world, const Def* def, Debug dbg)
-        : Def(Node_Hlt, world, def->type(), {def}, dbg)
+        : Def(world, Node_Hlt, def->type(), {def}, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -486,7 +487,7 @@ public:
 class Run : public Def {
 private:
     Run(World& world, const Def* def, Debug dbg)
-        : Def(Node_Run, world, def->type(), {def}, dbg)
+        : Def(world, Node_Run, def->type(), {def}, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -547,8 +548,8 @@ private:
 /// Base class for all \p Def%s taking and producing side-effects.
 class MemOp : public Def {
 protected:
-    MemOp(NodeTag tag, World& world, const Type* type, Defs args, Debug dbg)
-        : Def(tag, world, type, args, dbg)
+    MemOp(World& world, NodeTag tag, const Type* type, Defs args, Debug dbg)
+        : Def(world, tag, type, args, dbg)
     {
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);
@@ -585,8 +586,8 @@ private:
 /// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:
-    Access(NodeTag tag, World& world, const Type* type, Defs args, Debug dbg)
-        : MemOp(tag, world, type, args, dbg)
+    Access(World& world, NodeTag tag, const Type* type, Defs args, Debug dbg)
+        : MemOp(world, tag, type, args, dbg)
     {
         assert(args.size() >= 2);
     }
@@ -604,7 +605,7 @@ public:
     bool has_multiple_outs() const override { return true; }
     const Def* out_val() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const Type* out_val_type() const { return type()->op(1); }
+    const Type* out_val_type() const { return type()->op(1)->as<Type>(); }
 
 private:
     const Def* rebuild(World&, const Type*, Defs) const override;
@@ -616,7 +617,7 @@ private:
 class Store : public Access {
 private:
     Store(World& world, const Def* mem, const Def* ptr, const Def* value, Debug dbg)
-        : Access(Node_Store, world, mem->type(), {mem, ptr, value}, dbg)
+        : Access(world, Node_Store, mem->type(), {mem, ptr, value}, dbg)
     {}
 
     const Def* rebuild(World&, const Type*, Defs) const override;

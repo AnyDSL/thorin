@@ -45,15 +45,15 @@ static bool contains_ptrtype(const Type* type) {
         case Node_StructType: {
             bool good = true;
             auto struct_type = type->as<StructType>();
-            for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(struct_type->op(i));
+            for (auto& t : struct_type->types())
+                good &= contains_ptrtype(t);
             return good;
         }
         case Node_TupleType: {
             bool good = true;
             auto tuple = type->as<TupleType>();
-            for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(tuple->op(i));
+            for (auto& t : tuple->types())
+                good &= contains_ptrtype(t);
             return good;
         }
         default: return true;

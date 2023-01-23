@@ -21,12 +21,11 @@ public:
     }
 
     World& world() { return dst; }
-    const Type* import(const Type*);
+    //const Type* import(const Type*);
     const Def* import(const Def*);
     bool todo() const { return todo_; }
 
 public:
-    Type2Type type_old2new_;
     Def2Def def_old2new_;
     World& src;
     World& dst;

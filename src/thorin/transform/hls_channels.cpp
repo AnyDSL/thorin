@@ -166,8 +166,8 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
             extract_kernel_channels(schedule(scope), def2mode);
 
             Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
-            std::copy(old_kernel->type()->ops().begin(),
-                    old_kernel->type()->ops().end(),
+            std::copy(old_kernel->type()->types().begin(),
+                    old_kernel->type()->types().end(),
                     new_param_types.begin());
             size_t i = old_kernel->num_params();
             // This vector records pairs containing:
@@ -205,7 +205,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
                 if (auto cont = def->isa_nom<Continuation>()) {
                     // Copy the basic block by calling stub
                     // Or reuse the newly created kernel copy if def is the old kernel
-                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
+                    auto new_cont = def == old_kernel ? new_kernel : cont->mangle_stub();
                     rewriter.old2new[cont] = new_cont;
                     for (size_t i = 0; i < cont->num_params(); ++i)
                         rewriter.old2new[cont->param(i)] = new_cont->param(i);

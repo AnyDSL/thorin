@@ -42,14 +42,10 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(const std::string& name) {
+World::World(const std::string& name) : types_(TypeTable(*this)) {
     data_.name_   = name;
     data_.branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
     data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
-}
-
-World::~World() {
-    for (auto def : data_.defs_) delete def;
 }
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
@@ -59,7 +55,7 @@ const Def* World::variant_index(const Def* value, Debug dbg) {
 }
 
 const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
-    auto type = value->type()->as<VariantType>()->op(index);
+    auto type = value->type()->as<VariantType>()->op(index)->as<Type>();
     if (auto variant = value->isa<Variant>())
         return variant->index() == index ? variant->value() : bottom(type);
     return cse(new VariantExtract(*this, type, value, index, dbg));
@@ -500,7 +496,7 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
 
         Array<const Def*> new_tuple(dst_tuple_type->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
-            new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
+            new_tuple[i] = convert(dst_tuple_type->types()[i], extract(src, i, dbg), dbg);
 
         return tuple(new_tuple, dbg);
     }
@@ -730,13 +726,13 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
-            for (auto type : tuple_type->ops())
+            for (auto type : tuple_type->types())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = tuple(args, dbg);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
             Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
-            for (auto type : struct_type->ops())
+            for (auto type : struct_type->types())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = struct_agg(struct_type, args, dbg);
         }
@@ -824,7 +820,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* arg, Debug dbg, F&& f
                 THORIN_UNREACHABLE;
         }
     }
-    return cse(new MathOp(tag, *this, arg->type(), { arg }, dbg));
+    return cse(new MathOp(*this, tag, arg->type(), { arg }, dbg));
 }
 
 template <class F>
@@ -846,7 +842,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* left, const Def* righ
                 THORIN_UNREACHABLE;
         }
     }
-    return cse(new MathOp(tag, *this, left->type(), { left, right }, dbg));
+    return cse(new MathOp(*this, tag, left->type(), { left, right }, dbg));
 }
 
 template <class F>
@@ -1102,15 +1098,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto cont = put<Continuation>(*this, fn, attributes, dbg);
-
-    size_t i = 0;
-    for (auto op : fn->ops()) {
-        auto p = param(op, cont, i++, dbg);
-        cont->params_.emplace_back(p);
-    }
-
-    return cont;
+    return put<Continuation>(*this, fn, attributes, dbg);
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
@@ -1122,8 +1110,8 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
-const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
-    auto param = new Param(*this, type, continuation, index, dbg);
+const Param* World::param(const Type* type, const Continuation* continuation, size_t index, Debug dbg) {
+    auto param = cse(new Param(*this, type, continuation, index, dbg));
 #if THORIN_ENABLE_CHECKS
     if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
 #endif

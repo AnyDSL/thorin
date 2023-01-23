@@ -14,7 +14,7 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
-Def::Def(NodeTag tag, World& world, const Type* type, Defs ops, Debug dbg)
+Def::Def(World& world, NodeTag tag, const Type* type, Defs ops, Debug dbg)
     : tag_(tag)
     , ops_(ops.size())
     , world_(world)
@@ -30,7 +30,7 @@ Def::Def(NodeTag tag, World& world, const Type* type, Defs ops, Debug dbg)
         set_op(i, ops[i]);
 }
 
-Def::Def(NodeTag tag, World& world, const Type* type, size_t size, Debug dbg)
+Def::Def(World& world, NodeTag tag, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
     , ops_(size)
     , world_(world)
@@ -42,6 +42,10 @@ Def::Def(NodeTag tag, World& world, const Type* type, size_t size, Debug dbg)
            tag == Node_Param        ? Dep::Param :
                                       Dep::Bot   )
 {}
+
+int Def::order() const {
+    return type()->order();
+}
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
@@ -96,7 +100,7 @@ std::string Def::unique_name() const {
 }
 
 bool is_unit(const Def* def) {
-    return def->type() == def->world().unit();
+    return def->type() == def->world().unit_type();
 }
 
 size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
@@ -134,6 +138,12 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
+void Def::rebuild_from(const Def* old, Defs new_ops) {
+    assert(new_ops.size() == num_ops());
+    for (size_t i = 0; i < num_ops(); i++)
+        set_op(i, new_ops[i]);
+}
+
 void Def::replace_uses(const Def* with) const {
     world().DLOG("replace uses: {} -> {}", this, with);
     if (this != with) {
@@ -148,8 +158,6 @@ void Def::replace_uses(const Def* with) const {
         uses_.clear();
     }
 }
-
-World& Def::world() const { return world_; }
 
 uint64_t UseHash::hash(Use use) {
     assert(use->gid() != uint32_t(-1));

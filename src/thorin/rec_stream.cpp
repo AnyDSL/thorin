@@ -68,8 +68,6 @@ void RecStreamer::run() {
 void Def::dump() const { dump(0); }
 void Def::dump(size_t max) const { Stream s(std::cout); stream(s, max).endl(); }
 
-void Type::dump() const { Stream s(std::cout); stream(s).endl(); }
-
 Stream& Def::stream(Stream& s) const {
     if (isa<Param>() || isa<App>() || no_dep()) return stream1(s);
     return s << unique_name();

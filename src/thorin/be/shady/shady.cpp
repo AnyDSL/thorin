@@ -440,4 +440,8 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
     return v;
 }
 
+const shady::Node* CodeGen::emit_constant(const Def* def) {
+    THORIN_UNREACHABLE;
+}
+
 }

@@ -35,6 +35,7 @@ public:
 
     const shady::Type* convert(const Type*);
     const shady::Node* emit_bb(BB&, const Def*);
+    const shady::Node* emit_constant(const Def*);
 
     bool is_valid(const shady::Node* n) {
         return n;

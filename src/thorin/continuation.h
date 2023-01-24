@@ -13,6 +13,7 @@ namespace thorin {
 
 class Continuation;
 class Scope;
+struct Rewriter;
 
 typedef std::vector<Continuation*> Continuations;
 
@@ -72,7 +73,7 @@ public:
     }
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void verify() const;
+    bool verify() const;
 
     friend class World;
 };
@@ -110,8 +111,8 @@ enum class Intrinsic : uint8_t {
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
-    Branch,                     ///< branch(cond, T, F).
-    Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
+    Branch,                     ///< branch(mem, cond, T, F).
+    Match,                      ///< match(mem, val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
@@ -139,6 +140,7 @@ public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
     Continuation* stub() const;
+    Continuation* stub(Rewriter& rewriter) const;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;
@@ -188,9 +190,9 @@ public:
     void destroy(const char*);
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    void verify() const;
+    void branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
+    bool verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
     void set_filter(const Filter* f) {
@@ -212,6 +214,18 @@ public:
 
             if (potentially_called >= 2)
                 return false;
+        }
+        return true;
+    }
+    bool never_called() const {
+        for (auto use : uses()) {
+            if (auto app = use->isa<App>()) {
+                if (app->num_uses() != 0) {
+                    return false;
+                }
+            } else if (!use->isa<Param>()) {
+                return false;
+            }
         }
         return true;
     }

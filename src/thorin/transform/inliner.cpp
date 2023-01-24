@@ -39,8 +39,8 @@ void force_inline(Scope& scope, int threshold) {
 void inliner(World& world) {
     world.VLOG("start inliner");
 
-    static const int factor = 4;
-    static const int offset = 4;
+    static const int factor = 8;
+    static const int offset = 8;
 
     ContinuationMap<std::unique_ptr<Scope>> continuation2scope;
 

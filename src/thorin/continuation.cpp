@@ -28,7 +28,7 @@ App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(
 #endif
 }
 
-void App::verify() const {
+bool App::verify() const {
     auto callee_type = callee()->type()->isa<FnType>(); // works for closures too, no need for a special case
     assertf(callee_type, "callee type must be a FnType");
     assertf(callee_type->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
@@ -37,6 +37,7 @@ void App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
+    return true;
 }
 
 //------------------------------------------------------------------------------
@@ -60,7 +61,10 @@ Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug
 
 Continuation* Continuation::stub() const {
     Rewriter rewriter;
+    return stub(rewriter);
+}
 
+Continuation* Continuation::stub(Rewriter& rewriter) const {
     auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->set_name(debug_history().name);
@@ -244,33 +248,36 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     verify();
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    set_body(world().app(world().branch(), {cond, t, f}, dbg));
+void Continuation::branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg) {
+    set_body(world().app(world().branch(), {mem, cond, t, f}, dbg));
     verify();
 }
 
-void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
-    Array<const Def*> args(patterns.size() + 2);
+void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+    Array<const Def*> args(patterns.size() + 3);
 
-    args[0] = val;
-    args[1] = otherwise;
+    args[0] = mem;
+    args[1] = val;
+    args[2] = otherwise;
     assert(patterns.size() == continuations.size());
     for (size_t i = 0; i < patterns.size(); i++)
-        args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
+        args[i + 3] = world().tuple({patterns[i], continuations[i]}, dbg);
 
     set_body(world().app(world().match(val->type(), patterns.size()), args, dbg));
     verify();
 }
 
-void Continuation::verify() const {
+bool Continuation::verify() const {
+    bool ok = true;
     if (!has_body())
         assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
     else {
-        body()->verify();
+        ok &= body()->verify();
         assert(!dead_); // destroy() should remove the body
         assert(intrinsic() == Intrinsic::None);
         assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
     }
+    return ok;
 }
 
 /// Rewrites the body to only keep the non-specialized arguments

@@ -4,6 +4,10 @@
 #include "thorin/world.h"
 #include "thorin/config.h"
 
+#include <set>
+#include <stack>
+#include <utility>
+
 namespace thorin {
 
 class Importer {
@@ -20,9 +24,16 @@ public:
     }
 
     World& world() { return world_; }
-    const Type* import(const Type*);
+    const Type* import_type(const Type*);
     const Def* import(const Def*);
     bool todo() const { return todo_; }
+
+private:
+    const Def* import_nonrecursive();
+    void enqueue(const Def* elem);
+
+    std::stack<std::pair<const Def*, bool>> required_defs;
+    std::set<const Def*> analyzed_conts;
 
 public:
     Type2Type type_old2new_;

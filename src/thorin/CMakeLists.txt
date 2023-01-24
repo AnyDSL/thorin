@@ -107,6 +107,12 @@ if(LLVM_FOUND)
     )
 endif()
 
+if (shady_FOUND)
+    list(APPEND THORIN_SOURCES
+        be/shady/shady.cpp
+    )
+endif()
+
 add_library(thorin ${THORIN_SOURCES})
 target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${Thorin_ROOT_DIR}/src ${CMAKE_BINARY_DIR}/include)
 
@@ -120,4 +126,8 @@ if(LLVM_FOUND)
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
+endif()
+
+if (shady_FOUND)
+    target_link_libraries(thorin PRIVATE shady::shady)
 endif()

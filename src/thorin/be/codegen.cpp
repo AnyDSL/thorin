@@ -8,6 +8,11 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/amdgpu.h"
 #endif
+#if THORIN_ENABLE_SHADY
+#include "thorin/be/shady/shady.h"
+#undef empty
+#undef nodes
+#endif
 #include "thorin/be/c/c.h"
 
 namespace thorin {
@@ -87,11 +92,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         Continuation* imported = nullptr;
 
         static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,   Intrinsic::CUDA   },
-            std::pair { NVVM,   Intrinsic::NVVM   },
-            std::pair { OpenCL, Intrinsic::OpenCL },
-            std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    }
+            std::pair { CUDA,   Intrinsic::CUDA         },
+            std::pair { NVVM,   Intrinsic::NVVM         },
+            std::pair { OpenCL, Intrinsic::OpenCL       },
+            std::pair { AMDGPU, Intrinsic::AMDGPU       },
+            std::pair { HLS,    Intrinsic::HLS          },
+            std::pair { Shady,  Intrinsic::ShadyCompute }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -112,7 +118,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
+    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, Shady }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 auto app = use->body();
@@ -189,6 +195,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
 #else
     (void)opt;
+#endif
+#if THORIN_ENABLE_SHADY
+    if (!importers_[Shady].world().empty()) cgs[Shady] = std::make_unique<shady_be::CodeGen>(importers_[Shady].world(), kernel_config, debug);
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
         if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);

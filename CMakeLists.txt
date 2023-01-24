@@ -11,7 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(THORIN_PROFILE "profile complexity in thorin::HashTable - only works in Debug build" ON)
 
-
 if(CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug or Release" FORCE)
 endif()
@@ -43,6 +42,12 @@ if(LLVM_FOUND)
     endif()
 else()
     message(STATUS "Building without LLVM and RV. Specify LLVM_DIR to compile with LLVM.")
+endif()
+
+find_package(shady CONFIG)
+if (shady_FOUND)
+    message(STATUS "Found shady at ${shady_DIR}")
+    set(THORIN_ENABLE_SHADY TRUE)
 endif()
 
 message(STATUS "Using Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")

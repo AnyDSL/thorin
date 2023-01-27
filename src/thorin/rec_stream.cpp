@@ -48,8 +48,12 @@ void RecStreamer::run() {
         auto cont = conts.pop();
         s.endl().endl();
 
-        if (cont->world().is_external(cont))
-            s.fmt("extern ");
+        if (cont->world().is_external(cont)) {
+            if (cont->attributes().cc == CC::Internal)
+                s.fmt("intern ");
+            else
+                s.fmt("extern ");
+        }
 
         if (cont->has_body()) {
             std::vector<std::string> param_names;

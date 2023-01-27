@@ -358,7 +358,7 @@ void CCodeGen::emit_module() {
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
-        else
+        else if (scope.entry()->cc() != CC::Internal)
             emit_scope(scope);
     });
     if (hls_top) {

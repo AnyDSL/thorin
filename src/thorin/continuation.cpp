@@ -12,12 +12,16 @@ namespace thorin {
 
 Param::Param(World& world, const Type* type, const Continuation* continuation, size_t index, Debug dbg)
     : Def(world, Node_Param, type, { continuation }, dbg)
+    //: Def(world, Node_Param, type, 1, dbg)
     , index_(index)
-{}
+{
+    //set_op(0, continuation);
+}
 
 const Def* Param::rebuild(World& world, const Type* t, Defs defs) const {
-    assert(defs.size() == 1 && defs[0]->isa<Continuation>());
-    return world.param(t, defs[0]->as<Continuation>(), index(), debug());
+    assert(defs.size() == 1);
+    auto cont = defs[0]->as<Continuation>();
+    return cont->param(index());
 }
 
 hash_t Param::vhash() const {

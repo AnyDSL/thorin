@@ -10,7 +10,7 @@ namespace thorin {
 const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = old2new.lookup(odef)) return *ndef;
 
-    if (odef->isa_structural()) {
+    if (odef->isa_structural() && !odef->isa<Param>()) {
         Array<const Def*> nops(odef->num_ops());
         for (size_t i = 0; i != odef->num_ops(); ++i)
             nops[i] = instantiate(odef->op(i));
@@ -168,6 +168,7 @@ const Def* Mangler::mangle(const Def* old_def) {
             nops[i] = mangle(old_def->op(i));
 
         auto type = old_def->type(); // TODO reduce
+        assert(!old_def->isa<Type>());
         return def2def_[old_def] = old_def->rebuild(world(), type, nops);
     }
 }

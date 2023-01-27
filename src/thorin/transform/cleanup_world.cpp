@@ -36,7 +36,7 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
-    Scope::for_each(*world_, [&](Scope& scope) {
+    Scope::for_each(world(), [&](Scope& scope) {
         auto entry = scope.entry();
 
         bool only_tail_calls = true;
@@ -233,7 +233,7 @@ next_continuation:;
 
 void Cleaner::rebuild() {
     auto fresh_world = std::make_unique<World>(world());
-    Importer importer(*world_, *fresh_world);
+    Importer importer(world(), *fresh_world);
     importer.def_old2new_.rehash(world_->defs().capacity());
 
     for (auto&& [_, cont] : world().externals()) {
@@ -267,7 +267,6 @@ void Cleaner::verify_closedness() {
 }
 
 void Cleaner::within(const Def* def) {
-    if (def->isa<Param>()) return; // TODO remove once Params are within World's sea of nodes
     assert(&def->type()->world() == &world());
     assert_unused(world().defs().contains(def));
 }

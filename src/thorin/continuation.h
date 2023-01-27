@@ -30,7 +30,7 @@ public:
     Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
     size_t index() const { return index_; }
 
-    const Def * rebuild(World&, const Type*, Defs) const override;
+    const Def* rebuild(World&, const Type*, Defs) const override;
     bool equal(const Def*) const override;
     hash_t vhash() const override;
 private:

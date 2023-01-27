@@ -65,10 +65,10 @@ void lift_pipeline(World& world) {
 
 void lift_builtins(Thorin& thorin) {
     // This must be run first
-    World& world = thorin.world();
-    lift_pipeline(world);
+    lift_pipeline(thorin.world());
 
     while (true) {
+        World& world = thorin.world();
         Continuation* cur = nullptr;
         Scope::for_each(world, [&] (const Scope& scope) {
             if (cur) return;

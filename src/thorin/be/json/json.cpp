@@ -226,8 +226,12 @@ public:
                 forward_decl["type"] = "continuation";
                 forward_decl["fn_type"] = type;
                 forward_decl["arg_names"] = arg_names;
-                if (cont->is_external())
-                    forward_decl["external"] = cont->name();
+                if (cont->is_external()) {
+                    if (cont->cc() == CC::Internal)
+                        forward_decl["internal"] = cont->name();
+                    else
+                        forward_decl["external"] = cont->name();
+                }
                 if (cont->cc() == CC::DeviceHostCode)
                     forward_decl["device"] = cont->name();
                 decl_table.push_back(forward_decl);

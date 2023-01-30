@@ -16,7 +16,7 @@ class Type;
 using Types = ArrayRef<const Type*>;
 
 /// Base class for all \p Type%s.
-class Type : public Def, public Streamable<Type> {
+class Type : public Def {
 protected:
     /// Constructor for a @em structural Type.
     Type(World& w, NodeTag tag, const Type* type, Defs args, Debug dbg) : Def(w, tag, type, args, dbg) {}

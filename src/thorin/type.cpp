@@ -130,62 +130,6 @@ bool PtrType::equal(const Def* other) const {
     return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
 
-//------------------------------------------------------------------------------
-
-/*
- * stream
- */
-
-Stream& Type::stream(Stream& s) const {
-    if (false) {}
-    else if (isa<BottomType>()) return s.fmt("!!");
-    else if (isa<   MemType>()) return s.fmt("mem");
-    else if (isa< FrameType>()) return s.fmt("frame");
-    else if (auto t = isa<DefiniteArrayType>()) {
-        return s.fmt("[{} x {}]", t->dim(), t->elem_type());
-    } else if (auto t = isa<FnType>()) {
-        return s.fmt("fn[{, }]", t->ops());
-    } else if (auto t = isa<ClosureType>()) {
-        return s.fmt("closure [{, }]", t->ops());
-    } else if (auto t = isa<IndefiniteArrayType>()) {
-        return s.fmt("[{}]", t->elem_type());
-    } else if (auto t = isa<StructType>()) {
-        return s.fmt("struct {}", t->name());
-    } else if (auto t = isa<VariantType>()) {
-        return s.fmt("variant {}", t->name());
-    } else if (auto t = isa<TupleType>()) {
-        return s.fmt("[{, }]", t->ops());
-    } else if (auto t = isa<PtrType>()) {
-        if (t->is_vector()) s.fmt("<{} x", t->length());
-        s.fmt("{}*", t->pointee());
-        if (t->is_vector()) s.fmt(">");
-        if (t->device() != -1) s.fmt("[{}]", t->device());
-
-        switch (t->addr_space()) {
-            case AddrSpace::Global:   s.fmt("[Global]");   break;
-            case AddrSpace::Texture:  s.fmt("[Tex]");      break;
-            case AddrSpace::Shared:   s.fmt("[Shared]");   break;
-            case AddrSpace::Constant: s.fmt("[Constant]"); break;
-            default: /* ignore unknown address space */    break;
-        }
-        return s;
-    } else if (auto t = isa<PrimType>()) {
-        if (t->is_vector()) s.fmt("<{} x", t->length());
-
-        switch (t->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: s.fmt(#T); break;
-#include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE;
-        }
-
-        if (t->is_vector()) s.fmt(">");
-        return s;
-    }
-    THORIN_UNREACHABLE;
-}
-
-//------------------------------------------------------------------------------
-
 TypeTable::TypeTable(World& world)
     : world_(world)
     , star_     (world.put<Star>((world)))

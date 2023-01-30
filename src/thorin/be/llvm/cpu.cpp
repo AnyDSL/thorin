@@ -8,8 +8,8 @@
 
 namespace thorin::llvm {
 
-CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
+CPUCodeGen::CPUCodeGen(Thorin& thorin, int opt, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
+    : CodeGen(thorin, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
 {
     llvm::InitializeNativeTarget();
     auto triple_str = llvm::sys::getDefaultTargetTriple();

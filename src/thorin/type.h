@@ -1,6 +1,7 @@
 #ifndef THORIN_TYPE_H
 #define THORIN_TYPE_H
 
+#include "thorin/def.h"
 #include "thorin/enums.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/cast.h"
@@ -15,174 +16,169 @@ class Type;
 using Types = ArrayRef<const Type*>;
 
 /// Base class for all \p Type%s.
-class Type : public RuntimeCast<Type>, public Streamable<Type> {
+class Type : public Def {
 protected:
-    Type(TypeTable& table, int tag, Types ops);
-
-    void set(size_t i, const Type* type) {
-        ops_[i] = type;
-        order_ = std::max(order_, type->order());
-    }
+    /// Constructor for a @em structural Type.
+    Type(World& w, NodeTag tag, const Type* type, Defs args, Debug dbg) : Def(w, tag, type, args, dbg) {}
+    Type(World& w, NodeTag tag, Defs args, Debug dbg);
+    /// Constructor for a @em nom Type.
+    Type(World& w, NodeTag tag, const Type* type, size_t size, Debug dbg) : Def(w, tag, type, size, dbg) {}
+    Type(World& w, NodeTag tag, size_t size, Debug dbg);
 
 public:
-    int tag() const { return tag_; }
-    TypeTable& table() const { return *table_; }
-
-    Types ops() const { return ops_; }
-    const Type* op(size_t i) const { return ops()[i]; }
-    size_t num_ops() const { return ops_.size(); }
-    bool empty() const { return ops_.empty(); }
-
-    bool is_nominal() const { return nominal_; } ///< A nominal @p Type is always different from each other @p Type.
-    int order() const { return order_; }
-    size_t gid() const { return gid_; }
-    hash_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
-    virtual bool equal(const Type*) const;
-    virtual const Type* rebuild(TypeTable&, Types) const = 0;
+    int order() const override { return order_; }
+    void set_op(size_t i, const Def *def) override;
     Stream& stream(Stream&) const;
-    void dump() const;
 
+    std::vector<const Type*> filter_type_ops() const {
+        std::vector<const Type*> type_ops;
+        for (auto& op : ops()) {
+            if (auto t = op->isa<Type>())
+                type_ops.push_back(t);
+        }
+        return type_ops;
+    }
 protected:
-    virtual hash_t vhash() const;
-
-    mutable hash_t hash_ = 0;
-    mutable bool nominal_  = false;
     int order_ = 0;
-    size_t gid_;
+    friend class World;
+};
 
-private:
-    mutable TypeTable* table_;
+class Star : public Type {
+protected:
+    explicit Star(World& w) : Type(w, Node_Star, nullptr, 0, {}) {
+        set_type(this);
+    }
 
-    int tag_;
-    thorin::Array<const Type*> ops_;
+    friend class World;
+};
 
-    friend TypeTable;
+Array<const Def*> types2defs(ArrayRef<const Type*> types);
+Array<const Type*> defs2types(ArrayRef<const Def*> types);
+
+template<class T>
+class TypeOpsMixin {
+public:
+    Types types() const {
+        Defs defs = static_cast<const T*>(this)->ops();
+        const Def* const* ptr = defs.begin();
+        auto ptr2 = reinterpret_cast<const Type* const*>(ptr);
+        auto types = Types(ptr2, defs.size());
+        return types;
+    }
 };
 
 /// Type of a tuple (structurally typed).
-class TupleType : public Type {
+class TupleType : public Type, public TypeOpsMixin<TupleType> {
 private:
-    TupleType(TypeTable& table, Types ops)
-        : Type(table, Node_TupleType, ops)
+    TupleType(World& world, Defs ops, Debug dbg)
+        : Type(world, Node_TupleType, ops, dbg)
     {}
 
 public:
-    const Type* rebuild(TypeTable&, Types) const override;
-
-    friend class TypeTable;
+    const Type* rebuild(World&, const Type*, Defs) const override;
+    friend class World;
 };
 
 /// Base class for nominal types (types that have
 /// a name that uniquely identifies them).
 class NominalType : public Type {
 protected:
-    NominalType(TypeTable& table, int tag, Symbol name, size_t size, size_t gid)
-        : Type(table, tag, thorin::Array<const Type*>(size))
+    NominalType(World& world, NodeTag tag, Symbol name, size_t size, Debug dbg)
+        : Type(world, tag, size, dbg)
         , name_(name)
         , op_names_(size)
-    {
-        nominal_ = true;
-        gid_ = gid;
-    }
+    {}
 
     Symbol name_;
     Array<Symbol> op_names_;
 
 private:
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
 public:
     Symbol name() const { return name_; }
     Symbol op_name(size_t i) const { return op_names_[i]; }
-    void set(size_t i, const Type* type) const {
-        return const_cast<NominalType*>(this)->Type::set(i, type);
-    }
     void set_op_name(size_t i, Symbol name) const {
         const_cast<NominalType*>(this)->op_names_[i] = name;
     }
     Array<Symbol>& op_names() const {
         return const_cast<NominalType*>(this)->op_names_;
     }
-
-    /// Recreates a fresh new nominal type of the
-    /// same kind with the same number of operands,
-    /// initially all unset.
-    virtual const NominalType* stub(TypeTable&) const = 0;
 };
 
-class StructType : public NominalType {
+class StructType : public NominalType, public TypeOpsMixin<TupleType> {
 private:
-    StructType(TypeTable& table, Symbol name, size_t size, size_t gid)
-        : NominalType(table, Node_StructType, name, size, gid)
+    StructType(World& world, Symbol name, size_t size, Debug dbg)
+        : NominalType(world, Node_StructType, name, size, dbg)
     {}
 
 public:
-    const NominalType* stub(TypeTable&) const override;
+    virtual StructType* stub(World&, const Type*) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
-class VariantType : public NominalType {
+class VariantType : public NominalType, public TypeOpsMixin<TupleType> {
 private:
-    VariantType(TypeTable& table, Symbol name, size_t size, size_t gid)
-        : NominalType(table, Node_VariantType, name, size, gid)
+    VariantType(World& world, Symbol name, size_t size, Debug dbg)
+        : NominalType(world, Node_VariantType, name, size, dbg)
     {}
 
 public:
-    const NominalType* stub(TypeTable&) const override;
+    virtual VariantType* stub(World&, const Type*) const override;
 
     bool has_payload() const;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// The type of the memory monad.
 class MemType : public Type {
 private:
-    MemType(TypeTable& table)
-        : Type(table, Node_MemType, {})
+    MemType(World& world, Debug dbg)
+        : Type(world, Node_MemType, Defs(), dbg)
     {}
 
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// The type of App nodes.
 class BottomType : public Type {
 private:
-    BottomType(TypeTable& table)
-            : Type(table, Node_BotType, {})
+    BottomType(World& world, Debug dbg)
+        : Type(world, Node_BotType, Defs(), dbg)
     {}
 
-    const Type* rebuild(TypeTable& to, Types ops) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// The type of a stack frame.
 class FrameType : public Type {
 private:
-    FrameType(TypeTable& table)
-        : Type(table, Node_FrameType, {})
+    FrameType(World& world, Debug dbg)
+        : Type(world, Node_FrameType, Defs(), dbg)
     {}
 
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// Base class for all SIMD types.
 class VectorType : public Type {
 protected:
-    VectorType(TypeTable& table, int tag, Types ops, size_t length)
-        : Type(table, tag, ops)
+    VectorType(World& world, NodeTag tag, Defs ops, size_t length, Debug dbg)
+        : Type(world, tag, ops, dbg)
         , length_(length)
     {}
 
     hash_t vhash() const override { return hash_combine(Type::vhash(), length()); }
-    bool equal(const Type* other) const override {
-        return Type::equal(other) && this->length() == other->as<VectorType>()->length();
+    bool equal(const Def* other) const override {
+        return Def::equal(other) && this->length() == other->as<VectorType>()->length();
     }
 
 public:
@@ -202,15 +198,15 @@ inline size_t vector_length(const Type* type) { return type->as<VectorType>()->l
 /// Primitive type.
 class PrimType : public VectorType {
 private:
-    PrimType(TypeTable& table, PrimTypeTag tag, size_t length)
-        : VectorType(table, (int) tag, {}, length)
+    PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg)
+        : VectorType(world, (NodeTag) tag, Defs(), length, dbg)
     {}
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 inline bool is_primtype (const Type* t) { return thorin::is_primtype(t->tag()); }
@@ -239,30 +235,30 @@ enum class AddrSpace : uint32_t {
 };
 
 /// Pointer type.
-class PtrType : public VectorType {
+class PtrType : public VectorType, public TypeOpsMixin<TupleType> {
 private:
-    PtrType(TypeTable& table, const Type* pointee, size_t length, int32_t device, AddrSpace addr_space)
-        : VectorType(table, Node_PtrType, {pointee}, length)
+    PtrType(World& world, const Type* pointee, size_t length, int32_t device, AddrSpace addr_space, Debug dbg)
+        : VectorType(world, Node_PtrType, {pointee}, length, dbg)
         , addr_space_(addr_space)
         , device_(device)
     {}
 
 public:
-    const Type* pointee() const { return op(0); }
+    const Type* pointee() const { return op(0)->as<Type>(); }
     AddrSpace addr_space() const { return addr_space_; }
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
     hash_t vhash() const override;
-    bool equal(const Type* other) const override;
+    bool equal(const Def* other) const override;
 
 private:
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// Returns true if the given type is small enough to fit in a closure environment
@@ -270,10 +266,10 @@ inline bool is_thin(const Type* type) {
     return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
 }
 
-class FnType : public Type {
+class FnType : public Type, public TypeOpsMixin<TupleType> {
 protected:
-    FnType(TypeTable& table, Types ops, int tag = Node_FnType)
-        : Type(table, tag, ops)
+    FnType(World& world, Defs ops, NodeTag tag, Debug dbg)
+        : Type(world, tag, ops, dbg)
     {
         ++order_;
     }
@@ -283,15 +279,15 @@ public:
     bool is_returning() const;
 
 private:
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 class ClosureType : public FnType {
 private:
-    ClosureType(TypeTable& table, Types ops)
-        : FnType(table, ops, Node_ClosureType)
+    ClosureType(World& world, Defs ops, Debug dbg)
+        : FnType(world, ops, Node_ClosureType, dbg)
     {
         inner_order_ = order_;
         order_ = 0;
@@ -299,155 +295,84 @@ private:
 
 public:
     int inner_order() const { return inner_order_; }
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
 private:
     int inner_order_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-class ArrayType : public Type {
+class ArrayType : public Type, public TypeOpsMixin<TupleType> {
 protected:
-    ArrayType(TypeTable& table, int tag, const Type* elem_type)
-        : Type(table, tag, {elem_type})
+    ArrayType(World& world, NodeTag tag, const Type* elem_type, Debug dbg)
+        : Type(world, tag, {elem_type}, dbg)
     {}
 
 public:
-    const Type* elem_type() const { return op(0); }
+    const Type* elem_type() const { return op(0)->as<Type>(); }
 };
 
 class IndefiniteArrayType : public ArrayType {
 public:
-    IndefiniteArrayType(TypeTable& table, const Type* elem_type)
-        : ArrayType(table, Node_IndefiniteArrayType, elem_type)
+    IndefiniteArrayType(World& world, const Type* elem_type, Debug dbg)
+        : ArrayType(world, Node_IndefiniteArrayType, elem_type, dbg)
     {}
 
 private:
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 class DefiniteArrayType : public ArrayType {
 public:
-    DefiniteArrayType(TypeTable& table, const Type* elem_type, u64 dim)
-        : ArrayType(table, Node_DefiniteArrayType, elem_type)
+    DefiniteArrayType(World& world, const Type* elem_type, u64 dim, Debug dbg)
+        : ArrayType(world, Node_DefiniteArrayType, elem_type, dbg)
         , dim_(dim)
     {}
 
     u64 dim() const { return dim_; }
     hash_t vhash() const override { return hash_combine(Type::vhash(), dim()); }
-    bool equal(const Type* other) const override {
-        return Type::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
+    bool equal(const Def* other) const override {
+        return Def::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }
 
 private:
-    const Type* rebuild(TypeTable&, Types) const override;
+    const Type* rebuild(World&, const Type*, Defs) const override;
 
     u64 dim_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 bool use_lea(const Type*);
 
 //------------------------------------------------------------------------------
 
-/// Container for all types. Types are hashed and can be compared using pointer equality.
 class TypeTable {
-private:
-    struct TypeHash {
-        static hash_t hash(const Type* t) { return t->hash(); }
-        static bool eq(const Type* t1, const Type* t2) { return t2->equal(t1); }
-        static const Type* sentinel() { return (const Type*)(1); }
-    };
-
-    typedef thorin::HashSet<const Type*, TypeHash> TypeSet;
-
 public:
-    TypeTable();
-
-    const Type* tuple_type(Types ops);
-    const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const VariantType* variant_type(Symbol name, size_t size);
-    const StructType* struct_type(Symbol name, size_t size);
-
-#define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }
-#include "thorin/tables/primtypetable.h"
-    const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
-    const BottomType* bottom_type() const { return bottom_ty_; }
-    const MemType* mem_type() const { return mem_; }
-    const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Type* pointee, size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic);
-    const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args);
-    const ClosureType* closure_type(Types args);
-    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
-    const IndefiniteArrayType* indefinite_array_type(const Type* elem);
-
-    const TypeSet& types() const { return types_; }
-
-    friend void swap(TypeTable& t1, TypeTable& t2) {
-        using std::swap;
-        swap(t1.types_, t2.types_);
-        swap(t1.unit_,  t2.unit_);
-        swap(t1.fn0_,   t2.fn0_);
-        swap(t1.bottom_ty_,   t2.bottom_ty_);
-        swap(t1.mem_,   t2.mem_);
-        swap(t1.frame_, t2.frame_);
-        std::swap_ranges(t1.primtypes_, t1.primtypes_ + Num_PrimTypes, t2.primtypes_);
-
-        t1.fix();
-        t2.fix();
-    }
+    explicit TypeTable(World& world);
 
 private:
-    void fix() {
-        for (auto type : types_)
-            type->table_ = this;
-    }
+    World& world_;
 
-    template <typename T, typename... Args>
-    const T* insert(Args&&... args);
-
-private:
-    TypeSet types_;
-
+    const Type* star_;
     const TupleType* unit_; ///< tuple().
     const FnType* fn0_;
     const BottomType* bottom_ty_;
     const MemType* mem_;
     const FrameType* frame_;
     const PrimType* primtypes_[Num_PrimTypes];
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-template<class T>
-struct GIDLt {
-    bool operator()(T a, T b) const { return a->gid() < b->gid(); }
-};
-
-template<class T>
-struct GIDHash {
-    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
-    static bool eq(T a, T b) { return a == b; }
-    static T sentinel() { return T(1); }
-};
-
-template<class Key, class Value>
-using GIDMap = thorin::HashMap<Key, Value, GIDHash<Key>>;
-template<class Key>
-using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
-
-template<class To>
-using TypeMap   = GIDMap<const Type*, To>;
-using Type2Type = TypeMap<const Type*>;
-using TypeSet   = GIDSet<const Type*>;
+inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 
 //------------------------------------------------------------------------------
 

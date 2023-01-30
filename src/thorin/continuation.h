@@ -25,12 +25,15 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    Param(World&, const Type* type, const Continuation* continuation, size_t index, Debug dbg);
 
 public:
     Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
     size_t index() const { return index_; }
 
+    const Def* rebuild(World&, const Type*, Defs) const override;
+    bool equal(const Def*) const override;
+    hash_t vhash() const override;
 private:
     const size_t index_;
 
@@ -54,7 +57,7 @@ public:
 
 class App : public Def {
 private:
-    App(const Defs ops, Debug dbg);
+    App(World&, const Defs ops, Debug dbg);
 
 public:
     const Def* callee() const { return op(0); }
@@ -133,14 +136,16 @@ public:
     };
 
 private:
-    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg);
+    Continuation(World&, const FnType* pi, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* stub() const;
-    Continuation* stub(Rewriter& rewriter) const;
+    Continuation* mangle_stub() const;
+    Continuation* mangle_stub(Rewriter& rewriter) const;
+    Continuation* stub(World&, const Type*) const override;
+    void rebuild_from(const Def* old, Defs new_ops) override;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;

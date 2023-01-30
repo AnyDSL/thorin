@@ -10,16 +10,31 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Param::Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
-    : Def(Node_Param, type, 1, dbg)
+Param::Param(World& world, const Type* type, const Continuation* continuation, size_t index, Debug dbg)
+    : Def(world, Node_Param, type, { continuation }, dbg)
+    //: Def(world, Node_Param, type, 1, dbg)
     , index_(index)
 {
-    set_op(0, continuation);
+    //set_op(0, continuation);
+}
+
+const Def* Param::rebuild(World& world, const Type* t, Defs defs) const {
+    assert(defs.size() == 1);
+    auto cont = defs[0]->as<Continuation>();
+    return cont->param(index());
+}
+
+hash_t Param::vhash() const {
+    return hash_combine(Def::vhash(), (hash_t) index());
+}
+
+bool Param::equal(const Def* other) const {
+    return Def::equal(other) && other->as<Param>()->index() == index();
 }
 
 //------------------------------------------------------------------------------
 
-App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, ops[0]->world().bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
     if (auto cont = callee()->isa_nom<Continuation>())
@@ -42,7 +57,7 @@ bool App::verify() const {
 
 //------------------------------------------------------------------------------
 
-Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs, dbg) {}
+Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(world, Node_Filter, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
     return world().filter(ops().cut(indices), debug());
@@ -50,21 +65,28 @@ const Filter* Filter::cut(ArrayRef<size_t> indices) const {
 
 //------------------------------------------------------------------------------
 
-Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
-    : Def(Node_Continuation, fn, 2, dbg)
+Continuation::Continuation(World& w, const FnType* pi, const Attributes& attributes, Debug dbg)
+    : Def(w, Node_Continuation, pi, 2, dbg)
     , attributes_(attributes)
 {
-    params_.reserve(fn->num_ops());
+    params_.reserve(pi->num_ops());
     set_op(0, world().bottom(world().bottom_type()));
     set_op(1, world().filter({}, dbg));
+
+    size_t i = 0;
+    for (auto op : pi->types()) {
+        auto p = w.param(op, this, i++, dbg);
+        params_.emplace_back(p);
+    }
 }
 
-Continuation* Continuation::stub() const {
+// TODO: merge with regular stub()
+Continuation* Continuation::mangle_stub() const {
     Rewriter rewriter;
-    return stub(rewriter);
+    return mangle_stub(rewriter);
 }
 
-Continuation* Continuation::stub(Rewriter& rewriter) const {
+Continuation* Continuation::mangle_stub(Rewriter& rewriter) const {
     auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->set_name(debug_history().name);
@@ -80,6 +102,40 @@ Continuation* Continuation::stub(Rewriter& rewriter) const {
     }
 
     return result;
+}
+
+Continuation* Continuation::stub(World& nworld, const Type* t) const {
+    assert(!dead_);
+    // TODO maybe we want to deal with intrinsics in a more streamlined way
+    if (this == world().branch())
+        return nworld.branch();
+    if (this == world().end_scope())
+        return nworld.end_scope();
+
+    auto npi = t->isa<FnType>();
+    assert(npi);
+    Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
+    assert(&ncontinuation->world() == &nworld);
+    assert(&npi->world() == &nworld);
+    for (size_t i = 0, e = num_params(); i != e; ++i)
+        ncontinuation->param(i)->set_name(param(i)->debug_history().name);
+
+    if (is_external())
+        nworld.make_external(ncontinuation);
+    return ncontinuation;
+}
+
+void Continuation::rebuild_from(const Def*, Defs nops) {
+    if (this == world().branch())
+        return;
+    if (this == world().end_scope())
+        return;
+
+    auto napp = nops[0]->isa<App>();
+    if (napp)
+        set_body(napp);
+    set_filter(nops[1]->as<Filter>());
+    verify();
 }
 
 Array<const Def*> Continuation::params_as_defs() const {
@@ -130,9 +186,9 @@ const FnType* Continuation::arg_fn_type() const {
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);
-    *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
+    *std::copy(type()->types().begin(), type()->types().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->table().fn_type(ops));              // update type
+    set_type(world().fn_type(ops));              // update type
     auto param = world().param(param_type, this, size, dbg); // append new param
     params_.push_back(param);
 

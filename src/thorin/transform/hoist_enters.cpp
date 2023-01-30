@@ -67,9 +67,9 @@ static void hoist_enters(const Scope& scope) {
         entry_enter->out_mem()->replace_uses(entry_enter->mem());
 }
 
-void hoist_enters(World& world) {
-    Scope::for_each(world, [] (const Scope& scope) { hoist_enters(scope); });
-    world.cleanup();
+void hoist_enters(Thorin& thorin) {
+    Scope::for_each(thorin.world(), [] (const Scope& scope) { hoist_enters(scope); });
+    thorin.cleanup();
 }
 
 }

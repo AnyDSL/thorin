@@ -57,7 +57,7 @@ public:
         if (auto ndef = old2new_.lookup(odef))
             return *ndef;
 
-        if (odef->isa_structural()) {
+        if (odef->isa_structural() && !odef->isa<Param>()) {
             Array<const Def*> nops(odef->num_ops());
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));

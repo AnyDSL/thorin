@@ -12,33 +12,31 @@ namespace thorin {
 
 class Importer {
 public:
-    Importer(World& src)
-        : world_(src)
+    explicit Importer(World& src, World& dst)
+        : src(src)
+        , dst(dst)
     {
         if (src.is_pe_done())
-            world_.mark_pe_done();
+            world().mark_pe_done();
 #if THORIN_ENABLE_CHECKS
         if (src.track_history())
-            world_.enable_history(true);
+            world().enable_history(true);
 #endif
     }
 
-    World& world() { return world_; }
-    const Type* import_type(const Type*);
+    World& world() { return dst; }
     const Def* import(const Def*);
     bool todo() const { return todo_; }
 
 private:
     const Def* import_nonrecursive();
-    void enqueue(const Def* elem);
 
     std::stack<std::pair<const Def*, bool>> required_defs;
-    std::set<const Def*> analyzed_conts;
 
 public:
-    Type2Type type_old2new_;
     Def2Def def_old2new_;
-    World world_;
+    World& src;
+    World& dst;
     bool todo_ = false;
 };
 

@@ -47,6 +47,7 @@
     THORIN_NODE(Filter, filter)
     // Type
         // PrimType
+        THORIN_NODE(Star, star)
         THORIN_NODE(App, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(FnType, fn)

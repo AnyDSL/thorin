@@ -99,7 +99,7 @@ protected:
 
     Scheduler scheduler_;
     DefMap<Value> defs_;
-    TypeMap<Type> types_;
+    DefMap<Type> types_;
     ContinuationMap<BB> cont2bb_;
     Continuation* entry_ = nullptr;
 };

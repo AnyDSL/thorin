@@ -9,7 +9,7 @@
 
 namespace thorin {
 
-class World;
+class Thorin;
 
 namespace json {
 
@@ -17,8 +17,8 @@ using json = nlohmann::json;
 
 class CodeGen : public thorin::CodeGen {
 public:
-    CodeGen(World& world, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
-        : thorin::CodeGen(world, debug)
+    CodeGen(Thorin& thorin, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
+        : thorin::CodeGen(thorin, debug)
         , target_triple(target_triple)
         , target_cpu(target_cpu)
         , target_attr(target_attr)

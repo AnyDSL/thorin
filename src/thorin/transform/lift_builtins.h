@@ -5,7 +5,7 @@ namespace thorin {
 
 class World;
 
-void lift_builtins(World&);
+void lift_builtins(Thorin&);
 
 }
 

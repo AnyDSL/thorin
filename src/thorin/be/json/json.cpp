@@ -7,9 +7,10 @@ public:
     json nominal_fwd_table = json::array();
     json type_table = json::array();
 
-    TypeMap<std::string> known_types;
+    DefMap<std::string> known_types;
 
-    std::string translate_type (const Type * type) {
+    std::string translate_type (const Def* def) {
+        const Type * type = def->as<Type>();
         auto it = known_types.find(type);
         if (it != known_types.end()) {
             return it->second;

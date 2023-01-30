@@ -5,8 +5,8 @@
 
 namespace thorin::shady_be {
 
-CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
-        : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
+CodeGen::CodeGen(thorin::Thorin& thorin, Cont2Config& kernel_config, bool debug)
+        : thorin::CodeGen(thorin, debug), kernel_config_(kernel_config)
 {}
 
 void CodeGen::emit_stream(std::ostream& out) {
@@ -90,7 +90,7 @@ const shady::Type* CodeGen::convert(const Type* type) {
     } else if (auto strct = type->isa<StructType>()) {
         auto members = std::vector<const shady::Type*>(strct->num_ops());
         for (size_t i = 0; i < strct->num_ops(); i++) {
-            members[i] = convert(strct->op(i));
+            members[i] = convert(strct->types()[i]);
         }
         shady::RecordType payload = {};
         payload.members = shady::nodes(arena, strct->num_ops(), members.data());
@@ -107,7 +107,7 @@ const shady::Type* CodeGen::convert(const Type* type) {
         for (size_t i = 0; i < fn_type->num_ops(); i++) {
             // Skip the return param
             if (return_param_i != -1 && i == static_cast<size_t>(return_param_i)) continue;
-            auto converted = convert(fn_type->op(i));
+            auto converted = convert(fn_type->types()[i]);
             if (!converted)
                 continue; // Eliminate mem params
             shady::QualifiedType qtype;
@@ -118,9 +118,9 @@ const shady::Type* CodeGen::convert(const Type* type) {
         }
 
         if (return_param_i != -1) {
-            auto ret_fn_type = fn_type->op(return_param_i);
+            auto ret_fn_type = fn_type->types()[return_param_i]->as<FnType>();
             for (size_t i = 0; i < ret_fn_type->num_ops(); i++) {
-                auto converted = convert(ret_fn_type->op(i));
+                auto converted = convert(ret_fn_type->types()[i]);
                 if (!converted)
                     continue; // Eliminate mem params
                 codom.push_back(converted);
@@ -165,9 +165,9 @@ shady::Node* CodeGen::emit_decl_head(Def* def) {
             params.push_back(param);
         }
 
-        auto ret_fn_type = cont->type()->op(ret_param_i);
+        auto ret_fn_type = cont->type()->types()[ret_param_i]->as<FnType>();
 
-        for (auto t : ret_fn_type->ops()) {
+        for (auto t : ret_fn_type->types()) {
             auto ret_type = convert(t);
             if (!ret_type)
                 continue; // Eliminate mem types

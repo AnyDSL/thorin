@@ -21,7 +21,7 @@ struct BB {
 
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<const shady::Node*, const shady::Type*, BB, CodeGen> {
 public:
-    CodeGen(World&, Cont2Config&, bool debug);
+    CodeGen(Thorin&, Cont2Config&, bool debug);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".shady"; }

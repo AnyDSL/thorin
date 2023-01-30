@@ -23,7 +23,7 @@ class World;
  * resolves all dependency requirements between kernel calls
  * provides hls_top parameters for hls runtime
  */
-DeviceParams hls_channels(Importer&, Top2Kernel&, World&);
+DeviceParams hls_channels(Thorin&, Importer&, Top2Kernel&, World&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
 
 }

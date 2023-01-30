@@ -28,7 +28,7 @@ using BB = std::pair<llvm::BasicBlock*, std::unique_ptr<llvm::IRBuilder<>>>;
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<llvm::Value*, llvm::Type*, BB, CodeGen> {
 protected:
     CodeGen(
-        World& world,
+        Thorin&,
         llvm::CallingConv::ID function_calling_convention,
         llvm::CallingConv::ID device_calling_convention,
         llvm::CallingConv::ID kernel_calling_convention,

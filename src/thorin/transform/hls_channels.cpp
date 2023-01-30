@@ -145,14 +145,14 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
 }
 
 /**
- * @param importer hls world
+ * @param thorin hls world
  * @param Top2Kernel annonating hls_top configuration
  * @param old_world to connect with runtime (host) world
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
-DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-    auto& world = importer.world();
+DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2kernel, World& old_world) {
+    auto& world = thorin.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
     Def2Def kernel_new2old;
@@ -166,8 +166,8 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             extract_kernel_channels(schedule(scope), def2mode);
 
             Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
-            std::copy(old_kernel->type()->ops().begin(),
-                    old_kernel->type()->ops().end(),
+            std::copy(old_kernel->type()->types().begin(),
+                    old_kernel->type()->types().end(),
                     new_param_types.begin());
             size_t i = old_kernel->num_params();
             // This vector records pairs containing:
@@ -205,7 +205,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
                 if (auto cont = def->isa_nom<Continuation>()) {
                     // Copy the basic block by calling stub
                     // Or reuse the newly created kernel copy if def is the old kernel
-                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
+                    auto new_cont = def == old_kernel ? new_kernel : cont->mangle_stub();
                     rewriter.old2new[cont] = new_cont;
                     for (size_t i = 0; i < cont->num_params(); ++i)
                         rewriter.old2new[cont->param(i)] = new_cont->param(i);
@@ -403,7 +403,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     world.make_external(hls_top);
 
     debug_verify(world);
-    world.cleanup();
+    thorin.cleanup();
 
     return old_kernels_params;
 }

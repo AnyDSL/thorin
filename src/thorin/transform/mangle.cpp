@@ -11,7 +11,7 @@
 namespace thorin {
 
 const Def* Rewriter::instantiate(const Def* odef) {
-    if (auto ndef = old2new.lookup(odef)) return *ndef;
+    if (auto ndef = old2new_.lookup(odef)) return *ndef;
 
     if (odef->isa_structural() && !odef->isa<Param>()) {
         Array<const Def*> nops(odef->num_ops());
@@ -19,10 +19,14 @@ const Def* Rewriter::instantiate(const Def* odef) {
             nops[i] = instantiate(odef->op(i));
 
         auto nprimop = odef->rebuild(odef->world(), odef->type(), nops);
-        return old2new[odef] = nprimop;
+        return old2new_[odef] = nprimop;
     }
 
-    return old2new[odef] = odef;
+    return old2new_[odef] = odef;
+}
+
+const Def* Rewriter::insert(const Def* odef, const Def* ndef) {
+    return old2new_[odef] = ndef;
 }
 
 /// Mangles a continuation's scope

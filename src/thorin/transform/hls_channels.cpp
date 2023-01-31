@@ -198,7 +198,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
             // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
             for (auto pair : index2def) {
                 auto param = new_kernel->param(pair.first);
-                rewriter.old2new[pair.second] = param;
+                rewriter.insert(pair.second, param);
                 param2arg[param] = pair.second; // (channel params, globals)
             }
             for (auto def : scope.defs()) {
@@ -206,9 +206,9 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
                     // Copy the basic block by calling stub
                     // Or reuse the newly created kernel copy if def is the old kernel
                     auto new_cont = def == old_kernel ? new_kernel : cont->mangle_stub();
-                    rewriter.old2new[cont] = new_cont;
+                    rewriter.insert(cont, new_cont);
                     for (size_t i = 0; i < cont->num_params(); ++i)
-                        rewriter.old2new[cont->param(i)] = new_cont->param(i);
+                        rewriter.insert(cont->param(i), new_cont->param(i));
                 }
             }
             // Rewriting the basic blocks of the kernel using the map
@@ -216,7 +216,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
                 if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
                     if (!cont->has_body()) continue;
                     auto body = cont->body();
-                    auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
+                    auto new_cont = rewriter.instantiate(cont)->isa_nom<Continuation>();
                     auto new_callee = rewriter.instantiate(body->callee());
                     Array<const Def*> new_args(body->num_args());
                     for ( size_t i = 0; i < body->num_args(); ++i)

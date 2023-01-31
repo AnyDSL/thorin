@@ -8,7 +8,8 @@ namespace thorin {
 
 struct Rewriter {
     const Def* instantiate(const Def* odef);
-    Def2Def old2new;
+    const Def* insert(const Def* odef, const Def* ndef);
+    Def2Def old2new_;
 };
 
 class Mangler {

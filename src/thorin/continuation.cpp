@@ -90,7 +90,7 @@ Continuation* Continuation::mangle_stub(Rewriter& rewriter) const {
     auto result = world().continuation(type(), attributes(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->set_name(debug_history().name);
-        rewriter.old2new[param(i)] = result->param(i);
+        rewriter.insert(param(i), result->param(i));
     }
 
     if (!filter()->is_empty()) {

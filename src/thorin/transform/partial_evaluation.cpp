@@ -39,7 +39,7 @@ private:
     size_t boundary_;
 };
 
-class CondEval {
+class CondEval : Rewriter {
 public:
     CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
         : callee_(callee)
@@ -53,21 +53,6 @@ public:
     }
 
     World& world() { return callee_->world(); }
-    const Def* instantiate(const Def* odef) {
-        if (auto ndef = old2new_.lookup(odef))
-            return *ndef;
-
-        if (odef->isa_structural() && !odef->isa<Param>()) {
-            Array<const Def*> nops(odef->num_ops());
-            for (size_t i = 0; i != odef->num_ops(); ++i)
-                nops[i] = instantiate(odef->op(i));
-
-            auto nprimop = odef->rebuild(world(), odef->type(), nops);
-            return old2new_[odef] = nprimop;
-        }
-
-        return old2new_[odef] = odef;
-    }
 
     bool eval(size_t i, bool lower2cff) {
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
@@ -82,7 +67,6 @@ public:
         }
 
         return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
-        //return is_one(instantiate(filter(i)));
     }
 
     const Def* filter(size_t i) {
@@ -121,7 +105,6 @@ public:
 
 private:
     Continuation* callee_;
-    Def2Def old2new_;
     ContinuationMap<bool>& top_level_;
 };
 

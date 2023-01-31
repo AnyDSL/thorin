@@ -47,6 +47,10 @@ set(THORIN_SOURCES
     transform/codegen_prepare.cpp
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
+    transform/hls_channels.cpp
+    transform/hls_channels.h
+    transform/hls_kernel_launch.h
+    transform/hls_kernel_launch.cpp
     transform/hoist_enters.cpp
     transform/hoist_enters.h
     transform/flatten_tuples.cpp
@@ -59,18 +63,16 @@ set(THORIN_SOURCES
     transform/lift_builtins.h
     transform/mangle.cpp
     transform/mangle.h
-    transform/resolve_loads.cpp
-    transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
     transform/rewrite.cpp
     transform/rewrite.h
+    transform/plugin_execute.cpp
+    transform/plugin_execute.h
+    transform/resolve_loads.cpp
+    transform/resolve_loads.h
     transform/split_slots.cpp
     transform/split_slots.h
-    transform/hls_channels.cpp
-    transform/hls_channels.h
-    transform/hls_kernel_launch.h
-    transform/hls_kernel_launch.cpp
     util/array.h
     util/cast.h
     util/hash.h

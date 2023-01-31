@@ -10,6 +10,7 @@
 #endif
 
 #include <cmath>
+#include <dlfcn.h>
 
 #if THORIN_ENABLE_CREATION_CONTEXT
 #include <execinfo.h>
@@ -25,6 +26,7 @@
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/transform/plugin_execute.h"
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
@@ -1313,6 +1315,10 @@ void Thorin::opt() {
     RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
+    if (world().plugin_handles.size() > 0) {
+        RUN_PASS(plugin_execute(world()));
+        RUN_PASS(cleanup());
+    }
     RUN_PASS(closure_conversion(world()))
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))
@@ -1338,5 +1344,34 @@ bool Thorin::ensure_stack_size(size_t new_size) {
 #endif
 }
 
+bool World::register_plugin(std::string plugin_name) {
+    void *handle = dlopen(plugin_name.c_str(), RTLD_LAZY);
+    if (!handle) {
+        ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
+        ELOG("Is plugin contained in LD_LIBRARY_PATH?");
+        return false;
+    }
+    dlerror();
 
+    void (*initfunc)(void);
+    char *error;
+    initfunc = (void(*)())(dlsym(handle, "init"));
+    if ((error = dlerror()) != NULL) {
+        ILOG("Plugin {} did not supply an init function", plugin_name);
+    } else {
+        initfunc();
+    }
+
+    plugin_handles.push_back(handle);
+    return true;
+}
+
+void * World::search_plugin_function(std::string function_name) {
+    for (auto plugin : plugin_handles) {
+        if (void * plugin_function = dlsym(plugin, function_name.c_str())) {
+            return plugin_function;
+        }
+    }
+    return nullptr;
+}
 }

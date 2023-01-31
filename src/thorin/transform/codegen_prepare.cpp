@@ -3,6 +3,7 @@
 
 namespace thorin {
 
+/// this pass makes sure the return param is only called directly, by eta-expanding any uses where it appears in another position
 void codegen_prepare(World& world) {
     world.VLOG("start codegen_prepare");
     Scope::for_each(world, [&](Scope& scope) {
@@ -22,6 +23,8 @@ void codegen_prepare(World& world) {
                     uapp->replace_uses(napp);
                     dirty = true;
                 }
+            } else {
+                assert(false);
             }
         }
 

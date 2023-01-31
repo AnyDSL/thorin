@@ -234,7 +234,6 @@ next_continuation:;
 void Cleaner::rebuild() {
     auto fresh_world = std::make_unique<World>(world());
     Importer importer(world(), *fresh_world);
-    importer.def_old2new_.rehash(world_->defs().capacity());
 
     for (auto&& [_, def] : world().externals()) {
         if (auto cont = def->isa<Continuation>(); cont && cont->is_exported())

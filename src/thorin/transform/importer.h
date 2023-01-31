@@ -16,6 +16,8 @@ public:
         : src(src)
         , dst(dst)
     {
+        def_old2new_.rehash(src.defs().capacity());
+
         if (src.is_pe_done())
             world().mark_pe_done();
 #if THORIN_ENABLE_CHECKS
@@ -33,7 +35,6 @@ private:
 
     std::stack<std::pair<const Def*, bool>> required_defs;
 
-public:
     Def2Def def_old2new_;
     World& src;
     World& dst;

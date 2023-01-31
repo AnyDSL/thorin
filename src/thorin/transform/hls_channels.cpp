@@ -274,7 +274,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Continuation>()) {
                 auto ncontinuation = elem->as<Param>()->continuation();
-                if (ncontinuation == importer.def_old2new_[ocontinuation]) {
+                if (ncontinuation == importer.import(ocontinuation)) {
                     elem = ocontinuation->param(elem->as<Param>()->index());
                     break;
                 }

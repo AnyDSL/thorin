@@ -10,6 +10,8 @@
 #endif
 
 #include <cmath>
+#include <execinfo.h>
+#include <dlfcn.h>
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -17,6 +19,7 @@
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/transform/plugin_execute.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/closure_conversion.h"
@@ -1291,6 +1294,10 @@ void World::opt() {
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(clone_bodies(*this))
     RUN_PASS(split_slots(*this))
+    if (plugin_handles.size() > 0) {
+        RUN_PASS(plugin_execute(*this));
+        RUN_PASS(cleanup());
+    }
     RUN_PASS(closure_conversion(*this))
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))
@@ -1300,4 +1307,34 @@ void World::opt() {
     RUN_PASS(codegen_prepare(*this))
 }
 
+bool World::register_plugin(std::string plugin_name) {
+    void *handle = dlopen(plugin_name.c_str(), RTLD_LAZY);
+    if (!handle) {
+        ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
+        ELOG("Is plugin contained in LD_LIBRARY_PATH?");
+        return false;
+    }
+    dlerror();
+
+    void (*initfunc)(void);
+    char *error;
+    initfunc = (void(*)())(dlsym(handle, "init"));
+    if ((error = dlerror()) != NULL) {
+        ILOG("Plugin {} did not supply an init function", plugin_name);
+    } else {
+        initfunc();
+    }
+
+    plugin_handles.push_back(handle);
+    return true;
+}
+
+void * World::search_plugin_function(std::string function_name) {
+    for (auto plugin : plugin_handles) {
+        if (void * plugin_function = dlsym(plugin, function_name.c_str())) {
+            return plugin_function;
+        }
+    }
+    return nullptr;
+}
 }

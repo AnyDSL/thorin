@@ -111,6 +111,7 @@ enum class Intrinsic : uint8_t {
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
+    Plugin,                     ///< Some plugin derived intrinsic. Indentified by its name.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
 

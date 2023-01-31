@@ -318,12 +318,18 @@ public:
         swap(w1.stream_, w2.stream_);
     }
 
+    bool register_plugin(std::string plugin_name);
+    void * search_plugin_function(std::string function_name);
+
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
+
+    std::unique_ptr<World> world_;
+    std::vector<void*> plugin_handles;
 
     /// @name put into see of nodes
     //@{

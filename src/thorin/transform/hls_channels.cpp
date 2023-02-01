@@ -193,7 +193,9 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
 
             world.make_internal(old_kernel);
 
-            Rewriter rewriter;
+            // TODO this is now broken
+            // TODO this should likely use the mangler
+            Rewriter rewriter(world);
             // Map the parameters of the old kernel to the first N parameters of the new one
             // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
             for (auto pair : index2def) {

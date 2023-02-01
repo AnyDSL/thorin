@@ -39,20 +39,20 @@ private:
     size_t boundary_;
 };
 
+// TODO get rid of this by putting the instanced filter in App
 class CondEval : Rewriter {
 public:
     CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
-        : callee_(callee)
+        : Rewriter(callee->world())
+        , callee_(callee)
         , top_level_(top_level)
     {
         assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            old2new_[callee->param(i)] = args[i];
+            insert(callee->param(i), args[i]);
     }
-
-    World& world() { return callee_->world(); }
 
     bool eval(size_t i, bool lower2cff) {
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
@@ -62,15 +62,23 @@ public:
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<FnType>()
                             || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            dst().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
 
         return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
     }
 
+protected:
+    const Def* rewrite(const Def* odef) override {
+        // leave nominal defs alone
+        if (odef->isa_nom())
+            return odef;
+        return Rewriter::rewrite(odef);
+    }
+
     const Def* filter(size_t i) {
-        return callee_->filter()->is_empty() ? world().literal_bool(false, {}) : callee_->filter()->condition(i);
+        return callee_->filter()->is_empty() ? dst().literal_bool(false, {}) : callee_->filter()->condition(i);
     }
 
     bool is_top_level(Continuation* continuation) {

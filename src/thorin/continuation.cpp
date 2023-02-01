@@ -82,7 +82,7 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
 
 // TODO: merge with regular stub()
 Continuation* Continuation::mangle_stub() const {
-    Rewriter rewriter;
+    Rewriter rewriter(world());
     return mangle_stub(rewriter);
 }
 

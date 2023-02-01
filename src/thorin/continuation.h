@@ -142,8 +142,6 @@ private:
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* mangle_stub() const;
-    Continuation* mangle_stub(Rewriter& rewriter) const;
     Continuation* stub(World&, const Type*) const override;
     void rebuild_from(const Def* old, Defs new_ops) override;
     const Param* append_param(const Type* type, Debug dbg = {});

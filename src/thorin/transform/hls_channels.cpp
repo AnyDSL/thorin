@@ -198,7 +198,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
             Rewriter rewriter(world);
             // Map the parameters of the old kernel to the first N parameters of the new one
             // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
-            for (auto pair : index2def) {
+            /*for (auto pair : index2def) {
                 auto param = new_kernel->param(pair.first);
                 rewriter.insert(pair.second, param);
                 param2arg[param] = pair.second; // (channel params, globals)
@@ -227,7 +227,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
                 }
             }
             if (!is_single_kernel(new_kernel))
-                kernels_ch_modes.emplace_back(def2mode);
+                kernels_ch_modes.emplace_back(def2mode);*/
     });
 
 

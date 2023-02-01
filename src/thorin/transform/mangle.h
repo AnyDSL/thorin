@@ -24,20 +24,17 @@ private:
     World& dst_;
 };
 
-class Mangler {
+class Mangler : Rewriter {
 public:
     Mangler(const Scope& scope, Defs args, Defs lift);
 
     const Scope& scope() const { return scope_; }
-    World& world() const { return scope_.world(); }
     Continuation* mangle();
     Continuation* old_entry() const { return old_entry_; }
     Continuation* new_entry() const { return new_entry_; }
 
 private:
-    const App* mangle_body(const App* obody);
-    Continuation* mangle_head(Continuation* ocontinuation);
-    const Def* mangle(const Def* odef);
+    const Def * rewrite(const Def *odef) override;
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 
     const Scope& scope_;
@@ -46,7 +43,6 @@ private:
     Continuation* old_entry_;
     Continuation* new_entry_;
     DefSet defs_;
-    Def2Def def2def_;
 };
 
 

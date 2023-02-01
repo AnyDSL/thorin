@@ -80,30 +80,6 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
     }
 }
 
-// TODO: merge with regular stub()
-Continuation* Continuation::mangle_stub() const {
-    Rewriter rewriter(world());
-    return mangle_stub(rewriter);
-}
-
-Continuation* Continuation::mangle_stub(Rewriter& rewriter) const {
-    auto result = world().continuation(type(), attributes(), debug_history());
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        result->param(i)->set_name(debug_history().name);
-        rewriter.insert(param(i), result->param(i));
-    }
-
-    if (!filter()->is_empty()) {
-        Array<const Def*> new_conditions(num_params());
-        for (size_t i = 0, e = num_params(); i != e; ++i)
-            new_conditions[i] = rewriter.instantiate(filter()->condition(i));
-
-        result->set_filter(world().filter(new_conditions, filter()->debug()));
-    }
-
-    return result;
-}
-
 Continuation* Continuation::stub(World& nworld, const Type* t) const {
     assert(!dead_);
     // TODO maybe we want to deal with intrinsics in a more streamlined way

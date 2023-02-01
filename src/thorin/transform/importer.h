@@ -3,33 +3,31 @@
 
 #include "thorin/world.h"
 #include "thorin/config.h"
+#include "mangle.h"
 
 namespace thorin {
 
-class Importer {
+class Importer : Rewriter {
 public:
     explicit Importer(World& src, World& dst)
-        : src(src)
-        , dst(dst)
+        : Rewriter(src, dst)
     {
-        def_old2new_.rehash(src.defs().capacity());
 
         if (src.is_pe_done())
-            world().mark_pe_done();
+            dst.mark_pe_done();
 #if THORIN_ENABLE_CHECKS
         if (src.track_history())
-            world().enable_history(true);
+            dst.enable_history(true);
 #endif
     }
 
-    World& world() { return dst; }
-    const Def* import(const Def*);
+    const Def* import(const Def* odef) { return instantiate(odef); }
     bool todo() const { return todo_; }
 
+protected:
+    const Def* rewrite(const Def* odef) override;
+
 private:
-    Def2Def def_old2new_;
-    World& src;
-    World& dst;
     bool todo_ = false;
 };
 

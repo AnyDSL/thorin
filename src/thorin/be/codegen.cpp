@@ -193,7 +193,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
-        hls_annotate_top(importers[HLS].world(), top2kernel, kernel_config);
+        hls_annotate_top(accelerator_code[HLS].world(), top2kernel, kernel_config);
     }
     hls_kernel_launch(world, hls_host_params);
 

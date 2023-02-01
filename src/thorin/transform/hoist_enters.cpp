@@ -4,11 +4,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 
-#include <stack>
-
 namespace thorin {
-
-static std::stack<const Def*> hoist_enters_todo;
 
 static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
     if (auto enter = def->isa<Enter>())
@@ -19,19 +15,13 @@ static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
 
     for (auto use : def->uses()) {
         if (auto memop = use->isa<MemOp>())
-            hoist_enters_todo.push(memop);
+            find_enters(enters, memop);
     }
 }
 
 static void find_enters(std::deque<const Enter*>& enters, Continuation* continuation) {
-    if (auto mem_param = continuation->mem_param()) {
-        hoist_enters_todo.push(mem_param);
-        while (!hoist_enters_todo.empty()) {
-            auto next_item = pop(hoist_enters_todo);
-
-            find_enters(enters, next_item);
-        }
-    }
+    if (auto mem_param = continuation->mem_param())
+        find_enters(enters, mem_param);
 }
 
 static void hoist_enters(const Scope& scope) {

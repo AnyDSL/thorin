@@ -9,8 +9,6 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 
-#include <stack>
-
 namespace thorin {
 
 Scheduler::Scheduler(const Scope& s)
@@ -46,79 +44,24 @@ Scheduler::Scheduler(const Scope& s)
     }
 }
 
-std::stack<const Def*> early_todo;
-
-Continuation* Scheduler::early(const Def * def) {
+Continuation* Scheduler::early(const Def* def) {
     if (auto cont = early_.lookup(def)) return *cont;
-
-    early_todo.push(def);
-    Continuation *return_cont = nullptr;
-    while (!early_todo.empty()) {
-        return_cont = early_intern();
-    }
-    assert(return_cont);
-    return return_cont;
-}
-
-Continuation* Scheduler::early_intern() {
-    const Def* def = early_todo.top();
-
-    if (auto cont = early_.lookup(def)) {
-        early_todo.pop();
-        return *cont;
-    }
-    if (auto param = def->isa<Param>()) {
-        early_todo.pop();
-        return early_[def] = param->continuation();
-    }
-
-    bool todo_empty = true;
-    for (auto op : def->as_structural()->ops()) {
-        if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
-            if (!early_.lookup(op)) {
-                early_todo.push(op);
-                todo_empty = false;
-            }
-        }
-    }
-    if (!todo_empty)
-        return nullptr;
+    if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
 
     auto result = scope().entry();
     for (auto op : def->as_structural()->ops()) {
         if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
-            Continuation *cont = *early_.lookup(op);
-            assert(cont);
+            auto cont = early(op);
             if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
                 result = cont;
         }
     }
 
-    early_todo.pop();
     return early_[def] = result;
 }
 
-std::stack<const Def*> late_todo;
-
-Continuation* Scheduler::late(const Def * def) {
+Continuation* Scheduler::late(const Def* def) {
     if (auto cont = late_.lookup(def)) return *cont;
-
-    late_todo.push(def);
-    Continuation *return_cont = nullptr;
-    while (!late_todo.empty()) {
-        return_cont = late_intern();
-    }
-    assert(return_cont);
-    return return_cont;
-}
-
-Continuation* Scheduler::late_intern() {
-    const Def* def = late_todo.top();
-
-    if (auto cont = late_.lookup(def)) {
-        late_todo.pop();
-        return *cont;
-    }
 
     Continuation* result = nullptr;
     if (auto continuation = def->isa_nom<Continuation>()) {
@@ -126,23 +69,12 @@ Continuation* Scheduler::late_intern() {
     } else if (auto param = def->isa<Param>()) {
         result = param->continuation();
     } else {
-        bool todo_empty = true;
         for (auto use : uses(def)) {
-            if (!late_.lookup(use)) {
-                late_todo.push(use);
-                todo_empty = false;
-            }
-        }
-        if (!todo_empty)
-            return nullptr;
-        for (auto use : uses(def)) {
-            Continuation* cont = *late_.lookup(use);
-            assert(cont);
+            auto cont = late(use);
             result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
         }
     }
 
-    late_todo.pop();
     return late_[def] = result;
 }
 

@@ -2,6 +2,7 @@
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
+#include "partial_evaluation.h"
 
 namespace thorin {
 
@@ -39,19 +40,27 @@ private:
     size_t boundary_;
 };
 
-// TODO get rid of this by putting the instanced filter in App
-class CondEval : Rewriter {
+const Def* BetaReducer::rewrite(const Def* odef) {
+    // leave nominal defs alone
+    if (odef->isa_nom())
+        return odef;
+    return Rewriter::rewrite(odef);
+}
+
+class CondEval {
 public:
-    CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
-        : Rewriter(callee->world())
-        , callee_(callee)
+    CondEval(const App* app, ContinuationMap<bool>& top_level)
+        : app_(app)
         , top_level_(top_level)
     {
-        assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
-        assert(callee->num_params() == args.size());
+        // TODO deduplicate this
+        auto callee_def = app->callee();
+        if (auto run = callee_def->isa<Run>()) {
+            callee_def = run->def();
+        }
 
-        for (size_t i = 0, e = args.size(); i != e; ++i)
-            insert(callee->param(i), args[i]);
+        callee_ = callee_def->as<Continuation>();
+        assert(app->filter()->is_empty() || app->filter()->size() == app->num_args());
     }
 
     bool eval(size_t i, bool lower2cff) {
@@ -61,24 +70,19 @@ public:
         if (lower2cff)
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<FnType>()
-                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            dst().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+                            || (!callee_->is_returning() || (!is_top_level(const_cast<Continuation*>(callee_))))))) {
+            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
 
-        return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
+        return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(filter(i));
     }
 
 protected:
-    const Def* rewrite(const Def* odef) override {
-        // leave nominal defs alone
-        if (odef->isa_nom())
-            return odef;
-        return Rewriter::rewrite(odef);
-    }
+    World& world() { return app_->world(); }
 
     const Def* filter(size_t i) {
-        return callee_->filter()->is_empty() ? dst().literal_bool(false, {}) : callee_->filter()->condition(i);
+        return app_->filter()->is_empty() ? world().literal_bool(false, {}) : app_->filter()->condition(i);
     }
 
     bool is_top_level(Continuation* continuation) {
@@ -112,7 +116,8 @@ protected:
     }
 
 private:
-    Continuation* callee_;
+    const App* app_;
+    const Continuation* callee_;
     ContinuationMap<bool>& top_level_;
 };
 
@@ -167,7 +172,7 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                CondEval cond_eval(callee, body->args(), top_level_);
+                CondEval cond_eval(continuation->body(), top_level_);
 
                 std::vector<const Def*> specialize(body->num_args());
 

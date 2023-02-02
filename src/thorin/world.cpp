@@ -1140,8 +1140,21 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
     return cse(new Filter(*this, defs, dbg));
 }
 
-/// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
+    const Filter* instanced_filter = nullptr;
+    if (auto cont = callee->isa<Continuation>()) {
+        BetaReducer reducer(*this);
+        for (size_t i = 0; i < args.size(); i++)
+            reducer.provide_arg(cont->param(i), args[i]);
+        instanced_filter = reducer.reduce(cont->filter())->as<Filter>();
+    } else {
+        instanced_filter = filter({}, dbg);
+    }
+    return app(instanced_filter, callee, args, dbg);
+}
+
+/// App node does its own folding during construction, and it only sets the ops once
+const App* World::app(const Def* filter, const Def* callee, const Defs args, Debug dbg) {
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
@@ -1172,10 +1185,11 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
         }
     }
 
-    Array<const Def*> ops(1 + args.size());
-    ops[0] = callee;
+    Array<const Def*> ops(2 + args.size());
+    ops[0] = filter;
+    ops[1] = callee;
     for (size_t i = 0; i < args.size(); i++)
-        ops[i + 1] = args[i];
+        ops[i + 2] = args[i];
 
     return cse(new App(*this, ops, dbg));
 }

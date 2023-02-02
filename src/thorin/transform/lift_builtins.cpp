@@ -116,11 +116,11 @@ void lift_builtins(Thorin& thorin) {
                         new_ops[use.index()] = world.global(lifted, false, lifted->debug()); // update to new lifted continuation
 
                         // jump to new top-level dummy function with new args
-                        auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
+                        auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-App::ARGS_START_POSITION, [&] (auto i) { return new_ops[i+App::ARGS_START_POSITION]->type(); }));
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
 
-                        new_ops[0] = ncontinuation;
-                        uapp->replace_uses(uapp->rebuild(world, uapp->type(), new_ops));
+                        new_ops[App::CALLEE_POSITION] = ncontinuation;
+                        uapp->replace_uses(world.app(new_ops[App::CALLEE_POSITION], new_ops.skip_front(2)));
                     }
                 }
             }

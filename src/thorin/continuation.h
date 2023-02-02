@@ -60,10 +60,11 @@ private:
     App(World&, const Defs ops, Debug dbg);
 
 public:
-    const Def* callee() const { return op(0); }
-    const Def* arg(size_t i) const { return op(1 + i); }
-    size_t num_args() const { return num_ops() - 1; }
-    const Defs args() const { return ops().skip_front(); }
+    const Filter* filter() const { return op(0)->as<Filter>(); }
+    const Def* callee() const { return op(App::CALLEE_POSITION); }
+    const Def* arg(size_t i) const { return op(2 + i); }
+    size_t num_args() const { return num_ops() - 2; }
+    const Defs args() const { return ops().skip_front(2); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {
@@ -75,8 +76,11 @@ public:
         return conts;
     }
 
-    void jump(const Def* callee, Defs args, Debug dbg = {});
     bool verify() const;
+
+    static const size_t FILTER_POSITION = 0;
+    static const size_t CALLEE_POSITION = 1;
+    static const size_t ARGS_START_POSITION = 2;
 
     friend class World;
 };

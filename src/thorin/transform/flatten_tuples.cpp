@@ -49,7 +49,7 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
 static void inline_calls(Continuation* cont) {
     for (auto use : cont->copy_uses()) {
         auto app = use->isa<App>();
-        if (!app || use.index() != 0) continue;
+        if (!(app && use.index() == App::CALLEE_POSITION)) continue;
 
         for (auto ucont : app->using_continuations()) {
             assert(ucont->has_body());

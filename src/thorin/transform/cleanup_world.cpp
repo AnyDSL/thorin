@@ -43,7 +43,7 @@ void Cleaner::eliminate_tail_rec() {
         bool recursive = false;
         for (auto use : entry->uses()) {
             if (scope.contains(use)) {
-                if (use.index() == 0 && use->isa<App>()) {
+                if (use.index() == App::CALLEE_POSITION && use->isa<App>()) {
                     recursive = true;
                     continue;
                 } else if (use->isa<Param>())
@@ -163,7 +163,7 @@ void Cleaner::eta_conversion() {
                 // permute the arguments and call the parameter instead
                 for (auto use : continuation->copy_uses()) {
                     auto uapp = use->isa<App>();
-                    if (uapp && use.index() == 0) {
+                    if (uapp && use.index() == App::CALLEE_POSITION) {
                         for (auto ucontinuation : uapp->using_continuations()) {
                             Array<const Def*> new_args(perm.size());
                             for (size_t i = 0, e = perm.size(); i != e; ++i) {
@@ -188,7 +188,7 @@ void Cleaner::eliminate_params() {
         if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_nom<Continuation>())
+                if (use.index() != App::CALLEE_POSITION || !use->isa_nom<Continuation>())
                     goto next_continuation;
             }
 
@@ -218,7 +218,7 @@ void Cleaner::eliminate_params() {
 
                 for (auto use : ocontinuation->copy_uses()) {
                     auto uapp = use->as<App>();
-                    assert(use.index() == 0);
+                    assert(use.index() == App::CALLEE_POSITION);
                     for (auto ucontinuation : uapp->using_continuations()) {
                         ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
                     }

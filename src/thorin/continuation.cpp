@@ -34,7 +34,7 @@ bool Param::equal(const Def* other) const {
 
 //------------------------------------------------------------------------------
 
-App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, world.bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
     if (auto cont = callee()->isa_nom<Continuation>())

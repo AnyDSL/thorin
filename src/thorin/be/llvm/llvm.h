@@ -13,7 +13,6 @@
 #include "thorin/be/emitter.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
-#include "thorin/transform/importer.h"
 
 namespace thorin {
 

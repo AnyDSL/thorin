@@ -16,7 +16,7 @@ void codegen_prepare(World& world) {
 
         for (auto use : ret_param->copy_uses()) {
             if (auto uapp = use->isa<App>()) {
-                if (use.index() != 0) {
+                if (use.index() != App::CALLEE_POSITION) {
                     auto nops = uapp->copy_ops();
                     nops[use.index()] = ret_cont;
                     auto napp = uapp->rebuild(world, uapp->type(), nops);

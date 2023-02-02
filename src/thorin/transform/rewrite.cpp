@@ -13,6 +13,8 @@ const Def* Rewriter::instantiate(const Def* odef) {
 }
 
 const Def* Rewriter::insert(const Def* odef, const Def* ndef) {
+    assert(&odef->world() == &src());
+    assert(&ndef->world() == &dst());
     return old2new_[odef] = ndef;
 }
 

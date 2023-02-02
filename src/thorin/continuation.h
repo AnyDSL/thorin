@@ -212,14 +212,17 @@ public:
     /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
     bool can_be_inlined() const {
-        size_t potentially_called = 0;
+        size_t callsites = 0;
         for (auto use : uses()) {
-            if (auto app = use->isa<App>())
-                potentially_called += app->num_uses();
-            else if (!use->isa<Param>())
-                potentially_called++;
+            if (auto app = use->isa<App>()) {
+                if (use.index() == App::CALLEE_POSITION)
+                    callsites += app->num_uses();
+                else
+                    return false;
+            } else if (!use->isa<Param>())
+                return false;
 
-            if (potentially_called >= 2)
+            if (callsites >= 2)
                 return false;
         }
         return true;

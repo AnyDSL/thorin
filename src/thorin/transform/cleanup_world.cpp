@@ -104,27 +104,6 @@ void Cleaner::eta_conversion() {
             auto continuation = def->isa_nom<Continuation>();
             if (!continuation || !continuation->has_body()) continue;
 
-            // eat calls to known continuations that are only used once
-            while (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
-                auto body = continuation->body();
-                if (callee == continuation) break;
-
-                if (callee->has_body() && !world().is_external(callee) && callee->can_be_inlined()) {
-                    auto callee_body = callee->body();
-                    for (size_t i = 0, e = body->num_args(); i != e; ++i)
-                        callee->param(i)->replace_uses(body->arg(i));
-
-                    // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
-                    // can_be_inlined() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
-                    assert(body->num_uses() == 1);
-                    continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
-                    callee->destroy("cleanup: continuation only called once");
-                    assert(body->num_uses() == 0);
-                    todo_ = todo = true;
-                } else
-                    break;
-            }
-
             auto body = continuation->body();
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
@@ -132,6 +111,7 @@ void Cleaner::eta_conversion() {
                 if (param->continuation() == continuation || world().is_external(continuation))
                     continue;
 
+                // TODO: this should happen in the importer, once we have removed the need for codegen_prepare (currently this undoes what that does)
                 if (body->args() == continuation->params_as_defs()) {
                     continuation->replace_uses(body->callee());
                     continuation->destroy("cleanup: calls a parameter (no perm)");

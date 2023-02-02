@@ -1,7 +1,7 @@
 #ifndef THORIN_TRANSFORM_PARTIAL_EVALUATION_H
 #define THORIN_TRANSFORM_PARTIAL_EVALUATION_H
 
-#include "thorin/transform/mangle.h"
+#include "thorin/transform/rewrite.h"
 
 namespace thorin {
 

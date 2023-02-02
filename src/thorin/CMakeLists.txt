@@ -68,6 +68,8 @@ set(THORIN_SOURCES
     transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
+    transform/rewrite.cpp
+    transform/rewrite.h
     transform/split_slots.cpp
     transform/split_slots.h
     transform/hls_channels.cpp

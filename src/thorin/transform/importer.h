@@ -3,7 +3,7 @@
 
 #include "thorin/world.h"
 #include "thorin/config.h"
-#include "mangle.h"
+#include "thorin/transform/rewrite.h"
 
 namespace thorin {
 

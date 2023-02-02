@@ -4,7 +4,6 @@
 
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/transform/mangle.h"
 
 namespace thorin {
 

@@ -31,7 +31,6 @@ static void hoist_enters(const Scope& scope) {
     for (auto n : scope.f_cfg().reverse_post_order())
         find_enters(enters, n->continuation());
 
-
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {
         world.VLOG("cannot optimize {} - didn't find entry enter", scope.entry());
         return;
@@ -49,12 +48,6 @@ static void hoist_enters(const Scope& scope) {
             assert(slot->num_uses() == 0);
         }
     }
-
-    for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i)
-        (*i)->out_mem()->replace_uses((*i)->mem());
-
-    if (frame->num_uses() == 0)
-        entry_enter->out_mem()->replace_uses(entry_enter->mem());
 }
 
 void hoist_enters(Thorin& thorin) {

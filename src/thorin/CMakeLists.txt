@@ -44,8 +44,6 @@ set(THORIN_SOURCES
     tables/mathoptable.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/clone_bodies.cpp
-    transform/clone_bodies.h
     transform/closure_conversion.cpp
     transform/closure_conversion.h
     transform/codegen_prepare.h

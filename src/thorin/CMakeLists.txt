@@ -50,8 +50,6 @@ set(THORIN_SOURCES
     transform/closure_conversion.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
-    transform/dead_load_opt.cpp
-    transform/dead_load_opt.h
     transform/hoist_enters.cpp
     transform/hoist_enters.h
     transform/flatten_tuples.cpp

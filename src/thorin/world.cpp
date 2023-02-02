@@ -22,7 +22,6 @@
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
-#include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
@@ -1319,7 +1318,6 @@ void Thorin::opt() {
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
-    RUN_PASS(dead_load_opt(world()))
     RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(world()))
 }

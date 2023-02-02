@@ -12,7 +12,7 @@ public:
     explicit Importer(World& src, World& dst)
         : Rewriter(src, dst)
     {
-
+        assert(&src != &dst);
         if (src.is_pe_done())
             dst.mark_pe_done();
 #if THORIN_ENABLE_CHECKS

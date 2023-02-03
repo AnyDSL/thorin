@@ -152,6 +152,9 @@ public:
             case AddrSpace::Constant:
                 result["addrspace"] = "constant";
                 break;
+            case AddrSpace::Private:
+                result["addrspace"] = "private";
+                break;
             }
         } else {
             std::cerr << "type cannot be translated\n";

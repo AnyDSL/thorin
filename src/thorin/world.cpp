@@ -10,7 +10,6 @@
 #endif
 
 #include <cmath>
-#include <execinfo.h>
 
 #include "thorin/def.h"
 #include "thorin/primop.h"

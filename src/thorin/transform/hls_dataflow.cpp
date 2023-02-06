@@ -466,7 +466,8 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
             // - The position of the channel parameter for the new kernel
             // - The old global definition for the channel
             std::vector<std::pair<size_t, const Def*>> index2def;
-            for (auto [def, _] : def2mode) {
+            for (auto [def, _] : hls_def2hls_mode) {
+                // num_param can be used as index directly since index always starts from zero
                 index2def.emplace_back(i, def);
                 new_param_types[i++] = def->type();
             }
@@ -479,7 +480,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
             kernel_new2old.emplace(new_kernel, old_kernel);
 
             if (is_single_kernel(new_kernel))
-                new_kernels.emplace(new_kernels.begin(),new_kernel);
+                new_kernels.emplace(new_kernels.begin(), new_kernel);
             else
                 new_kernels.emplace_back(new_kernel);
 
@@ -517,7 +518,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
                 }
             }
             if (!is_single_kernel(new_kernel))
-                kernels_ch_modes.emplace_back(def2mode);
+                kernels_ch_modes.emplace_back(hls_def2hls_mode);
     });
 
 

@@ -449,15 +449,6 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         auto old_hls_basicblock = dependent_blocks.first;
         return old_hls_basicblock;
     });
-//    for (const auto& [old_common_global, pair] : old_globals2old_dependent_blocks) {
-//        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
-//            for (auto def : old_world.defs()) {
-//                    if (importer.def_old2new_.contains(old_hls_basicblock)) {
-//                        target_blocks_in_hls_world.emplace_back(importer.def_old2new_[old_hls_basicblock]);
-//                        break;
-//                    }
-//            }
-//    }
 
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();

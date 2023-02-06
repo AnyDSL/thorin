@@ -120,26 +120,107 @@ void channel_mode(const Continuation* continuation, ChannelMode& mode) {
 }
 
 
-        auto callee = app->callee()->isa_nom<Continuation>();
+/* HLS scheduling algorithm needs to know how hls kernels read/write from/to CGRA kernels
+ we consider target CGRA kernels as if they are HLS kernels to resolve hls dependencies.
+ with this aim, this function returns a vector on def2modes param, each elements of that corresponds to def2mode map of a target CGRA kernel
+*/
+/**
+ * @param def2modes, each elements of this vector indicates a cgra kernel that connects to a hls kernel (target kernels) and includes a map betwen their globals in hls world and their read/write mode in cgra world
+ * @param size_t, size of dependent blocks (target blocks size)
+ * @param cgra_defs, target blocks in cgra world
+ * @param hls_defs, target blocks in hls world
+ */
+void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent_blocks_size, std::vector<const Def*> cgra_defs, std::vector<const Def*> hls_defs) {
+
+    auto scope_of_block = [&] (const Continuation* cont) -> Continuation* {
+        Continuation* entry_block = nullptr;
+        // we look for the first inner scope entry
+        auto pred_cont = cont->preds().back();
+        while (pred_cont) {
+            if (pred_cont->is_external()) {
+                entry_block = pred_cont;
+                return entry_block;
+            } else {
+                 pred_cont = pred_cont->preds().back();
+            }
+        }
+        return entry_block;
+    };
+
+    // basic blocks of the same kernel are in the same map
+    auto current_scope = static_cast<Continuation*>(nullptr);
+    auto previous_scope = current_scope;
+    Def2Mode hls_def2cgra_mode; // should be reset after each kernel (each iteration)
+    for (size_t i = 0; i < dependent_blocks_size; ++i) {
+        auto continuation = cgra_defs[i]->as_nom<Continuation>();
+        ChannelMode mode;
+        channel_mode(continuation, mode);
+        // check for similar preds to find different kernels
+        if (continuation->has_body() && continuation->is_returning() && continuation->is_external()) {
+            // scope-entry block (external)
+            auto app = continuation->body();
+            current_scope = continuation;
+        } else {
+            // coninuation basic block, needs to find it parent, external scope-entry block
+            if (auto entry_block = scope_of_block(continuation)) {
+                current_scope = entry_block;
+            }
+        }
+
+        auto hls_app = hls_defs[i]->as_nom<Continuation>()->body();
+        auto callee = hls_app->callee()->isa_nom<Continuation>();
         if (callee && callee->is_channel()) {
-            if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
-                auto def = app->arg(1);
+            if (hls_app->arg(1)->order() == 0 && !(is_mem(hls_app->arg(1)) || is_unit(hls_app->arg(1)))) {
+                auto def = hls_app->arg(1); // this def is a global
+                hls_def2cgra_mode.emplace(def, mode);
+            }
+        }
 
-                // TODO: Alt. solution: Saving contunations to find correct basic block containing the global variable
-                //continuation->dump();
+        // first iteration
+        if (previous_scope == nullptr) {
+            previous_scope = current_scope;
+            continue;
+        }
 
-                if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                    if (callee->name().find("write_channel") != std::string::npos) {
-                        assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Write) &&
-                                "Duplicated channel or \"READ\" mode channel redefined as WRITE!");
-                        def2mode.emplace(def, ChannelMode::Write);
-                    } else if (callee->name().find("read_channel") != std::string::npos) {
-                        assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Read)  &&
-                                "Duplicated channel or \"WRITE\" mode channel redefined as READ!");
-                        def2mode.emplace(def, ChannelMode::Read);
-                    } else {
-                        continuation->world().ELOG("Not a channel / unsupported channel placeholder");
-                    }
+        // last iteration and no new kernel, save the only map
+        if (current_scope == previous_scope && i == dependent_blocks_size - 1) {
+            defs2modes.emplace_back(hls_def2cgra_mode);
+            hls_def2cgra_mode.clear();
+            return;
+        }
+
+        if (current_scope != previous_scope) {
+            // it is a new kernel save the map and clear it
+            defs2modes.emplace_back(hls_def2cgra_mode);
+            hls_def2cgra_mode.clear();
+        }
+
+        previous_scope = current_scope;
+    }
+   // defs2modes.size() is equal to the number of CGRA kernels that connect to hls
+
+}
+
+
+inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& def2mode) {
+
+    auto app = continuation->body();
+    auto callee = app->callee()->isa_nom<Continuation>();
+    if (callee && callee->is_channel()) {
+        if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
+            auto def = app->arg(1);
+
+            if (def->isa_structural() && !def->has_dep(Dep::Param)) {
+                if (callee->name().find("write_channel") != std::string::npos) {
+                    assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Write) &&
+                            "Duplicated channel or \"READ\" mode channel redefined as WRITE!");
+                    def2mode.emplace(def, ChannelMode::Write);
+                } else if (callee->name().find("read_channel") != std::string::npos) {
+                    assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Read)  &&
+                            "Duplicated channel or \"WRITE\" mode channel redefined as READ!");
+                    def2mode.emplace(def, ChannelMode::Read);
+                } else {
+                    continuation->world().ELOG("Not a channel / unsupported channel placeholder");
                 }
             }
         }

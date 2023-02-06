@@ -2,7 +2,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/hls_dataflow.h"
 #include "thorin/transform/hls_kernel_launch.h"
-#include "thorin/transform/cgra_graphs.h"
+#include "thorin/transform/cgra_dataflow.h"
 
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
@@ -180,7 +180,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
              //   case CUDA: case NVVM: case OpenCL: case AMDGPU:
                     //launch_args_num = LaunchArgs<GPU>::Num; break;
               //  case CGRA: {
-                    //cgra_graphs(importers_[CGRA]);
+                    //cgra_dataflow(importers_[CGRA]);
               //      launch_args_num = LaunchArgs<AIE_CGRA>::Num; break;
         //        }
           //      default:
@@ -221,7 +221,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     }
 
   //  if (!importers_[CGRA].world().empty()) {
-  //      cgra_graphs(importers_[CGRA]);
+  //      cgra_dataflow(importers_[CGRA]);
   //  }
 //TODO: Integrating HLS configuration into the main backend loop above
     // get the HLS kernel configurations
@@ -264,13 +264,13 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         });
         hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
     }
-//    cgra_graphs(importers_[CGRA]);
+//    cgra_dataflow(importers_[CGRA]);
     hls_kernel_launch(world, std::get<0>(device_defs));
     //
-//        cgra_graphs(importers_[CGRA]);
+//        cgra_dataflow(importers_[CGRA]);
 
     if (!importers_[CGRA].world().empty()) {
-        cgra_graphs(importers_[CGRA], world, std::get<1>(device_defs));
+        cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
         get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
             //return std::make_unique<CGRAKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, true);

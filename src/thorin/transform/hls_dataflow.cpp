@@ -227,6 +227,13 @@ inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& 
     }
 }
 
+void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
+    for (const auto& continuation : schedule) {
+        if (!continuation->has_body())
+            continue;
+        extract_kernel_channels(continuation, def2mode);
+    }
+}
 
 bool is_channel_type(const Type* type) {
     if (auto ptr_type = type->isa<PtrType>()) {

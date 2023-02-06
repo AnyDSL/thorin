@@ -119,9 +119,6 @@ void channel_mode(const Continuation* continuation, ChannelMode& mode) {
     }
 }
 
-        if (!continuation->has_body())
-            continue;
-        auto app = continuation->body();
 
         auto callee = app->callee()->isa_nom<Continuation>();
         if (callee && callee->is_channel()) {

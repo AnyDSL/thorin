@@ -97,8 +97,27 @@ void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def
     }
 }
 
-void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
-    for (const auto& continuation : schedule) {
+void channel_mode(const Continuation* continuation, ChannelMode& mode) {
+    auto app = continuation->body();
+    auto callee = app->callee()->isa_nom<Continuation>();
+    if (callee && callee->is_channel()) {
+        if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
+            auto def = app->arg(1);
+            if (def->isa_structural() && !def->has_dep(Dep::Param)) {
+                if (callee->name().find("write_channel") != std::string::npos) {
+                    mode = ChannelMode::Write;
+                    return;
+                } else if (callee->name().find("read_channel") != std::string::npos) {
+                    mode =  ChannelMode::Read;
+                    return;
+                } else {
+                    continuation->world().ELOG("Not a channel / unsupported channel placeholder");
+                    return;
+                }
+            }
+        }
+    }
+}
 
         if (!continuation->has_body())
             continue;

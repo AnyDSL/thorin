@@ -11,21 +11,11 @@ namespace thorin {
 
 //using Def2Mode = DefMap<ChannelMode>;
 using Dependencies = std::vector<std::pair<size_t, size_t>>; // (From, To)
-using Def2Block = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def , (basicblock, HLS/CGRA intrinsic)]
+using Def2Block    = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def , (basicblock, HLS/CGRA intrinsic)]
+using Cycle        = std::vector<std::pair<size_t, size_t>>;
 
-void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer, World& old_world, std::function<Continuation*(DependentBlocks)> select_block) {
-    for (const auto& [old_common_global, pair] : def2dependent_blocks) {
-        auto [old_hls_basicblock, old_cgra_basicblock] = pair;
-        auto old_basicblock = select_block(pair);
-            for (auto def : old_world.defs()) {
-                    if (importer.def_old2new_.contains(old_basicblock)) {
-                        target_blocks.emplace_back(importer.def_old2new_[old_basicblock]);
-                        break;
-                    }
-            }
-    }
-}
 
+// makes a data structure that maps globals variables to their basic block and their HLS/ CGRA intrinsic
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
             auto kernel = scope.entry();
@@ -57,11 +47,12 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
 
         if (!global2block.empty())
             old_global_maps.emplace_back(global2block);
-
     });
     }
 
+
 // HLS-CGRA dependency search algorithm
+// makes the main data structure that indicates how hls and cgra basic blocks get dependant by sharing common global variables.
 void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, const std::vector<Def2Block>& old_global_maps) {
     std::vector<const Def*> visited_globals;
     for (auto cur_kernel_it = old_global_maps.cbegin(); cur_kernel_it != old_global_maps.cend(); ++cur_kernel_it) {

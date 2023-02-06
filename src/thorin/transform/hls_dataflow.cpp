@@ -452,14 +452,12 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();
-            old_kernel->dump();
-            std::cout << old_kernel->num_params() << std::endl;
-            Def2Mode def2mode;
-            extract_kernel_channels(schedule(scope), def2mode);
-            for (auto [elem,_] : def2mode)
-                std::cout << "hls: " <<  elem->unique_name()<< std::endl;
+            // def is a global in hls world
+            // mode states the global is written/read in a kernel
+            Def2Mode hls_def2hls_mode;
+            extract_kernel_channels(schedule(scope), hls_def2hls_mode);
 
-            Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
+            Array<const Type*> new_param_types(hls_def2hls_mode.size() + old_kernel->num_params());
             std::copy(old_kernel->type()->ops().begin(),
                     old_kernel->type()->ops().end(),
                     new_param_types.begin());

@@ -420,28 +420,20 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
-//DeviceParams hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-//DeviceParams hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
 DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
     auto& world = importer.world(); // world is hls world
     auto& cgra_world = importer_cgra.world();
+    // TODO: rename to hls_new_kernels
+    // the size of this vector is equal to the size of kernels with deps.
+    // we need a similar size for cgra. i.e the size of kernels with deps.
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
     Def2Def kernel_new2old;
     Def2Def param2arg; // contains a map from new kernel parameters to their corresponding arguments in call-site at hls_top (for all kernels)
     Def2Def arg2param;
 
-//    std::cout << "------- OLD WORLD----------"<< std::endl;
-//    old_world.dump();
-//    std::cout << "-------HLS----------"<< std::endl;
-//    world.dump();
-//
-//    std::cout << "-------CGRA----------"<< std::endl;
-//    cgra_world.dump();
-
     // hls_top should be transformed whenever there is a CGRA
     if (has_cgra_callee(old_world)) std::cout << "FOUND CGRA!" << std::endl;
-
 
 
     std::vector<Def2Block> old_global_maps;

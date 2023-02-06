@@ -87,6 +87,15 @@ void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, 
     }
 }
 
+// converts hls-cgra dependent blocks from old world to hls / cgra worlds (Target Blocks)
+void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer, World& old_world, std::function<Continuation*(DependentBlocks)> select_block) {
+    for (const auto& [old_common_global, pair] : def2dependent_blocks) {
+        auto old_basicblock = select_block(pair);
+                    if (importer.def_old2new_.contains(old_basicblock)) {
+                        target_blocks.emplace_back(importer.def_old2new_[old_basicblock]);
+            }
+    }
+}
 
 void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& continuation : schedule) {

@@ -548,6 +548,12 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         return false;
     };
 
+    std::vector<const Def*> target_blocks_in_cgra_world; // cgra_world basic blocks that connect to hls
+    connecting_blocks_old2new(target_blocks_in_cgra_world, old_globals2old_dependent_blocks, importer_cgra, old_world, [&] (DependentBlocks dependent_blocks) {
+        auto old_cgra_basicblock = dependent_blocks.second;
+        return old_cgra_basicblock;
+    });
+
     for (auto kernel : new_kernels) {
         for (size_t i = 0; i < kernel->num_params(); ++i) {
             auto param = kernel->param(i);
@@ -569,7 +575,6 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         }
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
-
 
     for (auto tuple : param_index) {
         // Mapping hls_top params as args for new_kernels' params

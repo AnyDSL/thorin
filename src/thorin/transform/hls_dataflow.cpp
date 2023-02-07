@@ -532,20 +532,20 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     // then we look for all using basic blocks and check if they are among the blocks that are connected to CGRA
     // note that in each basic block only one unique global can be read or written
     auto is_used_for_cgra = [&] (const Def* param) -> bool  {
-    if (is_channel_type(param->type())) {
-        if (auto global = param2arg[param]; !global->empty()) {// at this point only (channel params, globals) are available inside the map
-            for (auto use : global->uses()) {
-                if (auto app = use->isa<App>()) {
-                    auto ucontinuations = app->using_continuations();
-                    for (const auto& block : target_blocks_in_hls_world) {
-                        if (std::find(ucontinuations.begin(), ucontinuations.end(), block) != ucontinuations.end())
-                            return true;
+        if (is_channel_type(param->type())) {
+            if (auto global = param2arg[param]; !global->empty()) {// at this point only (channel params, globals) are available inside the map
+                for (auto use : global->uses()) {
+                    if (auto app = use->isa<App>()) {
+                        auto ucontinuations = app->using_continuations();
+                        for (const auto& block : target_blocks_in_hls_world) {
+                            if (std::find(ucontinuations.begin(), ucontinuations.end(), block) != ucontinuations.end())
+                                return true;
+                            }
                         }
                     }
                 }
             }
-        }
-    return false;
+        return false;
     };
 
     for (auto kernel : new_kernels) {

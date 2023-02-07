@@ -584,17 +584,14 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
             // updating the args of the the already inserted channel-params
             // note that emplace method only adds a new (keys,value) and does not update/rewrite values for already inserted keys
             param2arg[param] = arg;
-          //  if (param2arg.contains(param)) {
-          //      std::cout << "This param is already in the map" << std::endl;
-          //  }
-                continue;
+            continue;
         }
         param2arg.emplace(param, arg); // adding (non-channel params, hls_top params as args). Channel params were added before
         arg2param.emplace(arg, param); // channel-params are not here.
     }
 
     // ---------- Preparing args for calling hls_top from host ------------
-    // new_kernels hls world-->old_kernels in hls world-->kenels in old_world
+    // new_kernels in hls world-->old_kernels in hls world-->kenels in old_world
 
     // Maping new_kernels params to old kernels params
     std::vector<const Def*> old_kernels_params;

@@ -617,6 +617,8 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         }
     }
 
+    std::vector<Def2Mode> target_cgra_kernels_ch_modes; // an elem for each cgra-hls kernel
+    target_cgra_modes(target_cgra_kernels_ch_modes, old_globals2old_dependent_blocks.size(), target_blocks_in_cgra_world, target_blocks_in_hls_world);
 
     auto enter   = world.enter(hls_top->mem_param());
     auto cur_mem = world.extract(enter, 0_s);
@@ -628,8 +630,8 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     std::vector<const Global*> globals;
     for (auto def : world.defs()) {
         if (auto global = def->isa<Global>()) {
-            std::cout << " HLS world global_name: "<<global->unique_name() << std::endl;
-            globals.emplace_back(global);
+            if (global->init()->isa<Bottom>())
+                globals.emplace_back(global);
         }
     }
 
@@ -652,6 +654,10 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
 
     Dependencies dependencies;
+    // storing the the size of HLS kernels and appending the map of CGRA kernels which have hls dependency to the vector
+    auto hls_kernels_ch_modes_size = kernels_ch_modes.size();
+    kernels_ch_modes.insert(kernels_ch_modes.end(), target_cgra_kernels_ch_modes.begin(), target_cgra_kernels_ch_modes.end());
+
     // We need to iterate over globals twice because we cannot iterate over primops while creating new primops
     for (auto global : globals) {
         if (is_channel_type(global->type())) {
@@ -659,12 +665,15 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
             global2slot.emplace(global, channel_slots.back());
         }
 
+        //TODO: better to make it like a function and call it make_depenceny_graph
+        // At the moment only hls-hls deps are considered
+        // we need to add hls-cgra/ cgra-hls deps also
         // Finding all dependencies between the kernels (building a dependency graph)
         // for each global variables find the kernels which use it,
         // check the mode on each kernel and fill a dpendency data structure: < Write, Read> => <From, To>
         // It is not possible to read a channel before writing that, so dependencies are "From write To read"
         size_t from, to = 0;
-        for(size_t index_from = 0; index_from < kernels_ch_modes.size() ; ++index_from) {
+        for(size_t index_from = 0; index_from < kernels_ch_modes.size(); ++index_from) {
             auto channel_it = kernels_ch_modes[index_from].find(global);
             if (channel_it != kernels_ch_modes[index_from].end()) {
                 auto mode = channel_it->second;
@@ -688,39 +697,33 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     // resolving dependencies
     std::vector<size_t> resolved;
     const size_t dependent_kernels_size = kernels_ch_modes.size();
-    auto single_kernels_size = new_kernels.size() - dependent_kernels_size;
-    std::vector<std::pair<size_t, size_t>> cycle;
+    //TODO :: plus cgra kernels
+    // maybe rename to hls_new_kernel.
+    auto single_kernels_size = new_kernels.size() - dependent_kernels_size + target_cgra_kernels_ch_modes.size();
     // Passing vector of dependencies
     if (dependency_resolver(dependencies, dependent_kernels_size, resolved)) {
-        for (auto& elem : resolved)
+        for (auto& elem : resolved) {
             elem = elem + single_kernels_size;
+        }
+
     } else {
-        world.ELOG("Kernels have circular dependency");
-        // finding all circles between kernels
-        for (size_t i = 0; i < dependencies.size(); ++i) {
-            for (size_t j = i; j < dependencies.size(); ++j) {
-                if (dependencies[i].first == dependencies[j].second &&
-                        // extra condition to take into account circles in disconnected kernel networks
-                        std::find(cycle.begin(), cycle.end(), dependencies[i]) == cycle.end()) {
-                    cycle.emplace_back(i,j);
-                }
-            }
-        }
-        for (auto elem : cycle) {
-            auto circle_from_index = dependencies[elem.first].first + single_kernels_size;
-            auto circle_to_index   = dependencies[elem.second].first + single_kernels_size;
-            world.ELOG("A channel between kernel#{} {} and kernel#{} {} made a circular data flow",
-                    circle_from_index, new_kernels[circle_from_index]->name(),
-                    circle_to_index, new_kernels[circle_to_index]->name());
-        }
-        assert(false && "circular dependency between kernels");
+        circle_analysis(dependencies, world, single_kernels_size, new_kernels);
     }
 
     // reordering kernels, resolving dependencies
     auto copy_new_kernels = new_kernels;
+    size_t index_offset = 0;
     for (size_t i = 0; i < resolved.size(); ++i) {
-        auto succ_kernel = resolved[i];
-        new_kernels[i + single_kernels_size] = copy_new_kernels[succ_kernel];
+        // resolved size is hls-dep + cgra-dep
+        // resolved elems are modified indices that include all hls-single, hls-dep and CGRA-dep kernels
+        auto succ_kernel_index = resolved[i];
+        // select HLS kernels from copy_new_kernels and skip CGRA kernels
+        if (succ_kernel_index  >= (hls_kernels_ch_modes_size + single_kernels_size)) {
+            index_offset++;
+            continue;
+        }
+        new_kernels[single_kernels_size + i - index_offset] = copy_new_kernels[succ_kernel_index];
+        index_offset = 0;
     }
 
     auto cur_bb = hls_top;

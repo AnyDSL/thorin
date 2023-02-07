@@ -635,24 +635,6 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         }
     }
 
-
-    for (auto def : cgra_world.defs()) {
-        if (auto global = def->isa<Global>()) {
-            std::cout << "CGRA world global_name: "<<global->unique_name() << std::endl;
-            //globals.emplace_back(global);
-        }
-    }
-
-    for (auto def : old_world.defs()) {
-        if (auto global = def->isa<Global>()) {
-            if (global->init()->isa<Bottom>()) { // make sure it is a only a global variable
-                std::cout << "old world global_name: "<< global->unique_name() << std::endl;
-                //globals.emplace_back(global);
-            }
-        }
-    }
-
-
     Dependencies dependencies;
     // storing the the size of HLS kernels and appending the map of CGRA kernels which have hls dependency to the vector
     auto hls_kernels_ch_modes_size = kernels_ch_modes.size();
@@ -761,8 +743,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     world.make_external(hls_top);
 
     debug_verify(world);
-//    std::cout << "--------HLS after rewrite -----" << std::endl;
-//    world.dump();
+
     world.cleanup();
 
     return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks);

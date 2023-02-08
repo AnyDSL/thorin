@@ -1,5 +1,5 @@
-#ifndef THORIN_BE_SCRIPT_H
-#define THORIN_BE_SCRIPT_H
+#ifndef THORIN_BE_CONFIG_H
+#define THORIN_BE_CONFIG_H
 
 #include <cstdint>
 #include <iostream>
@@ -10,7 +10,7 @@ namespace thorin {
 
 class World;
 
-namespace script {
+namespace config_script {
 
 class CodeGen : public thorin::CodeGen {
 public:
@@ -18,7 +18,7 @@ public:
         : thorin::CodeGen(world, debug) {}
 
     void emit_stream(std::ostream& stream) override;
-    const char* file_ext() const override { return ".script"}
+    const char* file_ext() const override { return ".cfg"; }
 };
 
 }

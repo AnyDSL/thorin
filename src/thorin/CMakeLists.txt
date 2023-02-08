@@ -35,7 +35,8 @@ set(THORIN_SOURCES
     be/emitter.h
     be/c/c.cpp
     be/c/c.h
-    be/script/script.h
+    be/config_script/config_script.cpp
+    be/config_script/config_script.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h

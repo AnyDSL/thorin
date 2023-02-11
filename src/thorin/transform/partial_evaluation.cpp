@@ -53,13 +53,7 @@ public:
         : app_(app)
         , top_level_(top_level)
     {
-        // TODO deduplicate this
-        auto callee_def = app->callee();
-        if (auto run = callee_def->isa<Run>()) {
-            callee_def = run->def();
-        }
-
-        callee_ = callee_def->as<Continuation>();
+        callee_ = app->callee()->as_nom<Continuation>();
         assert(app->filter()->is_empty() || app->filter()->size() == app->num_args());
     }
 
@@ -70,8 +64,8 @@ public:
         if (lower2cff)
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<FnType>()
-                            || (!callee_->is_returning() || (!is_top_level(const_cast<Continuation*>(callee_))))))) {
-            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
+            world().DLOG("bad param({}) {} for continuation {}", i, callee_->param(i), callee_);
             return true;
         }
 
@@ -117,7 +111,7 @@ protected:
 
 private:
     const App* app_;
-    const Continuation* callee_;
+    Continuation* callee_;
     ContinuationMap<bool>& top_level_;
 };
 
@@ -159,11 +153,6 @@ bool PartialEvaluator::run() {
             continue;
         const App* body = continuation->body();
         const Def* callee_def = continuation->body()->callee();
-
-        if (auto run = callee_def->isa<Run>()) {
-            force_fold = true;
-            callee_def = run->def();
-        }
 
         if (auto callee = callee_def->isa_nom<Continuation>()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {

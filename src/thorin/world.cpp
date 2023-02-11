@@ -1139,11 +1139,21 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     const Filter* instanced_filter = nullptr;
+    bool must_inline = false;
+    while (auto run = callee->isa<Run>()) {
+        callee = run->def();
+        must_inline = true;
+    }
     if (auto cont = callee->isa<Continuation>()) {
-        BetaReducer reducer(*this);
-        for (size_t i = 0; i < args.size(); i++)
-            reducer.provide_arg(cont->param(i), args[i]);
-        instanced_filter = reducer.reduce(cont->filter())->as<Filter>();
+        if (must_inline)
+            // if we want to force evaluation, no need to actually evaluate the filter!
+            instanced_filter = cont->all_true_filter();
+        else {
+            BetaReducer reducer(*this);
+            for (size_t i = 0; i < args.size(); i++)
+                reducer.provide_arg(cont->param(i), args[i]);
+            instanced_filter = reducer.reduce(cont->filter())->as<Filter>();
+        }
     } else {
         instanced_filter = filter({}, dbg);
     }

@@ -36,7 +36,6 @@ private:
     HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
-    ContinuationMap<bool> top_level_;
     size_t boundary_;
 };
 
@@ -49,9 +48,8 @@ const Def* BetaReducer::rewrite(const Def* odef) {
 
 class CondEval {
 public:
-    CondEval(const App* app, ContinuationMap<bool>& top_level)
+    CondEval(const App* app)
         : app_(app)
-        , top_level_(top_level)
     {
         callee_ = app->callee()->as_nom<Continuation>();
         assert(app->filter()->is_empty() || app->filter()->size() == app->num_args());
@@ -84,6 +82,9 @@ protected:
         if (!p.second)
             return p.first->second;
 
+        if (continuation->is_exported())
+            return top_level_[continuation] = true;
+
         Scope scope(continuation);
         unique_queue<DefSet> queue;
 
@@ -112,7 +113,7 @@ protected:
 private:
     const App* app_;
     Continuation* callee_;
-    ContinuationMap<bool>& top_level_;
+    ContinuationMap<bool> top_level_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
@@ -141,7 +142,6 @@ bool PartialEvaluator::run() {
         if (!cont) continue;
         if (!cont->has_body()) continue;
         enqueue(cont);
-        top_level_[cont] = true;
     }
 
     while (!queue_.empty()) {
@@ -161,7 +161,7 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                CondEval cond_eval(continuation->body(), top_level_);
+                CondEval cond_eval(continuation->body());
 
                 std::vector<const Def*> specialize(body->num_args());
 

@@ -95,7 +95,8 @@ const Def* Mangler::rewrite(const Def* old_def) {
         assert(within(param->continuation()) && "if the param is not free, the continuation should not be either!");
     auto ndef = Rewriter::rewrite(old_def);
     if (auto app = ndef->isa<App>()) {
-        Defs nargs = app->args();
+        auto oargs = app->args();
+        auto nargs = Array<const Def*>(oargs.size(), [&](size_t i) { return rewrite(oargs[i]); });
 
         // check whether we can optimize tail recursion
         if (app->callee() == old_entry()) {
@@ -113,7 +114,9 @@ const Def* Mangler::rewrite(const Def* old_def) {
                 // A: if you drop a parameter it is replaced by some def (likely a free param), which will be identical for all recursive calls, since they live in the same scope (that's how scopes work)
                 // so if there originally was a recursive call that specified the to-be-dropped parameter to something else, we need to call the unmangled original to preserve semantics
                 const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-                return dst().app(new_entry(), args, old_def->debug()); // TODO debug
+                auto rebuilt_filter = rewrite(app->filter())->as<Filter>();
+                const Filter* nfilter = rebuilt_filter->is_empty() ? rebuilt_filter : dst().filter(concat(rebuilt_filter->cut(cut)->ops(), Array<const Def*>(lift_.size(), [&](size_t) { return dst().literal_bool(false, {}); })));
+                return dst().app(nfilter, new_entry(), args, old_def->debug()); // TODO debug
             }
         }
     }

@@ -19,14 +19,12 @@ public:
     PartialEvaluator(World& world, bool lower2cff)
         : world_(world)
         , lower2cff_(lower2cff)
-        , boundary_(Def::gid_counter())
     {}
 
     World& world() { return world_; }
     bool run();
     void enqueue(Continuation* continuation) {
-        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
-            queue_.push(continuation);
+        queue_.push(continuation);
     }
     void eat_pe_info(Continuation*);
 
@@ -35,8 +33,7 @@ private:
     bool lower2cff_;
     HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
-    std::queue<Continuation*> queue_;
-    size_t boundary_;
+    unique_queue<ContinuationSet> queue_;
 };
 
 const Def* BetaReducer::rewrite(const Def* odef) {
@@ -145,7 +142,7 @@ bool PartialEvaluator::run() {
     }
 
     while (!queue_.empty()) {
-        auto continuation = pop(queue_);
+        auto continuation = queue_.pop();
 
         bool force_fold = false;
 

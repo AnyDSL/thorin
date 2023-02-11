@@ -49,6 +49,13 @@ public:
         : app_(app)
     {
         callee_ = app->callee()->as_nom<Continuation>();
+        BetaReducer reducer(app->world());
+        for (size_t i = 0; i < app->num_args(); i++)
+            reducer.provide_arg(callee_->param(i), app->arg(i));
+        filter_ = reducer.reduce(callee_->filter())->as<Filter>();
+
+        // this ought to work but doesn't :(
+        // filter_ = app->filter();
         assert(app->filter()->is_empty() || app->filter()->size() == app->num_args());
     }
 
@@ -71,7 +78,7 @@ protected:
     World& world() { return app_->world(); }
 
     const Def* filter(size_t i) {
-        return app_->filter()->is_empty() ? world().literal_bool(false, {}) : app_->filter()->condition(i);
+        return filter_->is_empty() ? world().literal_bool(false, {}) : filter_->condition(i);
     }
 
     bool is_top_level(Continuation* continuation) {
@@ -110,6 +117,7 @@ protected:
 private:
     const App* app_;
     Continuation* callee_;
+    const Filter* filter_;
     ContinuationMap<bool> top_level_;
 };
 

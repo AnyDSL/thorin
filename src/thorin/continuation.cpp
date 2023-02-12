@@ -52,6 +52,8 @@ bool App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
+    if (auto cont = callee()->isa_nom<Continuation>())
+        assert(filter()->size() == cont->filter()->size());
     return true;
 }
 

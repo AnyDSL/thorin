@@ -55,8 +55,12 @@ public:
         filter_ = reducer.reduce(callee_->filter())->as<Filter>();
 
         // this ought to work but doesn't :(
-        // filter_ = app->filter();
+        auto filter2 = app->filter();
+        assert(filter_->is_empty() || filter2->is_empty() || filter2->size() == filter_->size());
+        assert(filter_->is_empty() == filter2->is_empty());
         assert(app->filter()->is_empty() || app->filter()->size() == app->num_args());
+        assert(filter_->is_empty() || filter_->size() == app->num_args());
+        filter2 = filter_;
     }
 
     bool eval(size_t i, bool lower2cff) {

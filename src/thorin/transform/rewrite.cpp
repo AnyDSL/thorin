@@ -26,24 +26,23 @@ const Def* Rewriter::rewrite(const Def* odef) {
 
     Def* stub = nullptr;
     if (odef->isa_nom()) {
-        stub = odef->stub(dst(), ntype);
+        stub = odef->stub(*this);
         insert(odef, stub);
     }
 
-    size_t size = odef->num_ops();
-    Array<const Def*> nops(size);
-    for (size_t i = 0; i != size; ++i) {
-        assert(odef->op(i) != odef);
-        nops[i] = instantiate(odef->op(i));
-        assert(&nops[i]->world() == &dst());
-    }
-
     if (odef->isa_structural()) {
+        size_t size = odef->num_ops();
+        Array<const Def*> nops(size);
+        for (size_t i = 0; i != size; ++i) {
+            assert(odef->op(i) != odef);
+            nops[i] = instantiate(odef->op(i));
+            assert(&nops[i]->world() == &dst());
+        }
         auto ndef = odef->rebuild(dst(), ntype, nops);
         return ndef;
     } else {
         assert(odef->isa_nom() && stub);
-        stub->rebuild_from(odef, nops);
+        stub->rebuild_from(*this, odef);
         return stub;
     }
 }

@@ -14,7 +14,7 @@ namespace thorin {
 
 class Continuation;
 class Def;
-class Tracker;
+class Rewriter;
 class Use;
 class World;
 class Type;
@@ -221,8 +221,8 @@ public:
     /// @name rebuild/stub
     //@{
     virtual const Def* rebuild(World&, const Type*, Defs) const { THORIN_UNREACHABLE; }
-    virtual       Def* stub(World&, const Type*) const { THORIN_UNREACHABLE; }
-    virtual       void rebuild_from(const Def* old, Defs new_ops);
+    virtual       Def* stub(Rewriter&) const { THORIN_UNREACHABLE; }
+    virtual       void rebuild_from(Rewriter&, const Def* old);
     //@}
 
     void replace_uses(const Def*) const;

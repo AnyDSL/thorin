@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 
@@ -79,15 +80,16 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
     }
 }
 
-Continuation* Continuation::stub(World& nworld, const Type* t) const {
+Continuation* Continuation::stub(Rewriter& rewriter) const {
     assert(!dead_);
+    auto& nworld = rewriter.dst();
     // TODO maybe we want to deal with intrinsics in a more streamlined way
     if (this == world().branch())
         return nworld.branch();
     if (this == world().end_scope())
         return nworld.end_scope();
 
-    auto npi = t->isa<FnType>();
+    auto npi = rewriter.instantiate(type())->isa<FnType>();
     assert(npi);
     Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
     assert(&ncontinuation->world() == &nworld);
@@ -97,19 +99,28 @@ Continuation* Continuation::stub(World& nworld, const Type* t) const {
 
     if (is_external())
         nworld.make_external(ncontinuation);
+
+    // TODO: investigate why this hangs
+    // ncontinuation->set_filter(rewriter.instantiate(filter())->as<Filter>());
     return ncontinuation;
 }
 
-void Continuation::rebuild_from(const Def*, Defs nops) {
+void Continuation::rebuild_from(Rewriter& rewriter, const Def* old) {
+    auto ocont = old->as<Continuation>();
+    assert(ocont);
     if (this == world().branch())
         return;
     if (this == world().end_scope())
         return;
 
-    auto napp = nops[0]->isa<App>();
-    if (napp)
+    set_filter(rewriter.instantiate(ocont->filter())->as<Filter>());
+
+    if (ocont->has_body()) {
+        auto napp = rewriter.instantiate(ocont->body())->isa<App>();
+        // i feel like this ought to be a warning, but maybe a later pass might legitimately do that
+        assert(napp && "is it legitimate to substitute away an App when rebuilding ?");
         set_body(napp);
-    set_filter(nops[1]->as<Filter>());
+    }
     verify();
 }
 

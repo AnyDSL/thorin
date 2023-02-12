@@ -5,6 +5,7 @@
 #include <sstream>
 #include <stack>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
@@ -65,14 +66,14 @@ const Type* TupleType          ::rebuild(World& w, const Type* t, Defs o) const 
  * stub
  */
 
-StructType* StructType::stub(World& world, const Type*) const {
-    auto type = world.struct_type(name(), num_ops());
+StructType* StructType::stub(Rewriter& rewriter) const {
+    auto type = rewriter.dst().struct_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }
 
-VariantType* VariantType::stub(World& world, const Type*) const {
-    auto type = world.variant_type(name(), num_ops());
+VariantType* VariantType::stub(Rewriter& rewriter) const {
+    auto type = rewriter.dst().variant_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }

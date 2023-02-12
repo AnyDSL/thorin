@@ -146,8 +146,8 @@ private:
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* stub(World&, const Type*) const override;
-    void rebuild_from(const Def* old, Defs new_ops) override;
+    Continuation* stub(Rewriter&) const override;
+    void rebuild_from(Rewriter&, const Def* old) override;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;

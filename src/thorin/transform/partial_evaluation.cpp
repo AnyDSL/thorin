@@ -49,18 +49,7 @@ public:
         : app_(app)
     {
         callee_ = app->callee()->as_nom<Continuation>();
-        BetaReducer reducer(app->world());
-        for (size_t i = 0; i < app->num_args(); i++)
-            reducer.provide_arg(callee_->param(i), app->arg(i));
-        filter_ = reducer.reduce(callee_->filter())->as<Filter>();
-
-        // this ought to work but doesn't :(
-        auto filter2 = app->filter();
-        assert(filter_->is_empty() || filter2->is_empty() || filter2->size() == filter_->size());
-        assert(filter_->is_empty() == filter2->is_empty());
-        assert(app->filter()->is_empty() || app->filter()->size() == app->num_args());
-        assert(filter_->is_empty() || filter_->size() == app->num_args());
-        filter2 = filter_;
+        filter_ = app->filter();
     }
 
     bool eval(size_t i, bool lower2cff) {

@@ -60,11 +60,11 @@ private:
     App(World&, const Defs ops, Debug dbg);
 
 public:
-    const Filter* filter() const { return op(0)->as<Filter>(); }
-    const Def* callee() const { return op(App::CALLEE_POSITION); }
-    const Def* arg(size_t i) const { return op(2 + i); }
-    size_t num_args() const { return num_ops() - 2; }
-    const Defs args() const { return ops().skip_front(2); }
+    const Filter* filter() const { return op(FILTER_POSITION)->as<Filter>(); }
+    const Def* callee() const { return op(CALLEE_POSITION); }
+    const Def* arg(size_t i) const { return op(ARGS_START_POSITION + i); }
+    size_t num_args() const { return num_ops() - ARGS_START_POSITION; }
+    const Defs args() const { return ops().skip_front(ARGS_START_POSITION); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {

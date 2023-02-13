@@ -331,7 +331,7 @@ public:
 
 private:
     const Param* param(const Type* type, const Continuation*, size_t index, Debug dbg);
-    const App* app(const Def* filter, const Def* callee, const Defs args, Debug dbg = {});
+    const App* app(const Filter* filter, const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);

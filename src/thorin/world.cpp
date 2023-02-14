@@ -1330,7 +1330,7 @@ void Thorin::opt() {
     RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
     RUN_PASS(cleanup())
-    RUN_PASS(codegen_prepare(world()))
+    RUN_PASS(codegen_prepare(*this))
 }
 
 }

@@ -5,7 +5,7 @@ namespace thorin {
 
 class World;
 
-void codegen_prepare(World&);
+void codegen_prepare(Thorin&);
 
 }
 

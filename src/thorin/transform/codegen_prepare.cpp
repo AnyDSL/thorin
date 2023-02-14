@@ -1,37 +1,62 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/rewrite.h"
 
 namespace thorin {
 
-/// this pass makes sure the return param is only called directly, by eta-expanding any uses where it appears in another position
-void codegen_prepare(World& world) {
-    world.VLOG("start codegen_prepare");
-    Scope::for_each(world, [&](Scope& scope) {
-        world.DLOG("scope: {}", scope.entry());
-        bool dirty = false;
-        auto ret_param = scope.entry()->ret_param();
-        assert(ret_param && "scopes should have a return parameter");
-        auto ret_cont = world.continuation(ret_param->type()->as<FnType>(), ret_param->debug());
-        ret_cont->jump(ret_param, ret_cont->params_as_defs(), ret_param->debug());
+struct CodegenPrepare : public Rewriter {
+    CodegenPrepare(World& src, World& dst) : Rewriter(src, dst) {}
 
-        for (auto use : ret_param->copy_uses()) {
-            if (auto uapp = use->isa<App>()) {
-                if (use.index() != App::CALLEE_POSITION) {
-                    auto nops = uapp->copy_ops();
-                    nops[use.index()] = ret_cont;
-                    auto napp = uapp->rebuild(world, uapp->type(), nops);
-                    uapp->replace_uses(napp);
-                    dirty = true;
+    DefMap<Continuation*> wrappers;
+
+    void make_wrapper(const Def* old_return_param) {
+        assert(old_return_param);
+        assert(!wrappers.contains(old_return_param));
+        auto wrapper = dst().continuation(instantiate(old_return_param->type())->as<FnType>(), old_return_param->debug());
+        wrappers[old_return_param] = wrapper;
+    }
+
+    const Def* rewrite(const Def* odef) override {
+        if (auto app = odef->isa<App>()) {
+            auto new_ops = Array<const Def*>(app->num_args(), [&](size_t i) -> const Def* {
+                if (auto wrapped = wrappers.lookup(app->arg(i)); wrapped.has_value()) {
+                    // because wrappers bodies need the rewritten ret param, they need to be created lazily
+                    // otherwise, rewriting the param would cause the whole scope to be rewritten first, before we get a chance to put anything in the map
+                    if (!(*wrapped)->has_body()) {
+                        auto imported_param = instantiate(app->arg(i));
+                        (*wrapped)->jump(imported_param, (*wrapped)->params_as_defs(), imported_param->debug());
+                    }
+                    return (*wrapped);
+                } else {
+                    return instantiate(app->arg(i));
                 }
-            } else {
-                assert(false);
-            }
+            });
+            return dst().app(instantiate(app->filter())->as<Filter>(), instantiate(app->callee()), new_ops);
         }
+        return Rewriter::rewrite(odef);
+    }
+};
 
-        if (dirty)
-            scope.update();
+/// this pass makes sure the return param is only called directly, by eta-expanding any uses where it appears in another position
+void codegen_prepare(Thorin& thorin) {
+    thorin.world().VLOG("start codegen_prepare");
+    auto& src = thorin.world();
+    auto destination = std::make_unique<World>(src);
+    CodegenPrepare pass(src, *destination.get());
+
+    // step one: scan for top-level continuations and register their ret params
+    Scope::for_each(src, [&](Scope& scope) {
+        auto ret_param = scope.entry()->ret_param();
+        if (ret_param)
+            pass.make_wrapper(ret_param);
     });
-    world.VLOG("end codegen_prepare");
+
+    // step two: rewrite the world
+    for (auto& external : src.externals())
+        pass.instantiate(external.second);
+
+    thorin.world_container().swap(destination);
+    thorin.world().VLOG("end codegen_prepare");
 }
 
 }

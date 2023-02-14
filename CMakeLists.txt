@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13.4 FATAL_ERROR)
 project(Thorin)
 
 set(PACKAGE_VERSION "0.3.9")
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "limited config" FORCE)
+#set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "limited config" FORCE)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,9 +26,13 @@ find_package(Half REQUIRED)
 message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
 
 # find json package for json output support.
-find_package(nlohmann_json 3.2.0)
-if(nlohmann_json_FOUND)
+if(TARGET nlohmann_json)
     set(THORIN_ENABLE_JSON TRUE)
+else()
+    find_package(nlohmann_json 3.2.0 QUIET)
+    if(nlohmann_json_FOUND)
+        set(THORIN_ENABLE_JSON TRUE)
+    endif()
 endif()
 
 # check for possible llvm extension

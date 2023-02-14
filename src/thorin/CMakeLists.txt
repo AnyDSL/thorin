@@ -113,7 +113,7 @@ if (shady_FOUND)
     )
 endif()
 
-if(nlohmann_json_FOUND)
+if(THORIN_ENABLE_JSON)
     list(APPEND THORIN_SOURCES
         be/json/json.cpp
         be/json/json.h
@@ -139,6 +139,6 @@ if (shady_FOUND)
     target_link_libraries(thorin PRIVATE shady::shady)
 endif()
 
-if(nlohmann_json_FOUND)
+if(THORIN_ENABLE_JSON)
     target_link_libraries(thorin PRIVATE nlohmann_json::nlohmann_json)
 endif()

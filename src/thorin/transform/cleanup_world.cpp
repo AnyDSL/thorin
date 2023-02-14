@@ -97,66 +97,6 @@ void Cleaner::eliminate_tail_rec() {
     });
 }
 
-void Cleaner::eta_conversion() {
-    for (bool todo = true; todo;) {
-        todo = false;
-        for (auto def : world().copy_defs()) {
-            auto continuation = def->isa_nom<Continuation>();
-            if (!continuation || !continuation->has_body()) continue;
-
-            auto body = continuation->body();
-            // try to subsume continuations which call a parameter
-            // (that is free within that continuation) with that parameter
-            if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || world().is_external(continuation))
-                    continue;
-
-                // TODO: this should happen in the importer, once we have removed the need for codegen_prepare (currently this undoes what that does)
-                if (body->args() == continuation->params_as_defs()) {
-                    continuation->replace_uses(body->callee());
-                    continuation->destroy("cleanup: calls a parameter (no perm)");
-                    todo_ = todo = true;
-                    continue;
-                }
-
-                // build the permutation of the arguments
-                Array<size_t> perm(body->num_args());
-                bool is_permutation = true;
-                for (size_t i = 0, e = body->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(continuation->params().begin(),
-                                                continuation->params().end(),
-                                                body->arg(i));
-
-                    if (param_it == continuation->params().end()) {
-                        is_permutation = false;
-                        break;
-                    }
-
-                    perm[i] = param_it - continuation->params().begin();
-                }
-
-                if (!is_permutation) continue;
-
-                // for every use of the continuation at a call site,
-                // permute the arguments and call the parameter instead
-                for (auto use : continuation->copy_uses()) {
-                    auto uapp = use->isa<App>();
-                    if (uapp && use.index() == App::CALLEE_POSITION) {
-                        for (auto ucontinuation : uapp->using_continuations()) {
-                            Array<const Def*> new_args(perm.size());
-                            for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                                new_args[i] = uapp->arg(perm[i]);
-                            }
-                            ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
-                            todo_ = todo = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 void Cleaner::eliminate_params() {
     // TODO
     for (auto ocontinuation : world().copy_continuations()) {
@@ -301,7 +241,6 @@ void Cleaner::cleanup_fix_point() {
         todo_ = false;
         if (world_->is_pe_done())
             eliminate_tail_rec();
-        eta_conversion();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());

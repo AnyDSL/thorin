@@ -107,7 +107,7 @@ if(LLVM_FOUND)
     )
 endif()
 
-if (shady_FOUND)
+if (THORIN_ENABLE_SHADY)
     list(APPEND THORIN_SOURCES
         be/shady/shady.cpp
     )
@@ -135,8 +135,12 @@ if(LLVM_FOUND)
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
 endif()
 
-if (shady_FOUND)
-    target_link_libraries(thorin PRIVATE shady::shady)
+if (THORIN_ENABLE_SHADY)
+    if (shady_FOUND)
+        target_link_libraries(thorin PRIVATE shady::shady)
+    else()
+        target_link_libraries(thorin PRIVATE shady)
+    endif()
 endif()
 
 if(THORIN_ENABLE_JSON)

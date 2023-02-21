@@ -641,9 +641,7 @@ public:
     }
 };
 
-void CodeGen::emit_stream(std::ostream& stream) {
-    json j;
-
+void CodeGen::emit_json(json& j) {
     j["module"] = world().name();
     if (target_triple != "")
         j["target_triple"] = target_triple;
@@ -666,6 +664,12 @@ void CodeGen::emit_stream(std::ostream& stream) {
     j["defs"] = def_table.decl_table;
     for (auto it : def_table.def_table)
         j["defs"] += it;
+}
+
+void CodeGen::emit_stream(std::ostream& stream) {
+    json j;
+
+    emit_json(j);
     
     Stream s(stream);
     s << j.dump(2) << "\n";

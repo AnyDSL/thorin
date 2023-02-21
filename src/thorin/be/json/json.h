@@ -24,6 +24,7 @@ public:
         , target_attr(target_attr)
     {}
     
+    void emit_json(json& j);
     void emit_stream(std::ostream& stream) override;
 
     const char* file_ext() const override {

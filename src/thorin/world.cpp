@@ -1182,17 +1182,16 @@ const App* World::app(const Filter* given_filter, const Def* callee, const Defs 
     }
 
     const Filter* instanced_filter = given_filter;
-    if (instanced_filter->is_empty()) {
-        if (auto cont = callee->isa<Continuation>()) {
-            if (must_inline)
-                // if we want to force evaluation, no need to actually evaluate the filter!
-                instanced_filter = cont->all_true_filter();
-            else {
-                BetaReducer reducer(*this);
-                for (size_t i = 0; i < args.size(); i++)
-                    reducer.provide_arg(cont->param(i), args[i]);
-                instanced_filter = reducer.reduce(cont->filter())->as<Filter>();
-            }
+
+    if (auto cont = callee->isa<Continuation>()) {
+        if (must_inline)
+            // if we want to force evaluation, no need to actually evaluate the filter!
+            instanced_filter = cont->all_true_filter();
+        else if (instanced_filter->is_empty()) {
+            BetaReducer reducer(*this);
+            for (size_t i = 0; i < args.size(); i++)
+                reducer.provide_arg(cont->param(i), args[i]);
+            instanced_filter = reducer.reduce(cont->filter())->as<Filter>();
         }
     }
 

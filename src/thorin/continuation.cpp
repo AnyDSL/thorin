@@ -20,7 +20,12 @@ Param::Param(World& world, const Type* type, const Continuation* continuation, s
 
 const Def* Param::rebuild(World& world, const Type* t, Defs defs) const {
     assert(defs.size() == 1);
-    auto cont = defs[0]->as<Continuation>();
+    auto def = defs[0];
+    // TODO: have some kind of generalised mechanism to obtain the 'real' def
+    while (auto run = def->isa<Run>()) {
+        def = run->def();
+    }
+    auto cont = def->as<Continuation>();
     return cont->param(index());
 }
 

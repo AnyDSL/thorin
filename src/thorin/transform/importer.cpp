@@ -39,9 +39,10 @@ const Def* Importer::rewrite(const Def* odef) {
                     goto rebuild;
 
                 if (body->args() == cont->params_as_defs()) {
-                    insert(odef, instantiate(body->callee()));
                     src().VLOG("simplify: continuation {} calls a parameter  {}", cont->unique_name(), body->filter());
-                    return instantiate(body->callee());
+                    // We completely replace the original continuation
+                    // If we don't do so, then we miss some simplifications
+                    //return instantiate(body->callee());
                 } else {
                     // build the permutation of the arguments
                     Array<size_t> perm(body->num_args());
@@ -65,10 +66,12 @@ const Def* Importer::rewrite(const Def* odef) {
                     src().VLOG("simplify: continuation {} calls a parameter (permuted args)", cont->unique_name());
                 }
 
-                cont->set_filter(cont->all_true_filter());
+                auto rebuilt = cont->stub(*this);
+                dst().VLOG("rebuilt as {}", rebuilt->unique_name());
+                auto wrapped = dst().run(rebuilt);
+                insert(odef, wrapped);
 
-                // We just set the filter to true, so this thing gets inlined
-                auto rebuilt = Rewriter::rewrite(cont)->as_nom<Continuation>();
+                rebuilt->set_body(instantiate(body)->as<App>());
 
                 // for every use of the continuation at a call site,
                 // permute the arguments and call the parameter instead
@@ -78,7 +81,7 @@ const Def* Importer::rewrite(const Def* odef) {
                         todo_ = true;
                     }
                 }
-                return rebuilt;
+                return wrapped;
             }
         }
     }

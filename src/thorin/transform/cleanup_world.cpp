@@ -12,14 +12,13 @@ namespace thorin {
 
 class Cleaner {
 public:
-    Cleaner(std::unique_ptr<World>& world)
-        : world_(world)
+    Cleaner(Thorin& thorin)
+        : thorin_(thorin)
     {}
 
-    World& world() { return *world_; }
+    World& world() { return thorin_.world(); }
     void cleanup();
     void eliminate_tail_rec();
-    void eta_conversion();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -29,7 +28,7 @@ public:
 private:
     void cleanup_fix_point();
     void clean_pe_info(std::queue<Continuation*>, Continuation*);
-    std::unique_ptr<World>& world_;
+    Thorin& thorin_;
     bool todo_ = true;
 };
 
@@ -160,7 +159,7 @@ void Cleaner::rebuild() {
             importer.import(global);
     }
 
-    std::swap(world_, fresh_world);
+    std::swap(thorin_.world_container(), fresh_world);
 
     // verify(world());
 
@@ -197,7 +196,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
     auto next = body->arg(3);
     auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    world_->idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
+    world().idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
     cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
     todo_ = true;
 
@@ -206,7 +205,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
 }
 
 void Cleaner::clean_pe_infos() {
-    world_->VLOG("cleaning remaining pe_infos");
+    world().VLOG("cleaning remaining pe_infos");
     std::queue<Continuation*> queue;
     ContinuationSet done;
     auto enqueue = [&](Continuation* continuation) {
@@ -237,23 +236,23 @@ void Cleaner::clean_pe_infos() {
 void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
-        world_->VLOG("iteration: {}", i);
+        world().VLOG("iteration: {}", i);
         todo_ = false;
-        if (world_->is_pe_done())
+        if (world().is_pe_done())
             eliminate_tail_rec();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();
         if (!world().is_pe_done())
-            todo_ |= partial_evaluation(*world_);
+            todo_ |= partial_evaluation(world());
         else
             clean_pe_infos();
     }
 }
 
 void Cleaner::cleanup() {
-    world_->VLOG("start cleanup");
+    world().VLOG("start cleanup");
     cleanup_fix_point();
 
     if (!world().is_pe_done()) {
@@ -267,13 +266,13 @@ void Cleaner::cleanup() {
         cleanup_fix_point();
     }
 
-    world_->VLOG("end cleanup");
+    world().VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
     debug_verify(world());
 #endif
 }
 
-void cleanup_world(std::unique_ptr<World>& world) { Cleaner(world).cleanup(); }
+void Thorin::cleanup() { Cleaner(*this).cleanup(); }
 
 }

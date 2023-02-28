@@ -17,7 +17,6 @@
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/flatten_tuples.h"
@@ -1309,8 +1308,6 @@ const Def* World::cse_base(const Def* def) {
 Thorin::Thorin(const std::string& name)
     : world_(std::make_unique<World>(name))
 {}
-
-void Thorin::cleanup() { cleanup_world(world_); }
 
 void Thorin::opt() {
 #define RUN_PASS(pass) \

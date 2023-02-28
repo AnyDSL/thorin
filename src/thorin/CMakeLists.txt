@@ -43,7 +43,6 @@ set(THORIN_SOURCES
     tables/primtypetable.h
     tables/mathoptable.h
     transform/cleanup_world.cpp
-    transform/cleanup_world.h
     transform/closure_conversion.cpp
     transform/closure_conversion.h
     transform/codegen_prepare.h

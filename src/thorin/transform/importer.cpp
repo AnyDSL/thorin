@@ -42,7 +42,7 @@ const Def* Importer::rewrite(const Def* odef) {
                     src().VLOG("simplify: continuation {} calls a parameter  {}", cont->unique_name(), body->filter());
                     // We completely replace the original continuation
                     // If we don't do so, then we miss some simplifications
-                    //return instantiate(body->callee());
+                    return instantiate(body->callee());
                 } else {
                     // build the permutation of the arguments
                     Array<size_t> perm(body->num_args());

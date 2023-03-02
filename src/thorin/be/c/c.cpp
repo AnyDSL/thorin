@@ -531,6 +531,7 @@ static inline const Type* ret_type(const FnType* fn_type) {
         }))->as<FnType>();
     std::vector<const Type*> types;
     for (auto op : ret_fn_type->types()) {
+        // TODO: support function pointers in returns ?
         if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0) continue;
         types.push_back(op);
     }

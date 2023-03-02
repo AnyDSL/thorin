@@ -158,9 +158,6 @@ public:
     const Param* ret_param() const;
     size_t num_params() const { return params().size(); }
 
-    // TODO only used in parallel.cpp to create a dummy value, should be refactored in something cleaner
-    const FnType* arg_fn_type() const;
-
     Attributes& attributes() { return attributes_; }
     const Attributes& attributes() const { return attributes_; }
     Intrinsic intrinsic() const { return attributes().intrinsic; }

@@ -56,11 +56,11 @@ public:
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
-        if (lower2cff)
-            if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<FnType>()
-                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} for continuation {}", i, callee_->param(i), callee_);
+
+        bool is_return_param = static_cast<int>(i) == callee_->type()->ret_param();
+        bool is_allowable_higher_order_param = order == 1 && is_return_param && is_top_level(callee_);
+        if (lower2cff && order >= 1 && !is_allowable_higher_order_param) {
+            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
 

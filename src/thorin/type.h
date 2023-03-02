@@ -276,7 +276,9 @@ protected:
 
 public:
     bool is_basicblock() const { return order() == 1; }
-    bool is_returning() const;
+    bool is_returning() const { return ret_param() >= 0; }
+    const Type* ret_cont_type() const;
+    int ret_param() const;
 
 private:
     const Type* rebuild(World&, const Type*, Defs) const override;
@@ -289,16 +291,11 @@ private:
     ClosureType(World& world, Defs ops, Debug dbg)
         : FnType(world, ops, Node_ClosureType, dbg)
     {
-        inner_order_ = order_;
         order_ = 0;
     }
 
 public:
-    int inner_order() const { return inner_order_; }
     const Type* rebuild(World&, const Type*, Defs) const override;
-
-private:
-    int inner_order_;
 
     friend class World;
 };

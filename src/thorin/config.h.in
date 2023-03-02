@@ -8,5 +8,6 @@
 #cmakedefine01 THORIN_ENABLE_JSON
 #cmakedefine01 THORIN_ENABLE_RV
 #cmakedefine01 THORIN_ENABLE_SHADY
+#cmakedefine01 THORIN_ENABLE_RLIMITS
 
 #endif

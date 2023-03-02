@@ -54,6 +54,9 @@ else()
     message(STATUS "Building without LLVM and RV. Specify LLVM_DIR to compile with LLVM.")
 endif()
 
+include(CheckIncludeFile)
+check_include_file(sys/resource.h THORIN_ENABLE_RLIMITS)
+
 if (NOT TARGET shady)
     find_package(shady CONFIG)
     if (shady_FOUND)

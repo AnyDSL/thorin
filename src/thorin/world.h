@@ -401,6 +401,9 @@ public:
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
     void opt();
+
+    bool ensure_stack_size(size_t new_size);
+
 private:
     std::unique_ptr<World> world_;
 };

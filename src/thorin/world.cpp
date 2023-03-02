@@ -12,6 +12,10 @@
 #include <cmath>
 #include <execinfo.h>
 
+#ifdef THORIN_ENABLE_RLIMITS
+#include <sys/resource.h>
+#endif
+
 #include "thorin/def.h"
 #include "thorin/primop.h"
 #include "thorin/continuation.h"
@@ -1309,5 +1313,22 @@ void Thorin::opt() {
     RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(world()))
 }
+
+bool Thorin::ensure_stack_size(size_t new_size) {
+#ifdef THORIN_ENABLE_RLIMITS
+    struct rlimit rl;
+    int result = getrlimit(RLIMIT_STACK, &rl);
+    if(result != 0) return false;
+
+    rl.rlim_cur = new_size;
+    result = setrlimit(RLIMIT_STACK, &rl);
+    if(result != 0) return false;
+
+    return true;
+#else
+    return false;
+#endif
+}
+
 
 }

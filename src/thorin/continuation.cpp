@@ -55,7 +55,7 @@ bool App::verify() const {
     for (size_t i = 0; i < num_args(); i++) {
         auto pt = callee_type->op(i);
         auto at = arg(i)->type();
-        assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
+        assertf(pt == at, "app node {} argument {} has type {} but the callee was expecting {}", this, i, at, pt);
     }
     if (auto cont = callee()->isa_nom<Continuation>())
         assert(filter()->size() == cont->filter()->size() || cont->filter()->is_empty());
@@ -98,6 +98,10 @@ Continuation* Continuation::stub(Rewriter& rewriter) const {
 
     auto npi = rewriter.instantiate(type())->isa<FnType>();
     assert(npi);
+    // TODO: HACK this is done out of lazyness because of the closure_conversion rewrite.
+    if (npi->isa<ClosureType>())
+        npi = rewriter.dst().fn_type(npi->types());
+
     Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
     assert(&ncontinuation->world() == &nworld);
     assert(&npi->world() == &nworld);

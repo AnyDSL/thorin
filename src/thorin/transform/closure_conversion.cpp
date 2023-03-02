@@ -5,233 +5,158 @@
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/transform/rewrite.h"
 
 namespace thorin {
 
-class ClosureConversion {
-public:
-    ClosureConversion(World& world)
-        : world_(world)
-    {}
+struct ClosureConverter : public Rewriter {
+    ClosureConverter(World& src, World& dst) : Rewriter(src, dst) {}
 
-    void run() {
-        // create a new continuation for every continuation taking a function as parameter
-        std::vector<std::pair<Continuation*, Continuation*>> converted;
-        for (auto continuation : world_.copy_continuations()) {
-            // do not convert empty continuations or intrinsics
-            if (!continuation->has_body() || continuation->is_intrinsic()) {
-                new_defs_[continuation] = continuation;
+    bool needs_conversion(Continuation* cont) {
+        if (cont->is_exported() || !cont->has_body())
+            return false;
+        if (cont->is_intrinsic())
+            return false;
+
+        // basic blocks _never_ need conversion!
+        if (cont->type()->order() == 1)
+            return false;
+        else if (cont->type()->order() == 2) {
+            Scope scope(cont);
+            // only allow conversion if we're not top level already
+            Array<const Def*> free_vars = spillable_free_defs(scope);
+            if (free_vars.empty())
+                return false;
+        }
+
+        for (auto use : cont->uses()) {
+            if (use.def()->isa<Param>())
                 continue;
-            }
-
-            auto new_type = world_.fn_type(defs2types(convert_type(continuation->type())->ops()));
-            if (new_type != continuation->type()) {
-                //The function type was changed, so the continuation takes another function as a parameter.
-                auto new_continuation = world_.continuation(new_type->as<FnType>(), continuation->debug());
-                if (continuation->is_intrinsic())
-                    new_continuation->set_intrinsic();
-
-                converted.emplace_back(continuation, new_continuation);
-                new_defs_[continuation] = new_continuation;
-                for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-                    new_defs_[continuation->param(i)] = new_continuation->param(i);
-            } else {
-                //The type remains unchanged, do not generate a new continuation.
-                //We still need to add the continuation to converted, to ensure the jump will be converted later on.
-                converted.emplace_back(continuation, continuation);
-            }
+            else if (use->isa<App>() && use.index() == App::CALLEE_POSITION)
+                continue;
+            return true;
         }
-
-        // convert the calls to each continuation
-        for (auto pair : converted)
-            convert_jump(pair.first, pair.second);
-
-        // remove old continuations
-        for (auto pair : converted) {
-            if (pair.second != pair.first) {
-                pair.first->destroy("closure conversion");
-                world_.make_internal(pair.first);
-            }
-        }
+        return false;
     }
 
-    //Convert jump and all arguments.
-    void convert_jump(Continuation* source, Continuation* target) {
-        assert(source);
-        assert(target);
-
-        if (!converted_.emplace(source).second)
-            return; //Was already converted once before.
-
-        assert(source->has_body());
-        auto body = source->body();
-
-        auto callee = body->callee()->isa_nom<Continuation>();
-
-        if (callee == source) {
-            target->jump(callee, body->args(), source->debug());
-            return;
-        }
-
-        // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
-        if (!callee || !callee->is_intrinsic()) {
-            Array<const Def*> new_args(body->num_args());
-            for (size_t i = 0, e = body->num_args(); i != e; ++i)
-                new_args[i] = convert_def(body->arg(i));
-            target->jump(convert_def(body->callee(), true), new_args, source->debug());
+    std::tuple<const Type*, bool> get_env_type(ArrayRef<const Def*> free_vars) {
+        // get the environment type
+        const Type* env_type = nullptr;
+        bool thin_env = free_vars.size() == 1 && is_thin(free_vars[0]->type());
+        if (thin_env) {
+            // optimization: if the environment fits within a pointer or
+            // primitive type, pass it by value.
+            env_type = free_vars[0]->type();
         } else {
-            Array<const Def*> new_args(body->num_args());
-            for (size_t i = 0, e = body->num_args(); i != e; ++i) {
-                if (body->arg(i)->type()->isa<FnType>())
-                    new_args[i] = body->arg(i);
-                else if (callee->intrinsic() == Intrinsic::Match && i > 2)
-                    new_args[i] = body->arg(i);
-                else
-                    new_args[i] = convert_def(body->arg(i));
-            }
-            target->jump(callee, new_args, source->debug());
+            Array<const Type*> env_ops(free_vars.size());
+            for (size_t i = 0, e = free_vars.size(); i != e; ++i)
+                env_ops[i] = free_vars[i]->type();
+            env_type = src().tuple_type(env_ops);
         }
+        return std::make_tuple(env_type, thin_env);
     }
 
-    const Def* convert_def(const Def* def, bool as_callee = false) {
-        if (auto t = def->isa<Type>())
-            return convert_type(t);
+    const Type* unclosurify_type(const Type* src) {
+        if (auto closure_t = src->isa<ClosureType>())
+            return dst().fn_type(closure_t->types());
+        return src;
+    }
 
-        if (auto * source = def->isa_nom<Continuation>()) {
-            if (new_defs_.count(def)) def = new_defs_[def];
-            auto continuation = def->isa_nom<Continuation>();
-            assert(continuation);
+    const Def* rewrite(const Def* odef) override {
+        if (auto fn_type = odef->isa<FnType>()) {
+            // Turn _all_ FnTypes into ClosureType, we'll undo it where it is specifically OK
+            Array<const Type*> rewritten(fn_type->num_ops(), [&](size_t i) { return instantiate(fn_type->op(i))->as<Type>(); });
+            int ret_param = fn_type->ret_param();
+            if (ret_param >= 0)
+                rewritten[ret_param] = unclosurify_type(rewritten[ret_param]);
+            if (fn_type->order() > 1)
+                return dst().closure_type(rewritten);
+            else
+                return dst().fn_type(rewritten);
+        } else if (auto ocont = odef->isa_nom<Continuation>()) {
+            std::vector<const Type*> nparam_types;
+            for (auto pt : instantiate(ocont->type())->as<FnType>()->types())
+                nparam_types.push_back(pt);
 
-            if (as_callee)
-                return continuation;
-            if (!source->has_body())
-                return continuation;
-            if (continuation->order() <= 1)
-                return continuation;
+            // auto ret_type_i = ocont->type()->ret_param();
+            // if (ret_type_i >= 0) {
+            //     // leave the ret param alone
+            //     nparam_types[ret_type_i] = unclosurify_type(nparam_types[ret_type_i]);
+            // }
 
-            convert_jump(source, continuation); //convert_jump must be executed so that continuation has a body.
-            assert(continuation->has_body());
-
-            world_.WLOG("slow: closure generated for '{}'", continuation);
-
-            // lift the continuation from its scope
-            Scope scope(continuation);
-            auto def_set = free_defs(scope, false);
-            Array<const Def*> free_vars(def_set.begin(), def_set.end());
-            auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
-                assert(!is_mem(def));
-                auto continuation = def->isa_nom<Continuation>();
-                return continuation && (!continuation->has_body() || continuation->is_intrinsic());
-            });
-            free_vars.shrink(filtered_out - free_vars.begin());
-            auto lifted = lift(scope, free_vars);
-
-            // get the environment type
-            const Type* env_type = nullptr;
-            bool thin_env = free_vars.size() == 1 && is_thin(free_vars[0]->type());
-            if (thin_env) {
-                // optimization: if the environment fits within a pointer or
-                // primitive type, pass it by value.
-                env_type = free_vars[0]->type();
-            } else {
-                Array<const Type*> env_ops(free_vars.size());
-                for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                    env_ops[i] = free_vars[i]->type();
-                env_type = world_.tuple_type(env_ops);
-            }
-
-            // create a wrapper that takes a pointer to the environment
-            size_t env_param_index = continuation->num_params();
-            Array<const Type*> wrapper_param_types(env_param_index + 1);
-            for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-                wrapper_param_types[i] = continuation->param(i)->type();
-            wrapper_param_types.back() = Closure::environment_type(world_);
-            auto wrapper_type = world_.fn_type(wrapper_param_types);
-            auto wrapper = world_.continuation(wrapper_type, continuation->debug());
-
-            Array<const Def*> wrapper_args(lifted->num_params());
-            const Def* new_mem = wrapper->mem_param();
-            if (thin_env) {
-                wrapper_args[env_param_index] = world_.cast(free_vars[0]->type(), wrapper->param(env_param_index));
-            } else {
-                // make the wrapper load the pointer and pass each
-                // variable of the environment to the lifted continuation
-                auto env_ptr = world_.cast(Closure::environment_ptr_type(world_), wrapper->param(env_param_index));
-                auto loaded_env = world_.load(wrapper->mem_param(), world_.bitcast(world_.ptr_type(env_type), env_ptr));
-                auto env = world_.extract(loaded_env, 1_u32);
-                new_mem = world_.extract(loaded_env, 0_u32);
-                for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                    wrapper_args[env_param_index + i] = world_.extract(env, i);
-            }
-            for (size_t i = 0, e = continuation->num_params(); i != e; ++i) {
-                auto param = wrapper->param(i);
-                if (param->type()->isa<MemType>()) {
-                    // use the mem obtained after the load
-                    wrapper_args[i] = new_mem;
-                } else {
-                    wrapper_args[i] = wrapper->param(i);
+            if (ocont->is_intrinsic()) {
+                for (size_t i = 0; i < ocont->num_params(); i++) {
+                    if (nparam_types[i]->isa<ClosureType>() && !ocont->param(i)->type()->isa<ClosureType>()) {
+                        nparam_types[i] = unclosurify_type(nparam_types[i]);
+                    }
                 }
             }
-            wrapper->jump(lifted, wrapper_args);
 
-            auto closure_type = convert_type(continuation->type());
-            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
-        } else {
-            if (new_defs_.count(def)) return new_defs_[def];
-            if (def->isa<Param>() || def->isa<Closure>())
-                return def;
+            bool convert = needs_conversion(ocont);
 
-            // TODO need to consider Params?
-            Array<const Def*> ops(def->ops());
-            for (auto& op : ops) op = convert_def(op);
-            return new_defs_[def] = def->rebuild(world_, convert_type(def->type()), ops);
+            auto ncont = ocont->stub(*this);
+            insert(ocont, ncont);
+
+            if (convert) {
+                auto closure_type = dst().closure_type(nparam_types);
+                dst().WLOG("slow: closure generated for '{}'", ocont);
+
+                Scope scope(ocont);
+                Array<const Def*> free_vars = spillable_free_defs(scope);
+                auto [env_type, thin] = get_env_type(free_vars);
+                env_type = instantiate(env_type)->as<Type>();
+                auto lifted = lift(scope, free_vars);
+
+                // create a wrapper that takes a pointer to the environment
+                size_t env_param_index = ocont->num_params();
+                nparam_types.push_back(Closure::environment_type(dst()));
+                auto wrapper_type = dst().fn_type(nparam_types);
+                ncont = dst().continuation(wrapper_type, ocont->debug());
+
+                Array<const Def*> wrapper_args(lifted->num_params());
+                const Def* new_mem = ncont->mem_param();
+                if (thin) {
+                    wrapper_args[env_param_index] = dst().cast(instantiate(free_vars[0]->type())->as<Type>(), ncont->param(env_param_index));
+                } else {
+                    // make the wrapper load the pointer and pass each
+                    // variable of the environment to the lifted continuation
+                    auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), ncont->param(env_param_index));
+                    auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
+                    auto env_data = dst().extract(loaded_env, 1_u32);
+                    new_mem = dst().extract(loaded_env, 0_u32);
+                    for (size_t i = 0, e = free_vars.size(); i != e; ++i)
+                        wrapper_args[env_param_index + i] = dst().extract(env_data, i);
+                }
+
+                // make the wrapper call into the lifted continuation with the right arguments
+                for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
+                    auto param = ncont->param(i);
+                    if (param->type()->isa<MemType>()) {
+                        // use the mem obtained after the load
+                        wrapper_args[i] = new_mem;
+                    } else {
+                        wrapper_args[i] = ncont->param(i);
+                    }
+                }
+                ncont->jump(instantiate(lifted), wrapper_args);
+
+                return dst().closure(closure_type, ncont, instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
+            } else {
+                ncont->rebuild_from(*this, ocont);
+                return ncont;
+            }
         }
-        THORIN_UNREACHABLE;
+        return Rewriter::rewrite(odef);
     }
-
-    // convert functions to function pointers
-    // - fn (A, B, fn(C), fn(D)) => closure(fn (A, B, fn(convert(C)), closure(fn(convert(D)))))
-    // - struct S { fn (X, fn(Y)) } => struct T { closure(fn (X, fn(Y))) }
-    // - ...
-    const Type* convert_type(const Type* type) {
-        if (new_types_.count(type)) return new_types_[type];
-        if (type->order() <= 1) return type;
-        Array<const Def*> ops(type->ops());
-
-        const Type* new_type = nullptr;
-        if (type->isa<StructType>()) {
-            // struct types cannot be rebuilt and need to be put in the map first to avoid infinite recursion
-            new_type = world_.struct_type(type->as<StructType>()->name(), ops.size());
-            new_types_[type] = new_type;
-        }
-
-        for (auto& op : ops) {
-            op = convert_def(op);
-        }
-
-        if (type->isa<StructType>()) {
-            StructType* struct_type = const_cast<StructType*>(new_type->as<StructType>());
-            for (size_t i = 0, e = ops.size(); i != e; ++i)
-                struct_type->set_op(i, ops[i]);
-        } else {
-            new_type = type->rebuild(world_, type->type(), ops)->as<Type>();
-        }
-        if (new_type->order() <= 1)
-            return new_types_[type] = new_type;
-        else
-            return new_types_[type] = world_.closure_type(defs2types(new_type->ops()));
-    }
-
-private:
-    World& world_;
-    Def2Def new_defs_;
-    DefMap<const Type*> new_types_;
-    ContinuationSet converted_;
 };
 
-
-void closure_conversion(World& world) {
-    ClosureConversion(world).run();
+void closure_conversion(Thorin& thorin) {
+    auto& src = thorin.world_container();
+    auto dst = std::make_unique<World>(*src);
+    ClosureConverter converter(*src, *dst);
+    for (auto& ext : src->externals())
+        converter.instantiate(ext.second);
+    src.swap(dst);
 }
 
 }

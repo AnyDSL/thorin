@@ -2,6 +2,6 @@
 
 namespace thorin {
 
-void closure_conversion(World& world);
+void closure_conversion(Thorin&);
 
 }

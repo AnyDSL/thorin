@@ -59,9 +59,16 @@ queue_next:;
     return result;
 }
 
-DefSet free_defs(Continuation* entry) {
-    Scope scope(entry);
-    return free_defs(scope, true);
+Array<const Def*> spillable_free_defs(const Scope& scope) {
+    auto def_set = free_defs(scope, false);
+    Array<const Def*> free_vars(def_set.begin(), def_set.end());
+    auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
+        assert(!is_mem(def));
+        auto continuation = def->isa_nom<Continuation>();
+        return continuation && (!continuation->has_body() || continuation->is_intrinsic());
+    });
+    free_vars.shrink(filtered_out - free_vars.begin());
+    return free_vars;
 }
 
 }

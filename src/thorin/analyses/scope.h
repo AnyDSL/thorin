@@ -70,12 +70,14 @@ public:
     template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(Scope&)>);
 
-private:
+//private:
     void run();
     DefSet potentially_contained() const;
 
+    ParamSet search_free_variables_nonrec(bool) const;
+
     World& world_;
-    std::shared_ptr<ScopesForest> forest_;
+    mutable std::shared_ptr<ScopesForest> forest_;
     DefSet defs_;
     Continuation* entry_ = nullptr;
     Continuation* exit_ = nullptr;
@@ -90,7 +92,7 @@ class ScopesForest {
 public:
     ScopesForest() {}
 
-    Scope& get_scope(Continuation* entry);
+    Scope& get_scope(Continuation* entry, std::shared_ptr<ScopesForest>& self);
 
     std::vector<Continuation*> stack_;
     ContinuationMap<std::unique_ptr<Scope>> scopes_;

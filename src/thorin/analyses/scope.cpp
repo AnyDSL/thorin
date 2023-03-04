@@ -69,7 +69,6 @@ DefSet Scope::potentially_contained() const {
 }
 
 void Scope::run() {
-    forest_->stack_.push_back(entry());
     DefSet potential_defs = potentially_contained();
 
     unique_queue<DefSet> queue;
@@ -89,40 +88,77 @@ void Scope::run() {
             free_frontier_.insert(def);
         }
     }
+}
+
+ParamSet Scope::search_free_variables_nonrec(bool root) const {
+    bool valid_results = true;
+
+    //world().WLOG("free variables analysis: searching transitive ops of: {}", entry());
+    ParamSet free_params;
+    forest_->stack_.push_back(entry());
+
+    unique_queue<DefSet> queue;
+
+    for (auto def : free_frontier_)
+        queue.push(def);
+
+    if (free_params_) {
+        forest_->stack_.pop_back();
+        return *free_params_;
+    }
+
+    while (!queue.empty()) {
+        auto free_def = queue.pop();
+        assert(free_def);
+
+        if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_)
+            free_params.emplace(param);
+        else if (auto cont = free_def->isa_nom<Continuation>()) {
+            //world().WLOG("free variables analysis: encountered continuation {} while exploring the set of {}", cont, entry());
+
+            // the free variables analysis can be recursive, but it's not necessary to inspect our own scope again ...
+            if (cont == entry())
+                continue;
+
+            // if we hit the recursion wall, the results for this free variable search are only valid for the callee
+            if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) != forest_->stack_.end()) {
+                //world().WLOG("free variables analysis: {} and {} are recursive", cont, entry());
+                assert(!root);
+                valid_results = false;
+                continue;
+            }
+            Scope& scope = forest_->get_scope(cont, forest_);
+            assert(scope.defs().size() > 0 || !scope.entry()->has_body());
+
+            // When we have a free continuation in the body of our fn, their free variables are also free in us
+            ParamSet fp = scope.search_free_variables_nonrec(false);
+            valid_results &= scope.free_params_.get() != nullptr;
+            for (auto fv: fp) {
+                // (those variables have to be free here! otherwise that continuation should be in this scope and not free)
+                assert(fv && !contains(fv));
+                free_params.insert(fv);
+            }
+        }
+        else for (auto op : free_def->ops())
+                queue.push(op);
+    }
+
+    //world().WLOG("free variables analysis: done with : {} (hit_wall={})", entry(), hit_recursion_wall);
+
+    assert(forest_->stack_.back() == entry());
     forest_->stack_.pop_back();
+
+    if (valid_results) {
+        free_params_ = std::make_unique<ParamSet>(free_params);
+        return free_params;
+    }
+
+    return free_params;
 }
 
 const ParamSet& Scope::free_params() const {
     if (!free_params_) {
-        free_params_ = std::make_unique<ParamSet>();
-        unique_queue<DefSet> queue;
-
-        for (auto def : free_frontier_)
-            queue.push(def);
-
-        while (!queue.empty()) {
-            auto free_def = queue.pop();
-            assert(free_def);
-
-            if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_)
-                free_params_->emplace(param);
-            else if (auto cont = free_def->isa_nom<Continuation>()) {
-                if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) == forest_->stack_.end()) {
-                    // the free variables analysis can be recursive, in which case we're not interested in exploring our own free variables multiple times
-                    // world().WLOG("free variables analysis: {} and {} are recursive", cont, entry());
-                    continue;
-                }
-                Scope& scope = forest_->get_scope(cont);
-                // When we have a free continuation in the body of our fn, their free variables are also free in us
-                // (they have to be! otherwise that continuation should be in this scope and not free)
-                for (auto fv: scope.free_params()) {
-                    assert(fv && !contains(fv));
-                    free_params_->insert(fv);
-                }
-            }
-            else for (auto op : free_def->ops())
-                queue.push(op);
-        }
+        free_params_ = std::make_unique<ParamSet>(search_free_variables_nonrec(true));
     }
 
     return *free_params_;
@@ -136,25 +172,33 @@ template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     auto forest = std::make_shared<ScopesForest>();
     for (auto cont : world.copy_continuations()) {
-        auto& scope = forest->get_scope(cont);
-        if(!scope.has_free_params())
+        if (elide_empty && !cont->has_body())
+            continue;
+        assert(forest->stack_.empty());
+        //forest->scopes_.clear();
+        auto& scope = forest->get_scope(cont, forest);
+        //Scope scope(cont);
+        assert(forest->stack_.empty());
+        if(!scope.has_free_params()) {
+            assert(forest->stack_.empty());
             f(scope);
+        }
     }
 }
 
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
-Scope& ScopesForest::get_scope(Continuation* entry) {
+Scope& ScopesForest::get_scope(Continuation* entry, std::shared_ptr<ScopesForest>& self) {
     if (scopes_.contains(entry)) {
         auto existing = scopes_.find(entry);
         assert((size_t)(existing->second.get()) != 0xbebebebe00000000);
         return *existing->second;
     }
-    auto scope = std::make_unique<Scope>(entry);
+    auto scope = std::make_unique<Scope>(entry, self);
     Scope* ptr = scope.get();
-    scopes_[entry] = std::move(scope);
     ptr->run();
+    scopes_[entry] = std::move(scope);
     return *ptr;
 }
 

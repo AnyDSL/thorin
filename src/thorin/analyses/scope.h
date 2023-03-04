@@ -16,6 +16,8 @@ typedef CFG<false> B_CFG;
 class CFA;
 class CFNode;
 
+class ScopesForest;
+
 /**
  * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
@@ -28,6 +30,7 @@ public:
     Scope& operator=(Scope) = delete;
 
     explicit Scope(Continuation* entry);
+    explicit Scope(Continuation* entry, std::shared_ptr<ScopesForest>);
     ~Scope();
 
     /// Invoke if you have modified sth in this Scope.
@@ -42,8 +45,6 @@ public:
     //@{ get Def%s contained in this Scope
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
-    /// All @p Def%s referenced but @em not contained in this @p Scope.
-    const DefSet& free() const;
     /// All @p Param%s that appear free in this @p Scope.
     const ParamSet& free_params() const;
     /// Are there any free @p Param%s within this @p Scope.
@@ -71,14 +72,28 @@ public:
 
 private:
     void run();
+    DefSet potentially_contained() const;
 
     World& world_;
+    std::shared_ptr<ScopesForest> forest_;
     DefSet defs_;
     Continuation* entry_ = nullptr;
     Continuation* exit_ = nullptr;
-    mutable std::unique_ptr<DefSet> free_;
+    DefSet free_frontier_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;
+
+    friend ScopesForest;
+};
+
+class ScopesForest {
+public:
+    ScopesForest() {}
+
+    Scope& get_scope(Continuation* entry);
+
+    std::vector<Continuation*> stack_;
+    ContinuationMap<std::unique_ptr<Scope>> scopes_;
 };
 
 }

@@ -12,37 +12,41 @@
 
 namespace thorin {
 
-Scope::Scope(Continuation* entry)
-    : world_(entry->world())
-    , entry_(entry)
-    , exit_(world().end_scope())
-{
+Scope::Scope(Continuation* entry) : Scope(entry, std::make_shared<ScopesForest>()) {
     run();
 }
+
+Scope::Scope(Continuation* entry, std::shared_ptr<ScopesForest> forest)
+    : world_(entry->world())
+    , forest_(forest)
+    , entry_(entry)
+    , exit_(world().end_scope())
+{}
 
 Scope::~Scope() {}
 
 Scope& Scope::update() {
     defs_.clear();
-    free_        = nullptr;
+    free_frontier_.clear();
     free_params_ = nullptr;
     cfa_         = nullptr;
     run();
     return *this;
 }
 
-void Scope::run() {
+DefSet Scope::potentially_contained() const {
+    DefSet potential_defs;
     std::queue<const Def*> queue;
 
     auto enqueue = [&] (const Def* def) {
-        if (defs_.insert(def).second) {
+        if (potential_defs.insert(def).second) {
             queue.push(def);
 
             if (auto continuation = def->isa_nom<Continuation>()) {
                 // when a continuation is part of this scope, we also enqueue its params, and we assert those to be unique
                 // TODO most likely redundant once params have the continuation in their ops
                 for (auto param : continuation->params()) {
-                    auto p = defs_.insert(param);
+                    auto p = potential_defs.insert(param);
                     assert_unused(p.second);
                     queue.push(param);
                 }
@@ -61,21 +65,31 @@ void Scope::run() {
     }
 
     enqueue(exit_);
+    return std::move(potential_defs);
 }
 
-const DefSet& Scope::free() const {
-    if (!free_) {
-        free_ = std::make_unique<DefSet>();
+void Scope::run() {
+    forest_->stack_.push_back(entry());
+    DefSet potential_defs = potentially_contained();
 
-        for (auto def : defs_) {
-            for (auto op : def->ops()) {
-                if (!contains(op))
-                    free_->emplace(op);
-            }
+    unique_queue<DefSet> queue;
+
+    if (entry()->has_body())
+        queue.push(entry()->body());
+    queue.push(entry()->filter());
+
+    while (!queue.empty()) {
+        auto def = queue.pop();
+
+        if (potential_defs.contains(def)) {
+            defs_.insert(def);
+            for (auto op : def->ops())
+                queue.push(op);
+        } else {
+            free_frontier_.insert(def);
         }
     }
-
-    return *free_;
+    forest_->stack_.pop_back();
 }
 
 const ParamSet& Scope::free_params() const {
@@ -83,20 +97,31 @@ const ParamSet& Scope::free_params() const {
         free_params_ = std::make_unique<ParamSet>();
         unique_queue<DefSet> queue;
 
-        auto enqueue = [&](const Def* def) {
-            if (auto param = def->isa<Param>(); param && !param->continuation()->dead_)
-                free_params_->emplace(param);
-            else if (def->isa<Continuation>())
-                return;
-            else
-                queue.push(def);
-        };
+        for (auto def : free_frontier_)
+            queue.push(def);
 
-        for (auto def : free())
-            enqueue(def);
         while (!queue.empty()) {
-            for (auto op : queue.pop()->ops())
-                enqueue(op);
+            auto free_def = queue.pop();
+            assert(free_def);
+
+            if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_)
+                free_params_->emplace(param);
+            else if (auto cont = free_def->isa_nom<Continuation>()) {
+                if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) == forest_->stack_.end()) {
+                    // the free variables analysis can be recursive, in which case we're not interested in exploring our own free variables multiple times
+                    // world().WLOG("free variables analysis: {} and {} are recursive", cont, entry());
+                    continue;
+                }
+                Scope& scope = forest_->get_scope(cont);
+                // When we have a free continuation in the body of our fn, their free variables are also free in us
+                // (they have to be! otherwise that continuation should be in this scope and not free)
+                for (auto fv: scope.free_params()) {
+                    assert(fv && !contains(fv));
+                    free_params_->insert(fv);
+                }
+            }
+            else for (auto op : free_def->ops())
+                queue.push(op);
         }
     }
 
@@ -109,37 +134,28 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<ContinuationSet> continuation_queue;
-
-    for (auto&& [_, def] : world.externals()) {
-        if (auto cont = def->template isa<Continuation>())
-            if (cont->has_body()) continuation_queue.push(cont);
-    }
-
-    while (!continuation_queue.empty()) {
-        auto continuation = continuation_queue.pop();
-        if (elide_empty && !continuation->has_body())
-            continue;
-        Scope scope(continuation);
-        f(scope);
-
-        unique_queue<DefSet> def_queue;
-        for (auto def : scope.free())
-            def_queue.push(def);
-
-        while (!def_queue.empty()) {
-            auto def = def_queue.pop();
-            if (auto continuation = def->isa_nom<Continuation>())
-                continuation_queue.push(continuation);
-            else {
-                for (auto op : def->ops())
-                    def_queue.push(op);
-            }
-        }
+    auto forest = std::make_shared<ScopesForest>();
+    for (auto cont : world.copy_continuations()) {
+        auto& scope = forest->get_scope(cont);
+        if(!scope.has_free_params())
+            f(scope);
     }
 }
 
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
+
+Scope& ScopesForest::get_scope(Continuation* entry) {
+    if (scopes_.contains(entry)) {
+        auto existing = scopes_.find(entry);
+        assert((size_t)(existing->second.get()) != 0xbebebebe00000000);
+        return *existing->second;
+    }
+    auto scope = std::make_unique<Scope>(entry);
+    Scope* ptr = scope.get();
+    scopes_[entry] = std::move(scope);
+    ptr->run();
+    return *ptr;
+}
 
 }

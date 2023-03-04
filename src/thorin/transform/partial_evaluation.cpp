@@ -47,6 +47,7 @@ class CondEval {
 public:
     CondEval(const App* app)
         : app_(app)
+        , forest_(std::make_shared<ScopesForest>())
     {
         callee_ = app->callee()->as_nom<Continuation>();
         filter_ = app->filter();
@@ -75,43 +76,14 @@ protected:
     }
 
     bool is_top_level(Continuation* continuation) {
-        auto p = top_level_.emplace(continuation, true);
-        if (!p.second)
-            return p.first->second;
-
-        if (continuation->is_exported())
-            return top_level_[continuation] = true;
-
-        Scope scope(continuation);
-        unique_queue<DefSet> queue;
-
-        for (auto def : scope.free())
-            queue.push(def);
-
-        while (!queue.empty()) {
-            auto def = queue.pop();
-
-            if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
-                return top_level_[continuation] = false;
-            if (auto free_cn = def->isa_nom<Continuation>()) {
-                // if we have a non-top level continuation in scope as a free variable,
-                // then it must be bound by some outer continuation, and so we aren't top-level
-                if (!is_top_level(free_cn))
-                    return top_level_[continuation] = false;
-            } else {
-                for (auto op : def->ops())
-                    queue.push(op);
-            }
-        }
-
-        return top_level_[continuation] = true;
+        return !forest_->get_scope(continuation).has_free_params();
     }
 
 private:
     const App* app_;
     Continuation* callee_;
     const Filter* filter_;
-    ContinuationMap<bool> top_level_;
+    std::shared_ptr<ScopesForest> forest_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {

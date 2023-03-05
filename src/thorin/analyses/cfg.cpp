@@ -29,7 +29,7 @@ Stream& CFNode::stream(Stream& s) const { return s << continuation(); }
 CFA::CFA(const Scope& scope)
     : scope_(scope)
     , entry_(node(scope.entry()))
-    , exit_ (node(scope.exit() ))
+    , exit_ (node(scope.entry()->world().end_scope()))
 {
     std::queue<Continuation*> cfg_queue;
     ContinuationSet cfg_done;

@@ -39,7 +39,6 @@ public:
     //@{ misc getters
     World& world() const { return world_; }
     Continuation* entry() const { return entry_; }
-    Continuation* exit() const { return exit_; }
     //@}
 
     //@{ get Def%s contained in this Scope
@@ -80,7 +79,6 @@ public:
     mutable std::shared_ptr<ScopesForest> forest_;
     DefSet defs_;
     Continuation* entry_ = nullptr;
-    Continuation* exit_ = nullptr;
     DefSet free_frontier_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;

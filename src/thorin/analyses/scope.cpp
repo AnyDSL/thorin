@@ -20,7 +20,6 @@ Scope::Scope(Continuation* entry, std::shared_ptr<ScopesForest> forest)
     : world_(entry->world())
     , forest_(forest)
     , entry_(entry)
-    , exit_(world().end_scope())
 {}
 
 Scope::~Scope() {}
@@ -55,7 +54,6 @@ DefSet Scope::potentially_contained() const {
         }
     }
 
-    enqueue(exit_);
     return potential_defs;
 }
 

@@ -41,31 +41,22 @@ DefSet Scope::potentially_contained() const {
     auto enqueue = [&] (const Def* def) {
         if (potential_defs.insert(def).second) {
             queue.push(def);
-
-            if (auto continuation = def->isa_nom<Continuation>()) {
-                // when a continuation is part of this scope, we also enqueue its params, and we assert those to be unique
-                // TODO most likely redundant once params have the continuation in their ops
-                for (auto param : continuation->params()) {
-                    auto p = potential_defs.insert(param);
-                    assert_unused(p.second);
-                    queue.push(param);
-                }
-            }
         }
     };
 
-    enqueue(entry_);
+    for (auto param : entry()->params())
+        enqueue(param);
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (def != entry_) {
-            for (auto use : def->uses())
+        if (def != entry()) {
+            for (auto use: def->uses())
                 enqueue(use);
         }
     }
 
     enqueue(exit_);
-    return std::move(potential_defs);
+    return potential_defs;
 }
 
 void Scope::run() {
@@ -109,20 +100,20 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
 
     while (!queue.empty()) {
         auto free_def = queue.pop();
-        assert(free_def);
+        assert(!contains(free_def));
+
+        if (free_def == entry())
+            continue;
 
         if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_)
             free_params.emplace(param);
         else if (auto cont = free_def->isa_nom<Continuation>()) {
-            //world().WLOG("free variables analysis: encountered continuation {} while exploring the set of {}", cont, entry());
-
             // the free variables analysis can be recursive, but it's not necessary to inspect our own scope again ...
             if (cont == entry())
                 continue;
 
             // if we hit the recursion wall, the results for this free variable search are only valid for the callee
             if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) != forest_->stack_.end()) {
-                //world().WLOG("free variables analysis: {} and {} are recursive", cont, entry());
                 assert(!root);
                 valid_results = false;
                 continue;
@@ -134,13 +125,22 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
             ParamSet fp = scope.search_free_variables_nonrec(false);
             valid_results &= scope.free_params_.get() != nullptr;
             for (auto fv: fp) {
+                // well except if these are our own ;)
+                if (fv->continuation() == entry())
+                    continue;
                 // (those variables have to be free here! otherwise that continuation should be in this scope and not free)
                 assert(fv && !contains(fv));
                 free_params.insert(fv);
             }
         }
-        else for (auto op : free_def->ops())
+        else {
+            for (auto op : free_def->ops()) {
+                if (op == entry())
+                    continue;
+                assert(!contains(op));
                 queue.push(op);
+            }
+        }
     }
 
     //world().WLOG("free variables analysis: done with : {} (hit_wall={})", entry(), hit_recursion_wall);

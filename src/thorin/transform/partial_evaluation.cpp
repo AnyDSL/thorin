@@ -76,7 +76,7 @@ protected:
     }
 
     bool is_top_level(Continuation* continuation) {
-        return !forest_->get_scope(continuation).has_free_params();
+        return !forest_->get_scope(continuation, forest_).has_free_params();
     }
 
 private:

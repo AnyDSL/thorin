@@ -84,6 +84,7 @@ set(THORIN_SOURCES
     util/symbol.h
     util/types.h
     util/utility.h
+    util/graphviz_dump.cpp
     )
 
 if(LLVM_FOUND)

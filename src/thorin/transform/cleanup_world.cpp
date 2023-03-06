@@ -238,16 +238,17 @@ void Cleaner::cleanup_fix_point() {
     for (; todo_; ++i) {
         world().VLOG("iteration: {}", i);
         todo_ = false;
-        if (world().is_pe_done())
+        //if (world().is_pe_done())
+        rebuild();
             eliminate_tail_rec();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();
-        if (!world().is_pe_done())
+        //if (!world().is_pe_done())
             todo_ |= partial_evaluation(world());
-        else
-            clean_pe_infos();
+        //else
+        //    clean_pe_infos();
     }
 }
 

@@ -51,10 +51,17 @@ void RecStreamer::run() {
         if (cont->world().is_external(cont))
             s.fmt("extern ");
 
+        /*Scope scope(cont);
+        if (!scope.has_free_params())
+            s.fmt("top_level ");
+        else {
+            s.fmt("({, })", scope.free_params());
+        }*/
+
         if (cont->has_body()) {
             std::vector<std::string> param_names;
             for (auto param : cont->params()) param_names.push_back(param->unique_name());
-            s.fmt("{}: {} = ({, }) => {{\t\n", cont->unique_name(), cont->type(), param_names);
+            s.fmt("{}: {} = ({, }) @({}) => {{\t\n", cont->unique_name(), cont->type(), param_names, cont->filter());
             run(cont->filter());
             if (defs.contains(cont->body())) {
                 auto body = cont->body();
@@ -114,7 +121,7 @@ Stream& Def::stream1(Stream& s) const {
 #endif
             return s.fmt("cont {}", unique_name());
     } else if (auto app = isa<App>()) {
-        return s.fmt("{}({, })", app->callee(), app->args());
+        return s.fmt("{}({, })@({})", app->callee(), app->args(), app->filter());
     } else if (isa<Filter>()) {
         return s.fmt("filter({, })", ops());
     } else if (auto lit = isa<PrimLit>()) {

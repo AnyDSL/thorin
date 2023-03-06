@@ -1315,12 +1315,13 @@ void Thorin::opt() {
 { \
     world().VLOG("running pass {}", #pass); \
     pass; \
-    debug_verify(world()); \
+    debug_verify(world());                  \
+    /*world().dump();*/                   \
 }
 
     RUN_PASS(cleanup())
-    RUN_PASS(lift2cff(*this))
-    //RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
+    //RUN_PASS(lift2cff(*this))
+    RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
     RUN_PASS(closure_conversion(*this))

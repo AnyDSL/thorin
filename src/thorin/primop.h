@@ -335,11 +335,14 @@ private:
         : Aggregate(world, Node_Closure, {fn, env}, dbg)
     {
         set_type(closure_type);
+        //dep_ = env->dep();
     }
 
     const Def* rebuild(World&, const Type*, Defs) const override;
 
 public:
+    const Def* fn() const { return op(0); }
+    const Def* env() const { return op(1); }
     static const Type*    environment_type(World&);
     static const PtrType* environment_ptr_type(World&);
 

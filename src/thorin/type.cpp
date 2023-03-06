@@ -95,18 +95,20 @@ const Type* FnType::ret_cont_type() const {
 }
 
 int FnType::ret_param() const {
-    int p = -1, i = 0;
-    for (auto op : ops()) {
-        if (op->order() == 1) {
+    int p = -1;
+    for (unsigned int i = num_ops() - 1; i < num_ops(); i--) {
+        if (op(i)->order() % 2 == 1) {
             // this is a heuristic, it works by assuming basic blocks (and hence, return locations) are of order one (after lower2cff)
             // it breaks if one was to define functions that don't return, because they get an odd order
             // this also does not work for schemes like exceptions etc where multiple 'returns' are valid
             //assert(p == -1 && "only one return continuation allowed");
             p = i;
         }
-        i++;
     }
     return p;
+    //if (num_ops() >= 1 && op(num_ops() - 1)->order() == 1)
+    //    return num_ops() - 1;
+    //return -1;
 }
 
 bool VariantType::has_payload() const {

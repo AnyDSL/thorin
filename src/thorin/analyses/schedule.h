@@ -19,7 +19,7 @@ public:
     const F_CFG& cfg() const { return *cfg_; }
     const CFNode* cfg(Continuation* cont) const { return cfg()[cont]; }
     const DomTree& domtree() const { return *domtree_; }
-    const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
+    const Uses& uses(const Def* def) const { assert(def2uses_.contains(def)); return def2uses_.find(def)->second; }
     //@}
 
     /// @name compute schedules

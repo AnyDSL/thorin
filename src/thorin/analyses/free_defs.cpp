@@ -62,10 +62,16 @@ queue_next:;
 Array<const Def*> spillable_free_defs(const Scope& scope) {
     auto def_set = free_defs(scope, false);
     Array<const Def*> free_vars(def_set.begin(), def_set.end());
-    auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
+    auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) -> bool {
         assert(!is_mem(def));
+        if (auto param = def->isa<Param>()) {
+            int r = param->continuation()->type()->ret_param();
+            if (r >= 0 && param->continuation()->param(r) == param)
+                return true;
+        }
         auto continuation = def->isa_nom<Continuation>();
-        return continuation && (!continuation->has_body() || continuation->is_intrinsic());
+        return continuation;
+        //return continuation && (!continuation->has_body() || continuation->is_intrinsic());
     });
     free_vars.shrink(filtered_out - free_vars.begin());
     return free_vars;

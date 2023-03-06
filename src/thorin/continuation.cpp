@@ -25,6 +25,9 @@ const Def* Param::rebuild(World& world, const Type* t, Defs defs) const {
     while (auto run = def->isa<Run>()) {
         def = run->def();
     }
+    while (auto closure = def->isa<Closure>()) {
+        def = closure->fn();
+    }
     auto cont = def->as<Continuation>();
     return cont->param(index());
 }

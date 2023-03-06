@@ -19,14 +19,26 @@ static bool verify_calls(World& world) {
 
 static bool verify_top_level(World& world) {
     bool ok = true;
-    Scope::for_each(world, [&] (const Scope& scope) {
-        if (scope.has_free_params()) {
-            for (auto param : scope.free_params())
-                world.ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
-            world.ELOG("here: {}", scope.entry());
-            ok = false;
+    unique_queue<DefSet> defs;
+    auto forest = std::make_shared<ScopesForest>();
+    for (auto& external : world.externals())
+        defs.push(external.second);
+    while (!defs.empty()) {
+        auto def = defs.pop();
+        if (auto cont = def->isa_nom<Continuation>()) {
+            world.VLOG("verifying external continuation '{}'", cont);
+            auto& scope = forest->get_scope(cont, forest);
+            if (scope.has_free_params()) {
+                for (auto param : scope.free_params())
+                    world.ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
+                world.ELOG("here: {}", scope.entry());
+                ok = false;
+            }
+        } else {
+            for (auto op : def->ops())
+                defs.push(op);
         }
-    });
+    }
     return ok;
 }
 

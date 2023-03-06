@@ -127,7 +127,8 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
                 if (fv->continuation() == entry())
                     continue;
                 // (those variables have to be free here! otherwise that continuation should be in this scope and not free)
-                assert(fv && !contains(fv));
+                if (contains(fv))
+                    world().WLOG("Potentially broken scoping: free variable {} showed up in the free variables of {} despite that continuation being part of its scope", fv, entry());
                 free_params.insert(fv);
             }
         }
@@ -149,6 +150,10 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
     if (valid_results) {
         free_params_ = std::make_unique<ParamSet>(free_params);
         return free_params;
+    }
+
+    for (auto fp : free_params) {
+        assert(fp->continuation() != entry());
     }
 
     return free_params;

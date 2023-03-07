@@ -66,6 +66,8 @@ void Scope::run() {
         queue.push(entry()->body());
     queue.push(entry()->filter());
 
+    defs_.insert(entry());
+
     while (!queue.empty()) {
         auto def = queue.pop();
 
@@ -82,7 +84,7 @@ void Scope::run() {
 ParamSet Scope::search_free_variables_nonrec(bool root) const {
     bool valid_results = true;
 
-    //world().WLOG("free variables analysis: searching transitive ops of: {}", entry());
+    //world().WLOG("free variables analysis: searching transitive ops of: {} (root={}, depth={})", entry(), root, forest_->stack_.size());
     ParamSet free_params;
     forest_->stack_.push_back(entry());
 
@@ -92,6 +94,7 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
         queue.push(def);
 
     if (free_params_) {
+        //world().WLOG("free variables analysis: reusing cached results for {}", entry());
         forest_->stack_.pop_back();
         return *free_params_;
     }
@@ -100,22 +103,20 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
         auto free_def = queue.pop();
         assert(!contains(free_def));
 
-        if (free_def == entry())
-            continue;
-
         if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_)
             free_params.emplace(param);
         else if (auto cont = free_def->isa_nom<Continuation>()) {
             // the free variables analysis can be recursive, but it's not necessary to inspect our own scope again ...
-            if (cont == entry())
-                continue;
+            assert(cont != entry());
 
             // if we hit the recursion wall, the results for this free variable search are only valid for the callee
             if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) != forest_->stack_.end()) {
                 assert(!root);
+                //world().WLOG("free variables analysis: skipping {} to prevent infinite recursion", cont);
                 valid_results = false;
                 continue;
             }
+
             Scope& scope = forest_->get_scope(cont, forest_);
             assert(scope.defs().size() > 0 || !scope.entry()->has_body());
 
@@ -123,17 +124,17 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
             ParamSet fp = scope.search_free_variables_nonrec(false);
             valid_results &= scope.free_params_.get() != nullptr;
             for (auto fv: fp) {
-                // well except if these are our own ;)
-                if (fv->continuation() == entry())
-                    continue;
                 // (those variables have to be free here! otherwise that continuation should be in this scope and not free)
-                if (contains(fv))
-                    world().WLOG("Potentially broken scoping: free variable {} showed up in the free variables of {} despite that continuation being part of its scope", fv, entry());
+                if (contains(fv)) {
+                    world().WLOG("Potentially broken scoping: free variable {} showed up in the free variables of {} despite that continuation being part of its scope",fv, entry());
+                    assert(false);
+                }
                 free_params.insert(fv);
             }
         }
         else {
             for (auto op : free_def->ops()) {
+                // the entry might be referenced by the outside world, but that's completely fine
                 if (op == entry())
                     continue;
                 assert(!contains(op));

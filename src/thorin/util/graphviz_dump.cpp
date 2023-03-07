@@ -16,9 +16,15 @@ struct DotPrinter {
     }
 
 private:
-    void dump_def(const Def* def);
-    void dump_literal(const Literal*);
-    void dump_continuation(const Continuation* cont);
+    std::string dump_def(const Def* def);
+    std::string dump_literal(const Literal*);
+    std::string dump_continuation(Continuation* cont);
+
+    void arrow(const std::string& src, const std::string& dst, const std::string& extra) {
+        if (src.empty() || dst.empty())
+            return;
+        file << endl << src << " -> " << dst << " " << extra << ";";
+    }
 
 public:
     void print() {
@@ -32,22 +38,23 @@ public:
 
     bool print_lower_order_args = false;
     bool print_instanced_filters = false;
+    bool print_literals = false;
 
 private:
     thorin::World& world;
 
-    DefSet done;
+    DefMap<std::string> done;
     std::ofstream file;
 };
 
-void DotPrinter::dump_def(const Def* def) {
+std::string DotPrinter::dump_def(const Def* def) {
     if (done.contains(def))
-        return;
+        return done[def];
 
     if (auto cont = def->isa_nom<Continuation>())
-        dump_continuation(cont);
+        return dump_continuation(cont);
     else if (def->isa<Literal>())
-        dump_literal(def->as<Literal>());
+        return dump_literal(def->as<Literal>());
     else {
         // dump_def_generic(def, "red", "star");
 
@@ -131,25 +138,27 @@ void DotPrinter::dump_def(const Def* def) {
         file << endl << "color = " << color << ";";
 
         file << down << endl << "]";
-
-        done.emplace(def);
+        done.emplace(def, def->unique_name());
 
         if (!filtered_ops) {
             for (size_t i = 0; i < def->num_ops(); i++) {
                 const auto& op = def->op(i);
-                dump_def(op);
-                file << endl << def->unique_name() << " -> " << op->unique_name() << " [arrowhead=vee,label=\"o" << i << "\",fontsize=8,fontcolor=grey];";
+                arrow(def->unique_name(), dump_def(op), "[arrowhead=vee,label=\"o" + std::to_string(i) + "\",fontsize=8,fontcolor=grey]");
             }
         } else {
             for (auto [label, op] : *filtered_ops) {
-                dump_def(op);
-                file << endl << def->unique_name() << " -> " << op->unique_name() << " [arrowhead=vee,label=\"" << label << "\",fontsize=8,fontcolor=grey];";
+                arrow(def->unique_name(), dump_def(op), "[arrowhead=vee,label=\"" + label + "\",fontsize=8,fontcolor=grey]");
             }
         }
+
+        return def->unique_name();
     }
 }
 
-void DotPrinter::dump_literal(const Literal* def) {
+std::string DotPrinter::dump_literal(const Literal* def) {
+    if (!print_literals)
+        return "";
+    assert(def->num_ops() == 0);
     file << endl << def->unique_name() << " [" << up;
 
     file << endl << "label = \"";
@@ -160,13 +169,12 @@ void DotPrinter::dump_literal(const Literal* def) {
 
     file << down << endl << "]";
 
-    done.emplace(def);
-
-    assert(def->num_ops() == 0);
+    done.emplace(def, def->unique_name());
+    return def->unique_name();
 }
 
-void DotPrinter::dump_continuation(const Continuation* cont) {
-    done.emplace(cont);
+std::string DotPrinter::dump_continuation(Continuation* cont) {
+    done.emplace(cont, cont->unique_name());
     auto intrinsic = cont->intrinsic();
     file << endl << cont->unique_name() << " [" << up;
 
@@ -176,11 +184,13 @@ void DotPrinter::dump_continuation(const Continuation* cont) {
     auto name = cont->name();
     if (!cont->is_external())
         name = cont->unique_name();
+
     file << name << "(";
     for (size_t i = 0; i < cont->num_params(); i++) {
         file << cont->param(i)->type()->to_string() << (i + 1 == cont->num_params() ? "" : ", ");
     }
     file << ")";
+
     file << "\";";
 
     file << endl << "shape = rectangle;";
@@ -195,34 +205,10 @@ void DotPrinter::dump_continuation(const Continuation* cont) {
 
     file << down << endl << "]";
 
-    /*for (size_t i = 0; i < cont->num_args(); i++) {
-        auto arg = cont->arg(i);
-        dump_def(arg);
+    if (cont->has_body())
+        arrow(cont->unique_name(), dump_def(cont->body()), "[arrowhead=normal]");
 
-        if (cont->callee()->uses().size() > 1)
-            file << endl << arg->unique_name() << " -> " << cont->callee()->unique_name() << " [arrowhead=onormal,label=\"a" << i << " from " << cont->unique_name() << "\",fontsize=8,fontcolor=grey];";
-        else
-            file << endl << arg->unique_name() << " -> " << cont->callee()->unique_name() << " [arrowhead=onormal,label=\"a" << i << "\",fontsize=8,fontcolor=grey];";
-    }*/
-
-    switch (intrinsic) {
-        // We don't care about the params for these, or the callee
-        case Intrinsic::Match:
-        case Intrinsic::Branch:
-            return;
-        default:
-            break;
-    }
-
-    /*for (size_t i = 0; i < cont->num_params(); i++) {
-        auto param = cont->param(i);
-        dump_def(param);
-        file << endl << param->unique_name() << " -> " << cont->unique_name() << " [arrowhead=none,label=\"p" << i << "\",fontsize=8,fontcolor=grey];";
-    }*/
-    if (cont->has_body()) {
-        dump_def(cont->body());
-        file << endl << cont->unique_name() << " -> " << cont->body()->unique_name() << " [arrowhead=normal];";
-    }
+    return cont->unique_name();
 }
 
 DEBUG_UTIL void dump_dot_world(World& world) {

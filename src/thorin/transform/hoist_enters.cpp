@@ -24,7 +24,7 @@ static void find_enters(std::deque<const Enter*>& enters, Continuation* continua
         find_enters(enters, mem_param);
 }
 
-static void hoist_enters(const Scope& scope) {
+static bool hoist_enters(const Scope& scope) {
     World& world = scope.world();
     std::deque<const Enter*> enters;
 
@@ -33,25 +33,50 @@ static void hoist_enters(const Scope& scope) {
 
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {
         world.VLOG("cannot optimize {} - didn't find entry enter", scope.entry());
-        return;
+        return false;
     }
 
     auto entry_enter = enters[0];
     auto frame = entry_enter->out_frame();
     enters.pop_front();
 
+    bool todo = false;
     for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i) {
         auto old_enter = *i;
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
+            if (slot->uses().size() > 0)
+                todo = true;
             slot->replace_uses(world.slot(slot->alloced_type(), frame, slot->debug()));
             assert(slot->num_uses() == 0);
         }
     }
+    return todo;
 }
 
 void hoist_enters(Thorin& thorin) {
-    Scope::for_each(thorin.world(), [] (const Scope& scope) { hoist_enters(scope); });
+    bool todo = false;
+    do {
+        todo = false;
+        //Scope::for_each(thorin.world(), [&](const Scope& scope) { hoist_enters(scope); });
+        //Scope::for_each(thorin.world(), [&](const Scope& scope) { if (!todo) todo = hoist_enters(scope); });
+        auto forest = std::make_shared<ScopesForest>();
+        for (auto cont : thorin.world().copy_continuations()) {
+            if (!cont->has_body())
+                continue;
+            assert(forest->stack_.empty());
+            //forest->scopes_.clear();
+            auto& scope = forest->get_scope(cont, forest);
+            //Scope scope(cont);
+            assert(forest->stack_.empty());
+            if(!scope.has_free_params()) {
+                assert(forest->stack_.empty());
+                if (!todo) todo = hoist_enters(scope);
+                if (todo)
+                    break;
+            }
+        }
+    } while (todo);
     thorin.cleanup();
 }
 

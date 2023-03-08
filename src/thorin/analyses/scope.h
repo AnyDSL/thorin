@@ -62,6 +62,7 @@ public:
     Stream& stream(Stream&) const;                  ///< Streams thorin to file @p out.
     //@}
 
+    void verify();
 private:
     void run();
     DefSet potentially_contained() const;

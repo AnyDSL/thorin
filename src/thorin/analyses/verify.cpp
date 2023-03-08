@@ -28,6 +28,7 @@ static bool verify_top_level(World& world) {
         if (auto cont = def->isa_nom<Continuation>()) {
             world.VLOG("verifying external continuation '{}'", cont);
             auto& scope = forest.get_scope(cont);
+            scope.verify();
             if (scope.has_free_params()) {
                 for (auto param : scope.free_params())
                     world.ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
@@ -38,6 +39,10 @@ static bool verify_top_level(World& world) {
             for (auto op : def->ops())
                 defs.push(op);
         }
+    }
+    for (auto cont : world.copy_continuations()) {
+        auto& scope = forest.get_scope(cont);
+        scope.verify();
     }
     return ok;
 }

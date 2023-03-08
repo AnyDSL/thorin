@@ -82,6 +82,16 @@ void Scope::run() {
     }
 }
 
+void Scope::verify() {
+    for (auto def : defs()) {
+        if (auto cont = def->isa_nom<Continuation>()) {
+            if (cont == entry())
+                continue;
+            assert(!forest_.get_scope(cont).contains(entry()));
+        }
+    }
+}
+
 static auto first_or_null = [](ParamSet& set) -> const Param* {
     for (auto p : set) {
         return p;
@@ -254,6 +264,8 @@ Scope& ScopesForest::get_scope(Continuation* entry) {
     Scope* ptr = scope.get();
     ptr->run();
     scopes_[entry] = std::move(scope);
+    if (stack_.empty())
+       ptr->verify();
     return *ptr;
 }
 

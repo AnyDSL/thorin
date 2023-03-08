@@ -49,6 +49,7 @@ public:
     /// Are there any free @p Param%s within this @p Scope.
     bool has_free_params() const;
     const Param* first_free_param() const;
+    Continuation* parent_scope() const;
     //@}
 
     //@{ simple CFA to construct a CFG
@@ -79,6 +80,7 @@ private:
     mutable std::optional<const Param*> first_free_param_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;
+    mutable std::optional<Continuation*> parent_scope_;
 
     friend ScopesForest;
 };

@@ -234,6 +234,42 @@ const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
+Continuation* Scope::parent_scope() const {
+    if (!parent_scope_) {
+        ContinuationSet candidates_set;
+        std::queue<Continuation*> candidates;
+
+        for (auto param : free_params()) {
+            if(candidates_set.insert(param->continuation()).second)
+                candidates.push(param->continuation());
+        }
+
+        if (candidates.empty())
+            parent_scope_ = std::make_optional<Continuation*>();
+        else {
+            while (true) {
+                auto candidate = pop(candidates);
+                // when there is only one candidate left, that's our parent
+                if (candidates.empty()) {
+                    parent_scope_ = std::make_optional<Continuation*>(candidate);
+                    break;
+                }
+
+                auto other_candidate = pop(candidates);
+                assert(candidate != other_candidate);
+                if (forest_.get_scope(candidate).contains(other_candidate))
+                    candidates.push(other_candidate);
+                else {
+                    assert(forest_.get_scope(other_candidate).contains(candidate) && "a scope cannot be nested in two unrelated parent scopes");
+                    candidates.push(candidate);
+                }
+            }
+        }
+    }
+
+    return *parent_scope_;
+}
+
 template<bool elide_empty>
 void ScopesForest::for_each(std::function<void(Scope&)> f) {
     for (auto cont : world_.copy_continuations()) {

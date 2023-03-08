@@ -93,26 +93,13 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
 Continuation* Continuation::stub(Rewriter& rewriter) const {
     assert(!dead_);
     auto& nworld = rewriter.dst();
-    // TODO maybe we want to deal with intrinsics in a more streamlined way
-    if (this == world().branch())
-        return nworld.branch();
-    if (this == world().end_scope())
-        return nworld.end_scope();
 
     auto npi = rewriter.instantiate(type())->isa<FnType>();
     assert(npi);
-    // TODO: HACK this is done out of lazyness because of the closure_conversion rewrite.
-    if (npi->isa<ClosureType>())
-        npi = rewriter.dst().fn_type(npi->types());
 
     Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
     assert(&ncontinuation->world() == &nworld);
     assert(&npi->world() == &nworld);
-    for (size_t i = 0, e = num_params(); i != e; ++i)
-        ncontinuation->param(i)->set_name(param(i)->debug_history().name);
-
-    if (is_external())
-        nworld.make_external(ncontinuation);
 
     // TODO: investigate why this hangs
     // ncontinuation->set_filter(rewriter.instantiate(filter())->as<Filter>());
@@ -122,12 +109,14 @@ Continuation* Continuation::stub(Rewriter& rewriter) const {
 void Continuation::rebuild_from(Rewriter& rewriter, const Def* old) {
     auto ocont = old->as<Continuation>();
     assert(ocont);
-    if (this == world().branch())
-        return;
-    if (this == world().end_scope())
-        return;
+
+    for (size_t i = 0, e = num_params(); i != e; ++i)
+        param(i)->set_name(ocont->param(i)->debug_history().name);
 
     set_filter(rewriter.instantiate(ocont->filter())->as<Filter>());
+
+    if (ocont->is_external())
+        world().make_external(this);
 
     if (ocont->has_body()) {
         auto napp = rewriter.instantiate(ocont->body())->isa<App>();

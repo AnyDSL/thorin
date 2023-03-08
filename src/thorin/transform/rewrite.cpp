@@ -9,6 +9,12 @@ Rewriter::Rewriter(World& src, World& dst) : src_(src), dst_(dst) {
 const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = old2new_.lookup(odef)) return *ndef;
 
+    // TODO maybe we want to deal with intrinsics in a more streamlined way
+    if (odef == src().branch())
+        return dst().branch();
+    if (odef == src().end_scope())
+        return dst().end_scope();
+
     return old2new_[odef] = rewrite(odef);
 }
 

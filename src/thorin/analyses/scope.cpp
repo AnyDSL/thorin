@@ -27,6 +27,7 @@ Scope::~Scope() {}
 Scope& Scope::update() {
     defs_.clear();
     free_frontier_.clear();
+    first_free_param_ = nullptr;
     free_params_ = nullptr;
     cfa_         = nullptr;
     run();
@@ -81,11 +82,36 @@ void Scope::run() {
     }
 }
 
-ParamSet Scope::search_free_variables_nonrec(bool root) const {
-    bool valid_results = true;
+static auto first_or_null = [](ParamSet& set) -> const Param* {
+    for (auto p : set) {
+        return p;
+    }
+    return nullptr;
+};
 
-    //world().WLOG("free variables analysis: searching transitive ops of: {} (root={}, depth={})", entry(), root, forest_->stack_.size());
+// searches for free variable in this scope, starting at the free frontier and transitively searching the scopes of the free continuations we encounter
+// stop_after_first is used when we only care about whether this is a top-level scope (ie has no free params) or not, we can stop as soon as one param is found
+template<bool stop_after_first>
+std::tuple<ParamSet, bool> Scope::search_free_params() const {
+    if (free_params_) {
+        //world().WLOG("free variables analysis: reusing cached results for {}", entry());
+        return std::make_tuple(*free_params_, true);
+    }
+
+    if (stop_after_first && first_free_param_) {
+        ParamSet one_or_zero_params;
+        if (*first_free_param_ != nullptr)
+            one_or_zero_params.insert(first_free_param());
+        return std::make_tuple(one_or_zero_params, true);
+    }
+
     ParamSet free_params;
+    /// as much as possible, we'd like to keep the results of those searches, but in the recursive case it's not always possible:
+    /// if there is a cycle, we stop when we encounter a continuation we're already searching the free variables for
+    /// this variable keeps track of whether we did that or not, if we didn't and this is a full search, we can safely save the results
+    bool thorough = true;
+    bool root = forest_->stack_.empty();
+    //world().WLOG("free variables analysis: searching transitive ops of: {} (root={}, depth={})", entry(), root, forest_->stack_.size());
     forest_->stack_.push_back(entry());
 
     unique_queue<DefSet> queue;
@@ -93,43 +119,42 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
     for (auto def : free_frontier_)
         queue.push(def);
 
-    if (free_params_) {
-        //world().WLOG("free variables analysis: reusing cached results for {}", entry());
-        forest_->stack_.pop_back();
-        return *free_params_;
-    }
-
     while (!queue.empty()) {
         auto free_def = queue.pop();
         assert(!contains(free_def));
 
-        if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_)
-            free_params.emplace(param);
-        else if (auto cont = free_def->isa_nom<Continuation>()) {
+        if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_) {
+            free_params.insert(param);
+            if (stop_after_first)
+                break;
+        } else if (auto cont = free_def->isa_nom<Continuation>()) {
             // the free variables analysis can be recursive, but it's not necessary to inspect our own scope again ...
             assert(cont != entry());
 
             // if we hit the recursion wall, the results for this free variable search are only valid for the callee
             if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) != forest_->stack_.end()) {
-                assert(!root);
                 //world().WLOG("free variables analysis: skipping {} to prevent infinite recursion", cont);
-                valid_results = false;
+                thorough = false;
                 continue;
             }
 
             Scope& scope = forest_->get_scope(cont, forest_);
-            assert(scope.defs().size() > 0 || !scope.entry()->has_body());
+            assert(!scope.defs().empty() || !scope.entry()->has_body());
 
             // When we have a free continuation in the body of our fn, their free variables are also free in us
-            ParamSet fp = scope.search_free_variables_nonrec(false);
-            valid_results &= scope.free_params_.get() != nullptr;
-            for (auto fv: fp) {
+            auto [callee_free_params, callee_results_thorough] = scope.search_free_params<stop_after_first>();
+            if (!root)
+                thorough &= callee_results_thorough;
+
+            for (auto p: callee_free_params) {
                 // (those variables have to be free here! otherwise that continuation should be in this scope and not free)
-                if (contains(fv)) {
-                    world().WLOG("Potentially broken scoping: free variable {} showed up in the free variables of {} despite that continuation being part of its scope",fv, entry());
+                if (contains(p)) {
+                    world().WLOG("Potentially broken scoping: free variable {} showed up in the free variables of {} despite that continuation being part of its scope", p, entry());
                     assert(false);
                 }
-                free_params.insert(fv);
+                free_params.insert(p);
+                if (stop_after_first)
+                    break;
             }
         }
         else {
@@ -148,24 +173,51 @@ ParamSet Scope::search_free_variables_nonrec(bool root) const {
     assert(forest_->stack_.back() == entry());
     forest_->stack_.pop_back();
 
-    if (valid_results) {
-        free_params_ = std::make_unique<ParamSet>(free_params);
-        return free_params;
+    // save the results if we can
+    if (thorough) {
+        if (stop_after_first) {
+            first_free_param_ = std::make_optional<const Param*>(first_or_null(free_params));
+            return std::make_tuple(free_params, true);
+        } else {
+            free_params_ = std::make_unique<ParamSet>(std::move(free_params));
+            return std::make_tuple(*free_params_, true);
+        }
     }
 
     for (auto fp : free_params) {
         assert(fp->continuation() != entry());
     }
 
-    return free_params;
+    return std::make_tuple(free_params, thorough);
 }
 
 const ParamSet& Scope::free_params() const {
     if (!free_params_) {
-        free_params_ = std::make_unique<ParamSet>(search_free_variables_nonrec(true));
+        auto [set, valid] = search_free_params<false>();
+        assert(valid);
+        free_params_ = std::make_unique<ParamSet>(set);
     }
 
     return *free_params_;
+}
+
+const Param* Scope::first_free_param() const {
+    if (!first_free_param_) {
+        // if we already computed the full free params list, let's reuse that !
+        if (free_params_) {
+            first_free_param_ = std::make_optional<const Param*>(first_or_null(*free_params_));
+        } else {
+            auto [set, valid] = search_free_params<true>();
+            assert(valid);
+            first_free_param_ = std::make_optional<const Param*>(first_or_null(set));
+        }
+    }
+
+    return *first_free_param_;
+}
+
+bool Scope::has_free_params() const {
+    return first_free_param() != nullptr;
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }

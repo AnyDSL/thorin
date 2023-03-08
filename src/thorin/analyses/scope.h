@@ -47,7 +47,8 @@ public:
     /// All @p Param%s that appear free in this @p Scope.
     const ParamSet& free_params() const;
     /// Are there any free @p Param%s within this @p Scope.
-    bool has_free_params() const { return !free_params().empty(); }
+    bool has_free_params() const;
+    const Param* first_free_param() const;
     //@}
 
     //@{ simple CFA to construct a CFG
@@ -73,13 +74,15 @@ public:
     void run();
     DefSet potentially_contained() const;
 
-    ParamSet search_free_variables_nonrec(bool) const;
+    template<bool stop_after_first>
+    std::tuple<ParamSet, bool> search_free_params() const;
 
     World& world_;
     mutable std::shared_ptr<ScopesForest> forest_;
-    DefSet defs_;
     Continuation* entry_ = nullptr;
+    DefSet defs_;
     DefSet free_frontier_;
+    mutable std::optional<const Param*> first_free_param_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;
 

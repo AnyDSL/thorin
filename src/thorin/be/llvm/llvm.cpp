@@ -283,7 +283,7 @@ CodeGen::emit_module() {
         }
     }
 
-    Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
+    ScopesForest(world()).for_each([&] (const Scope& scope) { emit_scope(scope); });
 
     if (debug()) dibuilder_.finalize();
 

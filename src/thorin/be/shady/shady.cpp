@@ -18,7 +18,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     arena = shady::new_ir_arena(config);
     module = shady::new_module(arena, world().name().c_str());
 
-    Scope::for_each(world(), [&](const Scope& scope) { emit_scope(scope); });
+    ScopesForest(world()).for_each([&](const Scope& scope) { emit_scope(scope); });
 
     char* bufptr;
     size_t size;

@@ -12,11 +12,11 @@
 
 namespace thorin {
 
-Scope::Scope(Continuation* entry) : Scope(entry, std::make_shared<ScopesForest>()) {
+Scope::Scope(Continuation* entry) : world_(entry->world()), root(std::make_unique<ScopesForest>(world())), forest_(*root), entry_(entry) {
     run();
 }
 
-Scope::Scope(Continuation* entry, std::shared_ptr<ScopesForest> forest)
+Scope::Scope(Continuation* entry, ScopesForest& forest)
     : world_(entry->world())
     , forest_(forest)
     , entry_(entry)
@@ -110,9 +110,9 @@ std::tuple<ParamSet, bool> Scope::search_free_params() const {
     /// if there is a cycle, we stop when we encounter a continuation we're already searching the free variables for
     /// this variable keeps track of whether we did that or not, if we didn't and this is a full search, we can safely save the results
     bool thorough = true;
-    bool root = forest_->stack_.empty();
+    bool is_root = forest_.stack_.empty();
     //world().WLOG("free variables analysis: searching transitive ops of: {} (root={}, depth={})", entry(), root, forest_->stack_.size());
-    forest_->stack_.push_back(entry());
+    forest_.stack_.push_back(entry());
 
     unique_queue<DefSet> queue;
 
@@ -132,18 +132,18 @@ std::tuple<ParamSet, bool> Scope::search_free_params() const {
             assert(cont != entry());
 
             // if we hit the recursion wall, the results for this free variable search are only valid for the callee
-            if (std::find(forest_->stack_.begin(), forest_->stack_.end(), cont) != forest_->stack_.end()) {
+            if (std::find(forest_.stack_.begin(), forest_.stack_.end(), cont) != forest_.stack_.end()) {
                 //world().WLOG("free variables analysis: skipping {} to prevent infinite recursion", cont);
                 thorough = false;
                 continue;
             }
 
-            Scope& scope = forest_->get_scope(cont, forest_);
+            Scope& scope = forest_.get_scope(cont);
             assert(!scope.defs().empty() || !scope.entry()->has_body());
 
             // When we have a free continuation in the body of our fn, their free variables are also free in us
             auto [callee_free_params, callee_results_thorough] = scope.search_free_params<stop_after_first>();
-            if (!root)
+            if (!is_root)
                 thorough &= callee_results_thorough;
 
             for (auto p: callee_free_params) {
@@ -170,8 +170,8 @@ std::tuple<ParamSet, bool> Scope::search_free_params() const {
 
     //world().WLOG("free variables analysis: done with : {} (hit_wall={})", entry(), hit_recursion_wall);
 
-    assert(forest_->stack_.back() == entry());
-    forest_->stack_.pop_back();
+    assert(forest_.stack_.back() == entry());
+    forest_.stack_.pop_back();
 
     // save the results if we can
     if (thorough) {
@@ -225,33 +225,32 @@ const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
-void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    auto forest = std::make_shared<ScopesForest>();
-    for (auto cont : world.copy_continuations()) {
+void ScopesForest::for_each(std::function<void(Scope&)> f) {
+    for (auto cont : world_.copy_continuations()) {
         if (elide_empty && !cont->has_body())
             continue;
-        assert(forest->stack_.empty());
+        assert(stack_.empty());
         //forest->scopes_.clear();
-        auto& scope = forest->get_scope(cont, forest);
+        auto& scope = get_scope(cont);
         //Scope scope(cont);
-        assert(forest->stack_.empty());
+        assert(stack_.empty());
         if(!scope.has_free_params()) {
-            assert(forest->stack_.empty());
+            assert(stack_.empty());
             f(scope);
         }
     }
 }
 
-template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
-template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
+template void ScopesForest::for_each<true> ( std::function<void(Scope&)>);
+template void ScopesForest::for_each<false>( std::function<void(Scope&)>);
 
-Scope& ScopesForest::get_scope(Continuation* entry, std::shared_ptr<ScopesForest>& self) {
+Scope& ScopesForest::get_scope(Continuation* entry) {
     if (scopes_.contains(entry)) {
         auto existing = scopes_.find(entry);
         assert((size_t)(existing->second.get()) != 0xbebebebe00000000);
         return *existing->second;
     }
-    auto scope = std::make_unique<Scope>(entry, self);
+    auto scope = std::make_unique<Scope>(entry, *this);
     Scope* ptr = scope.get();
     ptr->run();
     scopes_[entry] = std::move(scope);

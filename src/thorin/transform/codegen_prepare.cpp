@@ -45,7 +45,7 @@ void codegen_prepare(Thorin& thorin) {
     CodegenPrepare pass(src, *destination.get());
 
     // step one: scan for top-level continuations and register their ret params
-    Scope::for_each(src, [&](Scope& scope) {
+    ScopesForest(src).for_each([&](Scope& scope) {
         auto ret_param = scope.entry()->ret_param();
         if (ret_param)
             pass.make_wrapper(ret_param);

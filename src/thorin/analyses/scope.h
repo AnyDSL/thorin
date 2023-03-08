@@ -30,7 +30,7 @@ public:
     Scope& operator=(Scope) = delete;
 
     explicit Scope(Continuation* entry);
-    explicit Scope(Continuation* entry, std::shared_ptr<ScopesForest>);
+    explicit Scope(Continuation* entry, ScopesForest&);
     ~Scope();
 
     /// Invoke if you have modified sth in this Scope.
@@ -62,15 +62,7 @@ public:
     Stream& stream(Stream&) const;                  ///< Streams thorin to file @p out.
     //@}
 
-    /**
-     * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
-     * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_empty whether you want to visit trivial Scope%s of Continuation%s without body.
-     */
-    template<bool elide_empty = true>
-    static void for_each(const World&, std::function<void(Scope&)>);
-
-//private:
+private:
     void run();
     DefSet potentially_contained() const;
 
@@ -78,7 +70,8 @@ public:
     std::tuple<ParamSet, bool> search_free_params() const;
 
     World& world_;
-    mutable std::shared_ptr<ScopesForest> forest_;
+    std::unique_ptr<ScopesForest> root;
+    ScopesForest& forest_;
     Continuation* entry_ = nullptr;
     DefSet defs_;
     DefSet free_frontier_;
@@ -91,10 +84,19 @@ public:
 
 class ScopesForest {
 public:
-    ScopesForest() {}
+    ScopesForest(World& world) : world_(world) {}
 
-    Scope& get_scope(Continuation* entry, std::shared_ptr<ScopesForest>& self);
+    /**
+     * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
+     * We call these Scope%s @em top-level Scope%s.
+     * Select with @p elide_empty whether you want to visit trivial Scope%s of Continuation%s without body.
+     */
+    template<bool elide_empty = true>
+    void for_each(std::function<void(Scope&)>);
 
+    Scope& get_scope(Continuation* entry);
+
+    World& world_;
     std::vector<Continuation*> stack_;
     ContinuationMap<std::unique_ptr<Scope>> scopes_;
 };

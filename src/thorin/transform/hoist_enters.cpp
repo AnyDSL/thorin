@@ -60,17 +60,17 @@ void hoist_enters(Thorin& thorin) {
         todo = false;
         //Scope::for_each(thorin.world(), [&](const Scope& scope) { hoist_enters(scope); });
         //Scope::for_each(thorin.world(), [&](const Scope& scope) { if (!todo) todo = hoist_enters(scope); });
-        auto forest = std::make_shared<ScopesForest>();
+        ScopesForest forest(thorin.world());
         for (auto cont : thorin.world().copy_continuations()) {
             if (!cont->has_body())
                 continue;
-            assert(forest->stack_.empty());
+            assert(forest.stack_.empty());
             //forest->scopes_.clear();
-            auto& scope = forest->get_scope(cont, forest);
+            auto& scope = forest.get_scope(cont);
             //Scope scope(cont);
-            assert(forest->stack_.empty());
+            assert(forest.stack_.empty());
             if(!scope.has_free_params()) {
-                assert(forest->stack_.empty());
+                assert(forest.stack_.empty());
                 if (!todo) todo = hoist_enters(scope);
                 if (todo)
                     break;

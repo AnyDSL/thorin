@@ -93,7 +93,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     }
 
     // determine different parts of the world which need to be compiled differently
-    Scope::for_each(world, [&] (const Scope& scope) {
+    ScopesForest(world).for_each([&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
 

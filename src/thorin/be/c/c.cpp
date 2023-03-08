@@ -355,7 +355,7 @@ void CCodeGen::emit_module() {
     Continuation* hls_top = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
-    Scope::for_each(world(), [&] (const Scope& scope) {
+    ScopesForest(world()).for_each([&] (const Scope& scope) {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else

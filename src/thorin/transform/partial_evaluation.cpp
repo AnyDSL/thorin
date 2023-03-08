@@ -45,9 +45,9 @@ const Def* BetaReducer::rewrite(const Def* odef) {
 
 class CondEval {
 public:
-    CondEval(const App* app)
+    CondEval(const App* app, ScopesForest& forest)
         : app_(app)
-        , forest_(std::make_shared<ScopesForest>())
+        , forest_(forest)
     {
         callee_ = app->callee()->as_nom<Continuation>();
         filter_ = app->filter();
@@ -76,14 +76,14 @@ protected:
     }
 
     bool is_top_level(Continuation* continuation) {
-        return !forest_->get_scope(continuation, forest_).has_free_params();
+        return !forest_.get_scope(continuation).has_free_params();
     }
 
 private:
     const App* app_;
     Continuation* callee_;
     const Filter* filter_;
-    std::shared_ptr<ScopesForest> forest_;
+    ScopesForest& forest_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
@@ -131,7 +131,9 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                CondEval cond_eval(continuation->body());
+                // TODO cache the forest and only rebuild it when we need to
+                ScopesForest forest(world());
+                CondEval cond_eval(continuation->body(), forest);
 
                 std::vector<const Def*> specialize(body->num_args());
 

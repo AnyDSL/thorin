@@ -9,7 +9,7 @@ namespace thorin {
 
 struct Lift2CffRewriter {
     Lift2CffRewriter(World& src) : world_(src) {
-        Scope::for_each(src, [&](auto& scope) {
+        ScopesForest(src).for_each([&](auto& scope) {
             top_level_.insert(scope.entry());
         });
     }
@@ -68,7 +68,7 @@ struct Lift2CffRewriter {
     }
 
     bool run() {
-        Scope::for_each(world_, [&](auto& scope) {
+        ScopesForest(world_).for_each([&](auto& scope) {
             for (const CFNode* cfnode : scope.f_cfg().reverse_post_order()) {
                 auto cont = cfnode->continuation();
                 if (needs_lifting(cont)) {

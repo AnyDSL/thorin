@@ -90,7 +90,7 @@ void split_slots(Thorin& thorin) {
     bool todo = true;
     while (todo) {
         todo = false;
-        Scope::for_each(thorin.world(), [&] (const Scope& scope) { todo |= split_slots(scope); });
+        ScopesForest(thorin.world()).for_each([&] (const Scope& scope) { todo |= split_slots(scope); });
         thorin.cleanup();
     }
 }

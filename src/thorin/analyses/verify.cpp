@@ -20,14 +20,14 @@ static bool verify_calls(World& world) {
 static bool verify_top_level(World& world) {
     bool ok = true;
     unique_queue<DefSet> defs;
-    auto forest = std::make_shared<ScopesForest>();
+    ScopesForest forest(world);
     for (auto& external : world.externals())
         defs.push(external.second);
     while (!defs.empty()) {
         auto def = defs.pop();
         if (auto cont = def->isa_nom<Continuation>()) {
             world.VLOG("verifying external continuation '{}'", cont);
-            auto& scope = forest->get_scope(cont, forest);
+            auto& scope = forest.get_scope(cont);
             if (scope.has_free_params()) {
                 for (auto param : scope.free_params())
                     world.ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());

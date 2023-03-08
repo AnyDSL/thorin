@@ -160,7 +160,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
     Def2Def arg2param;
 
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
             auto old_kernel = scope.entry();
             Def2Mode def2mode;
             extract_kernel_channels(schedule(scope), def2mode);

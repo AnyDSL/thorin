@@ -68,6 +68,8 @@ void Scope::run() {
     queue.push(entry()->filter());
 
     defs_.insert(entry());
+    for (auto p : entry()->params())
+        defs_.insert(p);
 
     while (!queue.empty()) {
         auto def = queue.pop();

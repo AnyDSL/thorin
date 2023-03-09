@@ -6,10 +6,6 @@
 
 namespace thorin {
 
-static auto endl = "\n";
-static auto up = "";
-static auto down = "";
-
 /// Outputs the raw thorin IR as a graph without performing any scope or scheduling analysis
 struct DotPrinter {
     DotPrinter(World& world, const char* filename = "world.dot") : world_(world), forest_(world) {
@@ -26,10 +22,28 @@ private:
     std::string dump_literal(const Literal*);
     std::string dump_continuation(Continuation* cont);
 
+    std::stringstream arrows;
+
     void arrow(const std::string& src, const std::string& dst, const std::string& extra) {
         if (src.empty() || dst.empty())
             return;
-        file << endl << src << " -> " << dst << " " << extra << ";";
+        arrows << endl() << src << " -> " << dst << " " << extra << ";";
+    }
+
+    int indent = 0;
+    std::string endl() {
+        std::string s = "\n";
+        for (int i = 0; i < indent; i++)
+            s += " ";
+        return s;
+    }
+    std::string up() {
+        indent++;
+        return "";
+    }
+    std::string down() {
+        indent--;
+        return "";
     }
 
 public:
@@ -38,8 +52,8 @@ public:
             schedule();
         }
 
-        file << "digraph " << "world" << " {" << up;
-        file << endl << "bgcolor=transparent;";
+        file << "digraph " << "world" << " {" << up();
+        file << endl() << "bgcolor=transparent;";
 
         if (print_scopes) {
             for (auto cont : world_.copy_continuations()) {
@@ -59,7 +73,8 @@ public:
             }
         }
 
-        file << down << endl << "}" << endl;
+        file << arrows.str();
+        file << down() << endl() << "}" << endl();
     }
 
     bool print_lower_order_args = false;
@@ -69,7 +84,7 @@ public:
 
 private:
     void visit_scope(Continuation* cont) {
-        file << "subgraph cluster_" << u_++ << " {" << up << endl;
+        file << "subgraph cluster_" << u_++ << " {" << up() << endl();
 
         emit_def(cont);
 
@@ -78,12 +93,12 @@ private:
 
         Scope& scope = forest_.get_scope(cont);
         for (auto def : scope.defs()) {
-            if (!done.contains(def) && def != cont) {
+            if (!done.contains(def) && !def->isa<Continuation>()) {
                 emit_def(def);
             }
         }
 
-        file << down << endl << "}" << endl;
+        file << down() << endl() << "}" << endl();
     };
 
     void schedule() {
@@ -194,17 +209,17 @@ std::string DotPrinter::emit_def(const Def* def) {
 
         print_node:
 
-        file << endl << def_id(def) << " [" << up;
+        file << endl() << def_id(def) << " [" << up();
 
-        file << endl << "label = \"";
+        file << endl() << "label = \"";
         file << name;
         file << "\";";
 
-        file << endl << "shape = " << shape << ";";
-        file << endl << "style = " << style << ";";
-        file << endl << "color = " << color << ";";
+        file << endl() << "shape = " << shape << ";";
+        file << endl() << "style = " << style << ";";
+        file << endl() << "color = " << color << ";";
 
-        file << down << endl << "]";
+        file << down() << endl() << "]";
         done.emplace(def, def_id(def));
 
         if (!filtered_ops) {
@@ -226,15 +241,15 @@ std::string DotPrinter::dump_literal(const Literal* def) {
     if (!print_literals)
         return "";
     assert(def->num_ops() == 0);
-    file << endl << def_id(def) << " [" << up;
+    file << endl() << def_id(def) << " [" << up();
 
-    file << endl << "label = \"";
+    file << endl() << "label = \"";
     file << def->to_string();
     file << "\";";
 
-    file << endl << "style = dotted;";
+    file << endl() << "style = dotted;";
 
-    file << down << endl << "]";
+    file << down() << endl() << "]";
 
     done.emplace(def, def_id(def));
     return def_id(def);
@@ -243,14 +258,14 @@ std::string DotPrinter::dump_literal(const Literal* def) {
 std::string DotPrinter::dump_continuation(Continuation* cont) {
     done.emplace(cont, def_id(cont));
     auto intrinsic = cont->intrinsic();
-    file << endl << def_id(cont) << " [" << up;
+    file << endl() << def_id(cont) << " [" << up();
 
-    file << endl << "label = \"";
+    file << endl() << "label = \"";
     if (cont->is_external())
         file << "[extern]\\n";
     auto name = cont->name();
     if (!cont->is_external())
-        name = def_id(cont);
+        name = cont->unique_name();
 
     file << name << "(";
     for (size_t i = 0; i < cont->num_params(); i++) {
@@ -260,17 +275,17 @@ std::string DotPrinter::dump_continuation(Continuation* cont) {
 
     file << "\";";
 
-    file << endl << "shape = rectangle;";
+    file << endl() << "shape = rectangle;";
     if (intrinsic != Intrinsic::None) {
-        file << endl << "color = lightblue;";
-        file << endl << "style = filled;";
+        file << endl() << "color = lightblue;";
+        file << endl() << "style = filled;";
     }
     if (cont->is_external()) {
-        file << endl << "color = pink;";
-        file << endl << "style = filled;";
+        file << endl() << "color = pink;";
+        file << endl() << "style = filled;";
     }
 
-    file << down << endl << "]";
+    file << down() << endl() << "]";
 
     if (cont->has_body())
         arrow(def_id(cont), dump_def(cont->body()), "[arrowhead=normal]");

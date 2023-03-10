@@ -54,23 +54,17 @@ static bool hoist_enters(const Scope& scope) {
     return todo;
 }
 
+// TODO: rewrite this and put it out of its misery
 void hoist_enters(Thorin& thorin) {
     bool todo = false;
     do {
         todo = false;
-        //Scope::for_each(thorin.world(), [&](const Scope& scope) { hoist_enters(scope); });
-        //Scope::for_each(thorin.world(), [&](const Scope& scope) { if (!todo) todo = hoist_enters(scope); });
         ScopesForest forest(thorin.world());
         for (auto cont : thorin.world().copy_continuations()) {
             if (!cont->has_body())
                 continue;
-            assert(forest.stack_.empty());
-            //forest->scopes_.clear();
             auto& scope = forest.get_scope(cont);
-            //Scope scope(cont);
-            assert(forest.stack_.empty());
             if(!scope.has_free_params()) {
-                assert(forest.stack_.empty());
                 if (!todo) todo = hoist_enters(scope);
                 if (todo)
                     break;

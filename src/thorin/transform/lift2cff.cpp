@@ -35,16 +35,16 @@ struct Lift2CffRewriter {
         for (size_t i = 0; i < cont->num_params(); i++)
             lifted_args.push_back(cont->param(i));
         std::vector<const Def*> defs;
-        for (auto free : free_defs(scope)) {
-            if (free->isa_nom<Continuation>()) {
-                // TODO: assert is actually top level
-            } else if (!free->isa<Filter>()) { // don't lift the filter
-                assert(!free->isa<App>() && "an app should not be free");
+        for (auto free : spillable_free_defs(scope)) {
+            //if (free->isa_nom<Continuation>()) {
+            //    // TODO: assert is actually top level
+            //} else if (!free->isa<Filter>()) { // don't lift the filter
+                //assert(!free->isa<App>() && "an app should not be free");
                 //assert(!is_mem(free));
                 //todo_ = true;
                 lifted_args.push_back(free);
                 defs.push_back(free);
-            }
+            //}
         }
         if (defs.size() > 0) {
             bool has_callee_use = false;

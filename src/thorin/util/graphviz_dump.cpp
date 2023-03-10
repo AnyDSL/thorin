@@ -10,26 +10,13 @@ namespace thorin {
 struct DotPrinter {
     DotPrinter(World& world, const char* filename = "world.dot") : world_(world), forest_(world) {
         file = std::ofstream(filename);
+        begin();
     }
 
+    ~DotPrinter() {
+        end();
+    }
 private:
-    std::string def_id(const Def* def) {
-        return std::string(tag2str(def->tag())) + "_" + std::to_string(def->gid());
-    }
-
-    std::string emit_def(const Def* def);
-    std::string dump_def(const Def* def);
-    std::string dump_literal(const Literal*);
-    std::string dump_continuation(Continuation* cont);
-
-    std::stringstream arrows;
-
-    void arrow(const std::string& src, const std::string& dst, const std::string& extra) {
-        if (src.empty() || dst.empty())
-            return;
-        arrows << endl() << src << " -> " << dst << " " << extra << ";";
-    }
-
     int indent = 0;
     std::string endl() {
         std::string s = "\n";
@@ -46,52 +33,51 @@ private:
         return "";
     }
 
-public:
-    void print() {
-        if (print_scopes) {
-            schedule();
-        }
-
+    void begin() {
         file << "digraph " << "world" << " {" << up();
         file << endl() << "bgcolor=transparent;";
+    }
 
-        if (print_scopes) {
-            for (auto cont : world_.copy_continuations()) {
-                //if (!forest_.get_scope(cont).has_free_params())
-                if (forest_.get_scope(cont).parent_scope() == nullptr)
-                    visit_scope(cont);
-            }
-
-            for (auto def : world_.defs()) {
-                if (!done.contains(def)) {
-                    emit_def(def);
-                }
-            }
-        } else {
-            for (auto& external: world_.externals()) {
-                emit_def(external.second);
-            }
-        }
-
+    void end() {
         file << arrows.str();
         file << down() << endl() << "}" << endl();
     }
 
-    bool print_lower_order_args = false;
-    bool print_instanced_filters = false;
-    bool print_literals = true;
-    bool print_scopes = true;
+    std::string def_id(const Def* def) {
+        return std::string(tag2str(def->tag())) + "_" + std::to_string(def->gid());
+    }
 
-private:
-    void visit_scope(Continuation* cont) {
+    std::string emit_def(const Def* def);
+    std::string dump_literal(const Literal*);
+    std::string dump_continuation(Continuation* cont);
+
+    std::stringstream arrows;
+
+    void arrow(const std::string& src, const std::string& dst, const std::string& extra) {
+        if (src.empty() || dst.empty())
+            return;
+        arrows << endl() << src << " -> " << dst << " " << extra << ";";
+    }
+public:
+    std::string dump_def(const Def* def);
+
+    void run() {
+        delay_printing_ops = false;
+        while (!todo.empty()) {
+            auto def = todo.pop();
+            dump_def(def);
+        }
+    }
+
+    void print_scope(Scope& scope) {
         file << "subgraph cluster_" << u_++ << " {" << up() << endl();
 
+        auto cont = scope.entry();
         emit_def(cont);
 
-        for (auto child : nesting_[cont])
-            visit_scope(child);
+        for (auto child : scope.children_scopes())
+            print_scope(scope.forest().get_scope(child));
 
-        Scope& scope = forest_.get_scope(cont);
         for (auto def : scope.defs()) {
             if (!done.contains(def) && !def->isa<Continuation>()) {
                 emit_def(def);
@@ -101,23 +87,18 @@ private:
         file << down() << endl() << "}" << endl();
     };
 
-    void schedule() {
-        // build forest of continuations
-        for (auto cont : world_.copy_continuations()) {
-            auto parent = forest_.get_scope(cont).parent_scope();
-            if (parent)
-                nesting_[parent].push_back(cont);
-        }
-    }
+    bool print_lower_order_args = false;
+    bool print_instanced_filters = false;
+    bool print_literals = true;
+    bool delay_printing_ops = true;
 
+private:
     thorin::World& world_;
     ScopesForest forest_;
 
     int u_ = 0;
 
-    ContinuationMap<std::vector<Continuation*>> nesting_;
-    DefMap<Continuation*> scheduling_;
-
+    unique_queue<DefSet> todo;
     DefMap<std::string> done;
     std::ofstream file;
 };
@@ -126,7 +107,8 @@ std::string DotPrinter::dump_def(const Def* def) {
     if (done.contains(def))
         return done[def];
 
-    if (print_scopes) {
+    if (delay_printing_ops) {
+        todo.push(def);
         return def_id(def);
     }
 
@@ -151,6 +133,7 @@ std::string DotPrinter::emit_def(const Def* def) {
         if (def->isa<Param>()) {
             color = "grey";
             shape = "oval";
+            name = def->unique_name();
         } else if (auto app = def->isa<App>()) {
             color = "darkgreen";
 
@@ -290,16 +273,32 @@ std::string DotPrinter::dump_continuation(Continuation* cont) {
     if (cont->has_body())
         arrow(def_id(cont), dump_def(cont->body()), "[arrowhead=normal]");
 
-    //auto& scope = forest_.get_scope(cont);
-    //auto parent = scope.parent_scope();
-    //if (parent)
-    //    arrow(def_id(cont), dump_def(parent), "[arrowhead=normal,color=teal]");
-
     return def_id(cont);
 }
 
 DEBUG_UTIL void dump_dot_world(World& world) {
-    DotPrinter(world).print();
+    DotPrinter printer(world);
+    for (auto& external: world.externals()) {
+        printer.dump_def(external.second);
+    }
+    printer.run();
+}
+
+DEBUG_UTIL void dump_dot_scopes(World& world) {
+    DotPrinter printer(world);
+    printer.delay_printing_ops = false;
+    ScopesForest forest(world);
+    for (auto& top_level : forest.top_level_scopes()) {
+        auto& scope = forest.get_scope(top_level);
+        printer.print_scope(scope);
+    }
+    printer.run();
+}
+
+DEBUG_UTIL void dump_dot_scope(Scope& scope) {
+    DotPrinter printer(scope.world());
+    printer.print_scope(scope);
+    printer.run();
 }
 
 }

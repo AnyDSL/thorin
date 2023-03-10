@@ -272,21 +272,19 @@ Continuation* Scope::parent_scope() const {
     return *parent_scope_;
 }
 
-template<bool elide_empty>
-void ScopesForest::for_each(std::function<void(Scope&)> f) {
-    for (auto cont : world_.copy_continuations()) {
-        if (elide_empty && !cont->has_body())
-            continue;
-        assert(stack_.empty());
-        //forest->scopes_.clear();
-        auto& scope = get_scope(cont);
-        //Scope scope(cont);
-        assert(stack_.empty());
-        if(!scope.has_free_params()) {
-            assert(stack_.empty());
-            f(scope);
+ContinuationSet Scope::children_scopes() const {
+    ContinuationSet set;
+    for (auto def : defs()) {
+        if (auto cont = def->isa_nom<Continuation>()) {
+            auto& scope = forest_.get_scope(cont);
+            if (scope.parent_scope() == entry())
+                set.insert(cont);
+            else {
+                //TODO: add check that the parent is eventually us!
+            }
         }
     }
+    return set;
 }
 
 template void ScopesForest::for_each<true> ( std::function<void(Scope&)>);
@@ -305,6 +303,29 @@ Scope& ScopesForest::get_scope(Continuation* entry) {
     if (stack_.empty())
        ptr->verify();
     return *ptr;
+}
+
+ContinuationSet ScopesForest::top_level_scopes() {
+    ContinuationSet set;
+    for (auto cont : world_.copy_continuations()) {
+        auto& scope = get_scope(cont);
+        assert(stack_.empty());
+        if(!scope.has_free_params()) {
+            set.insert(cont);
+        }
+        assert(stack_.empty());
+    }
+    return set;
+}
+
+template<bool elide_empty>
+void ScopesForest::for_each(std::function<void(Scope&)> f) {
+    for (auto cont : top_level_scopes()) {
+        if (elide_empty && !cont->has_body())
+            continue;
+        auto& scope = get_scope(cont);
+        f(scope);
+    }
 }
 
 }

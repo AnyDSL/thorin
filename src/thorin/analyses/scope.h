@@ -39,18 +39,23 @@ public:
     //@{ misc getters
     World& world() const { return world_; }
     Continuation* entry() const { return entry_; }
+    ScopesForest& forest() const { return forest_; }
     //@}
 
     //@{ get Def%s contained in this Scope
     const DefSet& defs() const { return defs_; }
+    const DefSet& free_frontier() const { return free_frontier_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
+    //@}
+
     /// All @p Param%s that appear free in this @p Scope.
     const ParamSet& free_params() const;
     /// Are there any free @p Param%s within this @p Scope.
     bool has_free_params() const;
     const Param* first_free_param() const;
+
     Continuation* parent_scope() const;
-    //@}
+    ContinuationSet children_scopes() const;
 
     //@{ simple CFA to construct a CFG
     const CFA& cfa() const;
@@ -89,6 +94,10 @@ class ScopesForest {
 public:
     ScopesForest(World& world) : world_(world) {}
 
+    Scope& get_scope(Continuation* entry);
+
+    ContinuationSet top_level_scopes();
+
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
@@ -97,11 +106,12 @@ public:
     template<bool elide_empty = true>
     void for_each(std::function<void(Scope&)>);
 
-    Scope& get_scope(Continuation* entry);
-
+private:
     World& world_;
     std::vector<Continuation*> stack_;
     ContinuationMap<std::unique_ptr<Scope>> scopes_;
+
+    friend Scope;
 };
 
 }

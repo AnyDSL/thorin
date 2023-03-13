@@ -6,6 +6,10 @@ Rewriter::Rewriter(World& src, World& dst) : src_(src), dst_(dst) {
     old2new_.rehash(src.defs().capacity());
 }
 
+Rewriter::Rewriter(World& src, World& dst, Rewriter& parent) : Rewriter(src, dst) {
+    old2new_ = parent.old2new_;
+}
+
 const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = old2new_.lookup(odef)) return *ndef;
 

@@ -70,18 +70,14 @@ void lift_builtins(Thorin& thorin) {
     while (true) {
         World& world = thorin.world();
         Continuation* cur = nullptr;
-        Scope::for_each(world, [&] (const Scope& scope) {
-            if (cur) return;
-            for (auto n : scope.f_cfg().post_order()) {
-                if (n->continuation()->order() <= 1)
-                    continue;
-                if (is_passed_to_accelerator(n->continuation(), false)) {
-                    cur = n->continuation();
-                    break;
-                }
+        for (auto cont : world.copy_continuations()) {
+            if (cont->order() <= 1)
+                continue;
+            if (is_passed_to_accelerator(cont, false)) {
+                cur = cont;
+                break;
             }
-        });
-
+        }
         if (!cur) break;
 
         static const int inline_threshold = 4;
@@ -94,7 +90,7 @@ void lift_builtins(Thorin& thorin) {
 
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
-        for (auto param : free_defs(scope)) {
+        for (auto param : spillable_free_defs(scope)) {
             if (param->isa_nom<Continuation>()) {
                 // TODO: assert is actually top level
             } else if (!param->isa<Filter>()) { // don't lift the filter

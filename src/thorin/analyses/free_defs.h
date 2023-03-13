@@ -7,8 +7,7 @@ namespace thorin {
 
 class Scope;
 
-DefSet free_defs(const Scope&, bool include_closures = true);
-Array<const Def*> spillable_free_defs(const Scope&);
+DefSet spillable_free_defs(const Scope&);
 
 }
 

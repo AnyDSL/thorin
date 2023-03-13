@@ -93,6 +93,13 @@ public:
     void make_internal(Def* cont) { assert(&cont->world() == this); data_.externals_.erase(cont->unique_name()); }
     bool is_external(const Def* cont) { return data_.externals_.contains(cont->unique_name()); }
     Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
+    DEBUG_UTIL Continuation* find_cont(const char* name) {
+        for (auto cont : copy_continuations()) {
+            if (cont->unique_name() == name)
+                return cont;
+        }
+        return nullptr;
+    }
     //@}
 
     // types

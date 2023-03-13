@@ -87,10 +87,11 @@ public:
         file << down() << endl() << "}" << endl();
     };
 
-    bool print_lower_order_args = false;
+    bool print_lower_order_args = true;
     bool print_instanced_filters = false;
     bool print_literals = true;
     bool delay_printing_ops = true;
+    Scope* single_scope = nullptr;
 
 private:
     thorin::World& world_;
@@ -123,27 +124,31 @@ std::string DotPrinter::emit_def(const Def* def) {
         return dump_literal(def->as<Literal>());
     else {
         // default (primops)
-        std::string color = "darkseagreen1";
+        std::string color = "";
+        std::string fillcolor = "darkseagreen1";
         std::string style = "filled";
         std::string shape = "oval";
-        std::string name = def->op_name();
+        std::string label = std::string(def->op_name()) + " :: " + def->name();
 
         std::unique_ptr<std::vector<std::tuple<std::string, const Def*>>> filtered_ops;
 
+        if (single_scope && single_scope->free_frontier().contains(def))
+            color = "blue";
+
         if (def->isa<Param>()) {
-            color = "grey";
+            fillcolor = "grey";
             shape = "oval";
-            name = def->unique_name();
+            label = def->unique_name();
         } else if (auto app = def->isa<App>()) {
-            color = "darkgreen";
+            fillcolor = "darkgreen";
 
             filtered_ops = std::make_unique<std::vector<std::tuple<std::string, const Def*>>>();
 
             if (auto callee_cont = app->callee()->isa_nom<Continuation>()) {
                 switch (callee_cont->intrinsic()) {
                     case Intrinsic::Branch: {
-                        color = "lightblue";
-                        name = "branch";
+                        fillcolor = "lightblue";
+                        label = "branch";
                         if (print_lower_order_args) {
                             (*filtered_ops).emplace_back("mem", app->arg(0));
                             (*filtered_ops).emplace_back("condition", app->arg(1));
@@ -154,8 +159,8 @@ std::string DotPrinter::emit_def(const Def* def) {
                         goto print_node;
                     }
                     case Intrinsic::Match: {
-                        color = "lightblue";
-                        name = "match";
+                        fillcolor = "lightblue";
+                        label = "match";
 
                         if (print_lower_order_args) {
                             (*filtered_ops).emplace_back("mem", app->arg(0));
@@ -185,9 +190,9 @@ std::string DotPrinter::emit_def(const Def* def) {
                     (*filtered_ops).emplace_back("arg"+std::to_string(i), app->arg(i));
             }
         } else if (auto variant_ctor = def->isa<Variant>()) {
-            name = "variant(" + std::to_string(variant_ctor->index()) + ")";
+            label = "variant(" + std::to_string(variant_ctor->index()) + ")";
         } else if (auto variant_extract = def->isa<VariantExtract>()) {
-            name = "variant_extract(" + std::to_string(variant_extract->index()) + ")";
+            label = "variant_extract(" + std::to_string(variant_extract->index()) + ")";
         }
 
         print_node:
@@ -195,12 +200,14 @@ std::string DotPrinter::emit_def(const Def* def) {
         file << endl() << def_id(def) << " [" << up();
 
         file << endl() << "label = \"";
-        file << name;
+        file << label;
         file << "\";";
 
         file << endl() << "shape = " << shape << ";";
         file << endl() << "style = " << style << ";";
-        file << endl() << "color = " << color << ";";
+        file << endl() << "fillcolor = " << fillcolor << ";";
+        if (color != "")
+            file << endl() << "color = " << color << ";";
 
         file << down() << endl() << "]";
         done.emplace(def, def_id(def));
@@ -211,8 +218,8 @@ std::string DotPrinter::emit_def(const Def* def) {
                 arrow(def_id(def), dump_def(op), "[arrowhead=vee,label=\"o" + std::to_string(i) + "\",fontsize=8,fontcolor=grey]");
             }
         } else {
-            for (auto [label, op] : *filtered_ops) {
-                arrow(def_id(def), dump_def(op), "[arrowhead=vee,label=\"" + label + "\",fontsize=8,fontcolor=grey]");
+            for (auto [edge_label, op] : *filtered_ops) {
+                arrow(def_id(def), dump_def(op), "[arrowhead=vee,label=\"" + edge_label + "\",fontsize=8,fontcolor=grey]");
             }
         }
 
@@ -284,9 +291,14 @@ DEBUG_UTIL void dump_dot_world(World& world) {
     printer.run();
 }
 
+DEBUG_UTIL void dump_dot_def(const Def* def) {
+    DotPrinter printer(def->world());
+    printer.dump_def(def);
+    printer.run();
+}
+
 DEBUG_UTIL void dump_dot_scopes(World& world) {
     DotPrinter printer(world);
-    printer.delay_printing_ops = false;
     ScopesForest forest(world);
     for (auto& top_level : forest.top_level_scopes()) {
         auto& scope = forest.get_scope(top_level);
@@ -297,6 +309,7 @@ DEBUG_UTIL void dump_dot_scopes(World& world) {
 
 DEBUG_UTIL void dump_dot_scope(Scope& scope) {
     DotPrinter printer(scope.world());
+    printer.single_scope = &scope;
     printer.print_scope(scope);
     printer.run();
 }

@@ -41,52 +41,96 @@ struct ClosureConverter : public Rewriter {
         return std::make_tuple(env_type, thin_env);
     }
 
-    const Type* closurify_type(const Type* src) {
-        if (auto fn_t = src->isa<FnType>())
-            return dst().closure_type(fn_t->types());
-        return src;
+    struct UnchangedTypeHelper : Rewriter {
+        UnchangedTypeHelper(ClosureConverter& parent) : Rewriter(parent.src(), parent.dst()), parent_(parent) {}
+
+        const Def* rewrite(const Def* odef) override {
+            // as long as we're rewriting types, import them as-is
+            if (odef->isa<Type>()) {
+                return Rewriter::rewrite(odef);
+            }
+            // if we import something else, its transitive ops will use the parent rewriter
+            return parent_.instantiate(odef);
+        }
+
+        ClosureConverter& parent_;
+    };
+
+    const Type* import_type_as_is(const Type* t) {
+        return UnchangedTypeHelper(*this).instantiate(t)->as<Type>();
     }
 
-    const Type* unclosurify_type(const Type* src) {
-        if (auto closure_t = src->isa<ClosureType>())
-            return dst().fn_type(closure_t->types());
-        return src;
+    struct UnchangedDefHelper : Rewriter {
+        UnchangedDefHelper(ClosureConverter& parent, const Def* def) : Rewriter(parent.src(), parent.dst()), def_(def), parent_(parent) {}
+
+        const Def* rewrite(const Def* odef) override {
+            if (odef == def_) {
+                return Rewriter::rewrite(odef);
+            }
+            return parent_.instantiate(odef);
+        }
+
+        const Def* def_;
+        ClosureConverter& parent_;
+    };
+
+    const Def* import_def_as_is(const Def* def) {
+        return UnchangedDefHelper(*this, def).instantiate(def);
     }
 
     const Def* rewrite(const Def* odef) override {
         if (auto fn_type = odef->isa<FnType>()) {
             // Turn _all_ FnTypes into ClosureType, we'll undo it where it is specifically OK
-            Array<const Type*> rewritten(fn_type->num_ops(), [&](size_t i) { return instantiate(fn_type->op(i))->as<Type>(); });
             int ret_param = fn_type->ret_param();
-            if (ret_param >= 0)
-                rewritten[ret_param] = unclosurify_type(rewritten[ret_param]);
+            Array<const Type*> rewritten(fn_type->num_ops(), [&](int i) {
+                auto old_param_t = fn_type->op(i)->as<Type>();
+                if (i == ret_param)
+                    return import_type_as_is(old_param_t);
+                return instantiate(old_param_t)->as<Type>();
+            });
+
             if (fn_type->order() % 2 == 0)
                 return dst().closure_type(rewritten);
             else
                 return dst().fn_type(rewritten);
-        } /*else if (auto oapp = odef->isa<App>()) {
-            int ret_param = oapp->callee()->type()->as<FnType>()->ret_param();
-            Array<const Def*> nops(oapp->num_ops(), [&](size_t i) {
-                auto rebuilt = instantiate(oapp->op(i));
-                if (i == ret_param) {
-                    if (auto closure = rebuilt->isa<Closure>())
-                }
-            });
-            return oapp->rebuild(dst(), instantiate(oapp->type())->as<Type>(), nops);
-        } */else if (auto ocont = odef->isa_nom<Continuation>()) {
-            std::vector<const Type*> nparam_types;
-            for (auto pt : instantiate(ocont->type())->as<FnType>()->types())
-                nparam_types.push_back(pt);
 
-            if (ocont->is_intrinsic()) {
-                for (size_t i = 0; i < ocont->num_params(); i++) {
-                    if (nparam_types[i]->isa<ClosureType>() && !ocont->param(i)->type()->isa<ClosureType>()) {
-                        nparam_types[i] = unclosurify_type(nparam_types[i]);
-                    }
+        } /*else if (auto oapp = odef->isa<App>()) {
+            auto ncallee = instantiate(oapp->callee());
+            auto nfilter = instantiate(oapp->filter())->as<Filter>();
+            auto nargs = Array<const Def*>(oapp->num_args(), [&](int i) -> const Def* {
+                auto expected_t = ncallee->type()->op(i)->as<Type>();
+                auto imported = instantiate(oapp->arg(i));
+                if (expected_t != imported->type()) {
+                    // the only case we should handle is closures appearing where fns are expected
+                    // this rewrite step should not introduce any such nonsense!
+                    // TODO: maybe it's simpler to just have the intrinsics (ie vectorize) consume closures...
+                    assert(expected_t->isa<FnType>() && imported->type()->isa<ClosureType>());
+                    auto closure = imported->as<Closure>();
+                    assert(!closure->env()->has_dep(Dep::Param));
+                    return closure->fn();
                 }
+                return imported;
+            });
+            return dst().app(nfilter, ncallee, nargs, oapp->debug());
+        } */else if (auto global = odef->isa<Global>()) {
+            auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());;
+            nglobal->set_name(global->name());
+            if (global->is_external())
+                dst().make_external(const_cast<Def*>(nglobal));
+            return nglobal;
+        } else if (auto ocont = odef->isa_nom<Continuation>()) {
+            std::vector<const Type*> nparam_types;
+
+            for (auto pt : ocont->type()->types()) {
+                // leave the signature of intrinsics alone!
+                if (ocont->is_intrinsic())
+                    nparam_types.push_back(import_type_as_is(pt));
+                else
+                    nparam_types.push_back(instantiate(pt)->as<Type>());
             }
 
-            auto ncont = ocont->stub(*this);
+            auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+            //auto ncont = ocont->stub(*this);
 
             bool convert = needs_conversion(ocont);
             if (convert) {
@@ -96,8 +140,11 @@ struct ClosureConverter : public Rewriter {
                     insert(ocont->param(i), ncont->param(i));
 
                 Scope scope(ocont);
-                Array<const Def*> free_vars = spillable_free_defs(scope);
-                if (free_vars.size() > 0) {
+                std::vector<const Def*> free_vars;
+                for (auto free : spillable_free_defs(scope))
+                    free_vars.push_back(free);
+
+                if (!free_vars.empty()) {
                     dst().WLOG("slow: closure generated for '{}'", ocont);
                     auto [env_type, thin] = get_env_type(free_vars);
                     env_type = instantiate(env_type)->as<Type>();
@@ -141,7 +188,11 @@ struct ClosureConverter : public Rewriter {
                     auto closure = dst().closure(closure_type, ncont, instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
                     insert(ocont, closure);
                     auto lifted = lift(scope, free_vars);
+
+                    Scope lifted_scope(lifted);
                     ncont->jump(instantiate(lifted), wrapper_args);
+                    assert(lifted_scope.parent_scope() == nullptr);
+
                     return closure;
                 } else {
                     auto closure = dst().closure(closure_type, ncont, dst().tuple({}), ocont->debug());

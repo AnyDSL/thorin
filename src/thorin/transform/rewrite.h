@@ -17,6 +17,7 @@ public:
     World& dst() { return dst_; }
 
 protected:
+    explicit Rewriter(World& src, World& dst, Rewriter& parent);
     virtual const Def* rewrite(const Def* odef);
 
 private:

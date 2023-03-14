@@ -270,6 +270,8 @@ void CodeGen::emit_epilogue(Continuation* cont) {
     NodeVec args;
     for (auto& arg : body->args()) {
         if (convert(arg->type()) == nullptr) {
+            if (is_mem(arg))
+                emit_unsafe(arg);
             args.push_back(nullptr);
         } else if (auto target = arg->isa_nom<Continuation>(); target && target->is_basicblock()) {
             // Emitting basic blocks as values isn't legal - but for convenience we'll put them in our list.
@@ -382,7 +384,8 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             type_arguments.push_back(convert(type_arg));
         payload.operands = vec2nodes(operands);
         payload.type_arguments = vec2nodes(type_arguments);
-        return shady::first(shady::bind_instruction(bb.builder, shady::prim_op(arena, payload)));
+        auto ret = shady::bind_instruction(bb.builder, shady::prim_op(arena, payload));
+        return ret.count ? shady::first(ret) : nullptr;
     };
 
     if (auto prim_lit = def->isa<PrimLit>()) {
@@ -409,9 +412,9 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             contents.push_back(emit(e));
         }
         shady::ArrType payload;
-        const shady::Type* arr_type = shady::arr_type(arena, payload);
         payload.element_type = convert(arr->elem_type());
         payload.size = shady::int32_literal(arena, contents.size());
+        const shady::Type* arr_type = shady::arr_type(arena, payload);
         v = shady::composite(arena, arr_type, vec2nodes(contents));
     } else if (auto cmp = def->isa<Cmp>()) {
         switch (cmp->cmp_tag()) {
@@ -435,10 +438,21 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             case ArithOp_shl: v = mk_primop(shady::Op::lshift_op, { arith->lhs(), arith->rhs() }); break;
             case ArithOp_shr: v = mk_primop(shady::Op::rshift_logical_op, { arith->lhs(), arith->rhs() }); break;
         }
+    } else if (auto store = def->isa<Store>()) {
+        mk_primop(shady::Op::store_op, { store->ptr(), store->val() });
+        defs_[def] = nullptr;
+        return nullptr;
+    } else if (auto lea = def->isa<LEA>()) {
+        v = mk_primop(shady::Op::lea_op, { lea->ptr(), world().zero(lea->index()->type()), lea->index() });
     } else if (auto param = def->isa<Param>()) {
         assert(param->type() == world().mem_type());
         defs_[def] = nullptr;
         return nullptr;
+    } else if (auto bitcast = def->isa<Bitcast>()) {
+        v = emit(bitcast->from());
+    } else {
+        def->dump();
+        THORIN_UNREACHABLE;
     }
     assert(v && shady::is_value(v));
     defs_[def] = v;

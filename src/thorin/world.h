@@ -79,6 +79,8 @@ public:
         state_  = other.state_;
     }
 
+    ~World();
+
     /// @name manage global identifier - a unique number for each Def
     //@{
     //u32 cur_gid() const { return state_.cur_gid; }

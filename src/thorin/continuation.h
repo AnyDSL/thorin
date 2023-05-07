@@ -141,7 +141,6 @@ public:
 
 private:
     Continuation(World&, const FnType* pi, const Attributes& attributes, Debug dbg);
-    virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }

@@ -46,6 +46,12 @@ World::World(const std::string& name) : types_(TypeTable(*this)) {
     data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
+World::~World() {
+    for (auto &def : defs()) {
+        delete def;
+    }
+}
+
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto variant = value->isa<Variant>())
         return literal_qu64(variant->index(), dbg);

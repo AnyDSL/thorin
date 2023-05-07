@@ -300,6 +300,16 @@ public:
     friend class World;
 };
 
+class ReturnType : public FnType {
+private:
+    ReturnType(World& world, Defs ops, Debug dbg) : FnType(world, ops, Node_ReturnType, dbg) {}
+
+public:
+    const Type* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
 //------------------------------------------------------------------------------
 
 class ArrayType : public Type, public TypeOpsMixin<TupleType> {

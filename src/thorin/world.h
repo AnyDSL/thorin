@@ -124,6 +124,7 @@ public:
     const FnType* fn_type() { return fn_type({}); } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args);
     const ClosureType* closure_type(Types args);
+    const ReturnType* return_type(Types args);
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
     const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 

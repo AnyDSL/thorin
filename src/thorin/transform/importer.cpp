@@ -20,6 +20,7 @@ const Def* Importer::rewrite(const Def* odef) {
             if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
                 todo_ = true;
 
+                src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
                 for (size_t i = 0; i < callee->num_params(); i++)
                     insert(callee->param(i), import(app->arg(i)));
 
@@ -35,11 +36,11 @@ const Def* Importer::rewrite(const Def* odef) {
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
             if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == cont || src().is_external(cont))
+                if (param->continuation() == cont || src().is_external(cont) || param->type()->isa<ReturnType>())
                     goto rebuild;
 
                 if (body->args() == cont->params_as_defs()) {
-                    src().VLOG("simplify: continuation {} calls a parameter  {}", cont->unique_name(), body->filter());
+                    src().VLOG("simplify: continuation {} calls a parameter: {}", cont->unique_name(), body->callee());
                     // We completely replace the original continuation
                     // If we don't do so, then we miss some simplifications
                     return instantiate(body->callee());
@@ -63,7 +64,7 @@ const Def* Importer::rewrite(const Def* odef) {
                     if (!is_permutation)
                         goto rebuild;
 
-                    src().VLOG("simplify: continuation {} calls a parameter (permuted args)", cont->unique_name());
+                    src().VLOG("simplify: continuation {} calls a parameter: {} (with permuted args)", cont->unique_name(), body->callee());
                 }
 
                 auto rebuilt = cont->stub(*this);

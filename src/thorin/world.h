@@ -278,6 +278,7 @@ public:
     const Filter* filter(const Defs, Debug dbg = {});
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const App* app(const Filter* filter, const Def* callee, const Defs args, Debug dbg = {});
+    const Return* return_point(const Continuation* destination, Debug dbg = {}) { return cse(new Return(*this, destination, dbg)); }
 
     // getters
 

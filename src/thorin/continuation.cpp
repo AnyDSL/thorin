@@ -67,6 +67,12 @@ bool App::verify() const {
 
 //------------------------------------------------------------------------------
 
+Return::Return(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_Return, world.return_type(destination->type()->types()), { destination }, dbg) {}
+
+const Def* Return::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const { return world.return_point(nops.front()->as<Continuation>()); }
+
+//------------------------------------------------------------------------------
+
 Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(world, Node_Filter, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {

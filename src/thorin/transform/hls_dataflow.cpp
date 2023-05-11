@@ -15,7 +15,7 @@ using Def2Block    = DefMap<std::pair<Continuation*, Intrinsic>>; // [global_def
 using Cycle        = std::vector<std::pair<size_t, size_t>>;
 
 
-// makes a data structure that maps globals variables to their basic block and their HLS/ CGRA intrinsic
+// makes a data structure that maps global variables to their basic block and their HLS/ CGRA intrinsic
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
     Scope::for_each(world, [&] (Scope& scope) {
             auto kernel = scope.entry();
@@ -88,7 +88,7 @@ void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, 
 }
 
 // converts hls-cgra dependent blocks from old world to hls / cgra worlds (Target Blocks)
-void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer, World& old_world, std::function<Continuation*(DependentBlocks)> select_block) {
+void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer, std::function<Continuation*(DependentBlocks)> select_block) {
     for (const auto& [old_common_global, pair] : def2dependent_blocks) {
         auto old_basicblock = select_block(pair);
                     if (importer.def_old2new_.contains(old_basicblock)) {
@@ -96,6 +96,70 @@ void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def
             }
     }
 }
+
+void common_globals_old2new(Array<const Def*>& target_global, const Def2DependentBlocks def2dependent_blocks, Importer& importer) {
+    size_t i = 0;
+    for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
+        auto old_common_global = it->first;
+        if (importer.def_old2new_.contains(old_common_global)) {
+            target_global[i++] = importer.def_old2new_[old_common_global];
+        }
+    }
+}
+
+
+void params2cgra_ports(const Def2Def param2arg, const Def2DependentBlocks def2dependent_blocks, Importer& importer) {
+    for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
+        auto old_common_global = it->first;
+        if (importer.def_old2new_.contains(old_common_global)) {
+            for (const auto& [param, arg] : param2arg) {
+                if (arg->isa<Global>()) {
+                    if (arg == importer.def_old2new_[old_common_global]) {
+                        std::cout << "I AM HEREEEE!!!" << std::endl;
+                        param->dump();
+                        // these params need to be check after their are written with hls_top in next lines of codes
+                    }
+                }
+            }
+        }
+    }
+}
+
+//TODO: use def2mode(hlsdef2hlsmode for each kernels or kernels_ch_mode for all kernels) besdie global2param to get W/R mode on indices for script code
+// We do it only for HLS and the CGRA counterpart param would have the opposite mode
+// -->to access kernel_ch_mode make this function a lambda as nest it inside the hls_dataflow function
+// Or just define kernel_ch_mode as a new parameter fir this function
+// OR write a new function to decrease the number of Fn parameters
+//
+// Trying to peel the outer loop to use on both new FNs
+//Array<size_t> external_ports_index(const Def2Def global2param, Def2Def param2arg, const Def2DependentBlocks def2dependent_blocks, Importer& importer) {
+//    Array<size_t> param_indices(def2dependent_blocks.size());
+//    size_t i = 0;
+//    for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
+//        auto old_common_global = it->first; //def type
+//        if (importer.def_old2new_.contains(old_common_global)) {
+//            for (const auto& [global, param] : global2param) {
+//                if (global == importer.def_old2new_[old_common_global]) {
+//                    // this param2arg is after replacing global args with hls_top params that connect to cgra
+//                    // basically we can name it kernelparam2hls_top_cgra_param
+//                    auto top_param = param2arg[param];
+//                    param_indices[i++] = top_param->as<Param>()->index();
+//                    // these params need to be check after their are written with hls_top in next lines of codes
+//                }
+//            }
+//
+//        }
+//    }
+//    return param_indices;
+//}
+//
+//auto ext_port_modes(std::vector<Def2Mode> kernels_ch_mode, Def2Def param2arg) {
+//    //for (au)
+//    for (const auto& elem : kernels_ch_mode) {
+//
+//    }
+//
+//}
 
 void channel_mode(const Continuation* continuation, ChannelMode& mode) {
     auto app = continuation->body();
@@ -210,7 +274,7 @@ inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& 
         if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
             auto def = app->arg(1);
 
-            if (def->isa_structural() && !def->has_dep(Dep::Param)) {
+            if (def->isa_structural() && !def->has_dep(Dep::Param)) { //def is a global
                 if (callee->name().find("write_channel") != std::string::npos) {
                     assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Write) &&
                             "Duplicated channel or \"READ\" mode channel redefined as WRITE!");

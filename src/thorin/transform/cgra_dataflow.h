@@ -8,7 +8,7 @@ namespace thorin {
 
 class World;
 
-void cgra_dataflow(Importer&, World&, Def2DependentBlocks&);
+PortIndices cgra_dataflow(Importer&, World&, Def2DependentBlocks&);
 
 }
 

@@ -150,39 +150,110 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
     return false;
     };
 
-    // finding the ports (channels connected to HLS kernels)
-    for (auto kernel : new_kernels) {
-        for (size_t i = 0; i < kernel->num_params(); ++i) {
-            auto param = kernel->param(i);
-            // If the parameter is not a channel or is a channel but connected to a CGRA kernel then
-            // save the index and add it to the hls_top parameter list
-            if (!is_channel_type(param->type())) {
-                if (param != kernel->ret_param() && param != kernel->mem_param()) {
-              //      param_index.emplace_back(kernel, i, top_param_types.size());
-              //      top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
-              //      top_param_types.emplace_back(param->type());
-                }
-            } else if (is_used_for_hls(param)) {
-                    //param_index.emplace_back(kernel, i, top_param_types.size());
-                    //top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
-                    //top_param_types.emplace_back(param->type());
-                    std::cout << "A PORT found!" << std::endl;
-                }
-            }
-        }
-
 
     std::vector<const Type*> graph_param_types;
     graph_param_types.emplace_back(world.mem_type());
     graph_param_types.emplace_back(world.fn_type({ world.mem_type() }));
+    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param, index graph param.)
+
+    for (auto kernel : new_kernels) {
+        for (size_t i = 0; i < kernel->num_params(); ++i) {
+            auto param = kernel->param(i);
+            // If the parameter is not a channel or is a channel but connected to a HLS kernel then
+            // save the index and add it to the hls_top parameter list
+            if (!is_channel_type(param->type())) {
+                if (param != kernel->ret_param() && param != kernel->mem_param()) {
+                    param_index.emplace_back(kernel, i, graph_param_types.size());
+              //    top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
+                    graph_param_types.emplace_back(param->type());
+                }
+            } else if (is_used_for_hls(param)) {
+                    // finding the ports (channels connected to HLS kernels)
+                    param_index.emplace_back(kernel, i, graph_param_types.size());
+                    //top2kernel.emplace_back(top_param_types.size(), kernel->name(), i);
+                    graph_param_types.emplace_back(param->type());
+                    std::cout << "A PORT found! (on a kernel)" << std::endl;
+                }
+            }
+        }
+
     auto cgra_graph = world.continuation(world.fn_type(graph_param_types), Debug("cgra_graph"));
+    //auto struct_type = world.struct_type("hey",1);
+    //struct_type->dump();
+    // need variant type?
+    //auto struct_ =  world.struct_agg(struct_type, {world.one(world.type_ps32())}, Debug("struct"));
+    //auto struct_ =  world.struct_agg(struct_type, {world.literal_bool(true, Debug("test"))}, Debug("struct"));
+
+    Def2Def global2param;
+    for (auto tuple : param_index) {
+        // Mapping cgra_graph params as args for new_kernels' params
+        auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
+        auto arg   = cgra_graph->param(std::get<2>(tuple));
+        if (is_used_for_hls(param)) {
+            auto common_global = param2arg[param];
+            global2param.emplace(common_global, param);
+            // updating the args of the already inserted channel-params. Replacing these particular globals with channel-params.
+            // note that emplace method only adds a new (keys,value) and does not update/rewrite values for already inserted keys
+            param2arg[param] = arg;
+            continue;
+        }
+        param2arg.emplace(param, arg); // adding (non-channel params, cgra_graph params as args). Channel params were added before
+        //arg2param.emplace(arg, param); // channel-params are not here.
+    }
+
+    auto hls_port_indices = external_ports_index(global2param, param2arg, def2dependent_blocks, importer);
+    // send indices to codegen
+
+
+    auto enter   = world.enter(cgra_graph->mem_param());
+    auto cur_mem = world.extract(enter, 0_s);
+    // TODO: we don't need slots here directly using globals as args
+    // on c-backend we need to find the index of shared globals, that is enough
+    // what about the slots needed for plio ports? check the single code... probably we don't need because we don't introduce a new var and just reinterpret the top params.. but have look at load and store
+    // cgra_graph frame object to be used in making slots
+    //auto frame   = world.extract(enter, 1_s);
+
     // jump similar to hls_top
+    auto cur_bb = cgra_graph;
+    for (const auto& kernel : new_kernels) {
+        auto ret_param = kernel->ret_param();
+        auto mem_param = kernel->mem_param();
+        auto ret_type = ret_param->type()->as<FnType>();
+        bool last_kernel = kernel == new_kernels.back();
+        const Def* cgra_graph_ret = cgra_graph->ret_param();
+        const Def* continuation = last_kernel ? cgra_graph_ret : world.continuation(ret_type, Debug("next_node"));
+
+        Array<const Def*> args(kernel->type()->num_ops());
+        for (size_t i = 0; i < kernel->type()->num_ops(); ++i) {
+            auto param = kernel->param(i);
+            if (param == mem_param) {
+                args[i] = cur_mem;
+            } else if (param == ret_param) {
+                args[i] = continuation;
+            } else if (auto arg = param2arg[param]) {
+                args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ? arg : arg; //TODO: change it
+            } else {
+                assert(false);
+            }
+        }
+
+        cur_bb->jump(kernel, args);
+
+        if (!last_kernel) {
+            auto next = continuation->as_nom<Continuation>();
+            cur_bb = next;
+            cur_mem = next->mem_param();
+        }
+
+        }
+
     world.make_external(cgra_graph);
 
- std::cout << "_--------cgra world After rewrite--------" <<std::endl;
-    world.dump();
+//    std::cout << "_--------cgra world After rewrite--------" <<std::endl;
+//    world.dump();
 
     world.cleanup();
+    return hls_port_indices;
 }
 
 }

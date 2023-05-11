@@ -141,13 +141,15 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_ClosureType:
         case Node_FnType: {
             // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
+            auto tfn_type = type->as<FnType>();
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> ops;
-            for (auto op : fn->types()) {
+            int i = -1;
+            for (auto op : tfn_type->types()) {
+                i++;
                 if (op->isa<MemType>() || op == world().unit_type()) continue;
-                auto fn = op->isa<FnType>();
-                if (fn && !op->isa<ClosureType>()) {
+                if (i == tfn_type->ret_param()) {
+                    auto fn = op->as<ReturnType>();
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
                     for (auto fn_op : fn->types()) {
@@ -160,6 +162,11 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 } else
                     ops.push_back(convert(op));
             }
+            if (!tfn_type->is_returning()) {
+                assert(!ret);
+                ret = llvm::Type::getVoidTy(context());
+            }
+
             assert(ret);
 
             if (type->tag() == Node_FnType) {
@@ -509,7 +516,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
-        auto succ = ret_arg->as_nom<Continuation>();
+        assert(ret_arg->isa<Return>());
+        auto succ = ret_arg->as<Return>()->op(0)->as_nom<Continuation>();
 
         size_t n = 0;
         const Param* last_param = nullptr;

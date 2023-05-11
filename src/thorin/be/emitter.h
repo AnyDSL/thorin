@@ -77,7 +77,7 @@ protected:
     void emit_scope(const Scope& scope) {
         auto conts = schedule(scope);
         entry_ = scope.entry();
-        assert(entry_->is_returning());
+        //assert(entry_->is_returning());
 
         auto fct = child().prepare(scope);
         for (auto cont : conts) {

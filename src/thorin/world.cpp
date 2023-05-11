@@ -1150,9 +1150,17 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
 /// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Filter* given_filter, const Def* callee, const Defs args, Debug dbg) {
     bool must_inline = false;
-    while (auto run = callee->isa<Run>()) {
-        callee = run->def();
-        must_inline = true;
+    while (true) {
+        if (auto run = callee->isa<Run>()){
+            callee = run->def();
+            must_inline = true;
+            continue;
+        }
+        if (auto ret = callee->isa<Return>()) {
+            callee = ret->op(0);
+            continue;
+        }
+        break;
     }
 
     // Fold control-flow with known conditions and simplify what can be

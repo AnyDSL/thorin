@@ -30,13 +30,17 @@ private:
 
 class CGRAKernelConfig : public KernelConfig {
 public:
-    CGRAKernelConfig(bool has_restrict = false)
-        : has_restrict_(has_restrict)
+    CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, bool has_restrict = false)
+        : runtime_ratio_(runtime_ratio), location_(location), has_restrict_(has_restrict)
     {}
 
     bool has_restrict() const { return has_restrict_; }
+    float runtime_ratio() const { return runtime_ratio_; }
+    std::pair<int, int> location() const { return  location_; }
 
 private:
+    float runtime_ratio_;
+    std::pair<int, int> location_;
     bool has_restrict_;
 };
 

@@ -10,20 +10,41 @@
 
 namespace thorin {
 
-void cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
+PortIndices external_ports_index(const Def2Def global2param, Def2Def param2arg, const Def2DependentBlocks def2dependent_blocks, Importer& importer) {
+    Array<size_t> param_indices(def2dependent_blocks.size());
+    size_t i = 0;
+    for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
+        auto old_common_global = it->first; //def type
+        if (importer.def_old2new_.contains(old_common_global)) {
+            for (const auto& [global, param] : global2param) {
+                if (global == importer.def_old2new_[old_common_global]) {
+                    // this param2arg is after replacing global args with hls_top params that connect to cgra
+                    // basically we can name it kernelparam2hls_top_cgra_param
+                    auto top_param = param2arg[param];
+                    param_indices[i++] = top_param->as<Param>()->index();
+                }
+            }
+
+        }
+    }
+    return param_indices;
+}
+
+
+Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 
     auto& world = importer.world();
 // std::cout << "_--------cgra world before rewrite--------" <<std::endl;
 //    world.dump();
     std::vector<const Def*> target_blocks_in_cgra_world; // cgra_world basic blocks that connect to HLS
-    connecting_blocks_old2new(target_blocks_in_cgra_world, def2dependent_blocks, importer, old_world, [&] (DependentBlocks dependent_blocks) {
+    connecting_blocks_old2new(target_blocks_in_cgra_world, def2dependent_blocks, importer, [&] (DependentBlocks dependent_blocks) {
         auto old_cgra_basicblock = dependent_blocks.second;
         return old_cgra_basicblock;
     });
 
     //Def2Def kernel_new2old;
     std::vector<Continuation*> new_kernels;
-    Def2Def param2channel; // contains map from new kernel channel-parameters to channels (globals)
+    Def2Def param2arg; // contains map from new kernel channel-parameters to channels (globals)
 
     Scope::for_each(world, [&] (Scope& scope) {
         Def2Mode def2mode; // channels and their R/W modes
@@ -69,7 +90,7 @@ void cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& de
                 // introduce a new variable (like mem slots for channels) to connect them together.
                 // so at this point param2arg map is not required.
                 //  param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
-                  param2channel[channel_param] = channel; // (channel as kernel param, channel as global)
+                  param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
             }
 
           // rewriting basicblocks and their parameters
@@ -114,7 +135,7 @@ void cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& de
     // note that in each basic block only one unique global can be read or written
     auto is_used_for_hls = [&] (const Def* param) -> bool  {
     if (is_channel_type(param->type())) {
-        if (auto global = param2channel[param]; !global->empty()) {// at this point only (channel params, globals) are available inside the map
+        if (auto global = param2arg[param]; !global->empty()) {// at this point only (channel params, globals) are available inside the map
             for (auto use : global->uses()) {
                 if (auto app = use->isa<App>()) {
                     auto ucontinuations = app->using_continuations();

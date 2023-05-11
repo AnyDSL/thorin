@@ -35,14 +35,14 @@ static void get_kernel_configs(
    //     if (exported->name() == "hls_top") {
    //         std::cout << "I AM HLS_TOP" <<std::endl;
    //         for (auto param : exported->params()) {
-   //             std::cout << "PARAAAAAAAAAAAAAAAAAAAM" <<std::endl;
+   //             std::cout << "PARAM" <<std::endl;
    //             param->dump();
    //         }
    //     } else if (exported->name() == "cgra_graph"){
 
    //         std::cout << "I AM CGRA_GRAPH" <<std::endl;
    //         for (auto param : exported->params()) {
-   //             std::cout << "PARAAAAAAAAAAAAAAAAAAAM" <<std::endl;
+   //             std::cout << "PARAM" <<std::endl;
    //             param->dump();
    //         }
 
@@ -59,14 +59,14 @@ static void get_kernel_configs(
         //    if (exported->name() == "hls_top") {
         //        std::cout << "I AM HLS_TOP" <<std::endl;
         //        for (auto param : exported->params()) {
-        //            std::cout << "PARAAAAAAAAAAAAAAAAAAAM" <<std::endl;
+        //            std::cout << "PARAM" <<std::endl;
         //            param->dump();
         //        }
         //    } else if (exported->name() == "cgra_graph"){
 
         //        std::cout << "I AM CGRA_GRAPH" <<std::endl;
         //        for (auto param : exported->params()) {
-        //            std::cout << "PARAAAAAAAAAAAAAAAAAAAM" <<std::endl;
+        //            std::cout << "PARAM" <<std::endl;
         //            param->dump();
         //        }
 
@@ -163,7 +163,6 @@ static bool has_restrict_pointer(int launch_args_num, Continuation* use) {
 // meaning that they should get connected to each other
 // It is true beacause of the design of the data structure
 // for example the hls_top param with index 2 at position 1 and cgra_graph param with index 3 at position 1 of the array are semantically related.
-// TODO: pass thet result to config_script!
 template<typename T>
 //static const auto get_ports(const T param_status, const World::Externals& externals, HlsCgraPorts hls_cgra_ports = HlsCgraPorts()) {
 static const auto get_ports(const T param_status, const World::Externals& externals, Ports& hls_cgra_ports) {
@@ -348,7 +347,6 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
   //  if (!importers_[CGRA].world().empty()) {
   //      cgra_dataflow(importers_[CGRA]);
   //  }
-//TODO: Integrating HLS configuration into the main backend loop above
     // get the HLS kernel configurations
     Top2Kernel top2kernel;
     DeviceDefs device_defs;
@@ -359,10 +357,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto app = use->body();
-            //std::cout << "BBBOOODDYYYY" << std::endl;
 
            // auto externals = importers_[HLS].world().externals();
-           // std::cout << "LOCAL CODE EXTERNAAALS" << std::endl;
+           // std::cout << "LOCAL CODE EXTERNALS" << std::endl;
            // for (auto [_, exported] : externals) {
            //     exported->dump();
            //     }
@@ -489,6 +486,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 
         emit_to_file(cg);
     }
+
     //if (!importers_[CGRA  ].world().empty()) cgs[CGRA  ] = std::make_unique<config_script::CodeGen>(importers_[CGRA  ].world(), debug);
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS }, std::pair { CGRA, c::Lang::CGRA } })
         if (!importers_[backend].world().empty()) { cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);

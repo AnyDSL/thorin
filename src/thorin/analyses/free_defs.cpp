@@ -15,7 +15,12 @@ DefSet spillable_free_defs(const Scope& scope) {
         auto free_def = queue.pop();
         assert(!scope.contains(free_def));
         auto cont = free_def->isa_nom<Continuation>();
-        if (free_def->has_dep(Dep::Param) || free_def->isa_nom<Continuation>())
+        if (cont && cont->is_intrinsic()) {
+            scope.world().WLOG("ignoring {} because it is an intrinsic", cont);
+            continue;
+        }
+
+        if (free_def->has_dep(Dep::Param) || cont)
             result.insert(free_def);
         else
             scope.world().WLOG("ignoring {} because it has no Param dependency {}", free_def, cont == nullptr);

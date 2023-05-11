@@ -85,7 +85,7 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
     : Def(w, Node_Continuation, pi, 2, dbg)
     , attributes_(attributes)
 {
-    assert(!pi->isa<ClosureType>() && "continuations may not be closures");
+    assert(pi->tag() == Node_FnType && "continuations may not be closures");
     params_.reserve(pi->num_ops());
     set_op(0, world().bottom(world().bottom_type()));
     set_op(1, world().filter({}, dbg));

@@ -12,7 +12,9 @@ struct CodegenPrepare : public Rewriter {
     void make_wrapper(const Def* old_return_param) {
         assert(old_return_param);
         assert(!wrappers.contains(old_return_param));
-        auto wrapper = dst().continuation(instantiate(old_return_param->type())->as<FnType>(), old_return_param->debug());
+        auto npi = instantiate(old_return_param->type())->as<FnType>();
+        npi = dst().fn_type(npi->types());
+        auto wrapper = dst().continuation(npi, old_return_param->debug());
         wrappers[old_return_param] = wrapper;
     }
 
@@ -26,7 +28,7 @@ struct CodegenPrepare : public Rewriter {
                         auto imported_param = instantiate(app->arg(i));
                         (*wrapped)->jump(imported_param, (*wrapped)->params_as_defs(), imported_param->debug());
                     }
-                    return (*wrapped);
+                    return dst().return_point(*wrapped);
                 } else {
                     return instantiate(app->arg(i));
                 }

@@ -18,10 +18,8 @@ struct ClosureConverter : public Rewriter {
         if (cont->is_intrinsic())
             return false;
 
-        // basic blocks _never_ need conversion!
-        if (cont->type()->is_basicblock())
-            return false;
-        return true;
+        auto converted_type = instantiate(cont->type())->as<FnType>();
+        return converted_type->isa<ClosureType>();
     }
 
     std::tuple<const Type*, bool> get_env_type(ArrayRef<const Def*> free_vars) {
@@ -80,24 +78,22 @@ struct ClosureConverter : public Rewriter {
 
     const Def* rewrite(const Def* odef) override {
         if (auto fn_type = odef->isa<FnType>()) {
-            // Turn _all_ FnTypes into ClosureType, we'll undo it where it is specifically OK
             int ret_param = fn_type->ret_param();
-            Array<const Type*> rewritten(fn_type->num_ops(), [&](int i) {
+            Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
                 auto old_param_t = fn_type->op(i)->as<Type>();
-                if (i == ret_param)
-                    return import_type_as_is(old_param_t);
                 return instantiate(old_param_t)->as<Type>();
             });
-
             if (fn_type->isa<ReturnType>())
-                return dst().return_type(rewritten);
-            else if (fn_type->is_basicblock())
-                return dst().fn_type(rewritten);
-            else
-                return dst().closure_type(rewritten);
+                return dst().return_type(ntypes);
+
+            auto ntype = dst().fn_type(ntypes);
+            // Turn all functions into closures, we'll undo it where it is specifically OK
+            if (ntype->order() > 1)
+                ntype = dst().closure_type(ntypes);
+            return ntype;
 
         } else if (auto ret = odef->isa<Return>()) {
-            return dst().return_point(import_def_as_is(ret->op(0))->as<Continuation>(), ret->debug());
+            return dst().return_point(instantiate(ret->op(0))->as<Continuation>(), ret->debug());
         } else if (auto global = odef->isa<Global>()) {
             auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());;
             nglobal->set_name(global->name());
@@ -115,15 +111,9 @@ struct ClosureConverter : public Rewriter {
                     nparam_types.push_back(instantiate(pt)->as<Type>());
             }
 
-            auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
-            //auto ncont = ocont->stub(*this);
-
             bool convert = needs_conversion(ocont);
             if (convert) {
                 auto closure_type = dst().closure_type(nparam_types);
-
-                for (size_t i = 0; i < ocont->num_params(); i++)
-                    insert(ocont->param(i), ncont->param(i));
 
                 Scope scope(ocont);
                 std::vector<const Def*> free_vars;
@@ -143,7 +133,12 @@ struct ClosureConverter : public Rewriter {
                     size_t env_param_index = ocont->num_params();
                     nparam_types.push_back(Closure::environment_type(dst()));
                     auto wrapper_type = dst().fn_type(nparam_types);
-                    ncont = dst().continuation(wrapper_type, ocont->debug());
+                    auto ncont = dst().continuation(wrapper_type, ocont->debug());
+
+                    for (size_t i = 0; i < ocont->num_params(); i++)
+                        insert(ocont->param(i), ncont->param(i));
+
+                    dst().WLOG("slow: rewriting '{}' as '{}'", ocont, ncont);
 
                     Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
                     const Def* new_mem = ncont->mem_param();
@@ -181,12 +176,22 @@ struct ClosureConverter : public Rewriter {
 
                     return closure;
                 } else {
+                    auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+
+                    for (size_t i = 0; i < ocont->num_params(); i++)
+                        insert(ocont->param(i), ncont->param(i));
+
                     auto closure = dst().closure(closure_type, ncont, dst().tuple({}), ocont->debug());
                     insert(ocont, closure);
                     ncont->rebuild_from(*this, ocont);
                     return closure;
                 }
             } else {
+                auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+
+                for (size_t i = 0; i < ocont->num_params(); i++)
+                    insert(ocont->param(i), ncont->param(i));
+
                 insert(ocont, ncont);
                 ncont->rebuild_from(*this, ocont);
                 return ncont;

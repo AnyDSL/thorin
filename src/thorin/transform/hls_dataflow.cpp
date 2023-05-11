@@ -423,7 +423,7 @@ bool has_cgra_callee(World& world) {
 void circle_analysis(Dependencies dependencies, World& world, size_t single_kernels_size, std::vector<Continuation*> new_kernels) {
 
     Cycle cycle;
-    world.ELOG("Kernels have circular dependency");
+    world.WLOG("Kernels have circular dependency");
     // finding all circles between kernels
     for (size_t i = 0; i < dependencies.size(); ++i) {
         for (size_t j = i; j < dependencies.size(); ++j) {
@@ -447,16 +447,16 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
 
     auto cgra_circle = false;
     if (std::any_of(cycle.cbegin(), cycle.cend(), has_cgra_circle)) {
-        world.ELOG("CGRA kernel(s) inside the circle");
+        world.WLOG("CGRA kernel(s) inside the circle");
         cgra_circle = true;
     }
     auto hls_circle = false;
     if (std::any_of(cycle.cbegin(), cycle.cend(), has_hls_circle)) {
-        world.ELOG("HLS kernel(s) inside the circle");
+        world.WLOG("HLS kernel(s) inside the circle");
         hls_circle = true;
     }
 
-    auto circle_from_index = 0, circle_to_index = 0;
+    size_t circle_from_index = 0, circle_to_index = 0;
     for (auto elem : cycle) {
         circle_from_index = dependencies[elem.first].first + single_kernels_size;
         circle_to_index   = dependencies[elem.second].first + single_kernels_size;
@@ -485,7 +485,11 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
  */
 
 DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
+    //std::cout << "old world" << std::endl;
+    //old_world.dump();
     auto& world = importer.world(); // world is hls world
+    //std::cout << "HLS before" << std::endl;
+    //world.dump();
     auto& cgra_world = importer_cgra.world();
     // TODO: rename to hls_new_kernels
     // the size of this vector is equal to the size of kernels with deps.

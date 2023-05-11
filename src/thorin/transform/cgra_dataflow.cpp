@@ -207,11 +207,25 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
 
     auto enter   = world.enter(cgra_graph->mem_param());
     auto cur_mem = world.extract(enter, 0_s);
-    // TODO: we don't need slots here directly using globals as args
-    // on c-backend we need to find the index of shared globals, that is enough
-    // what about the slots needed for plio ports? check the single code... probably we don't need because we don't introduce a new var and just reinterpret the top params.. but have look at load and store
-    // cgra_graph frame object to be used in making slots
-    //auto frame   = world.extract(enter, 1_s);
+    // TODO: using slots for connection objects (instead of globals)
+    auto frame   = world.extract(enter, 1_s);
+
+    Def2Def global2slot;
+    std::vector<const Def*> channel_slots;
+    std::vector<const Global*> globals;
+    for (auto def : world.defs()) {
+        if (auto global = def->isa<Global>()) {
+            if (global->init()->isa<Bottom>())
+                globals.emplace_back(global);
+        }
+    }
+
+    for (auto global : globals) {
+        if (is_channel_type(global->type())) {
+            channel_slots.emplace_back(world.slot(global->type()->as<PtrType>()->pointee(), frame));
+            global2slot.emplace(global, channel_slots.back());
+        }
+    }
 
     // jump similar to hls_top
     auto cur_bb = cgra_graph;

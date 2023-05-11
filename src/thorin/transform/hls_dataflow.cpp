@@ -513,10 +513,11 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
 
     std::vector<const Def*> target_blocks_in_hls_world; // hls_world basic blocks that connect to CGRA`
-    connecting_blocks_old2new(target_blocks_in_hls_world, old_globals2old_dependent_blocks, importer, old_world, [&] (DependentBlocks dependent_blocks) {
+    connecting_blocks_old2new(target_blocks_in_hls_world, old_globals2old_dependent_blocks, importer, [&] (DependentBlocks dependent_blocks) {
         auto old_hls_basicblock = dependent_blocks.first;
         return old_hls_basicblock;
     });
+
 
     Scope::for_each(world, [&] (Scope& scope) {
             auto old_kernel = scope.entry();
@@ -594,7 +595,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     std::vector<const Type*> top_param_types;
     top_param_types.emplace_back(world.mem_type());
     top_param_types.emplace_back(world.fn_type({ world.mem_type() }));
-    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param, index hls_top param.)
+    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index for new kernel non-channel and cgra-channel param, index hls_top param.)
 
     // We check for the corresponding globals that channel-params are mapped to
     // then we look for all using basic blocks and check if they are among the blocks that are connected to CGRA
@@ -617,7 +618,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     };
 
     std::vector<const Def*> target_blocks_in_cgra_world; // cgra_world basic blocks that connect to hls
-    connecting_blocks_old2new(target_blocks_in_cgra_world, old_globals2old_dependent_blocks, importer_cgra, old_world, [&] (DependentBlocks dependent_blocks) {
+    connecting_blocks_old2new(target_blocks_in_cgra_world, old_globals2old_dependent_blocks, importer_cgra, [&] (DependentBlocks dependent_blocks) {
         auto old_cgra_basicblock = dependent_blocks.second;
         return old_cgra_basicblock;
     });
@@ -644,13 +645,18 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
 
+    //params2cgra_ports(param2arg, old_globals2old_dependent_blocks, importer);
+    Def2Def global2param;
     for (auto tuple : param_index) {
         // Mapping hls_top params as args for new_kernels' params
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
         auto arg   = hls_top->param(std::get<2>(tuple));
         if (is_used_for_cgra(param)) {
-            // updating the args of the the already inserted channel-params
+            // updating the args of the the already inserted channel-params. Saving and replacing these particular globals with channel-params.
             // note that emplace method only adds a new (keys,value) and does not update/rewrite values for already inserted keys
+            auto common_global = param2arg[param];
+            global2param.emplace(common_global, param);
+            //param2global.emplace(param, param2arg[param])
             param2arg[param] = arg;
             continue;
         }

@@ -664,6 +664,51 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         arg2param.emplace(arg, param); // channel-params are not here.
     }
 
+
+// index and R/W mode of hls_top params that connect to CGRA
+// order of insertion in the array is important
+auto& def2dependent_blocks = old_globals2old_dependent_blocks;
+PortStatus index2mode(def2dependent_blocks.size());
+auto external_ports_status = [&] {
+    //Array<size_t> param_indices(def2dependent_blocks.size()); // TODO: change it to a map index2mode
+    size_t i = 0;
+    for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
+        auto old_common_global = it->first; //def type
+        if (importer.def_old2new_.contains(old_common_global)) {
+            for (const auto& [global, param] : global2param) {
+                if (global == importer.def_old2new_[old_common_global]) {
+                    // this param2arg is after replacing global args with hls_top params that connect to cgra
+                    // basically we can name it kernelparam2hls_top_cgra_param
+                    auto top_param = param2arg[param];
+                    auto param_index = top_param->as<Param>()->index();
+                    //param_indices[i++] = param_index;
+                    for (const auto& elem : kernels_ch_modes)
+                        if (elem.contains(global)) {
+                            auto target_global = elem.find(global); // TODO: check against end of it
+                            target_global->first->dump();
+                            //index2mode.emplace(param_index, target_global->second);
+                            index2mode[i++] = std::make_pair(param_index, target_global->second);
+                        }
+                }
+            }
+
+        }
+    }
+    //return param_indices;
+    return index2mode;
+};
+
+        //auto cgra_port_indices = external_ports_index(global2param, param2arg, old_globals2old_dependent_blocks, importer);
+        auto cgra_port_indices = external_ports_status();
+
+
+
+    // Preparing hls_top to cgra ports
+    //Array<const Def*> target_globals_in_hls_world(old_globals2old_dependent_blocks.size()); // HLS-CGRA common globals in hls_world
+    //common_globals_old2new(target_globals_in_hls_world, old_globals2old_dependent_blocks, importer);
+    //TODO: add param2arg to this func and retrieve hls_top2cgar_ports
+
+
     // ---------- Preparing args for calling hls_top from host ------------
     // new_kernels in hls world-->old_kernels in hls world-->kenels in old_world
 
@@ -722,8 +767,6 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         }
 
         //TODO: better to make it like a function and call it make_depenceny_graph
-        // At the moment only hls-hls deps are considered
-        // we need to add hls-cgra/ cgra-hls deps also
         // Finding all dependencies between the kernels (building a dependency graph)
         // for each global variables find the kernels which use it,
         // check the mode on each kernel and fill a dpendency data structure: < Write, Read> => <From, To>
@@ -817,10 +860,12 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     world.make_external(hls_top);
 
     debug_verify(world);
+    world.dump();
 
     world.cleanup();
 
-    return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks);
+    //return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks, cgra_port_indices);
+    return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks, index2mode);
 }
 
 }

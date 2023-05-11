@@ -21,9 +21,7 @@ struct Lift2CffRewriter {
             return false;
         for (size_t i = 0; i < cont->num_params(); i++) {
             auto p = cont->param(i);
-            //if (p->order() >= 2
-            //|| (p->order() == 1 && (p != cont->ret_param() || !p->type()->isa<FnType>())))
-            if (p->order() >= 1)
+            if (p->order() > 1 || (p->order() == 1 && (int)i != cont->type()->ret_param()))
                 return true;
         }
         return false;

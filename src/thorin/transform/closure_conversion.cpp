@@ -19,7 +19,7 @@ struct ClosureConverter : public Rewriter {
             return false;
 
         // basic blocks _never_ need conversion!
-        if (cont->type()->order() % 2 == 1)
+        if (cont->type()->is_basicblock())
             return false;
         return true;
     }
@@ -89,30 +89,16 @@ struct ClosureConverter : public Rewriter {
                 return instantiate(old_param_t)->as<Type>();
             });
 
-            if (fn_type->order() % 2 == 0)
-                return dst().closure_type(rewritten);
-            else
+            if (fn_type->isa<ReturnType>())
+                return dst().return_type(rewritten);
+            else if (fn_type->is_basicblock())
                 return dst().fn_type(rewritten);
+            else
+                return dst().closure_type(rewritten);
 
-        } /*else if (auto oapp = odef->isa<App>()) {
-            auto ncallee = instantiate(oapp->callee());
-            auto nfilter = instantiate(oapp->filter())->as<Filter>();
-            auto nargs = Array<const Def*>(oapp->num_args(), [&](int i) -> const Def* {
-                auto expected_t = ncallee->type()->op(i)->as<Type>();
-                auto imported = instantiate(oapp->arg(i));
-                if (expected_t != imported->type()) {
-                    // the only case we should handle is closures appearing where fns are expected
-                    // this rewrite step should not introduce any such nonsense!
-                    // TODO: maybe it's simpler to just have the intrinsics (ie vectorize) consume closures...
-                    assert(expected_t->isa<FnType>() && imported->type()->isa<ClosureType>());
-                    auto closure = imported->as<Closure>();
-                    assert(!closure->env()->has_dep(Dep::Param));
-                    return closure->fn();
-                }
-                return imported;
-            });
-            return dst().app(nfilter, ncallee, nargs, oapp->debug());
-        } */else if (auto global = odef->isa<Global>()) {
+        } else if (auto ret = odef->isa<Return>()) {
+            return dst().return_point(import_def_as_is(ret->op(0))->as<Continuation>(), ret->debug());
+        } else if (auto global = odef->isa<Global>()) {
             auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());;
             nglobal->set_name(global->name());
             if (global->is_external())

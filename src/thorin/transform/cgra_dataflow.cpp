@@ -86,11 +86,7 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
             for (auto [channel_param_index, channel] : channel_param_index2def) {
                 auto channel_param = new_kernel->param(channel_param_index);
                 rewriter.old2new[channel] = channel_param;
-                // In CGRA ADF only connected nodes (params) are concerned and there is no need to
-                // introduce a new variable (like mem slots for channels) to connect them together.
-                // so at this point param2arg map is not required.
-                //  param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
-                  param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
+                param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
             }
 
           // rewriting basicblocks and their parameters
@@ -201,13 +197,11 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
         //arg2param.emplace(arg, param); // channel-params are not here.
     }
 
-    auto hls_port_indices = external_ports_index(global2param, param2arg, def2dependent_blocks, importer);
     // send indices to codegen
-
+    auto hls_port_indices = external_ports_index(global2param, param2arg, def2dependent_blocks, importer);
 
     auto enter   = world.enter(cgra_graph->mem_param());
     auto cur_mem = world.extract(enter, 0_s);
-    // TODO: using slots for connection objects (instead of globals)
     auto frame   = world.extract(enter, 1_s);
 
     // building slots only for channels(globals) between kernels
@@ -221,7 +215,6 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
         }
     }
 
-    // jump similar to hls_top
     auto cur_bb = cgra_graph;
     for (const auto& kernel : new_kernels) {
         auto ret_param = kernel->ret_param();
@@ -239,7 +232,7 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
             } else if (param == ret_param) {
                 args[i] = continuation;
             } else if (auto arg = param2arg[param]) {
-                args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ?  global2slot[arg] : arg; //TODO: change it
+                args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ? global2slot[arg] : arg;
             } else {
                 assert(false);
             }

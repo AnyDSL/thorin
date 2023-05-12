@@ -210,20 +210,14 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
     // TODO: using slots for connection objects (instead of globals)
     auto frame   = world.extract(enter, 1_s);
 
+    // building slots only for channels(globals) between kernels
     Def2Def global2slot;
-    std::vector<const Def*> channel_slots;
-    std::vector<const Global*> globals;
-    for (auto def : world.defs()) {
-        if (auto global = def->isa<Global>()) {
-            if (global->init()->isa<Bottom>())
-                globals.emplace_back(global);
-        }
-    }
-
-    for (auto global : globals) {
-        if (is_channel_type(global->type())) {
-            channel_slots.emplace_back(world.slot(global->type()->as<PtrType>()->pointee(), frame));
-            global2slot.emplace(global, channel_slots.back());
+    for (const Def* prev_global; const auto& [_, arg] : param2arg) {
+        if (arg->isa<Global>() && is_channel_type(arg->type()) && (arg != prev_global)) {
+            prev_global = arg;
+            const Def* channel_slot;
+            channel_slot = world.slot(arg->type()->as<PtrType>()->pointee(), frame);
+            global2slot.emplace(arg, channel_slot);
         }
     }
 
@@ -245,7 +239,7 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
             } else if (param == ret_param) {
                 args[i] = continuation;
             } else if (auto arg = param2arg[param]) {
-                args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ? arg : arg; //TODO: change it
+                args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ?  global2slot[arg] : arg; //TODO: change it
             } else {
                 assert(false);
             }

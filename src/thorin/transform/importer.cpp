@@ -36,7 +36,7 @@ const Def* Importer::rewrite(const Def* odef) {
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
             if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == cont || src().is_external(cont) || param->type()->isa<ReturnType>())
+                if (param->continuation() == cont || src().is_external(cont) || param->type()->tag() != Node_FnType)
                     goto rebuild;
 
                 if (body->args() == cont->params_as_defs()) {

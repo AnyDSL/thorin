@@ -20,9 +20,16 @@ DefSet spillable_free_defs(const Scope& scope) {
             continue;
         }
 
-        if (free_def->has_dep(Dep::Param) || cont)
+        if (auto ret = free_def->isa<Return>())
+            cont = ret->op(0)->as_nom<Continuation>();
+
+        if (cont == scope.entry())
+            continue;
+
+        if (free_def->has_dep(Dep::Param) || cont) {
+            scope.world().VLOG("fv: {} : {}", free_def, free_def->type());
             result.insert(free_def);
-        else
+        } else
             scope.world().WLOG("ignoring {} because it has no Param dependency {}", free_def, cont == nullptr);
         /*if (free_def->isa<Param>()) {
             result.insert(free_def);

@@ -13,9 +13,7 @@ struct ClosureConverter : public Rewriter {
     ClosureConverter(World& src, World& dst) : Rewriter(src, dst) {}
 
     bool needs_conversion(Continuation* cont) {
-        if (cont->is_exported() || !cont->has_body())
-            return false;
-        if (cont->is_intrinsic())
+        if (cont->is_intrinsic() || cont->is_exported())
             return false;
 
         auto converted_type = instantiate(cont->type())->as<FnType>();
@@ -76,9 +74,34 @@ struct ClosureConverter : public Rewriter {
         return UnchangedDefHelper(*this, def).instantiate(def);
     }
 
+    std::vector<const Type*> rewrite_params(Continuation* ocont) {
+        std::vector<const Type*> nparam_types;
+
+        for (auto pt : ocont->type()->types()) {
+            // leave the signature of intrinsics alone!
+            if (ocont->is_intrinsic())
+                nparam_types.push_back(import_type_as_is(pt));
+            else
+                nparam_types.push_back(instantiate(pt)->as<Type>());
+        }
+
+        return nparam_types;
+    }
+
+    const Continuation* import_continuation_as_is(Continuation* ocont) {
+        auto nparam_types = rewrite_params(ocont);
+        auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+
+        for (size_t i = 0; i < ocont->num_params(); i++)
+            insert(ocont->param(i), ncont->param(i));
+
+        insert(ocont, ncont);
+        ncont->rebuild_from(*this, ocont);
+        return ncont;
+    }
+
     const Def* rewrite(const Def* odef) override {
         if (auto fn_type = odef->isa<FnType>()) {
-            int ret_param = fn_type->ret_param();
             Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
                 auto old_param_t = fn_type->op(i)->as<Type>();
                 return instantiate(old_param_t)->as<Type>();
@@ -86,14 +109,18 @@ struct ClosureConverter : public Rewriter {
             if (fn_type->isa<ReturnType>())
                 return dst().return_type(ntypes);
 
-            auto ntype = dst().fn_type(ntypes);
             // Turn all functions into closures, we'll undo it where it is specifically OK
-            if (ntype->order() > 1)
-                ntype = dst().closure_type(ntypes);
+            auto ntype = dst().closure_type(ntypes);
             return ntype;
 
         } else if (auto ret = odef->isa<Return>()) {
-            return dst().return_point(instantiate(ret->op(0))->as<Continuation>(), ret->debug());
+            auto ntype = instantiate(ret->op(0)->type())->as<FnType>();
+            auto wrapper = dst().continuation(dst().fn_type(ntype->types()), { "return_point_wrapper" });
+            auto r = dst().return_point(wrapper, ret->debug());
+            insert(odef, r);
+            auto ndest = instantiate(ret->op(0));
+            wrapper->jump(ndest, wrapper->params_as_defs());
+            return r;
         } else if (auto global = odef->isa<Global>()) {
             auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());;
             nglobal->set_name(global->name());
@@ -101,100 +128,94 @@ struct ClosureConverter : public Rewriter {
                 dst().make_external(const_cast<Def*>(nglobal));
             return nglobal;
         } else if (auto ocont = odef->isa_nom<Continuation>()) {
-            std::vector<const Type*> nparam_types;
+            if (!needs_conversion(ocont))
+                return import_continuation_as_is(ocont);
 
-            for (auto pt : ocont->type()->types()) {
-                // leave the signature of intrinsics alone!
-                if (ocont->is_intrinsic())
-                    nparam_types.push_back(import_type_as_is(pt));
-                else
-                    nparam_types.push_back(instantiate(pt)->as<Type>());
-            }
+            auto nparam_types = rewrite_params(ocont);
+            auto closure_type = dst().closure_type(nparam_types);
 
-            bool convert = needs_conversion(ocont);
-            if (convert) {
-                auto closure_type = dst().closure_type(nparam_types);
+            Scope scope(ocont);
+            std::vector<const Def*> free_vars;
+            for (auto free : spillable_free_defs(scope))
+                free_vars.push_back(free);
 
-                Scope scope(ocont);
-                std::vector<const Def*> free_vars;
-                for (auto free : spillable_free_defs(scope))
-                    free_vars.push_back(free);
+            if (!free_vars.empty()) {
+                dst().WLOG("slow: closure generated for '{}'", ocont);
+                auto [env_type, thin] = get_env_type(free_vars);
+                env_type = instantiate(env_type)->as<Type>();
 
-                if (!free_vars.empty()) {
-                    dst().WLOG("slow: closure generated for '{}'", ocont);
-                    auto [env_type, thin] = get_env_type(free_vars);
-                    env_type = instantiate(env_type)->as<Type>();
+                // create a wrapper that takes a pointer to the environment
+                size_t env_param_index = ocont->num_params();
+                nparam_types.push_back(Closure::environment_type(dst()));
+                auto wrapper_type = dst().fn_type(nparam_types);
+                auto ncont = dst().continuation(wrapper_type, ocont->debug());
 
-                    for (auto fv : free_vars) {
-                        dst().VLOG("fv: {} : {}", fv, fv->type());
-                    }
+                for (size_t i = 0; i < ocont->num_params(); i++)
+                    insert(ocont->param(i), ncont->param(i));
 
-                    // create a wrapper that takes a pointer to the environment
-                    size_t env_param_index = ocont->num_params();
-                    nparam_types.push_back(Closure::environment_type(dst()));
-                    auto wrapper_type = dst().fn_type(nparam_types);
-                    auto ncont = dst().continuation(wrapper_type, ocont->debug());
+                dst().WLOG("slow: rewriting '{}' as '{}'", ocont, ncont);
 
-                    for (size_t i = 0; i < ocont->num_params(); i++)
-                        insert(ocont->param(i), ncont->param(i));
-
-                    dst().WLOG("slow: rewriting '{}' as '{}'", ocont, ncont);
-
-                    Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
-                    const Def* new_mem = ncont->mem_param();
-                    if (thin) {
-                        wrapper_args[env_param_index] = dst().cast(instantiate(free_vars[0]->type())->as<Type>(), ncont->param(env_param_index));
-                    } else {
-                        // make the wrapper load the pointer and pass each
-                        // variable of the environment to the lifted continuation
-                        auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), ncont->param(env_param_index));
-                        auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
-                        auto env_data = dst().extract(loaded_env, 1_u32);
-                        new_mem = dst().extract(loaded_env, 0_u32);
-                        for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                            wrapper_args[env_param_index + i] = dst().extract(env_data, i);
-                    }
-
-                    // make the wrapper call into the lifted continuation with the right arguments
-                    for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
-                        auto param = ncont->param(i);
-                        if (param->type()->isa<MemType>()) {
-                            // use the mem obtained after the load
-                            wrapper_args[i] = new_mem;
-                        } else {
-                            wrapper_args[i] = ncont->param(i);
-                        }
-                    }
-
-                    auto closure = dst().closure(closure_type, ncont, instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
-                    insert(ocont, closure);
-                    auto lifted = lift(scope, free_vars);
-
-                    Scope lifted_scope(lifted);
-                    ncont->jump(instantiate(lifted), wrapper_args);
-                    assert(lifted_scope.parent_scope() == nullptr);
-
-                    return closure;
+                Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
+                const Def* new_mem = ncont->mem_param();
+                if (thin) {
+                    wrapper_args[env_param_index] = dst().cast(instantiate(free_vars[0]->type())->as<Type>(), ncont->param(env_param_index));
                 } else {
-                    auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
-
-                    for (size_t i = 0; i < ocont->num_params(); i++)
-                        insert(ocont->param(i), ncont->param(i));
-
-                    auto closure = dst().closure(closure_type, ncont, dst().tuple({}), ocont->debug());
-                    insert(ocont, closure);
-                    ncont->rebuild_from(*this, ocont);
-                    return closure;
+                    // make the wrapper load the pointer and pass each
+                    // variable of the environment to the lifted continuation
+                    auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), ncont->param(env_param_index));
+                    auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
+                    auto env_data = dst().extract(loaded_env, 1_u32);
+                    new_mem = dst().extract(loaded_env, 0_u32);
+                    for (size_t i = 0, e = free_vars.size(); i != e; ++i)
+                        wrapper_args[env_param_index + i] = dst().extract(env_data, i);
                 }
+
+                // make the wrapper call into the lifted continuation with the right arguments
+                for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
+                    auto param = ncont->param(i);
+                    if (param->type()->isa<MemType>()) {
+                        // use the mem obtained after the load
+                        wrapper_args[i] = new_mem;
+                    } else {
+                        wrapper_args[i] = ncont->param(i);
+                    }
+                }
+
+                auto lifted = lift(scope, free_vars);
+                Scope lifted_scope(lifted);
+                assert(lifted_scope.parent_scope() == nullptr);
+
+                auto closure = dst().closure(closure_type, ncont, instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
+                insert(ocont, closure);
+
+                ncont->jump(instantiate(lifted), wrapper_args);
+
+                return closure;
             } else {
                 auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
 
                 for (size_t i = 0; i < ocont->num_params(); i++)
                     insert(ocont->param(i), ncont->param(i));
 
-                insert(ocont, ncont);
+                auto closure = dst().closure(closure_type, ncont, dst().tuple({}), ocont->debug());
+                insert(ocont, closure);
                 ncont->rebuild_from(*this, ocont);
-                return ncont;
+                return closure;
+            }
+        } else if (auto app = odef->isa<App>()) {
+            auto cont = app->callee()->isa_nom<Continuation>();
+            if (cont && !needs_conversion(cont)) {
+                Array<const Def*> nargs(app->num_args(), [&](int i) -> const Def* {
+                    auto oarg = app->arg(i);
+                    auto narg = instantiate(oarg);
+                    if (oarg->type()->tag() == Node_FnType /* we don't want to touch Return[] types */) {
+                        auto wrapper = dst().continuation(import_type_as_is(oarg->type())->as<FnType>(), "fn_to_closure_wrapper");
+                        wrapper->jump(narg, wrapper->params_as_defs());
+                        return wrapper;
+                    }
+                    return narg;
+                });
+                return dst().app(instantiate(app->callee()), nargs);
             }
         }
         return Rewriter::rewrite(odef);

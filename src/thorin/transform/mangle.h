@@ -20,6 +20,8 @@ private:
     const Def * rewrite(const Def *odef) override;
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 
+    bool is_dropping_;
+
     const Scope& scope_;
     Defs args_;
     Defs lift_;

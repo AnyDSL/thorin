@@ -37,6 +37,10 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
         for (auto use : pop(queue)->uses())
             enqueue(use);
     }
+
+    is_dropping_ = std::any_of(args.begin(), args.end(), [&](const auto& item) {
+        return item != nullptr;
+    });
 }
 
 Continuation* Mangler::mangle() {
@@ -50,8 +54,6 @@ Continuation* Mangler::mangle() {
     auto fn_type = dst().fn_type(param_types);
     new_entry_ = dst().continuation(fn_type, old_entry()->debug_history());
 
-    // map value params
-    insert(old_entry(), old_entry());
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
         auto old_param = old_entry()->param(i);
         if (auto def = args_[i])
@@ -66,6 +68,22 @@ Continuation* Mangler::mangle() {
 
     for (auto def : lift_)
         insert(def, new_entry()->append_param(def->type()));
+
+    // if we are dropping parameters, we can't necessarily rewrite the entry, see also note about applications in Mangler::rewrite()
+    if (is_dropping_)
+        insert(old_entry(), old_entry());
+    else {
+        // if we're only adding parameters, we can replace the entry by a small wrapper calling into the lifted entry
+        auto recursion_wrapper = dst().continuation(old_entry()->type());
+        insert(old_entry(), recursion_wrapper);
+        std::vector<const Def*> args;
+        for (auto p : recursion_wrapper->params_as_defs())
+            args.push_back(p);
+        size_t i = 0;
+        for (auto def : lift_)
+            args.push_back(new_entry()->param(recursion_wrapper->num_params() + i++));
+        recursion_wrapper->jump(new_entry(), args);
+    }
 
     // cut/widen filter
     if (!old_entry()->filter()->is_empty()) {

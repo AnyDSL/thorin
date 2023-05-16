@@ -13,10 +13,24 @@ struct ClosureConverter : public Rewriter {
     ClosureConverter(World& src, World& dst) : Rewriter(src, dst) {}
 
     bool needs_conversion(Continuation* cont) {
+        if (auto found = should_convert.lookup(cont))
+            return found.value();
+
         if (cont->is_intrinsic() || cont->is_exported())
             return false;
 
-        return tagged_.contains(cont);
+        bool needs_conversion = false;
+        src().DLOG("checking for uses of {} ...", cont);
+        for (auto use : cont->copy_uses()) {
+            if (is_use_first_class(use)) {
+                needs_conversion = true;
+                break;
+            }
+        }
+
+        should_convert.insert(std::make_pair(cont, needs_conversion));
+
+        return needs_conversion;
     }
 
     std::tuple<const Type*, bool> get_env_type(ArrayRef<const Def*> free_vars) {
@@ -95,6 +109,7 @@ struct ClosureConverter : public Rewriter {
             insert(ocont->param(i), ncont->param(i));
 
         insert(ocont, ncont);
+        dst().VLOG("no closure generated for '{}' -> '{}'", ocont, ncont);
         ncont->rebuild_from(*this, ocont);
         return ncont;
     }
@@ -225,26 +240,13 @@ struct ClosureConverter : public Rewriter {
         return true;
     }
 
-    void mark_closures() {
-        for (auto ocont : src().copy_continuations()) {
-            src().DLOG("checking for uses of {} ...", ocont);
-            for (auto use : ocont->copy_uses()) {
-                if (is_use_first_class(use)) {
-                    tagged_.insert(ocont);
-                    break;
-                }
-            }
-        }
-    }
-
-    ContinuationSet tagged_;
+    ContinuationMap<bool> should_convert;
 };
 
 void closure_conversion(Thorin& thorin) {
     auto& src = thorin.world_container();
     auto dst = std::make_unique<World>(*src);
     ClosureConverter converter(*src, *dst);
-    converter.mark_closures();
     for (auto& ext : src->externals())
         converter.instantiate(ext.second);
     src.swap(dst);

@@ -10,58 +10,48 @@
 namespace thorin {
 
 struct Lift2CffRewriter : Rewriter {
-    Lift2CffRewriter(World& src, World& dst) : Rewriter(src, dst), forest_(src) {
-    }
-
-    Continuation* lambda_lift(Continuation* cont) {
-        Scope scope(cont);
-        assert(cont->type()->is_returning());
-
-        std::vector<const Def*> lifted_args;
-        for (size_t i = 0; i < cont->num_params(); i++)
-            lifted_args.push_back(cont->param(i));
-        std::vector<const Def*> defs;
-        for (auto free : spillable_free_defs(scope)) {
-            //if (free == cont)
-            //    continue;
-            if (auto free_cont = free->isa<Continuation>())
-                continue;
-            //  free = src().closure(src().closure_type(free_cont->type()->types()), free_cont, src().tuple({}));
-            lifted_args.push_back(free);
-            defs.push_back(free);
-        }
-        if (defs.size() > 0) {
-            dst().VLOG("Lambda lifting {} ({} free variables)", cont, defs.size());
-            auto lifted = lift(scope, defs);
-            lifted->set_name(lifted->name() + "_lifted");
-            cont->jump(lifted, lifted_args);
-            cont->set_filter(cont->all_true_filter());
-            cont->set_name(cont->name() + "_unlifted");
-            return cont;
-        }
-        return cont;
-    }
+    Lift2CffRewriter(World& src, World& dst) : Rewriter(src, dst), forest_(src) {}
 
     const Def* rewrite(const thorin::Def *odef) override {
         if (auto ocont = odef->isa_nom<Continuation>()) {
-            Continuation* ofn = ocont;
-            while (ofn) {
-                // we found the enclosing function
-                if (ofn->type()->is_returning())
-                    break;
-                Scope& scope = forest_.get_scope(ofn);
-                ofn = scope.parent_scope();
-            }
+            if (ocont->type()->is_returning()) {
+                // we have a function but it's not top-level yet!
+                Scope scope(ocont);
+                std::vector<const Def*> nfilter;
+                std::vector<const Def*> lifted_args;
+                for (size_t i = 0; i < ocont->num_params(); i++) {
+                    nfilter.push_back(src().literal_bool(false, {}));
+                    lifted_args.push_back(ocont->param(i));
+                }
+                std::vector<const Def*> defs;
+                for (auto free: spillable_free_defs(scope)) {
+                    if (free->type()->isa<FnType>()) {
+                        // forcefully inline any higher order parameters that we introduce: they necessarily correspond to top-level functions anyway
+                        nfilter.push_back(src().literal_bool(true, {}));
+                    } else
+                        nfilter.push_back(src().literal_bool(false, {}));
+                    lifted_args.push_back(free);
+                    defs.push_back(free);
+                }
+                if (defs.size() > 0) {
+                    dst().VLOG("Lambda lifting {} ({} free variables)", ocont, defs.size());
+                    auto lifted = lift(scope, defs);
+                    lifted->set_name(lifted->name() + "_lifted");
+                    lifted->set_filter(src().filter(nfilter));
 
-            Scope& scope = forest_.get_scope(ofn);
-            // we have a function but it's not top-level yet!
-            if (scope.parent_scope()) {
-                ocont = lambda_lift(ocont);
+                    auto ncont = ocont->stub(*this);
+                    insert(ocont, ncont);
+
+                    Array<const Def*> nargs(lifted_args.size());
+                    for (size_t i = 0; i < nargs.size(); i++)
+                        nargs[i] = instantiate(lifted_args[i]);
+                    ncont->jump(instantiate(lifted), nargs);
+                    ncont->set_name(ocont->name());
+                    if (ocont->is_external())
+                        dst().make_external(ncont);
+                    return ncont;
+                }
             }
-            auto r = Rewriter::rewrite(ocont);
-            //if (ocont != odef)
-            //    insert(odef, r);
-            return r;
         }
         return Rewriter::rewrite(odef);
     }

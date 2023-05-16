@@ -16,8 +16,7 @@ struct ClosureConverter : public Rewriter {
         if (cont->is_intrinsic() || cont->is_exported())
             return false;
 
-        auto converted_type = instantiate(cont->type())->as<FnType>();
-        return converted_type->isa<ClosureType>();
+        return tagged_.contains(cont);
     }
 
     std::tuple<const Type*, bool> get_env_type(ArrayRef<const Def*> free_vars) {
@@ -220,12 +219,46 @@ struct ClosureConverter : public Rewriter {
         }
         return Rewriter::rewrite(odef);
     }
+
+    bool is_use_first_class(Use& use) {
+        if (use.def()->isa<Param>())
+            return false;
+        if (use.def()->isa<Return>())
+            return false;
+        if (auto app = use.def()->isa<App>()) {
+            if (use.index() == App::CALLEE_POSITION)
+                return false;
+            if (auto callee = app->callee()->isa_nom<Continuation>()) {
+                if (callee->is_intrinsic())
+                    return false;
+            }
+        }
+
+        src().DLOG("{} is used as a first-class value in {} ({}, index={})", use.def()->op(use.index()), use.def(),
+                   tag2str(use.def()->tag()), use.index());
+        return true;
+    }
+
+    void mark_closures() {
+        for (auto ocont : src().copy_continuations()) {
+            src().DLOG("checking for uses of {} ...", ocont);
+            for (auto use : ocont->copy_uses()) {
+                if (is_use_first_class(use)) {
+                    tagged_.insert(ocont);
+                    break;
+                }
+            }
+        }
+    }
+
+    ContinuationSet tagged_;
 };
 
 void closure_conversion(Thorin& thorin) {
     auto& src = thorin.world_container();
     auto dst = std::make_unique<World>(*src);
     ClosureConverter converter(*src, *dst);
+    converter.mark_closures();
     for (auto& ext : src->externals())
         converter.instantiate(ext.second);
     src.swap(dst);

@@ -1340,7 +1340,7 @@ void Thorin::opt() {
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(closure_conversion(*this))
     RUN_PASS(lift2cff(*this))
-    RUN_PASS(inliner(*this))
+    //RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
     RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(*this))

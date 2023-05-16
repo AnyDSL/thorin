@@ -112,16 +112,8 @@ struct ClosureConverter : public Rewriter {
             auto ntype = dst().closure_type(ntypes);
             return ntype;
 
-        } else if (auto ret = odef->isa<Return>()) {
-            auto ntype = instantiate(ret->op(0)->type())->as<FnType>();
-            auto wrapper = dst().continuation(dst().fn_type(ntype->types()), { "return_point_wrapper" });
-            auto r = dst().return_point(wrapper, ret->debug());
-            insert(odef, r);
-            auto ndest = instantiate(ret->op(0));
-            wrapper->jump(ndest, wrapper->params_as_defs());
-            return r;
         } else if (auto global = odef->isa<Global>()) {
-            auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());;
+            auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());
             nglobal->set_name(global->name());
             if (global->is_external())
                 dst().make_external(const_cast<Def*>(nglobal));
@@ -207,11 +199,6 @@ struct ClosureConverter : public Rewriter {
                 Array<const Def*> nargs(app->num_args(), [&](int i) -> const Def* {
                     auto oarg = app->arg(i);
                     auto narg = instantiate(oarg);
-                    if (oarg->type()->tag() == Node_FnType /* we don't want to touch Return[] types */) {
-                        auto wrapper = dst().continuation(import_type_as_is(oarg->type())->as<FnType>(), "fn_to_closure_wrapper");
-                        wrapper->jump(narg, wrapper->params_as_defs());
-                        return wrapper;
-                    }
                     return narg;
                 });
                 return dst().app(instantiate(app->callee()), nargs);
@@ -234,8 +221,7 @@ struct ClosureConverter : public Rewriter {
             }
         }
 
-        src().DLOG("{} is used as a first-class value in {} ({}, index={})", use.def()->op(use.index()), use.def(),
-                   tag2str(use.def()->tag()), use.index());
+        src().DLOG("{} is used as a first-class value in {} ({}, index={})", use.def()->op(use.index()), use.def(), tag2str(use.def()->tag()), use.index());
         return true;
     }
 

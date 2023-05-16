@@ -22,6 +22,11 @@ struct Lift2CffRewriter : Rewriter {
             lifted_args.push_back(cont->param(i));
         std::vector<const Def*> defs;
         for (auto free : spillable_free_defs(scope)) {
+            //if (free == cont)
+            //    continue;
+            if (auto free_cont = free->isa<Continuation>())
+                continue;
+            //  free = src().closure(src().closure_type(free_cont->type()->types()), free_cont, src().tuple({}));
             lifted_args.push_back(free);
             defs.push_back(free);
         }
@@ -51,8 +56,12 @@ struct Lift2CffRewriter : Rewriter {
             Scope& scope = forest_.get_scope(ofn);
             // we have a function but it's not top-level yet!
             if (scope.parent_scope()) {
-                odef = lambda_lift(ocont);
+                ocont = lambda_lift(ocont);
             }
+            auto r = Rewriter::rewrite(ocont);
+            //if (ocont != odef)
+            //    insert(odef, r);
+            return r;
         }
         return Rewriter::rewrite(odef);
     }

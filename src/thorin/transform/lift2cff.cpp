@@ -1,100 +1,72 @@
 #include "lift2cff.h"
+
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/transform/importer.h"
+#include "thorin/transform/rewrite.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
 
-struct Lift2CffRewriter {
-    Lift2CffRewriter(World& src) : world_(src) {
-        ScopesForest(src).for_each([&](auto& scope) {
-            top_level_.insert(scope.entry());
-        });
+struct Lift2CffRewriter : Rewriter {
+    Lift2CffRewriter(World& src, World& dst) : Rewriter(src, dst), forest_(src) {
     }
 
-    bool needs_lifting(Continuation* cont) {
-        bool top_level = top_level_.contains(cont);
-        // we are only interested in lambda lifting things that are not already top level
-        if (top_level || !cont->has_body())
-            return false;
-        for (size_t i = 0; i < cont->num_params(); i++) {
-            auto p = cont->param(i);
-            if (p->order() > 1 || (p->order() == 1 && (int)i != cont->type()->ret_param()))
-                return true;
-        }
-        return false;
-    }
-
-    bool lambda_lift(Continuation* cont) {
+    Continuation* lambda_lift(Continuation* cont) {
         Scope scope(cont);
+        assert(cont->type()->is_returning());
+
         std::vector<const Def*> lifted_args;
         for (size_t i = 0; i < cont->num_params(); i++)
             lifted_args.push_back(cont->param(i));
         std::vector<const Def*> defs;
         for (auto free : spillable_free_defs(scope)) {
-            //if (free->isa_nom<Continuation>()) {
-            //    // TODO: assert is actually top level
-            //} else if (!free->isa<Filter>()) { // don't lift the filter
-                //assert(!free->isa<App>() && "an app should not be free");
-                //assert(!is_mem(free));
-                //todo_ = true;
-                lifted_args.push_back(free);
-                defs.push_back(free);
-            //}
+            lifted_args.push_back(free);
+            defs.push_back(free);
         }
         if (defs.size() > 0) {
-            bool has_callee_use = false;
-            for (auto use : cont->uses()) {
-                auto uapp = use->isa<App>();
-                if (uapp && use.index() == App::CALLEE_POSITION) {
-                    has_callee_use = true;
-                }
-            }
-            if (!has_callee_use)
-                return false;
-            world_.VLOG("Lambda lifting {} ({} free variables)", cont, defs.size());
+            dst().VLOG("Lambda lifting {} ({} free variables)", cont, defs.size());
             auto lifted = lift(scope, defs);
             lifted->set_name(lifted->name() + "_lifted");
             cont->jump(lifted, lifted_args);
             cont->set_filter(cont->all_true_filter());
             cont->set_name(cont->name() + "_unlifted");
-            return true;
+            return cont;
         }
-        return false;
+        return cont;
     }
 
-    bool run() {
-        ScopesForest(world_).for_each([&](auto& scope) {
-            for (const CFNode* cfnode : scope.f_cfg().reverse_post_order()) {
-                auto cont = cfnode->continuation();
-                if (needs_lifting(cont)) {
-                    todo_ |= lambda_lift(cont);
-                }
+    const Def* rewrite(const thorin::Def *odef) override {
+        if (auto ocont = odef->isa_nom<Continuation>()) {
+            Continuation* ofn = ocont;
+            while (ofn) {
+                // we found the enclosing function
+                if (ofn->type()->is_returning())
+                    break;
+                Scope& scope = forest_.get_scope(ofn);
+                ofn = scope.parent_scope();
             }
-        });
-        return todo_;
+
+            Scope& scope = forest_.get_scope(ofn);
+            // we have a function but it's not top-level yet!
+            if (scope.parent_scope()) {
+                odef = lambda_lift(ocont);
+            }
+        }
+        return Rewriter::rewrite(odef);
     }
 
-    World& world_;
-    bool todo_ = false;
-    ContinuationSet top_level_;
+    ScopesForest forest_;
 };
 
 bool lift2cff(Thorin& thorin) {
-    bool todo_ = false, did_something;
-    do {
-        auto& src = thorin.world_container();
-        std::unique_ptr<World> dst = std::make_unique<World>(*src);
-        did_something = Lift2CffRewriter(*src).run();
-        Importer importer(*src, *dst);
-        for (auto e : src->externals())
-            importer.import(e.second);
-        src.swap(dst);
-        todo_ |= did_something;
-    } while (did_something);
-    return todo_;
+    auto& src = thorin.world_container();
+    std::unique_ptr<World> dst = std::make_unique<World>(*src);
+    Lift2CffRewriter lifter(*src, *dst);
+    for (auto e : src->externals())
+        lifter.instantiate(e.second);
+    src.swap(dst);
 }
 
 }

@@ -121,7 +121,7 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
     });
 
 
-//    std::cout << "Target block size = " << target_blocks_in_cgra_world.size() << std::endl; 
+//    std::cout << "Target block size = " << target_blocks_in_cgra_world.size() << std::endl;
 //    for (const auto& block : target_blocks_in_cgra_world) {
 //        std::cout << "Target block"  << std::endl;
 //        block->dump();
@@ -214,6 +214,22 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
             global2slot.emplace(arg, channel_slot);
         }
     }
+  //  //world.tuple_type({world.type_qs32(), world.type_qs32()});
+  //  auto cont_type = world.fn_type({ world.mem_type() });
+  //  auto d_cont_type = world.fn_type({ world.mem_type(), cont_type });
+  //  auto dummy = world.continuation(d_cont_type, Debug());
+  //  // TODO: use mem param of dummy to make slots then drop dummy and jump to kernels
+  //  auto value = {world.one(world.type_qs32()), world.one(world.type_qs32())};
+  //  auto tuple_value = world.tuple(value);
+  //  auto slot = world.slot(world.tuple_type({world.type_qs32(), world.type_qs32()}), frame);
+  //  auto slot_2 = world.slot(world.tuple_type({world.type_qs32(), world.type_qs32()}), frame);
+  //  cur_mem = world.store(cgra_graph->mem_param(), slot, tuple_value, Debug());
+  //  //TODO instead of calling kernels we can use slots with store but they are opt away...
+  //  auto loaded = world.load(cur_mem, slot_2, Debug());
+  //  auto elem_frame = world.extract(loaded, 1_u32, Debug());
+  //  cur_mem = world.extract(loaded, 0_u32, Debug());
+
+    //world.make_external(new_kernels.back());
 
     auto cur_bb = cgra_graph;
     for (const auto& kernel : new_kernels) {

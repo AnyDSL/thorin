@@ -350,22 +350,29 @@ std::string CCodeGen::device_prefix() {
  */
 
 HlsInterface interface, gmem_config;
-bool interface_status, hls_top_scope = false;
+bool interface_status, hls_top_scope, cgra_graph_scope = false;
 
 void CCodeGen::emit_module() {
-    Continuation* hls_top = nullptr;
+    Continuation* top_module = nullptr;
+
     interface_status = get_interface(interface, gmem_config);
 
     Scope::for_each(world(), [&] (const Scope& scope) {
-        if (scope.entry()->name() == "hls_top")
-            hls_top = scope.entry();
+        auto entry_name = scope.entry()->name();
+        if (entry_name== "hls_top" || entry_name== "cgra_graph")
+            top_module = scope.entry();
         else
             emit_scope(scope);
     });
-    if (hls_top) {
-        hls_top_scope = true;
-        emit_scope(Scope(hls_top));
+
+    if (top_module) {
+        if (top_module->name() == "hls_top")
+            hls_top_scope = true;
+        else if (top_module->name() == "cgra_graph")
+            cgra_graph_scope = true;
+        emit_scope(Scope(top_module));
     }
+
 
     if (lang_ == Lang::OpenCL) {
         if (use_channels_) {
@@ -563,7 +570,8 @@ std::string CCodeGen::prepare(const Scope& scope) {
     func_impls_.fmt("\t\n");
 
     if (lang_ == Lang::HLS && cont->is_exported()) {
-        if (cont->name() == "hls_top") {
+        //if (cont->name() == "hls_top") {
+        if (hls_top_scope) {
             if (interface_status) {
                 if (cont->num_params() > 2) {
                     size_t hls_gmem_index = 0;

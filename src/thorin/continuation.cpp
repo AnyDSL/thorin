@@ -67,9 +67,9 @@ bool App::verify() const {
 
 //------------------------------------------------------------------------------
 
-Return::Return(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_Return, world.return_type(destination->type()->types()), { destination }, dbg) {}
+ReturnPoint::ReturnPoint(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
 
-const Def* Return::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const { return world.return_point(nops.front()->as<Continuation>()); }
+const Def* ReturnPoint::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const { return world.return_point(nops.front()->as<Continuation>()); }
 
 //------------------------------------------------------------------------------
 

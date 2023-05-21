@@ -85,9 +85,9 @@ public:
     friend class World;
 };
 
-class Return : public Def {
+class ReturnPoint : public Def {
 private:
-    Return(World&, const Continuation* destination, Debug dbg);
+    ReturnPoint(World&, const Continuation* destination, Debug dbg);
 
 public:
     const Def* rebuild(World&, const Type*, Defs) const override;

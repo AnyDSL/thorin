@@ -1156,7 +1156,7 @@ const App* World::app(const Filter* given_filter, const Def* callee, const Defs 
             must_inline = true;
             continue;
         }
-        if (auto ret = callee->isa<Return>()) {
+        if (auto ret = callee->isa<ReturnPoint>()) {
             callee = ret->continuation();
             continue;
         }

@@ -516,8 +516,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
-        assert(ret_arg->isa<Return>());
-        auto succ = ret_arg->as<Return>()->continuation();
+        assert(ret_arg->isa<ReturnPoint>());
+        auto succ = ret_arg->as<ReturnPoint>()->continuation();
 
         size_t n = 0;
         const Param* last_param = nullptr;

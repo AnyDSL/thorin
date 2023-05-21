@@ -46,7 +46,7 @@
     THORIN_NODE(Param, param)
     THORIN_NODE(Filter, filter)
     THORIN_NODE(App, app)
-    THORIN_NODE(Return, return)
+    THORIN_NODE(ReturnPoint, return)
     // Type
         // PrimType
         THORIN_NODE(Star, star)

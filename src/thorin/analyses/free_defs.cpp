@@ -20,7 +20,7 @@ DefSet spillable_free_defs(const Scope& scope) {
             continue;
         }
 
-        if (auto ret = free_def->isa<Return>())
+        if (auto ret = free_def->isa<ReturnPoint>())
             cont = ret->continuation();
 
         if (cont == scope.entry())

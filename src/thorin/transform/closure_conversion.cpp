@@ -225,7 +225,7 @@ struct ClosureConverter : public Rewriter {
     bool is_use_first_class(Use& use) {
         if (use.def()->isa<Param>())
             return false;
-        if (use.def()->isa<Return>())
+        if (use.def()->isa<ReturnPoint>())
             return false;
         if (auto app = use.def()->isa<App>()) {
             if (use.index() == App::CALLEE_POSITION)

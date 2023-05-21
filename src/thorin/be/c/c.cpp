@@ -350,7 +350,7 @@ std::string CCodeGen::device_prefix() {
  */
 
 HlsInterface interface, gmem_config;
-bool interface_status, hls_top_scope, cgra_graph_scope = false;
+auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, true, false);
 
 void CCodeGen::emit_module() {
     Continuation* top_module = nullptr;
@@ -570,7 +570,6 @@ std::string CCodeGen::prepare(const Scope& scope) {
     func_impls_.fmt("\t\n");
 
     if (lang_ == Lang::HLS && cont->is_exported()) {
-        //if (cont->name() == "hls_top") {
         if (hls_top_scope) {
             if (interface_status) {
                 if (cont->num_params() > 2) {

@@ -21,7 +21,7 @@ DefSet spillable_free_defs(const Scope& scope) {
         }
 
         if (auto ret = free_def->isa<Return>())
-            cont = ret->op(0)->as_nom<Continuation>();
+            cont = ret->continuation();
 
         if (cont == scope.entry())
             continue;

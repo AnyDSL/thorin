@@ -91,6 +91,7 @@ private:
 
 public:
     const Def* rebuild(World&, const Type*, Defs) const override;
+    Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
     friend class World;
 };
 

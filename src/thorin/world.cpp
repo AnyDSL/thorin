@@ -1157,7 +1157,7 @@ const App* World::app(const Filter* given_filter, const Def* callee, const Defs 
             continue;
         }
         if (auto ret = callee->isa<Return>()) {
-            callee = ret->op(0);
+            callee = ret->continuation();
             continue;
         }
         break;

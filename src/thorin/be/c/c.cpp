@@ -818,13 +818,13 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
     } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
         int ret_param = callee->type()->ret_param();
-        Continuation* ret_cont = nullptr;
+        const ReturnPoint* ret = nullptr;
         if (ret_param >= 0)
-            ret_cont = body->arg(ret_param)->as_nom<Continuation>();
+            ret = body->arg(ret_param)->as<ReturnPoint>();
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
-            if (arg == ret_cont) continue;
+            if (arg == ret) continue;
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
         }
@@ -839,7 +839,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 usage->second = FuncMode::Write;
             } else if (name.find("read") != std::string::npos) {
                 usage->second = FuncMode::Read;
-                auto channel_read_result = get_channel_read_output(ret_cont);
+                auto channel_read_result = get_channel_read_output(ret->continuation());
                 assert(channel_read_result != nullptr);
                 args.emplace(args.begin(), emit(channel_read_result));
             } else THORIN_UNREACHABLE;
@@ -856,7 +856,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     } else THORIN_UNREACHABLE;
                 }
                 if (name.find("read_channel") != std::string::npos)
-                    bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret_cont)));
+                    bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret->continuation())));
                 i++;
             }
             no_function_call = true;
@@ -875,19 +875,19 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         // Pass the result to the phi nodes of the return continuation
         if (!is_type_unit(ret_type)) {
             size_t i = 0;
-            for (auto param : ret_cont->params()) {
+            for (auto param : ret->continuation()->params()) {
                 if (!is_concrete(param))
                     continue;
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
                 else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
-                    bb.tail.fmt(" p_{} = {};\n", emit(get_channel_read_output(ret_cont)), param->unique_name());
+                    bb.tail.fmt(" p_{} = {};\n", emit(get_channel_read_output(ret->continuation())), param->unique_name());
                 else
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }
         }
         if (!hls_top_scope)
-            bb.tail.fmt("goto {};", label_name(ret_cont));
+            bb.tail.fmt("goto {};", label_name(ret->continuation()));
     } else {
         THORIN_UNREACHABLE;
     }

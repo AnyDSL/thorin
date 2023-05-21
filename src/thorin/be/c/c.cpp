@@ -108,6 +108,7 @@ private:
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
+    const Param* get_channel_read_output(Continuation*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -681,6 +682,19 @@ void CCodeGen::finalize(Continuation* cont) {
     func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
+const Param* CCodeGen::get_channel_read_output(Continuation* cont) {
+    size_t num_params = cont->num_params();
+    size_t n = 0;
+    Array<const Param*> values(num_params);
+    for (auto param : cont->params()) {
+        if (!is_mem(param) && !is_unit(param)) {
+            values[n] = param;
+            n++;
+        }
+    }
+    return n == 1 ? values[0] : nullptr;
+}
+
 void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     assert(cont->has_body());
@@ -803,9 +817,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             THORIN_UNREACHABLE;
         }
     } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
-        auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
-            return arg->isa_nom<Continuation>();
-        }))->as_nom<Continuation>();
+        int ret_param = callee->type()->ret_param();
+        Continuation* ret_cont = nullptr;
+        if (ret_param >= 0)
+            ret_cont = body->arg(ret_param)->as_nom<Continuation>();
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
@@ -813,20 +828,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
         }
-
-        size_t num_params = ret_cont->num_params();
-        size_t n = 0;
-        Array<const Param*> values(num_params);
-        Array<const Type*> types(num_params);
-        for (auto param : ret_cont->params()) {
-            if (!is_mem(param) && !is_unit(param)) {
-                values[n] = param;
-                types[n] = param->type();
-                n++;
-            }
-        }
-
-        const Param* channel_read_result = n == 1 ? values[0] : nullptr;
 
         bool channel_transaction = false, no_function_call = false;
 
@@ -838,6 +839,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 usage->second = FuncMode::Write;
             } else if (name.find("read") != std::string::npos) {
                 usage->second = FuncMode::Read;
+                auto channel_read_result = get_channel_read_output(ret_cont);
                 assert(channel_read_result != nullptr);
                 args.emplace(args.begin(), emit(channel_read_result));
             } else THORIN_UNREACHABLE;
@@ -853,9 +855,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                         bb.tail.fmt(" << {};\n", emit(arg));
                     } else THORIN_UNREACHABLE;
                 }
-                if (name.find("read_channel") != std::string::npos) {
-                    bb.tail.fmt(" >> {};\n", emit(channel_read_result));
-                }
+                if (name.find("read_channel") != std::string::npos)
+                    bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret_cont)));
                 i++;
             }
             no_function_call = true;
@@ -880,7 +881,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
                 else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
-                    bb.tail.fmt(" p_{} = {};\n", emit(channel_read_result), param->unique_name());
+                    bb.tail.fmt(" p_{} = {};\n", emit(get_channel_read_output(ret_cont)), param->unique_name());
                 else
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }

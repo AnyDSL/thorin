@@ -525,18 +525,14 @@ static inline bool is_passed_via_buffer(const Param* param) {
         || param->type()->isa<TupleType>();
 }
 
-static inline const Type* ret_type(const FnType* fn_type) {
-    auto ret_fn_type = (*std::find_if(
-        fn_type->types().begin(), fn_type->types().end(), [] (const Type* op) {
-            return op->order() % 2 == 1;
-        }))->as<FnType>();
+static inline const Type* mangle_return_type(const ReturnType* return_type) {
     std::vector<const Type*> types;
-    for (auto op : ret_fn_type->types()) {
-        // TODO: support function pointers in returns ?
-        if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0) continue;
+    for (auto op : return_type->types()) {
+        assert(op->order() == 0);
+        if (op->isa<MemType>() || is_type_unit(op)) continue;
         types.push_back(op);
     }
-    return fn_type->world().tuple_type(types);
+    return return_type->world().tuple_type(types);
 }
 
 static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
@@ -817,7 +813,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             THORIN_UNREACHABLE;
         }
     } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
-        int ret_param = callee->type()->ret_param();
+        int ret_param = callee->type()->ret_param_index();
         const ReturnPoint* ret = nullptr;
         if (ret_param >= 0)
             ret = body->arg(ret_param)->as<ReturnPoint>();
@@ -865,7 +861,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
 
         // Do not store the result of `void` calls
-        auto ret_type = thorin::c::ret_type(callee->type());
+        auto return_type = callee->type()->return_param_type();
+        // treat non-returning calls as if they return nothing, for now
+        auto ret_type = return_type ? mangle_return_type(return_type) : world().unit_type();
         if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
@@ -1390,7 +1388,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     }
 
     s.fmt("{} {}(",
-        convert(ret_type(cont->type())),
+        convert(cont->type()->return_param_type()),
         !world().is_external(cont) ? cont->unique_name() : cont->name());
 
     // Emit and store all first-order params

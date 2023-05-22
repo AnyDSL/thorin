@@ -53,6 +53,7 @@
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(FnType, fn)
         THORIN_NODE(ClosureType, closure_type)
+        THORIN_NODE(JoinPointType, join_point_type)
         THORIN_NODE(ReturnType, return_type)
         THORIN_NODE(FrameType, frame)
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)

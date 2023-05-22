@@ -1131,6 +1131,16 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
+Continuation* World::control(thorin::Types tys) {
+    Array<const Type*> plus_mem(tys.size() + 1);
+    plus_mem[0] = mem_type();
+    for (size_t i = 0; i < tys.size(); i++) plus_mem[1 + i] = tys[i];
+
+    const JoinPointType* t = join_point_type(plus_mem);
+    Array<const Type*> param_tys = { mem_type(), fn_type({mem_type(), t}), fn_type(plus_mem) };
+    return continuation(fn_type(param_tys), Intrinsic::Control, {"control"});
+}
+
 const Param* World::param(const Type* type, const Continuation* continuation, size_t index, Debug dbg) {
     auto param = cse(new Param(*this, type, continuation, index, dbg));
 #if THORIN_ENABLE_CHECKS

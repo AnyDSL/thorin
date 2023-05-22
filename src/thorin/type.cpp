@@ -55,7 +55,7 @@ const Type* BottomType         ::rebuild(World& w, const Type* t, Defs o) const 
 const Type* ClosureType        ::rebuild(World& w, const Type* t, Defs o) const { return w.closure_type(defs2types(o)); }
 const Type* DefiniteArrayType  ::rebuild(World& w, const Type* t, Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
 const Type* FnType             ::rebuild(World& w, const Type* t, Defs o) const { return w.fn_type(defs2types(o)); }
-const Type* JoinPointType      ::rebuild(World& w, const Type* t, Defs o) const { return w.return_type(defs2types(o)); }
+const Type* JoinPointType      ::rebuild(World& w, const Type* t, Defs o) const { return w.join_point_type(defs2types(o)); }
 const Type* ReturnType         ::rebuild(World& w, const Type* t, Defs o) const { return w.return_type(defs2types(o)); }
 const Type* FrameType          ::rebuild(World& w, const Type* t, Defs o) const { return w.frame_type(); }
 const Type* IndefiniteArrayType::rebuild(World& w, const Type* t, Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }

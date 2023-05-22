@@ -107,6 +107,7 @@ private:
     std::string constructor_prefix(const Type*);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
+    const Type* mangle_return_type(const ReturnType* return_type);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
     const Param* get_channel_read_output(Continuation*);
 
@@ -525,7 +526,10 @@ static inline bool is_passed_via_buffer(const Param* param) {
         || param->type()->isa<TupleType>();
 }
 
-static inline const Type* mangle_return_type(const ReturnType* return_type) {
+const Type* CCodeGen::mangle_return_type(const ReturnType* return_type) {
+    // treat non-returning calls as if they return nothing, for now
+    if(!return_type)
+        return world().unit_type();
     std::vector<const Type*> types;
     for (auto op : return_type->types()) {
         assert(op->order() == 0);
@@ -728,7 +732,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         auto t = label_name(body->arg(2));
         auto f = label_name(body->arg(3));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
-    } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
         emit_unsafe(body->arg(0));
 
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
@@ -861,9 +865,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
 
         // Do not store the result of `void` calls
-        auto return_type = callee->type()->return_param_type();
-        // treat non-returning calls as if they return nothing, for now
-        auto ret_type = return_type ? mangle_return_type(return_type) : world().unit_type();
+        auto ret_type = mangle_return_type(callee->type()->return_param_type());
         if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
@@ -1388,7 +1390,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     }
 
     s.fmt("{} {}(",
-        convert(cont->type()->return_param_type()),
+        convert(mangle_return_type(cont->type()->return_param_type())),
         !world().is_external(cont) ? cont->unique_name() : cont->name());
 
     // Emit and store all first-order params

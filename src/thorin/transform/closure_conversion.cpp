@@ -50,25 +50,6 @@ struct ClosureConverter : public Rewriter {
         return std::make_tuple(env_type, thin_env);
     }
 
-    struct UnchangedTypeHelper : Rewriter {
-        UnchangedTypeHelper(ClosureConverter& parent) : Rewriter(parent.src(), parent.dst()), parent_(parent) {}
-
-        const Def* rewrite(const Def* odef) override {
-            // as long as we're rewriting types, import them as-is
-            if (odef->isa<Type>()) {
-                return Rewriter::rewrite(odef);
-            }
-            // if we import something else, its transitive ops will use the parent rewriter
-            return parent_.instantiate(odef);
-        }
-
-        ClosureConverter& parent_;
-    };
-
-    const Type* import_type_as_is(const Type* t) {
-        return UnchangedTypeHelper(*this).instantiate(t)->as<Type>();
-    }
-
     struct UnchangedDefHelper : Rewriter {
         UnchangedDefHelper(ClosureConverter& parent, const Def* def) : Rewriter(parent.src(), parent.dst()), def_(def), parent_(parent) {}
 
@@ -91,11 +72,12 @@ struct ClosureConverter : public Rewriter {
         std::vector<const Type*> nparam_types;
 
         for (auto pt : ocont->type()->types()) {
-            // leave the signature of intrinsics alone!
-            if (ocont->is_intrinsic())
-                nparam_types.push_back(import_type_as_is(pt));
-            else
-                nparam_types.push_back(instantiate(pt)->as<Type>());
+            const Type* npt = instantiate(pt)->as<Type>();
+            // in intrinsics, don't closure-convert immediate parameters
+            if (ocont->is_intrinsic() && pt->tag() == Node_FnType) {
+                npt = dst().fn_type(npt->as<FnType>()->types());
+            }
+            nparam_types.push_back(npt);
         }
 
         return nparam_types;

@@ -350,7 +350,7 @@ std::string CCodeGen::device_prefix() {
  */
 
 HlsInterface interface, gmem_config;
-auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, true, false);
+auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, false, false);
 
 void CCodeGen::emit_module() {
     Continuation* top_module = nullptr;
@@ -359,7 +359,7 @@ void CCodeGen::emit_module() {
 
     Scope::for_each(world(), [&] (const Scope& scope) {
         auto entry_name = scope.entry()->name();
-        if (entry_name== "hls_top" || entry_name== "cgra_graph")
+        if (entry_name == "hls_top" || entry_name == "cgra_graph")
             top_module = scope.entry();
         else
             emit_scope(scope);

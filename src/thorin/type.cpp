@@ -88,15 +88,21 @@ const VectorType* VectorType::scalarize() const {
     return world().prim_type(as<PrimType>()->primtype_tag());
 }
 
-const Type* FnType::ret_cont_type() const {
-    int p = ret_param();
-    if (p < 0)
+const ReturnType* FnType::return_param_type() const {
+    auto p = return_param();
+    if (!p)
         return nullptr;
-    assert(p < num_ops());
-    return types()[p];
+    return p->type()->as<ReturnType>();
 }
 
-int FnType::ret_param() const {
+const Def* FnType::return_param() const {
+    auto i = ret_param_index();
+    if (i < 0)
+        return nullptr;
+    return op(i);
+}
+
+int FnType::ret_param_index() const {
     int p = -1;
     for (unsigned int i = num_ops() - 1; i < num_ops(); i--) {
         if (op(i)->isa<ReturnType>()) {

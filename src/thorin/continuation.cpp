@@ -150,7 +150,7 @@ const Param* Continuation::mem_param() const {
 }
 
 const Param* Continuation::ret_param() const {
-    int ret_param = type()->ret_param();
+    int ret_param = type()->ret_param_index();
     return (ret_param > 0) ? param(ret_param) : nullptr;
 }
 

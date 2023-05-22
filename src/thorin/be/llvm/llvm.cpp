@@ -148,7 +148,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             for (auto op : tfn_type->types()) {
                 i++;
                 if (op->isa<MemType>() || op == world().unit_type()) continue;
-                if (i == tfn_type->ret_param()) {
+                if (i == tfn_type->ret_param_index()) {
                     auto fn = op->as<ReturnType>();
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;

@@ -83,7 +83,7 @@ struct ClosureConverter : public Rewriter {
         return nparam_types;
     }
 
-    const Continuation* import_continuation_as_is(Continuation* ocont) {
+    Continuation* import_continuation_as_is(Continuation* ocont) {
         auto nparam_types = rewrite_params(ocont);
         auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
 
@@ -94,6 +94,15 @@ struct ClosureConverter : public Rewriter {
         dst().VLOG("no closure generated for '{}' -> '{}'", ocont, ncont);
         ncont->rebuild_from(*this, ocont);
         return ncont;
+    }
+
+    Continuation* as_continuation(const Def* odef) {
+        auto ndef = instantiate(odef);
+        if (auto ncont = ndef->isa_nom<Continuation>())
+            return ncont;
+        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), {ndef->debug().name + "_wrapper" });
+        wrapper->jump(ndef, wrapper->params_as_defs());
+        return wrapper;
     }
 
     const Def* rewrite(const Def* odef) override {
@@ -191,14 +200,15 @@ struct ClosureConverter : public Rewriter {
                 return closure;
             }
         } else if (auto app = odef->isa<App>()) {
-            auto cont = app->callee()->isa_nom<Continuation>();
-            if (cont && !needs_conversion(cont)) {
+            auto ncallee = instantiate(app->callee());
+            if (auto ncont = ncallee->isa_nom<Continuation>(); ncont && ncont->is_intrinsic()) {
                 Array<const Def*> nargs(app->num_args(), [&](int i) -> const Def* {
                     auto oarg = app->arg(i);
-                    auto narg = instantiate(oarg);
-                    return narg;
+                    if (ncont->type()->types()[i]->tag() == Node_FnType)
+                        return as_continuation(oarg);
+                    return instantiate(oarg);
                 });
-                return dst().app(instantiate(app->callee()), nargs);
+                return dst().app(ncallee, nargs);
             }
         }
         return Rewriter::rewrite(odef);

@@ -20,8 +20,8 @@ DefSet spillable_free_defs(const Scope& scope) {
             continue;
         }
 
-        if (auto ret = free_def->isa<ReturnPoint>())
-            cont = ret->continuation();
+        assert(!free_def->type()->isa<ReturnType>());
+        assert(!free_def->type()->isa<MemType>());
 
         if (cont == scope.entry())
             continue;
@@ -31,15 +31,8 @@ DefSet spillable_free_defs(const Scope& scope) {
             result.insert(free_def);
         } else
             scope.world().WLOG("ignoring {} because it has no Param dependency {}", free_def, cont == nullptr);
-        /*if (free_def->isa<Param>()) {
-            result.insert(free_def);
-            continue;
-        }
-        if (free_def->isa<MemOp>() || free_def->type()->isa<FrameType>()) {
-            result.insert(free_def);
-            continue;
-        }
 
+        /*
         // HACK for bitcasting address spaces
         if (auto bitcast = free_def->isa<Bitcast>()) {
             if (auto dst_ptr = bitcast->type()->isa<PtrType>()) {

@@ -280,7 +280,6 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const { return ret_param_index() >= 0; }
     const ReturnType* return_param_type() const;
-    const Def* return_param() const;
     int ret_param_index() const;
 
 private:

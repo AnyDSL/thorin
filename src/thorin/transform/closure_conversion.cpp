@@ -113,6 +113,8 @@ struct ClosureConverter : public Rewriter {
             });
             if (fn_type->isa<ReturnType>())
                 return dst().return_type(ntypes);
+            if (fn_type->isa<JoinPointType>())
+                return dst().join_point_type(ntypes);
 
             // Turn all functions into closures, we'll undo it where it is specifically OK
             auto ntype = dst().closure_type(ntypes);

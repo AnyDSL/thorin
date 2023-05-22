@@ -89,17 +89,10 @@ const VectorType* VectorType::scalarize() const {
 }
 
 const ReturnType* FnType::return_param_type() const {
-    auto p = return_param();
-    if (!p)
-        return nullptr;
-    return p->type()->as<ReturnType>();
-}
-
-const Def* FnType::return_param() const {
     auto i = ret_param_index();
     if (i < 0)
         return nullptr;
-    return op(i);
+    return op(i)->as<ReturnType>();
 }
 
 int FnType::ret_param_index() const {

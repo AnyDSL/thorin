@@ -26,6 +26,7 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/transform/lift2cff.h"
+#include "thorin/transform/lower_control.h"
 #include "thorin/util/array.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
@@ -1352,6 +1353,7 @@ void Thorin::opt() {
     RUN_PASS(closure_conversion(*this))
     //RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
+    RUN_PASS(lower_control(*this));
     RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(*this))
 }

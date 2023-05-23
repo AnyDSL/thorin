@@ -515,43 +515,49 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getPointerElementType()), func, args);
         }
 
-        // must be call + continuation --- call + return has been removed by codegen_prepare
-        assert(ret_arg->isa<ReturnPoint>());
-        auto succ = ret_arg->as<ReturnPoint>()->continuation();
+        // don't emit for tail calls
+        if (ret_arg) {
+            // must be call + continuation --- call + return has been removed by codegen_prepare
+            assert(ret_arg->isa<ReturnPoint>());
+            auto succ = ret_arg->as<ReturnPoint>()->continuation();
 
-        size_t n = 0;
-        const Param* last_param = nullptr;
-        for (auto param : succ->params()) {
-            if (is_mem(param) || is_unit(param))
-                continue;
-            last_param = param;
-            n++;
-        }
+            size_t n = 0;
+            const Param* last_param = nullptr;
+            for (auto param: succ->params()) {
+                if (is_mem(param) || is_unit(param))
+                    continue;
+                last_param = param;
+                n++;
+            }
 
-        if (n == 0) {
-            irbuilder.CreateBr(cont2bb(succ));
-        } else if (n == 1) {
-            irbuilder.CreateBr(cont2bb(succ));
-            emit_phi_arg(irbuilder, last_param, call);
+            if (n == 0) {
+                irbuilder.CreateBr(cont2bb(succ));
+            } else if (n == 1) {
+                irbuilder.CreateBr(cont2bb(succ));
+                emit_phi_arg(irbuilder, last_param, call);
+            } else {
+                Array<llvm::Value*> extracts(n);
+                for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                    auto param = succ->param(i);
+                    if (is_mem(param) || is_unit(param))
+                        continue;
+                    extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
+                    j++;
+                }
+
+                irbuilder.CreateBr(cont2bb(succ));
+
+                for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                    auto param = succ->param(i);
+                    if (is_mem(param) || is_unit(param))
+                        continue;
+                    emit_phi_arg(irbuilder, param, extracts[j]);
+                    j++;
+                }
+            }
         } else {
-            Array<llvm::Value*> extracts(n);
-            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                auto param = succ->param(i);
-                if (is_mem(param) || is_unit(param))
-                    continue;
-                extracts[j] = irbuilder.CreateExtractValue(call, unsigned(j));
-                j++;
-            }
-
-            irbuilder.CreateBr(cont2bb(succ));
-
-            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                auto param = succ->param(i);
-                if (is_mem(param) || is_unit(param))
-                    continue;
-                emit_phi_arg(irbuilder, param, extracts[j]);
-                j++;
-            }
+            call->setTailCall(true);
+            irbuilder.CreateUnreachable();
         }
     }
 

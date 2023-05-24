@@ -816,8 +816,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
             THORIN_UNREACHABLE;
         }
-    } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
-        int ret_param = callee->type()->ret_param_index();
+    } else { // function/closure call
+        auto callee_type = body->callee()->type()->as<FnType>();
+        int ret_param = callee_type->ret_param_index();
         const ReturnPoint* ret = nullptr;
         if (ret_param >= 0)
             ret = body->arg(ret_param)->as<ReturnPoint>();
@@ -831,46 +832,50 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         bool channel_transaction = false, no_function_call = false;
 
-        auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
-        if (lang_ == Lang::OpenCL && use_channels_ && callee->is_channel()) {
-            auto [usage, _] = builtin_funcs_.emplace(callee, FuncMode::Read);
+        if (auto known_callee = body->callee()->isa_nom<Continuation>()) {
+            auto name = (known_callee->is_exported() || known_callee->empty()) ? known_callee->name() : known_callee->unique_name();
+            if (lang_ == Lang::OpenCL && use_channels_ && known_callee->is_channel()) {
+                auto [usage, _] = builtin_funcs_.emplace(known_callee, FuncMode::Read);
 
-            if (name.find("write") != std::string::npos) {
-                usage->second = FuncMode::Write;
-            } else if (name.find("read") != std::string::npos) {
-                usage->second = FuncMode::Read;
-                auto channel_read_result = get_channel_read_output(ret->continuation());
-                assert(channel_read_result != nullptr);
-                args.emplace(args.begin(), emit(channel_read_result));
-            } else THORIN_UNREACHABLE;
-            channel_transaction = true;
-        } else if (lang_ == Lang::HLS && callee->is_channel()) {
-            int i = 0;
-            for (auto arg : body->args()) {
-                if (!is_concrete(arg)) continue;
-                if (i == 0)
-                    bb.tail.fmt("*{}", emit(arg));
-                if (i == 1) {
-                    if (name.find("write_channel") != std::string::npos) {
-                        bb.tail.fmt(" << {};\n", emit(arg));
-                    } else THORIN_UNREACHABLE;
+                if (name.find("write") != std::string::npos) {
+                    usage->second = FuncMode::Write;
+                } else if (name.find("read") != std::string::npos) {
+                    usage->second = FuncMode::Read;
+                    auto channel_read_result = get_channel_read_output(ret->continuation());
+                    assert(channel_read_result != nullptr);
+                    args.emplace(args.begin(), emit(channel_read_result));
+                } else
+                    THORIN_UNREACHABLE;
+                channel_transaction = true;
+            } else if (lang_ == Lang::HLS && known_callee->is_channel()) {
+                int i = 0;
+                for (auto arg: body->args()) {
+                    if (!is_concrete(arg)) continue;
+                    if (i == 0)
+                        bb.tail.fmt("*{}", emit(arg));
+                    if (i == 1) {
+                        if (name.find("write_channel") != std::string::npos) {
+                            bb.tail.fmt(" << {};\n", emit(arg));
+                        } else
+                            THORIN_UNREACHABLE;
+                    }
+                    if (name.find("read_channel") != std::string::npos)
+                        bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret->continuation())));
+                    i++;
                 }
-                if (name.find("read_channel") != std::string::npos)
-                    bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret->continuation())));
-                i++;
+                no_function_call = true;
+                //TODO: Check it
+                channel_transaction = true;
             }
-            no_function_call = true;
-            //TODO: Check it
-            channel_transaction = true;
         }
 
         // Do not store the result of `void` calls
-        auto ret_type = mangle_return_type(callee->type()->return_param_type());
+        auto ret_type = mangle_return_type(callee_type->return_param_type());
         if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
         if (!no_function_call)
-            bb.tail.fmt("{}({, });\n", emit(callee), args);
+            bb.tail.fmt("{}({, });\n", emit(body->callee()), args);
 
         // Pass the result to the phi nodes of the return continuation
         if (!is_type_unit(ret_type)) {
@@ -888,8 +893,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
         if (!hls_top_scope)
             bb.tail.fmt("goto {};", label_name(ret->continuation()));
-    } else {
-        THORIN_UNREACHABLE;
     }
 }
 

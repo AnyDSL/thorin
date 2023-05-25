@@ -91,7 +91,7 @@ void CodeGen::optimize() {
         module_pass_manager.run(module(), MAM);
     }
 
-    llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level);
+    llvm::ModulePassManager builder_passes = PB.buildModuleOptimizationPipeline(opt_level, llvm::ThinOrFullLTOPhase::None);
     builder_passes.run(module(), MAM);
 }
 
@@ -1116,7 +1116,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     if (llvm::Triple(module().getTargetTriple()).isX86())
         constraints += (constraints.empty() ? "" : ",") + std::string("~{dirflag},~{fpsr},~{flags}");
 
-    if (!llvm::InlineAsm::Verify(fn_type, constraints))
+    if (!llvm::InlineAsm::verify(fn_type, constraints))
         world().edef(assembly, "constraints and input and output types of inline assembly do not match");
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,

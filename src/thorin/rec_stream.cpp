@@ -51,12 +51,12 @@ void RecStreamer::run() {
         if (cont->world().is_external(cont))
             s.fmt("extern ");
 
-        /*Scope scope(cont);
+        Scope scope(cont);
         if (!scope.has_free_params())
             s.fmt("top_level ");
         else {
-            s.fmt("({, })", scope.free_params());
-        }*/
+            s.fmt("// free variables: {, }\n", scope.free_params());
+        }
 
         if (cont->has_body()) {
             std::vector<std::string> param_names;

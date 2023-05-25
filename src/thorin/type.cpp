@@ -95,6 +95,17 @@ const ReturnType* FnType::return_param_type() const {
     return op(i)->as<ReturnType>();
 }
 
+Array<const Type*> FnType::domain() const {
+    auto r = ret_param_index();
+    Array<const Type*> dom(r < 0 ? num_ops() : num_ops() - 1);
+    int j = 0;
+    for (int i = 0; i < num_ops(); i++) {
+        if (i == r) continue;
+        dom[j++] = op(i)->as<Type>();
+    }
+    return dom;
+}
+
 int FnType::ret_param_index() const {
     int p = -1;
     for (unsigned int i = num_ops() - 1; i < num_ops(); i--) {

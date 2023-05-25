@@ -156,7 +156,7 @@ private:
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* stub(Rewriter&) const override;
+    Continuation* stub(Rewriter&, const Type*) const override;
     void rebuild_from(Rewriter&, const Def* old) override;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;

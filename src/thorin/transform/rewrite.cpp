@@ -36,7 +36,7 @@ const Def* Rewriter::rewrite(const Def* odef) {
 
     Def* stub = nullptr;
     if (odef->isa_nom()) {
-        stub = odef->stub(*this);
+        stub = odef->stub(*this, ntype);
         insert(odef, stub);
     }
 

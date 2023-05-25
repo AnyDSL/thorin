@@ -67,7 +67,7 @@ const Def* Importer::rewrite(const Def* odef) {
                     src().VLOG("simplify: continuation {} calls a parameter: {} (with permuted args)", cont->unique_name(), body->callee());
                 }
 
-                auto rebuilt = cont->stub(*this);
+                auto rebuilt = cont->stub(*this, instantiate(cont->type())->as<Type>());
                 dst().VLOG("rebuilt as {}", rebuilt->unique_name());
                 auto wrapped = dst().run(rebuilt);
                 insert(odef, wrapped);

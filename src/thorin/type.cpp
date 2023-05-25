@@ -68,13 +68,13 @@ const Type* TupleType          ::rebuild(World& w, const Type* t, Defs o) const 
  * stub
  */
 
-StructType* StructType::stub(Rewriter& rewriter) const {
+StructType* StructType::stub(Rewriter& rewriter, const Type*) const {
     auto type = rewriter.dst().struct_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }
 
-VariantType* VariantType::stub(Rewriter& rewriter) const {
+VariantType* VariantType::stub(Rewriter& rewriter, const Type*) const {
     auto type = rewriter.dst().variant_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;

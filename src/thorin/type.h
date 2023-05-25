@@ -113,7 +113,7 @@ private:
     {}
 
 public:
-    virtual StructType* stub(Rewriter&) const override;
+    virtual StructType* stub(Rewriter&, const Type*) const override;
 
     friend class World;
 };
@@ -125,7 +125,7 @@ private:
     {}
 
 public:
-    virtual VariantType* stub(Rewriter&) const override;
+    virtual VariantType* stub(Rewriter&, const Type*) const override;
 
     bool has_payload() const;
 

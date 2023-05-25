@@ -97,12 +97,12 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
     }
 }
 
-Continuation* Continuation::stub(Rewriter& rewriter) const {
+Continuation* Continuation::stub(Rewriter& rewriter, const Type* nty) const {
     assert(!dead_);
     auto& nworld = rewriter.dst();
 
-    auto npi = rewriter.instantiate(type())->isa<FnType>();
-    assert(npi);
+    auto npi = nty->isa<FnType>();
+    assert(npi && npi->tag() == Node_FnType);
 
     Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
     assert(&ncontinuation->world() == &nworld);

@@ -221,7 +221,7 @@ public:
     /// @name rebuild/stub
     //@{
     virtual const Def* rebuild(World&, const Type*, Defs) const { THORIN_UNREACHABLE; }
-    virtual       Def* stub(Rewriter&) const { THORIN_UNREACHABLE; }
+    virtual       Def* stub(Rewriter&, const Type*) const { THORIN_UNREACHABLE; }
     virtual       void rebuild_from(Rewriter&, const Def* old);
     //@}
 

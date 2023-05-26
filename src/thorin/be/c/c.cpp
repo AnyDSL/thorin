@@ -117,6 +117,7 @@ private:
     std::string array_name(const DefiniteArrayType*);
     std::string tuple_name(const TupleType*);
     std::string closure_name(const ClosureType*);
+    std::string return_name(const ReturnType*);
     std::string fn_name(const FnType*);
 
     Thorin& thorin_;
@@ -252,6 +253,13 @@ std::string CCodeGen::convert(const Type* type) {
         s.fmt("{} f;\n", convert(as_fnt));
         s.fmt("void* data;");
         s.fmt("\b\n}} {};\n", name);
+    } else if (auto ret_t = type->isa<ReturnType>()) {
+        name = return_name(ret_t);
+        s.fmt("typedef struct {{\t\n");
+        s.fmt("jmp_buf buf;\n");
+        s.fmt("{} data;", convert(mangle_return_type(ret_t)));
+        s.fmt("\b\n}} {};\n", name);
+        name = name + "*";
     } else if (auto pi = type->isa<FnType>()) {
         assert(lang_ == Lang::C99 || lang_ == Lang::CUDA && "Only C and CUDA support function pointers");
         name = fn_name(pi);
@@ -631,6 +639,13 @@ std::string CCodeGen::prepare(const Scope& scope) {
 
     func_impls_ << hls_pragmas_.str();
 
+    if (lang_ == Lang::C99 && cont->is_exported() && cont->type()->is_returning()) {
+        func_impls_.fmt("{} return_buf;\n", return_name(cont->type()->return_param_type()));
+        func_impls_.fmt("if (setjmp(return_buf.buf) != 0) {{\t\n");
+        func_impls_.fmt("return return_buf.data;\b\n");
+        func_impls_.fmt("}}\n");
+    }
+
     // Load OpenCL structs from buffers
     // TODO: See above
     for (auto param : cont->params()) {
@@ -724,7 +739,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
-    if (body->callee() == entry_->ret_param()) { // return
+    if (body->callee()->type()->isa<ReturnType>()) { // return
         std::vector<std::string> values;
         std::vector<const Type*> types;
 
@@ -735,16 +750,28 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             }
         }
 
+        std::string emitted_return;
+
         switch (values.size()) {
-            case 0: bb.tail.fmt(lang_ == Lang::HLS ? "return void();" : "return;"); break;
-            case 1: bb.tail.fmt("return {};", values[0]); break;
+            case 0: emitted_return = lang_ == Lang::HLS ? "void()" : ""; break;
+            case 1: emitted_return = values[0]; break;
             default:
                 auto tuple = convert(world().tuple_type(types));
                 bb.tail.fmt("{} ret_val;\n", tuple);
                 for (size_t i = 0, e = types.size(); i != e; ++i)
                     bb.tail.fmt("ret_val.e{} = {};\n", i, values[i]);
-                bb.tail.fmt("return ret_val;");
+                emitted_return = "ret_val";
                 break;
+        }
+
+        if (body->callee() == entry_->ret_param()) {
+            // local return
+            bb.tail.fmt("return {};\n", emitted_return);
+        } else {
+            // non-local return
+            auto callee = emit_unsafe(body->callee());
+            bb.tail.fmt("{}->data = {};\n", callee, emitted_return);
+            bb.tail.fmt("longjmp({}->buf, 1);\n", callee);
         }
     } else if (body->callee() == world().branch()) {
         emit_unsafe(body->arg(0));
@@ -895,11 +922,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
         if (!no_function_call) {
+            auto ecallee = emit(body->callee());
             if (callee_type->isa<ClosureType>()) {
-                args.push_back("(u64) "+emit(body->callee()) + ".data");
-                bb.tail.fmt("{}.f({, });", emit(body->callee()), args);
+                args.push_back("(u64) "+ecallee+ ".data");
+                bb.tail.fmt("{}.f({, });", ecallee, args);
             } else
-                bb.tail.fmt("{}({, });", emit(body->callee()), args);
+                bb.tail.fmt("{}({, });\n", ecallee, args);
         }
 
         if (!ret)
@@ -1468,6 +1496,10 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     bool needs_comma = false;
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
+        if (lang_ == Lang::C99 && param->type()->isa<ReturnType>()) {
+            defs_[param] = "&return_buf";
+            continue;
+        }
         if (!is_concrete(param)) {
             defs_[param] = {};
             continue;
@@ -1664,6 +1696,10 @@ std::string CCodeGen::fn_name(const FnType* fn_type) {
 
 std::string CCodeGen::closure_name(const ClosureType* fn_type) {
     return "closure_" + std::to_string(fn_type->gid());
+}
+
+std::string CCodeGen::return_name(const ReturnType* fn_type) {
+    return "return_" + std::to_string(fn_type->gid());
 }
 
 //------------------------------------------------------------------------------

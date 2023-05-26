@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-bool lift2cff(Thorin&);
+bool lift2cff(Thorin&, bool all);
 
 }
 

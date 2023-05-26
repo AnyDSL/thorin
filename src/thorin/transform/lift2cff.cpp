@@ -10,11 +10,11 @@
 namespace thorin {
 
 struct Lift2CffRewriter : Rewriter {
-    Lift2CffRewriter(World& src, World& dst) : Rewriter(src, dst), forest_(src) {}
+    Lift2CffRewriter(World& src, World& dst, bool all) : Rewriter(src, dst), forest_(src), all_(all) {}
 
     const Def* rewrite(const thorin::Def *odef) override {
         if (auto ocont = odef->isa_nom<Continuation>()) {
-            if (ocont->type()->is_returning()) {
+            if (ocont->type()->is_returning() || all_) {
                 // we have a function but it's not top-level yet!
                 Scope scope(ocont);
                 std::vector<const Def*> nfilter;
@@ -39,7 +39,7 @@ struct Lift2CffRewriter : Rewriter {
                     lifted->set_name(lifted->name() + "_lifted");
                     lifted->set_filter(src().filter(nfilter));
 
-                    auto ncont = ocont->stub(*this);
+                    auto ncont = ocont->stub(*this, instantiate(ocont->type())->as<Type>());
                     insert(ocont, ncont);
 
                     Array<const Def*> nargs(lifted_args.size());
@@ -57,12 +57,13 @@ struct Lift2CffRewriter : Rewriter {
     }
 
     ScopesForest forest_;
+    bool all_;
 };
 
-bool lift2cff(Thorin& thorin) {
+bool lift2cff(Thorin& thorin, bool all) {
     auto& src = thorin.world_container();
     std::unique_ptr<World> dst = std::make_unique<World>(*src);
-    Lift2CffRewriter lifter(*src, *dst);
+    Lift2CffRewriter lifter(*src, *dst, all);
     for (auto e : src->externals())
         lifter.instantiate(e.second);
     src.swap(dst);

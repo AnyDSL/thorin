@@ -73,6 +73,8 @@ set(THORIN_SOURCES
     transform/hls_kernel_launch.cpp
     transform/lower_control.h
     transform/lower_control.cpp
+    transform/lower_return.h
+    transform/lower_return.cpp
     util/array.h
     util/cast.h
     util/hash.h

@@ -9,7 +9,7 @@ namespace thorin {
 
 class Mangler : Rewriter {
 public:
-    Mangler(const Scope& scope, Defs args, Defs lift);
+    Mangler(const Scope& scope, Continuation* entry, Defs args, Defs lift);
 
     const Scope& scope() const { return scope_; }
     Continuation* mangle();
@@ -31,20 +31,20 @@ private:
 };
 
 
-Continuation* mangle(const Scope&, Defs args, Defs lift);
+Continuation* mangle(const Scope&, Continuation* entry, Defs args, Defs lift);
 
 inline Continuation* drop(const Scope& scope, Defs args) {
-    return mangle(scope, args, Array<const Def*>());
+    return mangle(scope, scope.entry(), args, Array<const Def*>());
 }
 
 Continuation* drop(const Def* callee, const Defs specialized_args);
 
-inline Continuation* lift(const Scope& scope, Defs defs) {
-    return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);
+inline Continuation* lift(const Scope& scope, Continuation* entry, Defs defs) {
+    return mangle(scope, entry, Array<const Def*>(entry->num_params()), defs);
 }
 
 inline Continuation* clone(const Scope& scope) {
-    return mangle(scope, Array<const Def*>(scope.entry()->num_params()), Defs());
+    return mangle(scope, scope.entry(), Array<const Def*>(scope.entry()->num_params()), Defs());
 }
 
 }

@@ -56,6 +56,7 @@ void RecStreamer::run() {
             s.fmt("top_level ");
         else {
             s.fmt("// free variables: {, }\n", scope.free_params());
+            s.fmt("// free frontier: {, }\n", scope.free_frontier());
         }
 
         if (cont->has_body()) {

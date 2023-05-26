@@ -9,6 +9,8 @@ class Scope;
 
 DefSet spillable_free_defs(const Scope&);
 
+DefSet spillable_free_defs(ScopesForest&, Continuation*);
+
 }
 
 #endif

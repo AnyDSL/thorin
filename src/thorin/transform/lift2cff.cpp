@@ -35,7 +35,7 @@ struct Lift2CffRewriter : Rewriter {
                 }
                 if (defs.size() > 0) {
                     dst().VLOG("Lambda lifting {} ({} free variables)", ocont, defs.size());
-                    auto lifted = lift(scope, defs);
+                    auto lifted = lift(scope, scope.entry(), defs);
                     lifted->set_name(lifted->name() + "_lifted");
                     lifted->set_filter(src().filter(nfilter));
 

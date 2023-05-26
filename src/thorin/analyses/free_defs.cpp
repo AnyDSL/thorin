@@ -49,4 +49,40 @@ DefSet spillable_free_defs(const Scope& scope) {
     return result;
 }
 
+DefSet spillable_free_defs(ScopesForest& forest, Continuation* entry) {
+    DefSet result;
+    unique_queue<DefSet> queue;
+
+    //for (auto def: forest.get_scope(entry).free_frontier())
+    //    queue.push(def);
+    queue.push(entry);
+
+    while (!queue.empty()) {
+        auto free = queue.pop();
+        // assert(!free->type()->isa<ReturnType>());
+        assert(!free->type()->isa<MemType>());
+
+        //if (free == entry)
+        //    continue;
+
+        if (auto cont = free->isa_nom<Continuation>()) {
+            auto& scope = forest.get_scope(cont);
+            auto& frontier = scope.free_frontier();
+            entry->world().VLOG("encountered: {}, frontier_size={}", cont, frontier.size());
+            for (auto def: frontier) {
+                queue.push(def);
+            }
+            continue;
+        }
+
+        if (free->has_dep(Dep::Param)) {
+            entry->world().VLOG("fv: {} : {}", free, free->type());
+            result.insert(free);
+        } else
+            free->world().WLOG("ignoring {} because it has no Param dependency", free);
+    }
+
+    return result;
+}
+
 }

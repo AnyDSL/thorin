@@ -10,12 +10,12 @@ namespace thorin {
 /// Mangles a continuation's scope
 /// @p args has the size of the original continuation, a null entry means the parameter remains, non-null substitutes it in scope and removes it from the signature
 /// @p lift lists defs that should be replaced by a fresh param, to be appended at the end of the signature
-Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
+Mangler::Mangler(const Scope& scope, Continuation* entry, Defs args, Defs lift)
     : Rewriter(scope.world())
     , scope_(scope)
     , args_(args)
     , lift_(lift)
-    , old_entry_(scope.entry())
+    , old_entry_(entry)
     , defs_(scope.defs().capacity())
 {
     assert(old_entry()->has_body());
@@ -143,8 +143,8 @@ const Def* Mangler::rewrite(const Def* old_def) {
 
 //------------------------------------------------------------------------------
 
-Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
-    return Mangler(scope, args, lift).mangle();
+Continuation* mangle(const Scope& scope, Continuation* entry, Defs args, Defs lift) {
+    return Mangler(scope, entry, args, lift).mangle();
 }
 
 Continuation* drop(const Def* callee, const Defs specialized_args) {

@@ -10,7 +10,7 @@
 namespace thorin {
 
 struct ClosureConverter : public Rewriter {
-    ClosureConverter(World& src, World& dst) : Rewriter(src, dst) {}
+    ClosureConverter(World& src, World& dst) : Rewriter(src, dst), forest_(src) {}
 
     bool needs_conversion(Continuation* cont) {
         if (auto found = should_convert.lookup(cont))
@@ -133,9 +133,9 @@ struct ClosureConverter : public Rewriter {
             auto nparam_types = rewrite_params(ocont);
             auto closure_type = dst().closure_type(nparam_types);
 
-            Scope scope(ocont);
+            //Scope scope(ocont);
             std::vector<const Def*> free_vars;
-            for (auto free : spillable_free_defs(scope))
+            for (auto free : spillable_free_defs(forest_, ocont))
                 free_vars.push_back(free);
 
             if (!free_vars.empty()) {
@@ -180,8 +180,19 @@ struct ClosureConverter : public Rewriter {
                     }
                 }
 
-                auto lifted = lift(scope, free_vars);
+                Continuation* top_entry = ocont;
+                while (true) {
+                    auto& s = forest_.get_scope(ocont);
+                    if (auto parent = s.parent_scope()) {
+                        top_entry = parent;
+                        break;
+                    } else {
+                        continue;
+                    }
+                }
+                auto lifted = lift(forest_.get_scope(top_entry), ocont, free_vars);
                 Scope lifted_scope(lifted);
+                assert(lifted_scope.free_params().size() == 0);
                 assert(lifted_scope.parent_scope() == nullptr);
 
                 auto closure = dst().closure(closure_type, ncont, instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
@@ -234,6 +245,7 @@ struct ClosureConverter : public Rewriter {
         return true;
     }
 
+    ScopesForest forest_;
     ContinuationMap<bool> should_convert;
 };
 

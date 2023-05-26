@@ -95,8 +95,10 @@ if(LLVM_FOUND)
         be/llvm/cpu.h
         be/llvm/llvm.cpp
         be/llvm/llvm.h
-        be/llvm/amdgpu.cpp
-        be/llvm/amdgpu.h
+        be/llvm/amdgpu_hsa.cpp
+        be/llvm/amdgpu_hsa.h
+        be/llvm/amdgpu_pal.cpp
+        be/llvm/amdgpu_pal.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
         be/llvm/parallel.cpp

@@ -1,5 +1,5 @@
-#ifndef THORIN_BE_LLVM_AMDGPU_H
-#define THORIN_BE_LLVM_AMDGPU_H
+#ifndef THORIN_BE_LLVM_AMDGPU_HSA_H
+#define THORIN_BE_LLVM_AMDGPU_HSA_H
 
 #include "thorin/be/llvm/llvm.h"
 
@@ -11,9 +11,9 @@ namespace llvm {
 
 namespace llvm = ::llvm;
 
-class AMDGPUCodeGen : public CodeGen {
+class AMDGPUHSACodeGen : public CodeGen {
 public:
-    AMDGPUCodeGen(World& world, const Cont2Config&, int opt, bool debug);
+    AMDGPUHSACodeGen(World& world, const Cont2Config&, int opt, bool debug);
 
     const char* file_ext() const override { return ".amdgpu"; }
 

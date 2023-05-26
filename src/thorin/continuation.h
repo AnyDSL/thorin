@@ -90,7 +90,8 @@ enum class Intrinsic : uint8_t {
     CUDA = AcceleratorBegin,    ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
-    AMDGPU,                     ///< Internal AMDGPU-Backend.
+    AMDGPUHSA,                  ///< Internal AMDGPU-HSA-Backend.
+    AMDGPUPAL,                  ///< Internal AMDGPU-PAL-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.

@@ -125,7 +125,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context()); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
+            llvm_type = llvm::PointerType::get(context(), convert_addr_space(ptr->addr_space()));
             break;
         }
         case Node_IndefiniteArrayType: {
@@ -168,9 +168,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             }
 
             auto env_type = convert(Closure::environment_type(world()));
-            ops.push_back(env_type);
-            auto fn_type = llvm::FunctionType::get(ret, ops, false);
-            auto ptr_type = llvm::PointerType::get(fn_type, 0);
+            auto ptr_type = llvm::PointerType::get(context(), 0);
             llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
             return types_[type] = llvm_type;
         }
@@ -245,6 +243,34 @@ llvm::Type* CodeGen::convert(const Type* type) {
 llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
     return llvm::cast<llvm::FunctionType>(convert(continuation->type()));
 }
+
+llvm::FunctionType* CodeGen::convert_closure_type(const Type* type) {
+    assert(type->tag() ==  Node_ClosureType);
+    auto fn = type->as<FnType>();
+    llvm::Type* ret = nullptr;
+    std::vector<llvm::Type*> ops;
+    for (auto op : fn->ops()) {
+        if (op->isa<MemType>() || op == world().unit()) continue;
+        auto fn = op->isa<FnType>();
+        if (fn && !op->isa<ClosureType>()) {
+            assert(!ret && "only one 'return' supported");
+            std::vector<llvm::Type*> ret_types;
+            for (auto fn_op : fn->ops()) {
+                if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+                ret_types.push_back(convert(fn_op));
+            }
+            if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
+            else if (ret_types.size() == 1) ret = ret_types.back();
+            else                            ret = llvm::StructType::get(context(), ret_types);
+        } else
+            ops.push_back(convert(op));
+    }
+    assert(ret);
+
+    auto llvm_type = llvm::FunctionType::get(ret, ops, false);
+    return llvm_type;
+}
+
 
 unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
     switch (addr_space) {
@@ -492,7 +518,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             auto closure = emit(body->callee());
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);
-            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getPointerElementType()), func, args);
+            auto call_type = convert_closure_type(body->callee()->type());
+            call = irbuilder.CreateCall(call_type, func, args);
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
@@ -790,7 +817,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         if (auto extract = aggop->isa<Extract>()) {
             if (aggop->agg()->type()->isa<ArrayType>()) {
                 auto alloca_or_global = copy_to_alloca_or_global();
-                return irbuilder.CreateLoad(alloca_or_global->getType()->getPointerElementType(), alloca_or_global);
+                return irbuilder.CreateLoad(convert(aggop->agg()->type()->as<ArrayType>()->elem_type()), alloca_or_global);
             } else if (extract->agg()->type()->isa<VectorType>()) {
                 return irbuilder.CreateExtractElement(llvm_agg, llvm_idx);
             }
@@ -835,9 +862,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
         auto payload_value = irbuilder.CreateExtractValue(llvm_value, { 0 });
         return create_tmp_alloca(irbuilder, payload_value->getType(), [&] (llvm::AllocaInst* alloca) {
             irbuilder.CreateStore(payload_value, alloca);
-            auto addr_space = alloca->getType()->getPointerAddressSpace();
-            auto payload_addr = irbuilder.CreatePointerCast(alloca, llvm::PointerType::get(convert(target_type), addr_space));
-            return irbuilder.CreateLoad(payload_addr->getType()->getPointerElementType(), payload_addr);
+            return irbuilder.CreateLoad(convert(target_type), alloca);
         });
     } else if (auto variant_ctor = def->isa<Variant>()) {
         auto llvm_type = convert(variant_ctor->type());
@@ -852,7 +877,7 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
                 auto payload_value = emit(variant_ctor->op(0));
                 auto payload_addr = irbuilder.CreatePointerCast(
                     irbuilder.CreateInBoundsGEP(llvm_type, alloca, { irbuilder.getInt32(0), irbuilder.getInt32(0) }),
-                    llvm::PointerType::get(payload_value->getType(), alloca->getType()->getPointerAddressSpace()));
+                    llvm::PointerType::get(context(), alloca->getType()->getPointerAddressSpace()));
                 irbuilder.CreateStore(payload_value, payload_addr);
             }
             return irbuilder.CreateLoad(alloca->getAllocatedType(), alloca);
@@ -922,7 +947,7 @@ llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type,
         void_ptr = irbuilder.CreateCall(llvm_malloc, malloc_args);
     }
 
-    return irbuilder.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
+    return irbuilder.CreatePointerCast(void_ptr, llvm::PointerType::get(context(), 0));
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, const std::string& name) {
@@ -1054,8 +1079,9 @@ llvm::Value* CodeGen::call_math_function(llvm::IRBuilder<>& irbuilder, const Mat
 llvm::Value* CodeGen::emit_load(llvm::IRBuilder<>& irbuilder, const Load* load) {
     emit_unsafe(load->mem());
     auto ptr = emit(load->ptr());
-    auto result = irbuilder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
-    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    auto load_type = convert(load->out_val_type());
+    auto result = irbuilder.CreateLoad(load_type, ptr);
+    auto align = module().getDataLayout().getABITypeAlign(load_type);
     result->setAlignment(align);
     return result;
 }
@@ -1064,7 +1090,7 @@ llvm::Value* CodeGen::emit_store(llvm::IRBuilder<>& irbuilder, const Store* stor
     emit_unsafe(store->mem());
     auto ptr = emit(store->ptr());
     auto result = irbuilder.CreateStore(emit(store->val()), ptr);
-    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    auto align = module().getDataLayout().getABITypeAlign(convert(store->val()->type()));
     result->setAlignment(align);
     return nullptr;
 }
@@ -1076,7 +1102,8 @@ llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
     assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
     llvm::Value* args[2] = { irbuilder.getInt64(0), emit(lea->index()) };
     auto ptr = emit(lea->ptr());
-    return irbuilder.CreateInBoundsGEP(ptr->getType()->getPointerElementType(), ptr, args);
+    auto ptr_elemtype = convert(lea->ptr_pointee());
+    return irbuilder.CreateInBoundsGEP(ptr_elemtype, ptr, args);
 }
 
 llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
@@ -1116,7 +1143,7 @@ llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly
     if (llvm::Triple(module().getTargetTriple()).isX86())
         constraints += (constraints.empty() ? "" : ",") + std::string("~{dirflag},~{fpsr},~{flags}");
 
-    if (!llvm::InlineAsm::verify(fn_type, constraints))
+    if (llvm::InlineAsm::verify(fn_type, constraints))
         world().edef(assembly, "constraints and input and output types of inline assembly do not match");
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
@@ -1202,13 +1229,14 @@ Continuation* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuati
     auto body = continuation->body();
     assert(body->num_args() == 5 && "required arguments are missing");
     auto ptr = emit(body->arg(1));
+    auto load_type = convert(body->arg(1)->type()->as<PtrType>()->pointee());
     u32 tag = body->arg(2)->as<PrimLit>()->qu32_value();
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = body->arg(4)->as_nom<Continuation>();
-    auto load = irbuilder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
-    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    auto load = irbuilder.CreateLoad(load_type, ptr);
+    auto align = module().getDataLayout().getABITypeAlign(load_type);
     load->setAlignment(align);
     load->setAtomic(order, context().getOrInsertSyncScopeID(scope->as_string()));
     emit_phi_arg(irbuilder, cont->param(1), load);
@@ -1227,7 +1255,7 @@ Continuation* CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuat
     auto scope = body->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto cont = body->arg(5)->as_nom<Continuation>();
     auto store = irbuilder.CreateStore(val, ptr);
-    auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
+    auto align = module().getDataLayout().getABITypeAlign(convert(body->arg(2)->type()));
     store->setAlignment(align);
     store->setAtomic(order, context().getOrInsertSyncScopeID(scope->as_string()));
     return cont;

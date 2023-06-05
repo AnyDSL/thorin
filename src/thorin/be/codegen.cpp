@@ -432,8 +432,11 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     //
 //        cgra_dataflow(importers_[CGRA]);
 
+    //TODO: need to pass R/W param mode data to cgra backend via param indices returning from cgra_dataflow. think if we need the cont name fir each index or just putiing inces of the same continuation in a vector is enough
+    //TODO: need to write an analysis to check R/W mode on global memory allocaions
     if (!importers_[CGRA].world().empty()) {
-       auto port_indices = cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
+        //TODO: retrieve other var
+       auto [port_indices, _] = cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
         get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
 

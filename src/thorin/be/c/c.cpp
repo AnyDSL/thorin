@@ -94,6 +94,7 @@ public:
     std::string emit_def(BB*, const Def*);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
+    std::string emit_graph_class(Continuation*);
     std::string emit_fun_head(Continuation*, bool = false);
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
@@ -108,6 +109,7 @@ private:
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
+    auto get_config(Continuation* cont);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -171,6 +173,10 @@ inline bool is_channel_type(const StructType* struct_type) {
 inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
 inline bool has_concrete_params(Continuation* cont) {
     return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
+}
+
+auto CCodeGen::get_config(Continuation* cont) {
+    return cont->is_exported() && kernel_config_.count(cont) ? kernel_config_.find(cont)->second.get() : nullptr;
 }
 
 bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
@@ -566,7 +572,10 @@ std::string CCodeGen::prepare(const Scope& scope) {
         }
     }
 
-    func_impls_.fmt("{} {{", emit_fun_head(cont));
+    if (cgra_graph_scope && (lang_ == Lang::CGRA))
+        func_impls_.fmt("{} {{", emit_graph_class(cont));
+    else
+        func_impls_.fmt("{} {{", emit_fun_head(cont));
     func_impls_.fmt("\t\n");
 
     if (lang_ == Lang::HLS && cont->is_exported()) {
@@ -1354,12 +1363,25 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return "(" + s.str() + ")";
 }
 
+std::string CCodeGen::emit_graph_class(Continuation* cont) {
+    StringStream s;
+    auto config = get_config(cont);
+    s.fmt("class {} : public graph", cont->name());
+    // skipping non-concrete params
+    for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
+        auto param = cont->param(i);
+        if (!is_concrete(param)) {
+            defs_[param] = {};
+            continue;
+        }
+    }
+    return s.str();
+}
+
 std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     StringStream s;
 
     // Emit function qualifiers
-    auto config = cont->is_exported() && kernel_config_.count(cont)
-        ? kernel_config_.find(cont)->second.get() : nullptr;
     if (cont->is_exported()) {
         auto config = kernel_config_.find(cont);
         switch (lang_) {
@@ -1411,6 +1433,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
         }
         if (needs_comma) s.fmt(", ");
 
+        auto config = get_config(cont);
         // TODO: This should go in favor of a prepare pass that rewrites the kernel parameters
         if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param)) {
             // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer

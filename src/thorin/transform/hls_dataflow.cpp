@@ -860,7 +860,7 @@ auto external_ports_status = [&] {
     world.make_external(hls_top);
 
     debug_verify(world);
-    world.dump();
+    //world.dump();
 
     world.cleanup();
 

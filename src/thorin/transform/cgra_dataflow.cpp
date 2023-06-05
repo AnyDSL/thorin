@@ -31,7 +31,8 @@ PortIndices external_ports_index(const Def2Def global2param, Def2Def param2arg, 
 }
 
 
-Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
+//Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
+CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 
     auto& world = importer.world();
 // std::cout << "_--------cgra world before rewrite--------" <<std::endl;
@@ -198,6 +199,8 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
     }
 
     // send indices to codegen
+    // these indices follow the hls-cgra dependent blocks order
+    // and include only the indices for cgra kernel params that are connected to HLS kernels, basically ports
     auto hls_port_indices = external_ports_index(global2param, param2arg, def2dependent_blocks, importer);
 
     auto enter   = world.enter(cgra_graph->mem_param());
@@ -266,11 +269,11 @@ Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentB
 
     world.make_external(cgra_graph);
 
-//    std::cout << "_--------cgra world After rewrite--------" <<std::endl;
-//    world.dump();
+    std::cout << "_--------cgra world After rewrite--------" <<std::endl;
+    world.dump();
 
     world.cleanup();
-    return hls_port_indices;
+    return std::make_tuple(hls_port_indices, std::pair<Continuation*, Array<ParamMode>> {});
 }
 
 }

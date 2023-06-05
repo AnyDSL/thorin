@@ -451,9 +451,20 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                            tile_location->op(1)->as<PrimLit>()->qu32_value().data()),
                            has_restrict);
                 }
-                return std::make_unique<CGRAKernelConfig>(-1, std::pair<int, int>{-1, -1}, has_restrict);
+
+                CGRAKernelConfig::Param2Mode param2mode;
+                auto app = use->body();
+
+                // TODO: insert corresponding params from imported  using index and add mode
+                for (size_t i = cgra_free_vars_offset, e = app->num_args(); i != e; ++i) {
+                    auto arg = app->arg(i);
+                    auto ptr_type = arg->type()->isa<PtrType>();
+                    //TODO : check types and assign to param2mode
+                }
+                return std::make_unique<CGRAKernelConfig>(-1, std::pair<int, int>{-1, -1}, has_restrict, param2mode);
         }, [&] (const World::Externals& externals) {
                 //get_ports_for("cgra_graph", port_indices, externals);
+                //get_ports(std::get<0>(port_indices), externals, hls_cgra_ports);
                 get_ports(port_indices, externals, hls_cgra_ports);
         }
         );

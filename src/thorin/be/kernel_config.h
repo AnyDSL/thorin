@@ -6,6 +6,13 @@
 
 namespace thorin {
 
+enum class ChannelMode : uint8_t {
+    Read,       ///< Read-channel
+    Write,      ///< Write-channe
+    ReadWrite,  ///< in-out-channel
+    Undef       ///< undefined
+};
+
 class KernelConfig : public RuntimeCast<KernelConfig> {
 public:
     virtual ~KernelConfig() {}
@@ -30,9 +37,18 @@ private:
 
 class CGRAKernelConfig : public KernelConfig {
 public:
-    CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, bool has_restrict = false)
-        : runtime_ratio_(runtime_ratio), location_(location), has_restrict_(has_restrict)
+    //TODO: return the modes from cgra_dataflow and pass it to this constructor via param2mode
+    using Param2Mode = DefMap<ChannelMode>;
+    CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, bool has_restrict = false, const Param2Mode& param2mode = {})
+        : runtime_ratio_(runtime_ratio), location_(location), has_restrict_(has_restrict), param2mode_(param2mode)
     {}
+
+    ChannelMode param_mode(const Param* param) const {
+        auto param_it = param2mode_.find(param);
+        if (param_it != param2mode_.end())
+            return param_it->second;
+        return ChannelMode::Undef;
+    }
 
     bool has_restrict() const { return has_restrict_; }
     float runtime_ratio() const { return runtime_ratio_; }
@@ -42,11 +58,12 @@ private:
     float runtime_ratio_;
     std::pair<int, int> location_;
     bool has_restrict_;
+    Param2Mode param2mode_;
 };
 
 class HLSKernelConfig : public KernelConfig {
 public:
-    typedef GIDMap<const Param*, uint32_t> Param2Size;
+    using Param2Size = GIDMap<const Param*, uint32_t>;
     HLSKernelConfig(const Param2Size& param_sizes)
         : param_sizes_(param_sizes)
     {}

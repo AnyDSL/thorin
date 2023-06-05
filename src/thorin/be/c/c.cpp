@@ -364,17 +364,17 @@ void CCodeGen::emit_module() {
     interface_status = get_interface(interface, gmem_config);
 
     Scope::for_each(world(), [&] (const Scope& scope) {
-        auto entry_name = scope.entry()->name();
-        if (entry_name == "hls_top" || entry_name == "cgra_graph")
-            top_module = scope.entry();
+        auto entry = scope.entry();
+        if (entry->is_hls_top() || entry->is_cgra_graph())
+            top_module = entry;
         else
             emit_scope(scope);
     });
 
     if (top_module) {
-        if (top_module->name() == "hls_top")
+        if (top_module->is_hls_top())
             hls_top_scope = true;
-        else if (top_module->name() == "cgra_graph")
+        else if (top_module->is_cgra_graph())
             cgra_graph_scope = true;
         emit_scope(Scope(top_module));
     }

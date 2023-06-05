@@ -172,8 +172,10 @@ public:
     ///@}
 
     // TODO: probably should be moved to Attributes
-    bool is_channel() const { return name().find("channel") != std::string::npos; }
-    bool is_pipe() const { return name().find("pipe") != std::string::npos; }
+    bool is_channel()     const { return name().find("channel")    != std::string::npos; }
+    bool is_pipe()        const { return name().find("pipe")       != std::string::npos; }
+    bool is_hls_top()     const { return name().find("hls_top")    != std::string::npos; }
+    bool is_cgra_graph()  const { return name().find("cgra_graph") != std::string::npos; }
     bool is_accelerator() const;
 
     const App* body() const { return op(0)->as<App>(); }

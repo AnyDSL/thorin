@@ -51,7 +51,7 @@ Continuation* Mangler::mangle() {
             param_types.emplace_back(old_entry()->param(i)->type()); // TODO reduce
     }
 
-    auto fn_type = dst().fn_type(param_types);
+    auto fn_type = dst().fn_type(param_types, old_entry()->type()->codomain());
     new_entry_ = dst().continuation(fn_type, old_entry()->debug_history());
 
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {

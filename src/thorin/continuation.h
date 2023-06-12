@@ -85,16 +85,6 @@ public:
     friend class World;
 };
 
-class ReturnPoint : public Def {
-private:
-    ReturnPoint(World&, const Continuation* destination, Debug dbg);
-
-public:
-    const Def* rebuild(World&, const Type*, Defs) const override;
-    Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
-    friend class World;
-};
-
 //------------------------------------------------------------------------------
 
 enum class CC : uint8_t {
@@ -165,7 +155,6 @@ public:
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
-    const Param* ret_param() const;
     size_t num_params() const { return params().size(); }
 
     Attributes& attributes() { return attributes_; }

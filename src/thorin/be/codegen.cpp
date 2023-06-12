@@ -1,7 +1,7 @@
 #include "thorin/be/codegen.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/transform/hls_channels.h"
-#include "thorin/transform/hls_kernel_launch.h"
+//#include "thorin/transform/hls_channels.h"
+//#include "thorin/transform/hls_kernel_launch.h"
 
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
@@ -157,7 +157,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     }
 
     // get the HLS kernel configurations
-    Top2Kernel top2kernel;
+    /*Top2Kernel top2kernel;
     DeviceParams hls_host_params;
     if (!accelerator_code[HLS].world().empty()) {
         hls_host_params = hls_channels(accelerator_code[HLS], importers[HLS], top2kernel, world);
@@ -195,7 +195,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         });
         hls_annotate_top(accelerator_code[HLS].world(), top2kernel, kernel_config);
     }
-    hls_kernel_launch(world, hls_host_params);
+    hls_kernel_launch(world, hls_host_params);*/
 
 #if THORIN_ENABLE_LLVM
     if (!accelerator_code[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(accelerator_code[NVVM  ], kernel_config,      debug);

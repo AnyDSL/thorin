@@ -52,11 +52,10 @@ const Type* NominalType::rebuild(World& w, const Type* t, Defs o) const {
 }
 
 const Type* BottomType         ::rebuild(World& w, const Type* t, Defs o) const { return w.bottom_type(); }
-const Type* ClosureType        ::rebuild(World& w, const Type* t, Defs o) const { return w.closure_type(defs2types(o)); }
-const Type* DefiniteArrayType  ::rebuild(World& w, const Type* t, Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
-const Type* FnType             ::rebuild(World& w, const Type* t, Defs o) const { return w.fn_type(defs2types(o)); }
+const Type* ClosureType        ::rebuild(World& w, const Type* t, Defs o) const { auto [c, d] = deconstruct_fn_type(this, o); return w.closure_type(c, d); }
+const Type* FnType             ::rebuild(World& w, const Type* t, Defs o) const { auto [c, d] = deconstruct_fn_type(this, o); return w.fn_type(c, d); }
 const Type* JoinPointType      ::rebuild(World& w, const Type* t, Defs o) const { return w.join_point_type(defs2types(o)); }
-const Type* ReturnType         ::rebuild(World& w, const Type* t, Defs o) const { return w.return_type(defs2types(o)); }
+const Type* DefiniteArrayType  ::rebuild(World& w, const Type* t, Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
 const Type* FrameType          ::rebuild(World& w, const Type* t, Defs o) const { return w.frame_type(); }
 const Type* IndefiniteArrayType::rebuild(World& w, const Type* t, Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
 const Type* MemType            ::rebuild(World& w, const Type* t, Defs o) const { return w.mem_type(); }
@@ -88,34 +87,12 @@ const VectorType* VectorType::scalarize() const {
     return world().prim_type(as<PrimType>()->primtype_tag());
 }
 
-const ReturnType* FnType::return_param_type() const {
-    auto i = ret_param_index();
-    if (i < 0)
-        return nullptr;
-    return op(i)->as<ReturnType>();
-}
-
 Array<const Type*> FnType::domain() const {
-    auto r = ret_param_index();
-    Array<const Type*> dom(r < 0 ? num_ops() : num_ops() - 1);
-    int j = 0;
-    for (int i = 0; i < num_ops(); i++) {
-        if (i == r) continue;
-        dom[j++] = op(i)->as<Type>();
-    }
-    return dom;
+    return types().skip_back(is_returning() ? 1 : 0);
 }
 
-int FnType::ret_param_index() const {
-    int p = -1;
-    for (unsigned int i = num_ops() - 1; i < num_ops(); i--) {
-        if (op(i)->isa<ReturnType>()) {
-            // this also does not work for schemes like exceptions etc where multiple 'returns' are valid
-            assert(p == -1 && "only one return parameter allowed");
-            p = i;
-        }
-    }
-    return p;
+const Type* FnType::codomain() const {
+    return is_returning() ? op(num_ops() - 1)->as<Type>() : nullptr;
 }
 
 bool VariantType::has_payload() const {
@@ -151,7 +128,7 @@ TypeTable::TypeTable(World& world)
     : world_(world)
     , star_     (world.put<Star>((world)))
     , unit_     (world.put<TupleType>(world, Defs(), Debug()))
-    , fn0_      (world.put<FnType    >(world, Defs(), Node_FnType, Debug()))
+    , fn0_      (world.put<FnType    >(world, Defs(), false, Node_FnType, Debug()))
     , bottom_ty_(world.put<BottomType>(world, Debug()))
     , mem_      (world.put<MemType   >(world, Debug()))
     , frame_    (world.put<FrameType >(world, Debug()))
@@ -183,10 +160,9 @@ const PtrType* World::ptr_type(const Type* pointee, size_t length, int32_t devic
     return make<PtrType>(*this, pointee, length, device, addr_space, Debug());
 }
 
-const FnType*              World::fn_type(Types args) { return make<FnType>(*this, types2defs(args), Node_FnType, Debug()); }
-const ClosureType*         World::closure_type(Types args) { return make<ClosureType>(*this, types2defs(args), Debug()); }
+const FnType*              World::fn_type(Types dom, const Type* codom) { return make<FnType>(*this, construct_fn_type(dom, codom), codom, Node_FnType, Debug()); }
+const ClosureType*         World::closure_type(Types dom, const Type* codom) { return make<ClosureType>(*this, construct_fn_type(dom, codom), codom, Debug()); }
 const JoinPointType*       World::join_point_type(Types args) { return make<JoinPointType>(*this, types2defs(args), Debug()); }
-const ReturnType*          World::return_type(Types args) { return make<ReturnType>(*this, types2defs(args), Debug()); }
 const DefiniteArrayType*   World::definite_array_type(const Type* elem, u64 dim) { return make<DefiniteArrayType>(*this, elem, dim, Debug()); }
 const IndefiniteArrayType* World::indefinite_array_type(const Type* elem) { return make<IndefiniteArrayType>(*this, elem, Debug()); }
 

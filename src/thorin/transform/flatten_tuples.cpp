@@ -12,21 +12,21 @@ static Continuation* unwrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, s
 
 // Computes the type of the wrapped function
 static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
-    std::vector<const Type*> nops;
-    for (auto op : fn_type->types()) {
+    std::vector<const Type*> ndom;
+    for (auto op : fn_type->domain()) {
         if (auto tuple_type = op->isa<TupleType>()) {
             if (tuple_type->num_ops() <= max_tuple_size) {
                 for (auto arg : tuple_type->types())
-                    nops.push_back(arg);
+                    ndom.push_back(arg);
             } else
-                nops.push_back(op);
+                ndom.push_back(op);
         } else if (auto op_fn_type = op->isa<FnType>()) {
-            nops.push_back(wrapped_type(op_fn_type, max_tuple_size));
+            ndom.push_back(wrapped_type(op_fn_type, max_tuple_size));
         } else {
-            nops.push_back(op);
+            ndom.push_back(op);
         }
     }
-    return fn_type->world().fn_type(nops);
+    return fn_type->world().fn_type(ndom, fn_type->codomain());
 }
 
 static Continuation* jump(Continuation* cont, Array<const Def*>& args) {

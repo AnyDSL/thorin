@@ -19,7 +19,6 @@ public:
     World& world() { return thorin_.world(); }
     void cleanup();
     void eliminate_tail_rec();
-    void eliminate_params();
     void rebuild();
     void verify_closedness();
     void within(const Def*);
@@ -94,58 +93,6 @@ void Cleaner::eliminate_tail_rec() {
             }
         }
     });
-}
-
-void Cleaner::eliminate_params() {
-    // TODO
-    for (auto ocontinuation : world().copy_continuations()) {
-        std::vector<size_t> proxy_idx;
-        std::vector<size_t> param_idx;
-
-        if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
-            auto obody = ocontinuation->body();
-            for (auto use : ocontinuation->uses()) {
-                if (use.index() != App::CALLEE_POSITION || !use->isa_nom<Continuation>())
-                    goto next_continuation;
-            }
-
-            for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-                auto param = ocontinuation->param(i);
-                if (param->num_uses() == 0)
-                    proxy_idx.push_back(i);
-                else
-                    param_idx.push_back(i);
-            }
-
-            if (!proxy_idx.empty()) {
-                auto ncontinuation = world().continuation(
-                    world().fn_type(ocontinuation->type()->types().cut(proxy_idx)),
-                    ocontinuation->attributes(), ocontinuation->debug_history());
-                size_t j = 0;
-                for (auto i : param_idx) {
-                    ocontinuation->param(i)->replace_uses(ncontinuation->param(j));
-                    ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
-                }
-
-                if (!ocontinuation->filter()->is_empty())
-                    ncontinuation->set_filter(ocontinuation->filter()->cut(proxy_idx));
-                ncontinuation->jump(obody->callee(), obody->args(), ocontinuation->debug());
-                ncontinuation->verify();
-                ocontinuation->destroy("cleanup: calls a parameter (permutated)");
-
-                for (auto use : ocontinuation->copy_uses()) {
-                    auto uapp = use->as<App>();
-                    assert(use.index() == App::CALLEE_POSITION);
-                    for (auto ucontinuation : uapp->using_continuations()) {
-                        ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
-                    }
-                }
-
-                todo_ = true;
-            }
-        }
-next_continuation:;
-    }
 }
 
 void Cleaner::rebuild() {
@@ -241,7 +188,6 @@ void Cleaner::cleanup_fix_point() {
         //if (world().is_pe_done())
         rebuild();
             eliminate_tail_rec();
-        eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();

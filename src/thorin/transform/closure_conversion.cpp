@@ -68,14 +68,14 @@ struct ClosureConverter : public Rewriter {
         return UnchangedDefHelper(*this, def).instantiate(def);
     }
 
-    std::vector<const Type*> rewrite_params(Continuation* ocont) {
+    std::vector<const Type*> rewrite_domain(Continuation* ocont) {
         std::vector<const Type*> nparam_types;
 
-        for (auto pt : ocont->type()->types()) {
+        for (auto pt : ocont->type()->domain()) {
             const Type* npt = instantiate(pt)->as<Type>();
             // in intrinsics, don't closure-convert immediate parameters
             if (ocont->is_intrinsic() && pt->tag() == Node_FnType) {
-                npt = dst().fn_type(npt->as<FnType>()->types());
+                npt = dst().fn_type(npt->as<FnType>()->domain(), npt->as<FnType>()->codomain());
             }
             nparam_types.push_back(npt);
         }
@@ -84,8 +84,8 @@ struct ClosureConverter : public Rewriter {
     }
 
     Continuation* import_continuation_as_is(Continuation* ocont) {
-        auto nparam_types = rewrite_params(ocont);
-        auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+        auto nparam_types = rewrite_domain(ocont);
+        auto ncont = dst().continuation(dst().fn_type(nparam_types, instantiate(ocont->type()->codomain())->isa<Type>()), ocont->attributes(), ocont->debug());
 
         for (size_t i = 0; i < ocont->num_params(); i++)
             insert(ocont->param(i), ncont->param(i));
@@ -100,24 +100,22 @@ struct ClosureConverter : public Rewriter {
         auto ndef = instantiate(odef);
         if (auto ncont = ndef->isa_nom<Continuation>())
             return ncont;
-        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), {ndef->debug().name + "_wrapper" });
+        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->domain(), ndef->type()->as<FnType>()->codomain()), {ndef->debug().name + "_wrapper" });
         wrapper->jump(ndef, wrapper->params_as_defs());
         return wrapper;
     }
 
     const Def* rewrite(const Def* odef) override {
         if (auto fn_type = odef->isa<FnType>()) {
-            Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
-                auto old_param_t = fn_type->op(i)->as<Type>();
+            Array<const Type*> ndom(fn_type->domain().size(), [&](int i) {
+                auto old_param_t = fn_type->domain()[i]->as<Type>();
                 return instantiate(old_param_t)->as<Type>();
             });
-            if (fn_type->isa<ReturnType>())
-                return dst().return_type(ntypes);
             if (fn_type->isa<JoinPointType>())
-                return dst().join_point_type(ntypes);
+                return dst().join_point_type(ndom);
 
             // Turn all functions into closures, we'll undo it where it is specifically OK
-            auto ntype = dst().closure_type(ntypes);
+            auto ntype = dst().closure_type(ndom, instantiate(fn_type->codomain())->as<Type>());
             return ntype;
 
         } else if (auto global = odef->isa<Global>()) {
@@ -130,8 +128,8 @@ struct ClosureConverter : public Rewriter {
             if (!needs_conversion(ocont))
                 return import_continuation_as_is(ocont);
 
-            auto nparam_types = rewrite_params(ocont);
-            auto closure_type = dst().closure_type(nparam_types);
+            auto nparam_types = rewrite_domain(ocont);
+            auto closure_type = dst().closure_type(nparam_types, ocont->type()->codomain());
 
             //Scope scope(ocont);
             std::vector<const Def*> free_vars;
@@ -146,7 +144,7 @@ struct ClosureConverter : public Rewriter {
                 // create a wrapper that takes a pointer to the environment
                 size_t env_param_index = ocont->num_params();
                 nparam_types.push_back(Closure::environment_type(dst()));
-                auto wrapper_type = dst().fn_type(nparam_types);
+                auto wrapper_type = dst().fn_type(nparam_types, ocont->type()->codomain());
                 auto ncont = dst().continuation(wrapper_type, ocont->debug());
 
                 for (size_t i = 0; i < ocont->num_params(); i++)
@@ -202,7 +200,7 @@ struct ClosureConverter : public Rewriter {
 
                 return closure;
             } else {
-                auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+                auto ncont = dst().continuation(dst().fn_type(nparam_types, ocont->type()->codomain()), ocont->attributes(), ocont->debug());
 
                 for (size_t i = 0; i < ocont->num_params(); i++)
                     insert(ocont->param(i), ncont->param(i));
@@ -229,8 +227,6 @@ struct ClosureConverter : public Rewriter {
 
     bool is_use_first_class(Use& use) {
         if (use.def()->isa<Param>())
-            return false;
-        if (use.def()->isa<ReturnPoint>())
             return false;
         if (auto app = use.def()->isa<App>()) {
             if (use.index() == App::CALLEE_POSITION)

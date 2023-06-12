@@ -121,11 +121,11 @@ public:
     const MemType* mem_type() { return make<MemType>(*this, Debug()); }
     const FrameType* frame_type() { return make<FrameType>(*this, Debug()); }
     const PtrType* ptr_type(const Type* pointee, size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic);
-    const FnType* fn_type() { return fn_type({}); } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args);
-    const ClosureType* closure_type(Types args);
+    const FnType* cont_type(Types dom) { return fn_type(dom, nullptr); }
+    const FnType* cont_type() { return fn_type({}, nullptr); } ///< Returns an empty @p FnType.
+    const FnType* fn_type(Types dom, const Type* codom);
+    const ClosureType* closure_type(Types args, const Type* codom);
     const JoinPointType* join_point_type(Types args);
-    const ReturnType* return_type(Types args);
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
     const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 
@@ -272,7 +272,7 @@ public:
     Continuation* continuation(const FnType* fn_type, Debug dbg = {}) {
         return continuation(fn_type, Continuation::Attributes(), dbg);
     }
-    Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), dbg); }
+    Continuation* continuation(Debug dbg = {}) { return continuation(cont_type(), dbg); }
     Continuation* branch() const { return data_.branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* control(Types tys);
@@ -280,7 +280,6 @@ public:
     const Filter* filter(const Defs, Debug dbg = {});
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const App* app(const Filter* filter, const Def* callee, const Defs args, Debug dbg = {});
-    const ReturnPoint* return_point(const Continuation* destination, Debug dbg = {}) { return cse(new ReturnPoint(*this, destination, dbg)); }
 
     // getters
 

@@ -275,23 +275,21 @@ inline bool is_thin(const Type* type) {
     return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
 }
 
-class ReturnType;
-
 class FnType : public Type, public TypeOpsMixin<TupleType> {
 protected:
-    FnType(World& world, Defs ops, NodeTag tag, Debug dbg)
-        : Type(world, tag, ops, dbg)
+    FnType(World& world, Defs ops, bool is_returning, NodeTag tag, Debug dbg)
+        : Type(world, tag, ops, dbg), is_returning_(is_returning)
     {
         ++order_;
     }
 
+    bool is_returning_;
 public:
     bool is_basicblock() const { return order() == 1; }
-    bool is_returning() const { return ret_param_index() >= 0; }
-    const ReturnType* return_param_type() const;
-    int ret_param_index() const;
+    bool is_returning() const { return is_returning_; }
 
     Array<const Type*> domain() const;
+    const Type* codomain() const;
 
 private:
     const Type* rebuild(World&, const Type*, Defs) const override;
@@ -299,10 +297,22 @@ private:
     friend class World;
 };
 
+static inline std::tuple<ArrayRef<const Type*>, const Type*> deconstruct_fn_type(const FnType* t, Defs o) {
+    if (t->is_returning())
+        return std::make_tuple(defs2types(o.skip_back(1)), o.back()->as<Type>());
+    return std::make_tuple(defs2types(o), nullptr);
+}
+
+inline static Array<const Def*> construct_fn_type(Types dom, const Type* codom) {
+    if (codom)
+        return types2defs(concat(dom, codom));
+    return types2defs(dom);
+}
+
 class ClosureType : public FnType {
 private:
-    ClosureType(World& world, Defs ops, Debug dbg)
-        : FnType(world, ops, Node_ClosureType, dbg)
+    ClosureType(World& world, Defs ops, bool is_returning, Debug dbg)
+        : FnType(world, ops, is_returning, Node_ClosureType, dbg)
     {
         order_ = 0;
     }
@@ -315,17 +325,7 @@ public:
 
 class JoinPointType : public FnType {
 private:
-    JoinPointType(World& world, Defs ops, Debug dbg) : FnType(world, ops, Node_JoinPointType, dbg) {}
-
-public:
-    const Type* rebuild(World&, const Type*, Defs) const override;
-
-    friend class World;
-};
-
-class ReturnType : public FnType {
-private:
-    ReturnType(World& world, Defs ops, Debug dbg) : FnType(world, ops, Node_ReturnType, dbg) {}
+    JoinPointType(World& world, Defs ops, Debug dbg) : FnType(world, ops, false, Node_JoinPointType, dbg) {}
 
 public:
     const Type* rebuild(World&, const Type*, Defs) const override;

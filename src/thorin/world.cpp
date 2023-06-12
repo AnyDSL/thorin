@@ -26,7 +26,6 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/transform/lift2cff.h"
-#include "thorin/transform/lower_return.h"
 #include "thorin/transform/lower_control.h"
 #include "thorin/util/array.h"
 
@@ -44,8 +43,8 @@ namespace thorin {
 
 World::World(const std::string& name) : types_(TypeTable(*this)) {
     data_.name_   = name;
-    data_.branch_ = continuation(fn_type({mem_type(), type_bool(), fn_type({mem_type()}), fn_type({mem_type()})}), Intrinsic::Branch, {"br"});
-    data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
+    data_.branch_ = continuation(cont_type({mem_type(), type_bool(), cont_type({mem_type()}), cont_type({mem_type()})}), Intrinsic::Branch, {"br"});
+    data_.end_scope_ = continuation(cont_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -1126,11 +1125,11 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 3);
     arg_types[0] = mem_type();
     arg_types[1] = type;
-    arg_types[2] = fn_type({mem_type()});
+    arg_types[2] = cont_type({mem_type()});
     for (size_t i = 0; i < num_patterns; i++) {
-        arg_types[i + 3] = tuple_type({type, fn_type({mem_type()})});
+        arg_types[i + 3] = tuple_type({type, cont_type({mem_type()})});
     }
-    return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
+    return continuation(cont_type(arg_types), Intrinsic::Match, {"match"});
 }
 
 Continuation* World::control(thorin::Types tys) {
@@ -1139,8 +1138,8 @@ Continuation* World::control(thorin::Types tys) {
     for (size_t i = 0; i < tys.size(); i++) plus_mem[1 + i] = tys[i];
 
     const JoinPointType* t = join_point_type(plus_mem);
-    Array<const Type*> param_tys = { mem_type(), fn_type({mem_type(), t}), fn_type(plus_mem) };
-    return continuation(fn_type(param_tys), Intrinsic::Control, {"control"});
+    Array<const Type*> param_tys = { mem_type(), cont_type({mem_type(), t}), cont_type(plus_mem) };
+    return continuation(cont_type(param_tys), Intrinsic::Control, {"control"});
 }
 
 const Param* World::param(const Type* type, const Continuation* continuation, size_t index, Debug dbg) {
@@ -1166,10 +1165,6 @@ const App* World::app(const Filter* given_filter, const Def* callee, const Defs 
         if (auto run = callee->isa<Run>()){
             callee = run->def();
             must_inline = true;
-            continue;
-        }
-        if (auto ret = callee->isa<ReturnPoint>()) {
-            callee = ret->continuation();
             continue;
         }
         break;
@@ -1353,7 +1348,7 @@ void Thorin::opt() {
     //RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
 
-    RUN_PASS(lower_return(*this));
+    //RUN_PASS(lower_return(*this));
     RUN_PASS(lower_control(*this));
     RUN_PASS(cleanup())
 
@@ -1361,7 +1356,7 @@ void Thorin::opt() {
     RUN_PASS(lift2cff(*this, false))
 
     RUN_PASS(cleanup())
-    RUN_PASS(codegen_prepare(*this))
+    //RUN_PASS(codegen_prepare(*this))
 }
 
 }

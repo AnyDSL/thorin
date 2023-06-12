@@ -15,7 +15,7 @@ struct LowerControl : Rewriter {
     const Def* rewrite(const thorin::Def *odef) override {
         if (auto control_type = odef->isa<JoinPointType>()) {
             auto ntype = Rewriter::rewrite(control_type)->as<JoinPointType>();
-            return dst().fn_type(ntype->types());
+            return dst().cont_type(ntype->types());
         }
 
         if (auto oapp = odef->isa<App>()) {

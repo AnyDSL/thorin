@@ -42,7 +42,12 @@ bool Param::equal(const Def* other) const {
 
 //------------------------------------------------------------------------------
 
-App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, world.bottom_type(), ops, dbg) {
+static inline const Type* codom_or_noret(const Def* callee) {
+    auto codom = callee->type()->as<FnType>()->codomain();
+    return codom ? codom : callee->world().bottom_type();
+}
+
+App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, codom_or_noret(ops[1]), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
     if (auto cont = callee()->isa_nom<Continuation>())
@@ -64,12 +69,6 @@ bool App::verify() const {
         assert(filter()->size() == cont->filter()->size() || cont->filter()->is_empty());
     return true;
 }
-
-//------------------------------------------------------------------------------
-
-ReturnPoint::ReturnPoint(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
-
-const Def* ReturnPoint::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const { return world.return_point(nops.front()->as<Continuation>()); }
 
 //------------------------------------------------------------------------------
 
@@ -149,11 +148,6 @@ const Param* Continuation::mem_param() const {
     return nullptr;
 }
 
-const Param* Continuation::ret_param() const {
-    int ret_param = type()->ret_param_index();
-    return (ret_param > 0) ? param(ret_param) : nullptr;
-}
-
 void Continuation::destroy(const char* cause) {
     world().VLOG("{} has been destroyed by {}", this, cause);
     destroy_filter();
@@ -164,10 +158,11 @@ void Continuation::destroy(const char* cause) {
 
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
-    Array<const Type*> ops(size + 1);
-    *std::copy(type()->types().begin(), type()->types().end(), ops.begin()) = param_type;
+    Array<const Type*> ndom(size + 1);
+    *std::copy(type()->domain().begin(), type()->domain().end(), ndom.begin()) = param_type;
+    auto codom = type()->codomain();
     clear_type();
-    set_type(world().fn_type(ops));              // update type
+    set_type(world().fn_type(ndom, codom));              // update type
     auto param = world().param(param_type, this, size, dbg); // append new param
     params_.push_back(param);
 

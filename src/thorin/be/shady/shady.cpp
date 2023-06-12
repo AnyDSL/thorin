@@ -277,13 +277,13 @@ void CodeGen::emit_epilogue(Continuation* cont) {
         }
     }
 
-    if (body->callee() == entry_->ret_param()) {
+    /*if (body->callee() == entry_->ret_param()) {
         shady::Return payload = {};
         payload.fn = curr_fn;
         args.erase(std::remove_if(args.begin(), args.end(), [&](const auto& item){ return item == nullptr || !shady::is_value(item); }), args.end());
         payload.args = vec2nodes(args);
         bb.terminator = shady::fn_ret(arena, payload);
-    } else if (body->callee() == world().branch()) {
+    } */if (body->callee() == world().branch()) {
         shady::Branch payload = {};
         payload.args = shady::nodes(arena, 0, nullptr);
         payload.branch_condition = args[0];

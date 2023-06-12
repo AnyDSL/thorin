@@ -46,7 +46,6 @@
     THORIN_NODE(Param, param)
     THORIN_NODE(Filter, filter)
     THORIN_NODE(App, app)
-    THORIN_NODE(ReturnPoint, return)
     // Type
         // PrimType
         THORIN_NODE(Star, star)
@@ -54,7 +53,6 @@
         THORIN_NODE(FnType, fn)
         THORIN_NODE(ClosureType, closure_type)
         THORIN_NODE(JoinPointType, join_point_type)
-        THORIN_NODE(ReturnType, return_type)
         THORIN_NODE(FrameType, frame)
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
         THORIN_NODE(Lambda, lambda)

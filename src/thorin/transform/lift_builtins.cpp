@@ -14,10 +14,10 @@ void lift_pipeline(World& world) {
         auto callee = body->callee()->isa_nom<Continuation>();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && body->num_args() == 6) {
-            auto cont_type = world.fn_type({ world.mem_type() });
-            auto p_cont_type = world.fn_type({ world.mem_type(), cont_type });
-            auto body_type = world.fn_type({ world.mem_type(), world.type_qs32() });
-            auto pipe_type = world.fn_type({
+            auto cont_type = world.cont_type({ world.mem_type() });
+            auto p_cont_type = world.cont_type({ world.mem_type(), cont_type });
+            auto body_type = world.cont_type({ world.mem_type(), world.type_qs32() });
+            auto pipe_type = world.cont_type({
                 world.mem_type(),
                 world.type_qs32(),
                 world.type_qs32(),
@@ -113,7 +113,7 @@ void lift_builtins(Thorin& thorin) {
                         new_ops[use.index()] = world.global(lifted, false, lifted->debug()); // update to new lifted continuation
 
                         // jump to new top-level dummy function with new args
-                        auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-App::ARGS_START_POSITION, [&] (auto i) { return new_ops[i+App::ARGS_START_POSITION]->type(); }));
+                        auto fn_type = world.cont_type(Array<const Type*>(new_ops.size()-App::ARGS_START_POSITION, [&] (auto i) { return new_ops[i+App::ARGS_START_POSITION]->type(); }));
                         auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
 
                         new_ops[App::CALLEE_POSITION] = ncontinuation;

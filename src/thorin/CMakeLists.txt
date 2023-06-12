@@ -43,8 +43,6 @@ set(THORIN_SOURCES
     transform/cleanup_world.cpp
     transform/closure_conversion.cpp
     transform/closure_conversion.h
-    transform/codegen_prepare.h
-    transform/codegen_prepare.cpp
     transform/hoist_enters.cpp
     transform/hoist_enters.h
     transform/flatten_tuples.cpp
@@ -67,14 +65,12 @@ set(THORIN_SOURCES
     transform/rewrite.h
     transform/split_slots.cpp
     transform/split_slots.h
-    transform/hls_channels.cpp
-    transform/hls_channels.h
-    transform/hls_kernel_launch.h
-    transform/hls_kernel_launch.cpp
+    # transform/hls_channels.cpp
+    # transform/hls_channels.h
+    # transform/hls_kernel_launch.h
+    # transform/hls_kernel_launch.cpp
     transform/lower_control.h
     transform/lower_control.cpp
-    transform/lower_return.h
-    transform/lower_return.cpp
     util/array.h
     util/cast.h
     util/hash.h

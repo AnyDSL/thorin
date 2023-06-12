@@ -89,7 +89,7 @@ public:
 
     bool print_lower_order_args = true;
     bool print_instanced_filters = false;
-    bool print_literals = true;
+    bool print_literals = false;
     bool delay_printing_ops = true;
     Scope* single_scope = nullptr;
 

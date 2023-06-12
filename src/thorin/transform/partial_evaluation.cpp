@@ -58,7 +58,7 @@ public:
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
 
-        bool is_return_param = static_cast<int>(i) == callee_->type()->ret_param_index();
+        bool is_return_param = false; // static_cast<int>(i) == callee_->type()->ret_param_index();
         bool is_allowable_higher_order_param = order == 1 && is_return_param && is_top_level(callee_);
         if (lower2cff && order >= 1 && !is_allowable_higher_order_param) {
             world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);

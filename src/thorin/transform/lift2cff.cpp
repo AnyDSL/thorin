@@ -24,7 +24,7 @@ struct Lift2CffRewriter : Rewriter {
                     lifted_args.push_back(ocont->param(i));
                 }
                 std::vector<const Def*> defs;
-                for (auto free: spillable_free_defs(scope)) {
+                for (auto free: spillable_free_defs(forest_, ocont)) {
                     if (free->type()->isa<FnType>()) {
                         // forcefully inline any higher order parameters that we introduce: they necessarily correspond to top-level functions anyway
                         nfilter.push_back(src().literal_bool(true, {}));

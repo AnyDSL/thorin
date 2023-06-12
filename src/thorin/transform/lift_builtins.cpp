@@ -66,6 +66,7 @@ void lift_pipeline(World& world) {
 void lift_builtins(Thorin& thorin) {
     // This must be run first
     lift_pipeline(thorin.world());
+    ScopesForest forest(thorin.world());
 
     while (true) {
         World& world = thorin.world();
@@ -90,7 +91,7 @@ void lift_builtins(Thorin& thorin) {
 
         // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
-        for (auto param : spillable_free_defs(scope)) {
+        for (auto param : spillable_free_defs(forest, cur)) {
             if (param->isa_nom<Continuation>()) {
                 // TODO: assert is actually top level
             } else if (!param->isa<Filter>()) { // don't lift the filter

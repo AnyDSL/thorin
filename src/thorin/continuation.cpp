@@ -59,9 +59,9 @@ App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, codom_o
 bool App::verify() const {
     auto callee_type = callee()->type()->isa<FnType>(); // works for closures too, no need for a special case
     assertf(callee_type, "callee type must be a FnType");
-    assertf(callee_type->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
+    assertf(callee_type->domain().size() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
     for (size_t i = 0; i < num_args(); i++) {
-        auto pt = callee_type->op(i);
+        auto pt = callee_type->domain()[i];
         auto at = arg(i)->type();
         assertf(pt == at, "app node {} argument {} has type {} but the callee was expecting {}", this, i, at, pt);
     }

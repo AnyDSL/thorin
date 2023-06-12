@@ -297,7 +297,7 @@ private:
     friend class World;
 };
 
-static inline std::tuple<ArrayRef<const Type*>, const Type*> deconstruct_fn_type(const FnType* t, Defs o) {
+static inline std::tuple<Array<const Type*>, const Type*> deconstruct_fn_type(const FnType* t, Defs o) {
     if (t->is_returning())
         return std::make_tuple(defs2types(o.skip_back(1)), o.back()->as<Type>());
     return std::make_tuple(defs2types(o), nullptr);

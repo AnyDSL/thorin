@@ -69,8 +69,6 @@ set(THORIN_SOURCES
     # transform/hls_channels.h
     # transform/hls_kernel_launch.h
     # transform/hls_kernel_launch.cpp
-    transform/lower_control.h
-    transform/lower_control.cpp
     util/array.h
     util/cast.h
     util/hash.h

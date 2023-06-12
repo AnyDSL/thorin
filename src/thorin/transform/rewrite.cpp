@@ -11,6 +11,7 @@ Rewriter::Rewriter(World& src, World& dst, Rewriter& parent) : Rewriter(src, dst
 }
 
 const Def* Rewriter::instantiate(const Def* odef) {
+    if (!odef) return nullptr;
     if (auto ndef = old2new_.lookup(odef)) return *ndef;
 
     // TODO maybe we want to deal with intrinsics in a more streamlined way

@@ -26,7 +26,6 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/transform/lift2cff.h"
-#include "thorin/transform/lower_control.h"
 #include "thorin/util/array.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
@@ -1132,14 +1131,10 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(cont_type(arg_types), Intrinsic::Match, {"match"});
 }
 
-Continuation* World::control(thorin::Types tys) {
-    Array<const Type*> plus_mem(tys.size() + 1);
-    plus_mem[0] = mem_type();
-    for (size_t i = 0; i < tys.size(); i++) plus_mem[1 + i] = tys[i];
-
-    const JoinPointType* t = join_point_type(plus_mem);
-    Array<const Type*> param_tys = { mem_type(), cont_type({mem_type(), t}), cont_type(plus_mem) };
-    return continuation(cont_type(param_tys), Intrinsic::Control, {"control"});
+Continuation* World::control(const Type* t) {
+    const JoinPointType* jpt = join_point_type({ mem_type(), t });
+    Array<const Type*> param_tys = { mem_type(), cont_type({ mem_type(), jpt }) };
+    return continuation(fn_type(param_tys, tuple_type({ mem_type(), t })), Intrinsic::Control, {"control"});
 }
 
 const Param* World::param(const Type* type, const Continuation* continuation, size_t index, Debug dbg) {
@@ -1347,10 +1342,6 @@ void Thorin::opt() {
     RUN_PASS(lift_builtins(*this))
     //RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
-
-    //RUN_PASS(lower_return(*this));
-    RUN_PASS(lower_control(*this));
-    RUN_PASS(cleanup())
 
     RUN_PASS(closure_conversion(*this));
     RUN_PASS(lift2cff(*this, false))

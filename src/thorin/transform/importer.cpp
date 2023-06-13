@@ -1,9 +1,11 @@
 #include "thorin/transform/importer.h"
+#include "mangle.h"
 
 namespace thorin {
 
 const Def* Importer::rewrite(const Def* odef) {
     assert(&odef->world() == &src());
+    again:
     if (auto memop = odef->isa<MemOp>()) {
         // Optimise out dead loads when importing
         if (memop->isa<Load>() || memop->isa<Enter>()) {
@@ -16,7 +18,7 @@ const Def* Importer::rewrite(const Def* odef) {
         }
     } else if (auto app = odef->isa<App>()) {
         // eat calls to known continuations that are only used once
-        while (auto callee = app->callee()->isa_nom<Continuation>()) {
+        if (auto callee = app->callee()->isa_nom<Continuation>()) {
             if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
                 todo_ = true;
 
@@ -24,12 +26,19 @@ const Def* Importer::rewrite(const Def* odef) {
                 for (size_t i = 0; i < callee->num_params(); i++)
                     insert(callee->param(i), import(app->arg(i)));
 
-                app = callee->body();
-            } else
-                break;
+                odef = callee->body();
+                goto again;
+            } else if (callee->intrinsic() == Intrinsic::Control) {
+                if (auto obody = app->arg(1)->isa_nom<Continuation>()) {
+                    if (obody->body()->callee() == obody->param(1) && obody->param(1)->uses().size() == 1) {
+                        auto dropped = drop(obody, { app->arg(0), nullptr });
+                        odef = src().tuple(dropped->body()->args());
+                        src().VLOG("simplify: replaced control construct {} by insides {}", app, odef);
+                        goto again;
+                    }
+                }
+            }
         }
-
-        odef = app;
     } else if (auto cont = odef->isa_nom<Continuation>()) {
         if (cont->has_body()) {
             auto body = cont->body();
@@ -49,9 +58,7 @@ const Def* Importer::rewrite(const Def* odef) {
                     Array<size_t> perm(body->num_args());
                     bool is_permutation = true;
                     for (size_t i = 0, e = body->num_args(); i != e; ++i) {
-                        auto param_it = std::find(cont->params().begin(),
-                                                  cont->params().end(),
-                                                  body->arg(i));
+                        auto param_it = std::find(cont->params().begin(), cont->params().end(), body->arg(i));
 
                         if (param_it == cont->params().end()) {
                             is_permutation = false;

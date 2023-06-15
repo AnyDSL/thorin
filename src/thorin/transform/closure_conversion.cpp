@@ -86,17 +86,19 @@ struct ClosureConverter : public Rewriter {
     Continuation* import_continuation_as_is(Continuation* ocont) {
         auto nparam_types = rewrite_params(ocont);
         auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+        assert(&ocont->world() == &src());
 
         for (size_t i = 0; i < ocont->num_params(); i++)
             insert(ocont->param(i), ncont->param(i));
 
         insert(ocont, ncont);
         dst().VLOG("no closure generated for '{}' -> '{}'", ocont, ncont);
-        ncont->rebuild_from(*this, ocont);
+        todo_.emplace_back(ocont, ncont);
         return ncont;
     }
 
     Continuation* as_continuation(const Def* odef) {
+        assert(&odef->world() == &src());
         auto ndef = instantiate(odef);
         if (auto ncont = ndef->isa_nom<Continuation>())
             return ncont;
@@ -106,6 +108,7 @@ struct ClosureConverter : public Rewriter {
     }
 
     const Def* rewrite(const Def* odef) override {
+        assert(&odef->world() == &src());
         if (auto fn_type = odef->isa<FnType>()) {
             Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
                 auto old_param_t = fn_type->op(i)->as<Type>();
@@ -119,7 +122,6 @@ struct ClosureConverter : public Rewriter {
             // Turn all functions into closures, we'll undo it where it is specifically OK
             auto ntype = dst().closure_type(ntypes);
             return ntype;
-
         } else if (auto global = odef->isa<Global>()) {
             auto nglobal = dst().global(import_def_as_is(global->init()), global->is_mutable(), global->debug());
             nglobal->set_name(global->name());
@@ -191,6 +193,9 @@ struct ClosureConverter : public Rewriter {
                     }
                 }
                 auto lifted = lift(forest_.get_scope(top_entry), ocont, free_vars);
+
+                dst().VLOG("lifted as {}", lifted);
+
                 Scope lifted_scope(lifted);
                 assert(lifted_scope.free_params().size() == 0);
                 assert(lifted_scope.parent_scope() == nullptr);
@@ -247,6 +252,7 @@ struct ClosureConverter : public Rewriter {
 
     ScopesForest forest_;
     ContinuationMap<bool> should_convert;
+    std::vector<std::tuple<Continuation*, Continuation*>> todo_;
 };
 
 void closure_conversion(Thorin& thorin) {
@@ -255,6 +261,13 @@ void closure_conversion(Thorin& thorin) {
     ClosureConverter converter(*src, *dst);
     for (auto& ext : src->externals())
         converter.instantiate(ext.second);
+
+    while (!converter.todo_.empty()) {
+        auto [ocont, ncont] = converter.todo_.back();
+        converter.todo_.pop_back();
+        ncont->rebuild_from(converter, ocont);
+    }
+
     src.swap(dst);
 }
 

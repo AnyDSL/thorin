@@ -1047,6 +1047,10 @@ const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debu
     return cse(new Alloc(type, mem, extra, dbg));
 }
 
+const Def* World::release(const Def* mem, const Def* alloc, Debug dbg) {
+    return cse(new Release(mem, alloc, dbg));
+}
+
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
     return cse(new Global(init, is_mutable, dbg));
 }

@@ -582,6 +582,20 @@ private:
     friend class World;
 };
 
+class Release : public MemOp {
+private:
+    Release(const Def* mem, const Def* alloc, Debug dbg);
+
+public:
+    const Def* alloc() const { return op(1); }
+
+private:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
+
 /// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:

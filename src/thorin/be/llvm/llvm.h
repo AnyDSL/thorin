@@ -71,6 +71,7 @@ protected:
 
     llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);
     llvm::Value*      emit_alloc (llvm::IRBuilder<>&, const Type*, const Def*);
+    llvm::Value*      emit_release (llvm::IRBuilder<>&, const Def*);
     virtual void emit_fun_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
 
@@ -84,6 +85,7 @@ protected:
     Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);
 
     virtual std::string get_alloc_name() const = 0;
+    virtual std::string get_release_name() const = 0;
     llvm::BasicBlock* cont2bb(Continuation* cont) { return cont2bb_[cont].first; }
 
     virtual llvm::Value* emit_global(const Global*);

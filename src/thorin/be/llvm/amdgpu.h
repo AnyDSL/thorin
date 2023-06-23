@@ -24,6 +24,7 @@ protected:
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
     Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
     std::string get_alloc_name() const override { return "malloc"; }
+    std::string get_release_name() const override { return "free"; }
 
     const Cont2Config& kernel_config_;
 };

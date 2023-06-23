@@ -905,6 +905,9 @@ llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto alloc = def->isa<Alloc>()) {
         emit_unsafe(alloc->mem());
         return emit_alloc(irbuilder, alloc->alloced_type(), alloc->extra());
+    } else if (auto release = def->isa<Release>()) {
+        emit_unsafe(release->mem());
+        return emit_release(irbuilder, release->alloc());
     } else if (auto slot = def->isa<Slot>()) {
         return emit_alloca(irbuilder, convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
     } else if (auto vector = def->isa<Vector>()) {
@@ -948,6 +951,14 @@ llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type,
     }
 
     return irbuilder.CreatePointerCast(void_ptr, llvm::PointerType::get(context(), 0));
+}
+
+llvm::Value* CodeGen::emit_release(llvm::IRBuilder<>& irbuilder, const Def* alloc) {
+    auto llvm_release = runtime_->get(*this, get_release_name().c_str());
+    llvm::Value* llvm_alloc = emit(alloc);
+    llvm::Value* release_args[] = { irbuilder.getInt32(0), llvm_alloc };
+    irbuilder.CreateCall(llvm_release, release_args);
+    return nullptr;
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, const std::string& name) {

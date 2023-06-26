@@ -931,7 +931,8 @@ llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type,
 llvm::Value* CodeGen::emit_release(llvm::IRBuilder<>& irbuilder, const Def* alloc) {
     auto llvm_release = runtime_->get(*this, get_release_name().c_str());
     llvm::Value* llvm_alloc = emit(alloc);
-    llvm::Value* release_args[] = { irbuilder.getInt32(0), llvm_alloc };
+    llvm::Value* cast_alloc = irbuilder.CreatePointerCast(llvm_alloc, irbuilder.getInt8PtrTy());
+    llvm::Value* release_args[] = { irbuilder.getInt32(0), cast_alloc };
     irbuilder.CreateCall(llvm_release, release_args);
     return nullptr;
 }

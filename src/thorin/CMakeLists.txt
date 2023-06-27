@@ -123,3 +123,7 @@ if(LLVM_FOUND)
     endif()
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
 endif()
+
+if(NOT MSVC)
+    target_link_libraries(thorin PRIVATE dl)
+endif()

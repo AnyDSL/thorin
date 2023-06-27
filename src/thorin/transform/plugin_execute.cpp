@@ -54,13 +54,13 @@ void plugin_execute(Thorin& thorin) {
                     continue;
                 }
 
-                Def* input_array[app->num_args() - 2];
+                std::vector<Def*> input_array(app->num_args() - 2);
                 for (size_t i = 1, e = app->num_args() - 1; i < e; i++) {
                     Def * input = const_cast<Def*>(app->arg(i));
                     input_array[i - 1] = input;
                 }
 
-                void * output = plugin_function(app->num_args() - 2, (void **)input_array);
+                void * output = plugin_function(app->num_args() - 2, (void **)input_array.data());
                 app->jump(app->arg(app->num_args() - 1), {app->arg(0), (Def*)output});
 
                 //partial_evaluation(world); //TODO: Some form of cleanup would be advisable here.

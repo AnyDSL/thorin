@@ -152,3 +152,7 @@ endif()
 if(THORIN_ENABLE_JSON)
     target_link_libraries(thorin PRIVATE nlohmann_json::nlohmann_json)
 endif()
+
+if(NOT MSVC)
+    target_link_libraries(thorin PRIVATE dl)
+endif()

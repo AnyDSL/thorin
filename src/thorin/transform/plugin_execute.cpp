@@ -60,7 +60,10 @@ void plugin_execute(World& world) {
                 }
 
                 void * output = plugin_function(app->num_args() - 2, (void **)input_array.data());
-                app->jump(app->arg(app->num_args() - 1), {app->arg(0), (Def*)output});
+                if (output)
+                    app->jump(app->arg(app->num_args() - 1), {app->arg(0), (Def*)output});
+                else
+                    app->jump(app->arg(app->num_args() - 1), {app->arg(0)});
 
                 //partial_evaluation(world); //TODO: Some form of cleanup would be advisable here.
                 evaluated = true;

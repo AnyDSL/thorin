@@ -707,9 +707,14 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
-        else if (index->template isa<PrimLit>()) {
-            if (insert->index()->template isa<PrimLit>())
-                return extract(insert->agg(), index, dbg);
+        else if (auto index_lit = index->isa<PrimLit>()) {
+            if (auto insert_index_lit = insert->index()->isa<PrimLit>()) {
+                if (index_lit->value() == insert_index_lit->value()) {
+                    return insert->value();
+                } else {
+                    return extract(insert->agg(), index, dbg);
+                }
+            }
         }
     }
 

@@ -75,6 +75,7 @@ class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> 
 public:
     CCodeGen(Thorin& thorin, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
         : thorin_(thorin)
+        , forest_(world())
         , kernel_config_(kernel_config)
         , lang_(lang)
         , fn_mem_(world().fn_type({world().mem_type()}))
@@ -92,6 +93,7 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
+    void emit_call(BB& bb, const Def* callee, ArrayRef<std::string>);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -121,6 +123,7 @@ private:
     std::string fn_name(const FnType*);
 
     Thorin& thorin_;
+    ScopesForest forest_;
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
@@ -172,8 +175,8 @@ inline bool is_channel_type(const StructType* struct_type) {
 }
 
 /// Returns true when the def carries concrete data in the final generated code
-inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
-inline bool is_concrete_type(const Type* t) { return !t->isa<MemType>() && t->order() == 0 && t != t->world().unit_type(); }
+inline bool is_concrete(const Def* def) { return !is_mem(def) && !is_unit(def);}
+inline bool is_concrete_type(const Type* t) { return !t->isa<MemType>() && t != t->world().unit_type(); }
 inline bool has_concrete_params(Continuation* cont) {
     return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
 }
@@ -383,7 +386,7 @@ void CCodeGen::emit_module() {
     Continuation* hls_top = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
-    ScopesForest(world()).for_each([&] (const Scope& scope) {
+    forest_.for_each([&] (const Scope& scope) {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else
@@ -640,6 +643,7 @@ std::string CCodeGen::prepare(const Scope& scope) {
     func_impls_ << hls_pragmas_.str();
 
     if (lang_ == Lang::C99 && cont->is_exported() && cont->type()->is_returning()) {
+        convert(cont->type()->return_param_type());
         func_impls_.fmt("{} return_buf;\n", return_name(cont->type()->return_param_type()));
         func_impls_.fmt("if (setjmp(return_buf.buf) != 0) {{\t\n");
         func_impls_.fmt("return return_buf.data;\b\n");
@@ -697,8 +701,8 @@ static inline std::string make_identifier(const std::string& str) {
     return copy;
 }
 
-static inline std::string label_name(const Def* def) {
-    return make_identifier(def->as_nom<Continuation>()->unique_name());
+static inline std::string label_name(const Continuation* def) {
+    return make_identifier(def->unique_name());
 }
 
 void CCodeGen::finalize(const Scope&) {
@@ -728,6 +732,29 @@ const Param* CCodeGen::get_channel_read_output(Continuation* cont) {
         }
     }
     return n == 1 ? values[0] : nullptr;
+}
+
+void CCodeGen::emit_call(BB& bb, const Def* callee, ArrayRef<std::string> args) {
+    if (auto cont = callee->isa_nom<Continuation>()) {
+        auto& scope = forest_.get_scope(entry_);
+        // Use goto syntax when
+        if (scope.contains(cont) && cont != entry_) {
+            assert(cont->num_params() == args.size());
+            for (size_t i = 0, size = cont->num_params(); i != size; ++i) {
+                if (auto arg = args[i]; !arg.empty())
+                    bb.tail.fmt("p_{} = {};\n", cont->param(i)->unique_name(), arg);
+            }
+            bb.tail.fmt("goto {};", label_name(cont));
+            return;
+        }
+    }
+
+    auto ecallee = emit(callee);
+    if (callee->type()->isa<ClosureType>()) {
+        auto appended = concat(args, std::string("(u64) "+ecallee+ ".data"));
+        bb.tail.fmt("{}.f({, });", ecallee, appended);
+    } else
+        bb.tail.fmt("{}({, });\n", ecallee, args);
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
@@ -775,31 +802,35 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
     } else if (body->callee() == world().branch()) {
         emit_unsafe(body->arg(0));
+        Array<std::string> args = { "" };
         auto c = emit(body->arg(1));
-        auto t = label_name(body->arg(2));
-        auto f = label_name(body->arg(3));
-        bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
+        bb.tail.fmt("if ({}) {{\t\n", c);
+        emit_call(bb, body->arg(2), args);
+        bb.tail.fmt("\b\n}} else {{\t\n");
+        emit_call(bb, body->arg(3), args);
+        bb.tail.fmt("\b\n}}");
     } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
         emit_unsafe(body->arg(0));
+        Array<std::string> args = { "" };
 
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
 
         for (size_t i = 3; i < body->num_args(); i++) {
             auto arg = body->arg(i)->as<Tuple>();
-            bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), label_name(arg->op(1)));
+            bb.tail.fmt("case {}: {{\t\n", emit_constant(arg->op(0)));
+            emit_call(bb, arg->op(1), args);
+            bb.tail.fmt("\b\n}}");
         }
 
-        bb.tail.fmt("default: goto {};", label_name(body->arg(2)));
+        bb.tail.fmt("default: {{\t\n");
+        emit_call(bb, body->arg(2), args);
+        bb.tail.fmt("\b\n}}");
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
-        assert(callee->num_params() == body->num_args());
-        for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
-            if (auto arg = emit_unsafe(body->arg(i)); !arg.empty())
-                bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
-        }
-        bb.tail.fmt("goto {};", label_name(callee));
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && forest_.get_scope(callee).parent_scope() != nullptr) { // ordinary jump
+        auto emitted_args = Array<std::string>(body->num_args(), [&](size_t i) { return emit_unsafe(body->arg(i)); });
+        emit_call(bb, callee, emitted_args);
     } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
             emit_unsafe(body->arg(0));
@@ -855,8 +886,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("goto {};\n", label_name(pbody));
 
             // Emit a label that can be used by the "pipeline_continue()" intrinsic.
-            bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(body->arg(6)));
-            bb.tail.fmt("goto {};", label_name(body->arg(5)));
+            bb.tail.fmt("\b\n{}: continue;\n}}\n", label_name(body->arg(6)->as_nom<Continuation>()));
+            bb.tail.fmt("goto {};", label_name(body->arg(5)->as_nom<Continuation>()));
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
             emit_unsafe(body->arg(0));
             bb.tail.fmt("goto {};", label_name(callee));
@@ -922,12 +953,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
         if (!no_function_call) {
-            auto ecallee = emit(body->callee());
-            if (callee_type->isa<ClosureType>()) {
-                args.push_back("(u64) "+ecallee+ ".data");
-                bb.tail.fmt("{}.f({, });", ecallee, args);
-            } else
-                bb.tail.fmt("{}({, });\n", ecallee, args);
+            emit_call(bb, body->callee(), args);
         }
 
         if (!ret)

@@ -89,7 +89,7 @@ protected:
 
         for (auto cont : conts) {
             if (cont->intrinsic() == Intrinsic::EndScope) continue;
-            assert(cont == entry_ || cont->is_basicblock());
+            //assert(cont == entry_ || cont->is_basicblock());
             child().emit_epilogue(cont);
         }
 

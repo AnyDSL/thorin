@@ -140,14 +140,15 @@ struct ClosureConverter : public Rewriter {
             for (auto free : spillable_free_defs(forest_, ocont))
                 free_vars.push_back(free);
 
+            size_t env_param_index = ocont->num_params();
+            nparam_types.push_back(Closure::environment_type(dst()));
+
             if (!free_vars.empty()) {
                 dst().WLOG("slow: closure generated for '{}'", ocont);
                 auto [env_type, thin] = get_env_type(free_vars);
                 env_type = instantiate(env_type)->as<Type>();
 
                 // create a wrapper that takes a pointer to the environment
-                size_t env_param_index = ocont->num_params();
-                nparam_types.push_back(Closure::environment_type(dst()));
                 auto wrapper_type = dst().fn_type(nparam_types);
                 auto ncont = dst().continuation(wrapper_type, ocont->debug());
 

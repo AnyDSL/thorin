@@ -17,12 +17,14 @@ DefSet spillable_free_defs(ScopesForest& forest, Continuation* entry) {
         auto free = queue.pop();
         // assert(!free->type()->isa<ReturnType>());
         if (free->type()->isa<ReturnType>()) {
-            if (auto return_point = free->isa<ReturnPoint>()) {
+            /*if (auto return_point = free->isa<ReturnPoint>()) {
                 queue.push(return_point->continuation());
                 continue;
             }
             auto param = free->isa<Param>();
-            assert(param && param->continuation()->is_exported() && "capturing return parameters is forbidden, except if it is from an entry point");
+            assert(param);
+            assert(param && param->continuation()->is_exported() && "capturing return parameters is forbidden, except if it is from an entry point");*/
+            //assert(false && "capturing return parameters is not ok");
         }
         assert(!free->type()->isa<MemType>());
 

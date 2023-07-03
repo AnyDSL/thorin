@@ -16,8 +16,9 @@ struct ClosureConverter {
     }
 
     struct ScopeRewriter : public Rewriter {
-        ScopeRewriter(ClosureConverter& converter, Scope* scope, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), scope_(scope), parent_(parent) {}
+        ScopeRewriter(ClosureConverter& converter, Scope* scope, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), converter_(converter), scope_(scope), parent_(parent) {}
 
+        ClosureConverter& converter_;
         Scope* scope_;
         ScopeRewriter* parent_;
 
@@ -113,13 +114,14 @@ struct ClosureConverter {
                             }
                         }
 
-                        Scope lifted_scope(lifted);
-                        assert(lifted_scope.free_params().size() == 0);
-                        assert(lifted_scope.parent_scope() == nullptr);
-
+                        lifted->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
                         ncont->jump(lifted, wrapper_args);
 
                         dst().VLOG("finished body of {}", lifted);
+
+                        Scope lifted_scope(ncont);
+                        assert(lifted_scope.free_params().size() == 0);
+                        assert(lifted_scope.parent_scope() == nullptr);
                     });
                 } else {
                     dst().DLOG("dummy closure generated for '{}'", ocont);
@@ -207,7 +209,7 @@ struct ClosureConverter {
             if (use.index() == App::CALLEE_POSITION)
                 return false;
             if (auto callee = app->callee()->isa_nom<Continuation>()) {
-                if (callee->is_intrinsic())
+                if (callee->is_intrinsic()/* && (callee->intrinsic() != Intrinsic::Control || use.index() != App::ARGS_START_POSITION + 2)*/)
                     return false;
             }
         }
@@ -229,8 +231,8 @@ struct ClosureConverter {
 
 const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
     assert(&odef->world() == &src());
-    if (parent_ && !scope_->contains(odef))
-        return parent_->instantiate(odef);
+    //if (parent_ && !scope_->contains(odef))
+    //    return parent_->instantiate(odef);
 
     if (auto fn_type = odef->isa<FnType>()) {
         Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
@@ -252,7 +254,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             dst().make_external(const_cast<Def*>(nglobal));
         return nglobal;
     } else if (auto ocont = odef->isa_nom<Continuation>()) {
-        assert(false);
+        auto& scope = converter_.forest_.get_scope(ocont);
+        auto nparam_types = converter_.rewrite_params(*this, ocont);
+        assert(!converter_.needs_conversion(ocont));
+        auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+        insert(ocont, ncont);
+        for (size_t i = 0; i < ocont->num_params(); i++)
+            insert(ocont->param(i), ncont->param(i));
+        dst().DLOG("no closure generated for '{}'", ocont);
+        ncont->rebuild_from(*this, ocont);
+        dst().DLOG("'{}' rebuilt as '{} (external={} {})'", ocont, ncont, ocont->is_external(), ncont->is_external());
+        return ncont;
     } else if (auto app = odef->isa<App>()) {
         auto ncallee = instantiate(app->callee());
         if (auto ncont = ncallee->isa_nom<Continuation>(); ncont && ncont->is_intrinsic()) {

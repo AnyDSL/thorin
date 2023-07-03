@@ -53,9 +53,9 @@ struct ClosureConverter {
                 auto closure_type = dst().closure_type(nparam_types);
 
                 // create a wrapper that takes a pointer to the environment
-                nparam_types.push_back(Closure::environment_type(dst()));
+                nparam_types.push_back(closure_type);
                 auto wrapper_type = dst().fn_type(nparam_types);
-                auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+                auto ncont = dst().continuation(wrapper_type, ocont->attributes(), ocont->debug());
 
                 std::vector<const Def*> free_vars;
                 for (auto free : spillable_free_defs(forest_, ocont))
@@ -76,6 +76,7 @@ struct ClosureConverter {
                     auto closure = dst().closure(closure_type, ncont, rewriter->instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
                     rewriter->insert(ocont, closure);
 
+                    body_rewriter->insert(ocont, ncont->params().back());
                     for (size_t i = 0; i < ocont->num_params(); i++)
                         body_rewriter->insert(ocont->param(i), ncont->param(i));
 
@@ -90,12 +91,14 @@ struct ClosureConverter {
                     todo_.emplace_back([=]() {
                         Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
                         const Def* new_mem = ncont->mem_param();
+                        auto closure_param = ncont->param(env_param_index);
+                        auto env = dst().extract(closure_param, 1);
                         if (thin) {
-                            wrapper_args[env_param_index] = dst().cast(rewriter->instantiate(free_vars[0]->type())->as<Type>(), ncont->param(env_param_index));
+                            wrapper_args[env_param_index] = dst().cast(rewriter->instantiate(free_vars[0]->type())->as<Type>(), env);
                         } else {
                             // make the wrapper load the pointer and pass each
                             // variable of the environment to the lifted continuation
-                            auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), ncont->param(env_param_index));
+                            auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), env);
                             auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
                             auto env_data = dst().extract(loaded_env, 1_u32);
                             new_mem = dst().extract(loaded_env, 0_u32);

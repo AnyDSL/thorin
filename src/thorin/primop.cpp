@@ -291,6 +291,13 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
         return get(struct_type->types(), index);
+    else if (auto closure = agg->type()->isa<ClosureType>()) {
+        switch (primlit_value<int>(index)) {
+            case 0: return closure->world().fn_type(closure->types());
+            case 1: return closure->world().type_qu64();
+            default: assert(false);
+        }
+    }
 
     THORIN_UNREACHABLE;
 }

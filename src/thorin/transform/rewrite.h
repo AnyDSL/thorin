@@ -18,6 +18,7 @@ public:
 
 protected:
     explicit Rewriter(World& src, World& dst, Rewriter& parent);
+    virtual const Def* lookup(const Def* odef);
     virtual const Def* rewrite(const Def* odef);
 
 private:

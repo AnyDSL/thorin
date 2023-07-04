@@ -225,6 +225,10 @@ protected:
     Aggregate(World& world, NodeTag tag, Defs args, Debug dbg)
         : Def(world, tag, nullptr /*set later*/, args, dbg)
     {}
+
+    Aggregate(World& world, NodeTag tag, const Type* t, size_t size, Debug dbg)
+        : Def(world, tag, t, size, dbg)
+    {}
 };
 
 /// Data constructor for a \p DefiniteArrayType.
@@ -331,16 +335,20 @@ public:
 /// Data constructor for a @p ClosureType.
 class Closure : public Aggregate {
 private:
-    Closure(World& world, const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg)
-        : Aggregate(world, Node_Closure, {fn, env}, dbg)
+    Closure(World& world, const ClosureType* closure_type, Debug dbg)
+        : Aggregate(world, Node_Closure, closure_type, 2, dbg)
     {
-        set_type(closure_type);
         //dep_ = env->dep();
     }
 
-    const Def* rebuild(World&, const Type*, Defs) const override;
+    void rebuild_from(thorin::Rewriter &, const thorin::Def *old) override;
+    Def* stub(thorin::Rewriter &, const thorin::Type *) const override;
 
 public:
+    void set_fn(Continuation* f);
+    void set_env(const Def* env) {
+        set_op(1, env);
+    }
     const Def* fn() const { return op(0); }
     const Def* env() const { return op(1); }
     static const Type*    environment_type(World&);

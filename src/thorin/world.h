@@ -197,7 +197,7 @@ public:
     const Def* variant_index  (const Def* value, Debug dbg = {});
     const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
 
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(*this, closure_type, fn, env, dbg)); }
+    Closure* closure(const ClosureType* closure_type, Debug dbg = {}) { put<Closure>(*this, closure_type, dbg); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(cse(new Vector(*this, args, dbg)));

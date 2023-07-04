@@ -1,6 +1,5 @@
 #include "thorin/continuation.h"
 #include "thorin/world.h"
-#include "thorin/analyses/verify.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/cfg.h"
@@ -9,18 +8,22 @@
 namespace thorin {
 
 struct ClosureConverter {
-    ClosureConverter(World& src, World& dst) : src_(src), dst_(dst), forest_(src) {
+    ClosureConverter(World& src, World& dst) : src_(src), dst_(dst), root_rewriter_(*this, "root", nullptr), forest_(src) {
         assert(&src != &dst);
-        root_rewriter_ = std::make_shared<ScopeRewriter>(*this, nullptr, nullptr);
-        visit_set(forest_.top_level_scopes(), root_rewriter_);
     }
 
     struct ScopeRewriter : public Rewriter {
-        ScopeRewriter(ClosureConverter& converter, Scope* scope, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), converter_(converter), scope_(scope), parent_(parent) {}
+        ScopeRewriter(ClosureConverter& converter, std::string name, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), converter_(converter), parent_(parent), name_(name) {
+            if (parent)
+                depth_ = parent->depth_ + 1;
+            //assert(depth_ < 4);
+        }
 
+        int depth_ = 0;
         ClosureConverter& converter_;
-        Scope* scope_;
         ScopeRewriter* parent_;
+        std::vector<std::unique_ptr<ScopeRewriter>> children_;
+        std::string name_;
 
         const Def* lookup(const thorin::Def* odef) override {
             auto found = Rewriter::lookup(odef);
@@ -29,117 +32,24 @@ struct ClosureConverter {
             return nullptr;
         }
 
+        const std::string dump() {
+            std::string n = name_;
+            ScopeRewriter* r = parent_;
+            while (r) {
+                n = r->name_ + "::" + n;
+                r = r->parent_;
+            }
+            return n;
+        }
+
         const Def* rewrite(const Def* odef) override;
+
+        ScopeRewriter(ScopeRewriter&) = delete;
+        ScopeRewriter(ScopeRewriter&&) = delete;
     };
 
-    void visit_set(ContinuationSet oconts, std::shared_ptr<ScopeRewriter> rewriter) {
-        for (auto ocont : oconts) {
-            dst().DLOG("closure_conversion: analysing '{}'", ocont);
-            auto& scope = forest_.get_scope(ocont);
-            std::shared_ptr<ScopeRewriter> body_rewriter;
-            auto nparam_types = rewrite_params(*rewriter, ocont);
-            if (!needs_conversion(ocont)) {
-                auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
-                rewriter->insert(ocont, ncont);
-                body_rewriter = std::make_shared<ScopeRewriter>(*this, &scope, rewriter.get());
-                for (size_t i = 0; i < ocont->num_params(); i++)
-                    body_rewriter->insert(ocont->param(i), ncont->param(i));
-                dst().DLOG("no closure generated for '{}'", ocont);
-                todo_.emplace_back([=]() {
-                    ncont->rebuild_from(*body_rewriter, ocont);
-                    dst().DLOG("'{}' rebuilt as '{} (external={} {})'", ocont, ncont, ocont->is_external(), ncont->is_external());
-                });
-            } else {
-                auto closure_type = dst().closure_type(nparam_types);
-
-                // create a wrapper that takes a pointer to the environment
-                nparam_types.push_back(closure_type);
-                auto wrapper_type = dst().fn_type(nparam_types);
-                auto ncont = dst().continuation(wrapper_type, ocont->attributes(), ocont->debug());
-
-                std::vector<const Def*> free_vars;
-                for (auto free : spillable_free_defs(forest_, ocont))
-                    free_vars.push_back(free);
-
-                size_t env_param_index = ocont->num_params();
-
-                // only the root rewriter is a parent, we're remaking everything else
-                body_rewriter = std::make_shared<ScopeRewriter>(*this, &scope, root_rewriter_.get());
-
-                if (!free_vars.empty()) {
-                    dst().WLOG("slow: closure generated for '{}'", ocont);
-                    auto [env_type, thin] = get_env_type(free_vars);
-                    env_type = rewriter->instantiate(env_type)->as<Type>();
-
-                    dst().WLOG("slow: rewriting '{}' as '{}'", ocont, ncont);
-
-                    auto closure = dst().closure(closure_type, ncont, rewriter->instantiate(thin ? free_vars[0] : src().tuple(free_vars)), ocont->debug());
-                    rewriter->insert(ocont, closure);
-
-                    body_rewriter->insert(ocont, ncont->params().back());
-                    for (size_t i = 0; i < ocont->num_params(); i++)
-                        body_rewriter->insert(ocont->param(i), ncont->param(i));
-
-                    auto lifted = dst().continuation(dst().fn_type(wrapper_type->types().skip_back(1)), { ncont->name() + "_lifted" });
-                    for (auto free : free_vars) {
-                        auto nparam = lifted->append_param(rewriter->instantiate(free->type())->as<Type>(), { "captured" });
-                        body_rewriter->insert(free, nparam);
-                    }
-
-                    dst().VLOG("lifted as {}", lifted);
-
-                    todo_.emplace_back([=]() {
-                        Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
-                        const Def* new_mem = ncont->mem_param();
-                        auto closure_param = ncont->param(env_param_index);
-                        auto env = dst().extract(closure_param, 1);
-                        if (thin) {
-                            wrapper_args[env_param_index] = dst().cast(rewriter->instantiate(free_vars[0]->type())->as<Type>(), env);
-                        } else {
-                            // make the wrapper load the pointer and pass each
-                            // variable of the environment to the lifted continuation
-                            auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), env);
-                            auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
-                            auto env_data = dst().extract(loaded_env, 1_u32);
-                            new_mem = dst().extract(loaded_env, 0_u32);
-                            for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                                wrapper_args[env_param_index + i] = dst().extract(env_data, i);
-                        }
-
-                        // make the wrapper call into the lifted continuation with the right arguments
-                        for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
-                            auto param = ncont->param(i);
-                            if (param->type()->isa<MemType>()) {
-                                // use the mem obtained after the load
-                                wrapper_args[i] = new_mem;
-                            } else {
-                                wrapper_args[i] = ncont->param(i);
-                            }
-                        }
-
-                        lifted->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
-                        ncont->jump(lifted, wrapper_args);
-
-                        dst().VLOG("finished body of {}", lifted);
-
-                        Scope lifted_scope(ncont);
-                        assert(lifted_scope.free_params().size() == 0);
-                        assert(lifted_scope.parent_scope() == nullptr);
-                    });
-                } else {
-                    dst().DLOG("dummy closure generated for '{}'", ocont);
-                    for (size_t i = 0; i < ocont->num_params(); i++)
-                        body_rewriter->insert(ocont->param(i), ncont->param(i));
-
-                    auto closure = dst().closure(closure_type, ncont, dst().tuple({}), ocont->debug());
-                    rewriter->insert(ocont, closure);
-                    todo_.emplace_back([=]() {
-                        ncont->rebuild_from(*body_rewriter, ocont);
-                    });
-                }
-            }
-            visit_set(scope.children_scopes(), body_rewriter);
-        }
+    ScopeRewriter& root_rewriter() {
+        return root_rewriter_;
     }
 
     bool needs_conversion(Continuation* cont) {
@@ -226,7 +136,7 @@ struct ClosureConverter {
     World& src() { return src_; }
     World& dst() { return dst_; }
 
-    std::shared_ptr<ScopeRewriter> root_rewriter_;
+    ScopeRewriter root_rewriter_;
     ScopesForest forest_;
     ContinuationMap<bool> should_convert_;
     std::vector<std::function<void()>> todo_;
@@ -257,17 +167,121 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             dst().make_external(const_cast<Def*>(nglobal));
         return nglobal;
     } else if (auto ocont = odef->isa_nom<Continuation>()) {
+        dst().DLOG("closure_conversion: analysing '{}'", ocont);
         auto& scope = converter_.forest_.get_scope(ocont);
+        ScopeRewriter* body_rewriter;
+        const Def* ndef = nullptr;
         auto nparam_types = converter_.rewrite_params(*this, ocont);
-        assert(!converter_.needs_conversion(ocont));
-        auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
-        insert(ocont, ncont);
-        for (size_t i = 0; i < ocont->num_params(); i++)
-            insert(ocont->param(i), ncont->param(i));
-        dst().DLOG("no closure generated for '{}'", ocont);
-        ncont->rebuild_from(*this, ocont);
-        dst().DLOG("'{}' rebuilt as '{} (external={} {})'", ocont, ncont, ocont->is_external(), ncont->is_external());
-        return ncont;
+        if (!converter_.needs_conversion(ocont)) {
+            auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
+            insert(ocont, ncont);
+            ndef = ncont;
+            children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, ocont->unique_name(), this));
+            body_rewriter = children_.back().get();
+            for (size_t i = 0; i < ocont->num_params(); i++)
+                body_rewriter->insert(ocont->param(i), ncont->param(i));
+            dst().DLOG("no closure generated for '{}'", ocont);
+            converter_.todo_.emplace_back([=]() {
+                ncont->rebuild_from(*body_rewriter, ocont);
+                dst().DLOG("'{}' rebuilt as '{} (external={} {})'", ocont, ncont, ocont->is_external(), ncont->is_external());
+                //body_rewriter->children_.clear();
+            });
+        } else {
+            auto closure_type = dst().closure_type(nparam_types);
+
+            // create a wrapper that takes a pointer to the environment
+            nparam_types.push_back(closure_type);
+            auto wrapper_type = dst().fn_type(nparam_types);
+            auto ncont = dst().continuation(wrapper_type, ocont->attributes(), ocont->debug());
+            ncont->params().back()->set_name("self");
+
+            auto closure = dst().closure(closure_type, ocont->debug());
+            closure->set_fn(ncont);
+            ndef = closure;
+            insert(ocont, closure);
+            dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
+
+            std::vector<const Def*> free_vars;
+            for (auto free : spillable_free_defs(converter_.forest_, ocont))
+                free_vars.push_back(free);
+
+            size_t env_param_index = ocont->num_params();
+
+            // only the root rewriter is a parent, we're remaking everything else
+            children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, ocont->unique_name(), &converter_.root_rewriter_));
+            body_rewriter = children_.back().get();
+
+            body_rewriter->insert(ocont, ncont->params().back());
+            for (size_t i = 0; i < ocont->num_params(); i++)
+                body_rewriter->insert(ocont->param(i), ncont->param(i));
+
+            if (!free_vars.empty()) {
+                dst().WLOG("slow: rewriting '{}' as '{}'", ocont, ncont);
+                auto [env_type, thin] = converter_.get_env_type(free_vars);
+                env_type = this->instantiate(env_type)->as<Type>();
+
+                auto lifted = dst().continuation(dst().fn_type(wrapper_type->types().skip_back(1)), { ncont->name() + "_lifted" });
+                for (auto free : free_vars) {
+                    auto nparam = lifted->append_param(this->instantiate(free->type())->as<Type>(), { "captured" });
+                    body_rewriter->insert(free, nparam);
+                }
+
+                dst().VLOG("lifted as {}", lifted);
+
+                converter_.todo_.emplace_back([=]() {
+                    closure->set_env(this->instantiate(thin ? free_vars[0] : src().tuple(free_vars)));
+
+                    Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
+                    const Def* new_mem = ncont->mem_param();
+                    auto closure_param = ncont->param(env_param_index);
+                    auto env = dst().extract(closure_param, 1);
+                    if (thin) {
+                        wrapper_args[env_param_index] = dst().cast(this->instantiate(free_vars[0]->type())->as<Type>(), env);
+                    } else {
+                        // make the wrapper load the pointer and pass each
+                        // variable of the environment to the lifted continuation
+                        auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), env);
+                        auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
+                        auto env_data = dst().extract(loaded_env, 1_u32);
+                        new_mem = dst().extract(loaded_env, 0_u32);
+                        for (size_t i = 0, e = free_vars.size(); i != e; ++i)
+                            wrapper_args[env_param_index + i] = dst().extract(env_data, i);
+                    }
+
+                    // make the wrapper call into the lifted continuation with the right arguments
+                    for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
+                        auto param = ncont->param(i);
+                        if (param->type()->isa<MemType>()) {
+                            // use the mem obtained after the load
+                            wrapper_args[i] = new_mem;
+                        } else {
+                            wrapper_args[i] = ncont->param(i);
+                        }
+                    }
+
+                    lifted->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
+                    ncont->jump(lifted, wrapper_args);
+
+                    dst().VLOG("finished body of {}", lifted);
+
+                    Scope lifted_scope(ncont);
+                    assert(lifted_scope.free_params().size() == 0);
+                    assert(lifted_scope.parent_scope() == nullptr);
+                    //body_rewriter->children_.clear();
+                });
+            } else {
+                dst().DLOG("dummy closure generated for '{}'", ocont);
+                for (size_t i = 0; i < ocont->num_params(); i++)
+                    body_rewriter->insert(ocont->param(i), ncont->param(i));
+
+                closure->set_env(dst().tuple({}));
+                converter_.todo_.emplace_back([=]() {
+                    ncont->rebuild_from(*body_rewriter, ocont);
+                });
+            }
+        }
+        assert(ndef);
+        return ndef;
     } else if (auto app = odef->isa<App>()) {
         auto ncallee = instantiate(app->callee());
         if (auto ncont = ncallee->isa_nom<Continuation>(); ncont && ncont->is_intrinsic()) {
@@ -288,11 +302,14 @@ void closure_conversion(Thorin& thorin) {
     auto dst = std::make_unique<World>(*src);
     ClosureConverter converter(*src, *dst);
 
+    for (auto& external : src->externals())
+        converter.root_rewriter().instantiate(external.second);
+
     while (!converter.todo_.empty()) {
         auto f = converter.todo_.back();
+        converter.todo_.pop_back();
         dst->DLOG("babooeey");
         f();
-        converter.todo_.pop_back();
     }
 
     src.swap(dst);

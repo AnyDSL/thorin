@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/continuation.h"
+#include "thorin/transform/rewrite.h"
 
 #include "thorin/config.h"
 #include "thorin/type.h"
@@ -132,6 +133,10 @@ Assembly::Assembly(World& world, const Type *type, Defs inputs, std::string asm_
     , flags_(flags)
 {}
 
+void Closure::set_fn(thorin::Continuation* f) {
+    set_op(0, f);
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -215,7 +220,7 @@ const Def* Tuple         ::rebuild(World& w, const Type*  , Defs o) const { retu
 const Def* Variant       ::rebuild(World& w, const Type* t, Defs o) const { return w.variant(t->as<VariantType>(), o[0], index(), debug()); }
 const Def* VariantIndex  ::rebuild(World& w, const Type*  , Defs o) const { return w.variant_index(o[0], debug()); }
 const Def* VariantExtract::rebuild(World& w, const Type*  , Defs o) const { return w.variant_extract(o[0], index(), debug()); }
-const Def* Closure       ::rebuild(World& w, const Type* t, Defs o) const { return w.closure(t->as<ClosureType>(), o[0], o[1], debug()); }
+//const Def* Closure       ::rebuild(World& w, const Type* t, Defs o) const { return w.closure(t->as<ClosureType>(), o[0], o[1], debug()); }
 const Def* Vector        ::rebuild(World& w, const Type*  , Defs o) const { return w.vector(o, debug()); }
 
 const Def* Alloc::rebuild(World& w, const Type* t, Defs o) const {
@@ -236,6 +241,16 @@ const Def* StructAgg::rebuild(World& w, const Type* t, Defs o) const {
 
 const Def* IndefiniteArray::rebuild(World& w, const Type* t, Defs o) const {
     return w.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), o[0], debug());
+}
+
+Def* Closure::stub(thorin::Rewriter& r, const thorin::Type* t) const {
+    return r.dst().closure(t->as<ClosureType>(), debug());
+}
+
+void Closure::rebuild_from(thorin::Rewriter& r, const thorin::Def* old) {
+    auto oclosure = old->as<Closure>();
+    set_fn(r.instantiate(oclosure->fn())->as_nom<Continuation>());
+    set_env(r.instantiate(oclosure->env()));
 }
 
 //------------------------------------------------------------------------------

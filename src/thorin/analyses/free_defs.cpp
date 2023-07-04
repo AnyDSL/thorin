@@ -8,9 +8,9 @@ DefSet spillable_free_defs(ScopesForest& forest, Continuation* entry) {
     DefSet result;
     unique_queue<DefSet> queue;
 
-    //for (auto def: forest.get_scope(entry).free_frontier())
-    //    queue.push(def);
-    queue.push(entry);
+    for (auto def: forest.get_scope(entry).free_frontier())
+        queue.push(def);
+    //queue.push(entry);
     entry->world().VLOG("Computing free variables for {}", entry);
 
     while (!queue.empty()) {
@@ -31,7 +31,7 @@ DefSet spillable_free_defs(ScopesForest& forest, Continuation* entry) {
         //if (free == entry)
         //    continue;
 
-        if (auto cont = free->isa_nom<Continuation>()) {
+        /*if (auto cont = free->isa_nom<Continuation>()) {
             auto& scope = forest.get_scope(cont);
             auto& frontier = scope.free_frontier();
             entry->world().VLOG("encountered: {}, frontier_size={}", cont, frontier.size());
@@ -39,7 +39,7 @@ DefSet spillable_free_defs(ScopesForest& forest, Continuation* entry) {
                 queue.push(def);
             }
             continue;
-        }
+        }*/
 
         if (free->has_dep(Dep::Param)) {
             entry->world().VLOG("fv: {} : {}", free, free->type());

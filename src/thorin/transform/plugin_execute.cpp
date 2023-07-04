@@ -34,12 +34,11 @@ void plugin_execute(World& world) {
         });
 
         for (auto cont : plugin_intrinsics) {
-            void * function_handle = world.search_plugin_function(cont->name());
-            if (!function_handle) {
+            auto plugin_function = world.search_plugin_function(cont->name().c_str());
+            if (!plugin_function) {
                 world.ELOG("Plugin function not found for: {}", cont->name());
                 continue;
             }
-            auto plugin_function = (void*(*)(size_t, void**)) function_handle;
 
             bool evaluated = false;
             for (auto use : cont->copy_uses()) {
@@ -53,13 +52,7 @@ void plugin_execute(World& world) {
                     continue;
                 }
 
-                std::vector<Def*> input_array(app->num_args() - 2);
-                for (size_t i = 1, e = app->num_args() - 1; i < e; i++) {
-                    Def * input = const_cast<Def*>(app->arg(i));
-                    input_array[i - 1] = input;
-                }
-
-                void * output = plugin_function(app->num_args() - 2, (void **)input_array.data());
+                void* output = plugin_function(&world, app);
                 if (output)
                     app->jump(app->arg(app->num_args() - 1), {app->arg(0), (Def*)output});
                 else

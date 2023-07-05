@@ -10,6 +10,7 @@
 #endif
 
 #include <cmath>
+#include <algorithm>
 #ifdef _MSC_VER
 #include <windows.h>
 #else
@@ -1302,9 +1303,9 @@ void World::opt() {
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(clone_bodies(*this))
     RUN_PASS(split_slots(*this))
-    if (plugin_handles.size() > 0) {
-        RUN_PASS(plugin_execute(*this));
-        RUN_PASS(cleanup());
+    if (!data_.plugin_intrinsics_.empty()) {
+        RUN_PASS(plugin_execute(*this, std::move(data_.plugin_intrinsics_)));
+        // RUN_PASS(cleanup());
     }
     RUN_PASS(closure_conversion(*this))
     RUN_PASS(lift_builtins(*this))
@@ -1315,7 +1316,7 @@ void World::opt() {
     RUN_PASS(codegen_prepare(*this))
 }
 
-bool World::register_plugin(const char* plugin_name) {
+bool World::load_plugin(const char* plugin_name) {
 #ifdef _MSC_VER
     return false;
 #else // _MSC_VER
@@ -1332,23 +1333,41 @@ bool World::register_plugin(const char* plugin_name) {
     if ((error = dlerror()) != NULL) {
         ILOG("Plugin {} did not supply an init function", plugin_name);
     } else {
-        initfunc(this);
+        initfunc();
     }
 
-    plugin_handles.push_back(handle);
+    data_.plugin_modules_.push_back(handle);
     return true;
 #endif // _MSC_VER
 }
 
-World::plugin_func_t* World::search_plugin_function(const char* function_name) const {
+template <typename T>
+static T* lookup_plugin_function(void* plugin_module, const char* function_name) {
 #ifdef _MSC_VER
 #else // _MSC_VER
-    for (auto plugin : plugin_handles) {
-        if (void* plugin_function = dlsym(plugin, function_name)) {
-            return reinterpret_cast<plugin_func_t*>(plugin_function);
-        }
+    if (void* func = dlsym(plugin_module, function_name)) {
+        return reinterpret_cast<T*>(func);
     }
 #endif // _MSC_VER
     return nullptr;
+}
+
+unique_plugin_intrinsic World::load_plugin_intrinsic(const char* function_name) const {
+    for (auto plugin_module : data_.plugin_modules_) {
+        if (auto create_intrinsic = lookup_plugin_function<plugin_intrinsic_create_func_t>(plugin_module, function_name))
+            return unique_plugin_intrinsic(create_intrinsic());
+    }
+
+    return nullptr;
+}
+
+void World::link_plugin_intrinsic(Continuation* cont) {
+    auto intrinsic = load_plugin_intrinsic(cont->name().c_str());
+
+    if (!intrinsic)
+        error(cont->loc(), "failed to link plugin intrinsic {}", cont->name());
+
+    cont->attributes().intrinsic = Intrinsic::Plugin;
+    data_.plugin_intrinsics_.push_back({ cont, std::move(intrinsic) });
 }
 }

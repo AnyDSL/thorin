@@ -6,12 +6,14 @@
 #include <functional>
 #include <initializer_list>
 #include <string>
+#include <vector>
 
 #include "thorin/enums.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
+#include "thorin/plugin.h"
 #include "thorin/config.h"
 
 namespace thorin {
@@ -321,11 +323,13 @@ public:
 
     // plugins
 
-    using plugin_init_func_t = void(World*);
-    using plugin_func_t = const Def*(World*, const App*);
+    struct PluginIntrinsic {
+        const Continuation* cont;
+        unique_plugin_intrinsic impl;
+    };
 
-    bool register_plugin(const char* plugin_name);
-    plugin_func_t* search_plugin_function(const char* function_name) const;
+    bool load_plugin(const char* plugin_name);
+    void link_plugin_intrinsic(Continuation* cont);
 
 private:
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
@@ -333,9 +337,6 @@ private:
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
-
-    std::unique_ptr<World> world_;
-    std::vector<void*> plugin_handles;
 
     /// @name put into see of nodes
     //@{
@@ -371,9 +372,13 @@ private:
         Sea defs_;
         Continuation* branch_;
         Continuation* end_scope_;
+        std::vector<void*> plugin_modules_;
+        std::vector<PluginIntrinsic> plugin_intrinsics_;
     } data_;
 
     std::shared_ptr<Stream> stream_;
+
+    unique_plugin_intrinsic load_plugin_intrinsic(const char* function_name) const;
 
     friend class Mangler;
     friend class Cleaner;

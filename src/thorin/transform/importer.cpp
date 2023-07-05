@@ -100,4 +100,12 @@ const Def* Importer::import(const Def* odef) {
     return ncontinuation;
 }
 
+void Importer::import_plugin_intrinsic(const Continuation* cont, unique_plugin_intrinsic func) {
+    if (auto ncont = def_old2new_.lookup(cont)) {
+        assert(&(*ncont)->world() == &world_);
+        assert((*ncont)->isa<Continuation>());
+        world_.data_.plugin_intrinsics_.push_back({ (*ncont)->as<Continuation>(), std::move(func) });
+    }
+}
+
 }

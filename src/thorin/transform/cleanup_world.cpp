@@ -240,6 +240,11 @@ void Cleaner::rebuild() {
             importer.import(cont);
     }
 
+    for (auto&& [cont, func] : world_.data_.plugin_intrinsics_) {
+        if (cont->num_uses() > 0)
+            importer.import_plugin_intrinsic(cont, std::move(func));
+    }
+
     swap(importer.world(), world_);
 
     // verify(world_);

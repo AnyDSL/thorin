@@ -52,9 +52,9 @@ void plugin_execute(World& world) {
                     continue;
                 }
 
-                void* output = plugin_function(&world, app);
+                const Def* output = plugin_function(&world, app);
                 if (output)
-                    app->jump(app->arg(app->num_args() - 1), {app->arg(0), (Def*)output});
+                    app->jump(app->arg(app->num_args() - 1), {app->arg(0), output});
                 else
                     app->jump(app->arg(app->num_args() - 1), {app->arg(0)});
 

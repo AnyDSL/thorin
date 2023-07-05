@@ -46,17 +46,20 @@ void plugin_execute(World& world) {
                     continue;
                 }
 
-                auto app = const_cast<App*>(use.def()->as<App>());
+                auto app = use.def()->as<App>();
 
                 if (app->num_uses() == 0) {
                     continue;
                 }
 
                 const Def* output = plugin_function(&world, app);
-                if (output)
-                    app->jump(app->arg(app->num_args() - 1), {app->arg(0), output});
-                else
-                    app->jump(app->arg(app->num_args() - 1), {app->arg(0)});
+                const Def* app_rebuild = nullptr;
+                if (output) {
+                    app_rebuild = app->rebuild(world, world.bottom_type(), {app->arg(app->num_args() - 1), app->arg(0), output});
+                } else {
+                    app_rebuild = app->rebuild(world, world.bottom_type(), {app->arg(app->num_args() - 1), app->arg(0)});
+                }
+                app->replace_uses(app_rebuild);
 
                 //partial_evaluation(world); //TODO: Some form of cleanup would be advisable here.
                 evaluated = true;

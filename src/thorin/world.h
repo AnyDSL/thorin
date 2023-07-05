@@ -419,7 +419,7 @@ public:
     // plugins
 
     using plugin_init_func_t = void(World*);
-    using plugin_func_t = void*(World*, const App*);
+    using plugin_func_t = const Def*(World*, const App*);
 
     bool register_plugin(const char* plugin_name);
     plugin_func_t* search_plugin_function(const char* function_name) const;

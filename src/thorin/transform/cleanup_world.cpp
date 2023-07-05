@@ -18,7 +18,6 @@ public:
         : world_(world)
     {}
 
-    World& world() { return world_; }
     void cleanup();
     void eliminate_tail_rec();
     void eta_conversion();
@@ -49,7 +48,7 @@ void Cleaner::eliminate_tail_rec() {
                 } else if (use->isa_nom<Param>())
                     continue; // ignore params
 
-                world().ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
+                world_.ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
                 only_tail_calls = false;
                 break;
             }
@@ -88,7 +87,7 @@ void Cleaner::eliminate_tail_rec() {
             }
 
             if (new_args.size() != n) {
-                world().DLOG("tail recursive: {}", entry);
+                world_.DLOG("tail recursive: {}", entry);
                 auto dropped = drop(scope, args);
 
                 entry->jump(dropped, new_args);
@@ -102,7 +101,7 @@ void Cleaner::eliminate_tail_rec() {
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
-        for (auto def : world().copy_defs()) {
+        for (auto def : world_.copy_defs()) {
             auto continuation = def->isa_nom<Continuation>();
             if (!continuation || !continuation->has_body()) continue;
 
@@ -111,7 +110,7 @@ void Cleaner::eta_conversion() {
                 auto body = continuation->body();
                 if (callee == continuation) break;
 
-                if (callee->has_body() && !world().is_external(callee) && callee->can_be_inlined()) {
+                if (callee->has_body() && !world_.is_external(callee) && callee->can_be_inlined()) {
                     auto callee_body = callee->body();
                     for (size_t i = 0, e = body->num_args(); i != e; ++i)
                         callee->param(i)->replace_uses(body->arg(i));
@@ -131,7 +130,7 @@ void Cleaner::eta_conversion() {
             // try to subsume continuations which call a parameter
             // (that is free within that continuation) with that parameter
             if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || world().is_external(continuation))
+                if (param->continuation() == continuation || world_.is_external(continuation))
                     continue;
 
                 if (body->args() == continuation->params_as_defs()) {
@@ -181,11 +180,11 @@ void Cleaner::eta_conversion() {
 
 void Cleaner::eliminate_params() {
     // TODO
-    for (auto ocontinuation : world().copy_continuations()) {
+    for (auto ocontinuation : world_.copy_continuations()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
+        if (ocontinuation->has_body() && !world_.is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
                 if (use.index() != 0 || !use->isa_nom<Continuation>())
@@ -201,8 +200,8 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto ncontinuation = world().continuation(
-                    world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
+                auto ncontinuation = world_.continuation(
+                    world_.fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
                     ocontinuation->attributes(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
@@ -236,14 +235,14 @@ void Cleaner::rebuild() {
     importer.type_old2new_.rehash(world_.types().capacity());
     importer.def_old2new_.rehash(world_.defs().capacity());
 
-    for (auto&& [_, cont] : world().externals()) {
+    for (auto&& [_, cont] : world_.externals()) {
         if (cont->is_exported())
             importer.import(cont);
     }
 
     swap(importer.world(), world_);
 
-    // verify(world());
+    // verify(world_);
 
     todo_ |= importer.todo();
 }
@@ -262,20 +261,20 @@ void Cleaner::verify_closedness() {
         }
     };
 
-    for (auto def : world().defs())
+    for (auto def : world_.defs())
         check(def);
 }
 
 void Cleaner::within(const Def* def) {
     if (def->isa<Param>()) return; // TODO remove once Params are within World's sea of nodes
-    assert(world().types().contains(def->type()));
-    assert_unused(world().defs().contains(def));
+    assert(world_.types().contains(def->type()));
+    assert_unused(world_.defs().contains(def));
 }
 
 void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
     assert(cur->has_body());
     auto body = cur->body();
-    assert(body->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    assert(body->arg(1)->type() == world_.ptr_type(world_.indefinite_array_type(world_.type_pu8())));
     auto next = body->arg(3);
     auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
@@ -296,7 +295,7 @@ void Cleaner::clean_pe_infos() {
             queue.push(continuation);
     };
 
-    for (auto&& [_, cont] : world().externals())
+    for (auto&& [_, cont] : world_.externals())
         if (cont->has_body()) enqueue(cont);
 
     while (!queue.empty()) {
@@ -326,9 +325,9 @@ void Cleaner::cleanup_fix_point() {
         eta_conversion();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
-        todo_ |= resolve_loads(world());
+        todo_ |= resolve_loads(world_);
         rebuild();
-        if (!world().is_pe_done())
+        if (!world_.is_pe_done())
             todo_ |= partial_evaluation(world_);
         else
             clean_pe_infos();
@@ -339,9 +338,9 @@ void Cleaner::cleanup() {
     world_.VLOG("start cleanup");
     cleanup_fix_point();
 
-    if (!world().is_pe_done()) {
-        world().mark_pe_done();
-        for (auto def : world().defs()) {
+    if (!world_.is_pe_done()) {
+        world_.mark_pe_done();
+        for (auto def : world_.defs()) {
             if (auto cont = def->isa_nom<Continuation>())
                 cont->destroy_filter();
         }
@@ -353,7 +352,7 @@ void Cleaner::cleanup() {
     world_.VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
-    debug_verify(world());
+    debug_verify(world_);
 #endif
 }
 

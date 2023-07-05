@@ -51,6 +51,7 @@ void plugin_execute(Thorin& thorin) {
                 }
 
                 auto app = use.def()->as<App>();
+                assert(app->callee() == cont);
 
                 if (app->num_uses() == 0) {
                     continue;
@@ -73,7 +74,7 @@ void plugin_execute(Thorin& thorin) {
                 break;
         }
 
-        thorin.cleanup(); //Warning: This must not change the world, there are still references to intrinsics being maintained here.
+        thorin.cleanup();
     }
 
     world.mark_pe_done(false);

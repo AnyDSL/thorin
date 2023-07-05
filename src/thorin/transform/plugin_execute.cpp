@@ -29,12 +29,12 @@ void plugin_execute(Thorin& thorin) {
             break;
 
         sort(plugin_intrinsics.begin(), plugin_intrinsics.end(), [&](const Continuation* a, const Continuation* b) {
-                const Continuation* depends = a;
+                const Continuation* depends = b;
                 while (depends) {
-                  if (depends == b) return false;
                   depends = depends->attributes().depends;
+                  if (a == depends) return true;
                 }
-                return true;
+                return false;
         });
 
         for (auto cont : plugin_intrinsics) {

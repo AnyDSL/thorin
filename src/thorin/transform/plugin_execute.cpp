@@ -50,6 +50,7 @@ void plugin_execute(World& world) {
                 }
 
                 auto app = use.def()->as<App>();
+                assert(app->callee() == cont);
 
                 if (app->num_uses() == 0) {
                     continue;
@@ -72,7 +73,7 @@ void plugin_execute(World& world) {
                 break;
         }
 
-        world.cleanup(); //Warning: This must not change the world, there are still references to intrinsics being maintained here.
+        world.cleanup();
     }
 
     world.mark_pe_done(false);

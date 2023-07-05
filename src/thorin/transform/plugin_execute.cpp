@@ -16,7 +16,10 @@ void plugin_execute(Thorin& thorin) {
     while (true) {
         plugin_intrinsics.clear();
 
-        for (auto cont : world.copy_continuations()) {
+        for (auto def : world.defs()) {
+            auto cont = def->isa_nom<Continuation>();
+            if (!cont) continue;
+
             if (cont->is_intrinsic() && cont->intrinsic() == Intrinsic::Plugin) {
                 plugin_intrinsics.push_back(cont);
             }

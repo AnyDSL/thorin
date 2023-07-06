@@ -171,6 +171,7 @@ std::tuple<ParamSet, bool> Scope::search_free_params() const {
         }
         else {
             for (auto op : free_def->ops()) {
+                assert(op && "scope analysis doesn't work with unfinished nodes...");
                 // the entry might be referenced by the outside world, but that's completely fine
                 if (op == entry())
                     continue;

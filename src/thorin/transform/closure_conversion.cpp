@@ -184,7 +184,6 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             converter_.todo_.emplace_back([=]() {
                 ncont->rebuild_from(*body_rewriter, ocont);
                 dst().DLOG("'{}' rebuilt as '{} (external={} {})'", ocont, ncont, ocont->is_external(), ncont->is_external());
-                //body_rewriter->children_.clear();
             });
         } else {
             auto closure_type = dst().closure_type(nparam_types);
@@ -263,11 +262,6 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                     ncont->jump(lifted, wrapper_args);
 
                     dst().VLOG("finished body of {}", lifted);
-
-                    Scope lifted_scope(ncont);
-                    assert(lifted_scope.free_params().size() == 0);
-                    assert(lifted_scope.parent_scope() == nullptr);
-                    //body_rewriter->children_.clear();
                 });
             } else {
                 dst().DLOG("dummy closure generated for '{}'", ocont);

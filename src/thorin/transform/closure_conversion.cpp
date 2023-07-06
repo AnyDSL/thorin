@@ -8,12 +8,12 @@
 namespace thorin {
 
 struct ClosureConverter {
-    ClosureConverter(World& src, World& dst) : src_(src), dst_(dst), root_rewriter_(*this, "root", nullptr), forest_(src) {
+    ClosureConverter(World& src, World& dst) : src_(src), dst_(dst), root_rewriter_(*this, nullptr, nullptr), forest_(src) {
         assert(&src != &dst);
     }
 
     struct ScopeRewriter : public Rewriter {
-        ScopeRewriter(ClosureConverter& converter, std::string name, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), converter_(converter), parent_(parent), name_(name) {
+        ScopeRewriter(ClosureConverter& converter, Scope* scope, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), converter_(converter), parent_(parent), scope_(scope), name_(scope ? scope->entry()->unique_name() : "root") {
             if (parent)
                 depth_ = parent->depth_ + 1;
             //assert(depth_ < 4);
@@ -22,6 +22,7 @@ struct ClosureConverter {
         int depth_ = 0;
         ClosureConverter& converter_;
         ScopeRewriter* parent_;
+        Scope* scope_;
         std::vector<std::unique_ptr<ScopeRewriter>> children_;
         std::string name_;
 
@@ -144,8 +145,14 @@ struct ClosureConverter {
 
 const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
     assert(&odef->world() == &src());
-    //if (parent_ && !scope_->contains(odef))
-    //    return parent_->instantiate(odef);
+    if (parent_) {
+        if (!scope_->contains(odef)) {
+            dst().DLOG("Deferring rewriting of {} to {}", odef, parent_->name_);
+            return parent_->rewrite(odef);
+        }
+        //assert(scope_->contains(odef));
+        //return parent_->instantiate(odef);
+    }
 
     if (auto fn_type = odef->isa<FnType>()) {
         Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
@@ -176,8 +183,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
             insert(ocont, ncont);
             ndef = ncont;
-            children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, ocont->unique_name(), this));
-            body_rewriter = children_.back().get();
+            body_rewriter = this;
             for (size_t i = 0; i < ocont->num_params(); i++)
                 body_rewriter->insert(ocont->param(i), ncont->param(i));
             dst().DLOG("no closure generated for '{}'", ocont);
@@ -207,7 +213,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             size_t env_param_index = ocont->num_params();
 
             // only the root rewriter is a parent, we're remaking everything else
-            children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, ocont->unique_name(), &converter_.root_rewriter_));
+            children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, &scope, &converter_.root_rewriter_));
             body_rewriter = children_.back().get();
 
             body_rewriter->insert(ocont, ncont->params().back());
@@ -228,7 +234,10 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                 dst().VLOG("lifted as {}", lifted);
 
                 converter_.todo_.emplace_back([=]() {
-                    closure->set_env(this->instantiate(thin ? free_vars[0] : src().tuple(free_vars)));
+                    Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
+                        return instantiate(free_vars[i]);
+                    });
+                    closure->set_env(thin ? instantiated_free_vars[0] : dst().tuple(instantiated_free_vars));
 
                     Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
                     const Def* new_mem = ncont->mem_param();
@@ -264,7 +273,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                     dst().VLOG("finished body of {}", lifted);
                 });
             } else {
-                dst().DLOG("dummy closure generated for '{}'", ocont);
+                dst().DLOG("dummy closure generated for '{}' -> '{}'", ocont, ncont);
                 for (size_t i = 0; i < ocont->num_params(); i++)
                     body_rewriter->insert(ocont->param(i), ncont->param(i));
 
@@ -281,8 +290,8 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
         if (auto ncont = ncallee->isa_nom<Continuation>(); ncont && ncont->is_intrinsic()) {
             Array<const Def*> nargs(app->num_args(), [&](int i) -> const Def* {
                 auto oarg = app->arg(i);
-                //if (ncont->type()->types()[i]->tag() == Node_FnType)
-                //    return as_continuation(oarg);
+                if (ncont->type()->types()[i]->tag() == Node_FnType)
+                    return converter_.as_continuation(instantiate(oarg));
                 return instantiate(oarg);
             });
             return dst().app(ncallee, nargs);

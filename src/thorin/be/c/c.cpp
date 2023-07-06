@@ -250,8 +250,8 @@ std::string CCodeGen::convert(const Type* type) {
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
     } else if (auto closure_t = type->isa<ClosureType>()) {
-        name = closure_name(closure_t);
-        auto as_fnt = world().fn_type(concat(closure_t->types(), world().type_qu64()->as<Type>()));
+        types_[closure_t] = name = closure_name(closure_t);
+        auto as_fnt = world().fn_type(closure_t->types());
         s.fmt("typedef struct {{\t\n");
         s.fmt("{} f;\n", convert(as_fnt));
         s.fmt("void* data;");
@@ -260,7 +260,9 @@ std::string CCodeGen::convert(const Type* type) {
         name = return_name(ret_t);
         s.fmt("typedef struct {{\t\n");
         s.fmt("jmp_buf buf;\n");
-        s.fmt("{} data;", convert(mangle_return_type(ret_t)));
+        auto mangled_ret_t = mangle_return_type(ret_t);
+        if (!is_type_unit(mangled_ret_t))
+            s.fmt("{} data;", convert(mangled_ret_t));
         s.fmt("\b\n}} {};\n", name);
         name = name + "*";
     } else if (auto pi = type->isa<FnType>()) {
@@ -643,10 +645,14 @@ std::string CCodeGen::prepare(const Scope& scope) {
     func_impls_ << hls_pragmas_.str();
 
     if (lang_ == Lang::C99 && cont->is_exported() && cont->type()->is_returning()) {
-        convert(cont->type()->return_param_type());
-        func_impls_.fmt("{} return_buf;\n", return_name(cont->type()->return_param_type()));
+        auto ret_t = cont->type()->return_param_type();
+        convert(ret_t);
+        func_impls_.fmt("{} return_buf;\n", return_name(ret_t));
         func_impls_.fmt("if (setjmp(return_buf.buf) != 0) {{\t\n");
-        func_impls_.fmt("return return_buf.data;\b\n");
+        if (!is_type_unit(mangle_return_type(cont->type()->return_param_type())))
+           func_impls_.fmt("return return_buf.data;\b\n");
+        else
+            func_impls_.fmt("return;\b\n");
         func_impls_.fmt("}}\n");
     }
 
@@ -750,9 +756,10 @@ void CCodeGen::emit_call(BB& bb, const Def* callee, ArrayRef<std::string> args) 
     }
 
     auto ecallee = emit(callee);
-    if (callee->type()->isa<ClosureType>()) {
-        auto appended = concat(args, std::string("(u64) "+ecallee+ ".data"));
-        bb.tail.fmt("{}.f({, });", ecallee, appended);
+    if (auto closure_t = callee->type()->isa<ClosureType>()) {
+        auto appended = concat(args, ecallee);
+        auto as_fnt = world().fn_type(concat(closure_t->types(), closure_t->as<Type>()));
+        bb.tail.fmt("(({}) {}.f)({, });", convert(as_fnt), ecallee, appended);
     } else
         bb.tail.fmt("{}({, });\n", ecallee, args);
 }
@@ -766,7 +773,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
-    if (body->callee()->type()->isa<ReturnType>()) { // return
+    if (auto ret_t = body->callee()->type()->isa<ReturnType>()) { // return
         std::vector<std::string> values;
         std::vector<const Type*> types;
 
@@ -797,7 +804,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
             // non-local return
             auto callee = emit_unsafe(body->callee());
-            bb.tail.fmt("{}->data = {};\n", callee, emitted_return);
+            if (!is_type_unit(mangle_return_type(ret_t)))
+                bb.tail.fmt("{}->data = {};\n", callee, emitted_return);
             bb.tail.fmt("longjmp({}->buf, 1);\n", callee);
         }
     } else if (body->callee() == world().branch()) {

@@ -89,7 +89,9 @@ void Scope::verify() {
         if (auto cont = def->isa_nom<Continuation>()) {
             if (cont == entry())
                 continue;
-            assert(!forest_.get_scope(cont).contains(entry()));
+            Scope& cont_scope = forest_.get_scope(cont);
+            assert(cont_scope.has_free_params());
+            assert(!cont_scope.contains(entry()));
         }
     }
 }

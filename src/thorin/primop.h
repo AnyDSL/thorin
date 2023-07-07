@@ -594,6 +594,18 @@ private:
     friend class World;
 };
 
+class Heap : public Def {
+private:
+    Heap(World& w, const Type* t, const Def* contents, Debug dbg) : Def(w, Node_Heap, t, { contents }, dbg) {}
+public:
+
+    const Def* contents() const { return op(0); }
+private:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
 /// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:

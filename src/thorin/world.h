@@ -252,6 +252,7 @@ public:
     const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* heap(const Def* contents, Debug dbg = {}) { return cse(new Heap(*this, ptr_type(contents->type()), contents, dbg)); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);

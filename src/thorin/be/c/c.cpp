@@ -1209,15 +1209,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                 bb->body << name;
                 emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
                 // thin environment
-                if (ClosureType::is_thin(env->type())) {
-                    bb->body.fmt(" = (void*) (size_t) {};\n", eenv);
-                } else {
-                    // allocation required
-                    auto ptr_t = world().ptr_type(env->type());
-                    func_impls_.fmt("{} {}_env = malloc(sizeof({}));\n", convert(ptr_t), name, convert(env->type()));
-                    func_impls_.fmt("*{}_env = {};\n", name, eenv);
-                    bb->body.fmt(" = {}_env;\n", name);
-                }
+                bb->body.fmt(" = (void*) (size_t) {};\n", eenv);
             }
         } else {
             assert(false && "todo");
@@ -1366,6 +1358,11 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         } else {
             bb->body.fmt("{} = malloc(sizeof({}));\n", name, t);
         }
+        return name;
+    } else if (auto heap = def->isa<Heap>()) {
+        auto ptr_t = heap->type()->as<PtrType>();
+        func_impls_.fmt("{} {} = malloc(sizeof({}));\n", convert(ptr_t), name, convert(heap->contents()->type()));
+        func_impls_.fmt("*{} = {};\n", name, emit(heap->contents()));
         return name;
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());

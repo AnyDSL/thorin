@@ -241,7 +241,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                     Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
                         return instantiate(free_vars[i]);
                     });
-                    closure->set_env(thin ? instantiated_free_vars[0] : dst().tuple(instantiated_free_vars));
+                    closure->set_env(thin ? instantiated_free_vars[0] : dst().heap(dst().tuple(instantiated_free_vars)));
 
                     Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
                     const Def* new_mem = ncont->mem_param();

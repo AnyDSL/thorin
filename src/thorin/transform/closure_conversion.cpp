@@ -207,8 +207,12 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
 
             std::vector<const Def*> free_vars;
-            for (auto free : spillable_free_defs(converter_.forest_, ocont))
+            for (auto free : spillable_free_defs(converter_.forest_, ocont)) {
+                if (auto free_cont = free->isa_nom<Continuation>()) {
+                    assert(converter_.needs_conversion(free_cont));
+                }
                 free_vars.push_back(free);
+            }
 
             size_t env_param_index = ocont->num_params();
 

@@ -77,7 +77,7 @@ struct ClosureConverter {
     std::tuple<const Type*, bool> get_env_type(ArrayRef<const Def*> free_vars) {
         // get the environment type
         const Type* env_type = nullptr;
-        bool thin_env = free_vars.size() == 1 && is_thin(free_vars[0]->type());
+        bool thin_env = free_vars.size() == 1 && ClosureType::is_thin(free_vars[0]->type());
         if (thin_env) {
             // optimization: if the environment fits within a pointer or
             // primitive type, pass it by value.

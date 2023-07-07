@@ -270,11 +270,6 @@ private:
     friend class World;
 };
 
-/// Returns true if the given type is small enough to fit in a closure environment
-inline bool is_thin(const Type* type) {
-    return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
-}
-
 class ReturnType;
 
 class FnType : public Type, public TypeOpsMixin<TupleType> {
@@ -309,6 +304,9 @@ private:
 
 public:
     const Type* rebuild(World&, const Type*, Defs) const override;
+
+    /// Returns true if the given type is small enough to fit in a closure environment
+    static bool is_thin(const Type* type);
 
     friend class World;
 };

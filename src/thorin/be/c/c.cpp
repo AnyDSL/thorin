@@ -1210,8 +1210,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                 bb->body << name;
                 emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
                 // thin environment
-                if (env->type()->isa<PtrType>()) {
-                    bb->body.fmt(" = {};\n", eenv);
+                if (ClosureType::is_thin(env->type())) {
+                    bb->body.fmt(" = (void*) (size_t) {};\n", eenv);
                 } else {
                     // allocation required
                     auto ptr_t = world().ptr_type(env->type());

@@ -795,7 +795,7 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
             auto closure_fn = irbuilder.CreatePointerCast(emit(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
             auto val = agg->op(1);
             llvm::Value* env = nullptr;
-            if (is_thin(closure->op(1)->type())) {
+            if (ClosureType::is_thin(closure->op(1)->type())) {
                 if (is_type_unit(val->type())) {
                     env = emit(world().bottom(Closure::environment_type(world())));
                 } else {

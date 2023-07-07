@@ -118,6 +118,10 @@ int FnType::ret_param_index() const {
     return p;
 }
 
+bool ClosureType::is_thin(const thorin::Type* type) {
+    return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
+}
+
 bool VariantType::has_payload() const {
     return !std::all_of(types().begin(), types().end(), is_type_unit);
 }

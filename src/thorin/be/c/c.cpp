@@ -823,10 +823,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
 
-        for (size_t i = 3; i < body->num_args(); i++) {
-            auto arg = body->arg(i)->as<Tuple>();
-            bb.tail.fmt("case {}: {{\t\n", emit_constant(arg->op(0)));
-            emit_call(bb, arg->op(1), args);
+        for (size_t i = 3; i < body->num_args(); i+=2) {
+            bb.tail.fmt("case {}: {{\t\n", emit_constant(body->arg(i)));
+            emit_call(bb, body->arg(i + 1), args);
             bb.tail.fmt("\b\n}}");
         }
 

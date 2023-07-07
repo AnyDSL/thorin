@@ -168,12 +168,10 @@ std::string DotPrinter::emit_def(const Def* def) {
                         }
 
                         (*filtered_ops).emplace_back("default_case", app->arg(2));
-                        for (size_t i = 3; i < app->num_args(); i++) {
+                        for (size_t i = 3; i < app->num_args(); i+=2) {
                             if (print_lower_order_args)
                                 (*filtered_ops).emplace_back("case", app->arg(i));
-                            else {
-                                (*filtered_ops).emplace_back("case", app->arg(i)->as<Tuple>()->op(1));
-                            }
+                            (*filtered_ops).emplace_back("case", app->arg(i + 1));
                         }
 
                         goto print_node;

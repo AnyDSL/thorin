@@ -188,7 +188,7 @@ public:
                     result["type"] = "continuation";
                     result["intrinsic"] = "branch";
                 } else if (cont->intrinsic() == Intrinsic::Match) {
-                    size_t num_patterns = cont->num_params() - 3;
+                    size_t num_patterns = (cont->num_params() - 3) / 2;
                     auto variant_type = type_table_.translate_type(cont->param(1)->type());
                     auto name = "_match_" + std::to_string(def_table.size());
 

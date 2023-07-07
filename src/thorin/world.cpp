@@ -1123,12 +1123,13 @@ Continuation* World::continuation(const FnType* fn, Continuation::Attributes att
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
-    Array<const Type*> arg_types(num_patterns + 3);
+    Array<const Type*> arg_types(3 + num_patterns * 2);
     arg_types[0] = mem_type();
     arg_types[1] = type;
     arg_types[2] = fn_type({mem_type()});
     for (size_t i = 0; i < num_patterns; i++) {
-        arg_types[i + 3] = tuple_type({type, fn_type({mem_type()})});
+        arg_types[3 + i * 2 + 0] = type;
+        arg_types[3 + i * 2 + 1] = fn_type({mem_type()});
     }
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
@@ -1195,9 +1196,9 @@ const App* World::app(const Filter* given_filter, const Def* callee, const Defs 
             case Intrinsic::Match:
                 if (args.size() == 3) return app(args[2], { args[0] }, dbg);
                 if (auto lit = args[1]->isa<PrimLit>()) {
-                    for (size_t i = 3; i < args.size(); i++) {
-                        if (extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return app(extract(args[i], 1), { args[0] }, dbg);
+                    for (size_t i = 3; i < args.size(); i+=2) {
+                        if (args[i]->as<PrimLit>() == lit)
+                            return app(args[i + 1], { args[0] }, dbg);
                     }
                     return app(args[2], { args[0] }, dbg);
                 }

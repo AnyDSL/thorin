@@ -468,10 +468,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto val = emit(body->arg(1));
         auto otherwise_bb = cont2bb(body->arg(2)->as_nom<Continuation>());
         auto match = irbuilder.CreateSwitch(val, otherwise_bb, body->num_args() - 3);
-        for (size_t i = 3; i < body->num_args(); i++) {
-            auto arg = body->arg(i)->as<Tuple>();
-            auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
-            auto case_bb    = cont2bb(arg->op(1)->as_nom<Continuation>());
+        for (size_t i = 3; i < body->num_args(); i+=2) {
+            auto case_const = llvm::cast<llvm::ConstantInt>(emit(body->arg(i)));
+            auto case_bb    = cont2bb(body->arg(i + 1)->as_nom<Continuation>());
             match->addCase(case_const, case_bb);
         }
     } else if (body->callee()->isa<Bottom>()) {

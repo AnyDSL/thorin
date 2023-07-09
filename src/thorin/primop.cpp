@@ -326,6 +326,10 @@ const Enter* Enter::is_out_mem(const Def* def) {
     return nullptr;
 }
 
+Continuation* Closure::fn() const {
+    return op(0)->as_nom<Continuation>();
+}
+
 const Type* Closure::environment_type(World& world) {
     // We assume that ptrs are <= 64 bits, if they're not, god help you
     return world.type_qu64();

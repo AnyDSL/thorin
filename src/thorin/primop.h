@@ -349,7 +349,7 @@ public:
     void set_env(const Def* env) {
         set_op(1, env);
     }
-    const Def* fn() const { return op(0); }
+    Continuation* fn() const;
     const Def* env() const { return op(1); }
     static const Type*    environment_type(World&);
     static const PtrType* environment_ptr_type(World&);

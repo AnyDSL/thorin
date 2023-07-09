@@ -1,7 +1,6 @@
 #include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/transform/rewrite.h"
 
@@ -289,7 +288,11 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
 
                 converter_.todo_.emplace_back([=]() {
                     Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
-                        return instantiate(free_vars[i]);
+                        auto env = instantiate(free_vars[i]);
+                        // it cannot be a basic block, and it cannot be top-level either
+                        // if it used to be a continuation it should be a closure now.
+                        assert(!env->isa_nom<Continuation>());
+                        return env;
                     });
                     closure->set_env(thin ? instantiated_free_vars[0] : dst().heap(dst().tuple(instantiated_free_vars)));
 

@@ -644,8 +644,10 @@ std::string CCodeGen::prepare(const Scope& scope) {
 
     func_impls_ << hls_pragmas_.str();
 
-    if (lang_ == Lang::C99 && cont->is_exported() && cont->type()->is_returning()) {
+    if (lang_ == Lang::C99 && /*cont->is_exported() && */cont->type()->is_returning()) {
+        auto ret_p = cont->ret_param();
         auto ret_t = cont->type()->return_param_type();
+        assert(ret_p && ret_t);
         convert(ret_t);
         func_impls_.fmt("{} return_buf;\n", return_name(ret_t));
         func_impls_.fmt("if (setjmp(return_buf.buf) != 0) {{\t\n");

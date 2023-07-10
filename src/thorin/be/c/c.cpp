@@ -1236,7 +1236,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             return name;
         } else {
             auto is_array = def->isa<DefiniteArray>();
-            s.fmt("{} ", constructor_prefix(def->type()));
+            //s.fmt("{} ", constructor_prefix(def->type()));
             s.fmt(is_array ? "{{ {{ " : "{{ ");
             s.range(ops, ", ", [&] (const Def* op) { s << emit_constant(op); });
             s.fmt(is_array ? " }} }}" : " }}");
@@ -1363,8 +1363,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return name;
     } else if (auto heap = def->isa<Heap>()) {
         auto ptr_t = heap->type()->as<PtrType>();
-        func_impls_.fmt("{} {} = malloc(sizeof({}));\n", convert(ptr_t), name, convert(heap->contents()->type()));
-        func_impls_.fmt("*{} = {};\n", name, emit(heap->contents()));
+        func_impls_.fmt("{} {} = malloc(sizeof({})); // heap allocation\n", convert(ptr_t), name, convert(heap->contents()->type()));
+        bb->body.fmt("*{} = {};\n", name, emit(heap->contents()));
         return name;
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
@@ -1474,7 +1474,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         bb->body.fmt("{} = {};\n", name, s.str());
         return name;
     } else
-        return "(" + s.str() + ")";
+        return s.str();
 }
 
 std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {

@@ -26,6 +26,12 @@ struct ClosureConverter {
             //if (free == entry)
             //    continue;
 
+            if (auto ret_cont = free->isa<ReturnPoint>()) {
+                additional_rebuild.insert(ret_cont);
+                queue.push(ret_cont->continuation());
+                continue;
+            }
+
             if (auto cont = free->isa_nom<Continuation>()) {
                 if (!needs_conversion(cont)) {
                     auto& scope = forest_.get_scope(cont);

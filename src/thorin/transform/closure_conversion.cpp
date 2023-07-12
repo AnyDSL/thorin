@@ -355,6 +355,19 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
     return Rewriter::rewrite(odef);
 }
 
+void validate_all_returning_functions_top_level(World& world) {
+    ScopesForest forest(world);
+    for (auto cont : world.copy_continuations()) {
+        if (cont->type()->is_returning()) {
+            auto parent = forest.get_scope(cont).parent_scope();
+            if (parent != nullptr) {
+                world.ELOG("returning continuation {} is not top-level after closure conversion and belongs to {}'s scope", cont, parent);
+                assert(false);
+            }
+        }
+    }
+}
+
 void closure_conversion(Thorin& thorin) {
     auto& src = thorin.world_container();
     auto dst = std::make_unique<World>(*src);
@@ -368,6 +381,8 @@ void closure_conversion(Thorin& thorin) {
         converter.todo_.pop_back();
         f();
     }
+
+    validate_all_returning_functions_top_level(*dst);
 
     src.swap(dst);
 }

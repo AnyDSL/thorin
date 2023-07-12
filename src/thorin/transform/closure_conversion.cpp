@@ -112,13 +112,19 @@ struct ClosureConverter {
         if (cont->is_intrinsic() || cont->is_exported())
             return false;
 
-        bool needs_conversion = false;
         src().DLOG("checking for uses of {} ...", cont);
+        bool needs_conversion = false;
+        if (cont->is_returning()) {
+            src().DLOG("Is as a returning continuation !");
+            needs_conversion = true;
+        }
         for (auto use : cont->copy_uses()) {
             if (is_use_first_class(use)) {
+                src().DLOG("Is used as a first-class value in {} !", use);
                 needs_conversion = true;
-                break;
             }
+            if (needs_conversion)
+                break;
         }
 
         should_convert_.insert(std::make_pair(cont, needs_conversion));

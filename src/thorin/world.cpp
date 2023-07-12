@@ -1355,10 +1355,11 @@ void Thorin::opt() {
     //RUN_PASS(hoist_enters(*this))
     //RUN_PASS(lift2cff(*this, false))
     RUN_PASS(lower_control(*this));
+    RUN_PASS(cleanup())
     RUN_PASS(closure_conversion(*this));
     //RUN_PASS(lower_return(*this));
     RUN_PASS(cleanup())
-    RUN_PASS(codegen_prepare(*this))
+    //RUN_PASS(codegen_prepare(*this))
 }
 
 }

@@ -276,21 +276,11 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             size_t env_param_index = ocont->num_params();
 
             body_rewriter->insert(ocont, ncont->params().back());
-            for (size_t i = 0; i < ocont->num_params(); i++)
-                body_rewriter->insert(ocont->param(i), ncont->param(i));
 
             if (!free_vars.empty()) {
                 dst().WLOG("slow: rewriting '{}' as '{}' in {}", ocont, ncont, dump());
                 auto [env_type, thin] = converter_.get_env_type(free_vars);
                 env_type = this->instantiate(env_type)->as<Type>();
-
-                auto lifted = dst().continuation(dst().fn_type(wrapper_type->types().skip_back(1)), { ncont->name() + "_lifted" });
-                for (auto free : free_vars) {
-                    auto nparam = lifted->append_param(this->instantiate(free->type())->as<Type>(), { "captured" });
-                    body_rewriter->insert(free, nparam);
-                }
-
-                dst().VLOG("lifted as {}", lifted);
 
                 converter_.todo_.emplace_back([=]() {
                     Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
@@ -302,12 +292,13 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                     });
                     closure->set_env(thin ? instantiated_free_vars[0] : dst().heap(dst().tuple(instantiated_free_vars)));
 
-                    Array<const Def*> wrapper_args(ocont->num_params() + free_vars.size());
                     const Def* new_mem = ncont->mem_param();
                     auto closure_param = ncont->param(env_param_index);
                     auto env = dst().extract(closure_param, 1);
                     if (thin) {
-                        wrapper_args[env_param_index] = dst().cast(this->instantiate(free_vars[0]->type())->as<Type>(), env);
+                        auto captured = dst().cast(this->instantiate(free_vars[0]->type())->as<Type>(), env);
+                        captured->set_name(free_vars[0]->name() + "_captured");
+                        body_rewriter->insert(free_vars[0], captured);
                     } else {
                         // make the wrapper load the pointer and pass each
                         // variable of the environment to the lifted continuation
@@ -315,25 +306,26 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                         auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
                         auto env_data = dst().extract(loaded_env, 1_u32);
                         new_mem = dst().extract(loaded_env, 0_u32);
-                        for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                            wrapper_args[env_param_index + i] = dst().extract(env_data, i);
-                    }
-
-                    // make the wrapper call into the lifted continuation with the right arguments
-                    for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
-                        auto param = ncont->param(i);
-                        if (param->type()->isa<MemType>()) {
-                            // use the mem obtained after the load
-                            wrapper_args[i] = new_mem;
-                        } else {
-                            wrapper_args[i] = ncont->param(i);
+                        for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
+                            auto captured = dst().extract(env_data, i);
+                            captured->set_name(free_vars[i]->name() + "_captured");
+                            body_rewriter->insert(free_vars[i], captured);
                         }
                     }
 
-                    lifted->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
-                    ncont->jump(lifted, wrapper_args);
+                    for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
+                        auto param = ncont->param(i);
+                        if (ocont->mem_param() == ocont->param(i)) {
+                            // use the mem obtained after the load
+                            body_rewriter->insert(ocont->mem_param(), new_mem);
+                        } else {
+                            body_rewriter->insert(ocont->param(i), param);
+                        }
+                    }
 
-                    dst().VLOG("finished body of {}", lifted);
+                    ncont->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
+
+                    dst().VLOG("finished body of {}", ncont);
                 });
             } else {
                 dst().DLOG("dummy closure generated for '{}' -> '{}' in {}", ocont, ncont, dump());

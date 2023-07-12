@@ -24,7 +24,7 @@ struct LowerControl : Rewriter {
                 auto nmem = instantiate(oapp->arg(0));
                 auto nbody = instantiate(oapp->arg(1));
                 auto npost = instantiate(oapp->arg(2));
-                return dst().app(nbody, { nmem, npost });
+                return dst().run(dst().app(nbody, { nmem, npost }));
             }
         }
 

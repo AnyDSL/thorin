@@ -142,29 +142,24 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_FnType: {
             // extract "return" type, collect all other types
             auto tfn_type = type->as<FnType>();
-            llvm::Type* ret = nullptr;
+            llvm::Type* ret = llvm::Type::getVoidTy(context()); // top-level non-returning continuations should be void
             std::vector<llvm::Type*> ops;
-            int i = -1;
-            for (auto op : tfn_type->types()) {
-                i++;
+            for (auto op : tfn_type->domain()) {
                 if (op->isa<MemType>() || op == world().unit_type()) continue;
-                if (i == tfn_type->ret_param_index()) {
-                    auto fn = op->as<ReturnType>();
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<llvm::Type*> ret_types;
-                    for (auto fn_op : fn->types()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
-                        ret_types.push_back(convert(fn_op));
-                    }
-                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
-                    else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(context(), ret_types);
-                } else
-                    ops.push_back(convert(op));
+                ops.push_back(convert(op));
             }
-            if (!tfn_type->is_returning()) {
-                assert(!ret);
-                ret = llvm::Type::getVoidTy(context());
+
+            if (tfn_type->is_returning()) {
+                auto ret_ty = tfn_type->return_param_type();
+                assert(ret_ty);
+                std::vector<llvm::Type*> ret_types;
+                for (auto fn_op : ret_ty->types()) {
+                    if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
+                    ret_types.push_back(convert(fn_op));
+                }
+                if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
+                else if (ret_types.size() == 1) ret = ret_types.back();
+                else                            ret = llvm::StructType::get(context(), ret_types);
             }
 
             assert(ret);
@@ -791,20 +786,13 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder.CreateInsertElement(llvm_agg, emit(agg->op(i)), irbuilder.getInt32(i));
         } else if (auto closure = def->isa<Closure>()) {
-            auto closure_fn = irbuilder.CreatePointerCast(emit(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
-            auto val = agg->op(1);
+            auto closure_fn = irbuilder.CreatePointerCast(emit(closure->fn()), llvm_agg->getType()->getStructElementType(0));
+            auto val = closure->env();
             llvm::Value* env = nullptr;
-            if (ClosureType::is_thin(closure->op(1)->type())) {
-                if (is_type_unit(val->type())) {
-                    env = emit(world().bottom(Closure::environment_type(world())));
-                } else {
-                    env = emit(world().cast(Closure::environment_type(world()), val));
-                }
+            if (is_type_unit(val->type())) {
+                env = emit(world().bottom(Closure::environment_type(world())));
             } else {
-                world().wdef(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
-                auto alloc = emit_alloc(irbuilder, val->type(), nullptr);
-                irbuilder.CreateStore(emit(val), alloc);
-                env = irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world())));
+                env = emit(world().cast(Closure::environment_type(world()), val));
             }
             llvm_agg = irbuilder.CreateInsertValue(llvm_agg, closure_fn, 0);
             llvm_agg = irbuilder.CreateInsertValue(llvm_agg, env, 1);
@@ -814,6 +802,11 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
         }
 
         return llvm_agg;
+    } else if (auto heap = def->isa<Heap>()) {
+        world().wdef(def, "closure '?' is leaking memory, type '{}' is too large", heap->contents()->type());
+        auto alloc = emit_alloc(irbuilder, heap->contents()->type(), nullptr);
+        irbuilder.CreateStore(emit(heap->contents()), alloc);
+        return irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world())));
     } else if (auto aggop = def->isa<AggOp>()) {
         auto llvm_agg = emit_unsafe(aggop->agg());
         auto llvm_idx = emit(aggop->index());

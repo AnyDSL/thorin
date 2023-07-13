@@ -131,6 +131,7 @@ enum class Intrinsic : uint8_t {
     Branch,                     ///< branch(mem, cond, T, F).
     Match,                      ///< match(mem, val, otherwise, case1, cont1, case2, cont2, ...)
     Control,                    ///< control(mem, body, post)
+    ControlStatic,              ///< control_static(mem, body, post)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };

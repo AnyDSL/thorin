@@ -20,7 +20,7 @@ struct LowerControl : Rewriter {
 
         if (auto oapp = odef->isa<App>()) {
             auto ocallee = oapp->callee()->isa_nom<Continuation>();
-            if (ocallee && ocallee->intrinsic() == Intrinsic::Control) {
+            if (ocallee && (ocallee->intrinsic() == Intrinsic::Control || ocallee->intrinsic() == Intrinsic::ControlStatic)) {
                 auto nmem = instantiate(oapp->arg(0));
                 auto nbody = instantiate(oapp->arg(1));
                 auto npost = instantiate(oapp->arg(2));

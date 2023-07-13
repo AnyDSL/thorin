@@ -277,6 +277,7 @@ public:
     Continuation* branch() const { return data_.branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* control(Types tys);
+    Continuation* static_control(Types tys);
     Continuation* end_scope() const { return data_.end_scope_; }
     const Filter* filter(const Defs, Debug dbg = {});
     const App* app(const Def* callee, const Defs args, Debug dbg = {});

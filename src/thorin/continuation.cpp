@@ -60,8 +60,21 @@ bool App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node {} argument {} has type {} but the callee was expecting {}", this, i, at, pt);
     }
-    if (auto cont = callee()->isa_nom<Continuation>())
+    if (auto cont = callee()->isa_nom<Continuation>()) {
         assert(filter()->size() == cont->filter()->size() || cont->filter()->is_empty());
+        switch (cont->intrinsic()) {
+            case Intrinsic::Control: {
+                assert(arg(1)->isa_nom<Continuation>());
+                break;
+            }
+            case Intrinsic::ControlStatic: {
+                assert(arg(1)->isa_nom<Continuation>());
+                assert(arg(2)->isa_nom<Continuation>());
+                break;
+            }
+            default: break;
+        }
+    }
     return true;
 }
 

@@ -73,6 +73,8 @@ set(THORIN_SOURCES
     transform/lower_control.cpp
     transform/lower_return.h
     transform/lower_return.cpp
+    transform/classify_control.h
+    transform/classify_control.cpp
     util/array.h
     util/cast.h
     util/hash.h

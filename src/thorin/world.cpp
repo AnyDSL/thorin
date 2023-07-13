@@ -25,7 +25,6 @@
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
-#include "thorin/transform/lift2cff.h"
 #include "thorin/transform/lower_return.h"
 #include "thorin/transform/lower_control.h"
 #include "thorin/util/array.h"

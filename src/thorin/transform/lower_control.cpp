@@ -15,16 +15,21 @@ struct LowerControl : Rewriter {
     const Def* rewrite(const thorin::Def *odef) override {
         if (auto control_type = odef->isa<JoinPointType>()) {
             auto ntype = Rewriter::rewrite(control_type)->as<JoinPointType>();
-            return dst().fn_type(ntype->types());
+            return dst().closure_type(ntype->types());
         }
 
         if (auto oapp = odef->isa<App>()) {
             auto ocallee = oapp->callee()->isa_nom<Continuation>();
             if (ocallee && (ocallee->intrinsic() == Intrinsic::Control || ocallee->intrinsic() == Intrinsic::ControlStatic)) {
+                auto obody = oapp->arg(1)->as<Continuation>();
+                assert(oapp->arg(1)->uses().size() == 3);
                 auto nmem = instantiate(oapp->arg(0));
-                auto nbody = instantiate(oapp->arg(1));
                 auto npost = instantiate(oapp->arg(2));
-                return dst().run(dst().app(nbody, { nmem, npost }));
+                insert(obody->param(0), nmem);
+                insert(obody->param(1), npost);
+                return instantiate(obody->body());
+                //auto nbody = instantiate(oapp->arg(1));
+                //return dst().run(dst().app(nbody, { nmem, wrapped_post }));
             }
         }
 

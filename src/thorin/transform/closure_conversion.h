@@ -2,6 +2,12 @@
 
 namespace thorin {
 
-void closure_conversion(Thorin&);
+enum LiftMode {
+    Lift2Cff,
+    ClosureConversion,
+    JoinTargets
+};
+
+void closure_conversion(Thorin&, LiftMode mode);
 
 }

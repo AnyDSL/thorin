@@ -3,11 +3,12 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/transform/rewrite.h"
+#include "closure_conversion.h"
 
 namespace thorin {
 
 struct ClosureConverter {
-    ClosureConverter(World& src, World& dst) : src_(src), dst_(dst), root_rewriter_(*this, nullptr, nullptr), forest_(src) {
+    ClosureConverter(World& src, World& dst, LiftMode mode) : src_(src), dst_(dst), root_rewriter_(*this, nullptr, nullptr), forest_(src), mode_(mode) {
         assert(&src != &dst);
     }
 
@@ -33,7 +34,7 @@ struct ClosureConverter {
             }
 
             if (auto cont = free->isa_nom<Continuation>()) {
-                if (!needs_conversion(cont)) {
+                if (!should_process(cont)) {
                     auto& scope = forest_.get_scope(cont);
                     if (scope.parent_scope() != nullptr) {
                         entry->world().VLOG("encountered a basic block from a parent scope: {}", cont);
@@ -105,7 +106,7 @@ struct ClosureConverter {
         return root_rewriter_;
     }
 
-    bool needs_conversion(Continuation* cont) {
+    bool should_process(Continuation* cont) {
         if (auto found = should_convert_.lookup(cont))
             return found.value();
 
@@ -113,23 +114,36 @@ struct ClosureConverter {
             return false;
 
         src().DLOG("checking for uses of {} ...", cont);
+        bool needs_lifting = false;
         bool needs_conversion = false;
         if (cont->is_returning()) {
-            src().DLOG("Is as a returning continuation !");
-            needs_conversion = true;
+            src().DLOG("{} is as a returning continuation !", cont);
+            needs_lifting = true;
         }
+
         for (auto use : cont->copy_uses()) {
             if (is_use_first_class(use)) {
-                src().DLOG("Is used as a first-class value in {} !", use);
                 needs_conversion = true;
             }
             if (needs_conversion)
                 break;
         }
 
-        should_convert_.insert(std::make_pair(cont, needs_conversion));
+        bool should_process;
+        switch (mode_) {
+            case LiftMode::Lift2Cff:
+                should_process = needs_lifting && !needs_conversion;
+                break;
+            case LiftMode::ClosureConversion:
+                should_process = needs_conversion;
+                break;
+            case LiftMode::JoinTargets:
+                should_process = needs_conversion;
+                break;
+        }
 
-        return needs_conversion;
+        should_convert_.insert(std::make_pair(cont, should_process));
+        return should_process;
     }
 
     std::tuple<const Type*, bool> get_env_type(ArrayRef<const Def*> free_vars) {
@@ -167,7 +181,7 @@ struct ClosureConverter {
     Continuation* as_continuation(const Def* ndef) {
         if (auto ncont = ndef->isa_nom<Continuation>())
             return ncont;
-        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), {ndef->debug().name + "_wrapper" });
+        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), {ndef->debug().name + "_wrapped" });
         wrapper->jump(ndef, wrapper->params_as_defs());
         return wrapper;
     }
@@ -175,17 +189,25 @@ struct ClosureConverter {
     bool is_use_first_class(Use& use) {
         if (use.def()->isa<Param>())
             return false;
+        if (use.def()->isa<Closure>())
+            return false;
         if (use.def()->isa<ReturnPoint>())
             return false;
         if (auto app = use.def()->isa<App>()) {
             if (use.index() == App::CALLEE_POSITION)
                 return false;
             if (auto callee = app->callee()->isa_nom<Continuation>()) {
-                if (callee->is_intrinsic()/* && (callee->intrinsic() != Intrinsic::Control || use.index() != App::ARGS_START_POSITION + 2)*/)
+                if (callee->is_intrinsic()) {
+                    if (mode_ == LiftMode::JoinTargets && callee->intrinsic() == Intrinsic::Control && use.index() == App::ARGS_START_POSITION + 2) {
+                        src().DLOG("{} is used as a join target in {}", use.def()->op(use.index()), app);
+                        return true;
+                    }
                     return false;
+                }
             }
         }
 
+        assert(mode_ != LiftMode::JoinTargets && "CC should have been performed earlier...");
         src().DLOG("{} is used as a first-class value in {} ({}, index={})", use.def()->op(use.index()), use.def(), tag2str(use.def()->tag()), use.index());
         return true;
     }
@@ -194,6 +216,7 @@ struct ClosureConverter {
     World& dst_;
     World& src() { return src_; }
     World& dst() { return dst_; }
+    LiftMode mode_;
 
     ScopeRewriter root_rewriter_;
     ScopesForest forest_;
@@ -213,18 +236,20 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
     }
 
     if (auto fn_type = odef->isa<FnType>()) {
-        Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
-            auto old_param_t = fn_type->op(i)->as<Type>();
-            return instantiate(old_param_t)->as<Type>();
-        });
-        if (fn_type->isa<ReturnType>())
-            return dst().return_type(ntypes);
-        if (fn_type->isa<JoinPointType>())
-            return dst().join_point_type(ntypes);
+        if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
+            Array<const Type*> ntypes(fn_type->num_ops(), [&](int i) {
+                auto old_param_t = fn_type->op(i)->as<Type>();
+                return instantiate(old_param_t)->as<Type>();
+            });
+            if (fn_type->isa<ReturnType>())
+                return dst().return_type(ntypes);
+            if (fn_type->isa<JoinPointType>())
+                return dst().join_point_type(ntypes);
 
-        // Turn all functions into closures, we'll undo it where it is specifically OK
-        auto ntype = dst().closure_type(ntypes);
-        return ntype;
+            // Turn all functions into closures, we'll undo it where it is specifically OK
+            auto ntype = dst().closure_type(ntypes);
+            return ntype;
+        }
     } else if (auto global = odef->isa<Global>()) {
         auto nglobal = dst().global(instantiate(global->init()), global->is_mutable(), global->debug());
         nglobal->set_name(global->name());
@@ -237,7 +262,11 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
         ScopeRewriter* body_rewriter;
         const Def* ndef = nullptr;
         auto nparam_types = converter_.rewrite_params(*this, ocont);
-        if (!converter_.needs_conversion(ocont)) {
+        if (!converter_.should_process(ocont)) {
+            if (converter_.mode_ == LiftMode::JoinTargets && ocont->intrinsic() == Intrinsic::Control) {
+                nparam_types[2] = dst().closure_type(nparam_types[2]->as<FnType>()->types());
+            }
+
             auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
             insert(ocont, ncont);
             ndef = ncont;
@@ -253,35 +282,62 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                 dst().DLOG("'{}' rebuilt as '{}' in {}", ocont, ncont, dump());
             });
         } else {
-            auto closure_type = dst().closure_type(nparam_types);
-
-            // create a wrapper that takes a pointer to the environment
-            nparam_types.push_back(closure_type);
-            auto wrapper_type = dst().fn_type(nparam_types);
-            auto ncont = dst().continuation(wrapper_type, ocont->attributes(), ocont->debug());
-            ncont->params().back()->set_name("self");
-
-            auto closure = dst().closure(closure_type, ocont->debug());
-            closure->set_fn(ncont);
-            ndef = closure;
-            insert(ocont, closure);
-            dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
+            auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
 
             // only the root rewriter is a parent, we're remaking everything else
             children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, &scope, &converter_.root_rewriter_));
             body_rewriter = children_.back().get();
 
+            // Compute all the free variables and record additional nodes to be rebuilt in this context
             std::vector<const Def*> free_vars;
             for (auto free : converter_.spillable_free_defs(ocont, body_rewriter->additional_)) {
                 if (auto free_cont = free->isa_nom<Continuation>()) {
-                    assert(converter_.needs_conversion(free_cont));
+                    assert(converter_.should_process(free_cont));
                 }
                 free_vars.push_back(free);
             }
 
-            size_t env_param_index = ocont->num_params();
+            Closure* closure = nullptr;
+            const Param* closure_param = nullptr;
+            Continuation* wrapper = nullptr;
+            if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
+                // create a wrapper that takes a pointer to the environment
+                auto closure_type = dst().closure_type(nparam_types);
+                nparam_types.push_back(closure_type);
+                closure_param = ncont->append_param(closure_type, { "self" });
 
-            body_rewriter->insert(ocont, ncont->params().back());
+                closure = dst().closure(closure_type, ocont->debug());
+                closure->set_fn(ncont);
+                ndef = closure;
+                insert(ocont, closure);
+                body_rewriter->insert(ocont, ncont->params().back());
+                dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
+            } else if (!free_vars.empty()) {
+                wrapper = dst().continuation(ncont->type(), ncont->debug());
+                wrapper->set_name(ncont->name() + "_wrapper");
+                ndef = wrapper;
+
+                Continuation* lifted = dst().continuation(ncont->type(), ncont->debug());
+                lifted->set_name(ncont->name() + "_lifted");
+
+                std::vector<const Def*> wrapper_args;
+                for (auto a : wrapper->params()) {
+                    wrapper_args.push_back(a);
+                }
+                for (auto free_var : free_vars) {
+                    auto captured = lifted->append_param(instantiate(free_var->type())->as<Type>(), free_var->name() + "_captured");
+                    body_rewriter->insert(free_var, captured);
+                    wrapper_args.push_back(instantiate(free_var));
+                }
+                lifted->jump(ncont, lifted->params_as_defs().get_front(ncont->num_params()));
+                wrapper->jump(lifted, wrapper_args);
+                wrapper->set_filter(wrapper->all_true_filter());
+
+                body_rewriter->insert(ocont, ncont);
+                insert(ocont, wrapper);
+            } else {
+                return Rewriter::rewrite(odef);
+            }
 
             if (!free_vars.empty()) {
                 dst().WLOG("slow: rewriting '{}' as '{}' in {}", ocont, ncont, dump());
@@ -289,36 +345,40 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                 env_type = this->instantiate(env_type)->as<Type>();
 
                 converter_.todo_.emplace_back([=]() {
-                    Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
-                        auto env = instantiate(free_vars[i]);
-                        // it cannot be a basic block, and it cannot be top-level either
-                        // if it used to be a continuation it should be a closure now.
-                        assert(!env->isa_nom<Continuation>());
-                        return env;
-                    });
-                    closure->set_env(thin ? instantiated_free_vars[0] : dst().heap(dst().tuple(instantiated_free_vars)));
-
                     const Def* new_mem = ncont->mem_param();
-                    auto closure_param = ncont->param(env_param_index);
-                    auto env = dst().extract(closure_param, 1);
-                    if (thin) {
-                        auto captured = dst().cast(this->instantiate(free_vars[0]->type())->as<Type>(), env);
-                        captured->set_name(free_vars[0]->name() + "_captured");
-                        body_rewriter->insert(free_vars[0], captured);
-                    } else {
-                        // make the wrapper load the pointer and pass each
-                        // variable of the environment to the lifted continuation
-                        auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), env);
-                        auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
-                        auto env_data = dst().extract(loaded_env, 1_u32);
-                        new_mem = dst().extract(loaded_env, 0_u32);
-                        for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
-                            auto captured = dst().extract(env_data, i);
-                            captured->set_name(free_vars[i]->name() + "_captured");
-                            body_rewriter->insert(free_vars[i], captured);
+
+                    if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
+                        Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
+                            auto env = instantiate(free_vars[i]);
+                            // it cannot be a basic block, and it cannot be top-level either
+                            // if it used to be a continuation it should be a closure now.
+                            assert(!env->isa_nom<Continuation>());
+                            return env;
+                        });
+                        closure->set_env(thin ? instantiated_free_vars[0] : dst().heap(dst().tuple(instantiated_free_vars)));
+
+                        assert(closure_param);
+                        auto env = dst().extract(closure_param, 1);
+                        if (thin) {
+                            auto captured = dst().cast(this->instantiate(free_vars[0]->type())->as<Type>(), env);
+                            captured->set_name(free_vars[0]->name() + "_captured");
+                            body_rewriter->insert(free_vars[0], captured);
+                        } else {
+                            // make the wrapper load the pointer and pass each
+                            // variable of the environment to the lifted continuation
+                            auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), env);
+                            auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
+                            auto env_data = dst().extract(loaded_env, 1_u32);
+                            new_mem = dst().extract(loaded_env, 0_u32);
+                            for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
+                                auto captured = dst().extract(env_data, i);
+                                captured->set_name(free_vars[i]->name() + "_captured");
+                                body_rewriter->insert(free_vars[i], captured);
+                            }
                         }
                     }
 
+                    // Map old arguments to new ones
                     for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
                         auto param = ncont->param(i);
                         if (ocont->mem_param() == ocont->param(i)) {
@@ -333,7 +393,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
 
                     dst().VLOG("finished body of {}", ncont);
                 });
-            } else {
+            } else if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
                 dst().DLOG("dummy closure generated for '{}' -> '{}' in {}", ocont, ncont, dump());
                 for (size_t i = 0; i < ocont->num_params(); i++)
                     body_rewriter->insert(ocont->param(i), ncont->param(i));
@@ -374,10 +434,10 @@ void validate_all_returning_functions_top_level(World& world) {
     }
 }
 
-void closure_conversion(Thorin& thorin) {
+void closure_conversion(Thorin& thorin, LiftMode mode) {
     auto& src = thorin.world_container();
     auto dst = std::make_unique<World>(*src);
-    ClosureConverter converter(*src, *dst);
+    ClosureConverter converter(*src, *dst, mode);
 
     for (auto& external : src->externals())
         converter.root_rewriter().instantiate(external.second);
@@ -388,7 +448,7 @@ void closure_conversion(Thorin& thorin) {
         f();
     }
 
-    validate_all_returning_functions_top_level(*dst);
+    //validate_all_returning_functions_top_level(*dst);
 
     src.swap(dst);
 }

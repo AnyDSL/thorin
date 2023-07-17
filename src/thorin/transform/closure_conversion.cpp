@@ -328,11 +328,11 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
 
             if (!free_vars.empty()) {
                 dst().WLOG("slow: rewriting '{}' as '{}' in {}", ocont, ncont, dump());
-                auto [env_type, thin] = converter_.get_env_type(free_vars);
-                env_type = this->instantiate(env_type)->as<Type>();
 
                 converter_.todo_.emplace_back([=]() {
                     const Def* new_mem = ncont->mem_param();
+                    auto [env_type, thin] = converter_.get_env_type(free_vars);
+                    env_type = this->instantiate(env_type)->as<Type>();
 
                     if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
                         Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {

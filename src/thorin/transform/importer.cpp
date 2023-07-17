@@ -22,7 +22,6 @@ const Def* Importer::rewrite(const Def* odef) {
             if (auto callee = app->callee()->isa_nom<Continuation>()) {
                 if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
                     todo_ = true;
-
                     src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
                     for (size_t i = 0; i < callee->num_params(); i++)
                         insert(callee->param(i), import(app->arg(i)));

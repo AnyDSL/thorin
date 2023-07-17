@@ -353,7 +353,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                         } else {
                             // make the wrapper load the pointer and pass each
                             // variable of the environment to the lifted continuation
-                            auto env_ptr = dst().cast(Closure::environment_ptr_type(dst()), env);
+                            auto env_ptr = dst().bitcast(Closure::environment_ptr_type(dst()), env);
                             auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
                             auto env_data = dst().extract(loaded_env, 1_u32);
                             new_mem = dst().extract(loaded_env, 0_u32);

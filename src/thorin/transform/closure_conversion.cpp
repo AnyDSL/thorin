@@ -311,17 +311,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                 body_rewriter->insert(ocont, ncont->params().back());
                 dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
             } else if (!free_vars.empty()) {
-                Continuation* lifted = dst().continuation(ncont->type(), ncont->debug());
+                assert(converter_.mode_ == LiftMode::Lift2Cff);
                 for (auto free_var : free_vars) {
-                    auto captured = lifted->append_param(instantiate(free_var->type())->as<Type>(), free_var->name() + "_captured");
+                    auto captured = ncont->append_param(instantiate(free_var->type())->as<Type>(), free_var->name() + "_captured");
                     body_rewriter->insert(free_var, captured);
                 }
-                lifted->jump(ncont, lifted->params_as_defs().get_front(ncont->num_params()));
+                ncont->jump(ncont, ncont->params_as_defs().get_front(ncont->num_params()));
 
                 body_rewriter->insert(ocont, ncont);
-                insert(ocont, lifted);
-                ndef = lifted;
-                converter_.lifted_env_.emplace(lifted, free_vars);
+                insert(ocont, ncont);
+                ndef = ncont;
+                converter_.lifted_env_.emplace(ncont, free_vars);
             } else {
                 return Rewriter::rewrite(odef);
             }
@@ -445,7 +445,8 @@ void closure_conversion(Thorin& thorin, LiftMode mode) {
         f();
     }
 
-    //validate_all_returning_functions_top_level(*dst);
+    if (mode >= LiftMode::ClosureConversion)
+        validate_all_returning_functions_top_level(*dst);
 
     src.swap(dst);
 }

@@ -176,6 +176,18 @@ std::string DotPrinter::emit_def(const Def* def) {
 
                         goto print_node;
                     }
+                    case Intrinsic::ControlStatic:
+                    case Intrinsic::Control: {
+                        fillcolor = "lightblue";
+                        label = callee_cont->intrinsic() == Intrinsic::ControlStatic ? "control_static" : "control";
+                        if (print_lower_order_args) {
+                            (*filtered_ops).emplace_back("mem", app->arg(0));
+                        }
+                        (*filtered_ops).emplace_back("start", app->arg(1));
+                        (*filtered_ops).emplace_back("end", app->arg(2));
+
+                        goto print_node;
+                    }
                     default: break;
                 }
             }

@@ -1,4 +1,6 @@
 #include "thorin/transform/importer.h"
+#include "thorin/transform/mangle.h"
+#include "thorin/primop.h"
 
 namespace thorin {
 
@@ -16,17 +18,46 @@ const Def* Importer::rewrite(const Def* odef) {
         }
     } else if (auto app = odef->isa<App>()) {
         // eat calls to known continuations that are only used once
-        while (auto callee = app->callee()->isa_nom<Continuation>()) {
-            if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
-                todo_ = true;
+        while (true) {
+            if (auto callee = app->callee()->isa_nom<Continuation>()) {
+                if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
+                    todo_ = true;
 
-                src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
-                for (size_t i = 0; i < callee->num_params(); i++)
-                    insert(callee->param(i), import(app->arg(i)));
+                    src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
+                    for (size_t i = 0; i < callee->num_params(); i++)
+                        insert(callee->param(i), import(app->arg(i)));
 
-                app = callee->body();
-            } else
-                break;
+                    app = callee->body();
+                    continue;
+                } else if (callee->intrinsic() == Intrinsic::Control) {
+                    auto obody = app->arg(1)->as_nom<Continuation>();
+                    if (obody->body()->callee() == obody->param(1)) {
+                        src().VLOG("simplify: control body just calls the join token, eliminating...");
+                        auto mangled_body = drop(obody, {app->arg(0), app->arg(2)});
+                        app = mangled_body->body();
+                        continue;
+                    }
+                }
+            } else if (auto closure = app->callee()->isa<Closure>()) {
+                if (closure->uses().size() == 1) {
+                    bool ok = true;
+                    for (auto use: closure->fn()->params().back()->uses()) {
+                        // the closure argument can be used, but only to extract the environment!
+                        if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
+                            continue;
+                        ok = false;
+                    }
+                    if (ok) {
+                        src().VLOG("simplify: inlining closure {} as it is used only once, and is not recursive", closure);
+                        Array<const Def*> args(closure->fn()->num_params());
+                        std::copy(app->args().begin(), app->args().end(), args.begin());
+                        args.back() = closure;
+                        app = drop(closure->fn(), args)->body();
+                        continue;
+                    }
+                }
+            }
+            break;
         }
 
         odef = app;

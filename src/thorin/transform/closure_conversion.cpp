@@ -34,7 +34,7 @@ struct ClosureConverter {
             }
 
             if (auto cont = free->isa_nom<Continuation>()) {
-                if (!should_process(cont)) {
+                if (!should_process(cont) || mode_ == LiftMode::Lift2Cff) {
                     auto& scope = forest_.get_scope(cont);
                     if (scope.parent_scope() != nullptr) {
                         entry->world().VLOG("encountered a basic block from a parent scope: {}", cont);
@@ -55,7 +55,7 @@ struct ClosureConverter {
             }
 
             if (free->has_dep(Dep::Param)) {
-                entry->world().VLOG("fv: {} : {}", free, free->type());
+                entry->world().VLOG("fv of {}: {} : {}", entry, free, free->type());
                 result.insert(free);
             } else
                 free->world().WLOG("ignoring {} because it has no Param dependency", free);
@@ -221,6 +221,7 @@ struct ClosureConverter {
     ScopeRewriter root_rewriter_;
     ScopesForest forest_;
     ContinuationMap<bool> should_convert_;
+    ContinuationMap<std::vector<const Def*>> lifted_env_;
     std::vector<std::function<void()>> todo_;
 };
 
@@ -228,11 +229,9 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
     assert(&odef->world() == &src());
     if (parent_) {
         if (!scope_->contains(odef) && !additional_.contains(odef)) {
-            dst().DLOG("Deferring rewriting of {} to {}", odef, parent_->name_);
+            //dst().DLOG("Deferring rewriting of {} to {}", odef, parent_->name_);
             return parent_->rewrite(odef);
         }
-        //assert(scope_->contains(odef));
-        //return parent_->instantiate(odef);
     }
 
     if (auto fn_type = odef->isa<FnType>()) {
@@ -299,7 +298,6 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
 
             Closure* closure = nullptr;
             const Param* closure_param = nullptr;
-            Continuation* wrapper = nullptr;
             if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
                 // create a wrapper that takes a pointer to the environment
                 auto closure_type = dst().closure_type(nparam_types);
@@ -313,28 +311,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                 body_rewriter->insert(ocont, ncont->params().back());
                 dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
             } else if (!free_vars.empty()) {
-                wrapper = dst().continuation(ncont->type(), ncont->debug());
-                wrapper->set_name(ncont->name() + "_wrapper");
-                ndef = wrapper;
-
                 Continuation* lifted = dst().continuation(ncont->type(), ncont->debug());
-                lifted->set_name(ncont->name() + "_lifted");
-
-                std::vector<const Def*> wrapper_args;
-                for (auto a : wrapper->params()) {
-                    wrapper_args.push_back(a);
-                }
                 for (auto free_var : free_vars) {
                     auto captured = lifted->append_param(instantiate(free_var->type())->as<Type>(), free_var->name() + "_captured");
                     body_rewriter->insert(free_var, captured);
-                    wrapper_args.push_back(instantiate(free_var));
                 }
                 lifted->jump(ncont, lifted->params_as_defs().get_front(ncont->num_params()));
-                wrapper->jump(lifted, wrapper_args);
-                wrapper->set_filter(wrapper->all_true_filter());
 
                 body_rewriter->insert(ocont, ncont);
-                insert(ocont, wrapper);
+                insert(ocont, lifted);
+                ndef = lifted;
+                converter_.lifted_env_.emplace(lifted, free_vars);
             } else {
                 return Rewriter::rewrite(odef);
             }
@@ -408,13 +395,23 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
         return ndef;
     } else if (auto app = odef->isa<App>()) {
         auto ncallee = instantiate(app->callee());
-        if (auto ncont = ncallee->isa_nom<Continuation>(); ncont && ncont->is_intrinsic()) {
-            Array<const Def*> nargs(app->num_args(), [&](int i) -> const Def* {
+        if (auto ncont = ncallee->isa_nom<Continuation>(); ncont) {
+            std::vector<const Def*> nargs;
+            nargs.resize(app->num_args());
+
+            for (size_t i = 0; i < app->num_args(); i++) {
                 auto oarg = app->arg(i);
-                if (ncont->type()->types()[i]->tag() == Node_FnType)
-                    return converter_.as_continuation(instantiate(oarg));
-                return instantiate(oarg);
-            });
+                if (ncont->is_intrinsic() && ncont->type()->types()[i]->tag() == Node_FnType)
+                    nargs[i] = converter_.as_continuation(instantiate(oarg));
+                else nargs[i] = instantiate(oarg);
+            };
+
+            if (auto extra_params = converter_.lifted_env_.lookup(ncont); extra_params.has_value()) {
+                for (auto extra : extra_params.value()) {
+                    nargs.push_back(instantiate(extra));
+                }
+            }
+
             return dst().app(ncallee, nargs);
         }
     }

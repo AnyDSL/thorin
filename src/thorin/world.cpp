@@ -1364,7 +1364,7 @@ void Thorin::opt() {
     RUN_PASS(closure_conversion(*this, LiftMode::Lift2Cff));
     RUN_PASS(cleanup())
     RUN_PASS(closure_conversion(*this, LiftMode::ClosureConversion));
-    RUN_PASS(classify_control(*this));
+    // RUN_PASS(classify_control(*this));
     RUN_PASS(closure_conversion(*this, LiftMode::JoinTargets));
     RUN_PASS(lower_control(*this));
     RUN_PASS(cleanup())

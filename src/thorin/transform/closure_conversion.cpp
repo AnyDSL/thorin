@@ -24,8 +24,8 @@ struct ClosureConverter {
             auto free = queue.pop();
             assert(!free->type()->isa<MemType>());
 
-            //if (free == entry)
-            //    continue;
+            if (free == entry)
+                continue;
 
             if (auto ret_cont = free->isa<ReturnPoint>()) {
                 additional_rebuild.insert(ret_cont);
@@ -37,7 +37,6 @@ struct ClosureConverter {
                 if (!should_process(cont) || mode_ == LiftMode::Lift2Cff) {
                     auto& scope = forest_.get_scope(cont);
                     if (scope.parent_scope() != nullptr) {
-                        entry->world().VLOG("encountered a basic block from a parent scope: {}", cont);
                         // enforce that this continuation gets rebuilt even though it originally did not belong in the scope
                         additional_rebuild.insert(cont);
                         for (auto oparam : cont->params())
@@ -47,6 +46,7 @@ struct ClosureConverter {
                         for (auto def: frontier) {
                             queue.push(def);
                         }
+                        entry->world().VLOG("encountered a basic block from a parent scope: {} frontier = {, }", cont, frontier);
                         continue;
                     }
                     entry->world().VLOG("encountered a top level function: {}", cont);
@@ -337,6 +337,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                     if (converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) {
                         Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
                             auto env = instantiate(free_vars[i]);
+                            assert(env != closure);
                             // it cannot be a basic block, and it cannot be top-level either
                             // if it used to be a continuation it should be a closure now.
                             assert(!env->isa_nom<Continuation>());

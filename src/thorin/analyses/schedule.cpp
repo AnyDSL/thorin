@@ -44,14 +44,25 @@ Scheduler::Scheduler(const Scope& s)
     }
 }
 
-Continuation* Scheduler::early(const Def* def) {
+Continuation* Scheduler::early(const Def* def, DefSet* seen) {
     if (auto cont = early_.lookup(def)) return *cont;
     if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
 
+    std::unique_ptr<DefSet> set;
+    if (auto rec = def->isa_nom()) {
+        if (!seen) {
+            set = std::make_unique<DefSet>();
+            set->insert(rec);
+            seen = set.get();
+        }
+    }
+
     auto result = scope().entry();
     for (auto op : def->ops()) {
+        if (seen && seen->contains(op))
+            continue;
         if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
-            auto cont = early(op);
+            auto cont = early(op, seen);
             if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
                 result = cont;
         }
@@ -68,6 +79,9 @@ Continuation* Scheduler::late(const Def* def) {
         result = continuation;
     } else if (auto param = def->isa<Param>()) {
         result = param->continuation();
+    } else if (auto rec = def->isa_nom()) {
+        // don't try to late-schedule recursive nodes for now
+        result = early(def);
     } else {
         for (auto use : uses(def)) {
             auto cont = late(use);

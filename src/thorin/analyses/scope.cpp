@@ -331,4 +331,35 @@ void ScopesForest::for_each(std::function<void(Scope&)> f) {
     }
 }
 
+DEBUG_UTIL void dump_scope_tree(Scope& s, ScopesForest* f = nullptr, int depth = 0) {
+    for (int i = 0; i < depth; i++)
+        std::cerr << "  ";
+    std::unique_ptr<ScopesForest> sf;
+    if (!f) {
+        sf = std::make_unique<ScopesForest>(s.world());
+        f = sf.get();
+    }
+
+    std::cerr << s.entry()->unique_name() << std::endl;
+    for (auto c : s.children_scopes()) {
+        auto& cs = f->get_scope(c);
+        dump_scope_tree(cs, f, depth + 1);
+    }
+}
+
+DEBUG_UTIL void dump_scopes(World& w) {
+    ScopesForest forest(w);
+    std::vector<Scope*> q;
+    for (auto cont : w.copy_continuations()) {
+        auto& s = forest.get_scope(cont);
+        if (!s.parent_scope()) {
+            q.push_back(&s);
+        }
+    }
+
+    for (auto root : q) {
+        dump_scope_tree(*root, &forest);
+    }
+}
+
 }

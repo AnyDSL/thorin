@@ -28,7 +28,7 @@ static bool verify_calls(World& world, ScopesForest& forest) {
                 if (auto tuple = e->isa<Tuple>()) {
                     for (auto o : tuple->ops())
                         env.push(o);
-                } else if (auto heap = e->isa<Heap>()) {
+                } else if (auto heap = e->isa<Cell>()) {
                     env.push(heap->contents());
                 } else if (auto cont = e->isa_nom<Continuation>()) {
                     world.ELOG("closure '{}' has a continuation in it's environment {}", def, cont);

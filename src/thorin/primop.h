@@ -594,14 +594,17 @@ private:
     friend class World;
 };
 
-class Heap : public Def {
+/// Allocates and initialises constant memory, does not use a memory token
+class Cell : public Def {
 private:
-    Heap(World& w, const Type* t, const Def* contents, Debug dbg) : Def(w, Node_Heap, t, { contents }, dbg) {}
+    Cell(World& w, const Type* t, const Def* contents, bool heap, Debug dbg) : Def(w, Node_Cell, t, {contents }, dbg), heap_(heap) {}
 public:
 
     const Def* contents() const { return op(0); }
+    bool is_heap_allocated() const { return heap_; }
 private:
     const Def* rebuild(World&, const Type*, Defs) const override;
+    bool heap_;
 
     friend class World;
 };

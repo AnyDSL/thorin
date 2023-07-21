@@ -220,9 +220,13 @@ const Def* Tuple         ::rebuild(World& w, const Type*  , Defs o) const { retu
 const Def* Variant       ::rebuild(World& w, const Type* t, Defs o) const { return w.variant(t->as<VariantType>(), o[0], index(), debug()); }
 const Def* VariantIndex  ::rebuild(World& w, const Type*  , Defs o) const { return w.variant_index(o[0], debug()); }
 const Def* VariantExtract::rebuild(World& w, const Type*  , Defs o) const { return w.variant_extract(o[0], index(), debug()); }
-//const Def* Closure       ::rebuild(World& w, const Type* t, Defs o) const { return w.closure(t->as<ClosureType>(), o[0], o[1], debug()); }
-const Def* Heap          ::rebuild(World& w, const Type* t, Defs o) const { return w.heap(o[0], debug()); }
 const Def* Vector        ::rebuild(World& w, const Type*  , Defs o) const { return w.vector(o, debug()); }
+
+const Def* Cell::rebuild(World& w, const Type* t, Defs o) const {
+    if (is_heap_allocated())
+        return w.heap_cell(o[0], debug());
+    return w.stack_cell(o[0], debug());
+}
 
 const Def* Alloc::rebuild(World& w, const Type* t, Defs o) const {
     return w.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), o[0], o[1], debug());

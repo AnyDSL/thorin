@@ -1371,11 +1371,14 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             bb->body.fmt("{} = malloc(sizeof({}));\n", name, t);
         }
         return name;
-    } else if (auto heap = def->isa<Heap>()) {
-        auto ptr_t = heap->type()->as<PtrType>();
-        func_impls_.fmt("{} {} = malloc(sizeof({})); // heap allocation\n", convert(ptr_t), name, convert(heap->contents()->type()));
-        defs_[heap] = name;
-        bb->body.fmt("*{} = {};\n", name, emit(heap->contents()));
+    } else if (auto cell = def->isa<Cell>()) {
+        auto ptr_t = cell->type()->as<PtrType>();
+        if (cell->is_heap_allocated())
+            func_impls_.fmt("{} {} = malloc(sizeof({})); // heap allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));
+        else
+            func_impls_.fmt("{} {} = alloca(sizeof({})); // stack allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));
+        defs_[cell] = name;
+        bb->body.fmt("*{} = {};\n", name, emit(cell->contents()));
         return name;
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());

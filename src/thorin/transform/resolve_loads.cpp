@@ -90,7 +90,7 @@ public:
     }
 
     const Def* get_value(const Def* alloc, Def2Def& mapping) {
-        if (auto heap = alloc->isa<Heap>())
+        if (auto heap = alloc->isa<Cell>())
             return heap->contents();
         auto it = mapping.find(alloc);
         if (it != mapping.end())
@@ -237,7 +237,7 @@ public: \
                 ptr = bitcast->from();
             if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable() && (!ptr->as<Global>()->is_external() || !ptr->as<Global>()->init()->isa<Bottom>()))
                 return ptr;
-            if (ptr->isa<Heap>())
+            if (ptr->isa<Cell>())
                 return ptr;
             // If first == ptr, we are looking at the pointed value.
             // In that case, we need to make sure the pointer does not escape.

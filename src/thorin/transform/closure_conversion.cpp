@@ -337,7 +337,16 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                             assert(!env->isa_nom<Continuation>());
                             return env;
                         });
-                        closure->set_env(thin ? instantiated_free_vars[0] : dst().heap(dst().tuple(instantiated_free_vars)));
+                        if (thin)
+                            closure->set_env(instantiated_free_vars[0]);
+                        else {
+                            auto env_tuple = dst().tuple(instantiated_free_vars);
+                            if (converter_.mode_ == LiftMode::ClosureConversion) {
+                                closure->set_env(dst().heap_cell(env_tuple));
+                                dst().wdef(ncont, "closure '{}' is leaking memory, type '{}' is too large and must be heap allocated", closure, closure->env()->type());
+                            } else
+                                closure->set_env(dst().stack_cell(env_tuple));
+                        }
 
                         assert(closure_param);
                         auto env = dst().extract(closure_param, 1);

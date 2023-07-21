@@ -802,10 +802,10 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
         }
 
         return llvm_agg;
-    } else if (auto heap = def->isa<Heap>()) {
-        world().wdef(def, "closure '?' is leaking memory, type '{}' is too large", heap->contents()->type());
-        auto alloc = emit_alloc(irbuilder, heap->contents()->type(), nullptr);
-        irbuilder.CreateStore(emit(heap->contents()), alloc);
+    } else if (auto cell = def->isa<Cell>()) {
+        assert(cell->is_heap_allocated() && "TODO");
+        auto alloc = emit_alloc(irbuilder, cell->contents()->type(), nullptr);
+        irbuilder.CreateStore(emit(cell->contents()), alloc);
         return irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world())));
     } else if (auto aggop = def->isa<AggOp>()) {
         auto llvm_agg = emit_unsafe(aggop->agg());

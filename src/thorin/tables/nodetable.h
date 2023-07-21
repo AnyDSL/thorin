@@ -12,7 +12,7 @@
             THORIN_NODE(BlobPtr, mem_blob)
         // MemOp
             THORIN_NODE(Alloc, alloc)
-            THORIN_NODE(Heap, heap)
+            THORIN_NODE(Cell, cell)
             // Access
                 THORIN_NODE(Load, load)
                 THORIN_NODE(Store, store)

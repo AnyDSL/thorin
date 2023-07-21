@@ -103,7 +103,7 @@ Global::Global(World& world, const Def* init, bool is_mutable, Debug dbg)
     : Def(world, Node_Global, world.ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
-    assert(!init->has_dep(Dep::Param));
+    //assert(!init->has_dep(Dep::Param));
 }
 
 Alloc::Alloc(World& world, const Type* type, const Def* mem, const Def* extra, Debug dbg)

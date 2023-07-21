@@ -649,13 +649,22 @@ std::string CCodeGen::prepare(const Scope& scope) {
         auto ret_t = cont->type()->return_param_type();
         assert(ret_p && ret_t);
         convert(ret_t);
-        func_impls_.fmt("{} return_buf;\n", return_name(ret_t));
-        func_impls_.fmt("if (setjmp(return_buf.buf) != 0) {{\t\n");
-        if (!is_type_unit(mangle_return_type(cont->type()->return_param_type())))
-           func_impls_.fmt("return return_buf.data;\b\n");
-        else
-            func_impls_.fmt("return;\b\n");
-        func_impls_.fmt("}}\n");
+        bool leaks = false;
+        for (auto use : ret_p->uses()) {
+            if (use.def()->isa<App>() && use.index() == App::CALLEE_POSITION)
+                continue;
+            leaks = true;
+            break;
+        }
+        if (leaks) {
+            func_impls_.fmt("{} return_buf;\n", return_name(ret_t));
+            func_impls_.fmt("if (setjmp(return_buf.buf) != 0) {{\t\n");
+            if (!is_type_unit(mangle_return_type(cont->type()->return_param_type())))
+                func_impls_.fmt("return return_buf.data;\b\n");
+            else
+                func_impls_.fmt("return;\b\n");
+            func_impls_.fmt("}}\n");
+        }
     }
 
     // Load OpenCL structs from buffers

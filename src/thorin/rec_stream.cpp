@@ -153,7 +153,7 @@ Stream& Def::stream1(Stream& s) const {
             return s.fmt("{}({, }))", op_name(), ops());
     }
 
-    return s.fmt("{}({, }))", op_name(), ops());
+    return s.fmt("{}({, })", op_name(), ops());
 }
 
 Stream& Def::stream_let(Stream& s) const {

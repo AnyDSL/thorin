@@ -1208,9 +1208,9 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return name;
     } else if (def->isa<Closure>()) {
         if (bb) {
-            func_impls_.fmt("{} {};\n", convert(def->type()), name);
+            if (!func_defs_.contains(def))
+                func_impls_.fmt("{} {};\n", convert(def->type()), name);
             func_defs_.insert(def);
-            defs_[def] = name;
             bb->body << name;
             emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 0 }));
             bb->body.fmt(" = {};\n", emit_unsafe(def->op(0)));

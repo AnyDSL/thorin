@@ -230,7 +230,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
     if (parent_) {
         if (!scope_->contains(odef) && !additional_.contains(odef)) {
             //dst().DLOG("Deferring rewriting of {} to {}", odef, parent_->name_);
-            return parent_->rewrite(odef);
+            return parent_->instantiate(odef);
         }
     }
 
@@ -249,12 +249,6 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
             auto ntype = dst().closure_type(ntypes);
             return ntype;
         }
-    } else if (auto global = odef->isa<Global>()) {
-        auto nglobal = dst().global(instantiate(global->init()), global->is_mutable(), global->debug());
-        nglobal->set_name(global->name());
-        if (global->is_external())
-            dst().make_external(const_cast<Def*>(nglobal));
-        return nglobal;
     } else if (auto ocont = odef->isa_nom<Continuation>()) {
         dst().DLOG("analysing '{}' in {}", ocont, dump());
         auto& scope = converter_.forest_.get_scope(ocont);

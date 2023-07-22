@@ -601,11 +601,12 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             assert(!ret_arg);
         } else {
             // must be a closure
-            assert(body->callee()->type()->isa<ClosureType>());
+            auto closure_t = body->callee()->type()->as<ClosureType>();
             auto closure = emit(body->callee());
-            args.push_back(irbuilder.CreateExtractValue(closure, 1));
+            auto fnt = world().fn_type(concat(closure_t->types(), closure_t->as<Type>()));
+            args.push_back(closure);
             auto func = irbuilder.CreateExtractValue(closure, 0);
-            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(llvm::cast<llvm::PointerType>(func->getType())->getPointerElementType()), func, args);
+            call = irbuilder.CreateCall(llvm::cast<llvm::FunctionType>(convert(fnt)), irbuilder.CreatePointerCast(func, convert(world().ptr_type(fnt))), args);
         }
 
         // don't emit for tail calls

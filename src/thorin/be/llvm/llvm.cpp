@@ -903,8 +903,7 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
 
         return llvm_agg;
     } else if (auto cell = def->isa<Cell>()) {
-        assert(cell->is_heap_allocated() && "TODO");
-        auto alloc = emit_alloc(irbuilder, cell->contents()->type(), nullptr);
+        auto alloc = cell->is_heap_allocated() ? emit_alloc(irbuilder, cell->contents()->type(), nullptr) : emit_alloca(irbuilder, convert(cell->contents()->type()), "cell");
         irbuilder.CreateStore(emit(cell->contents()), alloc);
         return irbuilder.CreatePtrToInt(alloc, convert(Closure::environment_type(world())));
     } else if (auto aggop = def->isa<AggOp>()) {

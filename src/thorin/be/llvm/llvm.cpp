@@ -176,6 +176,11 @@ llvm::Type* CodeGen::convert(const Type* type) {
             llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
             return types_[type] = llvm_type;
         }
+        case Node_ReturnType: {
+            auto ret_t = type->as<ReturnType>();
+            auto tuple_t = world().tuple_type({ ret_t->mangle_for_codegen(), world().definite_array_type(world().type_qu8(), 200) });
+            return types_[type] = convert(world().ptr_type(tuple_t));
+        }
 
         case Node_StructType: {
             auto struct_type = type->as<StructType>();
@@ -364,6 +369,56 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
         discope_ = disub_program;
     }
 
+    return_buf_ = nullptr;
+    entry_prelude_.reset();
+    entry_prelude_end_.reset();
+    if (entry_->is_returning()) {
+        auto ret_p = entry_->ret_param();
+        auto ret_t = entry_->type()->return_param_type();
+        assert(ret_p && ret_t);
+        convert(ret_t);
+        bool leaks = false;
+        for (auto use: ret_p->uses()) {
+            if (use.def()->isa<App>() && use.index() == App::CALLEE_POSITION)
+                continue;
+            leaks = true;
+            break;
+        }
+        if (leaks) {
+            entry_prelude_ = std::make_optional<>(std::pair(llvm::BasicBlock::Create(context(), "entry_prelude_", fct), std::make_unique<llvm::IRBuilder<>>(context())));
+            entry_prelude_->second->SetInsertPoint(entry_prelude_->first);
+            entry_prelude_end_ = std::make_optional<>(std::pair(llvm::BasicBlock::Create(context(), "entry_prelude_end_", fct), std::make_unique<llvm::IRBuilder<>>(context())));
+            entry_prelude_end_->second->SetInsertPoint(entry_prelude_end_->first);
+            auto if_setjmp = std::make_optional<>(std::pair(llvm::BasicBlock::Create(context(), "if_setjmp", fct), std::make_unique<llvm::IRBuilder<>>(context())));
+            if_setjmp->second->SetInsertPoint(if_setjmp->first);
+            auto& builder = *entry_prelude_->second;
+
+            auto returned_type = ret_t->mangle_for_codegen();
+            auto jmp_buf_type = world().definite_array_type(world().type_qu8(), 200);
+
+            return_buf_ = emit_alloca(builder, convert(ret_t)->getPointerElementType(), "return_buf");
+            auto ret_value_buf = builder.CreateConstGEP2_32(convert(ret_t)->getPointerElementType(), return_buf_, 0, 0);
+            ret_value_buf->setName("return_value_buf");
+            auto jmp_buf =  builder.CreateConstGEP2_32(convert(ret_t)->getPointerElementType(), return_buf_, 0, 1);
+            jmp_buf->setName("jmp_buf");
+            defs_[entry_->ret_param()] = return_buf_;
+
+            auto fn_type = llvm::FunctionType::get(llvm::IntegerType::get(context(), 32), { llvm::PointerType::getUnqual(context()) }, false);
+            auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction("setjmp", fn_type).getCallee()->stripPointerCasts());
+
+            auto result = entry_prelude_->second->CreateCall(fn, { entry_prelude_->second->CreatePointerCast(jmp_buf, llvm::PointerType::getUnqual(context())) });
+            auto branch = entry_prelude_->second->CreateICmpEQ(result, llvm::ConstantInt::get(result->getType(), 0));
+            entry_prelude_->second->CreateCondBr(branch, entry_prelude_end_->first, if_setjmp->first);
+
+            if (returned_type != world().unit_type()) {
+                auto loaded_ret_value = if_setjmp->second->CreateLoad(convert(returned_type), return_buf_);
+                if_setjmp->second->CreateRet(loaded_ret_value);
+            } else {
+                if_setjmp->second->CreateRetVoid();
+            }
+        }
+    }
+
     return fct;
 }
 
@@ -394,6 +449,9 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
                 }
             }
         }
+
+        if (entry_prelude_end_)
+            entry_prelude_end_->second->CreateBr(cont2bb(entry_));
     } else {
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
@@ -501,8 +559,49 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 call->setCallingConv(device_calling_convention_);
             else
                 call->setCallingConv(function_calling_convention_);
+        } else if (auto ret_t = body->callee()->type()->isa<ReturnType>()) {
+            auto returned_type = ret_t->mangle_for_codegen();
+            auto jmp_buf_type = world().definite_array_type(world().type_qu8(), 200);
+            auto return_buf = emit(body->callee());
+            auto ret_value_buf = irbuilder.CreateConstGEP2_32(convert(ret_t)->getPointerElementType(), return_buf, 0, 0);
+            ret_value_buf->setName("return_value_buf");
+            auto jmp_buf =  irbuilder.CreateConstGEP2_32(convert(ret_t)->getPointerElementType(), return_buf, 0, 1);
+            jmp_buf->setName("jmp_buf");
+
+            auto fn_type = llvm::FunctionType::get(llvm::Type::getVoidTy(context()), { llvm::PointerType::getUnqual(context()), llvm::IntegerType::get(context(), 32) }, false);
+            auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction("longjmp", fn_type).getCallee()->stripPointerCasts());
+
+            std::vector<llvm::Value*> values;
+            std::vector<llvm::Type *> types;
+
+            for (auto arg : body->args()) {
+                if (auto val = emit_unsafe(arg)) {
+                    values.emplace_back(val);
+                    types.emplace_back(val->getType());
+                }
+            }
+
+            llvm::Value* ret_value = nullptr;
+            switch (values.size()) {
+                case 0:  break;
+                case 1:  ret_value = values[0]; break;
+                default:
+                    llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context(), types));
+
+                    for (size_t i = 0, e = values.size(); i != e; ++i)
+                        agg = irbuilder.CreateInsertValue(agg, values[i], { unsigned(i) });
+
+                    ret_value = agg;
+                    break;
+            }
+
+            if (ret_value)
+                irbuilder.CreateStore(ret_value, ret_value_buf);
+            call = irbuilder.CreateCall(fn, { irbuilder.CreatePointerCast(jmp_buf, llvm::PointerType::getUnqual(context())), emit(world().literal_ps32(1, {})) });
+            assert(!ret_arg);
         } else {
             // must be a closure
+            assert(body->callee()->type()->isa<ClosureType>());
             auto closure = emit(body->callee());
             args.push_back(irbuilder.CreateExtractValue(closure, 1));
             auto func = irbuilder.CreateExtractValue(closure, 0);

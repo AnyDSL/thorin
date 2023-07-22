@@ -403,10 +403,10 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
             jmp_buf->setName("jmp_buf");
             defs_[entry_->ret_param()] = return_buf_;
 
-            auto fn_type = llvm::FunctionType::get(llvm::IntegerType::get(context(), 32), { llvm::PointerType::getUnqual(context()) }, false);
+            auto fn_type = llvm::FunctionType::get(llvm::IntegerType::get(context(), 32), { llvm::PointerType::get(llvm::IntegerType::get(context(), 8), 0) }, false);
             auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction("setjmp", fn_type).getCallee()->stripPointerCasts());
 
-            auto result = entry_prelude_->second->CreateCall(fn, { entry_prelude_->second->CreatePointerCast(jmp_buf, llvm::PointerType::getUnqual(context())) });
+            auto result = entry_prelude_->second->CreateCall(fn, { entry_prelude_->second->CreatePointerCast(jmp_buf, llvm::PointerType::get(llvm::IntegerType::get(context(), 8), 0)) });
             auto branch = entry_prelude_->second->CreateICmpEQ(result, llvm::ConstantInt::get(result->getType(), 0));
             entry_prelude_->second->CreateCondBr(branch, entry_prelude_end_->first, if_setjmp->first);
 
@@ -568,7 +568,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             auto jmp_buf =  irbuilder.CreateConstGEP2_32(convert(ret_t)->getPointerElementType(), return_buf, 0, 1);
             jmp_buf->setName("jmp_buf");
 
-            auto fn_type = llvm::FunctionType::get(llvm::Type::getVoidTy(context()), { llvm::PointerType::getUnqual(context()), llvm::IntegerType::get(context(), 32) }, false);
+            auto fn_type = llvm::FunctionType::get(llvm::Type::getVoidTy(context()), { llvm::PointerType::get(llvm::IntegerType::get(context(), 8), 0), llvm::IntegerType::get(context(), 32) }, false);
             auto fn = llvm::cast<llvm::Function>(module().getOrInsertFunction("longjmp", fn_type).getCallee()->stripPointerCasts());
 
             std::vector<llvm::Value*> values;
@@ -597,7 +597,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
             if (ret_value)
                 irbuilder.CreateStore(ret_value, ret_value_buf);
-            call = irbuilder.CreateCall(fn, { irbuilder.CreatePointerCast(jmp_buf, llvm::PointerType::getUnqual(context())), emit(world().literal_ps32(1, {})) });
+            call = irbuilder.CreateCall(fn, { irbuilder.CreatePointerCast(jmp_buf, llvm::PointerType::get(llvm::IntegerType::get(context(), 8), 0)), emit(world().literal_ps32(1, {})) });
             assert(!ret_arg);
         } else {
             // must be a closure

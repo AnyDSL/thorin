@@ -674,17 +674,17 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
         auto dst_type = conv->type();
         auto to = convert(dst_type);
 
-        if (conv->isa<Cast>()) {
-            if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
-                return irbuilder.CreatePointerCast(from, to);
-            } else if (src_type->isa<PtrType>()) {
-                assert(is_type_i(dst_type) || is_type_bool(dst_type));
-                return irbuilder.CreatePtrToInt(from, to);
-            } else if (dst_type->isa<PtrType>()) {
-                assert(is_type_i(src_type) || is_type_bool(src_type));
-                return irbuilder.CreateIntToPtr(from, to);
-            }
+        if ((src_type->isa<PtrType>() && dst_type->isa<PtrType>()) || (src_type->isa<ReturnType>() && dst_type->isa<ReturnType>())) {
+            return irbuilder.CreatePointerCast(from, to);
+        } else if (src_type->isa<PtrType>() || src_type->isa<ReturnType>()) {
+            assert(is_type_i(dst_type) || is_type_bool(dst_type));
+            return irbuilder.CreatePtrToInt(from, to);
+        } else if (dst_type->isa<PtrType>() || dst_type->isa<ReturnType>()) {
+            assert(is_type_i(src_type) || is_type_bool(src_type));
+            return irbuilder.CreateIntToPtr(from, to);
+        }
 
+        if (conv->isa<Cast>()) {
             auto src = src_type->as<PrimType>();
             auto dst = dst_type->as<PrimType>();
 

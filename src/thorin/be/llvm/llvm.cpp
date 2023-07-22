@@ -411,7 +411,7 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
             entry_prelude_->second->CreateCondBr(branch, entry_prelude_end_->first, if_setjmp->first);
 
             if (returned_type != world().unit_type()) {
-                auto loaded_ret_value = if_setjmp->second->CreateLoad(convert(returned_type), return_buf_);
+                auto loaded_ret_value = if_setjmp->second->CreateLoad(convert(returned_type), ret_value_buf);
                 if_setjmp->second->CreateRet(loaded_ret_value);
             } else {
                 if_setjmp->second->CreateRetVoid();

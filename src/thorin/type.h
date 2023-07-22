@@ -327,6 +327,7 @@ private:
 
 public:
     const Type* rebuild(World&, const Type*, Defs) const override;
+    const Type* mangle_for_codegen() const;
 
     friend class World;
 };

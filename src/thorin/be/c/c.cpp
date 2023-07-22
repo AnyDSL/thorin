@@ -563,13 +563,7 @@ const Type* CCodeGen::mangle_return_type(const ReturnType* return_type) {
     // treat non-returning calls as if they return nothing, for now
     if(!return_type)
         return world().unit_type();
-    std::vector<const Type*> types;
-    for (auto op : return_type->types()) {
-        assert(op->order() == 0);
-        if (op->isa<MemType>() || is_type_unit(op)) continue;
-        types.push_back(op);
-    }
-    return return_type->world().tuple_type(types);
+    return return_type->mangle_for_codegen();
 }
 
 static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {

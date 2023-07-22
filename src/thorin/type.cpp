@@ -95,6 +95,17 @@ const ReturnType* FnType::return_param_type() const {
     return op(i)->as<ReturnType>();
 }
 
+const Type* ReturnType::mangle_for_codegen() const {
+    // treat non-returning calls as if they return nothing, for now
+    std::vector<const Type*> types;
+    for (auto op: this->types()) {
+        assert(op->order() == 0);
+        if (op->isa<MemType>() || is_type_unit(op)) continue;
+        types.push_back(op);
+    }
+    return world().tuple_type(types);
+}
+
 Array<const Type*> FnType::domain() const {
     auto r = ret_param_index();
     Array<const Type*> dom(r < 0 ? num_ops() : num_ops() - 1);

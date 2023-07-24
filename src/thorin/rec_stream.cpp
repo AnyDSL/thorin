@@ -183,6 +183,7 @@ Stream& Scope::stream(Stream& s) const {
 
 Stream& Type::stream(Stream& s) const {
     if (false) {}
+    else if (isa<Star>()) return s.fmt("*");
     else if (isa<BottomType>()) return s.fmt("!!");
     else if (isa<   MemType>()) return s.fmt("mem");
     else if (isa< FrameType>()) return s.fmt("frame");

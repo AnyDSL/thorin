@@ -617,9 +617,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         // don't emit for tail calls
-        if (ret_arg) {
-            // must be call + continuation --- call + return has been removed by codegen_prepare
-            assert(ret_arg->isa<ReturnPoint>());
+        if (ret_arg->isa<ReturnPoint>()) {
             auto succ = ret_arg->as<ReturnPoint>()->continuation();
 
             size_t n = 0;
@@ -657,12 +655,16 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 }
             }
         } else {
+            assert(!ret_arg || ret_arg == entry_->ret_param()); // either a non-returning call, or direct-style tail-call
             potential_tailcalls_.push_back(call);
             if (entry_->type()->is_returning()) {
                 auto entry_return_t = entry_->type()->return_param_type()->mangle_for_codegen();
-                if (entry_return_t != world().unit_type())
-                    irbuilder.CreateRet(llvm::UndefValue::get(convert(entry_return_t)));
-                else
+                if (entry_return_t != world().unit_type()) {
+                    if (ret_arg) // tail call, we return the result of the call
+                        irbuilder.CreateRet(call);
+                    else // non-returning call so we need to make up a value
+                        irbuilder.CreateRet(llvm::UndefValue::get(convert(entry_return_t)));
+                } else
                     irbuilder.CreateRetVoid();
             } else
                 irbuilder.CreateRetVoid();

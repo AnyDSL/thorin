@@ -63,14 +63,16 @@ const Def* Importer::rewrite(const Def* odef) {
     } else if (auto cont = odef->isa_nom<Continuation>()) {
         if (cont->has_body()) {
             auto body = cont->body();
-            // try to subsume continuations which call a parameter
-            // (that is free within that continuation) with that parameter
-            if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == cont || src().is_external(cont) || param->type()->tag() != Node_FnType)
+            // try to subsume continuations which call a def
+            // (that is free within that continuation) with that def
+            auto callee = body->callee();
+            auto& scope = forest_->get_scope(cont);
+            if (!scope.contains(callee)) {
+                if (src().is_external(cont) || callee->type()->tag() != Node_FnType)
                     goto rebuild;
 
                 if (body->args() == cont->params_as_defs()) {
-                    src().VLOG("simplify: continuation {} calls a parameter: {}", cont->unique_name(), body->callee());
+                    src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
                     // We completely replace the original continuation
                     // If we don't do so, then we miss some simplifications
                     return instantiate(body->callee());
@@ -94,7 +96,7 @@ const Def* Importer::rewrite(const Def* odef) {
                     if (!is_permutation)
                         goto rebuild;
 
-                    src().VLOG("simplify: continuation {} calls a parameter: {} (with permuted args)", cont->unique_name(), body->callee());
+                    src().VLOG("simplify: continuation {} calls a free def: {} (with permuted args)", cont->unique_name(), body->callee());
                 }
 
                 auto rebuilt = cont->stub(*this, instantiate(cont->type())->as<Type>());

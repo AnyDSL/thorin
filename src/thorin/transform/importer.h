@@ -4,13 +4,14 @@
 #include "thorin/world.h"
 #include "thorin/config.h"
 #include "thorin/transform/rewrite.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
 
 class Importer : Rewriter {
 public:
     explicit Importer(World& src, World& dst)
-        : Rewriter(src, dst)
+        : Rewriter(src, dst), forest_(std::make_unique<ScopesForest>(src))
     {
         assert(&src != &dst);
         if (src.is_pe_done())
@@ -28,6 +29,7 @@ protected:
     const Def* rewrite(const Def* odef) override;
 
 private:
+    std::unique_ptr<ScopesForest> forest_;
     bool todo_ = false;
 };
 

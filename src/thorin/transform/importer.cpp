@@ -117,6 +117,15 @@ const Def* Importer::rewrite(const Def* odef) {
                 return wrapped;
             }
         }
+    } else while (auto ret_pt = odef->isa<ReturnPoint>()) {
+        auto ret_cont = ret_pt->continuation();
+        assert(ret_cont->has_body());
+        if (ret_cont->body()->callee()->type() == ret_pt->type()) {
+            src().VLOG("simplify: return point {} just forwards data to another: {}", ret_pt, ret_cont->body()->callee());
+            odef = ret_cont->body()->callee();
+            continue;
+        }
+        break;
     }
 
     rebuild:

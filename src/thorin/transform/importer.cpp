@@ -120,10 +120,26 @@ const Def* Importer::rewrite(const Def* odef) {
     } else while (auto ret_pt = odef->isa<ReturnPoint>()) {
         auto ret_cont = ret_pt->continuation();
         assert(ret_cont->has_body());
-        if (ret_cont->body()->callee()->type() == ret_pt->type()) {
-            src().VLOG("simplify: return point {} just forwards data to another: {}", ret_pt, ret_cont->body()->callee());
-            odef = ret_cont->body()->callee();
-            continue;
+        auto ret_app = ret_cont->body();
+        if (ret_app->callee()->type() == ret_pt->type()) {
+            bool scopes_ok = true;
+            auto p = ret_app->callee()->isa<Param>();
+            scopes_ok &= !p || p->continuation() != ret_cont;
+
+            for (auto a : ret_app->args()) {
+                if (auto p = a->isa<Param>()) {
+                    if (p->continuation() == ret_cont) {
+                        // bail out
+                        scopes_ok = false;
+                        break;
+                    }
+                }
+            }
+            if (scopes_ok) {
+                src().VLOG("simplify: return point {} just forwards data to another: {}", ret_pt, ret_app->callee());
+                odef = ret_cont->body()->callee();
+                continue;
+            }
         }
         break;
     }

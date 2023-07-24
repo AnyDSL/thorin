@@ -382,8 +382,11 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
         convert(ret_t);
         bool leaks = false;
         for (auto use: ret_p->uses()) {
-            if (use.def()->isa<App>() && use.index() == App::CALLEE_POSITION)
-                continue;
+            auto app = use.def()->isa<App>();
+            if (app && use.index() == App::CALLEE_POSITION)
+                continue; // ret(...)
+            if (app && app->callee()->type()->as<FnType>()->ret_param_index() == (int) use.index() - App::ARGS_START_POSITION)
+                continue; // foo(a, b, c, ... ret) where arg n-1 is of type ret[...]
             leaks = true;
             break;
         }

@@ -40,6 +40,8 @@ private:
     void stream_cont(thorin::Stream& s, Continuation* cont) const;
     void prepare_def(Continuation* in, const Def* def) const;
     static void stream_op(thorin::Stream&, const Def* op);
+    static void stream_ops(thorin::Stream& s, Defs defs);
+    static void stream_def(thorin::Stream& s, const Def* def);
     static void stream_defs(thorin::Stream& s, std::vector<const Def*>& defs);
 };
 
@@ -131,6 +133,34 @@ void ScopedWorld::stream_op(thorin::Stream& s, const thorin::Def* op) {
     s.fmt(Reset);
 }
 
+void ScopedWorld::stream_ops(thorin::Stream& s, Defs ops) {
+    s.fmt("(");
+    size_t j = 0;
+    for (auto op : ops) {
+        stream_op(s, op);
+        if (j + 1 < ops.size())
+            s.fmt(", ");
+        j++;
+    }
+    s.fmt(")");
+}
+
+void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) {
+    if (auto app = def->isa<App>()) {
+        stream_op(s, app->callee());
+        stream_ops(s, app->args());
+        if (!app->filter()->is_empty()) {
+            s.fmt(" with {}", app->filter());
+        }
+        return;
+    }
+
+    s.fmt(Green);
+    s.fmt("{}", def->op_name());
+    s.fmt(Reset);
+    stream_ops(s, def->ops());
+}
+
 void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) {
     size_t i = 0;
     for (auto def : defs) {
@@ -139,18 +169,7 @@ void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) 
         s.fmt("{}", def->type());
         s.fmt(Reset);
         s.fmt(" = ");
-        s.fmt(Green);
-        s.fmt("{}", def->op_name());
-        s.fmt(Reset);
-        s.fmt("(");
-        size_t j = 0;
-        for (auto op : def->ops()) {
-            stream_op(s, op);
-            if (j + 1 < def->num_ops())
-                s.fmt(", ");
-            j++;
-        }
-        s.fmt(")");
+        stream_def(s, def);
         if (i + 1 < defs.size())
             s.fmt("\n");
         i++;

@@ -135,6 +135,8 @@ protected:
     std::optional<BB> entry_prelude_;
     std::optional<BB> entry_prelude_end_;
     llvm::Value* return_buf_;
+    bool has_alloca_;
+    std::vector<llvm::CallInst*> potential_tailcalls_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif

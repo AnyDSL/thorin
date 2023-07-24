@@ -369,6 +369,9 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
         discope_ = disub_program;
     }
 
+    has_alloca_ = false;
+    potential_tailcalls_.clear();
+
     return_buf_ = nullptr;
     entry_prelude_.reset();
     entry_prelude_end_.reset();
@@ -472,6 +475,10 @@ void CodeGen::finalize(const Scope&) {
         // which should never be reused outside of the function they were defined in, so we erase them
         if (auto variant = def->isa<Variant>(); variant && !variant->value()->has_dep(Dep::Param))
             to_remove.push_back(def);
+    }
+    if (!has_alloca_) for (auto call : potential_tailcalls_) {
+        call->setTailCall(true);
+        // call->setTailCallKind(llvm::CallInst::TCK_MustTail);
     }
     for (auto& def : to_remove)
         defs_.erase(def);
@@ -650,8 +657,15 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 }
             }
         } else {
-            call->setTailCall(true);
-            irbuilder.CreateUnreachable();
+            potential_tailcalls_.push_back(call);
+            if (entry_->type()->is_returning()) {
+                auto entry_return_t = entry_->type()->return_param_type()->mangle_for_codegen();
+                if (entry_return_t != world().unit_type())
+                    irbuilder.CreateRet(llvm::UndefValue::get(convert(entry_return_t)));
+                else
+                    irbuilder.CreateRetVoid();
+            } else
+                irbuilder.CreateRetVoid();
         }
     }
 
@@ -1085,6 +1099,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type*
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
     alloca->setAlignment(layout.getABITypeAlign(type));
+    has_alloca_ = true;
     return alloca;
 }
 

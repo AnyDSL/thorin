@@ -4,6 +4,25 @@
 
 namespace thorin {
 
+#define COLORS(C) \
+C(Black, "\u001b[30m") \
+C(Red, "\u001b[31m") \
+C(Green, "\u001b[32m") \
+C(Yellow, "\u001b[33m") \
+C(Blue, "\u001b[34m") \
+C(Magenta, "\u001b[35m") \
+C(Cyan, "\u001b[36m") \
+C(White, "\u001b[37m") \
+C(Reset, "\u001b[0m")  \
+
+// #define N(n, _) COLOR_INDEX_##n,
+// enum Colors {
+//     COLORS(N)
+// };
+
+#define T(n, c) static const char* n = c;
+COLORS(T)
+
 struct ScopedWorld : public Streamable<ScopedWorld> {
     ScopedWorld(World& w) : world_(w), forest_(w) {
     }
@@ -20,20 +39,29 @@ private:
 
     void stream_cont(thorin::Stream& s, Continuation* cont) const;
     void prepare_def(Continuation* in, const Def* def) const;
+    static void stream_op(thorin::Stream&, const Def* op);
     static void stream_defs(thorin::Stream& s, std::vector<const Def*>& defs);
 };
 
 void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
+    s.fmt(Magenta);
     if (cont->is_external())
         s.fmt("extern ");
     if (cont->is_intrinsic())
         s.fmt("intrinsic ");
 
-    s.fmt("{}(", cont->unique_name());
+    s.fmt(Red);
+    s.fmt("{}", cont->unique_name());
+    s.fmt(Reset);
+    s.fmt("(");
     const FnType* t = cont->type();
     int ret_pi = t->ret_param_index();
     for (size_t i = 0; i < cont->num_params(); i++) {
-        s.fmt("{}: {}", cont->param(i)->unique_name(), t->types()[i]);
+        s.fmt(Yellow);
+        s.fmt("{}: ", cont->param(i)->unique_name());
+        s.fmt(Blue);
+        s.fmt("{}", t->types()[i]);
+        s.fmt(Reset);
         if (i + 1 < cont->num_params())
             s.fmt(", ");
     }
@@ -90,10 +118,39 @@ void ScopedWorld::prepare_def(Continuation* in, const thorin::Def* def) const {
         scopes_to_defs_[in]->push_back(def);
 }
 
+void ScopedWorld::stream_op(thorin::Stream& s, const thorin::Def* op) {
+    //if (is_mem(op))
+    //    s.fmt(Gray);
+    if (op->isa<PrimLit>())
+        s.fmt(Cyan);
+    if (op->isa<Param>())
+        s.fmt(Yellow);
+    if (op->isa<Continuation>())
+        s.fmt(Red);
+    s.fmt("{}", op);
+    s.fmt(Reset);
+}
+
 void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) {
     size_t i = 0;
     for (auto def : defs) {
-        s.fmt("{}: {} = {}({, })", def->unique_name(), def->type(), def->op_name(), def->ops());
+        s.fmt("{}: ", def->unique_name());
+        s.fmt(Blue);
+        s.fmt("{}", def->type());
+        s.fmt(Reset);
+        s.fmt(" = ");
+        s.fmt(Green);
+        s.fmt("{}", def->op_name());
+        s.fmt(Reset);
+        s.fmt("(");
+        size_t j = 0;
+        for (auto op : def->ops()) {
+            stream_op(s, op);
+            if (j + 1 < def->num_ops())
+                s.fmt(", ");
+            j++;
+        }
+        s.fmt(")");
         if (i + 1 < defs.size())
             s.fmt("\n");
         i++;

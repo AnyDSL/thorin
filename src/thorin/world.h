@@ -311,6 +311,7 @@ public:
 
     /// @name logging
     //@{
+    void dump_scoped() const;
     Stream& stream(Stream&) const;
     Stream& stream() { return *stream_; }
     /// Writes to a file named @c name().

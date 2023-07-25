@@ -167,6 +167,10 @@ Stream& ScopedWorld::stream(thorin::Stream& s) const {
     return s;
 }
 
+void World::dump_scoped() const {
+    scoped_world(*const_cast<World*>(this))->dump();
+}
+
 std::unique_ptr<ScopedWorld> scoped_world(World& w) {
     return std::make_unique<ScopedWorld>(w);
 }

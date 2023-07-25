@@ -1346,12 +1346,13 @@ Thorin::Thorin(const std::string& name)
 {}
 
 void Thorin::opt() {
+    bool debug_passes = getenv("THORIN_DEBUG_PASSES");
 #define RUN_PASS(pass) \
 { \
-    world().VLOG("running pass {}", #pass); \
-    pass; \
-    debug_verify(world());                  \
-    /*world().dump();*/                   \
+    world().VLOG("running pass {}", #pass);  \
+    pass;                                    \
+    debug_verify(world());                   \
+    if (debug_passes) world().dump_scoped(); \
 }
 
     RUN_PASS(cleanup())

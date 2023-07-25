@@ -225,7 +225,7 @@ struct ClosureConverter {
     std::vector<std::function<void()>> todo_;
 };
 
-const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
+const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
     assert(&odef->world() == &src());
     if (parent_) {
         if (!scope_->contains(odef) && !additional_.contains(odef)) {
@@ -312,8 +312,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* odef) {
                 }
                 ncont->jump(ncont, ncont->params_as_defs().get_front(ncont->num_params()));
 
-                body_rewriter->insert(ocont, ncont);
-                insert(ocont, ncont);
+                converter_.root_rewriter_.insert(ocont, ncont);
                 ndef = ncont;
                 converter_.lifted_env_.emplace(ncont, free_vars);
             } else {

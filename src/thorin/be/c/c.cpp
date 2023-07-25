@@ -805,13 +805,16 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         if (body->callee() == entry_->ret_param()) {
             // local return
-            bb.tail.fmt("return {};\n", emitted_return);
+            if (emitted_return.empty())
+                bb.tail.fmt("return;");
+            else
+                bb.tail.fmt("return {};", emitted_return);
         } else {
             // non-local return
             auto callee = emit_unsafe(body->callee());
             if (!is_type_unit(mangle_return_type(ret_t)))
                 bb.tail.fmt("{}->data = {};\n", callee, emitted_return);
-            bb.tail.fmt("longjmp({}->buf, 1);\n", callee);
+            bb.tail.fmt("longjmp({}->buf, 1);", callee);
         }
     } else if (body->callee() == world().branch()) {
         emit_unsafe(body->arg(0));
@@ -986,8 +989,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 }
             }
 
-            if (!hls_top_scope)
-                bb.tail.fmt("goto {};", label_name(ret_pt->continuation()));
+            if (!hls_top_scope) {
+                bb.tail.fmt("\ngoto {};", label_name(ret_pt->continuation()));
+            }
         } else if (ret && ret == entry_->ret_param()) {
             // TODO: tail call annotations ?
             if (!is_type_unit(ret_type)) {

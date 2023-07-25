@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-const Def* Importer::rewrite(const Def* odef) {
+const Def* Importer::rewrite(const Def* const odef) {
     assert(&odef->world() == &src());
     if (auto memop = odef->isa<MemOp>()) {
         // Optimise out dead loads when importing
@@ -18,48 +18,40 @@ const Def* Importer::rewrite(const Def* odef) {
         }
     } else if (auto app = odef->isa<App>()) {
         // eat calls to known continuations that are only used once
-        while (true) {
-            if (auto callee = app->callee()->isa_nom<Continuation>()) {
-                if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
-                    todo_ = true;
-                    src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
-                    for (size_t i = 0; i < callee->num_params(); i++)
-                        insert(callee->param(i), import(app->arg(i)));
+        if (auto callee = app->callee()->isa_nom<Continuation>()) {
+            if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
+                todo_ = true;
+                src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
+                for (size_t i = 0; i < callee->num_params(); i++)
+                    insert(callee->param(i), import(app->arg(i)));
 
-                    app = callee->body();
-                    continue;
-                } else if (callee->intrinsic() == Intrinsic::Control) {
-                    auto obody = app->arg(1)->as_nom<Continuation>();
-                    if (obody->body()->callee() == obody->param(1)) {
-                        src().VLOG("simplify: control body just calls the join token, eliminating...");
-                        auto mangled_body = drop(obody, {app->arg(0), app->arg(2)});
-                        app = mangled_body->body();
-                        continue;
-                    }
-                }
-            } else if (auto closure = app->callee()->isa<Closure>()) {
-                if (closure->uses().size() == 1) {
-                    bool ok = true;
-                    for (auto use: closure->fn()->params().back()->uses()) {
-                        // the closure argument can be used, but only to extract the environment!
-                        if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
-                            continue;
-                        ok = false;
-                    }
-                    if (ok) {
-                        src().VLOG("simplify: inlining closure {} as it is used only once, and is not recursive", closure);
-                        Array<const Def*> args(closure->fn()->num_params());
-                        std::copy(app->args().begin(), app->args().end(), args.begin());
-                        args.back() = closure;
-                        app = drop(closure->fn(), args)->body();
-                        continue;
-                    }
+                return instantiate(callee->body());
+            } else if (callee->intrinsic() == Intrinsic::Control) {
+                auto obody = app->arg(1)->as_nom<Continuation>();
+                if (obody->body()->callee() == obody->param(1)) {
+                    src().VLOG("simplify: control body just calls the join token, eliminating...");
+                    auto mangled_body = drop(obody, {app->arg(0), app->arg(2)});
+                    return instantiate(mangled_body->body());
                 }
             }
-            break;
+        } else if (auto closure = app->callee()->isa<Closure>()) {
+            if (closure->uses().size() == 1) {
+                bool ok = true;
+                for (auto use: closure->fn()->params().back()->uses()) {
+                    // the closure argument can be used, but only to extract the environment!
+                    if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
+                        continue;
+                    ok = false;
+                }
+                if (ok) {
+                    src().VLOG("simplify: inlining closure {} as it is used only once, and is not recursive", closure);
+                    Array<const Def*> args(closure->fn()->num_params());
+                    std::copy(app->args().begin(), app->args().end(), args.begin());
+                    args.back() = closure;
+                    return instantiate(drop(closure->fn(), args)->body());
+                }
+            }
         }
-
-        odef = app;
     } else if (auto cont = odef->isa_nom<Continuation>()) {
         if (cont->has_body()) {
             auto body = cont->body();
@@ -95,29 +87,32 @@ const Def* Importer::rewrite(const Def* odef) {
 
                     if (!is_permutation)
                         goto rebuild;
-
-                    src().VLOG("simplify: continuation {} calls a free def: {} (with permuted args)", cont->unique_name(), body->callee());
                 }
 
-                auto rebuilt = cont->stub(*this, instantiate(cont->type())->as<Type>());
-                dst().VLOG("rebuilt as {}", rebuilt->unique_name());
-                auto wrapped = dst().run(rebuilt);
-                insert(odef, wrapped);
-
-                rebuilt->set_body(instantiate(body)->as<App>());
-
+                bool has_calls = false;
                 // for every use of the continuation at a call site,
                 // permute the arguments and call the parameter instead
                 for (auto use : cont->copy_uses()) {
                     auto uapp = use->isa<App>();
                     if (uapp && use.index() == App::CALLEE_POSITION) {
                         todo_ = true;
+                        has_calls = true;
+                        break;
                     }
                 }
-                return wrapped;
+
+                if (has_calls) {
+                    auto rebuilt = cont->stub(*this, instantiate(cont->type())->as<Type>());
+                    src().VLOG("simplify: continuation {} calls a free def: {} (with permuted args), introducing a wrapper: {}", cont->unique_name(), body->callee(), rebuilt);
+                    auto wrapped = dst().run(rebuilt);
+                    insert(odef, wrapped);
+
+                    rebuilt->set_body(instantiate(body)->as<App>());
+                    return wrapped;
+                }
             }
         }
-    } else while (auto ret_pt = odef->isa<ReturnPoint>()) {
+    } else if (auto ret_pt = odef->isa<ReturnPoint>()) {
         auto ret_cont = ret_pt->continuation();
         assert(ret_cont->has_body());
         auto ret_app = ret_cont->body();
@@ -125,23 +120,11 @@ const Def* Importer::rewrite(const Def* odef) {
             bool scopes_ok = true;
             auto p = ret_app->callee()->isa<Param>();
             scopes_ok &= !p || p->continuation() != ret_cont;
-
-            for (auto a : ret_app->args()) {
-                if (auto p = a->isa<Param>()) {
-                    if (p->continuation() == ret_cont) {
-                        // bail out
-                        scopes_ok = false;
-                        break;
-                    }
-                }
-            }
-            if (scopes_ok) {
+            if (scopes_ok && ret_app->args() == ret_cont->params_as_defs()) {
                 src().VLOG("simplify: return point {} just forwards data to another: {}", ret_pt, ret_app->callee());
-                odef = ret_cont->body()->callee();
-                continue;
+                return instantiate(ret_cont->body()->callee());
             }
         }
-        break;
     }
 
     rebuild:

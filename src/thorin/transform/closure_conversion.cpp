@@ -452,6 +452,7 @@ void closure_conversion(Thorin& thorin, LiftMode mode) {
         validate_all_returning_functions_top_level(*dst);
 
     src.swap(dst);
+    thorin.cleanup();
 }
 
 }

@@ -46,6 +46,7 @@ void lower_control(Thorin& thorin) {
     for (auto e : src->externals())
         lifter.instantiate(e.second);
     src.swap(dst);
+    thorin.cleanup();
 }
 
 }

@@ -1360,18 +1360,12 @@ void Thorin::opt() {
     //RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
     RUN_PASS(lift_builtins(*this))
-    //RUN_PASS(inliner(*this))
-    //RUN_PASS(hoist_enters(*this))
+    RUN_PASS(inliner(*this))
+    RUN_PASS(hoist_enters(*this))
     RUN_PASS(closure_conversion(*this, LiftMode::Lift2Cff));
-    RUN_PASS(cleanup())
     RUN_PASS(closure_conversion(*this, LiftMode::ClosureConversion));
-    // RUN_PASS(classify_control(*this));
     RUN_PASS(closure_conversion(*this, LiftMode::JoinTargets));
     RUN_PASS(lower_control(*this));
-    RUN_PASS(cleanup())
-    //RUN_PASS(lower_return(*this));
-    RUN_PASS(cleanup())
-    //RUN_PASS(codegen_prepare(*this))
 }
 
 }

@@ -82,7 +82,17 @@ bool App::verify() const {
 
 ReturnPoint::ReturnPoint(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
 
-const Def* ReturnPoint::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const { return world.return_point(nops.front()->as<Continuation>()); }
+const Def* ReturnPoint::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const {
+    auto def = nops.front();
+    // TODO: have some kind of generalised mechanism to obtain the 'real' def
+    while (auto run = def->isa<Run>()) {
+        def = run->def();
+    }
+    while (auto closure = def->isa<Closure>()) {
+        def = closure->fn();
+    }
+    return world.return_point(def->as<Continuation>());
+}
 
 //------------------------------------------------------------------------------
 

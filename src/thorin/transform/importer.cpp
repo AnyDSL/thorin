@@ -34,22 +34,30 @@ const Def* Importer::rewrite(const Def* const odef) {
                     return instantiate(mangled_body->body());
                 }
             }
-        } else if (auto closure = app->callee()->isa<Closure>()) {
-            if (closure->uses().size() == 1) {
-                bool ok = true;
-                for (auto use: closure->fn()->params().back()->uses()) {
-                    // the closure argument can be used, but only to extract the environment!
-                    if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
-                        continue;
-                    ok = false;
-                }
-                if (ok) {
-                    src().VLOG("simplify: inlining closure {} as it is used only once, and is not recursive", closure);
-                    Array<const Def*> args(closure->fn()->num_params());
-                    std::copy(app->args().begin(), app->args().end(), args.begin());
-                    args.back() = closure;
-                    return instantiate(drop(closure->fn(), args)->body());
-                }
+        }
+    } else if (auto closure = odef->isa<Closure>()) {
+        bool only_called = true;
+        for (auto use : closure->uses()) {
+            if (use.def()->isa<App>() && use.index() == App::CALLEE_POSITION)
+                continue;
+            only_called = false;
+            break;
+        }
+        if (only_called) {
+            bool self_param_ok = true;
+            for (auto use: closure->fn()->params().back()->uses()) {
+                // the closure argument can be used, but only to extract the environment!
+                if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
+                    continue;
+                self_param_ok = false;
+                break;
+            }
+            if (self_param_ok) {
+                src().VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
+                Array<const Def*> args(closure->fn()->num_params());
+                args.back() = closure;
+                todo_ = true;
+                return instantiate(drop(closure->fn(), args));
             }
         }
     } else if (auto cont = odef->isa_nom<Continuation>()) {

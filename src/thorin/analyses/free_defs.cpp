@@ -45,7 +45,7 @@ DefSet spillable_free_defs(ScopesForest& forest, Continuation* entry) {
             entry->world().VLOG("fv: {} : {}", free, free->type());
             result.insert(free);
         } else
-            free->world().WLOG("ignoring {} because it has no Param dependency", free);
+            free->world().VLOG("ignoring {} because it has no Param dependency", free);
     }
 
     return result;

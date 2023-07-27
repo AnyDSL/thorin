@@ -58,7 +58,7 @@ struct ClosureConverter {
                 entry->world().VLOG("fv of {}: {} : {}", entry, free, free->type());
                 result.insert(free);
             } else
-                free->world().WLOG("ignoring {} because it has no Param dependency", free);
+                free->world().VLOG("ignoring {} because it has no Param dependency", free);
         }
 
         return result;
@@ -303,7 +303,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                 ndef = closure;
                 insert(ocont, closure);
                 body_rewriter->insert(ocont, ncont->params().back());
-                dst().WLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
+                dst().VLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
             } else if (!free_vars.empty()) {
                 assert(converter_.mode_ == LiftMode::Lift2Cff);
                 for (auto free_var : free_vars) {
@@ -320,7 +320,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             }
 
             if (!free_vars.empty()) {
-                dst().WLOG("slow: rewriting '{}' as '{}' in {}", ocont, ncont, dump());
+                dst().VLOG("slow: rewriting '{}' as '{}' in {}", ocont, ncont, dump());
 
                 converter_.todo_.emplace_back([=]() {
                     const Def* new_mem = ncont->mem_param();

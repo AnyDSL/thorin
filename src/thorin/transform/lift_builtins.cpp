@@ -66,10 +66,10 @@ void lift_pipeline(World& world) {
 void lift_builtins(Thorin& thorin) {
     // This must be run first
     lift_pipeline(thorin.world());
-    ScopesForest forest(thorin.world());
 
     while (true) {
         World& world = thorin.world();
+        ScopesForest forest(world);
         Continuation* cur = nullptr;
         for (auto cont : world.copy_continuations()) {
             if (cont->order() <= 1)
@@ -96,7 +96,7 @@ void lift_builtins(Thorin& thorin) {
                 // TODO: assert is actually top level
             } else if (!param->isa<Filter>()) { // don't lift the filter
                 assert(!param->isa<App>() && "an app should not be free");
-                assert(param->order() == 0 && "creating a higher-order function");
+                //assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }
         }

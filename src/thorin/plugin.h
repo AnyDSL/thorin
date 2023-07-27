@@ -31,7 +31,7 @@ namespace thorin {
     using unique_plugin_intrinsic = std::unique_ptr<plugin_intrinsic, plugin_deleter>;
 
     extern "C" {
-        using plugin_init_func_t = void();
+        using plugin_init_func_t = bool();
         using plugin_intrinsic_create_func_t = plugin_intrinsic*();
     }
 }

@@ -10,40 +10,51 @@
 #endif
 
 namespace thorin {
-bool World::load_plugin(const char* plugin_name) {
+[[nodiscard]] static void* load_plugin_module(const char* plugin_name) {
 #ifdef _WIN32
-    return false;
+    return LoadLibraryA(plugin_name);
 #else
-    void *handle = dlopen(plugin_name, RTLD_LAZY | RTLD_GLOBAL);
-    if (!handle) {
-        ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
-        ELOG("Is plugin contained in LD_LIBRARY_PATH?");
-        return false;
-    }
-    dlerror();
+    return dlopen(plugin_name, RTLD_LAZY | RTLD_GLOBAL);
+#endif
+}
 
-    char *error;
-    auto initfunc = reinterpret_cast<plugin_init_func_t*>(dlsym(handle, "init"));
-    if ((error = dlerror()) != NULL) {
-        ILOG("Plugin {} did not supply an init function", plugin_name);
-    } else {
-        initfunc();
-    }
-
-    data_.plugin_modules_.push_back(handle);
-    return true;
+static bool unload_plugin_module(void* plugin_module) {
+#ifdef _WIN32
+    return FreeLibrary(static_cast<HMODULE>(plugin_module)) == TRUE;
+#else
+    return dlclose(plugin_module) == 0;
 #endif
 }
 
 template <typename T>
-static T* lookup_plugin_function(void* plugin_module, const char* function_name) {
+[[nodiscard]] static T* lookup_plugin_function(void* plugin_module, const char* function_name) {
 #ifdef _WIN32
+    return reinterpret_cast<T*>(GetProcAddress(static_cast<HMODULE>(plugin_module), function_name));
 #else
-    if (void* func = dlsym(plugin_module, function_name)) {
-        return reinterpret_cast<T*>(func);
-    }
+    return reinterpret_cast<T*>(dlsym(plugin_module, function_name));
 #endif
-    return nullptr;
+}
+
+bool World::load_plugin(const char* plugin_name) {
+    void* module = load_plugin_module(plugin_name);
+
+    if (!module) {
+        ELOG("failed to load plugin {}", plugin_name);
+        return false;
+    }
+
+    if (auto init = lookup_plugin_function<plugin_init_func_t>(module, "init")) {
+        if (!init()) {
+            ELOG("failed to initialize plugin {}", plugin_name);
+            unload_plugin_module(module);
+            return false;
+        }
+    } else {
+        ILOG("plugin {} did not supply an init function", plugin_name);
+    }
+
+    data_.plugin_modules_.push_back(module);
+    return true;
 }
 
 unique_plugin_intrinsic World::load_plugin_intrinsic(const char* function_name) const {

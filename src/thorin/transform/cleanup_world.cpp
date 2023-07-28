@@ -240,7 +240,7 @@ void Cleaner::cleanup_fix_point() {
         todo_ = false;
         //if (world().is_pe_done())
         rebuild();
-            eliminate_tail_rec();
+        eliminate_tail_rec();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());

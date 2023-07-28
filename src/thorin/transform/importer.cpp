@@ -30,6 +30,7 @@ const Def* Importer::rewrite(const Def* const odef) {
                 auto obody = app->arg(1)->as_nom<Continuation>();
                 if (obody->body()->callee() == obody->param(1)) {
                     src().VLOG("simplify: control body just calls the join token, eliminating...");
+                    todo_ = true;
                     auto mangled_body = drop(obody, {app->arg(0), app->arg(2)});
                     return instantiate(mangled_body->body());
                 }

@@ -84,7 +84,7 @@ llvm::Value* AMDGPUCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const Math
     return call_math_function(irbuilder, mathop, ocml_functions.at(key));
 }
 
-Continuation* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+llvm::Value* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
     return emit_reserve_shared(irbuilder, continuation, true);
 }
 

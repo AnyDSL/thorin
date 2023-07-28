@@ -60,7 +60,7 @@ static bool contains_ptrtype(const Type* type) {
     }
 }
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Platform platform, const std::string& ext, Continuation* continuation) {
+void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Platform platform, const std::string& ext, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     // to-target is the desired kernel call
@@ -184,8 +184,6 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
                   grid_size, block_size,
                   args, sizes, aligns, allocs, types,
                   builder.getInt32(num_kernel_args));
-
-    return body->arg(LaunchArgs::Return)->as_nom<Continuation>();
 }
 
 llvm::Value* Runtime::launch_kernel(

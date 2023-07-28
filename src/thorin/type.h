@@ -287,6 +287,7 @@ public:
     int ret_param_index() const;
 
     Array<const Type*> domain() const;
+    std::optional<Array<const Type*>> codomain() const;
 
 private:
     const Type* rebuild(World&, const Type*, Defs) const override;

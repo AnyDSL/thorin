@@ -242,7 +242,7 @@ llvm::Value* NVVMCodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea)
     }
 }
 
-Continuation* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+llvm::Value* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
     return emit_reserve_shared(irbuilder, continuation);
 }
 

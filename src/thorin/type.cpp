@@ -117,6 +117,12 @@ Array<const Type*> FnType::domain() const {
     return dom;
 }
 
+std::optional<Array<const Type*>> FnType::codomain() const {
+    if (auto ret_t = return_param_type())
+        return std::make_optional(ret_t->domain());
+    return std::nullopt;
+}
+
 int FnType::ret_param_index() const {
     int p = -1;
     for (unsigned int i = num_ops() - 1; i < num_ops(); i--) {

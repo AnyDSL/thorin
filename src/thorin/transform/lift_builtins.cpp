@@ -63,67 +63,78 @@ void lift_pipeline(World& world) {
 
 }
 
+bool lift_accelerator_body(Thorin& thorin, Continuation* cont) {
+    World& world = thorin.world();
+    ScopesForest forest(world);
+
+    static const int inline_threshold = 4;
+    if (is_passed_to_intrinsic(cont, Intrinsic::Vectorize)) {
+        Scope& scope = forest.get_scope(cont);
+        force_inline(scope, inline_threshold);
+    }
+
+    Scope& scope = forest.get_scope(cont);
+
+    // remove all continuations - they should be top-level functions and can thus be ignored
+    std::vector<const Def*> defs;
+    for (auto param : spillable_free_defs(forest, cont)) {
+        if (param->isa_nom<Continuation>()) {
+            // TODO: assert is actually top level
+        } else if (!param->isa<Filter>()) { // don't lift the filter
+            assert(!param->isa<App>() && "an app should not be free");
+            //assert(param->order() == 0 && "creating a higher-order function");
+            defs.push_back(param);
+        }
+    }
+
+    if (defs.empty())
+        return false;
+
+    auto lifted = lift(scope, scope.entry(), defs);
+    for (auto use : cont->copy_uses()) {
+        if (auto uapp = use->isa<App>()) {
+            if (auto callee = uapp->callee()->isa_nom<Continuation>()) {
+                if (callee->is_intrinsic()) {
+                    auto old_ops = uapp->ops();
+                    Array<const Def*> new_ops(old_ops.size() + defs.size());
+                    std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin())); // old ops + former free defs
+                    assert(old_ops[use.index()] == cont);
+                    new_ops[use.index()] = lifted;
+
+                    // jump to new top-level dummy function with new args
+                    auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-App::ARGS_START_POSITION, [&] (auto i) { return new_ops[i+App::ARGS_START_POSITION]->type(); }));
+                    auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
+
+                    new_ops[App::CALLEE_POSITION] = ncontinuation;
+                    uapp->replace_uses(world.app(new_ops[App::CALLEE_POSITION], new_ops.skip_front(2)));
+                }
+            }
+        }
+    }
+
+    thorin.cleanup();
+    return true;
+}
+
 void lift_builtins(Thorin& thorin) {
     // This must be run first
     lift_pipeline(thorin.world());
 
-    while (true) {
+    bool todo = true;
+    while (todo) {
         World& world = thorin.world();
-        ScopesForest forest(world);
-        Continuation* cur = nullptr;
+        todo = false;
         for (auto cont : world.copy_continuations()) {
             if (cont->order() <= 1)
                 continue;
             if (is_passed_to_accelerator(cont, false)) {
-                cur = cont;
-                break;
-            }
-        }
-        if (!cur) break;
-
-        static const int inline_threshold = 4;
-        if (is_passed_to_intrinsic(cur, Intrinsic::Vectorize)) {
-            Scope scope(cur);
-            force_inline(scope, inline_threshold);
-        }
-
-        Scope scope(cur);
-
-        // remove all continuations - they should be top-level functions and can thus be ignored
-        std::vector<const Def*> defs;
-        for (auto param : spillable_free_defs(forest, cur)) {
-            if (param->isa_nom<Continuation>()) {
-                // TODO: assert is actually top level
-            } else if (!param->isa<Filter>()) { // don't lift the filter
-                assert(!param->isa<App>() && "an app should not be free");
-                //assert(param->order() == 0 && "creating a higher-order function");
-                defs.push_back(param);
-            }
-        }
-
-        auto lifted = lift(scope, scope.entry(), defs);
-        for (auto use : cur->copy_uses()) {
-            if (auto uapp = use->isa<App>()) {
-                if (auto callee = uapp->callee()->isa_nom<Continuation>()) {
-                    if (callee->is_intrinsic()) {
-                        auto old_ops = uapp->ops();
-                        Array<const Def*> new_ops(old_ops.size() + defs.size());
-                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin())); // old ops + former free defs
-                        assert(old_ops[use.index()] == cur);
-                        new_ops[use.index()] = world.global(lifted, false, lifted->debug()); // update to new lifted continuation
-
-                        // jump to new top-level dummy function with new args
-                        auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-App::ARGS_START_POSITION, [&] (auto i) { return new_ops[i+App::ARGS_START_POSITION]->type(); }));
-                        auto ncontinuation = world.continuation(fn_type, callee->attributes(), callee->debug());
-
-                        new_ops[App::CALLEE_POSITION] = ncontinuation;
-                        uapp->replace_uses(world.app(new_ops[App::CALLEE_POSITION], new_ops.skip_front(2)));
-                    }
+                if (lift_accelerator_body(thorin, cont)) {
+                    todo = true;
+                    break;
                 }
+                continue;
             }
         }
-
-        thorin.cleanup();
     }
 }
 

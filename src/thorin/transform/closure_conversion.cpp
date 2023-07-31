@@ -409,6 +409,38 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                 else nargs[i] = instantiate(oarg);
             };
 
+            if (ncont->is_accelerator()) {
+                // there is unfortunately no standardisation on which parameter is the body parameter for accelerators
+                // so we're going to play games here: let's assume only one body is a returning continuation
+                // TODO: make accelerator signatures more consistent
+                Continuation* body = nullptr;
+                size_t body_i;
+                for (size_t i = 0; i < app->num_args(); i++) {
+                    if (auto cont = nargs[i]->isa_nom<Continuation>(); cont && cont->type()->is_returning()) {
+                        assert(!body);
+                        body = cont;
+                        body_i = i;
+                    }
+                }
+                assert(body);
+                auto lifted_body_params = converter_.lifted_env_.lookup(body);
+
+                if (auto extra_params = converter_.lifted_env_.lookup(body); extra_params.has_value()) {
+                    // Update the type of the body parameter
+                    auto ntypes = ncont->type()->copy_types();
+                    ntypes[body_i] = body->type();
+
+                    // Add new parameters to the intrinsic call
+                    Continuation* naccelerator = dst().continuation(dst().fn_type(ntypes), ncont->attributes(), ncont->debug());
+                    for (auto extra : extra_params.value()) {
+                        auto narg = instantiate(extra);
+                        nargs.push_back(narg);
+                        naccelerator->append_param(narg->type());
+                    }
+                    ncallee = naccelerator;
+                }
+            }
+
             if (auto extra_params = converter_.lifted_env_.lookup(ncont); extra_params.has_value()) {
                 for (auto extra : extra_params.value()) {
                     nargs.push_back(instantiate(extra));

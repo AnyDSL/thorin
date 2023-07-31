@@ -138,10 +138,9 @@ void Cleaner::eliminate_params() {
                     assert(use.index() == App::CALLEE_POSITION);
                     for (auto ucontinuation : uapp->using_continuations()) {
                         ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                        todo_ = true;
                     }
                 }
-
-                todo_ = true;
             }
         }
 next_continuation:;

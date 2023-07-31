@@ -75,6 +75,7 @@ protected:
     }
 
     void emit_scope(const Scope& scope) {
+        scope_ = &scope;
         auto conts = schedule(scope);
         entry_ = scope.entry();
         //assert(entry_->is_returning());
@@ -97,6 +98,7 @@ protected:
             if (cont->intrinsic() != Intrinsic::EndScope) child().finalize(cont);
         }
         child().finalize(scope);
+        scope_ = nullptr;
     }
 
     Scheduler scheduler_;
@@ -104,6 +106,7 @@ protected:
     DefMap<Type> types_;
     ContinuationMap<BB> cont2bb_;
     Continuation* entry_ = nullptr;
+    const Scope* scope_ = nullptr;
 };
 
 }

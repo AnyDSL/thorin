@@ -566,7 +566,8 @@ llvm::Value* CodeGen::emit_call(llvm::IRBuilder<>& irbuilder, const Def* callee,
     } else if (callee->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
         return nullptr;
-    } else if (auto cont = callee->isa_nom<Continuation>(); cont && cont->is_basicblock()) {
+    } else if (auto cont = callee->isa_nom<Continuation>(); cont && scope_->contains(cont) && cont != entry_) {
+        assert(cont->is_basicblock());
         size_t j = 0, i = 0;
         for (auto t: cont->type()->domain()) {
             i++;

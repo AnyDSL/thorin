@@ -1,7 +1,6 @@
 #include "lower_return.h"
 
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/transform/importer.h"
 #include "thorin/transform/rewrite.h"

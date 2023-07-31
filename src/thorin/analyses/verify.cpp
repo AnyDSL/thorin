@@ -2,7 +2,6 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/free_defs.h"
 
 namespace thorin {
 

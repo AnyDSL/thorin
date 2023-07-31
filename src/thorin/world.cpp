@@ -22,7 +22,7 @@
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
-#include "thorin/transform/lift_builtins.h"
+#include "thorin/transform/insert_pipeline_continue.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/transform/lower_return.h"
@@ -1359,7 +1359,7 @@ void Thorin::opt() {
     //RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
-    RUN_PASS(lift_builtins(*this))
+    RUN_PASS(insert_pipeline_continue(*this))
     RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
     RUN_PASS(closure_conversion(*this, LiftMode::Lift2Cff));

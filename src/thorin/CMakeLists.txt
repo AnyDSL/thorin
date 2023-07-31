@@ -18,8 +18,6 @@ set(THORIN_SOURCES
     analyses/cfg.h
     analyses/domtree.cpp
     analyses/domtree.h
-    analyses/free_defs.cpp
-    analyses/free_defs.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp
@@ -53,8 +51,8 @@ set(THORIN_SOURCES
     transform/importer.h
     transform/inliner.cpp
     transform/inliner.h
-    transform/lift_builtins.cpp
-    transform/lift_builtins.h
+    transform/insert_pipeline_continue.cpp
+    transform/insert_pipeline_continue.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

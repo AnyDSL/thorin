@@ -2,25 +2,6 @@
 
 namespace thorin {
 
-#define COLORS(C) \
-C(Black, "\u001b[30m") \
-C(Red, "\u001b[31m") \
-C(Green, "\u001b[32m") \
-C(Yellow, "\u001b[33m") \
-C(Blue, "\u001b[34m") \
-C(Magenta, "\u001b[35m") \
-C(Cyan, "\u001b[36m") \
-C(White, "\u001b[37m") \
-C(Reset, "\u001b[0m")  \
-
-// #define N(n, _) COLOR_INDEX_##n,
-// enum Colors {
-//     COLORS(N)
-// };
-
-#define T(n, c) static const char* n = c;
-COLORS(T)
-
 void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     s.fmt(Magenta);
     if (cont->is_external())
@@ -96,7 +77,7 @@ void ScopedWorld::prepare_def(Continuation* in, const thorin::Def* def) const {
         scopes_to_defs_[in]->push_back(def);
 }
 
-void ScopedWorld::stream_op(thorin::Stream& s, const thorin::Def* op) {
+void ScopedWorld::stream_op(thorin::Stream& s, const thorin::Def* op) const {
     //if (is_mem(op))
     //    s.fmt(Gray);
     if (op->isa<PrimLit>())
@@ -109,7 +90,7 @@ void ScopedWorld::stream_op(thorin::Stream& s, const thorin::Def* op) {
     s.fmt(Reset);
 }
 
-void ScopedWorld::stream_ops(thorin::Stream& s, Defs ops) {
+void ScopedWorld::stream_ops(thorin::Stream& s, Defs ops) const {
     s.fmt("(");
     size_t j = 0;
     for (auto op : ops) {
@@ -121,7 +102,7 @@ void ScopedWorld::stream_ops(thorin::Stream& s, Defs ops) {
     s.fmt(")");
 }
 
-void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) {
+void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
     if (auto app = def->isa<App>()) {
         stream_op(s, app->callee());
         stream_ops(s, app->args());
@@ -137,7 +118,7 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) {
     stream_ops(s, def->ops());
 }
 
-void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) {
+void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) const {
     size_t i = 0;
     for (auto def : defs) {
         s.fmt("{}: ", def->unique_name());
@@ -168,11 +149,16 @@ Stream& ScopedWorld::stream(thorin::Stream& s) const {
 }
 
 void World::dump_scoped() const {
-    scoped_world(*const_cast<World*>(this))->dump();
+    ScopedWorld s(*const_cast<World*>(this));
+    s.dump();
 }
 
-std::unique_ptr<ScopedWorld> scoped_world(World& w) {
-    return std::make_unique<ScopedWorld>(w);
+void World::dump_scoped_to_disk() const {
+    ScopedWorld s(*const_cast<World*>(this), (ScopedWorld::Config) { false });
+    auto name = this->name() + ".dump";
+    std::ofstream file(name);
+    Stream st(file);
+    s.stream(st);
 }
 
 }

@@ -141,8 +141,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                     has_restrict &= p.second;
                 }
 
-                auto it_config = app->arg(LaunchArgs::Config)->as<Tuple>();
-                if (it_config->op(0)->isa<PrimLit>() &&
+                auto it_config = app->arg(LaunchArgs::Config)->isa<Tuple>();
+                if (it_config &&
+                    it_config->op(0)->isa<PrimLit>() &&
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
                     return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{

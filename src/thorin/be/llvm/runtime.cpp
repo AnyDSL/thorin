@@ -76,7 +76,7 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
 
     auto it_space = body->arg(LaunchArgs::Space);
     auto it_config = body->arg(LaunchArgs::Config);
-    auto kernel = body->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
+    auto kernel = body->arg(LaunchArgs::Body)->as<Continuation>();
 
     auto& world = continuation->world();
     //auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->name());

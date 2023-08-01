@@ -138,7 +138,7 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
-void Def::rebuild_from(const Def* old, Defs new_ops) {
+void Def::rebuild_from(const Def*, Defs new_ops) {
     assert(new_ops.size() == num_ops());
     for (size_t i = 0; i < num_ops(); i++)
         set_op(i, new_ops[i]);

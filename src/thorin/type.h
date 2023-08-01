@@ -97,6 +97,7 @@ private:
 
 public:
     Symbol name() const { return name_; }
+    using Type::op_name; //Would be hidden otherwise.
     Symbol op_name(size_t i) const { return op_names_[i]; }
     void set_op_name(size_t i, Symbol name) const {
         const_cast<NominalType*>(this)->op_names_[i] = name;

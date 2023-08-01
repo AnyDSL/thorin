@@ -18,7 +18,7 @@ Param::Param(World& world, const Type* type, const Continuation* continuation, s
     //set_op(0, continuation);
 }
 
-const Def* Param::rebuild(World& world, const Type* t, Defs defs) const {
+const Def* Param::rebuild(World&, const Type*, Defs defs) const {
     assert(defs.size() == 1);
     auto cont = defs[0]->as<Continuation>();
     return cont->param(index());

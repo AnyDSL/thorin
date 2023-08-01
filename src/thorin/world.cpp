@@ -136,7 +136,9 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                     }
                 case ArithOp_mul:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_P_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_Q_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() && r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }

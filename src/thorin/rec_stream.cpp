@@ -164,7 +164,7 @@ Stream& World::stream(Stream& s) const {
     return s.endl();
 }
 
-Stream& Scope::stream(Stream& s) const {
+Stream& Scope::stream(Stream&) const {
     THORIN_UNREACHABLE;
 }
 

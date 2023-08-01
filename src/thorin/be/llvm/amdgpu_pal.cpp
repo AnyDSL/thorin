@@ -35,12 +35,6 @@ void AMDGPUPALCodeGen::emit_fun_decl_hook(Continuation* continuation, llvm::Func
 }
 
 llvm::Function* AMDGPUPALCodeGen::emit_fun_decl(Continuation* continuation) {
-    if (continuation->name() == "llvm.amdgcn.implicitarg.ptr")
-        if (auto f = defs_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
-            llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-ptr");
-    if (continuation->name() == "__ockl_printf_begin")
-        if (auto f = defs_.lookup(entry_); f && llvm::isa<llvm::Function>(*f))
-            llvm::cast<llvm::Function>(*f)->addFnAttr("amdgpu-implicitarg-num-bytes", "32");
     return CodeGen::emit_fun_decl(continuation);
 }
 

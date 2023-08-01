@@ -166,11 +166,15 @@ struct ClosureConverter {
     std::vector<const Type*> rewrite_params(ScopeRewriter& rewriter, Continuation* ocont) {
         std::vector<const Type*> nparam_types;
 
+        bool is_accelerator = ocont->is_accelerator();
+        bool acc_body_found = false;
         for (auto pt : ocont->type()->types()) {
             const Type* npt = rewriter.instantiate(pt)->as<Type>();
             // in intrinsics, don't closure-convert immediate parameters
-            if (ocont->is_intrinsic() && pt->tag() == Node_FnType) {
+            if ((ocont->is_intrinsic() && pt->tag() == Node_FnType) && (!is_accelerator || !acc_body_found)) {
                 npt = dst().fn_type(npt->as<FnType>()->types());
+                if (is_accelerator)
+                    acc_body_found = true;
             }
             nparam_types.push_back(npt);
         }
@@ -197,13 +201,11 @@ struct ClosureConverter {
             if (use.index() == App::CALLEE_POSITION)
                 return false;
             if (auto callee = app->callee()->isa_nom<Continuation>()) {
-                if (callee->is_intrinsic()) {
-                    if (mode_ == LiftMode::JoinTargets && callee->intrinsic() == Intrinsic::Control && use.index() == App::ARGS_START_POSITION + 2) {
-                        src().DLOG("{} is used as a join target in {}", use.def()->op(use.index()), app);
-                        return true;
-                    }
-                    return false;
+                if (mode_ == LiftMode::JoinTargets && callee->intrinsic() == Intrinsic::Control && use.index() == App::ARGS_START_POSITION + 2) {
+                    src().DLOG("{} is used as a join target in {}", use.def()->op(use.index()), app);
+                    return true;
                 }
+                return false;
             }
         }
 

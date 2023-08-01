@@ -81,7 +81,9 @@ llvm::Value* AMDGPUHSACodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const M
 #undef MATH_FUNCTION
     };
     auto key = make_key(mathop->mathop_tag(), num_bits(mathop->type()->primtype_tag()));
-    return call_math_function(irbuilder, mathop, ocml_functions.at(key));
+    auto call = call_math_function(irbuilder, mathop, ocml_functions.at(key));
+    llvm::cast<llvm::CallInst>(call)->setCallingConv(function_calling_convention_);
+    return call;
 }
 
 Continuation* AMDGPUHSACodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {

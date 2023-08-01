@@ -204,7 +204,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             size_t max_align = 0, max_size = 0;
 
             auto layout = module().getDataLayout();
-            llvm::Type* max_align_type;
+            llvm::Type* max_align_type = llvm::Type::getVoidTy(context());
             for (auto op : variant_type->types()) {
                 auto op_type = convert(op);
                 size_t size  = layout.getTypeAllocSize(op_type);

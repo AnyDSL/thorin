@@ -13,6 +13,7 @@ struct IndexHash {
     static u32 sentinel() { return 0xFFFFFFFF; }
 };
 
+#if 0
 static void split(const Slot* slot) {
     auto array_type = slot->alloced_type()->as<DefiniteArrayType>();
     auto dim = array_type->dim();
@@ -67,8 +68,9 @@ static bool can_split(const Slot* slot) {
 
     return true;
 }
+#endif
 
-static bool split_slots(const Scope& scope) {
+static bool split_slots(const Scope& /* scope */) {
     bool todo = false;
     // TODO
 #if 0

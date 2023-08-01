@@ -976,7 +976,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (is_unit(def)) return "";
     else if (auto bin = def->isa<BinOp>()) {
-        const char* op;
+        const char* op = "";
         if (auto cmp = bin->isa<Cmp>()) {
             switch (cmp->cmp_tag()) {
                 case Cmp_eq: op = "=="; break;

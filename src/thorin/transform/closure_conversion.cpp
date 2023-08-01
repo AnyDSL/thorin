@@ -201,11 +201,14 @@ struct ClosureConverter {
             if (use.index() == App::CALLEE_POSITION)
                 return false;
             if (auto callee = app->callee()->isa_nom<Continuation>()) {
-                if (mode_ == LiftMode::JoinTargets && callee->intrinsic() == Intrinsic::Control && use.index() == App::ARGS_START_POSITION + 2) {
-                    src().DLOG("{} is used as a join target in {}", use.def()->op(use.index()), app);
-                    return true;
+                if (callee->is_intrinsic()) {
+                    if (mode_ == LiftMode::JoinTargets && callee->intrinsic() == Intrinsic::Control &&
+                        use.index() == App::ARGS_START_POSITION + 2) {
+                        src().DLOG("{} is used as a join target in {}", use.def()->op(use.index()), app);
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 

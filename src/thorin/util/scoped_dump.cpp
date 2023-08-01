@@ -14,7 +14,6 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     s.fmt(Reset);
     s.fmt("(");
     const FnType* t = cont->type();
-    int ret_pi = -1;
     for (size_t i = 0; i < cont->num_params(); i++) {
         s.fmt(Yellow);
         s.fmt("{}: ", cont->param(i)->unique_name());
@@ -108,7 +107,7 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
         stream_ops(s, app->args());
         return;
     }
-    if (auto prim_lit = def->isa<PrimLit>()) {
+    if (def->isa<PrimLit>()) {
         def->stream1(s);
         return;
     }

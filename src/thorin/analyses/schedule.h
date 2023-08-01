@@ -26,7 +26,7 @@ public:
 
     /// @name compute schedules
     //@{
-    Continuation* early(const Def*, DefSet* seen = nullptr);
+    Continuation* early(const Def*);
     Continuation* late (const Def*);
     Continuation* smart(const Def*);
     //@}

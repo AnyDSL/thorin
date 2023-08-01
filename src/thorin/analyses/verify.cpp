@@ -8,7 +8,7 @@ namespace thorin {
 
 // TODO this needs serious rewriting
 
-static bool verify_calls(World& world, ScopesForest& forest) {
+static bool verify_calls(World& world, ScopesForest&) {
     bool ok = true;
     for (auto def : world.defs()) {
         if (auto cont = def->isa<Continuation>())
@@ -46,6 +46,7 @@ static bool verify_top_level(World& world, ScopesForest& forest) {
     return ok;
 }
 
+#if 0
 static bool verify_param(World& world) {
     bool ok = true;
     for (auto def : world.defs()) {
@@ -59,6 +60,7 @@ static bool verify_param(World& world) {
     }
     return ok;
 }
+#endif
 
 void verify(World& world) {
     ScopesForest forest(world);

@@ -1355,7 +1355,6 @@ llvm::Value* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuatio
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(4)->as_nom<Continuation>();
     auto load = irbuilder.CreateLoad(load_type, ptr);
     auto align = module().getDataLayout().getABITypeAlign(load_type);
     load->setAlignment(align);
@@ -1373,7 +1372,6 @@ void CodeGen::emit_atomic_store(llvm::IRBuilder<>& irbuilder, Continuation* cont
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(4)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(5)->as_nom<Continuation>();
     auto store = irbuilder.CreateStore(val, ptr);
     auto align = module().getDataLayout().getABITypeAlign(convert(body->arg(2)->type()));
     store->setAlignment(align);
@@ -1397,7 +1395,6 @@ std::vector<llvm::Value*> CodeGen::emit_cmpxchg(llvm::IRBuilder<>& irbuilder, Co
     auto success_order = (llvm::AtomicOrdering)success_order_tag;
     auto failure_order = (llvm::AtomicOrdering)failure_order_tag;
     auto scope = body->arg(6)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(7)->as_nom<Continuation>();
     auto call = irbuilder.CreateAtomicCmpXchg(ptr, cmp, val, llvm::MaybeAlign(), success_order, failure_order, context().getOrInsertSyncScopeID(scope->as_string()));
     call->setWeak(is_weak);
     return { irbuilder.CreateExtractValue(call, 0), irbuilder.CreateExtractValue(call, 1) };
@@ -1411,7 +1408,6 @@ void CodeGen::emit_fence(llvm::IRBuilder<>& irbuilder, Continuation* continuatio
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = body->arg(2)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(3)->as_nom<Continuation>();
     irbuilder.CreateFence(order, context().getOrInsertSyncScopeID(scope->as_string()));
 }
 

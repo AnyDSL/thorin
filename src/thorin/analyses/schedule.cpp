@@ -57,7 +57,7 @@ void Scheduler::register_defs(const Scope& s) {
     }
 }
 
-Continuation* Scheduler::early(const Def* def, DefSet* seen) {
+Continuation* Scheduler::early(const Def* def) {
     if (auto cont = early_.lookup(def)) return *cont;
     if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
     assert(false);
@@ -71,7 +71,7 @@ Continuation* Scheduler::late(const Def* def) {
         result = continuation;
     } else if (auto param = def->isa<Param>()) {
         result = param->continuation();
-    } else if (auto rec = def->isa_nom()) {
+    } else if (def->isa_nom()) {
         // don't try to late-schedule recursive nodes for now
         result = early(def);
     } else {

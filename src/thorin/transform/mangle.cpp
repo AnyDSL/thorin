@@ -80,7 +80,7 @@ Continuation* Mangler::mangle() {
         for (auto p : recursion_wrapper->params_as_defs())
             args.push_back(p);
         size_t i = 0;
-        for (auto def : lift_)
+        for ([[maybe_unused]] auto def : lift_)
             args.push_back(new_entry()->param(recursion_wrapper->num_params() + i++));
         recursion_wrapper->jump(new_entry(), args);
     }

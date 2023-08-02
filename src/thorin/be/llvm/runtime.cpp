@@ -137,17 +137,17 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
         auto alloc_ptr = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(allocs)->getAllocatedType(), allocs, llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
         auto type_ptr  = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(types)->getAllocatedType(),  types,  llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
 
-        auto size = layout_.getTypeStoreSize(target_val->getType()).getFixedSize();
+        auto size = layout_.getTypeStoreSize(target_val->getType()).getFixedValue();
         if (auto struct_type = llvm::dyn_cast<llvm::StructType>(target_val->getType())) {
             // In the case of a structure, do not include the padding at the end in the size
             auto last_elem   = struct_type->getStructNumElements() - 1;
             auto last_offset = layout_.getStructLayout(struct_type)->getElementOffset(last_elem);
-            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem)).getFixedSize();
+            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem)).getFixedValue();
         }
 
         builder.CreateStore(void_ptr, arg_ptr);
         builder.CreateStore(builder.getInt32(size), size_ptr);
-        builder.CreateStore(builder.getInt32(layout_.getABITypeAlignment(target_val->getType())), align_ptr);
+        builder.CreateStore(builder.getInt32(layout_.getABITypeAlign(target_val->getType()).value()), align_ptr);
         builder.CreateStore(builder.getInt32(layout_.getTypeAllocSize(target_val->getType())), alloc_ptr);
         builder.CreateStore(builder.getInt8((uint8_t)arg_type), type_ptr);
     }

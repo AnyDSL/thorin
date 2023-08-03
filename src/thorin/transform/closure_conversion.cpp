@@ -110,7 +110,7 @@ struct ClosureConverter {
         if (auto found = should_convert_.lookup(cont))
             return found.value();
 
-        if (cont->is_intrinsic() || cont->is_exported())
+        if (cont->is_intrinsic() || cont->is_exported() || !cont->has_body())
             return false;
 
         src().DLOG("checking for uses of {} ...", cont);
@@ -183,10 +183,14 @@ struct ClosureConverter {
     }
 
     Continuation* as_continuation(const Def* ndef) {
+        if (auto found = as_continuations_.lookup(ndef))
+            return found.value();
+
         if (auto ncont = ndef->isa_nom<Continuation>())
             return ncont;
         auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), {ndef->debug().name + "_wrapped" });
         wrapper->jump(ndef, wrapper->params_as_defs());
+        as_continuations_[ndef] = wrapper;
         return wrapper;
     }
 
@@ -227,6 +231,7 @@ struct ClosureConverter {
     ScopesForest forest_;
     ContinuationMap<bool> should_convert_;
     ContinuationMap<std::vector<const Def*>> lifted_env_;
+    DefMap<Continuation*> as_continuations_;
     std::vector<std::function<void()>> todo_;
 };
 
@@ -266,11 +271,24 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             }
 
             auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
-            insert(ocont, ncont);
-            ndef = ncont;
+            if ((converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) && !ncont->is_intrinsic()) {
+                Continuation* trampoline = dst().continuation(ncont->type(), ncont->attributes(), "trampoline");
+                auto closure_type = dst().closure_type(ncont->type()->types());
+                trampoline->jump(ncont, trampoline->params_as_defs());
+                trampoline->append_param(closure_type);
+                auto closure = dst().closure(closure_type);
+                closure->set_fn(trampoline);
+                closure->set_env(dst().tuple({}));
+                ndef = closure;
+                converter_.as_continuations_[ndef] = ncont;
+            } else {
+                ndef = ncont;
+            }
+            insert(odef, ndef);
 
             children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, &scope, this));
             body_rewriter = children_.back().get();
+            body_rewriter->insert(ocont, ncont);
 
             for (size_t i = 0; i < ocont->num_params(); i++)
                 body_rewriter->insert(ocont->param(i), ncont->param(i));
@@ -401,6 +419,14 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         }
         assert(ndef);
         return ndef;
+    } else if (auto ret_pt = odef->isa<ReturnPoint>()) {
+        return dst().return_point(converter_.as_continuation(instantiate(ret_pt->continuation())));
+    } else if (auto closure = odef->isa<Closure>()) {
+        auto nclosure = dst().closure(instantiate(closure->type())->as<ClosureType>());
+        insert(odef, nclosure);
+        nclosure->set_fn(converter_.as_continuation(instantiate(closure->fn())));
+        nclosure->set_env(instantiate(closure->env()));
+        return nclosure;
     } else if (auto app = odef->isa<App>()) {
         auto ncallee = instantiate(app->callee());
         if (auto ncont = ncallee->isa_nom<Continuation>(); ncont) {

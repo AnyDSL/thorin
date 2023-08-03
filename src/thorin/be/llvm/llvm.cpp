@@ -903,7 +903,7 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
             if (is_type_unit(val->type())) {
                 env = emit(world().bottom(Closure::environment_type(world())));
             } else {
-                env = emit(world().cast(Closure::environment_type(world()), val));
+                env = emit_builder(irbuilder, world().cast(Closure::environment_type(world()), val));
             }
             llvm_agg = irbuilder.CreateInsertValue(llvm_agg, closure_fn, 0);
             llvm_agg = irbuilder.CreateInsertValue(llvm_agg, env, 1);
@@ -1367,7 +1367,6 @@ llvm::Value* CodeGen::emit_atomic(llvm::IRBuilder<>& irbuilder, Continuation* co
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(order_tag) && int(order_tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)order_tag;
     auto scope = body->arg(5)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(6)->as_nom<Continuation>();
     auto call = irbuilder.CreateAtomicRMW(binop, ptr, val, llvm::MaybeAlign(), order, context().getOrInsertSyncScopeID(scope->as_string()));
     return call;
 }
@@ -1381,7 +1380,6 @@ llvm::Value* CodeGen::emit_atomic_load(llvm::IRBuilder<>& irbuilder, Continuatio
     assert(int(llvm::AtomicOrdering::NotAtomic) <= int(tag) && int(tag) <= int(llvm::AtomicOrdering::SequentiallyConsistent) && "unsupported atomic ordering");
     auto order = (llvm::AtomicOrdering)tag;
     auto scope = body->arg(3)->as<ConvOp>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto cont = body->arg(4)->as_nom<Continuation>();
     auto load = irbuilder.CreateLoad(ptr->getType()->getPointerElementType(), ptr);
     auto align = module().getDataLayout().getABITypeAlign(ptr->getType()->getPointerElementType());
     load->setAlignment(align);
@@ -1474,7 +1472,7 @@ void CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation)
     for (size_t i = 2, j = 0; i < body->num_args(); ++i) {
         args[j++] = emit(body->arg(i));
     }
-    auto callee = body->arg(1)->as<Global>()->init()->as_nom<Continuation>();
+    auto callee = body->arg(1)->as_nom<Continuation>();
     world().make_external(callee);
     irbuilder.CreateCall(emit_fun_decl(callee), args);
 }

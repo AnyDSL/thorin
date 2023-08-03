@@ -23,7 +23,7 @@ static void get_kernel_configs(
     Cont2Config& kernel_configs,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
-    thorin.opt();
+    //thorin.opt();
 
     auto externals = thorin.world().externals();
     for (auto continuation : kernels) {

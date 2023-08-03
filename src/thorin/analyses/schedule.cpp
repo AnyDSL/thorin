@@ -1,18 +1,17 @@
 #include "thorin/analyses/schedule.h"
 
-#include "thorin/config.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
 
-Scheduler::Scheduler(const Scope& s)
-    : scope_(&s)
+Scheduler::Scheduler(const Scope& s, ScopesForest& forest)
+    : forest_(&forest)
+    , scope_(&s)
     , cfg_(&scope().f_cfg())
     , domtree_(&cfg().domtree())
 {
@@ -42,33 +41,26 @@ Scheduler::Scheduler(const Scope& s)
                 enqueue(def, i, def->op(i));
         }
     }
+
+    register_defs(s);
+}
+
+void Scheduler::register_defs(const Scope& s) {
+    for (auto child : s.children_scopes()) {
+        Scope& cs = forest_->get_scope(child);
+        register_defs(cs);
+    }
+
+    for (auto def : s.defs()) {
+        if (!early_.lookup(def))
+            early_[def] = s.entry();
+    }
 }
 
 Continuation* Scheduler::early(const Def* def, DefSet* seen) {
     if (auto cont = early_.lookup(def)) return *cont;
     if (auto param = def->isa<Param>()) return early_[def] = param->continuation();
-
-    std::unique_ptr<DefSet> set;
-    if (auto rec = def->isa_nom()) {
-        if (!seen) {
-            set = std::make_unique<DefSet>();
-            set->insert(rec);
-            seen = set.get();
-        }
-    }
-
-    auto result = scope().entry();
-    for (auto op : def->ops()) {
-        if (seen && seen->contains(op))
-            continue;
-        if (!op->isa_nom<Continuation>() && def2uses_.find(op) != def2uses_.end()) {
-            auto cont = early(op, seen);
-            if (domtree().depth(cfg(cont)) > domtree().depth(cfg(result)))
-                result = cont;
-        }
-    }
-
-    return early_[def] = result;
+    assert(false);
 }
 
 Continuation* Scheduler::late(const Def* def) {

@@ -392,11 +392,11 @@ void CCodeGen::emit_module() {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else
-            emit_scope(scope);
+            emit_scope(scope, forest_);
     });
     if (hls_top) {
         hls_top_scope = true;
-        emit_scope(Scope(hls_top));
+        emit_scope(Scope(hls_top), forest_);
     }
 
     if (lang_ == Lang::OpenCL) {

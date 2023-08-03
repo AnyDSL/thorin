@@ -290,7 +290,8 @@ CodeGen::emit_module() {
         }
     }
 
-    ScopesForest(world()).for_each([&] (const Scope& scope) { emit_scope(scope); });
+    ScopesForest forest(world());
+    forest.for_each([&](const Scope& scope) { emit_scope(scope, forest); });
 
     if (debug()) dibuilder_.finalize();
 

@@ -74,7 +74,7 @@ protected:
         return defs_[def] = val;
     }
 
-    void emit_scope(const Scope& scope) {
+    void emit_scope(const Scope& scope, ScopesForest& forest) {
         scope_ = &scope;
         auto conts = schedule(scope);
         entry_ = scope.entry();
@@ -85,7 +85,7 @@ protected:
             if (cont->intrinsic() != Intrinsic::EndScope) child().prepare(cont, fct);
         }
 
-        Scheduler new_scheduler(scope);
+        Scheduler new_scheduler(scope, forest);
         swap(scheduler_, new_scheduler);
 
         for (auto cont : conts) {

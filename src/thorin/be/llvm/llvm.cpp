@@ -431,7 +431,7 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
 
 void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     // map all bb-like continuations to llvm bb stubs and handle params/phis
-    auto bb = llvm::BasicBlock::Create(context(), cont->name().c_str(), fct);
+    auto bb = llvm::BasicBlock::Create(context(), cont->unique_name().c_str(), fct);
     auto [i, succ] = cont2bb_.emplace(cont, std::pair(bb, std::make_unique<llvm::IRBuilder<>>(context())));
     assert(succ);
     auto& irbuilder = *i->second.second;
@@ -671,20 +671,34 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
+static void add_debug(const Def* def, llvm::Value* val) {
+    if (!val)
+        return;
+    if (!def->debug().name.empty())
+        val->setName(def->debug().name);
+    else
+        val->setName(def->unique_name());
+}
+
 llvm::Value* CodeGen::emit_constant(const Def* def) {
     auto irbuilder = llvm::IRBuilder(context());
-    return emit_builder(irbuilder, def);
+    auto val = emit_builder(irbuilder, def);
+    add_debug(def, val);
+    return val;
 }
 
 llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     auto& irbuilder = *bb.second;
-    return emit_builder(irbuilder, def);
+    auto val = emit_builder(irbuilder, def);
+    add_debug(def, val);
+    return val;
 }
 
 llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def) {
     // TODO
-    //if (debug())
-        //irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
+    if (debug()) {
+        irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
+    }
 
     if (false) {}
     else if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
@@ -904,7 +918,9 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
             if (is_type_unit(val->type())) {
                 env = emit(world().bottom(Closure::environment_type(world())));
             } else {
+                env = emit(val);
                 env = emit_builder(irbuilder, world().cast(Closure::environment_type(world()), val));
+                // add_debug(val, env);
             }
             llvm_agg = irbuilder.CreateInsertValue(llvm_agg, closure_fn, 0);
             llvm_agg = irbuilder.CreateInsertValue(llvm_agg, env, 1);

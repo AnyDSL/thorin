@@ -246,6 +246,10 @@ llvm::Value* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Conti
     return emit_reserve_shared(irbuilder, continuation);
 }
 
+llvm::Value* NVVMCodeGen::emit_local_memory(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+    return emit_local_memory_base_ptr(irbuilder, continuation);
+}
+
 llvm::Value* NVVMCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const MathOp* mathop) {
     auto make_key = [] (MathOpTag tag, unsigned bitwidth) { return (static_cast<unsigned>(tag) << 16) | bitwidth; };
     static const std::unordered_map<unsigned, std::string> libdevice_functions = {

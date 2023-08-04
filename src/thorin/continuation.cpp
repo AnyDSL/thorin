@@ -224,6 +224,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "pe_info")        attributes().intrinsic = Intrinsic::PeInfo;
     else if (name() == "pipeline")       attributes().intrinsic = Intrinsic::Pipeline;
     else if (name() == "reserve_shared") attributes().intrinsic = Intrinsic::Reserve;
+    else if (name() == "local_memory")   attributes().intrinsic = Intrinsic::LocalMemory;
     else if (name() == "atomic")         attributes().intrinsic = Intrinsic::Atomic;
     else if (name() == "atomic_load")    attributes().intrinsic = Intrinsic::AtomicLoad;
     else if (name() == "atomic_store")   attributes().intrinsic = Intrinsic::AtomicStore;

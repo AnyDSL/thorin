@@ -83,6 +83,8 @@ protected:
 
     virtual Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*);
     Continuation* emit_reserve_shared(llvm::IRBuilder<>&, const Continuation*, bool=false);
+    virtual Continuation* emit_local_memory(llvm::IRBuilder<>&, const Continuation*);
+    Continuation* emit_local_memory_base_ptr(llvm::IRBuilder<>& irbuilder, const Continuation* continuation);
 
     virtual std::string get_alloc_name() const = 0;
     llvm::BasicBlock* cont2bb(Continuation* cont) { return cont2bb_[cont].first; }

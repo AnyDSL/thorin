@@ -7,7 +7,7 @@ public:
     json nominal_fwd_table = json::array();
     json type_table = json::array();
 
-    TypeMap<std::string> known_types;
+    DefMap<std::string> known_types;
 
     std::string translate_type (const Type * type) {
         auto it = known_types.find(type);
@@ -34,7 +34,7 @@ public:
             result["type"] = "bottom";
         } else if (auto fntype = type->isa<FnType>()) {
             json arg_types = json::array();
-            for (auto arg : fntype->ops()) {
+            for (auto arg : fntype->types()) {
                 arg_types.push_back(translate_type(arg));
             }
 
@@ -43,7 +43,7 @@ public:
             result["args"] = arg_types;
         } else if (auto closuretype = type->isa<ClosureType>()) {
             json args = json::array();
-            for (auto arg : closuretype->ops()) {
+            for (auto arg : closuretype->types()) {
                 args.push_back(translate_type(arg));
             }
 
@@ -73,8 +73,9 @@ public:
             nominal_fwd_table.push_back(forward_decl);
 
             json args = json::array();
-            for (size_t i = 0; i < structtype->num_ops(); ++i) {
-                args.push_back(translate_type(structtype->op(i)));
+            Types struct_types = structtype->types();
+            for (size_t i = 0; i < struct_types.size(); ++i) {
+                args.push_back(translate_type(struct_types[i]));
             }
 
             result["type"] = "struct";
@@ -99,8 +100,9 @@ public:
             nominal_fwd_table.push_back(forward_decl);
 
             json args = json::array();
-            for (size_t i = 0; i < varianttype->num_ops(); ++i) {
-                args.push_back(translate_type(varianttype->op(i)));
+            Types variant_types = varianttype->types();
+            for (size_t i = 0; i < variant_types.size(); ++i) {
+                args.push_back(translate_type(variant_types[i]));
             }
 
             result["type"] = "variant";
@@ -110,8 +112,9 @@ public:
             result["arg_names"] = arg_names;
         } else if (auto tupletype = type->isa<TupleType>()) {
             json args = json::array();
-            for (size_t i = 0; i < tupletype->num_ops(); ++i) {
-                args.push_back(translate_type(tupletype->op(i)));
+            Types tuple_types = tupletype->types();
+            for (size_t i = 0; i < tuple_types.size(); ++i) {
+                args.push_back(translate_type(tuple_types[i]));
             }
 
             result["type"] = "tuple";

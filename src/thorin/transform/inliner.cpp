@@ -36,7 +36,8 @@ void force_inline(Scope& scope, int threshold) {
     }
 }
 
-void inliner(World& world) {
+void inliner(Thorin& thorin) {
+    World& world = thorin.world();
     world.VLOG("start inliner");
 
     static const int factor = 8;
@@ -95,7 +96,7 @@ void inliner(World& world) {
 
     world.VLOG("stop inliner");
     debug_verify(world);
-    world.cleanup();
+    thorin.cleanup();
 
 }
 

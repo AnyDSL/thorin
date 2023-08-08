@@ -42,14 +42,14 @@
 namespace thorin::llvm {
 
 CodeGen::CodeGen(
-    World& world,
+    Thorin& thorin,
     llvm::CallingConv::ID function_calling_convention,
     llvm::CallingConv::ID device_calling_convention,
     llvm::CallingConv::ID kernel_calling_convention,
     int opt, bool debug)
-    : thorin::CodeGen(world, debug)
+    : thorin::CodeGen(thorin, debug)
     , context_(std::make_unique<llvm::LLVMContext>())
-    , module_(std::make_unique<llvm::Module>(world.name(), context()))
+    , module_(std::make_unique<llvm::Module>(world().name(), context()))
     , opt_(opt)
     , dibuilder_(module())
     , function_calling_convention_(function_calling_convention)
@@ -144,14 +144,14 @@ llvm::Type* CodeGen::convert(const Type* type) {
             auto fn = type->as<FnType>();
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> ops;
-            for (auto op : fn->ops()) {
-                if (op->isa<MemType>() || op == world().unit()) continue;
+            for (auto op : fn->types()) {
+                if (op->isa<MemType>() || op == world().unit_type()) continue;
                 auto fn = op->isa<FnType>();
                 if (fn && !op->isa<ClosureType>()) {
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
-                    for (auto fn_op : fn->ops()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+                    for (auto fn_op : fn->types()) {
+                        if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
                         ret_types.push_back(convert(fn_op));
                     }
                     if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
@@ -183,7 +183,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
             Array<llvm::Type*> llvm_types(struct_type->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_type->op(i));
+                llvm_types[i] = convert(struct_type->types()[i]);
             llvm_struct->setBody(llvm_ref(llvm_types));
             return llvm_struct;
         }
@@ -192,19 +192,20 @@ llvm::Type* CodeGen::convert(const Type* type) {
             auto tuple = type->as<TupleType>();
             Array<llvm::Type*> llvm_types(tuple->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->op(i));
+                llvm_types[i] = convert(tuple->types()[i]);
             llvm_type = llvm::StructType::get(context(), llvm_ref(llvm_types));
             return types_[tuple] = llvm_type;
         }
 
         case Node_VariantType: {
+            auto variant_type = type->as<VariantType>();
             assert(type->num_ops() > 0);
             // Max alignment/size constraints respectively in the variant type alternatives dictate the ones to use for the overall type
             size_t max_align = 0, max_size = 0;
 
             auto layout = module().getDataLayout();
             llvm::Type* max_align_type;
-            for (auto op : type->ops()) {
+            for (auto op : variant_type->types()) {
                 auto op_type = convert(op);
                 size_t size  = layout.getTypeAllocSize(op_type);
                 size_t align = layout.getABITypeAlign(op_type).value();
@@ -246,17 +247,18 @@ llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
 
 llvm::FunctionType* CodeGen::convert_closure_type(const Type* type) {
     assert(type->tag() ==  Node_ClosureType);
+    // extract "return" type, collect all other types
     auto fn = type->as<FnType>();
     llvm::Type* ret = nullptr;
     std::vector<llvm::Type*> ops;
-    for (auto op : fn->ops()) {
-        if (op->isa<MemType>() || op == world().unit()) continue;
+    for (auto op : fn->types()) {
+        if (op->isa<MemType>() || op == world().unit_type()) continue;
         auto fn = op->isa<FnType>();
         if (fn && !op->isa<ClosureType>()) {
             assert(!ret && "only one 'return' supported");
             std::vector<llvm::Type*> ret_types;
-            for (auto fn_op : fn->ops()) {
-                if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+            for (auto fn_op : fn->types()) {
+                if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
                 ret_types.push_back(convert(fn_op));
             }
             if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
@@ -899,7 +901,7 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
     } else if (auto variant_extract = def->isa<VariantExtract>()) {
         auto variant_value = variant_extract->op(0);
         auto llvm_value    = emit(variant_value);
-        auto target_type   = variant_value->type()->op(variant_extract->index());
+        auto target_type   = variant_value->type()->op(variant_extract->index())->as<Type>();
         if (is_type_unit(target_type))
             return nullptr;
 
@@ -1169,15 +1171,15 @@ llvm::Value* CodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea) {
 
 llvm::Value* CodeGen::emit_assembly(llvm::IRBuilder<>& irbuilder, const Assembly* assembly) {
     emit_unsafe(assembly->mem());
-    auto out_type = assembly->type();
+    auto out_type = assembly->type()->isa<TupleType>();
     llvm::Type* res_type;
     bool mem_only = false;
 
-    if (out_type->isa<TupleType>()) {
+    if (out_type) {
         if (out_type->num_ops() == 2)
-            res_type = convert(assembly->type()->op(1));
+            res_type = convert(out_type->types()[1]);
         else
-            res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
+            res_type = convert(world().tuple_type(out_type->types().skip_front()));
     } else {
         res_type = llvm::Type::getVoidTy(context());
         mem_only = true;

@@ -13,14 +13,14 @@
 namespace thorin {
 
 static void get_kernel_configs(
-    Importer& importer,
+    Thorin& thorin,
     const std::vector<Continuation*>& kernels,
     Cont2Config& kernel_configs,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
-    importer.world().opt();
+    thorin.opt();
 
-    auto externals = importer.world().externals();
+    auto externals = thorin.world().externals();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
@@ -81,8 +81,11 @@ static uint64_t get_alloc_size(const Def* def) {
 DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& flags)
     : cgs {}
 {
-    for (size_t i = 0; i < cgs.size(); ++i)
-        importers_.emplace_back(world);
+    std::vector<Importer> importers;
+    for (auto& name : backend_names) {
+        accelerator_code.emplace_back(name);
+        importers.emplace_back(world, accelerator_code.back().world());
+    }
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
@@ -98,7 +101,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
+                imported = importers[backend].import(continuation)->as_nom<Continuation>();
                 break;
             }
         }
@@ -117,8 +120,8 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     });
 
     for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
-        if (!importers_[backend].world().empty()) {
-            get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
+        if (!accelerator_code[backend].world().empty()) {
+            get_kernel_configs(accelerator_code[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 auto app = use->body();
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
@@ -150,10 +153,10 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     // get the HLS kernel configurations
     Top2Kernel top2kernel;
     DeviceParams hls_host_params;
-    if (!importers_[HLS].world().empty()) {
-        hls_host_params = hls_channels(importers_[HLS], top2kernel, world);
+    if (!accelerator_code[HLS].world().empty()) {
+        hls_host_params = hls_channels(accelerator_code[HLS], importers[HLS], top2kernel, world);
 
-        get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+        get_kernel_configs(accelerator_code[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto app = use->body();
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {
@@ -184,22 +187,22 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
-        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
+        hls_annotate_top(importers[HLS].world(), top2kernel, kernel_config);
     }
     hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
-    if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
-    if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
+    if (!accelerator_code[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(accelerator_code[NVVM  ], kernel_config,      debug);
+    if (!accelerator_code[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(accelerator_code[AMDGPU], kernel_config, opt, debug);
 #else
     (void)opt;
 #endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
-        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
+        if (!accelerator_code[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(accelerator_code[backend], kernel_config, lang, debug, flags);
 }
 
-CodeGen::CodeGen(World& world, bool debug)
-    : world_(world)
+CodeGen::CodeGen(Thorin& thorin, bool debug)
+    : thorin_(thorin)
     , debug_(debug)
 {}
 

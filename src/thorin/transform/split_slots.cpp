@@ -86,12 +86,12 @@ static bool split_slots(const Scope& scope) {
     return todo;
 }
 
-void split_slots(World& world) {
+void split_slots(Thorin& thorin) {
     bool todo = true;
     while (todo) {
         todo = false;
-        Scope::for_each(world, [&] (const Scope& scope) { todo |= split_slots(scope); });
-        world.cleanup();
+        Scope::for_each(thorin.world(), [&] (const Scope& scope) { todo |= split_slots(scope); });
+        thorin.cleanup();
     }
 }
 

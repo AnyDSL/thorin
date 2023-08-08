@@ -13,7 +13,7 @@ namespace llvm = ::llvm;
 
 class AMDGPUCodeGen : public CodeGen {
 public:
-    AMDGPUCodeGen(World& world, const Cont2Config&, int opt, bool debug);
+    AMDGPUCodeGen(Thorin&, const Cont2Config&, int opt, bool debug);
 
     const char* file_ext() const override { return ".amdgpu"; }
 

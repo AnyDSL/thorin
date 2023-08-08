@@ -130,6 +130,11 @@ Stream& Def::stream1(Stream& s) const {
         s.fmt(": ({, })\n", ass->clobbers());
         s.fmt(": ({, })\b", ass->ops());
         return s;
+    } else if (auto global = isa<Global>()) {
+        if (global->is_external())
+            return s.fmt("{}", unique_name());
+        else
+            return s.fmt("{}({, }))", op_name(), ops());
     }
 
     return s.fmt("{}({, }))", op_name(), ops());
@@ -143,9 +148,14 @@ Stream& World::stream(Stream& s) const {
     RecStreamer rec(s, std::numeric_limits<size_t>::max());
     s << "module '" << name() << "'";
 
-    for (auto&& [_, cont] : externals()) {
-        rec.conts.push(cont);
-        rec.run();
+    for (auto&& [_, def] : externals()) {
+        auto cont = def->isa<Continuation>();
+        if (cont) {
+            rec.conts.push(cont);
+            rec.run();
+        } else {
+            s.fmt("\n{} = {}({, })\n", def->unique_name(), def->op_name(), def->ops());
+        }
     }
 
     return s.endl();

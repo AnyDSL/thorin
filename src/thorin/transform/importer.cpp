@@ -84,6 +84,13 @@ const Def* Importer::import(const Def* odef) {
 
     if (odef->isa_structural()) {
         auto ndef = odef->rebuild(world(), ntype, nops);
+
+        if (auto oglobal = odef->isa<Global>()) {
+            if (oglobal->is_external())
+                world().make_external(const_cast<Def*>(ndef));
+        }
+
+
         todo_ |= odef->tag() != ndef->tag();
         return def_old2new_[odef] = ndef;
     }

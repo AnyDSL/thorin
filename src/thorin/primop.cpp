@@ -288,6 +288,8 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
  * misc
  */
 
+bool Global::is_external() const { return world().is_external(this); }
+
 std::string DefiniteArray::as_string() const {
     std::string res;
     for (auto op : ops()) {

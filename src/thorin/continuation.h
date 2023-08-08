@@ -81,8 +81,9 @@ public:
 //------------------------------------------------------------------------------
 
 enum class CC : uint8_t {
-    C,          ///< C calling convention.
-    Device,     ///< Device calling convention. These are special functions only available on a particular device.
+    C,              ///< C calling convention.
+    Device,         ///< Device calling convention. These are special functions only available on a particular device.
+    DeviceHostCode, ///< Calling convention to denote continuations that are generated as device code.
 };
 
 enum class Intrinsic : uint8_t {

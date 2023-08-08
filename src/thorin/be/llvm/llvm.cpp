@@ -302,6 +302,12 @@ CodeGen::emit_module() {
         dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world().name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
     }
 
+    for (auto&& [_, def] : world().externals()) {
+        if (auto global = def->isa<Global>()) {
+            emit(global);
+        }
+    }
+
     Scope::for_each(world(), [&] (const Scope& scope) { emit_scope(scope); });
 
     if (debug()) dibuilder_.finalize();
@@ -571,9 +577,17 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     irbuilder.SetInsertPoint(bb->getTerminator());
 }
 
+llvm::Value* CodeGen::emit_constant(const Def* def) {
+    auto irbuilder = llvm::IRBuilder(context());
+    return emit_builder(irbuilder, def);
+}
+
 llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     auto& irbuilder = *bb.second;
+    return emit_builder(irbuilder, def);
+}
 
+llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def) {
     // TODO
     //if (debug())
         //irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
@@ -1012,13 +1026,23 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
         val = emit(continuation);
     else {
         auto llvm_type = convert(global->alloced_type());
-        auto var = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
+        auto var = llvm::cast<llvm::GlobalVariable>(module().getOrInsertGlobal(global->is_external() ? global->name().c_str() : global->unique_name().c_str(), llvm_type));
         var->setConstant(!global->is_mutable());
-        var->setLinkage(llvm::GlobalValue::InternalLinkage);
-        if (global->init()->isa<Bottom>())
-            var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
-        else
+
+        if (global->init()->isa<Bottom>()) {
+            if (global->is_external())
+                var->setExternallyInitialized(true);
+            else
+                var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
+        } else
             var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+
+        if (global->is_external()) {
+            var->setAlignment(llvm::Align(4));
+            var->setDSOLocal(true);
+            var->setUnnamedAddr(llvm::GlobalVariable::UnnamedAddr::None);
+        } else
+            var->setLinkage(llvm::GlobalValue::InternalLinkage);
         val = var;
     }
     return val;

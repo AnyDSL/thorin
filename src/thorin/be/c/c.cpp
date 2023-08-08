@@ -712,19 +712,22 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 break;
         }
     } else if (body->callee() == world().branch()) {
-        auto c = emit(body->arg(0));
-        auto t = label_name(body->arg(1));
-        auto f = label_name(body->arg(2));
+        emit_unsafe(body->arg(0));
+        auto c = emit(body->arg(1));
+        auto t = label_name(body->arg(2));
+        auto f = label_name(body->arg(3));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
     } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
-        bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(0)));
+        emit_unsafe(body->arg(0));
 
-        for (size_t i = 2; i < body->num_args(); i++) {
+        bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
+
+        for (size_t i = 3; i < body->num_args(); i++) {
             auto arg = body->arg(i)->as<Tuple>();
             bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), label_name(arg->op(1)));
         }
 
-        bb.tail.fmt("default: goto {};", label_name(body->arg(1)));
+        bb.tail.fmt("default: goto {};", label_name(body->arg(2)));
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");

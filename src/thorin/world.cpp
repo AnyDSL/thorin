@@ -10,6 +10,7 @@
 #endif
 
 #include <cmath>
+#include <execinfo.h>
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -44,7 +45,7 @@ namespace thorin {
 
 World::World(const std::string& name) {
     data_.name_   = name;
-    data_.branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    data_.branch_ = continuation(fn_type({mem_type(), type_bool(), fn_type({mem_type()}), fn_type({mem_type()})}), Intrinsic::Branch, {"br"});
     data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
 }
 
@@ -1102,7 +1103,20 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
+#if THORIN_ENABLE_CREATION_CONTEXT
+    void *array[10];
+    size_t size = backtrace(array, 10);
+    assert(size >= 2);
+    char ** symbols = backtrace_symbols(array, 10);
+
+    dbg.creation_context = symbols[1];
+#endif
+
     auto cont = put<Continuation>(fn, attributes, dbg);
+
+#if THORIN_ENABLE_CREATION_CONTEXT
+    free(symbols);
+#endif
 
     size_t i = 0;
     for (auto op : fn->ops()) {
@@ -1114,11 +1128,13 @@ Continuation* World::continuation(const FnType* fn, Continuation::Attributes att
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
-    Array<const Type*> arg_types(num_patterns + 2);
-    arg_types[0] = type;
-    arg_types[1] = fn_type();
-    for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = tuple_type({type, fn_type()});
+    Array<const Type*> arg_types(num_patterns + 3);
+    arg_types[0] = mem_type();
+    arg_types[1] = type;
+    arg_types[2] = fn_type({mem_type()});
+    for (size_t i = 0; i < num_patterns; i++) {
+        arg_types[i + 3] = tuple_type({type, fn_type({mem_type()})});
+    }
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
@@ -1139,26 +1155,26 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
-                assert(args.size() == 3);
-                auto cond = args[0], t = args[1], f = args[2];
+                assert(args.size() == 4);
+                auto mem = args[0], cond = args[1], t = args[2], f = args[3];
                 if (auto lit = cond->isa<PrimLit>())
-                    return app(lit->value().get_bool() ? t : f, {}, dbg);
+                    return app(lit->value().get_bool() ? t : f, { mem }, dbg);
                 if (t == f)
-                    return app(t, {}, dbg);
+                    return app(t, { mem }, dbg);
                 if (is_not(cond)) {
                     auto inverted = cond->as<ArithOp>()->rhs();
-                    return app(branch(), {inverted, f, t}, dbg);
+                    return app(branch(), {mem, inverted, f, t}, dbg);
                 }
                 break;
             }
             case Intrinsic::Match:
-                if (args.size() == 2) return app(args[1], {}, dbg);
-                if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
+                if (args.size() == 3) return app(args[2], { args[0] }, dbg);
+                if (auto lit = args[1]->isa<PrimLit>()) {
+                    for (size_t i = 3; i < args.size(); i++) {
                         if (extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return app(extract(args[i], 1), {}, dbg);
+                            return app(extract(args[i], 1), { args[0] }, dbg);
                     }
-                    return app(args[1], {}, dbg);
+                    return app(args[2], { args[0] }, dbg);
                 }
                 break;
             default:

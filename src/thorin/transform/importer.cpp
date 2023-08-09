@@ -47,7 +47,7 @@ const Def* Importer::import(const Def* odef) {
         Array<const Def*> new_conditions(ofilter->num_ops());
         for (size_t i = 0, e = ofilter->size(); i != e; ++i)
             new_conditions[i] = import(ofilter->condition(i));
-        auto nfilter = world().filter(new_conditions, ofilter->debug());
+        auto nfilter = world_.filter(new_conditions, ofilter->debug());
         return nfilter;
     }
 
@@ -56,13 +56,13 @@ const Def* Importer::import(const Def* odef) {
         assert(!ocontinuation->dead_);
         // TODO maybe we want to deal with intrinsics in a more streamlined way
         if (ocontinuation == ocontinuation->world().branch())
-            return def_old2new_[ocontinuation] = world().branch();
+            return def_old2new_[ocontinuation] = world_.branch();
         if (ocontinuation == ocontinuation->world().end_scope())
-            return def_old2new_[ocontinuation] = world().end_scope();
+            return def_old2new_[ocontinuation] = world_.end_scope();
         auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->attributes(), ocontinuation->debug_history());
-        assert(&ncontinuation->world() == &world());
-        assert(&npi->table() == &world());
+        ncontinuation = world_.continuation(npi, ocontinuation->attributes(), ocontinuation->debug_history());
+        assert(&ncontinuation->world() == &world_);
+        assert(&npi->table() == &world_);
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
             ncontinuation->param(i)->set_name(ocontinuation->param(i)->debug_history().name);
             def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
@@ -74,7 +74,7 @@ const Def* Importer::import(const Def* odef) {
         def_old2new_[ocontinuation] = ncontinuation;
 
         if (ocontinuation->is_external())
-            world().make_external(ncontinuation);
+            world_.make_external(ncontinuation);
     }
 
     size_t size = odef->num_ops();
@@ -82,22 +82,30 @@ const Def* Importer::import(const Def* odef) {
     for (size_t i = 0; i != size; ++i) {
         assert(odef->op(i) != odef);
         nops[i] = import(odef->op(i));
-        assert(&nops[i]->world() == &world());
+        assert(&nops[i]->world() == &world_);
     }
 
     if (odef->isa_structural()) {
-        auto ndef = odef->rebuild(world(), ntype, nops);
+        auto ndef = odef->rebuild(world_, ntype, nops);
         todo_ |= odef->tag() != ndef->tag();
         return def_old2new_[odef] = ndef;
     }
 
-    assert(ncontinuation && &ncontinuation->world() == &world());
+    assert(ncontinuation && &ncontinuation->world() == &world_);
     auto napp = nops[0]->isa<App>();
     if (napp)
         ncontinuation->set_body(napp);
     ncontinuation->set_filter(nops[1]->as<Filter>());
     ncontinuation->verify();
     return ncontinuation;
+}
+
+void Importer::import_plugin_intrinsic(const Continuation* cont, unique_plugin_intrinsic func) {
+    if (auto ncont = def_old2new_.lookup(cont)) {
+        assert(&(*ncont)->world() == &world_);
+        assert((*ncont)->isa<Continuation>());
+        world_.data_.plugin_intrinsics_.push_back({ (*ncont)->as<Continuation>(), std::move(func) });
+    }
 }
 
 }

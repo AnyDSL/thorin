@@ -10,12 +10,7 @@
 #endif
 
 #include <cmath>
-#ifdef _MSC_VER
-#include <windows.h>
-#else
-#include <execinfo.h>
-#include <dlfcn.h>
-#endif
+#include <algorithm>
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -1302,9 +1297,9 @@ void World::opt() {
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(clone_bodies(*this))
     RUN_PASS(split_slots(*this))
-    if (plugin_handles.size() > 0) {
-        RUN_PASS(plugin_execute(*this));
-        RUN_PASS(cleanup());
+    if (!data_.plugin_intrinsics_.empty()) {
+        RUN_PASS(plugin_execute(*this, std::move(data_.plugin_intrinsics_)));
+        // RUN_PASS(cleanup());
     }
     RUN_PASS(closure_conversion(*this))
     RUN_PASS(lift_builtins(*this))
@@ -1313,42 +1308,5 @@ void World::opt() {
     RUN_PASS(dead_load_opt(*this))
     RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(*this))
-}
-
-bool World::register_plugin(const char* plugin_name) {
-#ifdef _MSC_VER
-    return false;
-#else // _MSC_VER
-    void *handle = dlopen(plugin_name, RTLD_LAZY | RTLD_GLOBAL);
-    if (!handle) {
-        ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
-        ELOG("Is plugin contained in LD_LIBRARY_PATH?");
-        return false;
-    }
-    dlerror();
-
-    char *error;
-    auto initfunc = reinterpret_cast<plugin_init_func_t*>(dlsym(handle, "init"));
-    if ((error = dlerror()) != NULL) {
-        ILOG("Plugin {} did not supply an init function", plugin_name);
-    } else {
-        initfunc(this);
-    }
-
-    plugin_handles.push_back(handle);
-    return true;
-#endif // _MSC_VER
-}
-
-World::plugin_func_t* World::search_plugin_function(const char* function_name) const {
-#ifdef _MSC_VER
-#else // _MSC_VER
-    for (auto plugin : plugin_handles) {
-        if (void* plugin_function = dlsym(plugin, function_name)) {
-            return reinterpret_cast<plugin_func_t*>(plugin_function);
-        }
-    }
-#endif // _MSC_VER
-    return nullptr;
 }
 }

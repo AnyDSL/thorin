@@ -22,6 +22,7 @@ public:
     World& world() { return world_; }
     const Type* import(const Type*);
     const Def* import(const Def*);
+    void import_plugin_intrinsic(const Continuation* cont, unique_plugin_intrinsic impl);
     bool todo() const { return todo_; }
 
 public:

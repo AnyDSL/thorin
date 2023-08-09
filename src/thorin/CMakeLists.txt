@@ -14,6 +14,9 @@ set(THORIN_SOURCES
     type.h
     world.cpp
     world.h
+    plugin.cpp
+    plugin.h
+    plugin_helpers.h
     analyses/cfg.cpp
     analyses/cfg.h
     analyses/domfrontier.cpp

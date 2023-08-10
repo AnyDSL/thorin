@@ -501,7 +501,7 @@ std::vector<llvm::Value*> CodeGen::split_values(llvm::IRBuilder<>& irbuilder, Ty
         case 1: return { value };
         default: {
             std::vector<llvm::Value*> values;
-            values.reserve(n);
+            values.resize(n);
             for (size_t i = 0; i < n; i++) {
                 values[i] = irbuilder.CreateExtractValue(value, i);
             }

@@ -90,4 +90,8 @@ Continuation* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Co
     return emit_reserve_shared(irbuilder, continuation, true);
 }
 
+Continuation* AMDGPUCodeGen::emit_local_memory(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+    return emit_local_memory_base_ptr(irbuilder, continuation);
+}
+
 }

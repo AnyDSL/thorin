@@ -1182,6 +1182,7 @@ Continuation* CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, Continuation
         case Intrinsic::CmpXchgWeak: return emit_cmpxchg(irbuilder, continuation, true);
         case Intrinsic::Fence:       return emit_fence(irbuilder, continuation);
         case Intrinsic::Reserve:     return emit_reserve(irbuilder, continuation);
+        case Intrinsic::LocalMemory: return emit_local_memory(irbuilder, continuation);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
@@ -1309,7 +1310,7 @@ Continuation* CodeGen::emit_reserve(llvm::IRBuilder<>&, const Continuation* cont
 Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Continuation* continuation, bool init_undef) {
     assert(continuation->has_body());
     auto body = continuation->body();
-    assert(body->num_args() == 3 && "required arguments are missing");
+    assert(body->num_args() == 3 && "incorrect number of arguments");
     if (!body->arg(1)->isa<PrimLit>())
         world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = body->arg(1)->as<PrimLit>()->ps32_value();
@@ -1324,6 +1325,33 @@ Continuation* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const C
     auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder.CreatePointerCast(global, type);
     emit_phi_arg(irbuilder, cont->param(1), call);
+    return cont;
+}
+
+Continuation* CodeGen::emit_local_memory(llvm::IRBuilder<>&, const Continuation* continuation) {
+    world().edef(continuation, "local_memory: only allowed in device code");
+    THORIN_UNREACHABLE;
+}
+
+Continuation* CodeGen::emit_local_memory_base_ptr(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+    static constexpr auto name = "__dynamic_smem";
+
+    assert(continuation->has_body());
+    auto body = continuation->body();
+    assert(body->num_args() == 2 && "incorrect number of arguments");
+    auto cont = body->arg(1)->as_nom<Continuation>();
+
+    auto global = [&] {
+        if (auto found = module().getGlobalVariable(name))
+            return found;
+
+        auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(context()), 0);
+        auto global = new llvm::GlobalVariable(module(), type, false, llvm::GlobalValue::ExternalLinkage, nullptr, name, nullptr, llvm::GlobalVariable::NotThreadLocal, 3);
+        global->setAlignment(llvm::Align(16));
+        return global;
+    }();
+
+    emit_phi_arg(irbuilder, cont->param(1), global);
     return cont;
 }
 

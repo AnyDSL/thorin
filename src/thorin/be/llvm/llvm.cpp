@@ -497,7 +497,7 @@ std::vector<llvm::Value*> CodeGen::split_values(llvm::IRBuilder<>& irbuilder, Ty
     }
 }
 
-llvm::Value* CodeGen::emit_call(llvm::IRBuilder<>& irbuilder, const Def* callee, std::vector<llvm::Value*>& args) {
+llvm::CallInst* CodeGen::emit_call(llvm::IRBuilder<>& irbuilder, const Def* callee, std::vector<llvm::Value*>& args) {
     if (callee == entry_->ret_param()) { // normal return
         std::vector<llvm::Type *> types;
         for (auto val : args)
@@ -593,7 +593,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     auto& [bb, ptr_irbuilder] = cont2bb_[continuation];
     auto& irbuilder = *ptr_irbuilder;
 
-    llvm::Value* call_instr = nullptr;
+    llvm::CallInst* call_instr = nullptr;
 
     if (body->callee() == world().branch()) {
         auto mem = body->arg(0);
@@ -633,10 +633,12 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         call_instr = emit_call(irbuilder, body->callee(), args);
-        // todo potential_tailcalls_ fast-path ?
         if (auto codom = body->callee()->type()->as<FnType>()->codomain()) {
             assert(call_instr && "returning calls always involve one of those");
             assert(ret_arg && "we need a return argument too!");
+            if (ret_arg == entry_->ret_param())
+                potential_tailcalls_.push_back(call_instr);
+
             auto ret_args = split_values(irbuilder, *codom, call_instr);
             call_instr = emit_call(irbuilder, ret_arg, ret_args);
         }

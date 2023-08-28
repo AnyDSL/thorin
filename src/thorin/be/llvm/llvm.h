@@ -98,7 +98,7 @@ protected:
 
     std::vector<llvm::Value*> split_values(llvm::IRBuilder<>&, Types domain, llvm::Value* value);
     /// Emits a 'call' using already emitted arguments. Returns the call instruction if appropriate
-    llvm::Value* emit_call(llvm::IRBuilder<>&, const Def* callee, std::vector<llvm::Value*>& args);
+    llvm::CallInst* emit_call(llvm::IRBuilder<>&, const Def* callee, std::vector<llvm::Value*>& args);
 
 private:
     Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);

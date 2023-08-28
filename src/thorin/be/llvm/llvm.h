@@ -130,16 +130,42 @@ private:
 
 protected:
     std::unique_ptr<llvm::TargetMachine> machine_;
-    llvm::DIBuilder dibuilder_;
-    llvm::DICompileUnit* dicompile_unit_;
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
-    llvm::DIScope* discope_ = nullptr;
     std::unique_ptr<Runtime> runtime_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif
+
+    struct Debug {
+        Debug(CodeGen&);
+
+        void emit_module();
+        void finalize();
+
+        void prepare(const Scope&, llvm::Function*);
+        void prepare(llvm::IRBuilder<>& irbuilder, const Continuation*);
+
+        void prepare(llvm::IRBuilder<>& irbuilder, const Def*);
+        void finalize(const Def*, llvm::Value*);
+
+        void register_param(const Param* param, int index, llvm::Value*);
+
+        llvm::DIFile* get_difile(const std::string&);
+        llvm::DILocation* get_dilocation(const Loc&, llvm::DIScope*);
+        llvm::DIType* get_ditype(const Type*);
+
+    private:
+        CodeGen& cg_;
+
+        llvm::DIBuilder dibuilder_;
+        llvm::DICompileUnit* dicompile_unit_;
+        llvm::DIScope* discope_ = nullptr;
+
+        DefMap<llvm::DIType*> types_;
+    };
+    std::optional<Debug> debug_;
 
     friend class Runtime;
 };

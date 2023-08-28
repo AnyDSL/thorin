@@ -18,7 +18,6 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/Path.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Transforms/Scalar.h>
@@ -51,7 +50,7 @@ CodeGen::CodeGen(
     , context_(std::make_unique<llvm::LLVMContext>())
     , module_(std::make_unique<llvm::Module>(world().name(), context()))
     , opt_(opt)
-    , dibuilder_(module())
+    , debug_(debug ? std::make_optional<Debug>(*this) : std::nullopt)
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
@@ -295,13 +294,7 @@ void CodeGen::emit_stream(std::ostream& stream) {
 
 std::pair<std::unique_ptr<llvm::LLVMContext>, std::unique_ptr<llvm::Module>>
 CodeGen::emit_module() {
-    if (debug()) {
-        module().addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-        // Darwin only supports dwarf2
-        if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
-            module().addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit_ = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world().name(), llvm::StringRef()), "Impala", opt() > 0, llvm::StringRef(), 0);
-    }
+    if (debug_) debug_->emit_module();
 
     for (auto&& [_, def] : world().externals()) {
         if (auto global = def->isa<Global>()) {
@@ -319,7 +312,7 @@ CodeGen::emit_module() {
         emit_scope(scope, forest);
     });
 
-    if (debug()) dibuilder_.finalize();
+    if (debug_) debug_->finalize();
 
 #if THORIN_ENABLE_RV
     for (auto [width, fct, call] : vec_todo_)
@@ -380,21 +373,7 @@ llvm::Function* CodeGen::emit_fun_decl(Continuation* continuation) {
 llvm::Function* CodeGen::prepare(const Scope& scope) {
     auto fct = llvm::cast<llvm::Function>(emit(scope.entry()));
 
-    discope_ = dicompile_unit_;
-    if (debug()) {
-        auto file = entry_->loc().file;
-        auto src_file = llvm::sys::path::filename(file);
-        auto src_dir = llvm::sys::path::parent_path(file);
-        auto difile = dibuilder_.createFile(src_file, src_dir);
-        auto disub_program = dibuilder_.createFunction(
-            discope_, fct->getName(), fct->getName(), difile, entry_->loc().begin.row,
-            dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-            entry_->loc().begin.row,
-            llvm::DINode::FlagPrototyped,
-            llvm::DISubprogram::SPFlagDefinition | (opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
-        fct->setSubprogram(disub_program);
-        discope_ = disub_program;
-    }
+    if (debug_) debug_->prepare(scope, fct);
 
     return fct;
 }
@@ -407,11 +386,11 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
     auto& irbuilder = *i->second.second;
     irbuilder.SetInsertPoint(bb);
 
-    if (debug())
-        irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), cont->loc().begin.row, cont->loc().begin.col, discope_));
+    if (debug_) debug_->prepare(irbuilder, cont);
 
     if (entry_ == cont) {
         auto arg = fct->arg_begin();
+        size_t arg_id = 0;
         for (auto param : entry_->params()) {
             if (is_mem(param) || is_unit(param)) {
                 defs_[param] = nullptr;
@@ -420,13 +399,18 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
                     arg->setName(param->unique_name()); // use param
-                    defs_[param] = &*arg++;
+                    defs_[param] = argv;
+                    arg++;
                 } else {
                     defs_[param] = value;               // use provided value
                 }
+
+                if (debug_) debug_->register_param(param, arg_id, defs_[param]);
             }
+            arg_id++;
         }
     } else {
+        size_t arg_id = 0;
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
                 defs_[param] = nullptr;
@@ -434,7 +418,10 @@ void CodeGen::prepare(Continuation* cont, llvm::Function* fct) {
                 // do not bother reserving anything (the 0 below) - it's a tiny optimization nobody cares about
                 auto phi = irbuilder.CreatePHI(convert(param->type()), 0, param->name().c_str());
                 defs_[param] = phi;
+
+                // if (debug_) debug_->register_param(param, arg_id, defs_[param]);
             }
+            arg_id++;
         }
     }
 }
@@ -614,19 +601,19 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 llvm::Value* CodeGen::emit_constant(const Def* def) {
     auto irbuilder = llvm::IRBuilder(context());
     auto val = emit_builder(irbuilder, def);
+    if (debug_ && val) debug_->finalize(def, val);
     return val;
 }
 
 llvm::Value* CodeGen::emit_bb(BB& bb, const Def* def) {
     auto& irbuilder = *bb.second;
     auto val = emit_builder(irbuilder, def);
+    if (debug_ && val) debug_->finalize(def, val);
     return val;
 }
 
 llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def) {
-    // TODO
-    //if (debug())
-        //irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
+    if (debug_) debug_->prepare(irbuilder, def);
 
     if (false) {}
     else if (auto load = def->isa<Load>())           return emit_load(irbuilder, load);
@@ -1035,10 +1022,11 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type*
     auto entry = &irbuilder.GetInsertBlock()->getParent()->getEntryBlock();
     auto layout = module().getDataLayout();
     llvm::AllocaInst* alloca;
-    if (entry->empty())
-        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
+    llvm::Instruction* insert_before = entry->empty() ? nullptr : entry->getFirstNonPHIOrDbg();
+    if (insert_before)
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, insert_before);
     else
-        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     alloca->setAlignment(layout.getABITypeAlign(type));
     return alloca;
 }

@@ -104,6 +104,7 @@ if(LLVM_FOUND)
         be/llvm/runtime.cpp
         be/llvm/runtime.h
         be/llvm/vectorize.cpp
+        be/llvm/debug.cpp
     )
 endif()
 

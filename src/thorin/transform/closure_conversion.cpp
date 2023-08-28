@@ -188,7 +188,9 @@ struct ClosureConverter {
 
         if (auto ncont = ndef->isa_nom<Continuation>())
             return ncont;
-        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), {ndef->debug().name + "_wrapped" });
+        Debug wr_dbg = ndef->debug();
+        wr_dbg.name += "_wrapped";
+        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), wr_dbg);
         wrapper->jump(ndef, wrapper->params_as_defs());
         as_continuations_[ndef] = wrapper;
         return wrapper;
@@ -272,7 +274,11 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
 
             auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
             if ((converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) && !ncont->is_intrinsic()) {
-                Continuation* trampoline = dst().continuation(ncont->type(), ncont->attributes(), "trampoline");
+                Debug tr_debug = ocont->debug();
+                tr_debug.name += "_trampoline";
+                if (tr_debug.name.rfind("@llvm", 0) == 0)
+                    tr_debug.name = "_" + tr_debug.name;
+                Continuation* trampoline = dst().continuation(ncont->type(), ncont->attributes(), tr_debug);
                 auto closure_type = dst().closure_type(ncont->type()->types());
                 trampoline->jump(ncont, trampoline->params_as_defs());
                 trampoline->append_param(closure_type);

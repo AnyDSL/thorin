@@ -276,7 +276,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             if ((converter_.mode_ == LiftMode::ClosureConversion || converter_.mode_ == LiftMode::JoinTargets) && !ncont->is_intrinsic()) {
                 Debug tr_debug = ocont->debug();
                 tr_debug.name += "_trampoline";
-                if (tr_debug.name.rfind("@llvm", 0) == 0)
+                if (tr_debug.name.rfind("llvm", 0) == 0)
                     tr_debug.name = "_" + tr_debug.name;
                 Continuation* trampoline = dst().continuation(ncont->type(), ncont->attributes(), tr_debug);
                 auto closure_type = dst().closure_type(ncont->type()->types());

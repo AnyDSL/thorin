@@ -120,11 +120,11 @@ void Cleaner::eliminate_params() {
             if (!proxy_idx.empty()) {
                 auto ncontinuation = world().continuation(
                     world().fn_type(ocontinuation->type()->types().cut(proxy_idx)),
-                    ocontinuation->attributes(), ocontinuation->debug_history());
+                    ocontinuation->attributes(), ocontinuation->debug());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace_uses(ncontinuation->param(j));
-                    ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug_history().name);
+                    ncontinuation->param(j++)->set_name(ocontinuation->param(i)->debug().name);
                 }
 
                 if (!ocontinuation->filter()->is_empty())

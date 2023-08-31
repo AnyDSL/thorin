@@ -16,10 +16,6 @@ public:
         assert(&src != &dst);
         if (src.is_pe_done())
             dst.mark_pe_done();
-#if THORIN_ENABLE_CHECKS
-        if (src.track_history())
-            dst.enable_history(true);
-#endif
     }
 
     const Def* import(const Def* odef) { return instantiate(odef); }

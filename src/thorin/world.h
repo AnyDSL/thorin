@@ -381,7 +381,6 @@ private:
         u32 cur_gid = 0;
         bool pe_done = false;
 #if THORIN_ENABLE_CHECKS
-        bool track_history = false;
         Breakpoints breakpoints;
         Breakpoints use_breakpoints;
 #endif

@@ -48,14 +48,6 @@ int Def::order() const {
     return type()->order();
 }
 
-Debug Def::debug_history() const {
-#if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(unique_name(), loc()) : debug();
-#else
-    return debug();
-#endif
-}
-
 void Def::set_name(const std::string& name) const { debug_.name = name; }
 
 void Def::set_op(size_t i, const Def* def) {

@@ -127,7 +127,7 @@ Continuation* Continuation::stub(Rewriter& rewriter, const Type* nty) const {
     auto npi = nty->isa<FnType>();
     assert(npi && npi->tag() == Node_FnType);
 
-    Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
+    Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug());
     assert(&ncontinuation->world() == &nworld);
     assert(&npi->world() == &nworld);
 
@@ -142,7 +142,7 @@ void Continuation::rebuild_from(Rewriter& rewriter, const Def* old) {
 
     assert(num_params() >= ocont->num_params());
     for (size_t i = 0, e = ocont->num_params(); i != e; ++i)
-        param(i)->set_name(ocont->param(i)->debug_history().name);
+        param(i)->set_name(ocont->param(i)->debug().name);
 
     set_filter(rewriter.instantiate(ocont->filter())->as<Filter>());
 

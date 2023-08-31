@@ -187,8 +187,6 @@ public:
     /// @name Debug
     //@{
     Debug debug() const { return debug_; }
-    /// In Debug build if @c World::enable_history is @c true, this thing keeps the @p gid to track a history of @p gid%s.
-    Debug debug_history() const;
     std::string name() const { return debug().name; }
     Loc loc() const { return debug().loc; }
     void set_name(const std::string&) const;

@@ -1609,8 +1609,8 @@ std::string CCodeGen::emit_fun_decl(Continuation* cont) {
 }
 
 Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {
-    if (debug_ && !def->loc().file.empty())
-        return s.fmt("#line {} \"{}\"\n", def->loc().begin.row, def->loc().file);
+    if (debug_ && def->loc())
+        return s.fmt("#line {} \"{}\"\n", def->loc()->begin.row, def->loc()->file);
     return s;
 }
 

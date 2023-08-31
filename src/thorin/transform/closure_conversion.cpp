@@ -336,7 +336,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             } else if (!free_vars.empty()) {
                 assert(converter_.mode_ == LiftMode::Lift2Cff);
                 for (auto free_var : free_vars) {
-                    auto captured = ncont->append_param(instantiate(free_var->type())->as<Type>(), free_var->name() + "_captured");
+                    auto captured = ncont->append_param(instantiate(free_var->type())->as<Type>(), ncont->debug().with_name(free_var->name() + "_captured"));
                     body_rewriter->insert(free_var, captured);
                 }
                 ncont->jump(ncont, ncont->params_as_defs().get_front(ncont->num_params()));

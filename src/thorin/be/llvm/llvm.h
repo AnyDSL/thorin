@@ -157,7 +157,7 @@ protected:
 
         llvm::DIFile* get_difile(const std::string&);
         llvm::DILocation* get_dilocation(const Loc&, llvm::DIScope*);
-        llvm::DIType* get_ditype(const Type*);
+        llvm::DIType* get_ditype(const Type*, Loc);
 
     private:
         CodeGen& cg_;

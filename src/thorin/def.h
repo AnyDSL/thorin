@@ -188,7 +188,7 @@ public:
     //@{
     Debug debug() const { return debug_; }
     std::string name() const { return debug().name; }
-    Loc loc() const { return debug().loc; }
+    std::optional<Loc> loc() const { return debug().loc; }
     void set_name(const std::string&) const;
     std::string unique_name() const;
     //@}

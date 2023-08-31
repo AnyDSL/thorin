@@ -19,23 +19,29 @@ void CodeGen::Debug::emit_module() {
 }
 
 void CodeGen::Debug::prepare(const thorin::Scope& scope, llvm::Function* fct) {
-    auto difile = get_difile(cg_.entry_->loc().file);
-    auto disub_program = dibuilder_.createFunction(
-            discope_, fct->getName(), fct->getName(), difile, cg_.entry_->loc().begin.row,
-            dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-            cg_.entry_->loc().begin.row,
-            llvm::DINode::FlagPrototyped,
-            llvm::DISubprogram::SPFlagDefinition | (cg_.opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
-    fct->setSubprogram(disub_program);
-    discope_ = disub_program;
+    if (auto loc = scope.entry()->debug().loc) {
+        auto difile = get_difile(loc->file);
+        auto disub_program = dibuilder_.createFunction(
+                discope_, fct->getName(), fct->getName(), difile, loc->begin.row,
+                dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
+                loc->begin.row,
+                llvm::DINode::FlagPrototyped,
+                llvm::DISubprogram::SPFlagDefinition | (cg_.opt() > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
+        fct->setSubprogram(disub_program);
+        discope_ = disub_program;
+    } else {
+        discope_ = dicompile_unit_;
+    }
 }
 
 void CodeGen::Debug::prepare(llvm::IRBuilder<>& irbuilder, const thorin::Continuation* cont) {
-    irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), cont->loc().begin.row, cont->loc().begin.col, discope_));
+    if (auto loc = cont->debug().loc)
+        irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), loc->begin.row, loc->begin.col, discope_));
 }
 
 void CodeGen::Debug::prepare(llvm::IRBuilder<>& irbuilder, const thorin::Def* def) {
-    irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), def->loc().begin.row, def->loc().begin.col, discope_));
+    if (auto loc = def->debug().loc)
+        irbuilder.SetCurrentDebugLocation(llvm::DILocation::get(discope_->getContext(), loc->begin.row, loc->begin.col, discope_));
 }
 
 void CodeGen::Debug::finalize(const thorin::Def* def, llvm::Value* val) {
@@ -45,9 +51,11 @@ void CodeGen::Debug::finalize(const thorin::Def* def, llvm::Value* val) {
 void CodeGen::Debug::register_param(const Param* param, int index, llvm::Value* val) {
     if (!param->type()->isa<PrimType>())
         return;
-    llvm::DIFile* file = get_difile(param->debug().loc.file);
-    auto local_var = dibuilder_.createParameterVariable(discope_, param->name(), index, file, param->debug().loc.begin.row, get_ditype(param->type()));
-    dibuilder_.insertDbgValueIntrinsic(val, local_var, llvm::DIExpression::get(cg_.context(), {}), get_dilocation(param->debug().loc, discope_), cg_.cont2bb(param->continuation()));
+    if (auto loc = param->debug().loc; loc) {
+        llvm::DIFile* file = get_difile(loc->file);
+        auto local_var = dibuilder_.createParameterVariable(discope_, param->name(), index, file, loc->begin.row, get_ditype(param->type(), *loc));
+        dibuilder_.insertDbgValueIntrinsic(val, local_var, llvm::DIExpression::get(cg_.context(), {}), get_dilocation(*loc, discope_), cg_.cont2bb(param->continuation()));
+    }
 }
 
 llvm::DIFile* CodeGen::Debug::get_difile(const std::string& file) {
@@ -60,9 +68,13 @@ llvm::DILocation* CodeGen::Debug::get_dilocation(const thorin::Loc& loc, llvm::D
     return llvm::DILocation::get(cg_.context(), loc.begin.row, loc.begin.col, discope);
 }
 
-llvm::DIType* CodeGen::Debug::get_ditype(const thorin::Type* t) {
+llvm::DIType* CodeGen::Debug::get_ditype(const thorin::Type* t, Loc loc) {
     if (auto found = types_.lookup(t))
         return *found;
+
+    // If the type comes with its own debug info, let's use that instead!
+    if (t->debug().loc)
+        loc = *t->debug().loc;
 
     using namespace llvm::dwarf;
 
@@ -78,19 +90,19 @@ llvm::DIType* CodeGen::Debug::get_ditype(const thorin::Type* t) {
             case PrimType_pf64: case PrimType_qf64:                                         return types_[t] = dibuilder_.createBasicType("bool", 64, DW_ATE_float);
         }
     } else if (auto ptr_t = t->isa<PtrType>()) {
-        return types_[t] = dibuilder_.createPointerType(get_ditype(ptr_t->pointee()), cg_.machine_->getPointerSize(static_cast<unsigned int>(ptr_t->addr_space())));
+        return types_[t] = dibuilder_.createPointerType(get_ditype(ptr_t->pointee(), loc), cg_.machine_->getPointerSize(static_cast<unsigned int>(ptr_t->addr_space())));
     } else if (auto fun_t = t->isa<FnType>()) {
 
     } else if (auto agg_t = t->isa<StructType>()) {
-        types_[t] = dibuilder_.createForwardDecl(DW_TAG_structure_type, agg_t->name().str(), dicompile_unit_, get_difile(t->debug().loc.file), t->debug().loc.begin.row);
+        types_[t] = dibuilder_.createForwardDecl(DW_TAG_structure_type, agg_t->name().str(), dicompile_unit_, get_difile(loc.file), loc.begin.row);
         auto data_layout = cg_.module().getDataLayout();
         auto layout_t = data_layout.getStructLayout(llvm::cast<llvm::StructType>(cg_.convert(t)));
         std::vector<llvm::Metadata*> members;
         size_t i = 0;
         for (auto member_t : agg_t->types()) {
-            auto member_di = get_ditype(member_t);
+            auto member_di = get_ditype(member_t, loc);
             auto member_llvm_t = cg_.convert(member_t);
-            auto derived = dibuilder_.createMemberType(dicompile_unit_, agg_t->op_name(i).str(), get_difile(t->debug().loc.file), t->debug().loc.begin.row,
+            auto derived = dibuilder_.createMemberType(dicompile_unit_, agg_t->op_name(i).str(), get_difile(loc.file), loc.begin.row,
                                                        data_layout.getTypeSizeInBits(member_llvm_t),
                                                        data_layout.getABITypeAlign(member_llvm_t).value(),
                                                        layout_t->getElementOffsetInBits(i),
@@ -98,7 +110,7 @@ llvm::DIType* CodeGen::Debug::get_ditype(const thorin::Type* t) {
                                                        member_di);
             i++;
         }
-        return types_[t] = dibuilder_.createStructType(dicompile_unit_, agg_t->name().str(), get_difile(t->debug().loc.file), t->debug().loc.begin.row,
+        return types_[t] = dibuilder_.createStructType(dicompile_unit_, agg_t->name().str(), get_difile(loc.file), loc.begin.row,
                                                        layout_t->getSizeInBits(),
                                                        layout_t->getAlignment().value(),
                                                        llvm::DINode::DIFlags::FlagZero,

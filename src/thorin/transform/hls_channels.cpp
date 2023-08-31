@@ -250,7 +250,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
         }
     }
 
-    auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
+    auto hls_top = world.continuation(world.fn_type(top_param_types), { "hls_top" } );
     for (auto tuple : param_index) {
         // (non-channel params, top params as kernel call args)
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
@@ -378,7 +378,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
         auto ret_type = ret_param->type()->as<FnType>();
         bool last_kernel = kernel == new_kernels.back();
         const Def* hls_top_ret = hls_top->param(1);
-        const Def* ret = last_kernel ? hls_top_ret : world.continuation(ret_type, Debug("next_kernel"));
+        const Def* ret = last_kernel ? hls_top_ret : world.continuation(ret_type, { "next_kernel" });
         // Fill the array of arguments
         Array<const Def*> args(kernel->type()->num_ops());
         for (size_t i = 0; i < kernel->type()->num_ops(); ++i) {

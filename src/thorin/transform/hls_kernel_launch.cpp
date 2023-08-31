@@ -40,7 +40,7 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
 
     auto opencl_type = world.fn_type(opencl_param_types);
 
-    auto opencl = world.continuation(opencl_type, Intrinsic::OpenCL, Debug("opencl"));
+    auto opencl = world.continuation(opencl_type, Intrinsic::OpenCL, { "opencl" });
     return opencl;
 }
 
@@ -100,7 +100,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
 
                     // Building a dummy hls_top function
                     auto hls_top_fn_type = opencl->param(4)->type()->as<PtrType>()->pointee()->as<FnType>();
-                    auto hls_top_fn = world.continuation(hls_top_fn_type, Debug("hls_top"));
+                    auto hls_top_fn = world.continuation(hls_top_fn_type, { "hls_top" });
 
                     auto hls_top_global = world.global(hls_top_fn,false);
                     opencl_args[4] = hls_top_global;

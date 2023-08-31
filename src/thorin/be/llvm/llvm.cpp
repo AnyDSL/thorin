@@ -977,7 +977,7 @@ llvm::Value* CodeGen::emit_builder(llvm::IRBuilder<>& irbuilder, const Def* def)
     } else if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world().literal_pu32(i, vector->loc())));
+            vec = irbuilder.CreateInsertElement(vec, emit(vector->op(i)), emit(world().literal_pu32(i, vector->debug())));
 
         return vec;
     } else if (auto global = def->isa<Global>()) {

@@ -237,7 +237,6 @@ private:
     ContinuationSet converted_;
 };
 
-
 void closure_conversion(World& world) {
     ClosureConversion(world).run();
 }

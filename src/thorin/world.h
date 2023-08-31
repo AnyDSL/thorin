@@ -313,15 +313,15 @@ public:
     void set(std::shared_ptr<Stream> stream) { stream_ = stream; }
 
     template<class... Args>
-    void log(LogLevel level, Loc loc, const char* fmt, Args&&... args) {
+    void log(LogLevel level, std::optional<Loc> loc, const char* fmt, Args&&... args) {
         if (stream_ && int(min_level()) <= int(level)) {
-            stream().fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(loc.to_string(), 7));
+            stream().fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(loc ? loc->to_string() : "", 7));
             stream().fmt(fmt, std::forward<Args&&>(args)...).endl().flush();
         }
     }
 
     template<class... Args>
-    [[noreturn]] void error(Loc loc, const char* fmt, Args&&... args) {
+    [[noreturn]] void error(std::optional<Loc> loc, const char* fmt, Args&&... args) {
         log(LogLevel::Error, loc, fmt, std::forward<Args&&>(args)...);
         std::abort();
     }

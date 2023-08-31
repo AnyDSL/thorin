@@ -48,8 +48,8 @@ void lift_pipeline(World& world) {
             // Note the use of 'return' as the second argument to pipeline_continue.
             // This is required to encode the dependence of the loop body over the call to pipeline,
             // so that lift_builtins can extract the correct free variables.
-            auto pipeline_continue = world.continuation(p_cont_type, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
-            auto continue_wrapper = world.continuation(cont_type, Debug("continue_wrapper"));
+            auto pipeline_continue = world.continuation(p_cont_type, Intrinsic::PipelineContinue, Debug { "pipeline_continue" });
+            auto continue_wrapper = world.continuation(cont_type, Debug { "continue_wrapper" });
             auto new_pipeline = world.continuation(pipe_type, Intrinsic::Pipeline, callee->debug());
             auto old_body = body->arg(4);
             auto body_cont = world.continuation(body_type, old_body->debug());

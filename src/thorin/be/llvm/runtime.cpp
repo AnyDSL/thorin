@@ -131,23 +131,23 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             arg_type = KernelArgType::Val;
         }
 
-        auto arg_ptr   = builder.CreateInBoundsGEP(args->getType()->getPointerElementType(),   args,   llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
-        auto size_ptr  = builder.CreateInBoundsGEP(sizes->getType()->getPointerElementType(),  sizes,  llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
-        auto align_ptr = builder.CreateInBoundsGEP(aligns->getType()->getPointerElementType(), aligns, llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
-        auto alloc_ptr = builder.CreateInBoundsGEP(allocs->getType()->getPointerElementType(), allocs, llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
-        auto type_ptr  = builder.CreateInBoundsGEP(types->getType()->getPointerElementType(),  types,  llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
+        auto arg_ptr   = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(args)->getAllocatedType(),   args,   llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
+        auto size_ptr  = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(sizes)->getAllocatedType(),  sizes,  llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
+        auto align_ptr = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(aligns)->getAllocatedType(), aligns, llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
+        auto alloc_ptr = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(allocs)->getAllocatedType(), allocs, llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
+        auto type_ptr  = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(types)->getAllocatedType(),  types,  llvm::ArrayRef<llvm::Value*>{builder.getInt32(0), builder.getInt32(i)});
 
-        auto size = layout_.getTypeStoreSize(target_val->getType()).getFixedSize();
+        auto size = layout_.getTypeStoreSize(target_val->getType()).getFixedValue();
         if (auto struct_type = llvm::dyn_cast<llvm::StructType>(target_val->getType())) {
             // In the case of a structure, do not include the padding at the end in the size
             auto last_elem   = struct_type->getStructNumElements() - 1;
             auto last_offset = layout_.getStructLayout(struct_type)->getElementOffset(last_elem);
-            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem)).getFixedSize();
+            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem)).getFixedValue();
         }
 
         builder.CreateStore(void_ptr, arg_ptr);
         builder.CreateStore(builder.getInt32(size), size_ptr);
-        builder.CreateStore(builder.getInt32(layout_.getABITypeAlignment(target_val->getType())), align_ptr);
+        builder.CreateStore(builder.getInt32(layout_.getABITypeAlign(target_val->getType()).value()), align_ptr);
         builder.CreateStore(builder.getInt32(layout_.getTypeAllocSize(target_val->getType())), alloc_ptr);
         builder.CreateStore(builder.getInt8((uint8_t)arg_type), type_ptr);
     }
@@ -170,13 +170,13 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     builder.CreateStore(block_array, block_size);
 
     std::vector<llvm::Value*> gep_first_elem{builder.getInt32(0), builder.getInt32(0)};
-    grid_size  = builder.CreateInBoundsGEP(grid_size->getType()->getPointerElementType(),  grid_size,  gep_first_elem);
-    block_size = builder.CreateInBoundsGEP(block_size->getType()->getPointerElementType(), block_size, gep_first_elem);
-    args       = builder.CreateInBoundsGEP(args->getType()->getPointerElementType(),       args,       gep_first_elem);
-    sizes      = builder.CreateInBoundsGEP(sizes->getType()->getPointerElementType(),      sizes,      gep_first_elem);
-    aligns     = builder.CreateInBoundsGEP(aligns->getType()->getPointerElementType(),     aligns,     gep_first_elem);
-    allocs     = builder.CreateInBoundsGEP(allocs->getType()->getPointerElementType(),     allocs,     gep_first_elem);
-    types      = builder.CreateInBoundsGEP(types->getType()->getPointerElementType(),      types,      gep_first_elem);
+    grid_size  = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(grid_size)->getAllocatedType(),  grid_size,  gep_first_elem);
+    block_size = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(block_size)->getAllocatedType(), block_size, gep_first_elem);
+    args       = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(args)->getAllocatedType(),       args,       gep_first_elem);
+    sizes      = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(sizes)->getAllocatedType(),      sizes,      gep_first_elem);
+    aligns     = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(aligns)->getAllocatedType(),     aligns,     gep_first_elem);
+    allocs     = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(allocs)->getAllocatedType(),     allocs,     gep_first_elem);
+    types      = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(types)->getAllocatedType(),      types,      gep_first_elem);
 
     launch_kernel(code_gen, builder, target_device,
                   file_name, kernel_name,

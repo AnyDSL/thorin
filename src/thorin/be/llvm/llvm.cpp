@@ -250,14 +250,14 @@ llvm::FunctionType* CodeGen::convert_closure_type(const Type* type) {
     auto fn = type->as<FnType>();
     llvm::Type* ret = nullptr;
     std::vector<llvm::Type*> ops;
-    for (auto op : fn->ops()) {
-        if (op->isa<MemType>() || op == world().unit()) continue;
+    for (auto op : fn->types()) {
+        if (op->isa<MemType>() || op == world().unit_type()) continue;
         auto fn = op->isa<FnType>();
         if (fn && !op->isa<ClosureType>()) {
             assert(!ret && "only one 'return' supported");
             std::vector<llvm::Type*> ret_types;
-            for (auto fn_op : fn->ops()) {
-                if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+            for (auto fn_op : fn->types()) {
+                if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
                 ret_types.push_back(convert(fn_op));
             }
             if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());

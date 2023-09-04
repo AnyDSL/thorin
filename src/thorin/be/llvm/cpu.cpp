@@ -32,7 +32,7 @@ CPUCodeGen::CPUCodeGen(Thorin& thorin, int opt, bool debug, std::string& target_
     auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
     assert(target && "can't create target for target architecture");
     llvm::TargetOptions options;
-    machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, llvm::None));
+    machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, std::nullopt));
     module().setDataLayout(machine_->createDataLayout());
     module().setTargetTriple(triple_str);
 }

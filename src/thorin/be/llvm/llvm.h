@@ -69,6 +69,7 @@ protected:
     llvm::Type* convert(const Type*);
     virtual unsigned convert_addr_space(const AddrSpace);
     virtual llvm::FunctionType* convert_fn_type(Continuation*);
+    virtual llvm::FunctionType* convert_closure_type(const Type*);
     //@}
 
     llvm::AllocaInst* emit_alloca(llvm::IRBuilder<>&, llvm::Type*, const std::string&);

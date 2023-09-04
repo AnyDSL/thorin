@@ -69,7 +69,7 @@ void inliner(Thorin& thorin) {
         return nullptr;
     };
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();

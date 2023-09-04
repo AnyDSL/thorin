@@ -2,6 +2,7 @@
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
+#include "partial_evaluation.h"
 
 namespace thorin {
 
@@ -18,14 +19,12 @@ public:
     PartialEvaluator(World& world, bool lower2cff)
         : world_(world)
         , lower2cff_(lower2cff)
-        , boundary_(Def::gid_counter())
     {}
 
     World& world() { return world_; }
     bool run();
     void enqueue(Continuation* continuation) {
-        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
-            queue_.push(continuation);
+        queue_.push(continuation);
     }
     void eat_pe_info(Continuation*);
 
@@ -34,16 +33,14 @@ private:
     bool lower2cff_;
     HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
-    std::queue<Continuation*> queue_;
-    ContinuationMap<bool> top_level_;
-    size_t boundary_;
+    unique_queue<ContinuationSet> queue_;
 };
 
 class CondEval {
 public:
-    CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
+    CondEval(Continuation* callee, ScopesForest& forest, Defs args)
         : callee_(callee)
-        , top_level_(top_level)
+        , forest_(forest)
     {
         assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
         assert(callee->num_params() == args.size());
@@ -75,11 +72,11 @@ public:
         auto order = callee_->param(i)->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<FnType>()
-                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
-            return true;
-        }
+                              && (!callee_->param(i)->type()->isa<FnType>()
+                                  || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
+                world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+                return true;
+            }
 
         return ((!callee_->is_exported() || callee_->attributes().cc == CC::Internal) && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
@@ -90,39 +87,13 @@ public:
     }
 
     bool is_top_level(Continuation* continuation) {
-        auto p = top_level_.emplace(continuation, true);
-        if (!p.second)
-            return p.first->second;
-
-        Scope scope(continuation);
-        unique_queue<DefSet> queue;
-
-        for (auto def : scope.free())
-            queue.push(def);
-
-        while (!queue.empty()) {
-            auto def = queue.pop();
-
-            if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
-                return top_level_[continuation] = false;
-            if (auto free_cn = def->isa_nom<Continuation>()) {
-                // if we have a non-top level continuation in scope as a free variable,
-                // then it must be bound by some outer continuation, and so we aren't top-level
-                if (!is_top_level(free_cn))
-                    return top_level_[continuation] = false;
-            } else {
-                for (auto op : def->ops())
-                    queue.push(op);
-            }
-        }
-
-        return top_level_[continuation] = true;
+        return !forest_.get_scope(continuation).has_free_params();
     }
 
 private:
     Continuation* callee_;
     Def2Def old2new_;
-    ContinuationMap<bool>& top_level_;
+    ScopesForest& forest_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
@@ -151,11 +122,10 @@ bool PartialEvaluator::run() {
         if (!cont) continue;
         if (!cont->has_body()) continue;
         enqueue(cont);
-        top_level_[cont] = true;
     }
 
     while (!queue_.empty()) {
-        auto continuation = pop(queue_);
+        auto continuation = queue_.pop();
 
         bool force_fold = false;
 
@@ -176,7 +146,9 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                CondEval cond_eval(callee, body->args(), top_level_);
+                // TODO cache the forest and only rebuild it when we need to
+                ScopesForest forest(world());
+                CondEval cond_eval(callee, forest, body->args());
 
                 std::vector<const Def*> specialize(body->num_args());
 

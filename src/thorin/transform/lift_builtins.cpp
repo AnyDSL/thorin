@@ -70,7 +70,8 @@ void lift_builtins(Thorin& thorin) {
     while (true) {
         World& world = thorin.world();
         Continuation* cur = nullptr;
-        Scope::for_each(world, [&] (const Scope& scope) {
+        ScopesForest forest(world);
+        forest.for_each([&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
                 if (n->continuation()->order() <= 1)

@@ -76,7 +76,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
     const size_t base_opencl_param_num = 6;
     Array<const Def*> opencl_args(base_opencl_param_num + device_params.size());
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
         Schedule scheduled = schedule(scope);
 
         for (auto& block : scheduled) {

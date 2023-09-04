@@ -75,6 +75,7 @@ class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> 
 public:
     CCodeGen(Thorin& thorin, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
         : thorin_(thorin)
+        , forest_(world())
         , kernel_config_(kernel_config)
         , lang_(lang)
         , fn_mem_(world().fn_type({world().mem_type()}))
@@ -116,6 +117,7 @@ private:
     std::string tuple_name(const TupleType*);
 
     Thorin& thorin_;
+    ScopesForest forest_;
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
@@ -355,15 +357,15 @@ void CCodeGen::emit_module() {
     Continuation* hls_top = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
-    Scope::for_each(world(), [&] (const Scope& scope) {
+    forest_.for_each([&] (const Scope& scope) {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else if (scope.entry()->cc() != CC::Internal)
-            emit_scope(scope);
+            emit_scope(scope, forest_);
     });
     if (hls_top) {
         hls_top_scope = true;
-        emit_scope(Scope(hls_top));
+        emit_scope(Scope(hls_top), forest_);
     }
 
     if (lang_ == Lang::OpenCL) {

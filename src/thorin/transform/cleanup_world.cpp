@@ -36,7 +36,8 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
-    Scope::for_each(world(), [&](Scope& scope) {
+    ScopesForest forest(world());
+    forest.for_each([&](Scope& scope) {
         auto entry = scope.entry();
 
         bool only_tail_calls = true;

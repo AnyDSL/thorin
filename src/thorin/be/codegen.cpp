@@ -95,6 +95,18 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
+                visit_uses(continuation, [&] (Continuation* use) {
+                    assert(use->has_body());
+                    auto app = use->body();
+
+                    // extract optional prefix
+                    std::string unique_name = extract_string(app->arg(LaunchArgs::Name));
+                    if (!unique_name.empty()) {
+                        escape_string(unique_name);
+                        continuation->set_name(unique_name);
+                    }
+                    return false;
+                }, true);
                 imported = importers_[backend].import(continuation)->as_nom<Continuation>();
                 break;
             }

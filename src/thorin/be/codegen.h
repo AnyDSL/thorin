@@ -30,6 +30,7 @@ struct LaunchArgs {
     enum {
         Mem = 0,
         Device,
+        Name,
         Space,
         Config,
         Body,

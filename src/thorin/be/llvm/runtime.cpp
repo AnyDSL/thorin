@@ -78,6 +78,12 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     auto it_config = body->arg(LaunchArgs::Config);
     auto kernel = body->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
+    std::string unique_name = extract_string(body->arg(LaunchArgs::Name));
+    if (!unique_name.empty()) {
+        escape_string(unique_name);
+        kernel->set_name(unique_name);
+    }
+
     auto& world = continuation->world();
     auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->unique_name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
@@ -105,7 +111,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             builder.CreateStore(target_val, alloca);
 
             // check if argument type contains pointers
-            if (!contains_ptrtype(target_arg->type()))
+            if (!contains_ptrtype(target_arg->type()) && platform == OPENCL_PLATFORM)
                 world.wdef(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
             void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());

@@ -702,6 +702,44 @@ const T* Def::is_out(const Def* def) {
 
 //------------------------------------------------------------------------------
 
+/// @brief Extract string from a constant def node
+/// @param def A Node_Bitcast, Node_Global or Node_DefiniteArray with Node_PrimType_pu8
+/// @return An empty string if not successful, else a valid string. Might need some substitutions if embed into code.
+inline std::string extract_string(const Def* def) {
+    if(def->tag() == Node_Bitcast || def->tag() == Node_Global) {
+        return extract_string(def->op(0));
+    } else if(def->tag() == Node_DefiniteArray) {
+        std::string str;
+        for (size_t i = 0; i < def->num_ops(); ++i) {
+            const Def* op = def->op(i);
+            if(op->tag() == Node_PrimType_pu8) {
+                const auto primlit = op->as<PrimLit>();
+                if(primlit == nullptr)
+                    return {};
+                const char c = (char)primlit->pu8_value();
+                if (c != '\0')
+                    str += c;
+            }
+        }
+        return str;
+    } else {
+        return {};
+    }
+}
+
+/// @brief Escape string such that all non-ascii characters are replaced by '_'
+/// @param str The string to adapt
+inline void escape_string(std::string& str) {
+    if (!std::isalpha(str[0]))
+        str = "_" + str;
+
+    for (size_t i = 1; i < str.size(); ++i) {
+        auto& c = str[i];
+        if (!std::isalnum(c))
+            c = '_';
+    }
+}
+
 }
 
 #endif

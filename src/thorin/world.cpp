@@ -1367,7 +1367,7 @@ bool Thorin::register_plugin(const char* plugin_name) {
     char *error;
     auto initfunc = reinterpret_cast<plugin_init_func_t*>(dlsym(handle, "init"));
     if ((error = dlerror()) != NULL) {
-        world().ILOG("Plugin {} did not supply an init function", plugin_name);
+        world().ILOG("Plugin {} did not provide an init function", plugin_name);
     } else {
         initfunc(&world());
     }

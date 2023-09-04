@@ -29,13 +29,30 @@ void plugin_execute(Thorin& thorin) {
             break;
 
         sort(plugin_intrinsics.begin(), plugin_intrinsics.end(), [&](const Continuation* a, const Continuation* b) {
-                const Continuation* depends = b;
-                while (depends) {
-                  depends = depends->attributes().depends;
-                  if (a == depends) return true;
+                //Plugins with more dependencies go to the end.
+                //If a plugin depends on another, then the depth is clearly higher.
+
+                int depth_a = 0; //TODO: cache those numbers.
+                const Continuation* depends_a = a;
+                while (depends_a->attributes().depends) {
+                    depends_a = depends_a->attributes().depends;
+                    depth_a++;
                 }
-                return false;
+
+                int depth_b = 0;
+                const Continuation* depends_b = b;
+                while (depends_b->attributes().depends) {
+                    depends_b = depends_b->attributes().depends;
+                    depth_b++;
+                }
+
+                return depth_a < depth_b;
         });
+
+        world.VLOG("Plugin execution order:");
+        for (auto cont : plugin_intrinsics) {
+            world.VLOG("{}", cont->unique_name());
+        }
 
         for (auto cont : plugin_intrinsics) {
             auto plugin_function = thorin.search_plugin_function(cont->name().c_str());

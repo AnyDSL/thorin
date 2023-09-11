@@ -165,7 +165,7 @@ const Param* Continuation::ret_param() const {
 }
 
 void Continuation::destroy(const char* cause) {
-    world().VLOG("{} has been destroyed by {}", this, cause);
+    world().ddef(this, "{} has been destroyed by {}", this, cause);
     destroy_filter();
     unset_op(0);
     set_op(0, world().bottom(world().bottom_type()));

@@ -166,6 +166,7 @@ bool PartialEvaluator::run() {
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
+                        world_.ddef(continuation, "Specializing call to {}", callee);
                         target = drop(callee, specialize);
                         todo = true;
                     }

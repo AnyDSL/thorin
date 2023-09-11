@@ -328,6 +328,7 @@ public:
     // Ignore log
     void ignore() {}
 
+    template<class... Args> void ddef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Debug, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }

@@ -19,11 +19,14 @@ public:
     PartialEvaluator(World& world, bool lower2cff)
         : world_(world)
         , lower2cff_(lower2cff)
+        , boundary_(Def::gid_counter())
     {}
 
     World& world() { return world_; }
     bool run();
     void enqueue(Continuation* continuation) {
+        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
+            queue_.push(continuation);
         queue_.push(continuation);
     }
     void eat_pe_info(Continuation*);
@@ -34,6 +37,7 @@ private:
     HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
     unique_queue<ContinuationSet> queue_;
+    size_t boundary_;
 };
 
 class CondEval {

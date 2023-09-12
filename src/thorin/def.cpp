@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stack>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
@@ -138,10 +139,10 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
-void Def::rebuild_from(const Def*, Defs new_ops) {
-    assert(new_ops.size() == num_ops());
+void Def::rebuild_from(Rewriter& rewriter, const Def* old) {
+    assert(old->num_ops() == num_ops());
     for (size_t i = 0; i < num_ops(); i++)
-        set_op(i, new_ops[i]);
+        set_op(i, rewriter.instantiate(old->op(i)));
 }
 
 void Def::replace_uses(const Def* with) const {

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <stack>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
@@ -46,33 +47,33 @@ Array<const Type*> defs2types(ArrayRef<const Def*> defs) {
  * rebuild
  */
 
-const Type* NominalType::rebuild(World&  , const Type*  , Defs  ) const {
+const Type* NominalType::rebuild(World& w, const Type* t, Defs o) const {
     THORIN_UNREACHABLE;
 }
 
-const Type* BottomType         ::rebuild(World& w, const Type*  , Defs  ) const { return w.bottom_type(); }
-const Type* ClosureType        ::rebuild(World& w, const Type*  , Defs o) const { return w.closure_type(defs2types(o)); }
-const Type* DefiniteArrayType  ::rebuild(World& w, const Type*  , Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
-const Type* FnType             ::rebuild(World& w, const Type*  , Defs o) const { return w.fn_type(defs2types(o)); }
-const Type* FrameType          ::rebuild(World& w, const Type*  , Defs  ) const { return w.frame_type(); }
-const Type* IndefiniteArrayType::rebuild(World& w, const Type*  , Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
-const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const { return w.mem_type(); }
-const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag(), length()); }
-const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), device(), addr_space()); }
-const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
+const Type* BottomType         ::rebuild(World& w, const Type* t, Defs o) const { return w.bottom_type(); }
+const Type* ClosureType        ::rebuild(World& w, const Type* t, Defs o) const { return w.closure_type(defs2types(o)); }
+const Type* DefiniteArrayType  ::rebuild(World& w, const Type* t, Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
+const Type* FnType             ::rebuild(World& w, const Type* t, Defs o) const { return w.fn_type(defs2types(o)); }
+const Type* FrameType          ::rebuild(World& w, const Type* t, Defs o) const { return w.frame_type(); }
+const Type* IndefiniteArrayType::rebuild(World& w, const Type* t, Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
+const Type* MemType            ::rebuild(World& w, const Type* t, Defs o) const { return w.mem_type(); }
+const Type* PrimType           ::rebuild(World& w, const Type* t, Defs o) const { return w.prim_type(primtype_tag(), length()); }
+const Type* PtrType            ::rebuild(World& w, const Type* t, Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), device(), addr_space()); }
+const Type* TupleType          ::rebuild(World& w, const Type* t, Defs o) const { return w.tuple_type(defs2types(o)); }
 
 /*
  * stub
  */
 
-StructType* StructType::stub(World& world, const Type*) const {
-    auto type = world.struct_type(name(), num_ops());
+StructType* StructType::stub(Rewriter& rewriter, const Type*) const {
+    auto type = rewriter.dst().struct_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }
 
-VariantType* VariantType::stub(World& world, const Type*) const {
-    auto type = world.variant_type(name(), num_ops());
+VariantType* VariantType::stub(Rewriter& rewriter, const Type*) const {
+    auto type = rewriter.dst().variant_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }

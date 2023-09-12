@@ -124,7 +124,7 @@ public:
                 return continuation && (!continuation->has_body() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
-            auto lifted = lift(scope, free_vars);
+            auto lifted = lift(scope, scope.entry(), free_vars);
 
             // get the environment type
             const Type* env_type = nullptr;

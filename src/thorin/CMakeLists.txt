@@ -41,7 +41,6 @@ set(THORIN_SOURCES
     tables/primtypetable.h
     tables/mathoptable.h
     transform/cleanup_world.cpp
-    transform/cleanup_world.h
     transform/closure_conversion.cpp
     transform/closure_conversion.h
     transform/codegen_prepare.h
@@ -64,6 +63,8 @@ set(THORIN_SOURCES
     transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
+    transform/rewrite.cpp
+    transform/rewrite.h
     transform/split_slots.cpp
     transform/split_slots.h
     transform/hls_channels.cpp

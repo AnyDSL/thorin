@@ -105,7 +105,7 @@ void lift_builtins(Thorin& thorin) {
             }
         }
 
-        auto lifted = lift(scope, defs);
+        auto lifted = lift(scope, scope.entry(), defs);
         for (auto use : cur->copy_uses()) {
             if (auto uapp = use->isa<App>()) {
                 if (auto callee = uapp->callee()->isa_nom<Continuation>()) {

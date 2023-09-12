@@ -343,6 +343,8 @@ public:
     static const Type*    environment_type(World&);
     static const PtrType* environment_ptr_type(World&);
 
+    Continuation* fn() const;
+
     friend class World;
 };
 
@@ -534,11 +536,11 @@ public:
 
     bool is_external() const;
     void set_init(const Def* new_init) { unset_op(0); set_op(0, new_init); }
+    const Def* rebuild(World&, const Type*, Defs) const override;
 
 private:
     hash_t vhash() const override { return murmur3(gid()); }
     bool equal(const Def* other) const override { return this == other; }
-    const Def* rebuild(World&, const Type*, Defs) const override;
 
     bool is_mutable_;
 

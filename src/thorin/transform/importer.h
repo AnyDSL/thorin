@@ -3,31 +3,29 @@
 
 #include "thorin/world.h"
 #include "thorin/config.h"
+#include "thorin/transform/rewrite.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
 
-class Importer {
+class Importer : Rewriter {
 public:
     explicit Importer(World& src, World& dst)
-        : src(src)
-        , dst(dst)
+        : Rewriter(src, dst), forest_(std::make_unique<ScopesForest>(src))
     {
+        assert(&src != &dst);
         if (src.is_pe_done())
-            world().mark_pe_done();
-#if THORIN_ENABLE_CHECKS
-        if (src.track_history())
-            world().enable_history(true);
-#endif
+            dst.mark_pe_done();
     }
 
-    World& world() { return dst; }
-    const Def* import(const Def*);
+    const Def* import(const Def* odef) { return instantiate(odef); }
     bool todo() const { return todo_; }
 
-public:
-    Def2Def def_old2new_;
-    World& src;
-    World& dst;
+protected:
+    const Def* rewrite(const Def* odef) override;
+
+private:
+    std::unique_ptr<ScopesForest> forest_;
     bool todo_ = false;
 };
 

@@ -37,7 +37,8 @@ static void dead_load_opt(const Scope& scope) {
 }
 
 void dead_load_opt(World& world) {
-    Scope::for_each(world, [&] (const Scope& scope) { dead_load_opt(scope); });
+    ScopesForest forest(world);
+    forest.for_each([&] (const Scope& scope) { dead_load_opt(scope); });
 }
 
 }

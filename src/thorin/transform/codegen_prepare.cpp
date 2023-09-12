@@ -5,7 +5,8 @@ namespace thorin {
 
 void codegen_prepare(World& world) {
     world.VLOG("start codegen_prepare");
-    Scope::for_each(world, [&](Scope& scope) {
+    ScopesForest forest(world);
+    forest.for_each([&](Scope& scope) {
         world.DLOG("scope: {}", scope.entry());
         bool dirty = false;
         auto ret_param = scope.entry()->ret_param();

@@ -18,11 +18,12 @@ void CodeGen::emit_stream(std::ostream& out) {
     arena = shady::new_ir_arena(config);
     module = shady::new_module(arena, world().name().c_str());
 
-    Scope::for_each(world(), [&](const Scope& scope) {
+    ScopesForest forest(world());
+    forest.for_each([&](const Scope& scope) {
         if(scope.entry()->cc() == CC::Internal) {
             return;
         }
-        emit_scope(scope);
+        emit_scope(scope, forest);
     });
 
     char* bufptr;

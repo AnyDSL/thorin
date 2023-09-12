@@ -309,11 +309,12 @@ CodeGen::emit_module() {
         }
     }
 
-    Scope::for_each(world(), [&] (const Scope& scope) {
+    ScopesForest forest(world());
+    forest.for_each([&](const Scope& scope) {
         if(scope.entry()->cc() == CC::Internal) {
             return;
         }
-        emit_scope(scope);
+        emit_scope(scope, forest);
     });
 
     if (debug()) dibuilder_.finalize();

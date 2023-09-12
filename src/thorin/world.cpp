@@ -23,7 +23,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/cleanup_world.h"
-#include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
@@ -1310,7 +1309,6 @@ void Thorin::opt() {
     RUN_PASS(cleanup())
     RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
-    RUN_PASS(clone_bodies(world()))
     RUN_PASS(split_slots(*this))
     RUN_PASS(closure_conversion(world()))
     RUN_PASS(lift_builtins(*this))

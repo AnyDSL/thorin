@@ -55,10 +55,18 @@ void RecStreamer::run() {
                 s.fmt("extern ");
         }
 
+        Scope scope(cont);
+        if (!scope.has_free_params())
+            s.fmt("top_level ");
+        else {
+            s.fmt("// free variables: {, }\n", scope.free_params());
+            s.fmt("// free frontier: {, }\n", scope.free_frontier());
+        }
+
         if (cont->has_body()) {
             std::vector<std::string> param_names;
             for (auto param : cont->params()) param_names.push_back(param->unique_name());
-            s.fmt("{}: {} = ({, }) => {{\t\n", cont->unique_name(), cont->type(), param_names);
+            s.fmt("{}: {} = ({, }) @({}) => {{\t\n", cont->unique_name(), cont->type(), param_names, cont->filter());
             run(cont->filter());
             if (defs.contains(cont->body())) {
                 auto body = cont->body();
@@ -179,6 +187,7 @@ Stream& Scope::stream(Stream&) const {
 
 Stream& Type::stream(Stream& s) const {
     if (false) {}
+    else if (isa<Star>()) return s.fmt("*");
     else if (isa<BottomType>()) return s.fmt("!!");
     else if (isa<   MemType>()) return s.fmt("mem");
     else if (isa< FrameType>()) return s.fmt("frame");
@@ -221,8 +230,6 @@ Stream& Type::stream(Stream& s) const {
 
         if (t->is_vector()) s.fmt(">");
         return s;
-    } else if (isa<Star>()) {
-        return s.fmt("★");
     }
     THORIN_UNREACHABLE;
 }

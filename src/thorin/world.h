@@ -93,6 +93,13 @@ public:
     void make_internal(Def* cont) { assert(&cont->world() == this); data_.externals_.erase(cont->unique_name()); }
     bool is_external(const Def* cont) { return data_.externals_.contains(cont->unique_name()); }
     Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
+    DEBUG_UTIL Continuation* find_cont(const char* name) {
+        for (auto cont : copy_continuations()) {
+            if (cont->unique_name() == name)
+                return cont;
+        }
+        return nullptr;
+    }
     //@}
 
     // types
@@ -293,6 +300,8 @@ public:
 
     /// @name logging
     //@{
+    void dump_scoped() const;
+    void dump_scoped_to_disk() const;
     Stream& stream(Stream&) const;
     Stream& stream() { return *stream_; }
     /// Writes to a file named @c name().
@@ -319,6 +328,7 @@ public:
     // Ignore log
     void ignore() {}
 
+    template<class... Args> void ddef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Debug, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }

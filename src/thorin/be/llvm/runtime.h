@@ -51,7 +51,7 @@ public:
     /// Emits a call to anydsl_sync_thread.
     llvm::Value* sync_thread(CodeGen&, llvm::IRBuilder<>&, llvm::Value* id);
 
-    Continuation* emit_host_code(
+    void emit_host_code(
         CodeGen& code_gen, llvm::IRBuilder<>& builder,
         Platform platform, const std::string& ext, Continuation* continuation);
 

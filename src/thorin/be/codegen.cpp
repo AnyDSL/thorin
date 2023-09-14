@@ -48,7 +48,7 @@ static void get_kernel_configs(
             return false;
         }, true);
 
-        continuation->attributes().cc = CC::DeviceHostCode;
+        continuation->world().make_external(continuation);
         continuation->destroy("codegen");
     }
 }

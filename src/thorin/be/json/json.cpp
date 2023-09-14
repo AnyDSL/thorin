@@ -263,8 +263,6 @@ public:
                     else
                         forward_decl["external"] = cont->name();
                 }
-                if (cont->cc() == CC::DeviceHostCode)
-                    forward_decl["device"] = cont->name();
                 decl_table.push_back(forward_decl);
 
                 if(cont->has_body()) {

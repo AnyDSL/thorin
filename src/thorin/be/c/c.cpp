@@ -360,7 +360,7 @@ void CCodeGen::emit_module() {
     forest_.for_each([&] (const Scope& scope) {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
-        else if (scope.entry()->cc() != CC::Internal)
+        else if (scope.entry()->cc() != CC::Internal && scope.entry()->is_exported())
             emit_scope(scope, forest_);
     });
     if (hls_top) {

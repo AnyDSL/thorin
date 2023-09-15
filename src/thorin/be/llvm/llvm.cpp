@@ -314,6 +314,8 @@ CodeGen::emit_module() {
         if(scope.entry()->cc() == CC::Internal) {
             return;
         }
+        if (!scope.entry()->is_exported())
+            return;
         emit_scope(scope, forest);
     });
 

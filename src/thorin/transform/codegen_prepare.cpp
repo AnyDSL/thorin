@@ -28,6 +28,8 @@ void codegen_prepare(World& world) {
 
         if (dirty)
             scope.update();
+        else
+            ret_cont->destroy("codegen_prepare"); //Destroy the ret_cont if it was never used.
     });
     world.VLOG("end codegen_prepare");
 }

@@ -4,6 +4,7 @@
 #include <string>
 #include <tuple>
 
+#include "thorin/config.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {

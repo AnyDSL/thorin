@@ -258,7 +258,7 @@ public:
                 forward_decl["fn_type"] = type;
                 forward_decl["arg_names"] = arg_names;
                 if (cont->is_external()) {
-                    if (cont->cc() == CC::Internal)
+                    if (cont->cc() == CC::Thorin)
                         forward_decl["internal"] = cont->name();
                     else
                         forward_decl["external"] = cont->name();

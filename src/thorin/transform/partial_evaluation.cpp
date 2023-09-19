@@ -74,7 +74,7 @@ public:
                 return true;
             }
 
-        return ((!callee_->is_exported() || callee_->attributes().cc == CC::Internal) && callee_->can_be_inlined()) || is_one(reducer_.instantiate(filter(i)));
+        return ((!callee_->is_exported() || callee_->attributes().cc == CC::Thorin) && callee_->can_be_inlined()) || is_one(reducer_.instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 

@@ -121,6 +121,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->set_name(continuation->param(i)->name());
         imported->world().make_external(imported);
+        imported->attributes().cc = CC::C;
 
         kernels.emplace_back(continuation);
     });

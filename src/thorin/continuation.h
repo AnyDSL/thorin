@@ -84,9 +84,9 @@ public:
 //------------------------------------------------------------------------------
 
 enum class CC : uint8_t {
+    Thorin,         ///< Standard calling convention for everything that solely lives inside thorin.
     C,              ///< C calling convention.
     Device,         ///< Device calling convention. These are special functions only available on a particular device.
-    Internal,       ///< External, but only for linking with artic or anyopt.
 };
 
 enum class Intrinsic : uint8_t {
@@ -129,10 +129,10 @@ class Continuation : public Def {
 public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
-        CC cc = CC::C;
+        CC cc = CC::Thorin;
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
-        Attributes(CC cc = CC::C) : cc(cc) {}
+        Attributes(CC cc = CC::Thorin) : cc(cc) {}
     };
 
 private:

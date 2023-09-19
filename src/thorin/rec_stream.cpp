@@ -49,7 +49,7 @@ void RecStreamer::run() {
         s.endl().endl();
 
         if (cont->world().is_external(cont)) {
-            if (cont->attributes().cc == CC::Internal)
+            if (cont->attributes().cc == CC::Thorin)
                 s.fmt("intern ");
             else
                 s.fmt("extern ");

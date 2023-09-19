@@ -311,9 +311,8 @@ CodeGen::emit_module() {
 
     ScopesForest forest(world());
     forest.for_each([&](const Scope& scope) {
-        if(scope.entry()->cc() == CC::Internal) {
+        if(scope.entry()->cc() == CC::Thorin)
             return;
-        }
         if (!scope.entry()->is_returning())
             return;
         emit_scope(scope, forest);

@@ -48,7 +48,7 @@ struct VectorizeArgs {
     };
 };
 
-Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+void CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     auto target = body->callee()->as_nom<Continuation>();
@@ -93,8 +93,6 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
         world().edef(body->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = body->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, emit_fun_decl(kernel), simd_kernel_call);
-
-    return body->arg(VectorizeArgs::Return)->as_nom<Continuation>();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

@@ -28,7 +28,7 @@ protected:
     llvm::Value* emit_lea(llvm::IRBuilder<>&,    const LEA*) override;
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
 
-    Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
+    llvm::Value* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
 
     llvm::Value* emit_global(const Global*) override;
 

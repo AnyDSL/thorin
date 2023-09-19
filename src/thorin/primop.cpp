@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/continuation.h"
+#include "thorin/transform/rewrite.h"
 
 #include "thorin/config.h"
 #include "thorin/type.h"
@@ -310,6 +311,10 @@ const Type* Closure::environment_type(World& world) {
 
 const PtrType* Closure::environment_ptr_type(World& world) {
     return world.ptr_type(world.type_pu8());
+}
+
+Continuation* Closure::fn() const {
+    return op(0)->as_nom<Continuation>();
 }
 
 //------------------------------------------------------------------------------

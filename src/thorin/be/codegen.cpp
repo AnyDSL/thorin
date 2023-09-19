@@ -93,8 +93,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     }
 
     // determine different parts of the world which need to be compiled differently
-    ScopesForest forest(world);
-    forest.for_each([&] (const Scope& scope) {
+    ScopesForest(world).for_each([&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
 
@@ -142,8 +141,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                     has_restrict &= p.second;
                 }
 
-                auto it_config = app->arg(LaunchArgs::Config)->as<Tuple>();
-                if (it_config->op(0)->isa<PrimLit>() &&
+                auto it_config = app->arg(LaunchArgs::Config)->isa<Tuple>();
+                if (it_config &&
+                    it_config->op(0)->isa<PrimLit>() &&
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
                     return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
@@ -194,7 +194,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
-        hls_annotate_top(importers[HLS].world(), top2kernel, kernel_config);
+        hls_annotate_top(accelerator_code[HLS].world(), top2kernel, kernel_config);
     }
     hls_kernel_launch(world, hls_host_params);
 

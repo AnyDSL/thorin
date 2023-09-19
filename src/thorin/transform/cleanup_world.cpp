@@ -2,8 +2,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/domtree.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
 #include "thorin/transform/mangle.h"
@@ -14,14 +12,13 @@ namespace thorin {
 
 class Cleaner {
 public:
-    Cleaner(std::unique_ptr<World>& world)
-        : world_(world)
+    Cleaner(Thorin& thorin)
+        : thorin_(thorin)
     {}
 
-    World& world() { return *world_; }
+    World& world() { return thorin_.world(); }
     void cleanup();
     void eliminate_tail_rec();
-    void eta_conversion();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -31,13 +28,12 @@ public:
 private:
     void cleanup_fix_point();
     void clean_pe_info(std::queue<Continuation*>, Continuation*);
-    std::unique_ptr<World>& world_;
+    Thorin& thorin_;
     bool todo_ = true;
 };
 
 void Cleaner::eliminate_tail_rec() {
-    ScopesForest forest(world());
-    forest.for_each([&](Scope& scope) {
+    ScopesForest(world()).for_each([&](Scope& scope) {
         auto entry = scope.entry();
 
         bool only_tail_calls = true;
@@ -100,86 +96,6 @@ void Cleaner::eliminate_tail_rec() {
     });
 }
 
-void Cleaner::eta_conversion() {
-    for (bool todo = true; todo;) {
-        todo = false;
-        for (auto def : world().copy_defs()) {
-            auto continuation = def->isa_nom<Continuation>();
-            if (!continuation || !continuation->has_body()) continue;
-
-            // eat calls to known continuations that are only used once
-            while (auto callee = continuation->body()->callee()->isa_nom<Continuation>()) {
-                auto body = continuation->body();
-                if (callee == continuation) break;
-
-                if (callee->has_body() && !world().is_external(callee) && callee->can_be_inlined()) {
-                    auto callee_body = callee->body();
-                    for (size_t i = 0, e = body->num_args(); i != e; ++i)
-                        callee->param(i)->replace_uses(body->arg(i));
-
-                    // because App nodes are hash-consed (thus reusable), there is a risk to invalidate their other uses here, if there are indeed any
-                    // can_be_inlined() should account for that by counting reused apps multiple times, but in case it fails we have this pair of asserts as insurance
-                    assert(body->num_uses() == 1);
-                    continuation->jump(callee_body->callee(), callee_body->args(), callee->debug()); // TODO debug
-                    callee->destroy("cleanup: continuation only called once");
-                    assert(body->num_uses() == 0);
-                    todo_ = todo = true;
-                } else
-                    break;
-            }
-
-            auto body = continuation->body();
-            // try to subsume continuations which call a parameter
-            // (that is free within that continuation) with that parameter
-            if (auto param = body->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || world().is_external(continuation))
-                    continue;
-
-                if (body->args() == continuation->params_as_defs()) {
-                    continuation->replace_uses(body->callee());
-                    continuation->destroy("cleanup: calls a parameter (no perm)");
-                    todo_ = todo = true;
-                    continue;
-                }
-
-                // build the permutation of the arguments
-                Array<size_t> perm(body->num_args());
-                bool is_permutation = true;
-                for (size_t i = 0, e = body->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(continuation->params().begin(),
-                                                continuation->params().end(),
-                                                body->arg(i));
-
-                    if (param_it == continuation->params().end()) {
-                        is_permutation = false;
-                        break;
-                    }
-
-                    perm[i] = param_it - continuation->params().begin();
-                }
-
-                if (!is_permutation) continue;
-
-                // for every use of the continuation at a call site,
-                // permute the arguments and call the parameter instead
-                for (auto use : continuation->copy_uses()) {
-                    auto uapp = use->isa<App>();
-                    if (uapp && use.index() == 0) {
-                        for (auto ucontinuation : uapp->using_continuations()) {
-                            Array<const Def*> new_args(perm.size());
-                            for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                                new_args[i] = uapp->arg(perm[i]);
-                            }
-                            ucontinuation->jump(param, new_args, ucontinuation->debug()); // TODO debug
-                            todo_ = todo = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 void Cleaner::eliminate_params() {
     // TODO
     for (auto ocontinuation : world().copy_continuations()) {
@@ -222,10 +138,9 @@ void Cleaner::eliminate_params() {
                     assert(use.index() == 0);
                     for (auto ucontinuation : uapp->using_continuations()) {
                         ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                        todo_ = true;
                     }
                 }
-
-                todo_ = true;
             }
         }
 next_continuation:;
@@ -235,7 +150,6 @@ next_continuation:;
 void Cleaner::rebuild() {
     auto fresh_world = std::make_unique<World>(world());
     Importer importer(world(), *fresh_world);
-    importer.def_old2new_.rehash(world_->defs().capacity());
 
     for (auto&& [_, def] : world().externals()) {
         if (auto cont = def->isa<Continuation>(); cont && cont->is_exported())
@@ -244,7 +158,7 @@ void Cleaner::rebuild() {
             importer.import(global);
     }
 
-    std::swap(world_, fresh_world);
+    std::swap(thorin_.world_container(), fresh_world);
 
     // verify(world());
 
@@ -281,7 +195,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
     auto next = body->arg(3);
     auto msg = body->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    world_->idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
+    world().idef(body->callee(), "pe_info was not constant: {}: {}", msg->as_string(), body->arg(2));
     cur->jump(next, {body->arg(0)}, cur->debug()); // TODO debug
     todo_ = true;
 
@@ -290,7 +204,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
 }
 
 void Cleaner::clean_pe_infos() {
-    world_->VLOG("cleaning remaining pe_infos");
+    world().VLOG("cleaning remaining pe_infos");
     std::queue<Continuation*> queue;
     ContinuationSet done;
     auto enqueue = [&](Continuation* continuation) {
@@ -321,24 +235,23 @@ void Cleaner::clean_pe_infos() {
 void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
-        world_->VLOG("iteration: {}", i);
+        world().VLOG("iteration: {}", i);
         todo_ = false;
-        if (world_->is_pe_done())
-            eliminate_tail_rec();
-        eta_conversion();
+        rebuild();
+        eliminate_tail_rec();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();
-        if (!world().is_pe_done())
-            todo_ |= partial_evaluation(*world_);
-        else
-            clean_pe_infos();
+        //if (!world().is_pe_done())
+            todo_ |= partial_evaluation(world());
+        //else
+        //    clean_pe_infos();
     }
 }
 
 void Cleaner::cleanup() {
-    world_->VLOG("start cleanup");
+    world().VLOG("start cleanup");
     cleanup_fix_point();
 
     if (!world().is_pe_done()) {
@@ -352,13 +265,13 @@ void Cleaner::cleanup() {
         cleanup_fix_point();
     }
 
-    world_->VLOG("end cleanup");
+    world().VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
     debug_verify(world());
 #endif
 }
 
-void cleanup_world(std::unique_ptr<World>& world) { Cleaner(world).cleanup(); }
+void Thorin::cleanup() { Cleaner(*this).cleanup(); }
 
 }

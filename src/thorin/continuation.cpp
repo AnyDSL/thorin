@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
@@ -20,7 +21,10 @@ Param::Param(World& world, const Type* type, const Continuation* continuation, s
 
 const Def* Param::rebuild(World&, const Type*, Defs defs) const {
     assert(defs.size() == 1);
-    auto cont = defs[0]->as<Continuation>();
+    const Def* c = defs[0];
+    if (auto r = c->isa<Run>())
+        c = r->def()->as_nom<Continuation>();
+    auto cont = c->as<Continuation>();
     return cont->param(index());
 }
 
@@ -34,7 +38,7 @@ bool Param::equal(const Def* other) const {
 
 //------------------------------------------------------------------------------
 
-App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, world.bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
     if (auto cont = callee()->isa_nom<Continuation>())
@@ -69,6 +73,7 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
     : Def(w, Node_Continuation, pi, 2, dbg)
     , attributes_(attributes)
 {
+    assert(pi->tag() == Node_FnType && "continuations may not be closures");
     params_.reserve(pi->num_ops());
     set_op(0, world().bottom(world().bottom_type()));
     set_op(1, world().filter({}, dbg));
@@ -80,61 +85,41 @@ Continuation::Continuation(World& w, const FnType* pi, const Attributes& attribu
     }
 }
 
-// TODO: merge with regular stub()
-Continuation* Continuation::mangle_stub() const {
-    Rewriter rewriter;
-    return mangle_stub(rewriter);
-}
-
-Continuation* Continuation::mangle_stub(Rewriter& rewriter) const {
-    auto result = world().continuation(type(), attributes(), debug_history());
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        result->param(i)->set_name(debug_history().name);
-        rewriter.old2new[param(i)] = result->param(i);
-    }
-
-    if (!filter()->is_empty()) {
-        Array<const Def*> new_conditions(num_params());
-        for (size_t i = 0, e = num_params(); i != e; ++i)
-            new_conditions[i] = rewriter.instantiate(filter()->condition(i));
-
-        result->set_filter(world().filter(new_conditions, filter()->debug()));
-    }
-
-    return result;
-}
-
-Continuation* Continuation::stub(World& nworld, const Type* t) const {
+Continuation* Continuation::stub(Rewriter& rewriter, const Type* nty) const {
     assert(!dead_);
-    // TODO maybe we want to deal with intrinsics in a more streamlined way
-    if (this == world().branch())
-        return nworld.branch();
-    if (this == world().end_scope())
-        return nworld.end_scope();
+    auto& nworld = rewriter.dst();
 
-    auto npi = t->isa<FnType>();
-    assert(npi);
-    Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug_history());
+    auto npi = nty->isa<FnType>();
+    assert(npi && npi->tag() == Node_FnType);
+
+    Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug());
     assert(&ncontinuation->world() == &nworld);
     assert(&npi->world() == &nworld);
-    for (size_t i = 0, e = num_params(); i != e; ++i)
-        ncontinuation->param(i)->set_name(param(i)->debug_history().name);
 
-    if (is_external())
-        nworld.make_external(ncontinuation);
+    // TODO: investigate why this hangs
+    // ncontinuation->set_filter(rewriter.instantiate(filter())->as<Filter>());
     return ncontinuation;
 }
 
-void Continuation::rebuild_from(const Def*, Defs nops) {
-    if (this == world().branch())
-        return;
-    if (this == world().end_scope())
-        return;
+void Continuation::rebuild_from(Rewriter& rewriter, const Def* old) {
+    auto ocont = old->as<Continuation>();
+    assert(ocont);
 
-    auto napp = nops[0]->isa<App>();
-    if (napp)
+    assert(num_params() >= ocont->num_params());
+    for (size_t i = 0, e = ocont->num_params(); i != e; ++i)
+        param(i)->set_name(ocont->param(i)->debug().name);
+
+    set_filter(rewriter.instantiate(ocont->filter())->as<Filter>());
+
+    if (ocont->is_external())
+        world().make_external(this);
+
+    if (ocont->has_body()) {
+        auto napp = rewriter.instantiate(ocont->body())->isa<App>();
+        // i feel like this ought to be a warning, but maybe a later pass might legitimately do that
+        assert(napp && "is it legitimate to substitute away an App when rebuilding ?");
         set_body(napp);
-    set_filter(nops[1]->as<Filter>());
+    }
     verify();
 }
 
@@ -170,17 +155,6 @@ void Continuation::destroy(const char* cause) {
     unset_op(0);
     set_op(0, world().bottom(world().bottom_type()));
     dead_ = true;
-}
-
-const FnType* Continuation::arg_fn_type() const {
-    assert(has_body());
-    Array<const Type*> args(body()->num_args());
-    for (size_t i = 0, e = body()->num_args(); i != e; ++i)
-        args[i] = body()->arg(i)->type();
-
-    return body()->callee()->type()->isa<ClosureType>()
-           ? world().closure_type(args)->as<FnType>()
-           : world().fn_type(args);
 }
 
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {

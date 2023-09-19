@@ -272,6 +272,7 @@ public:
     Continuation* branch() const { return data_.branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return data_.end_scope_; }
+    const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Filter* filter(const Defs, Debug dbg = {});
 
     // getters
@@ -340,7 +341,6 @@ public:
 
 private:
     const Param* param(const Type* type, const Continuation*, size_t index, Debug dbg);
-    const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
@@ -407,6 +407,7 @@ public:
     explicit Thorin(const std::string& name);
 
     World& world() { return *world_; };
+    std::unique_ptr<World>& world_container() { return world_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

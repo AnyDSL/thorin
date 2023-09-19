@@ -142,10 +142,8 @@ private:
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* mangle_stub() const;
-    Continuation* mangle_stub(Rewriter& rewriter) const;
-    Continuation* stub(World&, const Type*) const override;
-    void rebuild_from(const Def* old, Defs new_ops) override;
+    Continuation* stub(Rewriter&, const Type*) const override;
+    void rebuild_from(Rewriter&, const Def* old) override;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;
@@ -155,9 +153,6 @@ public:
     const Param* mem_param() const;
     const Param* ret_param() const;
     size_t num_params() const { return params().size(); }
-
-    // TODO only used in parallel.cpp to create a dummy value, should be refactored in something cleaner
-    const FnType* arg_fn_type() const;
 
     Attributes& attributes() { return attributes_; }
     const Attributes& attributes() const { return attributes_; }

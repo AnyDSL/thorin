@@ -40,35 +40,28 @@ private:
     size_t boundary_;
 };
 
+const Def* BetaReducer::rewrite(const Def* odef) {
+    // leave nominal defs alone
+    if (odef->isa_nom())
+        return odef;
+    return Rewriter::rewrite(odef);
+}
+
 class CondEval {
 public:
     CondEval(Continuation* callee, ScopesForest& forest, Defs args)
-        : callee_(callee)
+        : reducer_(callee->world())
+        , callee_(callee)
         , forest_(forest)
     {
         assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            old2new_[callee->param(i)] = args[i];
+            reducer_.provide_arg(callee->param(i), args[i]);
     }
 
     World& world() { return callee_->world(); }
-    const Def* instantiate(const Def* odef) {
-        if (auto ndef = old2new_.lookup(odef))
-            return *ndef;
-
-        if (odef->isa_structural() && !odef->isa<Param>()) {
-            Array<const Def*> nops(odef->num_ops());
-            for (size_t i = 0; i != odef->num_ops(); ++i)
-                nops[i] = instantiate(odef->op(i));
-
-            auto nprimop = odef->rebuild(world(), odef->type(), nops);
-            return old2new_[odef] = nprimop;
-        }
-
-        return old2new_[odef] = odef;
-    }
 
     bool eval(size_t i, bool lower2cff) {
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
@@ -82,7 +75,7 @@ public:
                 return true;
             }
 
-        return ((!callee_->is_exported() || callee_->attributes().cc == CC::Internal) && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
+        return ((!callee_->is_exported() || callee_->attributes().cc == CC::Internal) && callee_->can_be_inlined()) || is_one(reducer_.instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 
@@ -95,8 +88,8 @@ public:
     }
 
 private:
+    BetaReducer reducer_;
     Continuation* callee_;
-    Def2Def old2new_;
     ScopesForest& forest_;
 };
 

@@ -310,13 +310,42 @@ CodeGen::emit_module() {
     }
 
     ScopesForest forest(world());
+    std::queue<Continuation*> queue;
+    ContinuationSet emitted;
+
+    auto enqueue = [&] (Continuation* cont) {
+        if (emitted.insert(cont).second) {
+            queue.push(cont);
+        }
+    };
+
     forest.for_each([&](const Scope& scope) {
-        if(scope.entry()->cc() == CC::Thorin)
-            return;
-        if (!scope.entry()->is_returning())
-            return;
-        emit_scope(scope, forest);
+        if (scope.entry()->is_exported() && scope.entry()->cc() != CC::Thorin)
+            enqueue(scope.entry());
     });
+
+    while (!queue.empty()) {
+        Continuation* todo = pop(queue);
+        if (!todo->has_body())
+            continue;
+
+        Scope& scope = forest.get_scope(todo);
+
+        emit_scope(scope, forest);
+
+        for(auto free : scope.free_frontier()) {
+            if (const Continuation* cont_const = free->isa<Continuation>()) {
+                Continuation* cont = const_cast<Continuation*>(cont_const);
+                enqueue(cont);
+            }
+            if (const Global* global_const = free->isa<Global>()) {
+                if (auto cont_const = global_const->init()->isa<Continuation>()) {
+                    Continuation* cont = const_cast<Continuation*>(cont_const);
+                    enqueue(cont);
+                }
+            }
+        }
+    }
 
     if (debug()) dibuilder_.finalize();
 

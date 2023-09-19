@@ -108,6 +108,10 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
         stream_ops(s, app->args());
         return;
     }
+    if (auto prim_lit = def->isa<PrimLit>()) {
+        def->stream1(s);
+        return;
+    }
 
     s.fmt(Green);
     s.fmt("{}", def->op_name());

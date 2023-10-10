@@ -142,7 +142,7 @@ const Param* Continuation::ret_param() const {
     const Param* result = nullptr;
     for (auto param : params()) {
         if (param->order() >= 1) {
-            assertf(result == nullptr, "only one ret_param allowed");
+            assertf(is_intrinsic() || result == nullptr, "only one ret_param allowed");
             result = param;
         }
     }

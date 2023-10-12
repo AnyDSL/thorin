@@ -27,7 +27,6 @@ public:
     void enqueue(Continuation* continuation) {
         if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
             queue_.push(continuation);
-        queue_.push(continuation);
     }
     void eat_pe_info(Continuation*);
 

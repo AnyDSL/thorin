@@ -111,6 +111,31 @@ const Def* Mangler::rewrite(const Def* old_def) {
         return old_def;  // we leave free variables alone
     if (auto param = old_def->isa<Param>())
         assert(within(param->continuation()) && "if the param is not free, the continuation should not be either!");
+    if (auto app = old_def->isa<App>()) {
+        // HACK: only rebuild the branch we actually take
+        // this is a hack because the uses can be stale (dead stuff can have transitive uses)
+        if (auto br = app->callee()->isa_nom<Continuation>(); br && br->intrinsic() == Intrinsic::Branch) {
+            auto condition = instantiate(app->arg(1));
+            if (auto lit = condition->isa<PrimLit>()) {
+                auto mem = instantiate(app->arg(0));
+                auto target = lit->value().get_bool() ? instantiate(app->arg(2)) : instantiate(app->arg(3));
+                return dst().app(target, { mem });
+            }
+        }
+        if (auto sw = app->callee()->isa_nom<Continuation>(); sw && sw->intrinsic() == Intrinsic::Match) {
+            auto index = instantiate(app->arg(1));
+            if (auto lit = index->isa<PrimLit>()) {
+                for (size_t i = 3; i < app->num_args(); i++) {
+                    auto opattern = src().extract(app->arg(i), 0_s)->as<PrimLit>();
+                    if (instantiate(opattern) == lit) {
+                        auto mem = instantiate(app->arg(0));
+                        auto target = dst().extract(instantiate(app->arg(i)), 1);
+                        return dst().app(target, { mem }, old_def->debug());
+                    }
+                }
+            }
+        }
+    }
     auto ndef = Rewriter::rewrite(old_def);
     if (auto app = ndef->isa<App>()) {
         // If you drop a parameter it is replaced by some other def, which will be identical for all recursive calls, because it's now specialised

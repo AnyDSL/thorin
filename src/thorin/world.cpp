@@ -1153,6 +1153,7 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
+            // See also mangle::instantiate when modifying this.
             case Intrinsic::Branch: {
                 assert(args.size() == 4);
                 auto mem = args[0], cond = args[1], t = args[2], f = args[3];

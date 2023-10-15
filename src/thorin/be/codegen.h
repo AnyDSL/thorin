@@ -19,7 +19,6 @@ public:
     //@{
     Thorin& thorin() const { return thorin_; }
     World& world() const { return thorin().world(); }
-    bool debug() const { return debug_; }
     //@}
 
 private:

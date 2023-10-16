@@ -1508,6 +1508,9 @@ void CCodeGen::emit_c_int() {
     stream_.fmt("extern \"C\" {{\n");
     stream_.fmt("#endif\n\n");
 
+    stream_.fmt("#include <stdbool.h>\n"    // for the 'bool' type
+                "#include <stdint.h>\n\n");   // for the fixed-width integer types
+
     stream_.fmt("typedef   int8_t  i8;\n"
                 "typedef  uint8_t  u8;\n"
                 "typedef  int16_t i16;\n"

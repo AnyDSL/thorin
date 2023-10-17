@@ -37,7 +37,6 @@ struct BB {
     }
 };
 
-using FuncMode = ChannelMode;
 
 enum class CLDialect : uint8_t {
     STD    = 0, ///< Standard OpenCL
@@ -94,18 +93,20 @@ public:
     std::string emit_def(BB*, const Def*);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
-    std::string emit_graph_class(Continuation*);
+    std::string emit_class(Continuation*);
     std::string emit_fun_head(Continuation*, bool = false);
     std::string emit_fun_decl(Continuation*);
     std::string prepare(const Scope&);
     void prepare(Continuation*, const std::string&);
+    void graph_ctor_gen(const Continuations&);
     void finalize(const Scope&);
     void finalize(Continuation*);
 
 private:
-    std::string convert(const Type*);
+    std::string convert(const Type*, bool = false);
     std::string addr_space_prefix(AddrSpace);
     std::string constructor_prefix(const Type*);
+    std::string prefix_type(const Param* param);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
@@ -129,6 +130,8 @@ private:
     bool use_memcpy_ = false;
     bool use_malloc_ = false;
     bool debug_;
+
+    //auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, false, false);
     std::string flags_;
     Stream& stream_;
 
@@ -136,11 +139,13 @@ private:
     StringStream func_decls_;
     StringStream type_decls_;
     StringStream vars_decls_;
+    StringStream graph_ctor_;
     /// Tracks defs that have been emitted as local variables of the current function
     DefSet func_defs_;
 
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
+    struct { bool hls = false; bool cgra_graph = false; } top_scope;
 
     ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
@@ -218,9 +223,9 @@ bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
 /*
  * convert
  */
-
-std::string CCodeGen::convert(const Type* type) {
-    if (auto res = types_.lookup(type)) return *res;
+std::string CCodeGen::convert(const Type* type, bool templated) {
+    if (auto res = types_.lookup(type))
+           return *res;
 
     StringStream s;
     std::string name;
@@ -350,6 +355,371 @@ std::string CCodeGen::device_prefix() {
                 return "__constant ";
     }
 }
+
+static inline bool is_passed_via_buffer(const Param* param) {
+    return param->type()->isa<DefiniteArrayType>()
+        || (param->type()->isa<StructType>() && (!is_channel_type(param->type()->isa<StructType>())))
+        || param->type()->isa<TupleType>();
+}
+
+static inline bool is_passed_via_global_mem(const Param* param) {
+    return (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>());
+}
+
+HlsInterface interface, gmem_config;
+//auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, false, false);
+bool interface_status = false;
+
+std::string CCodeGen::prefix_type(const Param* param) {
+    auto cont = param->as<Param>()->continuation();
+    auto interface = "stream"; // TODO: needs to be configurable
+    std::string prefix;
+    if (lang_ == Lang::CGRA && (is_channel_type(param->type()) || is_passed_via_global_mem(param))) {
+        if(auto config = get_config(cont); config) {
+            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+
+            auto param_mode = config->as<CGRAKernelConfig>()->param_mode(param);
+            if (param_mode == ChannelMode::Undef)
+                world().WLOG("Direction of {} is undefined", param->unique_name());
+            else if (param_mode == ChannelMode::Read)
+                prefix = "adf::input_";
+            else if (param_mode == ChannelMode::Write)
+                prefix = "adf::output_";
+            else if (param_mode == ChannelMode::ReadWrite)
+                prefix = "adf::inout_";
+
+            std::string type_name;
+            if (cont->is_cgra_graph()) {
+                std::string io_type;
+                //type_name = (" <" + convert(param->type()->as<PtrType>()->pointee()) + ">");
+                if (is_channel_type(param->type()))
+                    io_type = "plio";
+                else if (is_passed_via_global_mem(param)) {
+                    io_type = "gmio";
+                } else {
+                    assert(false && "TODO: CGRA runtime parameter");
+                };
+                prefix += io_type;
+            } else {
+                type_name = convert(param->type(), true); //template type_name
+                prefix += interface;
+            }
+
+            return prefix + type_name;
+        }
+    }
+    // any other languages
+    return prefix + convert(param->type());
+}
+
+
+void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
+
+    using ModeCounters = std::array<int32_t, to_underlying(ChannelMode::Count)>;
+    using Cont2Index = ContinuationMap<ModeCounters>;
+    using Dependence = std::pair<const Def*, const Def*>;
+
+    auto get_param_mode = [&] (auto index, Continuation* cont) {
+        if(auto config = get_config(cont)) {
+            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+            auto mode = config->as<CGRAKernelConfig>()->param_mode(cont->param(index));
+            return mode;
+        }
+        assert(false && "kernel has no config");
+    };
+
+
+    auto get_runtime_ratio = [&] (Continuation* cont) {
+        if(auto config = get_config(cont)) {
+            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+            return config->as<CGRAKernelConfig>()->runtime_ratio();
+        }
+        assert(false && "kernel has no config");
+    };
+
+
+    auto get_location = [&] (Continuation* cont) {
+        if(auto config = get_config(cont)) {
+            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+            return config->as<CGRAKernelConfig>()->location();
+        }
+        assert(false && "kernel has no config");
+    };
+
+    // Plio params are those that on one side ther are connected to the outside of the cgra_graph
+    // they are defined in the cgra_graph continuation
+    auto is_plio = [&] (const Def* def) {
+        return def->as<Param>()->continuation()->is_cgra_graph();
+    };
+
+    auto node_name = [&] (const Def* def) {
+        return def->as<Param>()->continuation()->is_cgra_graph() ? def->unique_name() : "k" + def->name();
+    };
+
+
+    auto get_node_names = [&] (const Dependence dependence) {
+        auto start_node = node_name(dependence.first);
+        auto end_node   = node_name(dependence.second);
+        return std::make_pair(start_node, end_node);
+    };
+
+    auto get_node_indices = [&] (const Dependence dependence, Cont2Index& cont2index) {
+        auto from_indices = cont2index[dependence.first->as<Param>()->continuation()];
+        auto from = from_indices[to_underlying(ChannelMode::Write)];
+        auto to_indices = cont2index[dependence.second->as<Param>()->continuation()];
+        auto to = to_indices[to_underlying(ChannelMode::Read)];
+        return std::make_pair(from, to);
+    };
+
+    auto get_edge_label = [&] (const Dependence& dependence) {
+        return dependence.first->as<Param>()->continuation()->name() + "_"
+            + dependence.second->as<Param>()->continuation()->name();
+    };
+
+    auto krl_node_name = [&] (auto& kernel) {
+        return "k" + kernel->name();
+    };
+
+    auto get_direction_prefix = [&] (ChannelMode mode) {
+        std::string direction;
+        switch (mode) {
+            case ChannelMode::Write:
+                direction = "output";
+                break;
+            case ChannelMode::Read:
+                direction = "input";
+                break;
+            case ChannelMode::ReadWrite:
+                direction = "inout";
+                break;
+            default:
+                world().WLOG("Direction of the parameter is undefined. Direct GMem access is not fully supported yet");
+                break;
+        }
+        return direction;
+    };
+
+    auto set_mode_counters = [&] (const auto& kernel, const auto& mode, auto& mode_counters, Cont2Index& cont2index) {
+        if (!cont2index.contains(kernel)) {
+            mode_counters[to_underlying(mode)] = 0;
+            cont2index.emplace(kernel, mode_counters);
+        } else {
+            auto mode_counters = cont2index[kernel];
+            mode_counters[to_underlying(mode)]++;
+            cont2index[kernel] = mode_counters;
+        }
+    };
+
+
+    auto bit_width = [&] (const Type* type) {
+        StringStream s;
+        assert ((type != world().unit() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
+        if (auto primtype = type->isa<PrimType>()) {
+            switch (primtype->primtype_tag()) {
+                case PrimType_bool:                                                             s << "1" ;  break;
+                case PrimType_ps8 : case PrimType_qs8 : case PrimType_pu8 : case PrimType_qu8 : s << "8" ;  break;
+                case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: s << "16";  break;
+                case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: s << "32";  break;
+                case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: s << "64";  break;
+                case PrimType_pf16: case PrimType_qf16:                                         s << "16";  break;
+                case PrimType_pf32: case PrimType_qf32:                                         s << "32";  break;
+                case PrimType_pf64: case PrimType_qf64:                                         s << "64";  break;
+                default: THORIN_UNREACHABLE;
+            }
+        } else {
+            world().ELOG("Type is not supported");
+        }
+        return s.str();
+    };
+
+    StringStream node_impls_;
+    StringStream edge_impls_;
+    StringStream configs_;
+
+    node_impls_.indent(2);
+    edge_impls_.indent(2);
+    configs_.indent(2);
+
+    DefSet visited_defs; // edges are emitted only if none of the corresponding nodes (dependence) has already been visited
+    DefSet visited_conts;
+    const auto counter_init = -1;
+
+    for (auto cont : graph_conts) {
+        if (cont->intrinsic() == Intrinsic::EndScope) continue;
+
+        auto entry = cont->is_cgra_graph() ? cont: nullptr;
+
+        Dependence dependence; //<From, To>
+        auto adjust_operands = [&] (Dependence& dependence) {
+            std::swap(dependence.first, dependence.second);
+        };
+
+        // emitting the connections between cgra_graph top and all other kernels
+        if (cont->isa_nom<Continuation>() && (!cont->body()->empty()) && cont->has_body()) {
+
+            if (cont == entry) {
+
+                for (auto param : cont->params()) {
+                    if (is_concrete(param) || is_channel_type(param->type())) {
+                        param->dump();
+                        if (visited_defs.empty() || visited_defs.count(param) == 0) {
+                            // Note that nodes of the same edge have the same names in IR (args of Fns) but different names in C
+                            visited_defs.emplace(param);
+
+                            auto mode = get_param_mode(param->index(), cont);
+                            auto direc_prefix = get_direction_prefix(mode);
+                            auto op_type = param->type()->as<PtrType>()->pointee()->as<StructType>()->op(0);
+
+                            node_impls_.fmt("{} = adf::{}_plio::create(adf::plio_{}_bits, FILE_ADDR);\n", param->unique_name(), direc_prefix, bit_width(op_type));
+
+                        }
+
+                        dependence.first = param;
+                        for (size_t i = 0; i < graph_conts.size() - 1; ++i) {
+                            Cont2Index cont2index;
+                            ModeCounters cont_mode_counters, mode_counters;
+                            // check if it works in the last version of aie compiler otherwise we need to remove any array index for plio/gmem ports and use them only if they are literally arrays of ports
+                            cont_mode_counters.fill(0);
+                            // mode indices of cgra_graph cont can actually resemble indices for arrays of plio/gmem ports
+                            // but for now we assume that each param (port) is a scalar type (single port), therefore, we assign
+                            // a zero index to each param, like param1.[0]
+                            //auto mode = get_param_mode(kernel_param->index(), kernel);
+                            //cont_mode_counters[to_underlying(mode)] = 0;
+                            cont2index[cont] = cont_mode_counters;
+                            //ModeCounters mode_counters;
+                            mode_counters.fill(counter_init);
+                            for (size_t arg_index = 0; const auto& arg : graph_conts[i]->body()->args()) {
+                                if (is_concrete(arg) || is_channel_type(arg->type())) {
+                                    auto graph_callee = graph_conts[i]->body()->callee();
+                                    if (auto kernel = graph_callee->isa_nom<Continuation>()) {
+                                        assert(kernel->name() == graph_callee->name());
+                                        auto kernel_param = kernel->param(arg_index);
+                                        //auto mode = get_param_mode(arg_index, kernel);
+                                        auto mode = get_param_mode(kernel_param->index(), kernel);
+
+                                        // The problem is some params are counted several times
+                                        // After each param counters should be reset
+                                        // or use a visitig def list to filter those params that have already been visited
+                                        set_mode_counters(kernel, mode, mode_counters, cont2index);
+
+                                        if (param == arg) { // edge found
+                                            dependence.second = kernel_param;
+
+                                            if (mode == ChannelMode::Write) {
+                                                adjust_operands(dependence);
+                                            }
+
+                                            if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
+                                                visited_conts.emplace(graph_callee);
+                                                node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
+                                            }
+
+                                            auto [start_node, end_node] = get_node_names(dependence);
+                                            auto [start_index, end_index] = get_node_indices(dependence, cont2index);
+                                            auto edge_label = get_edge_label(dependence);
+                                            edge_impls_.fmt("adf::connect METHOD {}({}.out[{}], {}.in[{}]);\n", edge_label, start_node, start_index, end_node, end_index);
+
+                                        }
+
+                                    }
+
+
+                                }
+
+
+                                arg_index++;
+                            }
+
+                        }
+
+                    }
+                }
+            }
+
+
+            // emiting all other connections (those among callees without cgra_graph continuation)
+            Cont2Index cur_cont2index;
+            ModeCounters cur_mode_counters;
+            cur_mode_counters.fill(counter_init);
+            for (size_t cur_arg_index = 0; const auto& cur_arg : cont->body()->args()) {
+                if (is_concrete(cur_arg)) {
+                    if (visited_defs.empty() || visited_defs.count(cur_arg) == 0) {
+                        // Note that nodes of the same edge have the same names in IR (args of Fns) but different names in C
+                        visited_defs.emplace(cur_arg);
+                        auto graph_callee = cont->body()->callee();
+                        if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
+                            visited_conts.emplace(graph_callee);
+                            node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
+                        }
+
+                        if (auto kernel = graph_callee->isa_nom<Continuation>()) {
+                            assert(kernel->name() == graph_callee->name());
+                            auto kernel_param = kernel->param(cur_arg_index);
+                            auto mode = get_param_mode(kernel_param->index(), kernel);
+                            set_mode_counters(kernel, mode, cur_mode_counters, cur_cont2index);
+                            dependence.first = kernel_param;
+                        }
+
+                        Cont2Index cont2index;
+                        ModeCounters mode_counters;
+                        mode_counters.fill(counter_init);
+                        for (size_t i = 0; i < graph_conts.size() - 1 ; ++i) {
+                            auto cur_app = cont->body();
+                            auto app = graph_conts[i]->body();
+                            for (size_t arg_index = 0; const auto& arg : app->args()) {
+
+                                if (cur_app->callee() == app->callee())
+                                    continue;
+
+                                if (is_concrete(arg) || is_channel_type(arg->type())) {
+                                    auto graph_callee = graph_conts[i]->body()->callee();
+                                    if (auto kernel = graph_callee->isa_nom<Continuation>()) {
+                                        assert(kernel->name() == graph_callee->name());
+                                        auto kernel_param = kernel->param(arg_index);
+                                        //auto mode = get_param_mode(arg_index, kernel);
+                                        auto mode = get_param_mode(kernel_param->index(), kernel);
+                                        set_mode_counters(kernel, mode, mode_counters, cont2index);
+                                        if (cur_arg == arg) { // edge found
+                                            dependence.second = kernel_param;
+                                            if (mode == ChannelMode::Write) {
+                                                adjust_operands(dependence);
+                                            }
+                                            // We can safely merge the two maps because there won't be any similar keys(continuations)
+                                            cont2index.insert(cur_cont2index.begin(), cur_cont2index.end());
+                                            auto [start_index, end_index] = get_node_indices(dependence, cont2index);
+                                            auto [start_node, end_node] = get_node_names(dependence);
+                                            auto edge_label = get_edge_label(dependence);
+                                            edge_impls_.fmt("adf::connect METHOD {}({}.out[{}], {}.in[{}]);\n", edge_label, start_node, start_index, end_node, end_index);
+                                        }
+                                    }
+                                }
+                                arg_index++;
+                            }
+                        }
+                    }
+                }
+                cur_arg_index++;
+            }
+
+            auto source_ext = thorin::c::CodeGen(world(), kernel_config_, lang_, debug_, flags_).file_ext();
+            if (cont->has_body() && cont->body()->callee()->isa_nom<Continuation>()) {
+                // TODO: return is_a<cont> in if and use it in the body
+                // TODO: soure(kernels) = addr
+                auto callee = cont->body()->callee();
+                configs_.fmt( "adf::runtime<ratio>({}) = {};\n", krl_node_name(callee), get_runtime_ratio(callee->as_nom<Continuation>()));
+                auto [loc_x, loc_y] = get_location(callee->as_nom<Continuation>());
+                configs_.fmt( "adf::location<kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
+
+                configs_.fmt( "adf::source({}) = \"{}{}\";\n", krl_node_name(callee), world().name(), source_ext);
+            }
+        }
+    }
+
+    graph_ctor_ <<"// Nodes\n\t\t" << node_impls_.str() << "// Edges\n\t\t" << edge_impls_.str() << "// Constrains and Configurations\n\t\t" << configs_.str();
+
+    return;
+}
+
 
 /*
  * emit

@@ -1106,21 +1106,91 @@ static inline std::string label_name(const Def* def) {
     return make_identifier(def->as_nom<Continuation>()->unique_name());
 }
 
-void CCodeGen::finalize(const Scope&) {
+auto cgra_testbench() {
+    StringStream s;
+    //TODO: if stream then iter_num = sample_size/lane size
+    // IF all kernels are stream then sample_size otherwise put -1
+    // TODO: we need the size of gmems on cgra_graph for both Iter_num and buffers size of kernels with buffer interface
+    // TODO: Develope gaurds
+    // TODO: change types to auto
+    // TODO: develpe interface both in backend and in c emitter
+    s << "int main(void) {\n"
+            << "\tmygraph.init();\n"
+            << "\tstd::cout << \"Graph initialized\" << std::endl;\n"
+            << "\tmygraph.run(ITER_NUM);\n"
+            << "\tstd::cout << \"Graph executed \" << ITERNUM << \" times\" << std::endl;\n"
+            << "\tmygraph.end();\n"
+            << "\tstd::cout << \"Graph ended.\" << std::endl;\n"
+            << "\treturn 0;\n"
+    << "}";
+   return s.str();
+}
+
+void CCodeGen::finalize(const Scope& scope) {
     for (auto& def : func_defs_) {
         assert(defs_.contains(def) && "sanity check, should have been emitted if it's here");
         defs_.erase(def);
     }
     func_defs_.clear();
-    func_impls_.fmt("}}\n\n");
+    if (top_scope.cgra_graph && (lang_ == Lang::CGRA)) {
+        func_impls_.fmt( "\b}};\n\n{} cgra_dataflow;\n\n", scope.entry()->name());
+        func_impls_.fmt("{}", cgra_testbench());
+    } else
+        func_impls_.fmt("}}\n\n");
 }
 
 void CCodeGen::finalize(Continuation* cont) {
+    //TODO: make a graph_gen function that gets conts from finalize conts
     auto&& bb = cont2bb_[cont];
+    //if (cont->is_cgra_graph()) {
+
+  //      std::cout << "Finalize all scope conts ";
+  //      cont->dump();
+  //  if (top_scope.cgra_graph) {
+  //      std::cout << "Finalize\n";
+  //      std::cout <<"continuation: "; cont->dump();
+  //      //cont->body()->dump();
+  //      std::cout <<"callee "; cont->body()->callee()->dump();
+  //      for (auto arg : cont->body()->args()) {
+  //        //  if (arg->isa_nom<Continuation>()) {
+  //        //      arg->as<Continuation>()->body()->callee()->dump();
+  //        //  }
+
+  //      if (is_concrete(arg))
+  //          arg->dump();
+  //      }
+  //  }
     if (cont != entry_)
-        func_impls_.fmt("{}: \t", label_name(cont));
-    func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
+        if (!top_scope.cgra_graph)
+            func_impls_.fmt("{}: \t", label_name(cont));
+
+   // if (cont->is_cgra_graph() && (lang_ == Lang::CGRA)){
+   //     //bb.body.indent(2);
+   //     //func_impls_ <<std::setw(5);
+   //     bb.body.fmt("Public:\n");
+   // }
+    if (top_scope.cgra_graph && lang_ == Lang::CGRA) {
+
+    //bb.body.indent(2);
+    bb.tail.indent(2);
+        //func_impls_ <<std::setw(5);
+        if (cont->is_cgra_graph()) {
+            bb.body.fmt("Public:\n {}() {{\n", cont->name());
+            bb.tail.fmt("{} }}", graph_ctor_.str());
+            func_impls_.fmt("\n{}{}{}\n", bb.head.str(), bb.body.str(), bb.tail.str());
+        }
+    }
+    else
+        func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
+
+//void CCodeGen::finalize(Continuation* cont) {
+//    auto&& bb = cont2bb_[cont];
+//    if (cont != entry_)
+//        func_impls_.fmt("{}: \t", label_name(cont));
+//    func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
+//}
+
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
@@ -1128,8 +1198,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     auto body = cont->body();
     emit_debug_info(bb.tail, body->arg(0));
 
-    if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
+    if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && top_scope.hls)) && (cont->is_exported()))
         emit_fun_decl(cont);
+
 
     if (body->callee() == entry_->ret_param()) { // return
         std::vector<std::string> values;

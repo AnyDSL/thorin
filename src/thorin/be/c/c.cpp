@@ -248,6 +248,13 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
             case PrimType_pf64: case PrimType_qf64: s <<  "f64";  use_fp_64_ = true; break;
             default: THORIN_UNREACHABLE;
         }
+
+        if (templated) {
+            StringStream temp;
+            temp << "<" << s.str();
+            swap(s, temp);
+            s << ">";
+        }
         if (primtype->is_vector())
             s << primtype->length();
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
@@ -255,8 +262,11 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
     } else if (type->isa<FnType>()) {
         assert(false && "todo");
     } else if (auto ptr = type->isa<PtrType>()) {
+        //TODO: add all corner cases
         // CUDA supports generic pointers, so there is no need to annotate them (moreover, annotating them triggers a bug in NVCC 11)
-        s.fmt("{}{}*", lang_ != Lang::CUDA ? addr_space_prefix(ptr->addr_space()) : "", convert(ptr->pointee()));
+        if (templated) { s.fmt("<{}{}>*","", convert(ptr->pointee())); }
+        else
+            s.fmt("{}{}*", lang_ != Lang::CUDA ? addr_space_prefix(ptr->addr_space()) : "", convert(ptr->pointee()));
     } else if (auto array = type->isa<DefiniteArrayType>()) {
         name = array_name(array);
         auto elem_type = convert(array->elem_type());
@@ -298,6 +308,10 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
         } else if (is_channel_type(struct_type) && lang_ == Lang::HLS) {
             s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
             name = ("hls::stream<" + name + "_" + std::to_string(type->gid()) + ">");
+        } else if (is_channel_type(struct_type) && lang_ == Lang::CGRA) {
+            s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
+            //name = ("<" + name + "_" + std::to_string(type->gid()) + ">");
+            name = ( name + "_" + std::to_string(type->gid()));
         } else {
             s.fmt("typedef struct {{\t\n");
             s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
@@ -343,6 +357,7 @@ std::string CCodeGen::constructor_prefix(const Type* type) {
         return "(" + type_name + ")";
     return type_name;
 }
+
 
 std::string CCodeGen::device_prefix() {
     switch (lang_) {

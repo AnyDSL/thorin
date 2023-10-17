@@ -740,27 +740,69 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
  * emit
  */
 
-HlsInterface interface, gmem_config;
-auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, false, false);
-
 void CCodeGen::emit_module() {
     Continuation* top_module = nullptr;
 
     interface_status = get_interface(interface, gmem_config);
 
     Scope::for_each(world(), [&] (const Scope& scope) {
-        auto entry = scope.entry();
-        if (entry->is_hls_top() || entry->is_cgra_graph())
-            top_module = entry;
-        else
+            auto entry = scope.entry();
+            if (entry->is_hls_top() || entry->is_cgra_graph()) {
+                top_module = entry;
+
+                if (entry->is_cgra_graph()) {
+                    graph_ctor_gen(schedule(scope));
+                    // Trying out graph gen
+                    for (auto graph_conts = schedule(scope); auto cont : graph_conts) {
+
+                    if (cont->intrinsic() == Intrinsic::EndScope) continue;
+
+                    if (cont == entry) {
+                        std::cout << "___CGRA___\n";
+                        for (auto param : entry->params()) {
+                            if (is_concrete(param) || is_channel_type(param->type())) {
+                                param->dump();
+                            }
+                        }
+                        std::cout << "___CGRA_ END__\n";
+                    }
+
+                    if (cont->isa_nom<Continuation>() && !cont->body()->empty()) {
+                        std::cout <<"UP callee "; cont->body()->callee()->dump();
+                        if (cont->has_body()) {
+                            if (auto counted = cont->body()->callee()->isa_nom<Continuation>()){
+                                std::cout <<"UP CONT ";
+                                counted->dump();
+                                //params to find direction using arg index
+                                for (auto param : counted->params()) {
+                                    if (is_concrete(param)) {
+                                        std::cout << "graph_param "; param->dump();
+                                    }
+                                }
+                            }
+                        }
+
+                        //args to find edges of the graph
+                        for (size_t arg_index = 0; auto arg : cont->body()->args()) {
+                            if (is_concrete(arg) || is_channel_type(arg->type())) {
+                                arg->dump();
+                            }
+                            arg_index++;
+                        }
+                    }
+                    }
+            }
+        } else
             emit_scope(scope);
     });
 
     if (top_module) {
-        if (top_module->is_hls_top())
-            hls_top_scope = true;
-        else if (top_module->is_cgra_graph())
-            cgra_graph_scope = true;
+        if (top_module->is_hls_top()) {
+            top_scope.hls    = true;
+            //cgra_graph_scope = false;
+        } else if (top_module->is_cgra_graph())
+            top_scope.cgra_graph = true;
+            //hls_top_scope    = false;
         emit_scope(Scope(top_module));
     }
 
@@ -917,11 +959,6 @@ void CCodeGen::emit_module() {
         stream_.fmt("}} /* extern \"C\" */\n");
 }
 
-static inline bool is_passed_via_buffer(const Param* param) {
-    return param->type()->isa<DefiniteArrayType>()
-        || param->type()->isa<StructType>()
-        || param->type()->isa<TupleType>();
-}
 
 static inline const Type* ret_type(const FnType* fn_type) {
     auto ret_fn_type = (*std::find_if(

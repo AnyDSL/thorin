@@ -1260,7 +1260,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             func_impls_.fmt("{}{} {}_reserved[{}];\n",
                 addr_space_prefix(AddrSpace::Shared), convert(elem_type),
                 cont->unique_name(), emit_constant(body->arg(1)));
-            if (lang_ == Lang::HLS && !hls_top_scope) {
+            if (lang_ == Lang::HLS && !top_scope.hls) {
                 func_impls_.fmt("#pragma HLS dependence variable={}_reserved inter false\n", cont->unique_name());
                 func_impls_.fmt("#pragma HLS data_pack  variable={}_reserved\n", cont->unique_name());
                 func_impls_<< "#if defined( __VITIS_HLS__ )\n   __attribute__((packed))\n  #endif\n";
@@ -1321,6 +1321,13 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
             return arg->isa_nom<Continuation>();
         }))->as_nom<Continuation>();
+        if (top_scope.cgra_graph && lang_ == Lang::CGRA) {
+            if (cont->is_cgra_graph())
+                func_impls_ << "private:\n";
+            // cgra kernel obj definitions start with the letter 'k'
+            func_impls_<<"\tadf::kernel " << "k" << emit(callee) << ";\n";
+
+        }
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
@@ -1328,6 +1335,11 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
         }
+
+   // if (cgra_graph_scope && lang_ == Lang::CGRA)
+   //     if (cont->is_cgra_graph())
+   //         bb.tail.fmt("private:\n");
+   //     bb.tail.fmt("adf::kernel {};\n",emit(body->callee()->as_nom<Continuation>()));
 
         size_t num_params = ret_cont->num_params();
         size_t n = 0;

@@ -983,25 +983,28 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();
 
+    //TODO: for interface attr. 1) check codegen use, cont (seems not working)
+    //2) use old2new to find old cont. then probably  "using conts" then check for interface attr on that cont and then set for all new apps
+    //3) adding interface as config
     StringStream hls_pragmas_;
 
     for (auto param : cont->params()) {
         defs_[param] = param->unique_name();
         if (lang_ == Lang::HLS && cont->is_exported() && param->type()->isa<PtrType>()) {
             auto elem_type = pointee_or_elem_type(param->type()->as<PtrType>());
-            if ((elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) && !hls_top_scope)
+            if ((elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>()) && !top_scope.hls)
                 hls_pragmas_.fmt("#pragma HLS data_pack variable={} struct_level\n", param->unique_name());
         }
     }
 
-    if (cgra_graph_scope && (lang_ == Lang::CGRA))
-        func_impls_.fmt("{} {{", emit_graph_class(cont));
+    if (top_scope.cgra_graph && (lang_ == Lang::CGRA))
+        func_impls_.fmt("{}", emit_class(cont));
     else
         func_impls_.fmt("{} {{", emit_fun_head(cont));
     func_impls_.fmt("\t\n");
 
     if (lang_ == Lang::HLS && cont->is_exported()) {
-        if (hls_top_scope) {
+        if (top_scope.hls) {
             if (interface_status) {
                 if (cont->num_params() > 2) {
                     size_t hls_gmem_index = 0;

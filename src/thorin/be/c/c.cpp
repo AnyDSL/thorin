@@ -1388,6 +1388,31 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             no_function_call = true;
             //TODO: Check it
             channel_transaction = true;
+        } else if (lang_ == Lang::CGRA && callee->is_channel()) {
+            //TODO: Adapt the placeholders for ADF APIs and for differetn interfaces, start with Stream interface
+            //TODO: Simplify it
+            //TODO: Decide about how to design and implement the lane size
+            for (size_t i = 0; auto arg : body->args()) {
+                if (!is_concrete(arg)) continue;
+                const Def* channel_def;
+                if (i == 0)
+                    //channel
+                    channel_def = arg;
+                    //bb.tail.fmt("*{}", emit(channel_def));
+                if (i == 1) {
+                    if (name.find("write_channel") != std::string::npos) {
+                        //bb.tail.fmt(" << {};\n", emit(arg));
+                        bb.tail.fmt("writeincr(*{}, {});\n", emit(channel_def), emit(arg));
+                    } else THORIN_UNREACHABLE;
+                }
+                if (name.find("read_channel") != std::string::npos) {
+                    //bb.tail.fmt(" >> {};\n", emit(channel_read_result));
+                    bb.tail.fmt("{} = readincr_v<LANE_SIZE>(*{});\n",emit(channel_read_result), emit(channel_def));
+                }
+                ++i;
+            }
+            no_function_call = true;
+            channel_transaction = true;
         }
 
         // Do not store the result of `void` calls

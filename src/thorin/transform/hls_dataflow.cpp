@@ -267,7 +267,7 @@ void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent
 
 
 inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& def2mode) {
-
+    // only for one block (continuation)
     auto app = continuation->body();
     auto callee = app->callee()->isa_nom<Continuation>();
     if (callee && callee->is_channel()) {
@@ -292,6 +292,7 @@ inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& 
 }
 
 void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
+    // for all blcoks in the schedule
     for (const auto& continuation : schedule) {
         if (!continuation->has_body())
             continue;
@@ -316,7 +317,7 @@ bool is_single_kernel(Continuation* kernel) {
     }
     return true;
 }
-
+// This Fn is called after calling hls_dataflow
 void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& cont2config) {
     auto find_kernel_by_name = [&] (const std::string& name) {
         for (auto def : world.defs()) {

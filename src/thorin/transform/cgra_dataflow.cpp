@@ -145,7 +145,7 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
     //Def2Def kernel_new2old;
     std::vector<Continuation*> new_kernels;
     Def2Def param2arg; // contains map from new kernel channel-parameters to channels (globals)
-
+    ContName2ParamModes kernel_name2chan_param_modes; // contains map from new kernel to its channel parameter modes
     Scope::for_each(world, [&] (Scope& scope) {
         Def2Mode def2mode; // channels and their R/W modes
         extract_kernel_channels(schedule(scope), def2mode);
@@ -158,9 +158,13 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
                     new_param_types.begin());
 
             size_t channel_index = old_kernel->num_params();
+
             // The position of the channel parameters in new kernels and their corresponding channel defintion
+            Array<ParamMode> modes(def2mode.size());
+            size_t i = 0;
             std::vector<std::pair<size_t, const Def*>> channel_param_index2def;
-            for (auto [channel, _ ]: def2mode) {
+            for (auto [channel, mode]: def2mode) {
+                modes[i++] = mode;
                 channel_param_index2def.emplace_back(channel_index, channel);
                 new_param_types[channel_index++] = channel->type();
             }
@@ -169,6 +173,7 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
             world.make_external(new_kernel);
+
 
             //kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -218,7 +223,11 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
                     new_cont->jump(new_callee, new_args, cont->debug());
                 }
             }
-    });
+
+    kernel_name2chan_param_modes.emplace_back(new_kernel->name(), modes);
+    }
+
+    );
 
 
 //    std::cout << "Target block size = " << target_blocks_in_cgra_world.size() << std::endl;
@@ -273,7 +282,13 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
             }
         }
 
-    auto cgra_graph = world.continuation(world.fn_type(graph_param_types), Debug("cgra_graph"));
+    //TODO: for the sake of simplicity and consistency with HLS at the moment we build IR similar to HLS top
+    // but the proper way is to make a new continuaion for each kernel sependencies and jump to that accordingly.
+
+    auto cgra_graph = world.continuation(world.fn_type(graph_param_types), Debug());
+    cgra_graph->set_name("cgra_graph");
+    cgra_graph->attributes().interface = Interface::None;
+
     //auto struct_type = world.struct_type("hey",1);
     //struct_type->dump();
     // need variant type?
@@ -372,9 +387,8 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
     world.dump();
 
     world.cleanup();
-    return std::make_tuple(hls_port_indices, std::pair<Continuation*, Array<ParamMode>> {});
+
+    return std::make_tuple(hls_port_indices, kernel_name2chan_param_modes);
 }
 
 }
-// check to which global a param is mapped.
-// or find the corresponding param which a global is mapped to.

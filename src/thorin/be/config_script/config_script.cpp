@@ -91,6 +91,8 @@ void tool_config(std::string& flags, Stream& stream) {
 
 Stream&  emit_connectivity(Stream& stream, Ports hls_cgra_ports) {
     /*all above inside this one*/
+    if (hls_cgra_ports.empty())
+        return stream;
     stream << "[connectivity]" << "\n" ;
     stream << create_hls_kernel("hls_top", 1);
     emit_stream_connect(stream, hls_cgra_ports);

@@ -10,6 +10,28 @@
 
 namespace thorin {
 
+
+void detect_param_modes(const Continuation* continuation, Def2Mode& def2mode){
+    if (continuation->is_cgra_graph()) {
+        continuation->num_params();
+    }
+
+//TODO: for non-channel params check R if there is a load (after lea) or a W using stor
+// but a param used in any primop can also be considered a R
+// a param used only in store is W
+// a param used both in PrimOP and store is RW
+
+}
+
+
+void detect_param_modes(const Schedule& schedule, Def2Mode& def2mode) {
+    for (const auto& continuation : schedule) {
+        if (!continuation->has_body())
+            continue;
+        detect_param_modes(continuation, def2mode);
+    }
+}
+
 PortIndices external_ports_index(const Def2Def global2param, Def2Def param2arg, const Def2DependentBlocks def2dependent_blocks, Importer& importer) {
     Array<size_t> param_indices(def2dependent_blocks.size());
     size_t i = 0;

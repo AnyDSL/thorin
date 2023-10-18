@@ -1773,10 +1773,13 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         assert(bb && "basic block is required for slots");
         emit_unsafe(slot->frame());
         auto t = convert(slot->alloced_type());
-        func_impls_.fmt("{} {}_slot;\n", t, name);
-        func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
+        //TODO: check slot condition, as we need slots for CGRA kernels but not for cgra_graph
+        if (!top_scope.cgra_graph ) {
+            func_impls_.fmt("{} {}_slot;\n", t, name);
+            func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
+        }
         func_defs_.insert(def);
-        if (hls_top_scope)
+        if (top_scope.hls)
             func_impls_ <<"#pragma HLS STREAM variable = "<< name << " depth = 5" << "\n";
         return name;
     } else if (auto alloc = def->isa<Alloc>()) {

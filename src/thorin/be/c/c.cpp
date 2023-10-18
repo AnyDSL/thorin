@@ -2042,7 +2042,10 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
             {
                 qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
             }
-            s.fmt("{}{}", convert(param->type()), qualifier);
+            if (lang_ == Lang::CGRA && !cont->is_cgra_graph())
+                s.fmt("{}{}", prefix_type(param), qualifier);
+            else
+                s.fmt("{}{}", convert(param->type()), qualifier);
             if (!is_proto) s.fmt(" {}", param->unique_name());
         }
         needs_comma = true;

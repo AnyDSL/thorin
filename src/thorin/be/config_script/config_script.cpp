@@ -4,7 +4,7 @@
 
 namespace thorin::config_script {
 
-// check if a hls param is a left hand side parameter
+// check if a hls param is a left-hand-side parameter
 bool is_a_lhs(ChannelMode hls_mode) {
     return hls_mode == ChannelMode::Write;
 }
@@ -30,7 +30,7 @@ void emit_stream_connect(Stream& stream, Ports hls_cgra_ports) {
         auto [hls_param2mode, cgra_param] = ports;
         auto [hls_param, hls_mode] = hls_param2mode.value();
 
-        auto is_a_hls =[&] (const Def* param) {
+        auto is_a_hls = [&] (const Def* param) {
             return hls_mode == ChannelMode::Write;
         };
 

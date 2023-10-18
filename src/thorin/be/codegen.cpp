@@ -194,10 +194,10 @@ static const auto get_ports(const T param_status, const World::Externals& extern
                     }
                 } else {
                     for (size_t i = 0; i < hls_cgra_ports.size(); ++i) {
-                        auto& [status, _] = hls_cgra_ports[i];
-                        auto [index, mode ]= param_status[i];
+                        auto& [status, _]  = hls_cgra_ports[i];
+                        auto [index, mode] = param_status[i];
                         //status = std::make_pair(exported->param(index)->unique_name(), mode);
-                        status = std::make_pair(exported->param(index), mode);
+                        status = std::make_pair(exported->param(index), mode); // status is a ref in hls_cgra_port (rewrites the value in hls_cgra_port)
                     }
                 }
             }
@@ -351,9 +351,8 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     // get the HLS kernel configurations
     Top2Kernel top2kernel;
     DeviceDefs device_defs;
-    Ports hls_cgra_ports;
+    Ports hls_cgra_ports; // channel-params between HLS and CGRA
     if (!importers_[HLS].world().empty()) {
-        //hls_host_params = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
         device_defs = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
 
         get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
@@ -393,7 +392,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - hls_free_vars_offset + 2), num_elems);
             }
-            return std::make_unique<HLSKernelConfig>(param_sizes);
+            return std::make_unique<HLSKernelConfig>(param_sizes); // this config is added into cont2config (kernel_config) map with its continuation
         }, [&] (const World::Externals& externals) {
 
             //auto externals = importers_[HLS].world().externals();
@@ -426,49 +425,151 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         }
 
             );
-        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
+        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config); // adding hls_top config to cont2config map
     }
-//    cgra_dataflow(importers_[CGRA]);
-    hls_kernel_launch(world, std::get<0>(device_defs));
-    //
-//        cgra_dataflow(importers_[CGRA]);
 
-    //TODO: need to pass R/W param mode data to cgra backend via param indices returning from cgra_dataflow. think if we need the cont name fir each index or just putiing inces of the same continuation in a vector is enough
+    hls_kernel_launch(world, std::get<0>(device_defs));
+
     //TODO: need to write an analysis to check R/W mode on global memory allocaions
     if (!importers_[CGRA].world().empty()) {
-        //TODO: retrieve other var
-       auto [port_indices, _] = cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
-        get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
-            auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
+        // at the moment only kernel channel modes are returned
+        // ports are cgra_graph params that are connected to hls_top
+       auto [port_indices, cont2param_modes] = cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
 
+       get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+                CGRAKernelConfig::Param2Mode param2mode;
+
+               // The order that channel modes are inserted in param_modes cosecuteviley is aligned with the order that channels appear in imported continuations
+               // for example, the first mode in param_modes (index = 0) is equal to the first channel in the imported continuation (kernel)
+
+               annotate_channel_modes(imported, cont2param_modes, param2mode);
+               // for (auto const& [cont_name, param_modes] : cont2param_modes) {
+               // if ( cont_name == imported->name()) {std::cout<< "BINGO!" << std::endl;
+               // std::cout << "CONT2PARAM_MODES" << std::endl;
+               // std::cout << cont_name << std::endl;
+               // size_t index = 0;
+               // for (auto const& param : imported->params()) {
+               // if ((param->index() < 2) || is_mem(param) || param->order() != 0 || is_unit(param))
+               // continue;
+               // else if (auto type = param->type(); is_channel_type(type)) {
+               // param2mode.emplace(param, param_modes[index++]);
+
+               // }
+
+               // break;
+               // }
+               // }
+               // }
+
+
+            auto app = use->body();
+          //  for(const auto& [cont, param_modes] : cont2param_modes) {
+          //  //TODO: check for continuation names then insert channel param modes
+          //   //std::cout << "check names" << std::endl;
+          //      //std::cout << cont->name() << "==" << imported->name() << " ?" << std::endl;
+          //      //if (cont->name() == imported->name()) {std::cout << "BINGO" << std::endl;}
+          //      for (auto const& param : imported->params()) {
+          //          if ((param->index() < 2) || is_mem(param) || param->order() != 0 || is_unit(param))
+          //              continue;
+          //          else if (auto type = param->type(); is_channel_type(type)) {}
+
+          //          param->dump();
+          //      }
+          //  }
+
+            auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
             // TODO: (-10,-10) auto location , default rtm_ratio to 1
-                auto runtime_ratio = use->body()->arg(LaunchArgs<AIE_CGRA>::RUNTIME_RATIO);
-                auto tile_location = use->body()->arg(LaunchArgs<AIE_CGRA>::LOCATION)->as<Tuple>();
+                auto runtime_ratio = app->arg(LaunchArgs<AIE_CGRA>::RUNTIME_RATIO);
+                auto tile_location = app->arg(LaunchArgs<AIE_CGRA>::LOCATION)->as<Tuple>();
                 if (runtime_ratio->isa<PrimLit>() &&
                     tile_location->op(0)->isa<PrimLit>() &&
                     tile_location->op(1)->isa<PrimLit>()) {
-                    return std::make_unique<CGRAKernelConfig>(runtime_ratio->as<PrimLit>()->as<PrimLit>()->qf32_value().data(),
-                           std::make_pair(tile_location->op(0)->as<PrimLit>()->qu32_value().data(),
-                           tile_location->op(1)->as<PrimLit>()->qu32_value().data()),
-                           has_restrict);
-                }
+                    auto runtime_ratio_val = runtime_ratio->as<PrimLit>()->qf32_value().data();
+                    auto tile_location_val = std::make_pair(tile_location->op(0)->as<PrimLit>()->qu32_value().data(),
+                           tile_location->op(1)->as<PrimLit>()->qu32_value().data());
 
-                CGRAKernelConfig::Param2Mode param2mode;
-                auto app = use->body();
-
-                // TODO: insert corresponding params from imported  using index and add mode
-                for (size_t i = cgra_free_vars_offset, e = app->num_args(); i != e; ++i) {
-                    auto arg = app->arg(i);
-                    auto ptr_type = arg->type()->isa<PtrType>();
-                    //TODO : check types and assign to param2mode
+                    return std::make_unique<CGRAKernelConfig>(runtime_ratio_val, tile_location_val, param2mode, has_restrict);
                 }
-                return std::make_unique<CGRAKernelConfig>(-1, std::pair<int, int>{-1, -1}, has_restrict, param2mode);
+                    return std::make_unique<CGRAKernelConfig>(-1, std::make_pair(-1, -1), param2mode, has_restrict);
+
+            // TODO: insert corresponding params from imported  using index and add mode
+            //    for (size_t i = cgra_free_vars_offset, e = app->num_args(); i != e; ++i) {
+            //        auto arg = app->arg(i);
+            //        auto ptr_type = arg->type()->isa<PtrType>();
+            //        //TODO : check types and assign to param2mode
+            //    }
         }, [&] (const World::Externals& externals) {
+            // TODO: HERE cgra_graph params are correct!
+            Continuation* cgra_graph_cont = nullptr;
+            for (auto [_, exported] : externals) {
+                if (auto temp = exported->isa_nom<Continuation>()) {
+                    std::cout << "external codegen" << std::endl;
+                    temp->dump();
+                }
+                if (exported->isa_nom<Continuation>()->is_cgra_graph()) {
+                    cgra_graph_cont = exported;
+                    for (auto param : exported->params()){
+                        std::cout << "external" << std::endl;
+                        param->dump();
+                    }
+                }
+            }
+      //  }
+
                 //get_ports_for("cgra_graph", port_indices, externals);
                 //get_ports(std::get<0>(port_indices), externals, hls_cgra_ports);
                 get_ports(port_indices, externals, hls_cgra_ports);
+        // just copied from down
+   //     if (!hls_cgra_ports.empty()) {
+        // the aim is passing cgra_graph cont to annotate_cgra_graph_modes to import the config for non-channel params
+            cgra_graph_cont->dump();
+            annotate_cgra_graph_modes(cgra_graph_cont, hls_cgra_ports, kernel_config); // adding cgra_graph config to cont2config map
+            for (const auto& item : kernel_config) {
+                auto cont = item.first;
+                if (auto config = item.second->isa<CGRAKernelConfig>(); config) {std::cout << "FOUND CGRA CONFIG" << std::endl;
+                    cont->dump();
+                    for (auto param : cont->params()) {
+                        if (auto mode = config->param_mode(param); mode != ChannelMode::Undef) {
+                            std::cout << "param" << std::endl;
+                            param->dump();
+                            std::cout << "mode" << std::endl;
+                            if (mode == ChannelMode::Read) {std::cout << "Read"<< std::endl;
+                            } else {
+                                std::cout << "Write"<< std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+      //  }
+        //else
+          //  world.WLOG("TODO: CGRA graph is not correclty generated due to direct memory access!");
+
         }
         );
+        // just moved up but here is a better place as it is called only once
+//        if (!hls_cgra_ports.empty()) {
+//            annotate_cgra_graph_modes(hls_cgra_ports, kernel_config); // adding cgra_graph config to cont2config map
+//            for (const auto& item : kernel_config) {
+//                auto cont = item.first;
+//                if (auto config = item.second->isa<CGRAKernelConfig>(); config) {std::cout << "FOUND CGRA CONFIG" << std::endl;
+//                    cont->dump();
+//                    for (auto param : cont->params()) {
+//                        if (auto mode = config->param_mode(param); mode != ChannelMode::Undef) {
+//                            std::cout << "param" << std::endl;
+//                            param->dump();
+//                            std::cout << "mode" << std::endl;
+//                            if (mode == ChannelMode::Read) {std::cout << "Read"<< std::endl;
+//                            } else {
+//                                std::cout << "Write"<< std::endl;
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        else
+//            world.WLOG("TODO: CGRA graph is not correclty generated due to direct memory access!");
     }
 
 
@@ -485,10 +586,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
    // for (auto elem : hls_cgra_ports)
        // std::cout << "--------> " << elem.first.value().first << "-----" << elem.second.value() << std::endl;
         //elem.second.value();
-    //auto test_pair = std::make_pair(1, 2);
     if (!importers_[CGRA].world().empty()){
         cgs[CGRA] = std::make_unique<config_script::CodeGen>(importers_[CGRA].world(), debug, hls_cgra_ports, flags);
-        thorin::config_script::CodeGen cg(world,debug, hls_cgra_ports, flags);
+        thorin::config_script::CodeGen cg(world, debug, hls_cgra_ports, flags);
 
     auto emit_to_file = [&] (thorin::CodeGen& cg) {
             auto name = world.name() + cg.file_ext();

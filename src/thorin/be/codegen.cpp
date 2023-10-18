@@ -167,7 +167,8 @@ template<typename T>
 //static const auto get_ports(const T param_status, const World::Externals& externals, HlsCgraPorts hls_cgra_ports = HlsCgraPorts()) {
 static const auto get_ports(const T param_status, const World::Externals& externals, Ports& hls_cgra_ports) {
     for (auto [_, exported] : externals) {
-        if (exported->name() == "hls_top" || exported->name() == "cgra_graph" ) {
+        //if (exported->name() == "hls_top" || exported->name() == "cgra_graph" ) {
+        if (exported->is_hls_top() || exported->is_cgra_graph() ) {
             if constexpr (std::is_same_v<T, Array<size_t>>) {
                 //CGRA
                 if (hls_cgra_ports.empty()) {

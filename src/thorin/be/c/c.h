@@ -8,6 +8,9 @@
 
 namespace thorin {
 
+using Continuations = Schedule; // vector of continuation*
+using FuncMode = ChannelMode;
+
 class World;
 
 namespace c {

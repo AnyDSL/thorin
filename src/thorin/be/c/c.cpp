@@ -1436,13 +1436,16 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     continue;
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
-                else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
-                    bb.tail.fmt(" p_{} = {};\n", emit(channel_read_result), param->unique_name());
+                else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS) || (lang_ == Lang::CGRA))
+                    bb.tail.fmt("p_{} = {};\n", emit(channel_read_result), param->unique_name());
                 else
                     bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
             }
         }
-        if (!hls_top_scope)
+        // TODO:: simplify this logic
+        if (!cont->is_cgra_graph() && lang_ == Lang::CGRA && !top_scope.cgra_graph)
+            bb.tail.fmt("goto {};", label_name(ret_cont));
+        if (!cont->is_hls_top() && lang_ == Lang::HLS && !top_scope.hls)
             bb.tail.fmt("goto {};", label_name(ret_cont));
     } else {
         THORIN_UNREACHABLE;

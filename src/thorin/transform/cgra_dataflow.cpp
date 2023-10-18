@@ -52,6 +52,83 @@ PortIndices external_ports_index(const Def2Def global2param, Def2Def param2arg, 
     return param_indices;
 }
 
+void annotate_channel_modes(const Continuation* imported, const ContName2ParamModes cont2param_modes, CGRAKernelConfig::Param2Mode& param2mode) {
+    // The order that channel modes are inserted in param_modes cosecuteviley is aligned with the order that channels appear in imported continuations
+    // for example, the first mode in param_modes (index = 0) is equal to the first channel in the imported continuation (kernel)
+    for (auto const& [cont_name, param_modes] : cont2param_modes) {
+        if (cont_name == imported->name()) {
+            size_t index = 0;
+            for (auto const& param : imported->params()) {
+                if ((param->index() < 2) || is_mem(param) || param->order() != 0 || is_unit(param))
+                    continue;
+                else if (auto type = param->type(); is_channel_type(type)) {
+                    param2mode.emplace(param, param_modes[index++]);
+                }
+
+            }
+
+                break;
+        }
+    }
+}
+
+void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra_ports, Cont2Config& cont2config) {
+    //TODO: At the moment cgra ports' modes are determined using the duals of HLS ports which is probably not a proper solution
+    // using index2mode similar to hls is a more general solution
+    //assert(hls_cgra_ports.size() > 0 && "No HLS-CGRA ports to annotate");
+    CGRAKernelConfig::Param2Mode param2mode;
+    if (!hls_cgra_ports.empty()) {
+        //Cont2Config cont2config;
+        for (const auto& ports : hls_cgra_ports) {
+            auto [hls_param2mode, cgra_param] = ports;
+            auto [hls_param, hls_param_mode] = hls_param2mode.value();
+            //TODO: use external for cgra cont2config, use hls mode and cgra_param of ports for cgra param2mode
+            // use hls_param2mode only after get_port then we can get cgra cont from param also
+            // putting into config either here or inside get_kernel_configs
+            ChannelMode cgra_param_mode;
+            if (hls_param_mode == ChannelMode::Write)
+                cgra_param_mode = ChannelMode::Read;
+            else if (hls_param_mode == ChannelMode::Read)
+                cgra_param_mode = ChannelMode::Write;
+            else
+                cgra_param_mode = ChannelMode::Undef;
+            //cgra_param.value()->dump();
+            //cgra_param.value()->as<Param>()->continuation()->dump();
+
+            param2mode.emplace(cgra_param.value(), cgra_param_mode);
+
+        }
+
+    }
+    //TODO: this way of getting cgra_graph cont only works when we have channel params
+    //auto cgra_graph_cont = std::begin(param2mode)->first->as<Param>()->continuation();
+    auto cgra_graph_cont = continuation;
+    //TODO: At the moment  we assume all non-channel params have Undef mode
+    for (const auto& param : cgra_graph_cont->params()) {
+        if ((param->index() < 2) || is_mem(param) || param->order() != 0 || is_unit(param))
+            continue;
+            if (!is_channel_type(param->type()))
+                param2mode.emplace(param, ParamMode::Undef);
+    }
+    for (auto [param, mode] : param2mode) {
+        std::cout << "PARAM: ";
+        param->dump();
+        std::cout << "MODE: ";
+        if (mode == ChannelMode::Read) {std::cout << "Read"<< std::endl;
+        } else if (mode == ChannelMode::Write) {
+            std::cout << "Write" << std::endl;
+        } else if (mode == ChannelMode::Undef) {
+            std::cout << "Undef" << std::endl;
+        }
+    }
+    cont2config.emplace(cgra_graph_cont, std::make_unique<CGRAKernelConfig>(-1 , std::pair{-1,-1}, param2mode, false));
+}
+
+
+
+//void annotate_cgra_graph_param_size(Continuation* continuation, const Ports& hls_cgra_ports, Cont2Config& cont2config) {};
+
+
 
 //Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {

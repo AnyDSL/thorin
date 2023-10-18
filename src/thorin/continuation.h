@@ -84,6 +84,16 @@ enum class CC : uint8_t {
     Device,     ///< Device calling convention. These are special functions only available on a particular device.
 };
 
+
+enum class Interface : uint8_t {
+    None,
+    Stream,          ///< Stream CGRA-Backend.
+    Window,          ///< Window CGRA-Backend.
+    Buffer,          ///< Buffer CGRA-Backend.
+    Circular_buffer, ///< Buffer CGRA-Backend.
+    Free_running     ///< Circular Buffer CGRA-Backend.
+};
+
 enum class Intrinsic : uint8_t {
     None,
     AcceleratorBegin,
@@ -124,9 +134,12 @@ class Continuation : public Def {
 public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
+        Interface interface = Interface::None;
         CC cc = CC::C;
 
+
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
+        Attributes(Interface interface) : interface(interface) {}
         Attributes(CC cc = CC::C) : cc(cc) {}
     };
 
@@ -155,6 +168,7 @@ public:
     const Attributes& attributes() const { return attributes_; }
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
+    Interface interface() const { return attributes().interface; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
     bool is_basicblock() const;
     bool is_returning() const;

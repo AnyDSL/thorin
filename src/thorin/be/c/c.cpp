@@ -1908,10 +1908,12 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return "(" + s.str() + ")";
 }
 
-std::string CCodeGen::emit_graph_class(Continuation* cont) {
+std::string CCodeGen::emit_class(Continuation* cont) {
+    assert(cont->is_cgra_graph() && "Class generation is only for CGRA");
     StringStream s;
-    auto config = get_config(cont);
-    s.fmt("class {} : public graph", cont->name());
+
+    s.fmt("class {} : public adf::graph {{\t\npublic:", cont->name());
+
     // skipping non-concrete params
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
@@ -1919,7 +1921,35 @@ std::string CCodeGen::emit_graph_class(Continuation* cont) {
             defs_[param] = {};
             continue;
         }
+
+        s.fmt("\n");
+        // Emit and store all first-order params
+        if (cont->is_exported() && is_passed_via_buffer(param)) {
+
+            // OpenCL structs are passed via buffer; the parameter is a pointer to this buffer
+            s << convert(param->type()) << "*";
+            s.fmt(" {}_", param->unique_name());
+            //TODO:: The following if blocks can be simplified as the type of param (channel or gmem) is checked in the prefix_type function
+        } else if (cont->is_exported() && is_passed_via_global_mem(param)) {
+            //    auto param_mode = config->as<CGRAKernelConfig>()->param_mode(param);
+            //    if (param_mode != ChannelMode::Undef )
+            //        std::cout << "param_mode found \n";
+            //assert(param_mode);
+            auto ptr_type = param->type()->as<PtrType>();
+            auto elem_type = ptr_type->pointee();
+            if (auto array_type = elem_type->isa<ArrayType>()){
+                elem_type = array_type->elem_type();
+            }
+            // global memory.
+            s << prefix_type(param) << " " << param->unique_name() << ";";
+        } else {
+            s.fmt("{} {};", prefix_type(param), param->unique_name());
+        }
+
     }
+
+    // interface for cgra_graph module (class) should be always None
+    auto intr = cont->interface();
     return s.str();
 }
 

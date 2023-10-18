@@ -413,6 +413,7 @@ bool has_cgra_callee(World& world) {
             assert(block->has_body());
             auto body = block->body();
             auto callee = body->callee()->isa_nom<Continuation>();
+            if (callee && callee->interface() == Interface::Stream) {std::cout << "QUACK QUACK" << std::endl;}
             if (callee && callee->intrinsic() == Intrinsic::CGRA) {
                 found_cgra = true;
             }
@@ -486,8 +487,8 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
  */
 
 DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-    //std::cout << "old world" << std::endl;
-    //old_world.dump();
+    std::cout << "old world" << std::endl;
+    old_world.dump();
     auto& world = importer.world(); // world is hls world
     //std::cout << "HLS before" << std::endl;
     //world.dump();

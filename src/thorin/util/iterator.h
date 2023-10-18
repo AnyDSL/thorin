@@ -65,6 +65,12 @@ auto reverse_range(const C& container) { return range(container.rbegin(), contai
 template<class C>
 auto reverse_range(C& container) { return range(container.rbegin(), container.rend()); }
 
+//on C++ 20
+//constexpr inline auto enum_range = [](auto front, auto back) {
+//  return std::views::iota(std::to_underlying(front), std::to_underlying(back) + 1)
+//       | std::views::transform([](auto e) { return decltype(front)(e); });
+//};
+
 //------------------------------------------------------------------------------
 
 template<class I, class P, class V = typename std::iterator_traits<I>::value_type>

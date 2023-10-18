@@ -17,10 +17,6 @@ using Def2DependentBlocks = DefMap<DependentBlocks>; // [global_def, (HLS_basicb
 using PortIndices         = Array<size_t>;
 using PortStatus          = Array<std::pair<size_t, ChannelMode>>;
 using DeviceDefs          = std::tuple<HlsDeviceParams, Def2DependentBlocks, PortStatus>;
-//using CgraDeviceDefs      = std::tuple<PortIndices,ContinuationMap<Array<size_t>>>;
-// If it is for each kernel, then a pair is enough otherwise a map is needed
-//using CgraDeviceDefs      = std::tuple<PortIndices,ContinuationMap<Array<ParamMode>>>;
-using CgraDeviceDefs      = std::tuple<PortIndices,std::pair<Continuation*, Array<ParamMode>>>;
 using Ports               = std::vector<std::pair<std::optional<std::pair<const Def*, ChannelMode>>, std::optional<const Def*>>>; //hls, cgra
 
 class World;

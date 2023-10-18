@@ -1420,8 +1420,13 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
-        if (!no_function_call)
-            bb.tail.fmt("{}({, });\n", emit(callee), args);
+        //TODO:: consider for CGRA objs
+        if (!no_function_call) {
+            //CGRA graph DEBUG point
+            if (!top_scope.cgra_graph)
+                bb.tail.fmt("{}({, });\n", emit(callee), args);
+        }
+
 
         // Pass the result to the phi nodes of the return continuation
         if (!is_type_unit(ret_type)) {

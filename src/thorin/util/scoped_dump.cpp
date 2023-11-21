@@ -4,8 +4,12 @@ namespace thorin {
 
 void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     s.fmt(Magenta);
-    if (cont->is_external())
-        s.fmt("extern ");
+    if (cont->is_external()) {
+        if (cont->cc() == CC::Thorin)
+            s.fmt("intern ");
+        else
+            s.fmt("extern ");
+    }
     if (cont->is_intrinsic())
         s.fmt("intrinsic ");
 

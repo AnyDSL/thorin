@@ -258,7 +258,8 @@ void Cleaner::cleanup() {
         world().mark_pe_done();
         for (auto def : world().defs()) {
             if (auto cont = def->isa_nom<Continuation>())
-                cont->destroy_filter();
+                if (cont->cc() != CC::Thorin)
+                    cont->destroy_filter();
         }
 
         todo_ = true;

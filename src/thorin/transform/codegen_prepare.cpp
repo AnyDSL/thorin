@@ -43,8 +43,11 @@ void codegen_prepare(Thorin& thorin) {
     auto destination = std::make_unique<World>(src);
     CodegenPrepare pass(src, *destination.get());
 
-    for (auto& external : src.externals())
+    for (auto& external : src.externals()) {
+        if (auto cont = external.second->isa<Continuation>(); cont && cont->cc() == CC::Thorin)
+            continue;
         pass.instantiate(external.second);
+    }
 
     thorin.world_container().swap(destination);
     thorin.world().VLOG("end codegen_prepare");

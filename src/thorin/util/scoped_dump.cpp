@@ -16,6 +16,10 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     s.fmt(Red);
     s.fmt("{}", cont->unique_name());
     s.fmt(Reset);
+    s.fmt(Green);
+    s.fmt("@");
+    stream_def(s, cont->filter());
+    s.fmt(Reset);
     s.fmt("(");
     const FnType* t = cont->type();
     for (size_t i = 0; i < cont->num_params(); i++) {

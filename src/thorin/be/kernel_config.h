@@ -47,8 +47,8 @@ public:
     using Param2Mode = DefMap<ChannelMode>;
     using Param2Size = GIDMap<const Param*, uint32_t>;
     //CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, bool has_restrict = false, const Param2Mode& param2mode = {})
-    CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, const Param2Mode& param2mode, bool has_restrict = false)
-        : runtime_ratio_(runtime_ratio), location_(location), param2mode_(param2mode), has_restrict_(has_restrict)
+    CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, int vector_size, const Param2Mode& param2mode, bool has_restrict = false)
+        : runtime_ratio_(runtime_ratio), location_(location), vector_size_(vector_size), param2mode_(param2mode), has_restrict_(has_restrict)
 
 
 //    CGRAKernelConfig(float runtime_ratio, std::pair<int, int> location, const Param2Mode& param2mode, const Param2Size& param_sizes, bool has_restrict = false)
@@ -80,6 +80,7 @@ public:
     //Interface interface() const { return interface_; }
     float runtime_ratio() const { return runtime_ratio_; }
     std::pair<int, int> location() const { return  location_; }
+    int vector_size() const { return vector_size_; }
 
     uint32_t param_size(const Param* param) const {
         auto it = param_sizes_.find(param);
@@ -91,6 +92,7 @@ public:
 private:
     float runtime_ratio_;
     std::pair<int, int> location_;
+    int vector_size_;
     bool has_restrict_;
     Param2Mode param2mode_;
     Param2Size param_sizes_;

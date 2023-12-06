@@ -48,8 +48,9 @@ struct LaunchArgs<AIE_CGRA> {
     enum {
         Mem = 0,
         Device,
-        RUNTIME_RATIO,
-        LOCATION,
+        Runtime_ratio,
+        Location,
+        Vector_size,
         Body,
         Return,
         Num

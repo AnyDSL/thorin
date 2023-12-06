@@ -461,18 +461,21 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 
             auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
             // TODO: (-10,-10) auto location , default rtm_ratio to 1
-                auto runtime_ratio = app->arg(LaunchArgs<AIE_CGRA>::RUNTIME_RATIO);
-                auto tile_location = app->arg(LaunchArgs<AIE_CGRA>::LOCATION)->as<Tuple>();
+                auto runtime_ratio = app->arg(LaunchArgs<AIE_CGRA>::Runtime_ratio);
+                auto tile_location = app->arg(LaunchArgs<AIE_CGRA>::Location)->as<Tuple>();
+                auto vector_size   = app->arg(LaunchArgs<AIE_CGRA>::Vector_size);
                 if (runtime_ratio->isa<PrimLit>() &&
                     tile_location->op(0)->isa<PrimLit>() &&
-                    tile_location->op(1)->isa<PrimLit>()) {
+                    tile_location->op(1)->isa<PrimLit>() &&
+                    vector_size->isa<PrimLit>()) {
                     auto runtime_ratio_val = runtime_ratio->as<PrimLit>()->qf32_value().data();
                     auto tile_location_val = std::make_pair(tile_location->op(0)->as<PrimLit>()->qu32_value().data(),
                            tile_location->op(1)->as<PrimLit>()->qu32_value().data());
+                    auto vector_size_val = vector_size->as<PrimLit>()->qu32_value().data();
 
-                    return std::make_unique<CGRAKernelConfig>(runtime_ratio_val, tile_location_val, param2mode, has_restrict);
+                    return std::make_unique<CGRAKernelConfig>(runtime_ratio_val, tile_location_val, vector_size_val, param2mode, has_restrict);
                 }
-                    return std::make_unique<CGRAKernelConfig>(-1, std::make_pair(-1, -1), param2mode, has_restrict);
+                    return std::make_unique<CGRAKernelConfig>(-1, std::make_pair(-1, -1), -1, param2mode, has_restrict);
 
             // TODO: insert corresponding params from imported  using index and add mode
             //    for (size_t i = cgra_free_vars_offset, e = app->num_args(); i != e; ++i) {

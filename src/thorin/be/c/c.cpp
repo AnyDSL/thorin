@@ -326,6 +326,7 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
             name = ("hls::stream<" + name + "_" + std::to_string(type->gid()) + ">");
         } else if (is_channel_type(struct_type) && lang_ == Lang::CGRA) {
             s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
+            graph_stream_.fmt("typedef {} {}_{};\n\n", convert(struct_type->op(0)), name, struct_type->gid());
             //name = ("<" + name + "_" + std::to_string(type->gid()) + ">");
             name = ( name + "_" + std::to_string(type->gid()));
         } else {

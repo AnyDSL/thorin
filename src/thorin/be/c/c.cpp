@@ -2430,15 +2430,25 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 }
 
 //------------------------------------------------------------------------------
-
 void CodeGen::emit_stream(std::ostream& stream) {
-    Stream s(stream);
-    CCodeGen(world(), kernel_config_, s, lang_, debug_, flags_).emit_module();
+    Stream s0(stream);
+    Stream s1 = {};
+    CCodeGen(world(), kernel_config_, s0, s1,  lang_, debug_, flags_).emit_module();
+}
+
+void CodeGen::emit_stream(std::ostream& stream0, std::ostream& stream1) {
+    if (lang_ != Lang::CGRA)
+        world().WLOG("This backend does not support multiple streams");
+    Stream s0(stream0);
+    Stream s1(stream1);
+    CCodeGen CCodeGen_obj(world(), kernel_config_, s0, s1, lang_, debug_, flags_);
+    CCodeGen_obj.emit_module();
 }
 
 void emit_c_int(World& world, Stream& stream) {
     std::string flags;
-    CCodeGen(world, {}, stream, Lang::C99, false, flags).emit_c_int();
+    Stream s {};
+    CCodeGen(world, {}, stream, s, Lang::C99, false, flags).emit_c_int();
 }
 
 //------------------------------------------------------------------------------

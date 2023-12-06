@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "thorin/be/codegen.h"
+#include "thorin/analyses/schedule.h"
 
 namespace thorin {
 

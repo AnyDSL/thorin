@@ -1148,6 +1148,9 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();
 
+    if (lang_ == Lang::CGRA && !cont->is_cgra_graph() && cont->is_exported())
+        vector_size_ = get_vector_size(cont);
+
     //TODO: for interface attr. 1) check codegen use, cont (seems not working)
     //2) use old2new to find old cont. then probably  "using conts" then check for interface attr on that cont and then set for all new apps
     //3) adding interface as config

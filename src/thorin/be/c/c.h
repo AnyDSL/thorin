@@ -29,12 +29,15 @@ public:
     {}
 
     void emit_stream(std::ostream& stream) override;
+    void emit_stream(std::ostream& stream1, std::ostream& stream2);
+
+    Lang get_lang () const { return lang_; };
 
     const char* file_ext() const override {
         switch (lang_) {
             case Lang::C99:    return ".c";
             case Lang::HLS:    return ".hls";
-            case Lang::CGRA:   return ".cgra";
+            case Lang::CGRA:   return ".cxx";
             case Lang::CUDA:   return ".cu";
             case Lang::OpenCL: return ".cl";
             default: THORIN_UNREACHABLE;

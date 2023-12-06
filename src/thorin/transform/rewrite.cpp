@@ -63,6 +63,11 @@ const Def* Rewriter::rewrite(const Def* odef) {
             assert(&nops[i]->world() == &dst());
         }
         auto ndef = odef->rebuild(dst(), ntype, nops);
+
+        if (auto global = odef->isa<Global>(); global && global->is_external()) {
+            dst().make_external(const_cast<Def*>(ndef));
+        }
+
         return ndef;
     } else {
         assert(odef->isa_nom() && stub);

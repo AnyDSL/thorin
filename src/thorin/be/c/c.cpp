@@ -2121,7 +2121,10 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
     }
 
     if (bb) {
-        func_impls_.fmt("{} {};\n", convert(emitted_type), name);
+        auto emitted_type_str = convert(emitted_type) ;
+        if ((lang_ == Lang::CGRA) && (vector_size_ > 1))
+            emitted_type_str = "aie::vector<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+        func_impls_.fmt("{} {};\n", emitted_type_str, name);
         func_defs_.insert(def);
         bb->body.fmt("{} = {};\n", name, s.str());
         return name;
@@ -2170,7 +2173,7 @@ std::string CCodeGen::emit_class(Continuation* cont) {
     }
 
     // interface for cgra_graph module (class) should be always None
-    auto intr = cont->interface();
+    //auto intr = cont->get_interface();
     return s.str();
 }
 
@@ -2190,7 +2193,15 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                         s.fmt("__launch_bounds__({} * {} * {}) ", std::get<0>(block), std::get<1>(block), std::get<2>(block));
                 }
                 break;
-            case Lang::CGRA: if (cont->interface() == Interface::None) std::cout << "Graph Interface None" <<std::endl; break;
+            case Lang::CGRA:
+                std::cout << "C.CPP" <<std::endl;
+                cont->dump();
+                if (cont->get_interface() == Interface::None) {
+                    std::cout << "Graph Interface None" <<std::endl;
+                } else if (cont->get_interface() == Interface::Stream) {
+                    std::cout << "C.cpp Stream" <<std::endl;
+                }
+                    break;
             case Lang::OpenCL:
                 if (!is_proto && config != kernel_config_.end()) {
                     auto block = config->second->as<GPUKernelConfig>()->block_size();

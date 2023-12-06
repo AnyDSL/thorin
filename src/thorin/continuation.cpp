@@ -235,6 +235,12 @@ void Continuation::set_intrinsic() {
     else world().ELOG("unsupported thorin intrinsic '{}'", name());
 }
 
+
+void Continuation::set_interface(const Interface interface) {
+    attributes().interface = interface;
+    //interface_ = Interface::Stream;
+}
+
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
 bool Continuation::is_external() const { return world().is_external(this); }

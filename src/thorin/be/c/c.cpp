@@ -857,7 +857,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                 auto callee = cont->body()->callee();
                 configs_.fmt( "adf::runtime<ratio>({}) = {};\n", krl_node_name(callee), get_runtime_ratio(callee->as_nom<Continuation>()));
                 auto [loc_x, loc_y] = get_location(callee->as_nom<Continuation>());
-                configs_.fmt( "adf::location<kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
+                configs_.fmt( "adf::location<adf::kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
 
                 configs_.fmt( "adf::source({}) = \"{}{}\";\n", krl_node_name(callee), world().name(), source_ext);
             }

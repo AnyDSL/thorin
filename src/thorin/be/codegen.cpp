@@ -437,30 +437,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
        auto [port_indices, cont2param_modes] = cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
 
        get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
-                CGRAKernelConfig::Param2Mode param2mode;
-
+               CGRAKernelConfig::Param2Mode param2mode;
                // The order that channel modes are inserted in param_modes cosecuteviley is aligned with the order that channels appear in imported continuations
                // for example, the first mode in param_modes (index = 0) is equal to the first channel in the imported continuation (kernel)
-
                annotate_channel_modes(imported, cont2param_modes, param2mode);
-               // for (auto const& [cont_name, param_modes] : cont2param_modes) {
-               // if ( cont_name == imported->name()) {std::cout<< "BINGO!" << std::endl;
-               // std::cout << "CONT2PARAM_MODES" << std::endl;
-               // std::cout << cont_name << std::endl;
-               // size_t index = 0;
-               // for (auto const& param : imported->params()) {
-               // if ((param->index() < 2) || is_mem(param) || param->order() != 0 || is_unit(param))
-               // continue;
-               // else if (auto type = param->type(); is_channel_type(type)) {
-               // param2mode.emplace(param, param_modes[index++]);
 
-               // }
-
-               // break;
-               // }
-               // }
-               // }
-
+               annotate_interface(imported, use);
 
             auto app = use->body();
           //  for(const auto& [cont, param_modes] : cont2param_modes) {

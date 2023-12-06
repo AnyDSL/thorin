@@ -88,6 +88,7 @@ enum class CC : uint8_t {
 enum class Interface : uint8_t {
     None,
     Stream,          ///< Stream CGRA-Backend.
+    Cascade,         ///< Cascad stream CGRA-Backend.
     Window,          ///< Window CGRA-Backend.
     Buffer,          ///< Buffer CGRA-Backend.
     Circular_buffer, ///< Buffer CGRA-Backend.
@@ -141,11 +142,14 @@ public:
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(Interface interface) : interface(interface) {}
         Attributes(CC cc = CC::C) : cc(cc) {}
-    };
+};
+
 
 private:
     Continuation(const FnType* fn, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
+    //Interface interface_ = Interface::None;
+    //Interface interface_;
 
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
@@ -168,8 +172,10 @@ public:
     const Attributes& attributes() const { return attributes_; }
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
-    Interface interface() const { return attributes().interface; }
+    Interface get_interface() const { return attributes().interface; }
+    //Interface get_interface() const { return interface_; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
+    void set_interface(const Interface interface);
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }

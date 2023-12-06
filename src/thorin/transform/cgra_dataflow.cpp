@@ -52,6 +52,7 @@ PortIndices external_ports_index(const Def2Def global2param, Def2Def param2arg, 
     return param_indices;
 }
 
+// This annotation applies for all kernels except for cgra_graph
 void annotate_channel_modes(const Continuation* imported, const ContName2ParamModes cont2param_modes, CGRAKernelConfig::Param2Mode& param2mode) {
     // The order that channel modes are inserted in param_modes cosecuteviley is aligned with the order that channels appear in imported continuations
     // for example, the first mode in param_modes (index = 0) is equal to the first channel in the imported continuation (kernel)

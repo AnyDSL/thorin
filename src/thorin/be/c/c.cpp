@@ -404,21 +404,48 @@ bool interface_status = false;
 
 std::string CCodeGen::prefix_type(const Param* param) {
     auto cont = param->as<Param>()->continuation();
-    auto interface = "stream"; // TODO: needs to be configurable
+
+    std::string interface;
+    switch (cont->get_interface()) {
+        case Interface::Stream: case Interface::Free_running: case Interface::Cascade:
+            interface = "stream"; //TODO: consider "cascade" which streaming only between cgra kernels
+            break;
+        case Interface::Window:
+            interface = "window";
+            break;
+        case Interface::Buffer:
+            interface = "buffer"; //TODO: for buffer we need to add adf:extents to define the BUFFER_SIZE, also we need iterator APIs
+            break;
+        case Interface::Circular_buffer:
+            interface = "circular_buffer";
+            break;
+        case Interface::None:
+            if (!cont->is_cgra_graph())
+                world().WLOG("Interface is not known, using stream by default");
+            interface = "stream";
+            break;
+        default:
+            world().WLOG("Interface is not supported, using stream by default");
+            interface = "stream";
+            break;
+    }
+
     std::string prefix;
     if (lang_ == Lang::CGRA && (is_channel_type(param->type()) || is_passed_via_global_mem(param))) {
         if(auto config = get_config(cont); config) {
             assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
 
+            prefix = cont->is_cgra_graph() ? "adf::" : "";
             auto param_mode = config->as<CGRAKernelConfig>()->param_mode(param);
             if (param_mode == ChannelMode::Undef)
                 world().WLOG("Direction of {} is undefined", param->unique_name());
             else if (param_mode == ChannelMode::Read)
-                prefix = "adf::input_";
+                prefix += "input_";
             else if (param_mode == ChannelMode::Write)
-                prefix = "adf::output_";
+                prefix += "output_";
             else if (param_mode == ChannelMode::ReadWrite)
-                prefix = "adf::inout_";
+                prefix += "inout_";
+
 
             std::string type_name;
             if (cont->is_cgra_graph()) {
@@ -531,6 +558,87 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
         return direction;
     };
 
+    auto get_connection_method = [&] (const Dependence& dependence) {
+
+        auto connection_method = [&] (const Continuation* cont) {
+            std::string s;
+            switch (cont->get_interface()) {
+                case Interface::Stream:
+                    s = "<adf::stream>";
+                    break;
+                case Interface::Cascade:
+                    s =  "<adf::cascade>";
+                    break;
+                case Interface::Window: {
+                    auto type = is_plio(dependence.first) ? dependence.second->type() : dependence.first->type();
+                    s = "<adf::window<WINDOW_SIZE * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>";
+                    }
+                    break;
+                case Interface::Free_running:
+                    s = "<>";
+                    break;
+                case Interface::Circular_buffer: case Interface::Buffer:
+                    s = " ";
+                    break;
+                case Interface::None: {
+                    world().WLOG("Connection method could not be determined, using stream by default");
+                    s = "<adf::stream>";
+                    }
+                    break;
+                default:
+                    assert(false && "No connection method is defined for the this interface");
+            }
+            return s;
+        };
+
+
+        static auto get_continuation = [&] (const Def* def) {
+            return def->as<Param>()->continuation();
+        };
+
+        static auto get_interface = [&] (const Def* def) {
+            return get_continuation(def)->get_interface();
+        };
+
+        auto is_buffer_interface = [] (Interface interface) {
+            return interface == Interface::Buffer || interface == Interface::Circular_buffer;
+        };
+
+
+        // unless the interface is buffer, kernels with different interfaces are not supported.
+        // a more proper solution would be param-wise interface definition which is not supported yet.
+        auto [from, to] = dependence;
+        auto [from_intf, to_intf] = std::make_pair(get_interface(from), get_interface(to));
+        std::string method = "METHOD";
+        if ((from_intf == to_intf) && from_intf != Interface::Cascade) {
+            method = connection_method(get_continuation(from));
+        } else if (is_plio(from) || is_plio(to)) {
+            if (from_intf == Interface::None) {
+                assert(to_intf != Interface::None && "CGRA PLIOs cannot directly connect to each other");
+                method = connection_method(get_continuation(to));
+            } else {
+                method = connection_method(get_continuation(from));
+            }
+
+            if (from_intf == Interface::Cascade || to_intf == Interface::Cascade) {
+                // special case for cascade. using stream instead of cascade
+                method = "<adf::stream>";
+            }
+        } else if (is_buffer_interface(from_intf) || !is_buffer_interface(to_intf)) {
+            // if intfs are different not plio and at least one of them is a buffer
+            world().WLOG("TODO: buffer is not supported yet");
+        } else { // TODO: cascade
+            world().ELOG("Interface mismatch");
+        }
+
+        return method;
+    };
+        //TODO:
+        // we can ovverride interface attr using kernel config so that we can kernels with different interfaces on the same code
+        // for the moment for cascade we can check if the conts are not from cgra_graph then we can change the stream to cascade
+
+  //  };
+
     auto set_mode_counters = [&] (const auto& kernel, const auto& mode, auto& mode_counters, Cont2Index& cont2index) {
         if (!cont2index.contains(kernel)) {
             mode_counters[to_underlying(mode)] = 0;
@@ -539,7 +647,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
             auto mode_counters = cont2index[kernel];
             mode_counters[to_underlying(mode)]++;
             cont2index[kernel] = mode_counters;
-        }
+         }
     };
 
 
@@ -600,7 +708,11 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
                             auto mode = get_param_mode(param->index(), cont);
                             auto direc_prefix = get_direction_prefix(mode);
-                            auto op_type = param->type()->as<PtrType>()->pointee()->as<StructType>()->op(0);
+                            auto op_type = param->type();// TODO: Dummy value for GMem direct access.
+                            if (auto ptr_type = param->type()->isa<PtrType>()) { // if not then it is a runtime parameter
+                                if(auto struct_type = ptr_type->pointee()->isa<StructType>())
+                                    op_type = struct_type->op(0);
+                            }
 
                             node_impls_.fmt("{} = adf::{}_plio::create(adf::plio_{}_bits, FILE_ADDR);\n", param->unique_name(), direc_prefix, bit_width(op_type));
 
@@ -645,11 +757,15 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                                                 visited_conts.emplace(graph_callee);
                                                 node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
                                             }
+                                            //note: at the moment the interface type is an attribute of the continuation not the param
+                                            // therefore, we cannot have a contiunation having different interfaces on their params.
+                                            // we can overcome this by adding an attribute to the param class
 
                                             auto [start_node, end_node] = get_node_names(dependence);
                                             auto [start_index, end_index] = get_node_indices(dependence, cont2index);
                                             auto edge_label = get_edge_label(dependence);
-                                            edge_impls_.fmt("adf::connect METHOD {}({}.out[{}], {}.in[{}]);\n", edge_label, start_node, start_index, end_node, end_index);
+                                            auto method = get_connection_method(dependence);
+                                            edge_impls_.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n", method, edge_label, start_node, start_index, end_node, end_index);
 
                                         }
 
@@ -721,7 +837,8 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                                             auto [start_index, end_index] = get_node_indices(dependence, cont2index);
                                             auto [start_node, end_node] = get_node_names(dependence);
                                             auto edge_label = get_edge_label(dependence);
-                                            edge_impls_.fmt("adf::connect METHOD {}({}.out[{}], {}.in[{}]);\n", edge_label, start_node, start_index, end_node, end_index);
+                                            auto method = get_connection_method(dependence);
+                                            edge_impls_.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n",method , edge_label, start_node, start_index, end_node, end_index);
                                         }
                                     }
                                 }

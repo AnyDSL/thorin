@@ -1165,10 +1165,14 @@ std::string CCodeGen::prepare(const Scope& scope) {
         }
     }
 
-    if (top_scope.cgra_graph && (lang_ == Lang::CGRA))
-        func_impls_.fmt("{}", emit_class(cont));
-    else
+    if (top_scope.cgra_graph && (lang_ == Lang::CGRA)) {
+        //func_impls_.fmt("{}", emit_class(cont));
+        graph_stream_.fmt("\n{}\t\n", emit_class(cont));
+    } else {
+        if (lang_ == Lang::CGRA)
+            graph_stream_.fmt("{};\n", emit_fun_head(cont));
         func_impls_.fmt("{} {{", emit_fun_head(cont));
+    }
     func_impls_.fmt("\t\n");
 
     if (lang_ == Lang::HLS && cont->is_exported()) {
@@ -1248,12 +1252,20 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             // code generator will emit two assignments to the phis nodes, but the second one
             // depends on the current value of the phi node.
             // Lookup "lost copy problem" and "swap problem" in literature for SSA destruction for more information.
-            func_impls_.fmt("{}   {};\n", convert(param->type()), param->unique_name());
-            func_impls_.fmt("{} p_{};\n", convert(param->type()), param->unique_name());
+            std::string param_type;
+            //TODO: assign 1 for scalar core
+            //if (lang_ == Lang::CGRA && cont->is_exported())
+            param_type = convert(param->type());
+            if (lang_ == Lang::CGRA)
+                if (vector_size_ > 1)
+                    param_type = "aie::vector<" + convert(param->type()) + ", " + std::to_string(vector_size_) + ">";
+            func_impls_.fmt("{}   {};\n", param_type, param->unique_name());
+            func_impls_.fmt("{} p_{};\n", param_type, param->unique_name());
             bb.head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());
             defs_[param] = param->unique_name();
         }
     }
+
 }
 
 static inline std::string make_identifier(const std::string& str) {
@@ -1274,25 +1286,31 @@ static inline std::string label_name(const Def* def) {
     return make_identifier(def->as_nom<Continuation>()->unique_name());
 }
 
+inline std::string cgra_obj_name() { return "cgra_dataflow"; }
+
 auto cgra_testbench() {
     StringStream s;
-    //TODO: if stream then iter_num = sample_size/lane size
-    // IF all kernels are stream then sample_size otherwise put -1
-    // TODO: we need the size of gmems on cgra_graph for both Iter_num and buffers size of kernels with buffer interface
-    // TODO: Develope gaurds
-    // TODO: change types to auto
-    // TODO: develpe interface both in backend and in c emitter
+    // TODO: Develope guards
+    // TODO: change types to aie::vector<TYPE, LANE> types and prim types for scalar cpu
+    // TODO: change read and write channel according to method
+    // TODO: Check testbenchcode for non mem allocation
+    // TODO: we probably need to remove interface pragmas for hls xdma interface when connecting to cgra
+    // test HPC interface maybe it already does it.  for QDMA we need to add template args
+    // TODO: it seems we need 32bits for stream and 64 or 128 bits for window when creating virtual ports
+    s << "#if defined(__AIESIM__) || defined(__X86SIM__)\n";
     s << "int main(void) {\n"
-            << "\tmygraph.init();\n"
-            << "\tstd::cout << \"Graph initialized\" << std::endl;\n"
-            << "\tmygraph.run(ITER_NUM);\n"
-            << "\tstd::cout << \"Graph executed \" << ITERNUM << \" times\" << std::endl;\n"
-            << "\tmygraph.end();\n"
+            << "\t" << cgra_obj_name() << ".init();\n"
+            << "\tconst auto ITER_NUM = -1;\n"
+            << "\t"<< cgra_obj_name() << ".run(ITER_NUM);\n"
+            << "\tstd::cout << \"Graph executed \" << ITER_NUM << \" times\" << std::endl;\n"
+            << "\t" << cgra_obj_name() << ".end();\n"
             << "\tstd::cout << \"Graph ended.\" << std::endl;\n"
             << "\treturn 0;\n"
-    << "}";
+    << "}\n";
+    s << "#endif\n";
    return s.str();
 }
+
 
 void CCodeGen::finalize(const Scope& scope) {
     for (auto& def : func_defs_) {
@@ -1301,8 +1319,10 @@ void CCodeGen::finalize(const Scope& scope) {
     }
     func_defs_.clear();
     if (top_scope.cgra_graph && (lang_ == Lang::CGRA)) {
-        func_impls_.fmt( "\b}};\n\n{} cgra_dataflow;\n\n", scope.entry()->name());
-        func_impls_.fmt("{}", cgra_testbench());
+        //func_impls_.fmt( "\b}};\n\n{} {};\n\n", scope.entry()->name(), cgra_obj_name());
+        //func_impls_.fmt("{}", cgra_testbench());
+        graph_stream_.fmt( "{} {};\n\n", scope.entry()->name(), cgra_obj_name());
+        graph_stream_.fmt("{}", cgra_testbench());
     } else
         func_impls_.fmt("}}\n\n");
 }
@@ -1335,7 +1355,7 @@ void CCodeGen::finalize(Continuation* cont) {
    // if (cont->is_cgra_graph() && (lang_ == Lang::CGRA)){
    //     //bb.body.indent(2);
    //     //func_impls_ <<std::setw(5);
-   //     bb.body.fmt("Public:\n");
+   //     bb.body.fmt("public:\n");
    // }
     if (top_scope.cgra_graph && lang_ == Lang::CGRA) {
 
@@ -1343,9 +1363,12 @@ void CCodeGen::finalize(Continuation* cont) {
     bb.tail.indent(2);
         //func_impls_ <<std::setw(5);
         if (cont->is_cgra_graph()) {
-            bb.body.fmt("Public:\n {}() {{\n", cont->name());
-            bb.tail.fmt("{} }}", graph_ctor_.str());
-            func_impls_.fmt("\n{}{}{}\n", bb.head.str(), bb.body.str(), bb.tail.str());
+            bb.body.fmt("public:\n{}() {{\n", cont->name());
+            bb.tail.fmt("{}\b}};", graph_ctor_.str());
+            //func_impls_.fmt("\n{}{}{}\n", bb.head.str(), bb.body.str(), bb.tail.str());
+            graph_stream_.fmt("\n{}", bb.body.str());
+            graph_stream_.fmt("{}", graph_ctor_.str());
+            graph_stream_.fmt("{}\b\n}};\n\n",bb.tail.str());
         }
     }
     else
@@ -1365,6 +1388,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     assert(cont->has_body());
     auto body = cont->body();
     emit_debug_info(bb.tail, body->arg(0));
+
+
+
+
 
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && top_scope.hls)) && (cont->is_exported()))
         emit_fun_decl(cont);
@@ -1490,10 +1517,13 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             return arg->isa_nom<Continuation>();
         }))->as_nom<Continuation>();
         if (top_scope.cgra_graph && lang_ == Lang::CGRA) {
-            if (cont->is_cgra_graph())
-                func_impls_ << "private:\n";
+            if (cont->is_cgra_graph()) {
+                //func_impls_ << "private:\n";
+                graph_stream_ << "private:\n";
+            }
             // cgra kernel obj definitions start with the letter 'k'
-            func_impls_<<"\tadf::kernel " << "k" << emit(callee) << ";\n";
+            //func_impls_<< "\tadf::kernel " << "k" << emit(callee) << ";\n";
+            graph_stream_ <<"\tadf::kernel " << "k" << emit(callee) << ";\n";
 
         }
 

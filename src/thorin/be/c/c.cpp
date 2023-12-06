@@ -113,6 +113,7 @@ private:
     Stream& emit_debug_info(Stream&, const Def*);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
     auto get_config(Continuation* cont);
+    auto get_vector_size(Continuation* cont);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -136,19 +137,21 @@ private:
     //auto [interface_status, hls_top_scope, cgra_graph_scope] = std::make_tuple(false, false, false);
     std::string flags_;
     Stream& stream_;
+    Stream graph_stream_;
 
     StringStream func_impls_;
     StringStream func_decls_;
     StringStream type_decls_;
     StringStream vars_decls_;
     StringStream graph_ctor_;
+
     /// Tracks defs that have been emitted as local variables of the current function
     DefSet func_defs_;
 
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
     struct { bool hls = false; bool cgra_graph = false; } top_scope;
-
+    size_t vector_size_;
     ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
 
@@ -176,6 +179,7 @@ inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel") != std::string::npos;
 }
 
+
 /// Returns true when the def carries concrete data in the final generated code
 inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
 inline bool has_concrete_params(Continuation* cont) {
@@ -185,6 +189,16 @@ inline bool has_concrete_params(Continuation* cont) {
 auto CCodeGen::get_config(Continuation* cont) {
     return cont->is_exported() && kernel_config_.count(cont) ? kernel_config_.find(cont)->second.get() : nullptr;
 }
+
+auto CCodeGen::get_vector_size(Continuation* cont) {
+    assert(lang_ == Lang::CGRA && "vector_size is available only for CGRA");
+    if(auto config = get_config(cont)) {
+        assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+        return config->as<CGRAKernelConfig>()->vector_size();
+    }
+    assert(false && "kernel has no config");
+}
+
 
 bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
     auto fpga_env = flags_;

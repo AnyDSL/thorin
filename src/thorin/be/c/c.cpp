@@ -875,8 +875,30 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
  */
 
 void CCodeGen::emit_module() {
-    Continuation* top_module = nullptr;
 
+    if (lang_ == Lang::CGRA) {
+        graph_stream_.fmt("#include <adf.h>\n"
+                "#include <aie_api/aie_adf.hpp>\n"
+                "#include <aie_api/utils.hpp>\n"
+                "#include <iostream>\n"
+                "#include <string>\n"
+                "#include <fstring>\n");
+
+        graph_stream_.fmt("\n"
+                        "typedef   int8_t  i8;\n"
+                        "typedef  uint8_t  u8;\n"
+                        "typedef  int16_t i16;\n"
+                        "typedef uint16_t u16;\n"
+                        "typedef  int32_t i32;\n"
+                        "typedef uint32_t u32;\n"
+                        "typedef  int64_t i64;\n"
+                        "typedef uint64_t u64;\n"
+                        "typedef    float f32;\n"
+                        "typedef   double f64;\n"
+                        "\n");
+    }
+
+    Continuation* top_module = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
     Scope::for_each(world(), [&] (const Scope& scope) {
@@ -1014,7 +1036,15 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <hls_half.h>\n");
     }
 
-    if (lang_ == Lang::C99 || lang_ == Lang::HLS) {
+    if (lang_ == Lang::CGRA) {
+        stream_.fmt("#include <adf.h>\n"
+                    "#include <aie_api/aie_adf.hpp>\n"
+                    "#include <aie_api/utils.hpp>\n"
+                    "#include <aie_api/operators.hpp>\n"
+                    "using namespace aie::operators;\n");
+    }
+
+    if (lang_ == Lang::C99 || lang_ == Lang::HLS || lang_ == Lang::CGRA) {
         stream_.fmt(    "\n"
                         "typedef   int8_t  i8;\n"
                         "typedef  uint8_t  u8;\n"
@@ -1088,6 +1118,7 @@ void CCodeGen::emit_module() {
     }
 
     stream_.endl() << func_impls_.str();
+    //graph_stream_ << "TEST";
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");

@@ -154,7 +154,7 @@ void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra
             std::cout << "Undef" << std::endl;
         }
     }
-    cont2config.emplace(cgra_graph_cont, std::make_unique<CGRAKernelConfig>(-1 , std::pair{-1,-1}, param2mode, false));
+    cont2config.emplace(cgra_graph_cont, std::make_unique<CGRAKernelConfig>(-1 , std::pair{-1,-1}, -1, param2mode, false));
 }
 
 

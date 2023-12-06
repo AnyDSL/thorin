@@ -169,6 +169,26 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
     auto& world = importer.world();
 // std::cout << "_--------cgra world before rewrite--------" <<std::endl;
 //    world.dump();
+
+
+    for (auto [_, cont] : old_world.externals()) {
+        Scope scope(cont);
+        for (auto& block : schedule(scope)) {
+            if (!block->has_body())
+                continue;
+            assert(block->has_body());
+            auto body = block->body();
+            auto callee = body->callee()->isa_nom<Continuation>();
+            if (callee && callee->is_intrinsic())
+                if (callee->intrinsic() == Intrinsic::CGRA)
+                    if (callee->get_interface() == Interface::Stream) {
+                        std::cout << "STREAM INTERFACE FOUND!" << std::endl;
+                        //TODO we need use old2new on already available cgra_world
+                    }
+        }
+    }
+
+
     std::vector<const Def*> target_blocks_in_cgra_world; // cgra_world basic blocks that connect to HLS
     connecting_blocks_old2new(target_blocks_in_cgra_world, def2dependent_blocks, importer, [&] (DependentBlocks dependent_blocks) {
         auto old_cgra_basicblock = dependent_blocks.second;
@@ -183,7 +203,10 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
         Def2Mode def2mode; // channels and their R/W modes
         extract_kernel_channels(schedule(scope), def2mode);
 
+
+
         auto old_kernel = scope.entry();
+        //old_kernel->set_interface();
         // for each kernel new_param_types contains both the type of kernel parameters and the channels used inside that kernel
         Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
             std::copy(old_kernel->type()->ops().begin(),
@@ -204,8 +227,10 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
 
             // new kernels signature
             // fn(mem, ret_cnt, ... , /channels/ )
+            //auto new_kernel = world.continuation(world.fn_type(new_param_types), Interface::Stream, old_kernel->debug());
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
             world.make_external(new_kernel);
+            //new_kernel->set_interface();
 
 
             //kernel_new2old.emplace(new_kernel, old_kernel);
@@ -233,6 +258,7 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
                     // Copy the basic block by calling stub
                     // Or reuse the newly created kernel copy if def is the old kernel
                     auto new_cont = def == old_kernel ? new_kernel : cont->stub();
+                    //new_cont->set_interface();
                     rewriter.old2new[cont] = new_cont;
                     for (size_t i = 0; i < cont->num_params(); ++i)
                         rewriter.old2new[cont->param(i)] = new_cont->param(i);
@@ -253,14 +279,106 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
                         new_args[i] = rewriter.instantiate(body->arg(i));
 
                     auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
+                    //new_cont->set_interface();
                     new_cont->jump(new_callee, new_args, cont->debug());
+                    //new_cont->set_interface();
                 }
             }
 
     kernel_name2chan_param_modes.emplace_back(new_kernel->name(), modes);
+
+    // lowering interface attr from old world to cgra kernels
+    // trying by externals , if didn't work try by defs. 
+
+
+//TODO: try withouth rewriter and just jump
+// use kernel config
+    for (auto def: old_world.defs()) {
+        if (auto ocontinuation = def->isa_nom<Continuation>()) {
+            if (ocontinuation->has_body()) {
+                auto body = ocontinuation->body();
+                if (auto callee = body->callee()->isa_nom<Continuation>()) {
+                    if (callee->is_intrinsic()) {
+                        if (callee->intrinsic() == Intrinsic::CGRA) {
+
+                            if (ocontinuation->get_interface() == Interface::Stream) {
+                                std::cout << "OLD ASS STREAM1" << std::endl;
+                            }
+                            //if (callee->get_interface() == Interface::Stream) {
+                            if (callee->get_interface() == Interface::Stream) {
+                                // TODO: we probably need set interface function in thorin
+                                // OR maybe we need to rewrite!
+                                // NO! we cannot use NAME because attr is different from CONT, check set attr in throin
+                                std::cout << "OLD ASS STREAM2" << std::endl;
+                            }
+                            if (auto okernel = body->arg(5)->as<Global>()->init()) {
+                                auto nkernel = importer.def_old2new_[okernel];
+                                auto nkernel_cont = nkernel->as_nom<Continuation>();
+                                //nkernel_cont->attributes().interface = callee->interface();
+                                //TODO: IT WORKS here!
+                                //nkernel_cont->set_interface();
+                                //auto new_cont = world.continuation(world.fn_type(nkernel_cont->type()->ops()), callee->interface(), nkernel_cont->debug());
+                                //auto new_cont = world.continuation(world.fn_type(nkernel_cont->type()->ops()), Interface::Stream, nkernel_cont->debug());
+                                //auto new_cont = world.continuation(world.fn_type(nkernel_cont->type()->ops()), nkernel_cont->debug());
+
+
+                              //  auto body = nkernel_cont->body();
+                              //  auto new_cont_ = rewriter.old2new[nkernel_cont]->isa_nom<Continuation>();
+                              //  auto new_callee = rewriter.instantiate(body->callee());
+                              //  Array<const Def*> new_args(body->num_args());
+                              //  for ( size_t i = 0; i < body->num_args(); ++i)
+                              //      new_args[i] = rewriter.instantiate(body->arg(i));
+                              //  new_cont_->jump(new_callee, new_args, nkernel_cont->debug());
+
+
+                                //nkernel_cont->set_interface();
+                                //nkernel_cont->body()->callee()->as_nom<Continuation>()->attributes().interface = callee->interface();
+                                //auto test = nkernel_cont->body()->callee()->as_nom<Continuation>()->interface();
+                                auto test = nkernel_cont->get_interface();
+                                if (test == Interface::Stream)
+                                    std::cout << "NEW ASS STREAM" << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
     }
 
     );
+
+
+ //   if (auto ncontinuation = importer.def_old2new_[ocontinuation]) {
+ //       std::cout << "~~~~~~~~~~~~~~~~~" << std::endl;
+ //       ocontinuation->dump();
+ //       for ( auto use : ocontinuation->uses()) {
+ //           if (auto app = use->isa<App>()) {
+ //               auto test = app->using_continuations();
+ //               for ( auto uc : test) {
+ //                   std::cout << "######UC####" << std::endl;
+ //                   uc->dump();
+ //               }
+ //           }
+ //       }
+ //   }
+
+           //     for (auto use : global->uses()) {
+           //         if (auto app = use->isa<App>()) {
+           //             auto ucontinuations = app->using_continuations();
+           //             for (const auto& block : target_blocks_in_hls_world) {
+           //                 if (std::find(ucontinuations.begin(), ucontinuations.end(), block) != ucontinuations.end())
+           //                     return true;
+           //                 }
+           //             }
+           //         }
+
+
+
 
 
 //    std::cout << "Target block size = " << target_blocks_in_cgra_world.size() << std::endl;
@@ -320,7 +438,7 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
 
     auto cgra_graph = world.continuation(world.fn_type(graph_param_types), Debug());
     cgra_graph->set_name("cgra_graph");
-    cgra_graph->attributes().interface = Interface::None;
+    //cgra_graph->attributes().interface = Interface::None;
 
     //auto struct_type = world.struct_type("hey",1);
     //struct_type->dump();
@@ -418,9 +536,23 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
 
     std::cout << "_--------cgra world After rewrite--------" <<std::endl;
     world.dump();
+    for (auto def : world.defs()) {
+        if (auto cont = def->isa_nom<Continuation>()) {
+                auto gg = cont->get_interface();
+                if (gg == Interface::Stream) {
+                    std::cout << "MMMMMMMM" << std::endl;
+                    cont->dump();
+                }
+        }
+    }
 
     world.cleanup();
 
+   // for (auto def : world.defs()) {
+   //     if (auto cont = def->isa_nom<Continuation>()) {
+   //         cont->set_interface();
+   //     }
+   // }
     return std::make_tuple(hls_port_indices, kernel_name2chan_param_modes);
 }
 

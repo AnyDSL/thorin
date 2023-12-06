@@ -19,6 +19,7 @@ class World;
 CgraDeviceDefs cgra_dataflow(Importer&, World&, Def2DependentBlocks&);
 void annotate_cgra_graph_modes(Continuation*, const Ports&, Cont2Config&);
 void annotate_channel_modes(const Continuation* imported, const ContName2ParamModes, CGRAKernelConfig::Param2Mode&);
+void annotate_interface(Continuation* imported, const Continuation* use);
 
 }
 

@@ -413,7 +413,6 @@ bool has_cgra_callee(World& world) {
             assert(block->has_body());
             auto body = block->body();
             auto callee = body->callee()->isa_nom<Continuation>();
-            if (callee && callee->interface() == Interface::Stream) {std::cout << "QUACK QUACK" << std::endl;}
             if (callee && callee->intrinsic() == Intrinsic::CGRA) {
                 found_cgra = true;
             }

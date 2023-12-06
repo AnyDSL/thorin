@@ -73,6 +73,38 @@ void annotate_channel_modes(const Continuation* imported, const ContName2ParamMo
     }
 }
 
+void annotate_interface(Continuation* imported, const Continuation* use) {
+// the better way to avoid name comparision is using def_ol2new_ and finding the exact cont
+// consider that such a function should be called after clean up.
+    if (use->has_body()) {
+        auto ubody = use->body();
+        auto ucallee = ubody->callee();
+        if (auto ucontinuation = ucallee->isa_nom<Continuation>()) {
+            if (ucontinuation->intrinsic() == Intrinsic::CGRA) {
+                auto ukernel = ubody->arg(5)->as<Global>()->init();
+                auto ikernel = imported;
+                if (ikernel->name() == ukernel->unique_name()) {
+                    std::cout << "MOUSE FOUND!" << std::endl;
+                    auto uiterface = ucallee->as_nom<Continuation>()->get_interface();
+                    // annotating (modifying interface attribute) of enrty block of imported continuation
+                    ikernel->set_interface(uiterface);
+                    // extending the annotation to all blocks of the imported continuation
+                    // this solution works and for interface implementation (continuation-wise and not param-wise) makes the
+                    // c-backend simpler
+                    // TODO: default to stream
+                    Scope scope(ikernel);
+                    for (auto& block : schedule(scope)) {
+                        block->set_interface(uiterface);
+                    }
+                }
+            }
+        }
+    }
+    return;
+}
+
+// This annotation applies only for cgra_graph
+// TODO: probably we can add param sizes here and rename thid function to annotate_cgra_graph.
 void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra_ports, Cont2Config& cont2config) {
     //TODO: At the moment cgra ports' modes are determined using the duals of HLS ports which is probably not a proper solution
     // using index2mode similar to hls is a more general solution

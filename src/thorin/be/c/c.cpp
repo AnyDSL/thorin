@@ -72,7 +72,7 @@ enum class HlsInterface : uint8_t {
 
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
-    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Lang lang, bool debug, std::string& flags)
+    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Stream& graph_stream, Lang lang, bool debug, std::string& flags)
         : world_(world)
         , kernel_config_(kernel_config)
         , lang_(lang)
@@ -80,11 +80,13 @@ public:
         , debug_(debug)
         , flags_(flags)
         , stream_(stream)
+        , graph_stream_(graph_stream)
     {}
 
     World& world() const { return world_; }
     void emit_module();
     void emit_c_int();
+    //void emit_graph(std::ostream& stream);
     void emit_epilogue(Continuation*);
 
     std::string emit_bb(BB&, const Def*);

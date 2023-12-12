@@ -63,6 +63,8 @@ public:
                 world().VLOG("{}", cont->unique_name());
             }
 
+            bool evaluated = false;
+
             for (auto cont : plugin_intrinsics) {
                 auto plugin_function = thorin.search_plugin_function(cont->name().c_str());
                 if (!plugin_function) {
@@ -70,7 +72,6 @@ public:
                     continue;
                 }
 
-                bool evaluated = false;
                 for (auto use : cont->copy_uses()) {
                     if (!use.def()->isa<App>()) {
                         continue;
@@ -83,23 +84,27 @@ public:
                         continue;
                     }
 
-                    const Def* output = plugin_function(&world(), app);
-                    const Def* app_rebuild = nullptr;
-                    if (output) {
-                        app_rebuild = app->rebuild(world(), world().bottom_type(), {app->arg(app->num_args() - 1), app->arg(0), output});
-                    } else {
-                        app_rebuild = app->rebuild(world(), world().bottom_type(), {app->arg(app->num_args() - 1), app->arg(0)});
-                    }
-                    app->replace_uses(app_rebuild);
+                    try {
+                        const Def* output = plugin_function(&world(), app);
+                        const Def* app_rebuild = nullptr;
+                        if (output) {
+                            app_rebuild = app->rebuild(world(), world().bottom_type(), {app->arg(app->num_args() - 1), app->arg(0), output});
+                        } else {
+                            app_rebuild = app->rebuild(world(), world().bottom_type(), {app->arg(app->num_args() - 1), app->arg(0)});
+                        }
+                        app->replace_uses(app_rebuild);
 
-                    //partial_evaluation(world()); //TODO: Some form of cleanup would be advisable here.
-                    evaluated = true;
+                        //partial_evaluation(world()); //TODO: Some form of cleanup would be advisable here.
+                        evaluated = true;
+                    } catch (const std::runtime_error& e) {
+                        std::cerr << "Error in plugin function: " << e.what() << "\n";
+                    }
                 }
 
                 if (evaluated)
                     break;
             }
-
+            if (!evaluated) break;
             thorin.cleanup();
         }
 

@@ -28,7 +28,7 @@ list(APPEND CMAKE_MODULE_PATH "${Thorin_ROOT_DIR}/cmake/modules")
 find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
 find_package(Half REQUIRED)
 
-set(Thorin_HAS_JSON_SUPPORT @nlohmann_json_FOUND@)
+set(Thorin_HAS_JSON_SUPPORT @THORIN_ENABLE_JSON@)
 set(Thorin_HAS_LLVM_SUPPORT @LLVM_FOUND@)
 set(Thorin_HAS_RV_SUPPORT @RV_FOUND@)
 set(AnyDSL_LLVM_LINK_SHARED @AnyDSL_LLVM_LINK_SHARED@)

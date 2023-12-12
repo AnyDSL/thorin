@@ -28,7 +28,7 @@
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
 #include <rv/resolver/resolvers.h>
-#include <rv/transform/loopExitCanonicalizer.h>
+#include <rv/passes/loopExitCanonicalizer.h>
 #include <rv/passes.h>
 #include <rv/region/FunctionRegion.h>
 
@@ -116,16 +116,16 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     // ensure proper loop forms
     llvm::FunctionPassManager FPM;
     FPM.addPass(llvm::SimplifyCFGPass());
-    FPM.addPass(llvm::SROAPass());
+    FPM.addPass(llvm::SROAPass(llvm::SROAOptions::ModifyCFG));
     FPM.addPass(llvm::EarlyCSEPass());
     FPM.addPass(llvm::SCCPPass());
     FPM.addPass(llvm::FixIrreduciblePass()); // make all loops reducible (has to run first!)
     FPM.addPass(llvm::PromotePass()); // CNSPass relies on mem2reg for now
 
-    FPM.addPass(llvm::RequireAnalysisPass<llvm::OptimizationRemarkEmitterAnalysis, llvm::Function>());
+    FPM.addPass(llvm::LoopSimplifyPass());
 
     llvm::LoopPassManager LPM;
-    LPM.addPass(llvm::LICMPass());
+    LPM.addPass(llvm::LICMPass(100, 250, true));
     FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM), /*UseMemorySSA=*/true));
 
     FPM.addPass(llvm::LCSSAPass());
@@ -176,7 +176,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         }
 
         llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, llvm::CloneFunctionChangeType::DifferentModule, retVec);
+        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, llvm::CloneFunctionChangeType::LocalChangesOnly, retVec);
 
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);

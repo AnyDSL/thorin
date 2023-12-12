@@ -107,7 +107,7 @@ if(LLVM_FOUND)
     )
 endif()
 
-if(nlohmann_json_FOUND)
+if(THORIN_ENABLE_JSON)
     list(APPEND THORIN_SOURCES
         be/json/json.cpp
         be/json/json.h
@@ -129,6 +129,6 @@ if(LLVM_FOUND)
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
 endif()
 
-if(nlohmann_json_FOUND)
+if(THORIN_ENABLE_JSON)
     target_link_libraries(thorin PRIVATE nlohmann_json::nlohmann_json)
 endif()

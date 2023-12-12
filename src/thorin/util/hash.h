@@ -192,8 +192,8 @@ public:
         iterator_base operator++(int) { verify(); iterator_base res = *this; ++(*this); return res; }
         reference operator*() const { verify(); return *ptr_; }
         pointer operator->() const { verify(); return ptr_; }
-        bool operator==(const iterator_base& other) { verify(other); return this->ptr_ == other.ptr_; }
-        bool operator!=(const iterator_base& other) { verify(other); return this->ptr_ != other.ptr_; }
+        bool operator==(const iterator_base& other) const { verify(other); return this->ptr_ == other.ptr_; }
+        bool operator!=(const iterator_base& other) const { verify(other); return this->ptr_ != other.ptr_; }
 
     private:
         static iterator_base skip(value_type* ptr, const HashTable* table) {

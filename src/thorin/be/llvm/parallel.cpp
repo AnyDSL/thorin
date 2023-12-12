@@ -66,8 +66,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr = irbuilder.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
-    auto val = irbuilder.CreateLoad(load_ptr->getType()->getPointerElementType(), load_ptr);
+    auto val = irbuilder.CreateLoad(closure_type, &*wrapper_args);
     std::vector<llvm::Value*> target_args(num_kernel_args + 1);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -161,8 +160,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr = irbuilder.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
-    auto val = irbuilder.CreateLoad(load_ptr->getType()->getPointerElementType(), load_ptr);
+    auto val = irbuilder.CreateLoad(closure_type, &*wrapper_args);
     std::vector<llvm::Value*> target_args(num_kernel_args + 2);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -246,8 +244,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr = irbuilder.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
-    auto val = irbuilder.CreateLoad(load_ptr->getType()->getPointerElementType(), load_ptr);
+    auto val = irbuilder.CreateLoad(closure_type, &*wrapper_args);
     std::vector<llvm::Value*> target_args(num_kernel_args);
     if (val->getType()->isStructTy()) {
         for (size_t i = 0; i < num_kernel_args; ++i)

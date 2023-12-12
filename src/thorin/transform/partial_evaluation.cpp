@@ -130,7 +130,7 @@ bool PartialEvaluator::run() {
         const App* body = continuation->body();
         const Def* callee_def = continuation->body()->callee();
 
-        if (auto run = callee_def->isa<Run>()) {
+        while (auto run = callee_def->isa<Run>()) {
             force_fold = true;
             callee_def = run->def();
         }

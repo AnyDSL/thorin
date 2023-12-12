@@ -54,6 +54,7 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     }
 
     prepare_def(cont, cont->body());
+    prepare_def(cont, cont->filter());
 
     auto defs = *scopes_to_defs_[cont];
     stream_defs(s, defs);

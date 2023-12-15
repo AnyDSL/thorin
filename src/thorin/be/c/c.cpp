@@ -1368,8 +1368,8 @@ void CCodeGen::finalize(Continuation* cont) {
             bb.tail.fmt("{}\b}};", graph_ctor_.str());
             //func_impls_.fmt("\n{}{}{}\n", bb.head.str(), bb.body.str(), bb.tail.str());
             graph_stream_.fmt("\n{}", bb.body.str());
-            graph_stream_.fmt("{}", graph_ctor_.str());
-            graph_stream_.fmt("{}\b\n}};\n\n",bb.tail.str());
+            //graph_stream_.fmt("{}", graph_ctor_.str());
+            graph_stream_.fmt("{}\b\n}};\n\n", bb.tail.str());
         }
     }
     else
@@ -1389,8 +1389,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     assert(cont->has_body());
     auto body = cont->body();
     emit_debug_info(bb.tail, body->arg(0));
-
-
 
 
 

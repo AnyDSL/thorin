@@ -468,7 +468,9 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
         defs_[def] = nullptr;
         return nullptr;
     } else if (auto bitcast = def->isa<Bitcast>()) {
-        v = emit(bitcast->from());
+        v = mk_primop(shady::Op::reinterpret_op, { bitcast->from() }, { bitcast->type() });
+    } else if (auto conversion = def->isa<Cast>()) {
+        v = mk_primop(shady::Op::convert_op, {conversion->from() }, {conversion->type() });
     } else {
         def->dump();
         THORIN_UNREACHABLE;

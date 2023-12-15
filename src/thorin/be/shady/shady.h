@@ -55,7 +55,8 @@ protected:
 
     shady::IrArena* arena = nullptr;
     shady::Module* module = nullptr;
-    //std::vector<shady::Node*> top_level;
+
+    void unimplemented(const Def* def);
 
     shady::Node* curr_fn;
 

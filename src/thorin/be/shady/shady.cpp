@@ -370,10 +370,15 @@ const shady::Node* CodeGen::emit_fun_decl(Continuation* cont) {
     return shady::fn_addr(arena, payload);
 }
 
+void CodeGen::unimplemented(const Def* def) {
+    world().error(def->loc(), "We don't know how to emit {} !", def);
+    abort();
+}
+
 const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
     const shady::Node* v = nullptr;
 
-    auto mk_primop = [&](shady::Op op, std::vector<const Def*> args, std::vector<const Type*> types = {}) -> const shady::Node* {
+    auto mk_primop = [&](shady::Op op, ArrayRef<const Def*> args, ArrayRef<const Type*> types = {}) -> const shady::Node* {
         shady::PrimOp payload = {};
         payload.op = op;
         std::vector<const shady::Node*> operands;
@@ -457,6 +462,23 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             case ArithOp_shl: v = mk_primop(shady::Op::lshift_op, { arith->lhs(), arith->rhs() }); break;
             case ArithOp_shr: v = mk_primop(shady::Op::rshift_logical_op, { arith->lhs(), arith->rhs() }); break;
         }
+    } else if (auto math = def->isa<MathOp>()) {
+        switch (math->mathop_tag()) {
+            case MathOp_fmin: v = mk_primop(shady::Op::min_op, math->ops()); break;
+            case MathOp_fmax: v = mk_primop(shady::Op::max_op, math->ops()); break;
+            case MathOp_cos: v = mk_primop(shady::Op::cos_op, math->ops()); break;
+            case MathOp_sin: v = mk_primop(shady::Op::sin_op, math->ops()); break;
+            case MathOp_fabs: v = mk_primop(shady::Op::abs_op, math->ops()); break;
+            case MathOp_floor: v = mk_primop(shady::Op::floor_op, math->ops()); break;
+            case MathOp_round: v = mk_primop(shady::Op::round_op, math->ops()); break;
+            case MathOp_pow: v = mk_primop(shady::Op::pow_op, math->ops()); break;
+            case MathOp_exp: v = mk_primop(shady::Op::exp_op, math->ops()); break;
+            case MathOp_sqrt: v = mk_primop(shady::Op::sqrt_op, math->ops()); break;
+            default: {
+                unimplemented(def);
+                THORIN_UNREACHABLE;
+            }
+        }
     } else if (auto store = def->isa<Store>()) {
         mk_primop(shady::Op::store_op, { store->ptr(), store->val() });
         defs_[def] = nullptr;
@@ -472,8 +494,7 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
     } else if (auto conversion = def->isa<Cast>()) {
         v = mk_primop(shady::Op::convert_op, {conversion->from() }, {conversion->type() });
     } else {
-        def->dump();
-        THORIN_UNREACHABLE;
+        unimplemented(def);
     }
     assert(v && shady::is_value(v));
     defs_[def] = v;

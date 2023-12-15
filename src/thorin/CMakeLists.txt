@@ -136,7 +136,7 @@ if(LLVM_FOUND)
         target_link_libraries(thorin PRIVATE ${RV_LIBRARIES})
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()
-    llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
+    llvm_config(thorin ${Thorin_LLVM_COMPONENTS})
 endif()
 
 if (THORIN_ENABLE_SHADY)

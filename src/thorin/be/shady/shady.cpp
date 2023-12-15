@@ -20,7 +20,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     ScopesForest forest(world());
     forest.for_each([&](const Scope& scope) {
-        if(scope.entry()->cc() == CC::Internal) {
+        if(scope.entry()->cc() == CC::Thorin) {
             return;
         }
         emit_scope(scope, forest);
@@ -74,9 +74,9 @@ const shady::Type* CodeGen::convert(const Type* type) {
             case PrimType_pu32: case PrimType_qu32: t = shady::int32_type(arena); break;
             case PrimType_ps64: case PrimType_qs64:
             case PrimType_pu64: case PrimType_qu64: t = shady::int64_type(arena); break;
-            case PrimType_pf16: case PrimType_qf16: assert(false && "TODO");
-            case PrimType_pf32: case PrimType_qf32: t = shady::float_type(arena); break;
-            case PrimType_pf64: case PrimType_qf64: assert(false && "TODO");
+            case PrimType_pf16: case PrimType_qf16: t = shady::fp16_type(arena); break;
+            case PrimType_pf32: case PrimType_qf32: t = shady::fp32_type(arena); break;
+            case PrimType_pf64: case PrimType_qf64: t = shady::fp64_type(arena); break;
             default: THORIN_UNREACHABLE;
         }
     } else if (auto ptr = type->isa<PtrType>()) {
@@ -251,12 +251,12 @@ void CodeGen::prepare(Continuation* cont, shady::Node*) {
     } else
         assert(bb.head);
 
-    bb.builder = shady::begin_body(module);
+    bb.builder = shady::begin_body(arena);
 }
 
 static std::optional<shady::Op> is_shady_prim_op(const Continuation* cont) {
     for (int i = 0; i < shady::PRIMOPS_COUNT; i++) {
-        if (cont->name() == shady::primop_names[i])
+        if (cont->name() == shady::get_primop_name(static_cast<shady::Op>(i)))
             return std::make_optional((shady::Op) i);
     }
     return std::nullopt;
@@ -293,10 +293,9 @@ void CodeGen::emit_epilogue(Continuation* cont) {
         bb.terminator = shady::fn_ret(arena, payload);
     } else if (body->callee() == world().branch()) {
         shady::Branch payload = {};
-        payload.args = shady::nodes(arena, 0, nullptr);
         payload.branch_condition = args[0];
-        payload.true_target      = args[1];
-        payload.false_target     = args[2];
+        payload.true_jump = shady::jump_helper(arena, args[1], shady::empty(arena));
+        payload.false_jump = shady::jump_helper(arena, args[2], shady::empty(arena));
         bb.terminator = shady::branch(arena, payload);
     } else if (auto match = body->callee()->as_nom<Continuation>(); match && match->intrinsic() == Intrinsic::Match) {
         assert(false);
@@ -332,12 +331,12 @@ void CodeGen::emit_epilogue(Continuation* cont) {
             }
         }
 
-        shady::BodyBuilder* builder = shady::begin_body(module);
+        shady::BodyBuilder* builder = shady::begin_body(arena);
 
-        shady::IndirectCall icall_payload;
+        shady::Call icall_payload;
         icall_payload.args = vec2nodes(args);
         icall_payload.callee = emit(body->callee());
-        shady::Nodes results = shady::bind_instruction(builder, shady::indirect_call(arena, icall_payload));
+        shady::Nodes results = shady::bind_instruction(builder, shady::call(arena, icall_payload));
 
         assert(args[ret_param]->tag == shady::BasicBlock_TAG);
         shady::Jump jump_payload;
@@ -391,6 +390,7 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
 
     if (auto prim_lit = def->isa<PrimLit>()) {
         const auto& box = prim_lit->value();
+        shady::FloatLiteral fl {};
         switch (prim_lit->primtype_tag()) {
             case PrimType_bool:                     v = box.get_bool() ? shady::true_lit(arena) : shady::false_lit(arena); break;
             case PrimType_ps8:  case PrimType_qs8:  v =  shady::int8_literal (arena,  box.get_s8()); break;
@@ -401,9 +401,27 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
             case PrimType_pu32: case PrimType_qu32: v = shady::uint32_literal(arena, box.get_u32()); break;
             case PrimType_ps64: case PrimType_qs64: v =  shady::int64_literal(arena, box.get_s64()); break;
             case PrimType_pu64: case PrimType_qu64: v = shady::uint64_literal(arena, box.get_u64()); break;
-            case PrimType_pf16: case PrimType_qf16: assert(false && "TODO");
-            case PrimType_pf32: case PrimType_qf32: v = shady::float_type(arena); break;
-            case PrimType_pf64: case PrimType_qf64: assert(false && "TODO");
+            case PrimType_pf16: case PrimType_qf16: {
+                fl.width = shady::FloatTy16;
+                auto f = box.get_f16();
+                memcpy(&fl.value, &f, sizeof(f));
+                v = shady::float_literal(arena, fl);
+                break;
+            }
+            case PrimType_pf32: case PrimType_qf32: {
+                fl.width = shady::FloatTy32;
+                auto f = box.get_f32();
+                memcpy(&fl.value, &f, sizeof(f));
+                v = shady::float_literal(arena, fl);
+                break;
+            }
+            case PrimType_pf64: case PrimType_qf64:{
+                fl.width = shady::FloatTy64;
+                auto f = box.get_f64();
+                memcpy(&fl.value, &f, sizeof(f));
+                v = shady::float_literal(arena, fl);
+                break;
+            }
             default: THORIN_UNREACHABLE;
         }
     } else if (auto arr = def->isa<DefiniteArray>()) {
@@ -416,7 +434,7 @@ const shady::Node* CodeGen::emit_bb(BB& bb, const Def* def) {
         payload.element_type = convert(arr->elem_type());
         payload.size = shady::int32_literal(arena, contents.size());
         const shady::Type* arr_type = shady::arr_type(arena, payload);
-        v = shady::composite(arena, arr_type, vec2nodes(contents));
+        v = shady::composite_helper(arena, arr_type, vec2nodes(contents));
     } else if (auto cmp = def->isa<Cmp>()) {
         switch (cmp->cmp_tag()) {
             case Cmp_eq: v = mk_primop(shady::Op::eq_op,  { cmp->lhs(), cmp->rhs() }); break;

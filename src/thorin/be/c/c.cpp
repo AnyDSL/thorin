@@ -86,7 +86,6 @@ public:
     World& world() const { return world_; }
     void emit_module();
     void emit_c_int();
-    //void emit_graph(std::ostream& stream);
     void emit_epilogue(Continuation*);
 
     std::string emit_bb(BB&, const Def*);
@@ -1589,7 +1588,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
             //TODO: Adapt the placeholders for ADF APIs and for differetn interfaces, start with Stream interface
             //TODO: Simplify it
-            //TODO: Decide about how to design and implement the lane size
             for (size_t i = 0; auto arg : body->args()) {
                 args.size();
                 if (!is_concrete(arg)) continue;

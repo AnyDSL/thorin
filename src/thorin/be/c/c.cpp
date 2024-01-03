@@ -113,6 +113,7 @@ private:
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
     auto get_config(Continuation* cont);
     auto get_vector_size(Continuation* cont);
+    auto is_accum_type(const Type* type);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -891,7 +892,7 @@ void CCodeGen::emit_module() {
                         "typedef uint16_t u16;\n"
                         "typedef  int32_t i32;\n"
                         "typedef uint32_t u32;\n"
-                        "typedef  int64_t i64;\n"
+                        "typedef    acc64 i64;\n"
                         "typedef uint64_t u64;\n"
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
@@ -1052,11 +1053,11 @@ void CCodeGen::emit_module() {
                         "typedef uint16_t u16;\n"
                         "typedef  int32_t i32;\n"
                         "typedef uint32_t u32;\n"
-                        "typedef  int64_t i64;\n"
+                        "typedef  {} i64;\n"
                         "typedef uint64_t u64;\n"
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
-                        "\n");
+                        "\n", lang_ == Lang::CGRA ? "acc64" : "int64_t");
 
          if (use_fp_16_ && lang_ == Lang::HLS)
             stream_.fmt("typedef     half f16;\n");
@@ -1143,6 +1144,16 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
     if (auto array_type = elem_type->isa<ArrayType>())
         elem_type = array_type->elem_type();
     return elem_type;
+}
+
+auto CCodeGen::is_accum_type(const Type* type) {
+    assert ((lang_ == Lang::CGRA) && "Only CGRA is supported");
+    auto is_accum = false;
+    if (vector_size_ > 1) {
+        if (auto primtype = type->isa<PrimType>())
+            is_accum = ((primtype->primtype_tag() == PrimType_ps64 )|| (primtype->primtype_tag() == PrimType_qs64));
+    }
+    return is_accum;
 }
 
 std::string CCodeGen::prepare(const Scope& scope) {
@@ -1256,9 +1267,12 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             //TODO: assign 1 for scalar core
             //if (lang_ == Lang::CGRA && cont->is_exported())
             param_type = convert(param->type());
-            if (lang_ == Lang::CGRA)
-                if (vector_size_ > 1)
-                    param_type = "aie::vector<" + convert(param->type()) + ", " + std::to_string(vector_size_) + ">";
+            if (lang_ == Lang::CGRA) {
+                if (vector_size_ > 1) {
+                    std::string reg_type = is_accum_type(param->type()) ? "aie::accum" : "aie::vector";
+                    param_type = reg_type + "<" + convert(param->type()) + ", " + std::to_string(vector_size_) + ">";
+                }
+            }
             func_impls_.fmt("{}   {};\n", param_type, param->unique_name());
             func_impls_.fmt("{} p_{};\n", param_type, param->unique_name());
             bb.head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());
@@ -1647,7 +1661,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             if (!top_scope.cgra_graph)
                 bb.tail.fmt("{}({, });\n", emit(callee), args);
         }
-
 
         // Pass the result to the phi nodes of the return continuation
         if (!is_type_unit(ret_type)) {
@@ -2123,8 +2136,10 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (bb) {
         auto emitted_type_str = convert(emitted_type) ;
-        if ((lang_ == Lang::CGRA) && (vector_size_ > 1))
-            emitted_type_str = "aie::vector<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+        if ((lang_ == Lang::CGRA) && (vector_size_ > 1)) {
+            std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
+            emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+        }
         func_impls_.fmt("{} {};\n", emitted_type_str, name);
         func_defs_.insert(def);
         bb->body.fmt("{} = {};\n", name, s.str());

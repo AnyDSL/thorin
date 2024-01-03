@@ -1634,8 +1634,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
 
         // Do not store the result of `void` calls
         auto ret_type = thorin::c::ret_type(callee->type());
-        if (!is_type_unit(ret_type) && !channel_transaction)
-            bb.tail.fmt("{} ret_val = ", convert(ret_type));
+        if (!is_type_unit(ret_type) && !channel_transaction) {
+            if (lang_ == Lang::CGRA)
+                bb.tail.fmt("{} = ", emit(values[0]));
+            else
+                bb.tail.fmt("{} ret_val = ", convert(ret_type));
+        }
 
         //TODO:: consider for CGRA objs
         if (!no_function_call) {

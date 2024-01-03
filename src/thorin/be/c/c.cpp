@@ -1150,8 +1150,10 @@ auto CCodeGen::is_accum_type(const Type* type) {
     assert ((lang_ == Lang::CGRA) && "Only CGRA is supported");
     auto is_accum = false;
     if (vector_size_ > 1) {
-        if (auto primtype = type->isa<PrimType>())
-            is_accum = ((primtype->primtype_tag() == PrimType_ps64 )|| (primtype->primtype_tag() == PrimType_qs64));
+        if (auto primtype = type->isa<PrimType>()) {
+            auto type_tag = primtype->primtype_tag();
+            is_accum = ((type_tag == PrimType_ps64 ) || (type_tag == PrimType_qs64));
+        }
     }
     return is_accum;
 }

@@ -515,7 +515,6 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
         return def->as<Param>()->continuation()->is_cgra_graph() ? def->unique_name() : "k" + def->name();
     };
 
-
     auto get_node_names = [&] (const Dependence dependence) {
         auto start_node = node_name(dependence.first);
         auto end_node   = node_name(dependence.second);
@@ -528,6 +527,10 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
         auto to_indices = cont2index[dependence.second->as<Param>()->continuation()];
         auto to = to_indices[to_underlying(ChannelMode::Read)];
         return std::make_pair(from, to);
+    };
+
+    auto get_io_mode_index = [] (const ModeCounters& mode_counters, ChannelMode mode) {
+        return mode_counters[to_underlying(mode)];
     };
 
     auto get_edge_label = [&] (const Dependence& dependence) {
@@ -650,6 +653,10 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
          }
     };
 
+    auto set_io_mode_counters = [] (const auto& mode, auto& mode_counters) {
+            mode_counters[to_underlying(mode)]++;
+    };
+
 
     auto bit_width = [&] (const Type* type) {
         StringStream s;
@@ -699,6 +706,10 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
             if (cont == entry) {
 
+                bool simulated_data = false;// TODO: needs to be set by a flag from frontend
+                ModeCounters io_counters; // only for naming simulation data files
+                io_counters.fill(0);
+
                 for (auto param : cont->params()) {
                     if (is_concrete(param) || is_channel_type(param->type())) {
                         param->dump();
@@ -707,6 +718,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                             visited_defs.emplace(param);
 
                             auto mode = get_param_mode(param->index(), cont);
+                            set_io_mode_counters(mode, io_counters);
                             auto direc_prefix = get_direction_prefix(mode);
                             auto op_type = param->type();// TODO: Dummy value for GMem direct access.
                             if (auto ptr_type = param->type()->isa<PtrType>()) { // if not then it is a runtime parameter
@@ -714,7 +726,11 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                                     op_type = struct_type->op(0);
                             }
 
-                            node_impls_.fmt("{} = adf::{}_plio::create(adf::plio_{}_bits, FILE_ADDR);\n", param->unique_name(), direc_prefix, bit_width(op_type));
+                            auto io_index = get_io_mode_index(io_counters, mode);
+
+                            node_impls_.fmt("{} = adf::{}_plio::create(adf::plio_{}_bits{});\n",
+                                    param->unique_name(), direc_prefix, bit_width(op_type),
+                                    simulated_data ? ("") : (", \"" + direc_prefix + "_" + std::to_string(io_index) + ".txt\""));
 
                         }
 
@@ -773,7 +789,6 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
 
                                 }
-
 
                                 arg_index++;
                             }
@@ -1147,7 +1162,7 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
 }
 
 auto CCodeGen::is_accum_type(const Type* type) {
-    assert ((lang_ == Lang::CGRA) && "Only CGRA is supported");
+    assert((lang_ == Lang::CGRA) && "Only CGRA is supported");
     auto is_accum = false;
     if (vector_size_ > 1) {
         if (auto primtype = type->isa<PrimType>()) {
@@ -1306,9 +1321,6 @@ inline std::string cgra_obj_name() { return "cgra_dataflow"; }
 
 auto cgra_testbench() {
     StringStream s;
-    // TODO: Develope guards
-    // TODO: change types to aie::vector<TYPE, LANE> types and prim types for scalar cpu
-    // TODO: change read and write channel according to method
     // TODO: Check testbenchcode for non mem allocation
     // TODO: we probably need to remove interface pragmas for hls xdma interface when connecting to cgra
     // test HPC interface maybe it already does it.  for QDMA we need to add template args

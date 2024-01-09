@@ -194,7 +194,6 @@ auto CCodeGen::get_config(Continuation* cont) {
 bool CCodeGen::is_scalar_kernel() {
     assert(lang_ == Lang::CGRA && "is_scalar_kernel is available only for CGRA");
     return (vector_size_ == 0 || vector_size_ == 1);
-
 }
 
 auto CCodeGen::get_vector_size(Continuation* cont) {
@@ -1645,26 +1644,25 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     } else THORIN_UNREACHABLE;
                 }
 
+                auto config_read_api = [&] (std::string interface_prefix) {
+                    bb.tail.fmt("{} = {}readincr{}({});\n",
+                            emit(channel_read_result),
+                            interface_prefix,
+                            is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
+                            emit(channel_def));
+                };
+
                 if (name.find("read_channel") != std::string::npos) {
                         switch (cont->get_interface()) {
                             case Interface::Stream: case Interface::Free_running: case Interface::Cascade:
-                                bb.tail.fmt("{} = readincr{}({});\n",
-                                        emit(channel_read_result),
-                                        is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
-                                        emit(channel_def));
+                                config_read_api("");
                                 break;
                             case Interface::Window:
-                                bb.tail.fmt("{} = window_readincr{}({});\n",
-                                        emit(channel_read_result),
-                                        is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
-                                        emit(channel_def));
+                                config_read_api("window_");
                                 break;
                             default:
                                 world().WLOG("Interface not determined or not supported yet. Fall back on STREAM");
-                                bb.tail.fmt("{} = readincr{}({});\n",
-                                        emit(channel_read_result),
-                                        is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
-                                        emit(channel_def));
+                                config_read_api("");
                         }
 
                 }

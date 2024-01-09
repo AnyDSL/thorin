@@ -114,6 +114,7 @@ private:
     auto get_config(Continuation* cont);
     auto get_vector_size(Continuation* cont);
     auto is_accum_type(const Type* type);
+    bool is_scalar_kernel();
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -188,6 +189,12 @@ inline bool has_concrete_params(Continuation* cont) {
 
 auto CCodeGen::get_config(Continuation* cont) {
     return cont->is_exported() && kernel_config_.count(cont) ? kernel_config_.find(cont)->second.get() : nullptr;
+}
+
+bool CCodeGen::is_scalar_kernel() {
+    assert(lang_ == Lang::CGRA && "is_scalar_kernel is available only for CGRA");
+    return (vector_size_ == 0 || vector_size_ == 1);
+
 }
 
 auto CCodeGen::get_vector_size(Continuation* cont) {
@@ -907,7 +914,7 @@ void CCodeGen::emit_module() {
                         "typedef uint16_t u16;\n"
                         "typedef  int32_t i32;\n"
                         "typedef uint32_t u32;\n"
-                        "typedef    acc64 i64;\n"
+                        "typedef  int64_t i64;\n" // only for scalar cores
                         "typedef uint64_t u64;\n"
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
@@ -1072,7 +1079,7 @@ void CCodeGen::emit_module() {
                         "typedef uint64_t u64;\n"
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
-                        "\n", lang_ == Lang::CGRA ? "acc64" : "int64_t");
+                        "\n", (lang_ == Lang::CGRA && (vector_size_ > 1)) ? "acc64" : "int64_t");
 
          if (use_fp_16_ && lang_ == Lang::HLS)
             stream_.fmt("typedef     half f16;\n");
@@ -1641,14 +1648,23 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 if (name.find("read_channel") != std::string::npos) {
                         switch (cont->get_interface()) {
                             case Interface::Stream: case Interface::Free_running: case Interface::Cascade:
-                                bb.tail.fmt("{} = readincr_v<{}>({});\n", emit(channel_read_result), vector_size_, emit(channel_def));
+                                bb.tail.fmt("{} = readincr{}({});\n",
+                                        emit(channel_read_result),
+                                        is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
+                                        emit(channel_def));
                                 break;
                             case Interface::Window:
-                                bb.tail.fmt("{} = window_readincr_v<{}>({});\n", emit(channel_read_result), vector_size_, emit(channel_def) );
+                                bb.tail.fmt("{} = window_readincr{}({});\n",
+                                        emit(channel_read_result),
+                                        is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
+                                        emit(channel_def));
                                 break;
                             default:
                                 world().WLOG("Interface not determined or not supported yet. Fall back on STREAM");
-                                bb.tail.fmt("{} = readincr_v<{}>({});\n", emit(channel_read_result), vector_size_, emit(channel_def));
+                                bb.tail.fmt("{} = readincr{}({});\n",
+                                        emit(channel_read_result),
+                                        is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
+                                        emit(channel_def));
                         }
 
                 }

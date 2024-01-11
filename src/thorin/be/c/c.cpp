@@ -111,6 +111,7 @@ private:
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
+    bool get_cgra_options();
     auto get_config(Continuation* cont);
     auto get_vector_size(Continuation* cont);
     auto is_accum_type(const Type* type);
@@ -152,6 +153,8 @@ private:
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
     struct { bool hls = false; bool cgra_graph = false; } top_scope;
+    //TODO: debug var should enable top debug point and add names to plio ports
+    struct { bool sim_data = false; bool debug = false; } options;
     size_t vector_size_;
     ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
@@ -206,18 +209,45 @@ auto CCodeGen::get_vector_size(Continuation* cont) {
 }
 
 
-bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
-    auto fpga_env = flags_;
-    if (!fpga_env.empty()) {
-        std::string fpga_env_str = fpga_env;
-        for (auto& ch : fpga_env_str)
+static auto prepare_flag(std::string flag) {
+    std::string flag_str = flag;
+    if (!flag.empty()) {
+        for (auto& ch : flag_str)
             ch = std::toupper(ch, std::locale());
-        std::istringstream fpga_env_stream(fpga_env_str);
+    }
+    std::istringstream options_stream(flag_str);
+    return options_stream;
+}
+
+bool CCodeGen::get_cgra_options() {
+    auto opts = prepare_flag(flags_);
+    auto found = false;
+    if (!(opts.str().empty())) {
+        std::string token;
+        while (std::getline(opts, token, ',')) {
+            if (token.compare("USE_SIM_DATA") == 0) {
+                options.sim_data = true;
+                found = true;
+                continue;
+            } else {
+                continue;
+            }
+        }
+
+    }
+    return found;
+}
+
+bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
+
+    auto options = prepare_flag(flags_);
+    if (!(options.str().empty())) {
+
         std::string token;
         gmem = HlsInterface::None;
         bool set_interface = false;
 
-        while (std::getline(fpga_env_stream, token, ',')) {
+        while (std::getline(options, token, ',')) {
             if (token.compare("GMEM_OPT") == 0) {
                 gmem = HlsInterface::GMEM_OPT;
                 continue;
@@ -484,6 +514,9 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
     using Cont2Index = ContinuationMap<ModeCounters>;
     using Dependence = std::pair<const Def*, const Def*>;
 
+    if (!get_cgra_options())
+        world().WLOG("No CGRA options are provided, using default options");
+
     auto get_param_mode = [&] (auto index, Continuation* cont) {
         if(auto config = get_config(cont)) {
             assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
@@ -712,7 +745,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
             if (cont == entry) {
 
-                bool simulated_data = false;// TODO: needs to be set by a flag from frontend
+                auto simulated_data = options.sim_data;
                 ModeCounters io_counters; // only for naming simulation data files
                 io_counters.fill(0);
 
@@ -736,7 +769,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
                             node_impls_.fmt("{} = adf::{}_plio::create(adf::plio_{}_bits{});\n",
                                     param->unique_name(), direc_prefix, bit_width(op_type),
-                                    simulated_data ? ("") : (", \"" + direc_prefix + "_" + std::to_string(io_index) + ".txt\""));
+                                    simulated_data ? (", \"" + direc_prefix + "_" + std::to_string(io_index) + ".txt\"") : (""));
 
                         }
 

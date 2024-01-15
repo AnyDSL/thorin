@@ -154,7 +154,7 @@ private:
     std::ostringstream macro_intel_;
     struct { bool hls = false; bool cgra_graph = false; } top_scope;
     //TODO: debug var should enable top debug point and add names to plio ports
-    struct { bool sim_data = false; bool debug = false; } options;
+    struct { bool sim_data = false; bool debug = false; int32_t iteration = -1;} options;
     size_t vector_size_;
     ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
@@ -220,14 +220,34 @@ static auto prepare_flag(std::string flag) {
 }
 
 bool CCodeGen::get_cgra_options() {
+
     auto opts = prepare_flag(flags_);
     auto found = false;
     if (!(opts.str().empty())) {
         std::string token;
-        while (std::getline(opts, token, ',')) {
-            if (token.compare("USE_SIM_DATA") == 0) {
-                options.sim_data = true;
+
+        auto matches = [&] (std::string str) {
+            if (token.compare(str) == 0)
                 found = true;
+            else if(auto equal_sign_pos = token.find("="); equal_sign_pos != std::string::npos) {
+                found = (token.substr(0, (equal_sign_pos)).compare(str) == 0);
+            } else
+                found = false;
+            return found;
+        };
+
+        auto option_val = [&] (std::string token) {
+            std::string val = token.substr(token.find("=") + 1);
+            return std::stoi(val);
+        };
+
+        while (std::getline(opts, token, ',')) {
+
+            if (matches("USE_SIM_DATA")) {
+                options.sim_data = true;
+                continue;
+            } else if (matches("ITERATION")) {
+                options.iteration = option_val(token);
                 continue;
             } else {
                 continue;
@@ -1358,18 +1378,18 @@ static inline std::string label_name(const Def* def) {
 
 inline std::string cgra_obj_name() { return "cgra_dataflow"; }
 
-auto cgra_testbench() {
+auto cgra_testbench(int32_t iteration) {
     StringStream s;
     // TODO: Check testbenchcode for non mem allocation
     // TODO: we probably need to remove interface pragmas for hls xdma interface when connecting to cgra
     // test HPC interface maybe it already does it.  for QDMA we need to add template args
     // TODO: it seems we need 32bits for stream and 64 or 128 bits for window when creating virtual ports
+    //if (options.iteration > 0) { }
     s << "#if defined(__AIESIM__) || defined(__X86SIM__)\n";
     s << "int main(void) {\n"
             << "\t" << cgra_obj_name() << ".init();\n"
-            << "\tconst auto ITER_NUM = -1;\n"
-            << "\t"<< cgra_obj_name() << ".run(ITER_NUM);\n"
-            << "\tstd::cout << \"Graph executed \" << ITER_NUM << \" times\" << std::endl;\n"
+            << "\t"<< cgra_obj_name() << ".run(" << iteration << ");\n"
+            << "\tstd::cout << \"Graph executed " << iteration << " times\" << std::endl;\n"
             << "\t" << cgra_obj_name() << ".end();\n"
             << "\tstd::cout << \"Graph ended.\" << std::endl;\n"
             << "\treturn 0;\n"
@@ -1389,7 +1409,7 @@ void CCodeGen::finalize(const Scope& scope) {
         //func_impls_.fmt( "\b}};\n\n{} {};\n\n", scope.entry()->name(), cgra_obj_name());
         //func_impls_.fmt("{}", cgra_testbench());
         graph_stream_.fmt( "{} {};\n\n", scope.entry()->name(), cgra_obj_name());
-        graph_stream_.fmt("{}", cgra_testbench());
+        graph_stream_.fmt("{}", cgra_testbench(options.iteration));
     } else
         func_impls_.fmt("}}\n\n");
 }

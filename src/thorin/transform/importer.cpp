@@ -125,4 +125,12 @@ const Def* Importer::rewrite(const Def* const odef) {
     return ndef;
 }
 
+const Def* Importer::find_origin(const Def* ndef) {
+    for (auto def : src().defs()) {
+        if (ndef == lookup(def))
+            return def;
+    }
+    return nullptr;
+}
+
 }

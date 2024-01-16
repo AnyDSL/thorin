@@ -92,19 +92,19 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         importers.emplace_back(world, accelerator_code.back().world());
     }
 
+    static const auto backend_intrinsics = std::array {
+        std::pair { CUDA,   Intrinsic::CUDA         },
+        std::pair { NVVM,   Intrinsic::NVVM         },
+        std::pair { OpenCL, Intrinsic::OpenCL       },
+        std::pair { AMDGPU, Intrinsic::AMDGPU       },
+        std::pair { HLS,    Intrinsic::HLS          },
+        std::pair { Shady,  Intrinsic::ShadyCompute }
+    };
+
     // determine different parts of the world which need to be compiled differently
     ScopesForest(world).for_each([&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-
-        static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,   Intrinsic::CUDA         },
-            std::pair { NVVM,   Intrinsic::NVVM         },
-            std::pair { OpenCL, Intrinsic::OpenCL       },
-            std::pair { AMDGPU, Intrinsic::AMDGPU       },
-            std::pair { HLS,    Intrinsic::HLS          },
-            std::pair { Shady,  Intrinsic::ShadyCompute }
-        };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
                 imported = importers[backend].import(continuation)->as_nom<Continuation>();
@@ -126,10 +126,15 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, Shady }) {
+    for (auto [backend, intrinsic] : backend_intrinsics) {
+        if (backend == HLS)
+            continue;
+
         if (!accelerator_code[backend].world().empty()) {
             get_kernel_configs(accelerator_code[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 auto app = use->body();
+                if (app->callee()->as<Continuation>()->intrinsic() != intrinsic)
+                    return std::unique_ptr<GPUKernelConfig>(nullptr);
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
                 DefSet allocs;

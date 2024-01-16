@@ -19,6 +19,7 @@ public:
     }
 
     const Def* import(const Def* odef) { return instantiate(odef); }
+    const Def* find_origin(const Def* ndef);
     bool todo() const { return todo_; }
 
 protected:

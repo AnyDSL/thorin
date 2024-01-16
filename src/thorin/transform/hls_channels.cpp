@@ -174,7 +174,9 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
             auto new_kernel = lift(scope, old_kernel, channels);
 
             world.make_external(new_kernel);
+            new_kernel->attributes().cc = CC::C;
             world.make_internal(old_kernel);
+            old_kernel->attributes().cc = CC::Thorin;
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -236,14 +238,11 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
 
     // Maping hls world params (from old kernels) to old_world params. Required for host code (runtime) generation
     for (auto& elem : old_kernels_params) {
-        for (auto def : old_world.defs()) {
-            if (auto ocontinuation = def->isa_nom<Continuation>()) {
-                auto ncontinuation = elem->as<Param>()->continuation();
-                if (ncontinuation == importer.import(ocontinuation)) {
-                    elem = ocontinuation->param(elem->as<Param>()->index());
-                    break;
-                }
-            }
+        auto ncontinuation = elem->as<Param>()->continuation();
+        auto odef = importer.find_origin(ncontinuation);
+        if (odef) {
+            auto ocontinuation = odef->as<Continuation>();
+            elem = ocontinuation->param(elem->as<Param>()->index());
         }
     }
 

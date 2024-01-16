@@ -86,6 +86,8 @@ public:
                     new_args[i] = body->arg(i);
                 else if (callee->intrinsic() == Intrinsic::Match && i > 2)
                     new_args[i] = body->arg(i);
+                else if (callee->intrinsic() == Intrinsic::HLS && i > 1)
+                    new_args[i] = body->arg(i);
                 else
                     new_args[i] = convert_def(body->arg(i));
             }

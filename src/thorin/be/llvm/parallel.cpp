@@ -55,7 +55,9 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_parallel_for";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
-    runtime_->parallel_for(irbuilder, num_threads, lower, upper, ptr, wrapper);
+    wrapper->addFnAttr("target-cpu", machine_->getTargetCPU());
+    wrapper->addFnAttr("target-features", machine_->getTargetFeatureString());
+    runtime_->parallel_for(*this, irbuilder, num_threads, lower, upper, ptr, wrapper);
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder.GetInsertBlock();
@@ -64,8 +66,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr = irbuilder.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
-    auto val = irbuilder.CreateLoad(load_ptr);
+    auto val = irbuilder.CreateLoad(closure_type, &*wrapper_args);
     std::vector<llvm::Value*> target_args(num_kernel_args + 1);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -148,7 +149,9 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_fibers";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
-    runtime_->spawn_fibers(irbuilder, num_threads, num_blocks, num_warps, ptr, wrapper);
+    wrapper->addFnAttr("target-cpu", machine_->getTargetCPU());
+    wrapper->addFnAttr("target-features", machine_->getTargetFeatureString());
+    runtime_->spawn_fibers(*this, irbuilder, num_threads, num_blocks, num_warps, ptr, wrapper);
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder.GetInsertBlock();
@@ -157,8 +160,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr = irbuilder.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
-    auto val = irbuilder.CreateLoad(load_ptr);
+    auto val = irbuilder.CreateLoad(closure_type, &*wrapper_args);
     std::vector<llvm::Value*> target_args(num_kernel_args + 2);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -231,7 +233,9 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_spawn_thread";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
-    auto call = runtime_->spawn_thread(irbuilder, ptr, wrapper);
+    wrapper->addFnAttr("target-cpu", machine_->getTargetCPU());
+    wrapper->addFnAttr("target-features", machine_->getTargetFeatureString());
+    auto call = runtime_->spawn_thread(*this, irbuilder, ptr, wrapper);
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder.GetInsertBlock();
@@ -240,8 +244,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr = irbuilder.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
-    auto val = irbuilder.CreateLoad(load_ptr);
+    auto val = irbuilder.CreateLoad(closure_type, &*wrapper_args);
     std::vector<llvm::Value*> target_args(num_kernel_args);
     if (val->getType()->isStructTy()) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -281,9 +284,8 @@ Continuation* CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* con
     emit_unsafe(body->arg(FIB_ARG_MEM));
 
     auto id = emit(body->arg(SYNC_ARG_ID));
-    runtime_->sync_thread(irbuilder, id);
+    runtime_->sync_thread(*this, irbuilder, id);
     return body->arg(SYNC_ARG_RETURN)->as_nom<Continuation>();
 }
 
 }
-

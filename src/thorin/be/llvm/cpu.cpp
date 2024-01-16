@@ -1,7 +1,7 @@
 #include "thorin/be/llvm/cpu.h"
 
+#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -32,7 +32,7 @@ CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug, std::string& target_tr
     auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
     assert(target && "can't create target for target architecture");
     llvm::TargetOptions options;
-    machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, llvm::None));
+    machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, std::nullopt));
     module().setDataLayout(machine_->createDataLayout());
     module().setTargetTriple(triple_str);
 }

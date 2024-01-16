@@ -136,6 +136,8 @@ void Def::replace_uses(const Def* with) const {
     if (this != with) {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
+            if (def->isa<Param>())
+                continue;
             auto index = use.index();
             def->unset_op(index);
             def->set_op(index, with);

@@ -321,11 +321,19 @@ public:
             result["name"] = name;
             result["type"] = "const";
             result["const_type"] = type;
-            //result["value"] = lit->value().get_s32(); //TODO: this looks wrong. What I get should depend on the lit type.
+
             switch (lit->primtype_tag()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: { result["value"] = lit->value().get_##M(); break; }
 #define THORIN_BOOL_TYPE(T, M) case PrimType_##T: { result["value"] = lit->value().get_##M(); break; }
-#define THORIN_F_TYPE(T, M) case PrimType_##T: { result["value"] = (double)lit->value().get_##M(); break; }
+#define THORIN_F_TYPE(T, M) case PrimType_##T: { \
+    double value = (double)lit->value().get_##M(); \
+    result["value"] = value; \
+    if (value == INFINITY) { result["special"] = "inf"; } \
+    if (value == - INFINITY) { result["special"] = "-inf"; } \
+    if (value == NAN) { result["special"] = "nan"; } \
+    if (value == - NAN) { result["special"] = "- nan"; } \
+    break; \
+}
 #include <thorin/tables/primtypetable.h>
             default:
                 assert(false && "not implemented");

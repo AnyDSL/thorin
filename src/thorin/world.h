@@ -340,7 +340,8 @@ public:
     static std::string colorize(const std::string& str, int color);
     //@}
 
-private:
+//TODO: Some example plugins need access to cse and data_.defs_ to put new defs in, there has to be a better way than eposing this direcly though.
+//private:
     const Param* param(const Type* type, const Continuation*, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);

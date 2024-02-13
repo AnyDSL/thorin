@@ -138,7 +138,7 @@ public:
         Attributes(CC cc = CC::Thorin) : cc(cc) {}
     };
 
-private:
+protected:
     Continuation(World&, const FnType* pi, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
 

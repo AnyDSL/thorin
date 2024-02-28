@@ -6,7 +6,8 @@
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
-#include "thorin/be/llvm/amdgpu.h"
+#include "thorin/be/llvm/amdgpu_hsa.h"
+#include "thorin/be/llvm/amdgpu_pal.h"
 #endif
 #include "thorin/be/c/c.h"
 
@@ -87,11 +88,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         Continuation* imported = nullptr;
 
         static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,   Intrinsic::CUDA   },
-            std::pair { NVVM,   Intrinsic::NVVM   },
-            std::pair { OpenCL, Intrinsic::OpenCL },
-            std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    }
+            std::pair { CUDA,       Intrinsic::CUDA      },
+            std::pair { NVVM,       Intrinsic::NVVM      },
+            std::pair { OpenCL,     Intrinsic::OpenCL    },
+            std::pair { AMDGPU_HSA, Intrinsic::AMDGPUHSA },
+            std::pair { AMDGPU_PAL, Intrinsic::AMDGPUPAL },
+            std::pair { HLS,        Intrinsic::HLS       }
         };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
@@ -112,7 +114,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU }) {
+    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU_HSA, AMDGPU_PAL }) {
         if (!importers_[backend].world().empty()) {
             get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 auto app = use->body();
@@ -185,8 +187,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
-    if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
-    if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
+    if (!importers_[NVVM      ].world().empty()) cgs[NVVM      ] = std::make_unique<llvm::NVVMCodeGen     >(importers_[NVVM      ].world(), kernel_config,      debug);
+    if (!importers_[AMDGPU_HSA].world().empty()) cgs[AMDGPU_HSA] = std::make_unique<llvm::AMDGPUHSACodeGen>(importers_[AMDGPU_HSA].world(), kernel_config, opt, debug);
+    if (!importers_[AMDGPU_PAL].world().empty()) cgs[AMDGPU_PAL] = std::make_unique<llvm::AMDGPUPALCodeGen>(importers_[AMDGPU_PAL].world(), kernel_config, opt, debug);
 #else
     (void)opt;
 #endif

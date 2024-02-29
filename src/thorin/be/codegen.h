@@ -45,10 +45,10 @@ struct DeviceBackends {
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU, HLS, Shady, BackendCount };
+    enum { CUDA, NVVM, OpenCL, AMDGPU_HSA, AMDGPU_PAL, HLS, Shady, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
 private:
-    std::array<const char*, BackendCount> backend_names = { "CUDA", "NVVM", "OpenCL", "AMDGPU", "HLS", "Shady" };
+    std::array<const char*, BackendCount> backend_names = { "CUDA", "NVVM", "OpenCL", "AMDGPU_HSA", "AMDGPU_PAL", "HLS", "Shady" };
     std::vector<Thorin> accelerator_code;
 };
 

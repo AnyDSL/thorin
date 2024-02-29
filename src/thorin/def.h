@@ -84,7 +84,7 @@ struct GIDLt {
 
 template<class T>
 struct GIDHash {
-    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static hash_t hash(T n) { return thorin::murmur3(n ? n->gid() : 0); }
     static bool eq(T a, T b) { return a == b; }
     static T sentinel() { return T(1); }
 };

@@ -1303,7 +1303,8 @@ std::vector<llvm::Value*> CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, 
         case Intrinsic::CUDA:         runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation); break;
         case Intrinsic::NVVM:         runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation); break;
         case Intrinsic::OpenCL:       runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation); break;
-        case Intrinsic::AMDGPU:       runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation); break;
+        case Intrinsic::AMDGPUHSA:    runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation); break;
+        case Intrinsic::AMDGPUPAL:    runtime_->emit_host_code(*this, irbuilder, Runtime::PAL_PLATFORM,    ".amdgpu", continuation); break;
         case Intrinsic::ShadyCompute: runtime_->emit_host_code(*this, irbuilder, Runtime::SHADY_PLATFORM,  ".shady",  continuation); break;
         case Intrinsic::HLS:          emit_hls(irbuilder, continuation);      break;
         case Intrinsic::Parallel:     emit_parallel(irbuilder, continuation); break;

@@ -23,6 +23,7 @@ public:
         CUDA_PLATFORM,
         OPENCL_PLATFORM,
         HSA_PLATFORM,
+        PAL_PLATFORM,
         SHADY_PLATFORM,
     };
 

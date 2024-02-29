@@ -6,7 +6,8 @@
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
-#include "thorin/be/llvm/amdgpu.h"
+#include "thorin/be/llvm/amdgpu_hsa.h"
+#include "thorin/be/llvm/amdgpu_pal.h"
 #endif
 #if THORIN_ENABLE_SHADY
 #include "thorin/be/shady/shady.h"
@@ -93,12 +94,13 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     }
 
     static const auto backend_intrinsics = std::array {
-        std::pair { CUDA,   Intrinsic::CUDA         },
-        std::pair { NVVM,   Intrinsic::NVVM         },
-        std::pair { OpenCL, Intrinsic::OpenCL       },
-        std::pair { AMDGPU, Intrinsic::AMDGPU       },
-        std::pair { HLS,    Intrinsic::HLS          },
-        std::pair { Shady,  Intrinsic::ShadyCompute }
+        std::pair { CUDA,       Intrinsic::CUDA         },
+        std::pair { NVVM,       Intrinsic::NVVM         },
+        std::pair { OpenCL,     Intrinsic::OpenCL       },
+        std::pair { AMDGPU_HSA, Intrinsic::AMDGPUHSA    },
+        std::pair { AMDGPU_PAL, Intrinsic::AMDGPUPAL    },
+        std::pair { HLS,        Intrinsic::HLS          },
+        std::pair { Shady,      Intrinsic::ShadyCompute }
     };
 
     // determine different parts of the world which need to be compiled differently
@@ -205,8 +207,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
-    if (!accelerator_code[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(accelerator_code[NVVM  ], kernel_config,      debug);
-    if (!accelerator_code[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(accelerator_code[AMDGPU], kernel_config, opt, debug);
+    if (!accelerator_code[NVVM      ].world().empty()) cgs[NVVM      ] = std::make_unique<llvm::NVVMCodeGen     >(accelerator_code[NVVM      ], kernel_config,      debug);
+    if (!accelerator_code[AMDGPU_HSA].world().empty()) cgs[AMDGPU_HSA] = std::make_unique<llvm::AMDGPUHSACodeGen>(accelerator_code[AMDGPU_HSA], kernel_config, opt, debug);
+    if (!accelerator_code[AMDGPU_PAL].world().empty()) cgs[AMDGPU_PAL] = std::make_unique<llvm::AMDGPUPALCodeGen>(accelerator_code[AMDGPU_PAL], kernel_config, opt, debug);
 #else
     (void)opt;
 #endif

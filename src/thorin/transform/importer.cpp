@@ -68,6 +68,9 @@ const Def* Importer::import(const Def* odef) {
             def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
         }
 
+        if (ocontinuation->attributes().depends)
+            ncontinuation->attributes().depends = import(ocontinuation->attributes().depends)->as<Continuation>();
+
         def_old2new_[ocontinuation] = ncontinuation;
 
         if (ocontinuation->is_external())

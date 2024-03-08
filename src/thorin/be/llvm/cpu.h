@@ -13,6 +13,7 @@ public:
 
 protected:
     std::string get_alloc_name() const override { return "anydsl_alloc"; }
+    std::string get_release_name() const override { return "anydsl_release"; }
 };
 
 }

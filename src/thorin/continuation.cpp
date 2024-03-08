@@ -39,6 +39,18 @@ void App::verify() const {
     }
 }
 
+void App::jump(const Def* callee, Defs args, Debug dbg) {
+    unset_ops();
+    resize(args.size() + 1);
+
+    set_op(0, callee);
+    for (int i = 0, e = args.size(); i < e; i++) {
+        set_op(i + 1, args[i]);
+    }
+
+    verify();
+}
+
 //------------------------------------------------------------------------------
 
 Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs, dbg) {}

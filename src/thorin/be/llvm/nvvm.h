@@ -33,6 +33,7 @@ protected:
     llvm::Value* emit_global(const Global*) override;
 
     std::string get_alloc_name() const override { return "malloc"; }
+    std::string get_release_name() const override { return "free"; }
 
 private:
     llvm::Function* get_texture_handle_fun(llvm::IRBuilder<>&);

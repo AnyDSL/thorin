@@ -63,7 +63,7 @@ public:
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
         auto callee = body->callee()->isa_nom<Continuation>();
         if (callee == continuation) return;
-        if (!callee || !callee->is_intrinsic()) {
+        if (!callee || !callee->is_intrinsic() || callee->intrinsic() == Intrinsic::Plugin) {
             Array<const Def*> new_args(body->num_args());
             for (size_t i = 0, e = body->num_args(); i != e; ++i)
                 new_args[i] = convert(body->arg(i));

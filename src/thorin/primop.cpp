@@ -113,6 +113,13 @@ Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg)
     set_type(w.tuple_type({w.mem_type(), w.ptr_type(type)}));
 }
 
+Release::Release(const Def* mem, const Def* alloc, Debug dbg)
+    : MemOp(Node_Release, nullptr, {mem, alloc}, dbg)
+{
+    World& w = mem->world();
+    set_type(w.mem_type());
+}
+
 Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     : Access(Node_Load, nullptr, {mem, ptr}, dbg)
 {
@@ -224,6 +231,10 @@ const Def* Vector        ::rebuild(World& w, const Type*  , Defs o) const { retu
 
 const Def* Alloc::rebuild(World& w, const Type* t, Defs o) const {
     return w.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), o[0], o[1], debug());
+}
+
+const Def* Release::rebuild(World& w, const Type* t, Defs o) const {
+    return w.release(o[0], o[1], debug());
 }
 
 const Def* Assembly::rebuild(World& w, const Type* t, Defs o) const {

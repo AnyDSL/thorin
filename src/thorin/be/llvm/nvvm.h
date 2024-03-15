@@ -13,7 +13,7 @@ namespace llvm = ::llvm;
 
 class NVVMCodeGen : public CodeGen {
 public:
-    NVVMCodeGen(World& world, const Cont2Config&, bool debug); // NVVM-specific optimizations are run in the runtime
+    NVVMCodeGen(World& world, const Cont2Config&, int opt, bool debug);
 
     const char* file_ext() const override { return ".nvvm"; }
 

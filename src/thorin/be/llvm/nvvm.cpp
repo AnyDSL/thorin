@@ -19,8 +19,8 @@
 
 namespace thorin::llvm {
 
-NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, bool debug)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, 0, debug)
+NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, opt, debug)
     , kernel_config_(kernel_config)
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());

@@ -187,7 +187,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
-    if (!importers_[NVVM      ].world().empty()) cgs[NVVM      ] = std::make_unique<llvm::NVVMCodeGen     >(importers_[NVVM      ].world(), kernel_config,      debug);
+    if (!importers_[NVVM      ].world().empty()) cgs[NVVM      ] = std::make_unique<llvm::NVVMCodeGen     >(importers_[NVVM      ].world(), kernel_config, opt, debug);
     if (!importers_[AMDGPU_HSA].world().empty()) cgs[AMDGPU_HSA] = std::make_unique<llvm::AMDGPUHSACodeGen>(importers_[AMDGPU_HSA].world(), kernel_config, opt, debug);
     if (!importers_[AMDGPU_PAL].world().empty()) cgs[AMDGPU_PAL] = std::make_unique<llvm::AMDGPUPALCodeGen>(importers_[AMDGPU_PAL].world(), kernel_config, opt, debug);
 #else

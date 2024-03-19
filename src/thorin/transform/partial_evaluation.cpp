@@ -16,13 +16,13 @@ struct HashApp {
 
 class PartialEvaluator {
 public:
-    PartialEvaluator(World& world, bool lower2cff)
-        : world_(world)
+    PartialEvaluator(Thorin& thorin, bool lower2cff)
+        : thorin_(thorin)
         , lower2cff_(lower2cff)
         , boundary_(Def::gid_counter())
     {}
 
-    World& world() { return world_; }
+    World& world() { return thorin_.world(); }
     bool run();
     void enqueue(Continuation* continuation) {
         if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
@@ -31,7 +31,7 @@ public:
     void eat_pe_info(Continuation*);
 
 private:
-    World& world_;
+    Thorin& thorin_;
     bool lower2cff_;
     HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
@@ -141,6 +141,73 @@ bool PartialEvaluator::run() {
                 continue;
             }
 
+            if (callee->intrinsic() == Intrinsic::Plugin) {
+                if (callee->attributes().depends) {
+                    size_t num_dependend_uses = 0;
+                    for (auto use : callee->attributes().depends->uses()) {
+                        num_dependend_uses += use.def()->num_uses();
+                    }
+                    //std::cerr << "Analyzing " << callee->unique_name() << " with dependency " << callee->attributes().depends->unique_name() << "\n";
+                    //std::cerr << " => has " << num_dependend_uses << " real dependencies\n";
+                    if (num_dependend_uses > 0) {
+                        //Push the next continue so that other plugins get executed.
+                        for (auto arg : body->args()) {
+                            if (auto cont = arg->isa<Continuation>()) {
+                                queue_.push(const_cast<Continuation*>(cont));
+                            }
+                        }
+                        continue;
+                    }
+                }
+
+                ScopesForest forest(world());
+                CondEval cond_eval(callee, forest, body->args());
+
+                //TODO: build specialize here to allow for parameter hiding.
+                bool fold = false;
+                for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+                    if (cond_eval.eval(i, lower2cff_)) {
+                        fold = true;
+                        break;
+                    }
+                }
+
+                if (fold) {
+                    std::vector<const Def*> specialize(body->arg(body->num_args() - 1)->as<Continuation>()->num_params());
+                    specialize[0] = body->arg(0);
+
+                    const auto& p = cache_.emplace(body, nullptr);
+                    const Continuation* target = p.first->second;
+                    // create new specialization if not found in cache
+                    if (p.second) {
+                        world().idef(continuation, "Plugin execute: {}", callee);
+
+                        auto plugin_function = thorin_.search_plugin_function(callee->name().c_str());
+                        if (!plugin_function) {
+                            world().ELOG("Plugin function not found for: {}", callee->name());
+                            continue;
+                        }
+
+                        const Def* output = plugin_function(&world(), body);
+                        if (output)
+                            specialize[1] = output;
+
+                        target = body->arg(body->num_args() - 1)->as<Continuation>();
+                        todo = true;
+                    }
+                    continuation->jump(target, specialize);
+
+                    if (lower2cff_ && fold) {
+                        // re-examine next iteration:
+                        // maybe the specialization is not top-level anymore which might need further specialization
+                        queue_.push(continuation);
+                        continue;
+                    }
+                }
+
+                continue;
+            }
+
             if (callee->has_body()) {
                 // TODO cache the forest and only rebuild it when we need to
                 ScopesForest forest(world());
@@ -162,7 +229,7 @@ bool PartialEvaluator::run() {
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
-                        world_.ddef(continuation, "Specializing call to {}", callee);
+                        world().ddef(continuation, "Specializing call to {}", callee);
                         target = drop(callee, specialize);
                         todo = true;
                     }
@@ -198,11 +265,11 @@ bool PartialEvaluator::run() {
 
 //------------------------------------------------------------------------------
 
-bool partial_evaluation(World& world, bool lower2cff) {
+bool partial_evaluation(Thorin& thorin, bool lower2cff) {
     auto name = lower2cff ? "lower2cff" : "partial_evaluation";
-    world.VLOG("start {}", name);
-    auto res = PartialEvaluator(world, lower2cff).run();
-    world.VLOG("end {}", name);
+    thorin.world().VLOG("start {}", name);
+    auto res = PartialEvaluator(thorin, lower2cff).run();
+    thorin.world().VLOG("end {}", name);
     return res;
 }
 

@@ -1320,13 +1320,13 @@ void Thorin::opt() {
 }
 
     RUN_PASS(cleanup())
-    RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
+    RUN_PASS(while (partial_evaluation(*this, true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
-    if (plugin_handles.size() > 0) {
-        RUN_PASS(plugin_execute(*this));
-        RUN_PASS(cleanup());
-    }
+    //if (plugin_handles.size() > 0) {
+    //    RUN_PASS(plugin_execute(*this));
+    //    RUN_PASS(cleanup());
+    //}
     RUN_PASS(closure_conversion(world()))
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))

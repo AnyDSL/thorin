@@ -244,7 +244,7 @@ void Cleaner::cleanup_fix_point() {
         todo_ |= resolve_loads(world());
         rebuild();
         //if (!world().is_pe_done())
-            todo_ |= partial_evaluation(world());
+            todo_ |= partial_evaluation(thorin_);
         //else
         //    clean_pe_infos();
     }

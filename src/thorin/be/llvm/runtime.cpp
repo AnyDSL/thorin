@@ -45,22 +45,22 @@ static bool contains_ptrtype(const Type* type) {
         case Node_StructType: {
             bool good = true;
             auto struct_type = type->as<StructType>();
-            for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(struct_type->op(i));
+            for (auto& t : struct_type->types())
+                good &= contains_ptrtype(t);
             return good;
         }
         case Node_TupleType: {
             bool good = true;
             auto tuple = type->as<TupleType>();
-            for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(tuple->op(i));
+            for (auto& t : tuple->types())
+                good &= contains_ptrtype(t);
             return good;
         }
         default: return true;
     }
 }
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Platform platform, const std::string& ext, Continuation* continuation) {
+void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Platform platform, const std::string& ext, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     // to-target is the desired kernel call
@@ -79,7 +79,8 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
     auto kernel = body->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
     auto& world = continuation->world();
-    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->unique_name());
+    //auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->name());
+    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
     const size_t num_kernel_args = body->num_args() - LaunchArgs::Num;
 
@@ -183,8 +184,6 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
                   grid_size, block_size,
                   args, sizes, aligns, allocs, types,
                   builder.getInt32(num_kernel_args));
-
-    return body->arg(LaunchArgs::Return)->as_nom<Continuation>();
 }
 
 llvm::Value* Runtime::launch_kernel(

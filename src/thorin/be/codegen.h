@@ -8,7 +8,7 @@ namespace thorin {
 
 class CodeGen {
 protected:
-    CodeGen(World& world, bool debug);
+    CodeGen(Thorin& thorin, bool debug);
 public:
     virtual ~CodeGen() {}
 
@@ -17,12 +17,13 @@ public:
 
     /// @name getters
     //@{
-    World& world() const { return world_; }
+    Thorin& thorin() const { return thorin_; }
+    World& world() const { return thorin().world(); }
     bool debug() const { return debug_; }
     //@}
 
 private:
-    World& world_;
+    Thorin& thorin_;
     bool debug_;
 };
 
@@ -44,10 +45,11 @@ struct DeviceBackends {
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU_HSA, AMDGPU_PAL, HLS, BackendCount };
+    enum { CUDA, NVVM, OpenCL, AMDGPU_HSA, AMDGPU_PAL, HLS, Shady, BackendCount };
     std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
 private:
-    std::vector<Importer> importers_;
+    std::array<const char*, BackendCount> backend_names = { "CUDA", "NVVM", "OpenCL", "AMDGPU_HSA", "AMDGPU_PAL", "HLS", "Shady" };
+    std::vector<Thorin> accelerator_code;
 };
 
 }

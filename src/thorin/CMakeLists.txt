@@ -16,8 +16,6 @@ set(THORIN_SOURCES
     world.h
     analyses/cfg.cpp
     analyses/cfg.h
-    analyses/domfrontier.cpp
-    analyses/domfrontier.h
     analyses/domtree.cpp
     analyses/domtree.h
     analyses/free_defs.cpp
@@ -43,9 +41,6 @@ set(THORIN_SOURCES
     tables/primtypetable.h
     tables/mathoptable.h
     transform/cleanup_world.cpp
-    transform/cleanup_world.h
-    transform/clone_bodies.cpp
-    transform/clone_bodies.h
     transform/closure_conversion.cpp
     transform/closure_conversion.h
     transform/codegen_prepare.h
@@ -68,6 +63,8 @@ set(THORIN_SOURCES
     transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
+    transform/rewrite.cpp
+    transform/rewrite.h
     transform/split_slots.cpp
     transform/split_slots.h
     transform/hls_channels.cpp
@@ -87,6 +84,9 @@ set(THORIN_SOURCES
     util/symbol.h
     util/types.h
     util/utility.h
+    util/graphviz_dump.cpp
+    util/scoped_dump.h
+    util/scoped_dump.cpp
     )
 
 if(LLVM_FOUND)
@@ -111,6 +111,19 @@ if(LLVM_FOUND)
     )
 endif()
 
+if (THORIN_ENABLE_SHADY)
+    list(APPEND THORIN_SOURCES
+        be/shady/shady.cpp
+    )
+endif()
+
+if(THORIN_ENABLE_JSON)
+    list(APPEND THORIN_SOURCES
+        be/json/json.cpp
+        be/json/json.h
+    )
+endif()
+
 add_library(thorin ${THORIN_SOURCES})
 target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${Thorin_ROOT_DIR}/src ${CMAKE_BINARY_DIR}/include)
 
@@ -124,4 +137,16 @@ if(LLVM_FOUND)
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
+endif()
+
+if (THORIN_ENABLE_SHADY)
+    if (shady_FOUND)
+        target_link_libraries(thorin PRIVATE shady::shady)
+    else()
+        target_link_libraries(thorin PRIVATE shady)
+    endif()
+endif()
+
+if(THORIN_ENABLE_JSON)
+    target_link_libraries(thorin PRIVATE nlohmann_json::nlohmann_json)
 endif()

@@ -9,25 +9,32 @@
 #include "thorin/be/llvm/amdgpu_hsa.h"
 #include "thorin/be/llvm/amdgpu_pal.h"
 #endif
+#if THORIN_ENABLE_SHADY
+#include "thorin/be/shady/shady.h"
+#undef empty
+#undef nodes
+#endif
 #include "thorin/be/c/c.h"
 
 namespace thorin {
 
 static void get_kernel_configs(
-    Importer& importer,
+    Thorin& thorin,
     const std::vector<Continuation*>& kernels,
     Cont2Config& kernel_configs,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
-    importer.world().opt();
+    thorin.opt();
 
-    auto externals = importer.world().externals();
+    auto externals = thorin.world().externals();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto [_, exported] : externals) {
+        for (auto [_, def] : externals) {
+            auto exported = def->isa<Continuation>();
+            if (!exported) continue;
             if (!exported->has_body()) continue;
-            if (exported->name() == continuation->unique_name())
+            if (exported->name() == continuation->name())
                 imported = exported;
         }
         if (!imported) continue;
@@ -42,6 +49,7 @@ static void get_kernel_configs(
             return false;
         }, true);
 
+        continuation->world().make_external(continuation);
         continuation->destroy("codegen");
     }
 }
@@ -79,25 +87,29 @@ static uint64_t get_alloc_size(const Def* def) {
 DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& flags)
     : cgs {}
 {
-    for (size_t i = 0; i < cgs.size(); ++i)
-        importers_.emplace_back(world);
+    std::vector<Importer> importers;
+    for (auto& name : backend_names) {
+        accelerator_code.emplace_back(name);
+        importers.emplace_back(world, accelerator_code.back().world());
+    }
+
+    static const auto backend_intrinsics = std::array {
+        std::pair { CUDA,       Intrinsic::CUDA         },
+        std::pair { NVVM,       Intrinsic::NVVM         },
+        std::pair { OpenCL,     Intrinsic::OpenCL       },
+        std::pair { AMDGPU_HSA, Intrinsic::AMDGPUHSA    },
+        std::pair { AMDGPU_PAL, Intrinsic::AMDGPUPAL    },
+        std::pair { HLS,        Intrinsic::HLS          },
+        std::pair { Shady,      Intrinsic::ShadyCompute }
+    };
 
     // determine different parts of the world which need to be compiled differently
-    Scope::for_each(world, [&] (const Scope& scope) {
+    ScopesForest(world).for_each([&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-
-        static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,       Intrinsic::CUDA      },
-            std::pair { NVVM,       Intrinsic::NVVM      },
-            std::pair { OpenCL,     Intrinsic::OpenCL    },
-            std::pair { AMDGPU_HSA, Intrinsic::AMDGPUHSA },
-            std::pair { AMDGPU_PAL, Intrinsic::AMDGPUPAL },
-            std::pair { HLS,        Intrinsic::HLS       }
-        };
         for (auto [backend, intrinsic] : backend_intrinsics) {
             if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
+                imported = importers[backend].import(continuation)->as_nom<Continuation>();
                 break;
             }
         }
@@ -107,17 +119,24 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
 
         // Necessary so that the names match in the original and imported worlds
         imported->set_name(continuation->unique_name());
+        continuation->set_name(continuation->unique_name());
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->set_name(continuation->param(i)->name());
         imported->world().make_external(imported);
+        imported->attributes().cc = CC::C;
 
         kernels.emplace_back(continuation);
     });
 
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU_HSA, AMDGPU_PAL }) {
-        if (!importers_[backend].world().empty()) {
-            get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
+    for (auto [backend, intrinsic] : backend_intrinsics) {
+        if (backend == HLS)
+            continue;
+
+        if (!accelerator_code[backend].world().empty()) {
+            get_kernel_configs(accelerator_code[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
                 auto app = use->body();
+                if (app->callee()->as<Continuation>()->intrinsic() != intrinsic)
+                    return std::unique_ptr<GPUKernelConfig>(nullptr);
                 // determine whether or not this kernel uses restrict pointers
                 bool has_restrict = true;
                 DefSet allocs;
@@ -130,8 +149,9 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                     has_restrict &= p.second;
                 }
 
-                auto it_config = app->arg(LaunchArgs::Config)->as<Tuple>();
-                if (it_config->op(0)->isa<PrimLit>() &&
+                auto it_config = app->arg(LaunchArgs::Config)->isa<Tuple>();
+                if (it_config &&
+                    it_config->op(0)->isa<PrimLit>() &&
                     it_config->op(1)->isa<PrimLit>() &&
                     it_config->op(2)->isa<PrimLit>()) {
                     return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
@@ -148,10 +168,10 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     // get the HLS kernel configurations
     Top2Kernel top2kernel;
     DeviceParams hls_host_params;
-    if (!importers_[HLS].world().empty()) {
-        hls_host_params = hls_channels(importers_[HLS], top2kernel, world);
+    if (!accelerator_code[HLS].world().empty()) {
+        hls_host_params = hls_channels(accelerator_code[HLS], importers[HLS], top2kernel, world);
 
-        get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
+        get_kernel_configs(accelerator_code[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
             auto app = use->body();
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {
@@ -182,23 +202,26 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
-        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config);
+        hls_annotate_top(accelerator_code[HLS].world(), top2kernel, kernel_config);
     }
     hls_kernel_launch(world, hls_host_params);
 
 #if THORIN_ENABLE_LLVM
-    if (!importers_[NVVM      ].world().empty()) cgs[NVVM      ] = std::make_unique<llvm::NVVMCodeGen     >(importers_[NVVM      ].world(), kernel_config, opt, debug);
-    if (!importers_[AMDGPU_HSA].world().empty()) cgs[AMDGPU_HSA] = std::make_unique<llvm::AMDGPUHSACodeGen>(importers_[AMDGPU_HSA].world(), kernel_config, opt, debug);
-    if (!importers_[AMDGPU_PAL].world().empty()) cgs[AMDGPU_PAL] = std::make_unique<llvm::AMDGPUPALCodeGen>(importers_[AMDGPU_PAL].world(), kernel_config, opt, debug);
+    if (!accelerator_code[NVVM      ].world().empty()) cgs[NVVM      ] = std::make_unique<llvm::NVVMCodeGen     >(accelerator_code[NVVM      ], kernel_config, opt, debug);
+    if (!accelerator_code[AMDGPU_HSA].world().empty()) cgs[AMDGPU_HSA] = std::make_unique<llvm::AMDGPUHSACodeGen>(accelerator_code[AMDGPU_HSA], kernel_config, opt, debug);
+    if (!accelerator_code[AMDGPU_PAL].world().empty()) cgs[AMDGPU_PAL] = std::make_unique<llvm::AMDGPUPALCodeGen>(accelerator_code[AMDGPU_PAL], kernel_config, opt, debug);
 #else
     (void)opt;
 #endif
+#if THORIN_ENABLE_SHADY
+    if (!accelerator_code[Shady].world().empty()) cgs[Shady] = std::make_unique<shady_be::CodeGen>(accelerator_code[Shady], kernel_config, debug);
+#endif
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS } })
-        if (!importers_[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
+        if (!accelerator_code[backend].world().empty()) cgs[backend] = std::make_unique<c::CodeGen>(accelerator_code[backend], kernel_config, lang, debug, flags);
 }
 
-CodeGen::CodeGen(World& world, bool debug)
-    : world_(world)
+CodeGen::CodeGen(Thorin& thorin, bool debug)
+    : thorin_(thorin)
     , debug_(debug)
 {}
 

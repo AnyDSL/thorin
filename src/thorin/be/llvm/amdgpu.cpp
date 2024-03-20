@@ -7,8 +7,8 @@
 
 namespace thorin::llvm {
 
-AMDGPUCodeGen::AMDGPUCodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config, int opt, bool debug)
-    : CodeGen(world, function_calling_convention, device_calling_convention, kernel_calling_convention, opt, debug)
+AMDGPUCodeGen::AMDGPUCodeGen(Thorin& thorin, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config, int opt, bool debug)
+    : CodeGen(thorin, function_calling_convention, device_calling_convention, kernel_calling_convention, opt, debug)
     , kernel_config_(kernel_config) {}
 
 //------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ llvm::Value* AMDGPUCodeGen::emit_mathop(llvm::IRBuilder<>& irbuilder, const Math
     return call;
 }
 
-Continuation* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+llvm::Value* AMDGPUCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
     return emit_reserve_shared(irbuilder, continuation, true);
 }
 

@@ -145,14 +145,14 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
 }
 
 /**
- * @param importer hls world
+ * @param thorin hls world
  * @param Top2Kernel annonating hls_top configuration
  * @param old_world to connect with runtime (host) world
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
-DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old_world) {
-    auto& world = importer.world();
+DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2kernel, World& old_world) {
+    auto& world = thorin.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
     Def2Def kernel_new2old;
@@ -160,29 +160,23 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     Def2Def arg2param;
 
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
             auto old_kernel = scope.entry();
             Def2Mode def2mode;
             extract_kernel_channels(schedule(scope), def2mode);
 
-            Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
-            std::copy(old_kernel->type()->ops().begin(),
-                    old_kernel->type()->ops().end(),
-                    new_param_types.begin());
-            size_t i = old_kernel->num_params();
-            // This vector records pairs containing:
-            // - The position of the channel parameter for the new kernel
-            // - The old global definition for the channel
-            std::vector<std::pair<size_t, const Def*>> index2def;
-            for (auto map : def2mode) {
-                index2def.emplace_back(i, map.first);
-                new_param_types[i++] = map.first->type();
-            }
+            std::vector<const Def*> channels;
+            for (auto pair : def2mode)
+                channels.push_back(pair.first);
 
-            // new kernels signature
-            // fn(mem, ret_cnt, ... , /channels/ )
-            auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
+            // Map the parameters of the old kernel to the first N parameters of the new one
+            // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
+            auto new_kernel = lift(scope, old_kernel, channels);
+
             world.make_external(new_kernel);
+            new_kernel->attributes().cc = CC::C;
+            world.make_internal(old_kernel);
+            old_kernel->attributes().cc = CC::Thorin;
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -191,39 +185,12 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             else
                 new_kernels.emplace_back(new_kernel);
 
-            world.make_internal(old_kernel);
+            for (size_t i = old_kernel->num_params(); i < new_kernel->num_params(); i++) {
+                auto param = new_kernel->param(i);
+                assert(param);
+                param2arg[param] = channels[i - old_kernel->num_params()]; // (channel params -> former globals)
+            }
 
-            Rewriter rewriter;
-            // Map the parameters of the old kernel to the first N parameters of the new one
-            // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
-            for (auto pair : index2def) {
-                auto param = new_kernel->param(pair.first);
-                rewriter.old2new[pair.second] = param;
-                param2arg[param] = pair.second; // (channel params, globals)
-            }
-            for (auto def : scope.defs()) {
-                if (auto cont = def->isa_nom<Continuation>()) {
-                    // Copy the basic block by calling stub
-                    // Or reuse the newly created kernel copy if def is the old kernel
-                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
-                    rewriter.old2new[cont] = new_cont;
-                    for (size_t i = 0; i < cont->num_params(); ++i)
-                        rewriter.old2new[cont->param(i)] = new_cont->param(i);
-                }
-            }
-            // Rewriting the basic blocks of the kernel using the map
-            for (auto def : scope.defs()) {
-                if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
-                    if (!cont->has_body()) continue;
-                    auto body = cont->body();
-                    auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
-                    auto new_callee = rewriter.instantiate(body->callee());
-                    Array<const Def*> new_args(body->num_args());
-                    for ( size_t i = 0; i < body->num_args(); ++i)
-                        new_args[i] = rewriter.instantiate(body->arg(i));
-                    new_cont->jump(new_callee, new_args, cont->debug());
-                }
-            }
             if (!is_single_kernel(new_kernel))
                 kernels_ch_modes.emplace_back(def2mode);
     });
@@ -271,14 +238,11 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
 
     // Maping hls world params (from old kernels) to old_world params. Required for host code (runtime) generation
     for (auto& elem : old_kernels_params) {
-        for (auto def : old_world.defs()) {
-            if (auto ocontinuation = def->isa_nom<Continuation>()) {
-                auto ncontinuation = elem->as<Param>()->continuation();
-                if (ncontinuation == importer.def_old2new_[ocontinuation]) {
-                    elem = ocontinuation->param(elem->as<Param>()->index());
-                    break;
-                }
-            }
+        auto ncontinuation = elem->as<Param>()->continuation();
+        auto odef = importer.find_origin(ncontinuation);
+        if (odef) {
+            auto ocontinuation = odef->as<Continuation>();
+            elem = ocontinuation->param(elem->as<Param>()->index());
         }
     }
 
@@ -386,6 +350,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
             } else if (param == ret_param) {
                 args[i] = ret;
             } else if (auto arg = param2arg[param]) {
+                assert(arg != nullptr);
                 args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ? global2slot[arg] : arg;
             } else {
                 assert(false);
@@ -403,7 +368,7 @@ DeviceParams hls_channels(Importer& importer, Top2Kernel& top2kernel, World& old
     world.make_external(hls_top);
 
     debug_verify(world);
-    world.cleanup();
+    thorin.cleanup();
 
     return old_kernels_params;
 }

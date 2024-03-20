@@ -2,6 +2,7 @@
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
+#include "partial_evaluation.h"
 
 namespace thorin {
 
@@ -34,40 +35,32 @@ private:
     bool lower2cff_;
     HashMap<const App*, Continuation*, HashApp> cache_;
     ContinuationSet done_;
-    std::queue<Continuation*> queue_;
-    ContinuationMap<bool> top_level_;
+    unique_queue<ContinuationSet> queue_;
     size_t boundary_;
 };
 
+const Def* BetaReducer::rewrite(const Def* odef) {
+    // leave nominal defs alone
+    if (odef->isa_nom())
+        return odef;
+    return Rewriter::rewrite(odef);
+}
+
 class CondEval {
 public:
-    CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
-        : callee_(callee)
-        , top_level_(top_level)
+    CondEval(Continuation* callee, ScopesForest& forest, Defs args)
+        : reducer_(callee->world())
+        , callee_(callee)
+        , forest_(forest)
     {
         assert(callee->filter()->is_empty() || callee->filter()->size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            old2new_[callee->param(i)] = args[i];
+            reducer_.provide_arg(callee->param(i), args[i]);
     }
 
     World& world() { return callee_->world(); }
-    const Def* instantiate(const Def* odef) {
-        if (auto ndef = old2new_.lookup(odef))
-            return *ndef;
-
-        if (odef->isa_structural()) {
-            Array<const Def*> nops(odef->num_ops());
-            for (size_t i = 0; i != odef->num_ops(); ++i)
-                nops[i] = instantiate(odef->op(i));
-
-            auto nprimop = odef->rebuild(world(), odef->type(), nops);
-            return old2new_[odef] = nprimop;
-        }
-
-        return old2new_[odef] = odef;
-    }
 
     bool eval(size_t i, bool lower2cff) {
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
@@ -75,13 +68,13 @@ public:
         auto order = callee_->param(i)->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<FnType>()
-                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
-            return true;
-        }
+                              && (!callee_->param(i)->type()->isa<FnType>()
+                                  || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
+                world().DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+                return true;
+            }
 
-        return (!callee_->is_exported() && callee_->can_be_inlined()) || is_one(instantiate(filter(i)));
+        return ((!callee_->is_exported() || callee_->attributes().cc == CC::Thorin) && callee_->can_be_inlined()) || is_one(reducer_.instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 
@@ -90,39 +83,13 @@ public:
     }
 
     bool is_top_level(Continuation* continuation) {
-        auto p = top_level_.emplace(continuation, true);
-        if (!p.second)
-            return p.first->second;
-
-        Scope scope(continuation);
-        unique_queue<DefSet> queue;
-
-        for (auto def : scope.free())
-            queue.push(def);
-
-        while (!queue.empty()) {
-            auto def = queue.pop();
-
-            if (def->isa<Param>()) // if FV in this scope is a param, this cont can't be top-level
-                return top_level_[continuation] = false;
-            if (auto free_cn = def->isa_nom<Continuation>()) {
-                // if we have a non-top level continuation in scope as a free variable,
-                // then it must be bound by some outer continuation, and so we aren't top-level
-                if (!is_top_level(free_cn))
-                    return top_level_[continuation] = false;
-            } else {
-                for (auto op : def->ops())
-                    queue.push(op);
-            }
-        }
-
-        return top_level_[continuation] = true;
+        return !forest_.get_scope(continuation).has_free_params();
     }
 
 private:
+    BetaReducer reducer_;
     Continuation* callee_;
-    Def2Def old2new_;
-    ContinuationMap<bool>& top_level_;
+    ScopesForest& forest_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
@@ -146,14 +113,15 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 bool PartialEvaluator::run() {
     bool todo = false;
 
-    for (auto&& [_, cont] : world().externals()) {
+    for (auto&& [_, def] : world().externals()) {
+        auto cont = def->isa<Continuation>();
+        if (!cont) continue;
         if (!cont->has_body()) continue;
         enqueue(cont);
-        top_level_[cont] = true;
     }
 
     while (!queue_.empty()) {
-        auto continuation = pop(queue_);
+        auto continuation = queue_.pop();
 
         bool force_fold = false;
 
@@ -174,7 +142,9 @@ bool PartialEvaluator::run() {
             }
 
             if (callee->has_body()) {
-                CondEval cond_eval(callee, body->args(), top_level_);
+                // TODO cache the forest and only rebuild it when we need to
+                ScopesForest forest(world());
+                CondEval cond_eval(callee, forest, body->args());
 
                 std::vector<const Def*> specialize(body->num_args());
 
@@ -192,11 +162,22 @@ bool PartialEvaluator::run() {
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
+                        world_.ddef(continuation, "Specializing call to {}", callee);
                         target = drop(callee, specialize);
                         todo = true;
                     }
 
                     jump_to_dropped_call(continuation, target, specialize);
+
+                    while (callee && callee->never_called()) {
+                        if (callee->has_body()) {
+                            auto new_callee = const_cast<Continuation*>(callee->body()->callee()->isa<Continuation>());
+                            callee->destroy("partial_evaluation");
+                            callee = new_callee;
+                        } else {
+                            callee = nullptr;
+                        }
+                    }
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:

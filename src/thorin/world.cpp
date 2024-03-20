@@ -10,6 +10,11 @@
 #endif
 
 #include <cmath>
+#include <execinfo.h>
+
+#ifdef THORIN_ENABLE_RLIMITS
+#include <sys/resource.h>
+#endif
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
@@ -17,8 +22,6 @@
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/transform/cleanup_world.h"
-#include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
@@ -42,27 +45,23 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(const std::string& name) {
+World::World(const std::string& name) : types_(TypeTable(*this)) {
     data_.name_   = name;
-    data_.branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Intrinsic::Branch, {"br"});
+    data_.branch_ = continuation(fn_type({mem_type(), type_bool(), fn_type({mem_type()}), fn_type({mem_type()})}), Intrinsic::Branch, {"br"});
     data_.end_scope_ = continuation(fn_type(), Intrinsic::EndScope, {"end_scope"});
-}
-
-World::~World() {
-    for (auto def : data_.defs_) delete def;
 }
 
 const Def* World::variant_index(const Def* value, Debug dbg) {
     if (auto variant = value->isa<Variant>())
         return literal_qu64(variant->index(), dbg);
-    return cse(new VariantIndex(type_qu64(), value, dbg));
+    return cse(new VariantIndex(*this, type_qu64(), value, dbg));
 }
 
 const Def* World::variant_extract(const Def* value, size_t index, Debug dbg) {
-    auto type = value->type()->as<VariantType>()->op(index);
+    auto type = value->type()->as<VariantType>()->op(index)->as<Type>();
     if (auto variant = value->isa<Variant>())
         return variant->index() == index ? variant->value() : bottom(type);
-    return cse(new VariantExtract(type, value, index, dbg));
+    return cse(new VariantExtract(*this, type, value, index, dbg));
 }
 
 /*
@@ -139,7 +138,9 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                     }
                 case ArithOp_mul:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_P_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_Q_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() && r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
@@ -391,7 +392,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
-    return cse(new ArithOp(tag, a, b, dbg));
+    return cse(new ArithOp(tag, *this, a, b, dbg));
 }
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
@@ -483,7 +484,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         }
     }
 
-    return cse(new Cmp(tag, a, b, dbg));
+    return cse(new Cmp(tag, *this, a, b, dbg));
 }
 
 /*
@@ -500,7 +501,7 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
 
         Array<const Def*> new_tuple(dst_tuple_type->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
-            new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
+            new_tuple[i] = convert(dst_tuple_type->types()[i], extract(src, i, dbg), dbg);
 
         return tuple(new_tuple, dbg);
     }
@@ -616,7 +617,7 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         }
     }
 
-    return cse(new Cast(to, from, dbg));
+    return cse(new Cast(*this, to, from, dbg));
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
@@ -655,7 +656,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
-    return cse(new Bitcast(to, from, dbg));
+    return cse(new Bitcast(*this, to, from, dbg));
 }
 
 /*
@@ -706,13 +707,18 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
-        else if (index->template isa<PrimLit>()) {
-            if (insert->index()->template isa<PrimLit>())
-                return extract(insert->agg(), index, dbg);
+        else if (auto index_lit = index->isa<PrimLit>()) {
+            if (auto insert_index_lit = insert->index()->isa<PrimLit>()) {
+                if (index_lit->value() == insert_index_lit->value()) {
+                    return insert->value();
+                } else {
+                    return extract(insert->agg(), index, dbg);
+                }
+            }
         }
     }
 
-    return cse(new Extract(agg, index, dbg));
+    return cse(new Extract(*this, agg, index, dbg));
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
@@ -730,13 +736,13 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
-            for (auto type : tuple_type->ops())
+            for (auto type : tuple_type->types())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = tuple(args, dbg);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
             Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
-            for (auto type : struct_type->ops())
+            for (auto type : struct_type->types())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = struct_agg(struct_type, args, dbg);
         }
@@ -760,14 +766,14 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         }
     }
 
-    return cse(new Insert(agg, index, value, dbg));
+    return cse(new Insert(*this, agg, index, value, dbg));
 }
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     if (fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
         return ptr;
 
-    return cse(new LEA(ptr, index, dbg));
+    return cse(new LEA(*this, ptr, index, dbg));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
@@ -785,21 +791,21 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     if (a == b)
         return a;
 
-    return cse(new Select(cond, a, b, dbg));
+    return cse(new Select(*this, cond, a, b, dbg));
 }
 
 const Def* World::align_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
-    return cse(new AlignOf(bottom(type, dbg), dbg));
+    return cse(new AlignOf(*this, bottom(type, dbg), dbg));
 }
 
 const Def* World::size_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs64(num_bits(ptype->primtype_tag()) / 8), dbg);
 
-    return cse(new SizeOf(bottom(type, dbg), dbg));
+    return cse(new SizeOf(*this, bottom(type, dbg), dbg));
 }
 
 /*
@@ -824,7 +830,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* arg, Debug dbg, F&& f
                 THORIN_UNREACHABLE;
         }
     }
-    return cse(new MathOp(tag, arg->type(), { arg }, dbg));
+    return cse(new MathOp(*this, tag, arg->type(), { arg }, dbg));
 }
 
 template <class F>
@@ -846,7 +852,7 @@ const Def* World::transcendental(MathOpTag tag, const Def* left, const Def* righ
                 THORIN_UNREACHABLE;
         }
     }
-    return cse(new MathOp(tag, left->type(), { left, right }, dbg));
+    return cse(new MathOp(*this, tag, left->type(), { left, right }, dbg));
 }
 
 template <class F>
@@ -1019,7 +1025,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return tuple({mem, tuple({}, dbg)});
         }
     }
-    return cse(new Load(mem, ptr, dbg));
+    return cse(new Load(*this, mem, ptr, dbg));
 }
 
 bool is_agg_const(const Def* def) {
@@ -1029,7 +1035,7 @@ bool is_agg_const(const Def* def) {
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
-    return cse(new Store(mem, ptr, value, dbg));
+    return cse(new Store(*this, mem, ptr, value, dbg));
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
@@ -1037,15 +1043,15 @@ const Def* World::enter(const Def* mem, Debug dbg) {
     // in order to simplify as we go and prevent code size from exploding
     if (auto e = Enter::is_out_mem(mem))
         return e;
-    return cse(new Enter(mem, dbg));
+    return cse(new Enter(*this, mem, dbg));
 }
 
 const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg) {
-    return cse(new Alloc(type, mem, extra, dbg));
+    return cse(new Alloc(*this, type, mem, extra, dbg));
 }
 
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
-    return cse(new Global(init, is_mutable, dbg));
+    return cse(new Global(*this, init, is_mutable, dbg));
 }
 
 const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
@@ -1060,7 +1066,7 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 }
 
 const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
-    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
+    return cse(new Assembly(*this, type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
 }
 
 const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
@@ -1081,7 +1087,7 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
 
 const Def* World::hlt(const Def* def, Debug dbg) {
     if (is_pe_done()) return def;
-    return cse(new Hlt(def, dbg));
+    return cse(new Hlt(*this, def, dbg));
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
@@ -1089,12 +1095,12 @@ const Def* World::known(const Def* def, Debug dbg) {
         return literal_bool(false, dbg);
     if (!def->has_dep(Dep::Param))
         return literal_bool(true, dbg);
-    return cse(new Known(def, dbg));
+    return cse(new Known(*this, def, dbg));
 }
 
 const Def* World::run(const Def* def, Debug dbg) {
     if (is_pe_done()) return def;
-    return cse(new Run(def, dbg));
+    return cse(new Run(*this, def, dbg));
 }
 
 /*
@@ -1102,28 +1108,37 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, Continuation::Attributes attributes, Debug dbg) {
-    auto cont = put<Continuation>(fn, attributes, dbg);
+#if THORIN_ENABLE_CREATION_CONTEXT
+    void *array[10];
+    size_t size = backtrace(array, 10);
+    assert(size >= 2);
+    char ** symbols = backtrace_symbols(array, 10);
 
-    size_t i = 0;
-    for (auto op : fn->ops()) {
-        auto p = param(op, cont, i++, dbg);
-        cont->params_.emplace_back(p);
-    }
+    dbg.creation_context = symbols[1];
+#endif
+
+    auto cont = put<Continuation>(*this, fn, attributes, dbg);
+
+#if THORIN_ENABLE_CREATION_CONTEXT
+    free(symbols);
+#endif
 
     return cont;
 }
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
-    Array<const Type*> arg_types(num_patterns + 2);
-    arg_types[0] = type;
-    arg_types[1] = fn_type();
-    for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = tuple_type({type, fn_type()});
+    Array<const Type*> arg_types(num_patterns + 3);
+    arg_types[0] = mem_type();
+    arg_types[1] = type;
+    arg_types[2] = fn_type({mem_type()});
+    for (size_t i = 0; i < num_patterns; i++) {
+        arg_types[i + 3] = tuple_type({type, fn_type({mem_type()})});
+    }
     return continuation(fn_type(arg_types), Intrinsic::Match, {"match"});
 }
 
-const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
-    auto param = new Param(type, continuation, index, dbg);
+const Param* World::param(const Type* type, const Continuation* continuation, size_t index, Debug dbg) {
+    auto param = cse(new Param(*this, type, continuation, index, dbg));
 #if THORIN_ENABLE_CHECKS
     if (state_.breakpoints.contains(param->gid())) THORIN_BREAK;
 #endif
@@ -1138,27 +1153,28 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
+            // See also mangle::instantiate when modifying this.
             case Intrinsic::Branch: {
-                assert(args.size() == 3);
-                auto cond = args[0], t = args[1], f = args[2];
+                assert(args.size() == 4);
+                auto mem = args[0], cond = args[1], t = args[2], f = args[3];
                 if (auto lit = cond->isa<PrimLit>())
-                    return app(lit->value().get_bool() ? t : f, {}, dbg);
+                    return app(lit->value().get_bool() ? t : f, { mem }, dbg);
                 if (t == f)
-                    return app(t, {}, dbg);
+                    return app(t, { mem }, dbg);
                 if (is_not(cond)) {
                     auto inverted = cond->as<ArithOp>()->rhs();
-                    return app(branch(), {inverted, f, t}, dbg);
+                    return app(branch(), {mem, inverted, f, t}, dbg);
                 }
                 break;
             }
             case Intrinsic::Match:
-                if (args.size() == 2) return app(args[1], {}, dbg);
-                if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
+                if (args.size() == 3) return app(args[2], { args[0] }, dbg);
+                if (auto lit = args[1]->isa<PrimLit>()) {
+                    for (size_t i = 3; i < args.size(); i++) {
                         if (extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return app(extract(args[i], 1), {}, dbg);
+                            return app(extract(args[i], 1), { args[0] }, dbg);
                     }
-                    return app(args[1], {}, dbg);
+                    return app(args[2], { args[0] }, dbg);
                 }
                 break;
             default:
@@ -1171,7 +1187,7 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     for (size_t i = 0; i < args.size(); i++)
         ops[i + 1] = args[i];
 
-    return cse(new App(ops, dbg));
+    return cse(new App(*this, ops, dbg));
 }
 
 /*
@@ -1276,28 +1292,48 @@ const Def* World::cse_base(const Def* def) {
  * optimizations
  */
 
-void World::cleanup() { cleanup_world(*this); }
+Thorin::Thorin(const std::string& name)
+    : world_(std::make_unique<World>(name))
+{}
 
-void World::opt() {
+void Thorin::opt() {
+    bool debug_passes = getenv("THORIN_DEBUG_PASSES");
 #define RUN_PASS(pass) \
 { \
-    VLOG("running pass {}", #pass); \
-    pass; \
-    debug_verify(*this); \
+    world().VLOG("running pass {}", #pass);  \
+    pass;                                    \
+    debug_verify(world());                   \
+    if (debug_passes) world().dump_scoped(); \
 }
 
     RUN_PASS(cleanup())
-    RUN_PASS(while (partial_evaluation(*this, true))); // lower2cff
+    RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
-    RUN_PASS(clone_bodies(*this))
     RUN_PASS(split_slots(*this))
-    RUN_PASS(closure_conversion(*this))
+    RUN_PASS(closure_conversion(world()))
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
-    RUN_PASS(dead_load_opt(*this))
+    RUN_PASS(dead_load_opt(world()))
     RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(*this))
 }
+
+bool Thorin::ensure_stack_size(size_t new_size) {
+#ifdef THORIN_ENABLE_RLIMITS
+    struct rlimit rl;
+    int result = getrlimit(RLIMIT_STACK, &rl);
+    if(result != 0) return false;
+
+    rl.rlim_cur = new_size;
+    result = setrlimit(RLIMIT_STACK, &rl);
+    if(result != 0) return false;
+
+    return true;
+#else
+    return false;
+#endif
+}
+
 
 }

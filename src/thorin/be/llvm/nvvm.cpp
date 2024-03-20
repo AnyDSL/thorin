@@ -19,8 +19,8 @@
 
 namespace thorin::llvm {
 
-NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config, int opt, bool debug)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, opt, debug)
+NVVMCodeGen::NVVMCodeGen(Thorin& thorin, const Cont2Config& kernel_config, int opt, bool debug)
+    : CodeGen(thorin, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, 0, debug)
     , kernel_config_(kernel_config)
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
@@ -54,7 +54,7 @@ static AddrSpace resolve_addr_space(const Def* def) {
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     // skip non-global address-space parameters
     std::vector<const Type*> types;
-    for (auto type : continuation->type()->ops()) {
+    for (auto type : continuation->type()->types()) {
         if (auto ptr = type->isa<PtrType>())
             if (ptr->addr_space() == AddrSpace::Texture)
                 continue;
@@ -242,7 +242,7 @@ llvm::Value* NVVMCodeGen::emit_lea(llvm::IRBuilder<>& irbuilder, const LEA* lea)
     }
 }
 
-Continuation* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
+llvm::Value* NVVMCodeGen::emit_reserve(llvm::IRBuilder<>& irbuilder, const Continuation* continuation) {
     return emit_reserve_shared(irbuilder, continuation);
 }
 

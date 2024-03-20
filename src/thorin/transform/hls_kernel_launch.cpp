@@ -76,7 +76,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
     const size_t base_opencl_param_num = 6;
     Array<const Def*> opencl_args(base_opencl_param_num + device_params.size());
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
         Schedule scheduled = schedule(scope);
 
         for (auto& block : scheduled) {
@@ -87,7 +87,7 @@ void hls_kernel_launch(World& world, DeviceParams& device_params) {
             if (auto hls_callee = has_hls_callee(block)) {
                 auto cont_mem_obj = block->mem_param();
                 auto callee_continuation = hls_callee->isa_nom<Continuation>();
-                Continuation* last_hls_cont;
+                Continuation* last_hls_cont = nullptr;
                 if (!last_hls_found) {
                     // TODO I'm at a loss for what is intended here. This is an assignment - not a check, the net result
                     // is the _only the first_ block with an HLS callee will enter this, which means the first block in the schedule

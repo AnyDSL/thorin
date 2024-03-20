@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
@@ -10,16 +11,34 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Param::Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
-    : Def(Node_Param, type, 1, dbg)
+Param::Param(World& world, const Type* type, const Continuation* continuation, size_t index, Debug dbg)
+    : Def(world, Node_Param, type, { continuation }, dbg)
+    //: Def(world, Node_Param, type, 1, dbg)
     , index_(index)
 {
-    set_op(0, continuation);
+    //set_op(0, continuation);
+}
+
+const Def* Param::rebuild(World&, const Type*, Defs defs) const {
+    assert(defs.size() == 1);
+    const Def* c = defs[0];
+    if (auto r = c->isa<Run>())
+        c = r->def()->as_nom<Continuation>();
+    auto cont = c->as<Continuation>();
+    return cont->param(index());
+}
+
+hash_t Param::vhash() const {
+    return hash_combine(Def::vhash(), (hash_t) index());
+}
+
+bool Param::equal(const Def* other) const {
+    return Def::equal(other) && other->as<Param>()->index() == index();
 }
 
 //------------------------------------------------------------------------------
 
-App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(), ops, dbg) {
+App::App(World& world, const Defs ops, Debug dbg) : Def(world, Node_App, world.bottom_type(), ops, dbg) {
 #if THORIN_ENABLE_CHECKS
     verify();
     if (auto cont = callee()->isa_nom<Continuation>())
@@ -28,7 +47,7 @@ App::App(const Defs ops, Debug dbg) : Def(Node_App, ops[0]->world().bottom_type(
 #endif
 }
 
-void App::verify() const {
+bool App::verify() const {
     auto callee_type = callee()->type()->isa<FnType>(); // works for closures too, no need for a special case
     assertf(callee_type, "callee type must be a FnType");
     assertf(callee_type->num_ops() == num_args(), "app node '{}' has fn type {} with {} parameters, but is supplied {} arguments", this, callee_type, callee_type->num_ops(), num_args());
@@ -37,11 +56,12 @@ void App::verify() const {
         auto at = arg(i)->type();
         assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
     }
+    return true;
 }
 
 //------------------------------------------------------------------------------
 
-Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(Node_Filter, world.bottom_type(), defs, dbg) {}
+Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(world, Node_Filter, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
     return world().filter(ops().cut(indices), debug());
@@ -49,33 +69,58 @@ const Filter* Filter::cut(ArrayRef<size_t> indices) const {
 
 //------------------------------------------------------------------------------
 
-Continuation::Continuation(const FnType* fn, const Attributes& attributes, Debug dbg)
-    : Def(Node_Continuation, fn, 2, dbg)
+Continuation::Continuation(World& w, const FnType* pi, const Attributes& attributes, Debug dbg)
+    : Def(w, Node_Continuation, pi, 2, dbg)
     , attributes_(attributes)
 {
-    params_.reserve(fn->num_ops());
+    assert(pi->tag() == Node_FnType && "continuations may not be closures");
+    params_.reserve(pi->num_ops());
     set_op(0, world().bottom(world().bottom_type()));
     set_op(1, world().filter({}, dbg));
+
+    size_t i = 0;
+    for (auto op : pi->types()) {
+        auto p = w.param(op, this, i++, dbg);
+        params_.emplace_back(p);
+    }
 }
 
-Continuation* Continuation::stub() const {
-    Rewriter rewriter;
+Continuation* Continuation::stub(Rewriter& rewriter, const Type* nty) const {
+    assert(!dead_);
+    auto& nworld = rewriter.dst();
 
-    auto result = world().continuation(type(), attributes(), debug_history());
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        result->param(i)->set_name(debug_history().name);
-        rewriter.old2new[param(i)] = result->param(i);
+    auto npi = nty->isa<FnType>();
+    assert(npi && npi->tag() == Node_FnType);
+
+    Continuation* ncontinuation = nworld.continuation(npi, attributes(), debug());
+    assert(&ncontinuation->world() == &nworld);
+    assert(&npi->world() == &nworld);
+
+    // TODO: investigate why this hangs
+    // ncontinuation->set_filter(rewriter.instantiate(filter())->as<Filter>());
+    return ncontinuation;
+}
+
+void Continuation::rebuild_from(Rewriter& rewriter, const Def* old) {
+    auto ocont = old->as<Continuation>();
+    assert(ocont);
+
+    assert(num_params() >= ocont->num_params());
+    for (size_t i = 0, e = ocont->num_params(); i != e; ++i)
+        param(i)->set_name(ocont->param(i)->debug().name);
+
+    set_filter(rewriter.instantiate(ocont->filter())->as<Filter>());
+
+    if (ocont->is_external())
+        world().make_external(this);
+
+    if (ocont->has_body()) {
+        auto napp = rewriter.instantiate(ocont->body())->isa<App>();
+        // i feel like this ought to be a warning, but maybe a later pass might legitimately do that
+        assert(napp && "is it legitimate to substitute away an App when rebuilding ?");
+        set_body(napp);
     }
-
-    if (!filter()->is_empty()) {
-        Array<const Def*> new_conditions(num_params());
-        for (size_t i = 0, e = num_params(); i != e; ++i)
-            new_conditions[i] = rewriter.instantiate(filter()->condition(i));
-
-        result->set_filter(world().filter(new_conditions, filter()->debug()));
-    }
-
-    return result;
+    verify();
 }
 
 Array<const Def*> Continuation::params_as_defs() const {
@@ -97,7 +142,7 @@ const Param* Continuation::ret_param() const {
     const Param* result = nullptr;
     for (auto param : params()) {
         if (param->order() >= 1) {
-            assertf(result == nullptr, "only one ret_param allowed");
+            assertf(is_intrinsic() || result == nullptr, "only one ret_param allowed");
             result = param;
         }
     }
@@ -105,30 +150,19 @@ const Param* Continuation::ret_param() const {
 }
 
 void Continuation::destroy(const char* cause) {
-    world().VLOG("{} has been destroyed by {}", this, cause);
+    world().ddef(this, "{} has been destroyed by {}", this, cause);
     destroy_filter();
     unset_op(0);
     set_op(0, world().bottom(world().bottom_type()));
     dead_ = true;
 }
 
-const FnType* Continuation::arg_fn_type() const {
-    assert(has_body());
-    Array<const Type*> args(body()->num_args());
-    for (size_t i = 0, e = body()->num_args(); i != e; ++i)
-        args[i] = body()->arg(i)->type();
-
-    return body()->callee()->type()->isa<ClosureType>()
-           ? world().closure_type(args)->as<FnType>()
-           : world().fn_type(args);
-}
-
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);
-    *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
+    *std::copy(type()->types().begin(), type()->types().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->table().fn_type(ops));              // update type
+    set_type(world().fn_type(ops));              // update type
     auto param = world().param(param_type, this, size, dbg); // append new param
     params_.push_back(param);
 
@@ -216,6 +250,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
     else if (name() == "amdgpu_hsa")     attributes().intrinsic = Intrinsic::AMDGPUHSA;
     else if (name() == "amdgpu_pal")     attributes().intrinsic = Intrinsic::AMDGPUPAL;
+    else if (name() == "shady_compute")  attributes().intrinsic = Intrinsic::ShadyCompute;
     else if (name() == "hls")            attributes().intrinsic = Intrinsic::HLS;
     else if (name() == "parallel")       attributes().intrinsic = Intrinsic::Parallel;
     else if (name() == "fibers")         attributes().intrinsic = Intrinsic::Fibers;
@@ -244,33 +279,36 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     verify();
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    set_body(world().app(world().branch(), {cond, t, f}, dbg));
+void Continuation::branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg) {
+    set_body(world().app(world().branch(), {mem, cond, t, f}, dbg));
     verify();
 }
 
-void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
-    Array<const Def*> args(patterns.size() + 2);
+void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+    Array<const Def*> args(patterns.size() + 3);
 
-    args[0] = val;
-    args[1] = otherwise;
+    args[0] = mem;
+    args[1] = val;
+    args[2] = otherwise;
     assert(patterns.size() == continuations.size());
     for (size_t i = 0; i < patterns.size(); i++)
-        args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
+        args[i + 3] = world().tuple({patterns[i], continuations[i]}, dbg);
 
     set_body(world().app(world().match(val->type(), patterns.size()), args, dbg));
     verify();
 }
 
-void Continuation::verify() const {
+bool Continuation::verify() const {
+    bool ok = true;
     if (!has_body())
         assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
     else {
-        body()->verify();
+        ok &= body()->verify();
         assert(!dead_); // destroy() should remove the body
         assert(intrinsic() == Intrinsic::None);
         assertf(filter()->is_empty() || num_params() == filter()->size(), "The filter needs to be either empty, or match the param count");
     }
+    return ok;
 }
 
 /// Rewrites the body to only keep the non-specialized arguments

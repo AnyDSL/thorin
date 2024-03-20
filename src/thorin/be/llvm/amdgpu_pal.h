@@ -11,7 +11,7 @@ namespace llvm = ::llvm;
 
 class AMDGPUPALCodeGen : public AMDGPUCodeGen {
 public:
-    AMDGPUPALCodeGen(World& world, const Cont2Config&, int opt, bool debug);
+    AMDGPUPALCodeGen(Thorin& thorin, const Cont2Config&, int opt, bool debug);
 
 protected:
     llvm::Function* emit_fun_decl(Continuation*) override;

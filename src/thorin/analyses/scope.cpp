@@ -12,133 +12,354 @@
 
 namespace thorin {
 
-Scope::Scope(Continuation* entry)
-    : world_(entry->world())
-    , entry_(entry)
-    , exit_(world().end_scope())
-{
+Scope::Scope(Continuation* entry) : world_(entry->world()), root(std::make_unique<ScopesForest>(world())), forest_(*root), entry_(entry) {
     run();
 }
+
+Scope::Scope(Continuation* entry, ScopesForest& forest)
+    : world_(entry->world())
+    , forest_(forest)
+    , entry_(entry)
+{}
 
 Scope::~Scope() {}
 
 Scope& Scope::update() {
     defs_.clear();
-    free_        = nullptr;
+    free_frontier_.clear();
+    first_free_param_ = nullptr;
     free_params_ = nullptr;
     cfa_         = nullptr;
     run();
     return *this;
 }
 
-void Scope::run() {
+DefSet Scope::potentially_contained() const {
+    DefSet potential_defs;
     std::queue<const Def*> queue;
 
     auto enqueue = [&] (const Def* def) {
-        if (defs_.insert(def).second) {
+        if (potential_defs.insert(def).second) {
             queue.push(def);
-
-            if (auto continuation = def->isa_nom<Continuation>()) {
-                // when a continuation is part of this scope, we also enqueue its params, and we assert those to be unique
-                // TODO most likely redundant once params have the continuation in their ops
-                for (auto param : continuation->params()) {
-                    auto p = defs_.insert(param);
-                    assert_unused(p.second);
-                    queue.push(param);
-                }
-            }
         }
     };
 
-    enqueue(entry_);
+    for (auto param : entry()->params())
+        enqueue(param);
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (def != entry_) {
-            for (auto use : def->uses())
+        if (def != entry()) {
+            for (auto use: def->uses())
                 enqueue(use);
         }
     }
 
-    enqueue(exit_);
+    return potential_defs;
 }
 
-const DefSet& Scope::free() const {
-    if (!free_) {
-        free_ = std::make_unique<DefSet>();
+void Scope::run() {
+    DefSet potential_defs = potentially_contained();
 
-        for (auto def : defs_) {
-            for (auto op : def->ops()) {
-                if (!contains(op))
-                    free_->emplace(op);
+    unique_queue<DefSet> queue;
+
+    if (entry()->has_body())
+        queue.push(entry()->body());
+    queue.push(entry()->filter());
+
+    defs_.insert(entry());
+    for (auto p : entry()->params())
+        defs_.insert(p);
+
+    while (!queue.empty()) {
+        auto def = queue.pop();
+
+        if (potential_defs.contains(def)) {
+            defs_.insert(def);
+            for (auto op : def->ops())
+                queue.push(op);
+        } else {
+            free_frontier_.insert(def);
+        }
+    }
+}
+
+void Scope::verify() {
+    for (auto def : defs()) {
+        if (auto cont = def->isa_nom<Continuation>()) {
+            if (cont == entry())
+                continue;
+            Scope& cont_scope = forest_.get_scope(cont);
+            assert(cont_scope.has_free_params());
+            assert(!cont_scope.contains(entry()));
+        }
+    }
+}
+
+static auto first_or_null = [](ParamSet& set) -> const Param* {
+    for (auto p : set) {
+        return p;
+    }
+    return nullptr;
+};
+
+// searches for free variable in this scope, starting at the free frontier and transitively searching the scopes of the free continuations we encounter
+// stop_after_first is used when we only care about whether this is a top-level scope (ie has no free params) or not, we can stop as soon as one param is found
+template<bool stop_after_first>
+std::tuple<ParamSet, bool> Scope::search_free_params() const {
+    if (free_params_) {
+        //world().WLOG("free variables analysis: reusing cached results for {}", entry());
+        return std::make_tuple(*free_params_, true);
+    }
+
+    if (stop_after_first && first_free_param_) {
+        ParamSet one_or_zero_params;
+        if (*first_free_param_ != nullptr)
+            one_or_zero_params.insert(first_free_param());
+        return std::make_tuple(one_or_zero_params, true);
+    }
+
+    ParamSet free_params;
+    /// as much as possible, we'd like to keep the results of those searches, but in the recursive case it's not always possible:
+    /// if there is a cycle, we stop when we encounter a continuation we're already searching the free variables for
+    /// this variable keeps track of whether we did that or not, if we didn't and this is a full search, we can safely save the results
+    bool thorough = true;
+    bool is_root = forest_.stack_.empty();
+    //world().WLOG("free variables analysis: searching transitive ops of: {} (root={}, depth={})", entry(), root, forest_->stack_.size());
+    forest_.stack_.push_back(entry());
+
+    unique_queue<DefSet> queue;
+
+    for (auto def : free_frontier_)
+        queue.push(def);
+
+    while (!queue.empty()) {
+        auto free_def = queue.pop();
+        assert(!contains(free_def));
+
+        if (auto param = free_def->isa<Param>(); param && !param->continuation()->dead_) {
+            free_params.insert(param);
+            if (stop_after_first)
+                break;
+        } else if (auto cont = free_def->isa_nom<Continuation>()) {
+            // the free variables analysis can be recursive, but it's not necessary to inspect our own scope again ...
+            assert(cont != entry());
+
+            // if we hit the recursion wall, the results for this free variable search are only valid for the callee
+            if (std::find(forest_.stack_.begin(), forest_.stack_.end(), cont) != forest_.stack_.end()) {
+                //world().WLOG("free variables analysis: skipping {} to prevent infinite recursion", cont);
+                thorough = false;
+                continue;
+            }
+
+            Scope& scope = forest_.get_scope(cont);
+            assert(!scope.defs().empty() || !scope.entry()->has_body());
+
+            // When we have a free continuation in the body of our fn, their free variables are also free in us
+            auto [callee_free_params, callee_results_thorough] = scope.search_free_params<stop_after_first>();
+            if (!is_root)
+                thorough &= callee_results_thorough;
+
+            for (auto p: callee_free_params) {
+                // (those variables have to be free here! otherwise that continuation should be in this scope and not free)
+                if (contains(p)) {
+                    world().WLOG("Potentially broken scoping: free variable {} showed up in the free variables of {} despite that continuation being part of its scope", p, entry());
+                    assert(false);
+                }
+                free_params.insert(p);
+                if (stop_after_first)
+                    break;
+            }
+        }
+        else {
+            for (auto op : free_def->ops()) {
+                assert(op && "scope analysis doesn't work with unfinished nodes...");
+                // the entry might be referenced by the outside world, but that's completely fine
+                if (op == entry())
+                    continue;
+                assert(!contains(op));
+                queue.push(op);
             }
         }
     }
 
-    return *free_;
+    //world().WLOG("free variables analysis: done with : {} (hit_wall={})", entry(), hit_recursion_wall);
+
+    assert(forest_.stack_.back() == entry());
+    forest_.stack_.pop_back();
+
+    // save the results if we can
+    if (thorough) {
+        if (stop_after_first) {
+            first_free_param_ = std::make_optional<const Param*>(first_or_null(free_params));
+            return std::make_tuple(free_params, true);
+        } else {
+            free_params_ = std::make_unique<ParamSet>(std::move(free_params));
+            return std::make_tuple(*free_params_, true);
+        }
+    }
+
+    for (auto fp : free_params) {
+        assert(fp->continuation() != entry());
+    }
+
+    return std::make_tuple(free_params, thorough);
 }
 
 const ParamSet& Scope::free_params() const {
     if (!free_params_) {
-        free_params_ = std::make_unique<ParamSet>();
-        unique_queue<DefSet> queue;
-
-        auto enqueue = [&](const Def* def) {
-            if (auto param = def->isa<Param>(); param && !param->continuation()->dead_)
-                free_params_->emplace(param);
-            else if (def->isa<Continuation>())
-                return;
-            else
-                queue.push(def);
-        };
-
-        for (auto def : free())
-            enqueue(def);
-        while (!queue.empty()) {
-            for (auto op : queue.pop()->ops())
-                enqueue(op);
-        }
+        auto [set, valid] = search_free_params<false>();
+        assert(valid);
+        free_params_ = std::make_unique<ParamSet>(set);
     }
 
     return *free_params_;
+}
+
+const Param* Scope::first_free_param() const {
+    if (!first_free_param_) {
+        // if we already computed the full free params list, let's reuse that !
+        if (free_params_) {
+            first_free_param_ = std::make_optional<const Param*>(first_or_null(*free_params_));
+        } else {
+            auto [set, valid] = search_free_params<true>();
+            assert(valid);
+            first_free_param_ = std::make_optional<const Param*>(first_or_null(set));
+        }
+    }
+
+    return *first_free_param_;
+}
+
+bool Scope::has_free_params() const {
+    return first_free_param() != nullptr;
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
-template<bool elide_empty>
-void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<ContinuationSet> continuation_queue;
+Continuation* Scope::parent_scope() const {
+    if (!parent_scope_) {
+        ContinuationSet candidates_set;
+        std::queue<Continuation*> candidates;
 
-    for (auto&& [_, cont] : world.externals()) {
-        if (cont->has_body()) continuation_queue.push(cont);
-    }
+        for (auto param : free_params()) {
+            if(candidates_set.insert(param->continuation()).second)
+                candidates.push(param->continuation());
+        }
 
-    while (!continuation_queue.empty()) {
-        auto continuation = continuation_queue.pop();
-        if (elide_empty && !continuation->has_body())
-            continue;
-        Scope scope(continuation);
-        f(scope);
+        if (candidates.empty())
+            parent_scope_ = std::make_optional<Continuation*>();
+        else {
+            while (true) {
+                auto candidate = pop(candidates);
+                // when there is only one candidate left, that's our parent
+                if (candidates.empty()) {
+                    parent_scope_ = std::make_optional<Continuation*>(candidate);
+                    break;
+                }
 
-        unique_queue<DefSet> def_queue;
-        for (auto def : scope.free())
-            def_queue.push(def);
-
-        while (!def_queue.empty()) {
-            auto def = def_queue.pop();
-            if (auto continuation = def->isa_nom<Continuation>())
-                continuation_queue.push(continuation);
-            else {
-                for (auto op : def->ops())
-                    def_queue.push(op);
+                auto other_candidate = pop(candidates);
+                assert(candidate != other_candidate);
+                if (forest_.get_scope(candidate).contains(other_candidate))
+                    candidates.push(other_candidate);
+                else {
+                    assert(forest_.get_scope(other_candidate).contains(candidate) && "a scope cannot be nested in two unrelated parent scopes");
+                    candidates.push(candidate);
+                }
             }
         }
     }
+
+    return *parent_scope_;
 }
 
-template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
-template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
+ContinuationSet Scope::children_scopes() const {
+    ContinuationSet set;
+    for (auto def : defs()) {
+        if (auto cont = def->isa_nom<Continuation>()) {
+            auto& scope = forest_.get_scope(cont);
+            if (scope.parent_scope() == entry())
+                set.insert(cont);
+            else {
+                //TODO: add check that the parent is eventually us!
+            }
+        }
+    }
+    return set;
+}
+
+template void ScopesForest::for_each<true> ( std::function<void(Scope&)>);
+template void ScopesForest::for_each<false>( std::function<void(Scope&)>);
+
+Scope& ScopesForest::get_scope(Continuation* entry) {
+    if (scopes_.contains(entry)) {
+        auto existing = scopes_.find(entry);
+        assert((size_t)(existing->second.get()) != 0xbebebebe00000000);
+        return *existing->second;
+    }
+    auto scope = std::make_unique<Scope>(entry, *this);
+    Scope* ptr = scope.get();
+    ptr->run();
+    scopes_[entry] = std::move(scope);
+    if (stack_.empty())
+       ptr->verify();
+    return *ptr;
+}
+
+ContinuationSet ScopesForest::top_level_scopes() {
+    ContinuationSet set;
+    for (auto cont : world_.copy_continuations()) {
+        auto& scope = get_scope(cont);
+        assert(stack_.empty());
+        if(!scope.has_free_params()) {
+            set.insert(cont);
+        }
+        assert(stack_.empty());
+    }
+    return set;
+}
+
+template<bool elide_empty>
+void ScopesForest::for_each(std::function<void(Scope&)> f) {
+    for (auto cont : top_level_scopes()) {
+        if (elide_empty && !cont->has_body())
+            continue;
+        auto& scope = get_scope(cont);
+        f(scope);
+    }
+}
+
+DEBUG_UTIL void dump_scope_tree(Scope& s, ScopesForest* f = nullptr, int depth = 0) {
+    for (int i = 0; i < depth; i++)
+        std::cerr << "  ";
+    std::unique_ptr<ScopesForest> sf;
+    if (!f) {
+        sf = std::make_unique<ScopesForest>(s.world());
+        f = sf.get();
+    }
+
+    std::cerr << s.entry()->unique_name() << std::endl;
+    for (auto c : s.children_scopes()) {
+        auto& cs = f->get_scope(c);
+        dump_scope_tree(cs, f, depth + 1);
+    }
+}
+
+DEBUG_UTIL void dump_scopes(World& w) {
+    ScopesForest forest(w);
+    std::vector<Scope*> q;
+    for (auto cont : w.copy_continuations()) {
+        auto& s = forest.get_scope(cont);
+        if (!s.parent_scope()) {
+            q.push_back(&s);
+        }
+    }
+
+    for (auto root : q) {
+        dump_scope_tree(*root, &forest);
+    }
+}
 
 }

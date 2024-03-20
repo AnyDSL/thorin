@@ -36,11 +36,12 @@ void force_inline(Scope& scope, int threshold) {
     }
 }
 
-void inliner(World& world) {
+void inliner(Thorin& thorin) {
+    World& world = thorin.world();
     world.VLOG("start inliner");
 
-    static const int factor = 4;
-    static const int offset = 4;
+    static const int factor = 8;
+    static const int offset = 8;
 
     ContinuationMap<std::unique_ptr<Scope>> continuation2scope;
 
@@ -68,7 +69,7 @@ void inliner(World& world) {
         return nullptr;
     };
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
@@ -95,7 +96,7 @@ void inliner(World& world) {
 
     world.VLOG("stop inliner");
     debug_verify(world);
-    world.cleanup();
+    thorin.cleanup();
 
 }
 

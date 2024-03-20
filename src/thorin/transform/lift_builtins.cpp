@@ -63,13 +63,15 @@ void lift_pipeline(World& world) {
 
 }
 
-void lift_builtins(World& world) {
+void lift_builtins(Thorin& thorin) {
     // This must be run first
-    lift_pipeline(world);
+    lift_pipeline(thorin.world());
 
     while (true) {
+        World& world = thorin.world();
         Continuation* cur = nullptr;
-        Scope::for_each(world, [&] (const Scope& scope) {
+        ScopesForest forest(world);
+        forest.for_each([&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
                 if (n->continuation()->order() <= 1)
@@ -103,7 +105,7 @@ void lift_builtins(World& world) {
             }
         }
 
-        auto lifted = lift(scope, defs);
+        auto lifted = lift(scope, scope.entry(), defs);
         for (auto use : cur->copy_uses()) {
             if (auto uapp = use->isa<App>()) {
                 if (auto callee = uapp->callee()->isa_nom<Continuation>()) {
@@ -125,7 +127,7 @@ void lift_builtins(World& world) {
             }
         }
 
-        world.cleanup();
+        thorin.cleanup();
     }
 }
 

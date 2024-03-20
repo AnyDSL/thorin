@@ -5,21 +5,40 @@
 #include <sstream>
 #include <stack>
 
+#include "thorin/transform/rewrite.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 
 namespace thorin {
 
-Type::Type(TypeTable& table, int tag, Types ops)
-    : table_(&table)
-    , tag_(tag)
-    , ops_(ops.size())
-{
-    for (size_t i = 0, e = num_ops(); i != e; ++i) {
-        if (auto op = ops[i])
-            set(i, op);
-    }
+Type::Type(World& w, NodeTag tag, Defs args, Debug dbg) : Type(w, tag, w.star(), args, dbg) {
+    // The overridden version of set_op is ignored in the Def ctor, because according to the C++ spec, virtuals are disabled in ctors (!)
+    // So this is not actually duplicate code - for the nominal types Type::set_op will do what we want.
+    for (auto& def : args)
+        order_ = std::max(order_, def->order());
+}
+Type::Type(World& w, NodeTag tag, size_t size, Debug dbg) : Type(w, tag, w.star(), size, dbg) {}
+
+void Type::set_op(size_t i, const Def* def) {
+    Def::set_op(i, def);
+    order_ = std::max(order_, def->order());
+}
+
+Array<const Def*> types2defs(ArrayRef<const Type*> types) {
+    Array<const Def*> defs(types.size());
+    size_t i = 0;
+    for (auto type : types)
+        defs[i++] = type->as<Def>();
+    return defs;
+}
+
+Array<const Type*> defs2types(ArrayRef<const Def*> defs) {
+    Array<const Type*> types(defs.size());
+    size_t i = 0;
+    for (auto type : defs)
+        types[i++] = type->as<Type>();
+    return types;
 }
 
 //------------------------------------------------------------------------------
@@ -28,34 +47,33 @@ Type::Type(TypeTable& table, int tag, Types ops)
  * rebuild
  */
 
-const Type* NominalType::rebuild(TypeTable&, Types) const {
+const Type* NominalType::rebuild(World&  , const Type*  , Defs  ) const {
     THORIN_UNREACHABLE;
-    return this;
 }
 
-const Type* BottomType         ::rebuild(TypeTable& t, Types  ) const { return t.bottom_type(); }
-const Type* ClosureType        ::rebuild(TypeTable& t, Types o) const { return t.closure_type(o); }
-const Type* DefiniteArrayType  ::rebuild(TypeTable& t, Types o) const { return t.definite_array_type(o[0], dim()); }
-const Type* FnType             ::rebuild(TypeTable& t, Types o) const { return t.fn_type(o); }
-const Type* FrameType          ::rebuild(TypeTable& t, Types  ) const { return t.frame_type(); }
-const Type* IndefiniteArrayType::rebuild(TypeTable& t, Types o) const { return t.indefinite_array_type(o[0]); }
-const Type* MemType            ::rebuild(TypeTable& t, Types  ) const { return t.mem_type(); }
-const Type* PrimType           ::rebuild(TypeTable& t, Types  ) const { return t.prim_type(primtype_tag(), length()); }
-const Type* PtrType            ::rebuild(TypeTable& t, Types o) const { return t.ptr_type(o.front(), length(), device(), addr_space()); }
-const Type* TupleType          ::rebuild(TypeTable& t, Types o) const { return t.tuple_type(o); }
+const Type* BottomType         ::rebuild(World& w, const Type*  , Defs  ) const { return w.bottom_type(); }
+const Type* ClosureType        ::rebuild(World& w, const Type*  , Defs o) const { return w.closure_type(defs2types(o)); }
+const Type* DefiniteArrayType  ::rebuild(World& w, const Type*  , Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
+const Type* FnType             ::rebuild(World& w, const Type*  , Defs o) const { return w.fn_type(defs2types(o)); }
+const Type* FrameType          ::rebuild(World& w, const Type*  , Defs  ) const { return w.frame_type(); }
+const Type* IndefiniteArrayType::rebuild(World& w, const Type*  , Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
+const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const { return w.mem_type(); }
+const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag(), length()); }
+const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), device(), addr_space()); }
+const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
 
 /*
  * stub
  */
 
-const NominalType* StructType::stub(TypeTable& to) const {
-    auto type = to.struct_type(name(), num_ops());
+StructType* StructType::stub(Rewriter& rewriter, const Type*) const {
+    auto type = rewriter.dst().struct_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }
 
-const NominalType* VariantType::stub(TypeTable& to) const {
-    auto type = to.variant_type(name(), num_ops());
+VariantType* VariantType::stub(Rewriter& rewriter, const Type*) const {
+    auto type = rewriter.dst().variant_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
 }
@@ -64,8 +82,8 @@ const NominalType* VariantType::stub(TypeTable& to) const {
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
-        return table().ptr_type(ptr->pointee());
-    return table().prim_type(as<PrimType>()->primtype_tag());
+        return world().ptr_type(ptr->pointee());
+    return world().prim_type(as<PrimType>()->primtype_tag());
 }
 
 bool FnType::is_returning() const {
@@ -85,7 +103,7 @@ bool FnType::is_returning() const {
 }
 
 bool VariantType::has_payload() const {
-    return !std::all_of(ops().begin(), ops().end(), is_type_unit);
+    return !std::all_of(types().begin(), types().end(), is_type_unit);
 }
 
 bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
@@ -95,15 +113,6 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
 /*
  * hash
  */
-
-hash_t Type::vhash() const {
-    if (is_nominal())
-        return thorin::murmur3(hash_t(tag()) << hash_t(32-8) | hash_t(gid()));
-    hash_t seed = thorin::hash_begin(uint8_t(tag()));
-    for (auto op : ops_)
-        seed = thorin::hash_combine(seed, uint32_t(op->gid()));
-    return seed;
-}
 
 hash_t PtrType::vhash() const {
     return hash_combine(VectorType::vhash(), (hash_t)device(), (hash_t)addr_space());
@@ -115,133 +124,53 @@ hash_t PtrType::vhash() const {
  * equal
  */
 
-bool Type::equal(const Type* other) const {
-    if (is_nominal())
-        return this == other;
-    if (tag() == other->tag() && num_ops() == other->num_ops())
-        return std::equal(ops().begin(), ops().end(), other->ops().begin());
-    return false;
-}
-
-bool PtrType::equal(const Type* other) const {
+bool PtrType::equal(const Def* other) const {
     if (!VectorType::equal(other))
         return false;
     auto ptr = other->as<PtrType>();
     return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
 
-//------------------------------------------------------------------------------
-
-/*
- * stream
- */
-
-Stream& Type::stream(Stream& s) const {
-    if (false) {}
-    else if (isa<BottomType>()) return s.fmt("!!");
-    else if (isa<   MemType>()) return s.fmt("mem");
-    else if (isa< FrameType>()) return s.fmt("frame");
-    else if (auto t = isa<DefiniteArrayType>()) {
-        return s.fmt("[{} x {}]", t->dim(), t->elem_type());
-    } else if (auto t = isa<ClosureType>()) {
-        return s.fmt("closure [{, }]", t->ops());
-    } else if (auto t = isa<FnType>()) {
-        return s.fmt("fn[{, }]", t->ops());
-    } else if (auto t = isa<IndefiniteArrayType>()) {
-        return s.fmt("[{}]", t->elem_type());
-    } else if (auto t = isa<StructType>()) {
-        return s.fmt("struct {}", t->name());
-    } else if (auto t = isa<VariantType>()) {
-        return s.fmt("variant {}", t->name());
-    } else if (auto t = isa<TupleType>()) {
-        return s.fmt("[{, }]", t->ops());
-    } else if (auto t = isa<PtrType>()) {
-        if (t->is_vector()) s.fmt("<{} x", t->length());
-        s.fmt("{}*", t->pointee());
-        if (t->is_vector()) s.fmt(">");
-        if (t->device() != -1) s.fmt("[{}]", t->device());
-
-        switch (t->addr_space()) {
-            case AddrSpace::Global:   s.fmt("[Global]");   break;
-            case AddrSpace::Texture:  s.fmt("[Tex]");      break;
-            case AddrSpace::Shared:   s.fmt("[Shared]");   break;
-            case AddrSpace::Constant: s.fmt("[Constant]"); break;
-            default: /* ignore unknown address space */    break;
-        }
-        return s;
-    } else if (auto t = isa<PrimType>()) {
-        if (t->is_vector()) s.fmt("<{} x", t->length());
-
-        switch (t->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: s.fmt(#T); break;
-#include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE;
-        }
-
-        if (t->is_vector()) s.fmt(">");
-        return s;
-    }
-    THORIN_UNREACHABLE;
-}
-
-//------------------------------------------------------------------------------
-
-TypeTable::TypeTable()
-    : unit_     (insert<TupleType >(*this, Types()))
-    , fn0_      (insert<FnType    >(*this, Types()))
-    , bottom_ty_(insert<BottomType>(*this))
-    , mem_      (insert<MemType   >(*this))
-    , frame_    (insert<FrameType >(*this))
+TypeTable::TypeTable(World& world)
+    : world_(world)
+    , star_     (world.put<Star>((world)))
+    , unit_     (world.put<TupleType>(world, Defs(), Debug()))
+    , fn0_      (world.put<FnType    >(world, Defs(), Node_FnType, Debug()))
+    , bottom_ty_(world.put<BottomType>(world, Debug()))
+    , mem_      (world.put<MemType   >(world, Debug()))
+    , frame_    (world.put<FrameType >(world, Debug()))
 {
 #define THORIN_ALL_TYPE(T, M) \
-    primtypes_[PrimType_##T - Begin_PrimType] = insert<PrimType>(*this, PrimType_##T, 1);
+    primtypes_[PrimType_##T - Begin_PrimType] = world.make<PrimType>(world, PrimType_##T, 1, Debug());
 #include "thorin/tables/primtypetable.h"
 }
 
-const Type* TypeTable::tuple_type(Types ops) {
-    return ops.size() == 1 ? ops.front() : insert<TupleType>(*this, ops);
+const Type* World::tuple_type(Types ops) {
+    return ops.size() == 1 ? ops.front()->as<Type>() : make<TupleType>(*this, types2defs(ops), Debug());
 }
 
-const StructType* TypeTable::struct_type(Symbol name, size_t size) {
-    auto type = new StructType(*this, name, size, types_.size());
-    const auto& p = types_.insert(type);
-    assert_unused(p.second && "hash/equal broken");
-    return type;
+StructType* World::struct_type(Symbol name, size_t size) {
+    return put<StructType>(*this, name, size, Debug());
 }
 
-const VariantType* TypeTable::variant_type(Symbol name, size_t size) {
-    auto type = new VariantType(*this, name, size, types_.size());
-    const auto& p = types_.insert(type);
-    assert_unused(p.second && "hash/equal broken");
-    return type;
+VariantType* World::variant_type(Symbol name, size_t size) {
+    return put<VariantType>(*this, name, size, Debug());
 }
 
-const PrimType* TypeTable::prim_type(PrimTypeTag tag, size_t length) {
+const PrimType* World::prim_type(PrimTypeTag tag, size_t length) {
     size_t i = tag - Begin_PrimType;
     assert(i < (size_t) Num_PrimTypes);
-    return length == 1 ? primtypes_[i] : insert<PrimType>(*this, tag, length);
+    return length == 1 ? types_.primtypes_[i] : make<PrimType>(*this, tag, length, Debug());
 }
 
-const PtrType* TypeTable::ptr_type(const Type* pointee, size_t length, int32_t device, AddrSpace addr_space) {
-    return insert<PtrType>(*this, pointee, length, device, addr_space);
+const PtrType* World::ptr_type(const Type* pointee, size_t length, int32_t device, AddrSpace addr_space) {
+    return make<PtrType>(*this, pointee, length, device, addr_space, Debug());
 }
 
-const FnType*              TypeTable::fn_type(Types args) { return insert<FnType>(*this, args); }
-const ClosureType*         TypeTable::closure_type(Types args) { return insert<ClosureType>(*this, args); }
-const DefiniteArrayType*   TypeTable::definite_array_type(const Type* elem, u64 dim) { return insert<DefiniteArrayType>(*this, elem, dim); }
-const IndefiniteArrayType* TypeTable::indefinite_array_type(const Type* elem) { return insert<IndefiniteArrayType>(*this, elem); }
-
-template <typename T, typename... Args>
-const T* TypeTable::insert(Args&&... args) {
-    T t(std::forward<Args&&>(args)...);
-    auto it = types_.find(&t);
-    if (it != types_.end())
-        return (*it)->template as<T>();
-    auto new_t = new T(std::move(t));
-    new_t->gid_ = types_.size();
-    types_.emplace(new_t);
-    return new_t;
-}
+const FnType*              World::fn_type(Types args) { return make<FnType>(*this, types2defs(args), Node_FnType, Debug()); }
+const ClosureType*         World::closure_type(Types args) { return make<ClosureType>(*this, types2defs(args), Debug()); }
+const DefiniteArrayType*   World::definite_array_type(const Type* elem, u64 dim) { return make<DefiniteArrayType>(*this, elem, dim, Debug()); }
+const IndefiniteArrayType* World::indefinite_array_type(const Type* elem) { return make<IndefiniteArrayType>(*this, elem, Debug()); }
 
 //------------------------------------------------------------------------------
 

@@ -143,10 +143,8 @@ bool PartialEvaluator::run() {
 
             if (callee->intrinsic() == Intrinsic::Plugin) {
                 if (callee->attributes().depends) {
-                    size_t num_dependend_uses = 0;
-                    for (auto use : callee->attributes().depends->uses()) {
-                        num_dependend_uses += use.def()->num_uses();
-                    }
+                    size_t num_dependend_uses = callee->attributes().depends->num_uses() - callee->attributes().depends->num_params();
+
                     //std::cerr << "Analyzing " << callee->unique_name() << " with dependency " << callee->attributes().depends->unique_name() << "\n";
                     //std::cerr << " => has " << num_dependend_uses << " real dependencies\n";
                     if (num_dependend_uses > 0) {
@@ -156,6 +154,7 @@ bool PartialEvaluator::run() {
                                 queue_.push(const_cast<Continuation*>(cont));
                             }
                         }
+                        todo = true;
                         continue;
                     }
                 }

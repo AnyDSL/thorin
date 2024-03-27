@@ -312,9 +312,7 @@ void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise
 
 bool Continuation::verify() const {
     bool ok = true;
-    if (!has_body())
-        assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
-    else {
+    if (has_body()) {
         ok &= body()->verify();
         assert(!dead_); // destroy() should remove the body
         assert(intrinsic() == Intrinsic::None);

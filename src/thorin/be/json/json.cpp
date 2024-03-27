@@ -239,14 +239,27 @@ public:
                     forward_decl["intrinsic"] = intrinsic_name;
                     forward_decl["fn_type"] = intrinsic_type;
                     forward_decl["plugin"] = true;
+
+                    bool emit_node = false;
+                    if (cont->attributes().depends) {
+                        result["depends"] = translate_def(cont->attributes().depends);
+
+                        emit_node = true;
+                    }
+                    if (cont->filter() && !cont->filter()->empty()) {
+                        //The filter will most certainly rely on these parameters.
+                        json arg_names = json::array();
+                        for (auto arg : cont->params()) {
+                            arg_names.push_back(translate_def(arg));
+                        }
+                        forward_decl["arg_names"] = arg_names;
+
+                        emit_node = true;
+                    }
+
                     decl_table.push_back(forward_decl);
 
-                    if (cont->attributes().depends) {
-                        result["name"] = name;
-                        result["type"] = "continuation";
-                        result["plugin"] = true;
-                        result["depends"] = translate_def(cont->attributes().depends);
-                    } else if (cont->filter() && !cont->filter()->empty()) {
+                    if (emit_node) {
                         result["name"] = name;
                         result["type"] = "continuation";
                         result["plugin"] = true;
@@ -309,9 +322,12 @@ public:
                     };
                 } else {
                     //Early return. We do not have a body, so there is no point in writing something to the def table.
-                    if (cont->filter() && !cont->filter()->empty())
-                        assert(false && "These filters cannot be generated RN");
-                    return name;
+                    if (cont->filter() && !cont->filter()->empty()) {
+                        result["name"] = name;
+                        result["type"] = "continuation";
+                        result["filter"] = translate_def(cont->filter());
+                    } else
+                        return name;
                 }
             }
         } else if (auto lit = def->isa<PrimLit>()) {

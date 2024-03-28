@@ -30,6 +30,7 @@ private:
     void clean_pe_info(std::queue<Continuation*>, Continuation*);
     Thorin& thorin_;
     bool todo_ = true;
+friend class Thorin;
 };
 
 void Cleaner::eliminate_tail_rec() {
@@ -274,5 +275,6 @@ void Cleaner::cleanup() {
 }
 
 void Thorin::cleanup() { Cleaner(*this).cleanup(); }
+void Thorin::cleanup_fix_point() { Cleaner(*this).cleanup_fix_point(); }
 
 }

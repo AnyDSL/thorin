@@ -178,23 +178,35 @@ bool PartialEvaluator::run() {
                     const auto& p = cache_.emplace(body, nullptr);
                     const Continuation* target = p.first->second;
                     // create new specialization if not found in cache
-                    if (p.second) {
-                        world().idef(continuation, "Plugin execute: {}", callee);
+                    try {
+                        if (p.second) {
+                            world().idef(continuation, "Plugin execute: {}", callee);
 
-                        auto plugin_function = thorin_.search_plugin_function(callee->name().c_str());
-                        if (!plugin_function) {
-                            world().ELOG("Plugin function not found for: {}", callee->name());
-                            continue;
+                            auto plugin_function = thorin_.search_plugin_function(callee->name().c_str());
+                            if (!plugin_function) {
+                                world().ELOG("Plugin function not found for: {}", callee->name());
+                                continue;
+                            }
+
+                            const Def* output = plugin_function(&world(), body);
+                            if (output)
+                                specialize[1] = output;
+
+                            target = body->arg(body->num_args() - 1)->as<Continuation>();
+                            todo = true;
                         }
 
-                        const Def* output = plugin_function(&world(), body);
-                        if (output)
-                            specialize[1] = output;
-
-                        target = body->arg(body->num_args() - 1)->as<Continuation>();
+                        continuation->jump(target, specialize);
+                    } catch (const std::runtime_error& e) {
+                        std::cerr << "Error in plugin function: " << e.what() << "\n";
+                        for (auto arg : body->args()) {
+                            if (auto cont = arg->isa<Continuation>()) {
+                                queue_.push(const_cast<Continuation*>(cont));
+                            }
+                        }
                         todo = true;
+                        continue;
                     }
-                    continuation->jump(target, specialize);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:

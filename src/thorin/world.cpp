@@ -10,7 +10,10 @@
 #endif
 
 #include <cmath>
+
+#if THORIN_ENABLE_CREATION_CONTEXT
 #include <execinfo.h>
+#endif
 
 #ifdef THORIN_ENABLE_RLIMITS
 #include <sys/resource.h>

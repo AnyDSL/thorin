@@ -154,7 +154,7 @@ void World::dump_scoped() const {
 }
 
 void World::dump_scoped_to_disk() const {
-    ScopedWorld s(*const_cast<World*>(this), (ScopedWorld::Config) { false });
+    ScopedWorld s(*const_cast<World*>(this), ScopedWorld::Config { false });
     auto name = this->name() + ".dump";
     std::ofstream file(name);
     Stream st(file);

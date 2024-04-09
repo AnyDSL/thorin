@@ -15,7 +15,7 @@
 #include <execinfo.h>
 #endif
 
-#ifdef THORIN_ENABLE_RLIMITS
+#if THORIN_ENABLE_RLIMITS
 #include <sys/resource.h>
 #endif
 
@@ -1323,7 +1323,7 @@ void Thorin::opt() {
 }
 
 bool Thorin::ensure_stack_size(size_t new_size) {
-#ifdef THORIN_ENABLE_RLIMITS
+#if THORIN_ENABLE_RLIMITS
     struct rlimit rl;
     int result = getrlimit(RLIMIT_STACK, &rl);
     if(result != 0) return false;

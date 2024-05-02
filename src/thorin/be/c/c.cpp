@@ -115,7 +115,10 @@ private:
     auto get_config(Continuation* cont);
     auto get_vector_size(Continuation* cont);
     auto is_accum_type(const Type* type);
+    auto is_mask_type(const Type* type);
     bool is_scalar_kernel();
+    bool has_vect_arg(Continuation*);
+    std::unique_ptr<ApiConfig> special_device_api(const Continuation*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
@@ -199,6 +202,11 @@ bool CCodeGen::is_scalar_kernel() {
     return (vector_size_ == 0 || vector_size_ == 1);
 }
 
+bool CCodeGen::has_vect_arg(Continuation* cont) {
+    assert(lang_ == Lang::CGRA && "has_vect_param is available only for CGRA");
+    return cont->starts_with("aie::") && cont->ends_with("_v");
+}
+
 auto CCodeGen::get_vector_size(Continuation* cont) {
     assert(lang_ == Lang::CGRA && "vector_size is available only for CGRA");
     if(auto config = get_config(cont)) {
@@ -207,7 +215,6 @@ auto CCodeGen::get_vector_size(Continuation* cont) {
     }
     assert(false && "kernel has no config");
 }
-
 
 static auto prepare_flag(std::string flag) {
     std::string flag_str = flag;
@@ -218,6 +225,7 @@ static auto prepare_flag(std::string flag) {
     std::istringstream options_stream(flag_str);
     return options_stream;
 }
+
 
 bool CCodeGen::get_cgra_options() {
 
@@ -1231,6 +1239,19 @@ auto CCodeGen::is_accum_type(const Type* type) {
     }
     return is_accum;
 }
+
+auto CCodeGen::is_mask_type(const Type* type) {
+    assert((lang_ == Lang::CGRA) && "Only CGRA is supported");
+    auto is_mask = false;
+    if (vector_size_ > 1) {
+        if (auto primtype = type->isa<PrimType>()) {
+            auto type_tag = primtype->primtype_tag();
+            is_mask = (type_tag == PrimType_bool);
+        }
+    }
+    return is_mask;
+}
+
 
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();

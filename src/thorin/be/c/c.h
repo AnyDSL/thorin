@@ -12,6 +12,8 @@ namespace thorin {
 
 using Continuations = Schedule; // vector of continuation*
 using FuncMode = ChannelMode;
+using TempTypeParams = std::vector<std::pair<size_t, const Type*>>;// for CGRA - (type-param index, type)
+using ApiConfig = std::pair<size_t, std::variant<const Type*, TempTypeParams>>; // for CGRA - (number of template params, (type-param index, type))
 
 class World;
 

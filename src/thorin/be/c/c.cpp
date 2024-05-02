@@ -1241,6 +1241,131 @@ static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
     return elem_type;
 }
 
+
+
+//A function that define a table structure for cgra device intrinsic holding template parameters' information
+//specialize cgra device APIs
+// A device API that has any kinds of template parameters should be configured in this table
+
+std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont) {
+    // how many template parameters are there in the real api?
+    // and which indexes are type parameters?
+    // and from which arg or param those type parameters are coming from?
+    //using Cont2ApiConfig = ContinuationMap<std::vector<std::variant<const Def*, const Type*>>>; // used for CGRA API generation
+    //using ContName2ApiConfig = std::map<std::string, ApiConfig>; // used for CGRA API generation
+    auto body = cont->body();
+    auto callee = body->callee();
+    auto name = callee->name();
+    std::cout << "DEBUG: Callee name: " << name << "\n";
+
+    auto api_config = std::make_unique<ApiConfig>();
+
+    std::vector<std::pair<size_t, const Type*>> empty_vect{};
+    auto no_type = TempTypeParams{ empty_vect };
+    auto ret_type = thorin::c::ret_type(callee->as_nom<Continuation>()->type());
+    auto type_of_arg = [&] (const size_t index) -> const Type* { return cont->body()->arg(index)->type();};
+
+    auto sliding_mul_config = [&] () -> ApiConfig {
+        const auto temp_params_size = 6;
+        TempTypeParams temp_type_params = { { 4, type_of_arg(5) }, { 5, type_of_arg(7) } };
+        ApiConfig api_config {temp_params_size, temp_type_params};
+        return {api_config};
+    };
+
+    auto sliding_mac_config = [&] () -> ApiConfig {
+        const auto temp_params_size = 6;
+        TempTypeParams temp_type_params = { { 4, type_of_arg(6) }, { 5, type_of_arg(8) } };
+        ApiConfig api_config {temp_params_size, temp_type_params};
+        return {api_config};
+    };
+
+    // 1) AIE APIs with tepmlate type and non-type parameters
+    if      (name == "aie::broadcast")       *api_config = {2, TempTypeParams{ { 0, ret_type } } };// <type,const>
+    else if (name == "aie::zeros")           *api_config = {2, TempTypeParams{ { 0, ret_type } } };
+    else if (name == "aie::vector_cast")     *api_config = {1, TempTypeParams{ { 0, ret_type } } };
+    else if (name == "aie::mmul")            *api_config = {5, TempTypeParams{ { 3, type_of_arg(1) }, { 4, type_of_arg(2) } } };
+    else if (name == "aie::sliding_mul_ops") *api_config = {7, TempTypeParams{ { 5, type_of_arg(3) }, { 6, type_of_arg(4) } } };
+    // 2) AIE APIs without any template type parameters
+    else if (name == "aie::load_v")          *api_config = {1, no_type };
+    else if (name == "aie::store_v")         *api_config = {1, no_type };
+    else if (name == "window_readincr_v")    *api_config = {1, no_type };
+    else if (name == "readincr_v")           *api_config = {1, no_type };
+    else if (name == "writeincr_v")          *api_config = {1, no_type };
+    else if (name == "aie::accumulate")      *api_config = {1, no_type };
+    else if (name == "aie::sliding_mul")             *api_config = {2, no_type };
+    else if (name == "aie::sliding_mac")             *api_config = {2, no_type };
+    else if (name == "aie::sliding_mul_sym")         *api_config = {2, no_type };
+    else if (name == "aie::sliding_mac_sym")         *api_config = {2, no_type };
+    else if (name == "aie::sliding_mul_antisym")     *api_config = {2, no_type };
+    else if (name == "aie::sliding_mac_antisym")     *api_config = {2, no_type };
+    else if (name == "aie::sliding_mul_sym_uct")     *api_config = {2, no_type };
+    else if (name == "aie::sliding_mac_sym_uct")     *api_config = {2, no_type };
+    else if (name == "aie::sliding_mul_antisym_uct") *api_config = {2, no_type };
+    else if (name == "aie::sliding_mac_antisym_uct") *api_config = {2, no_type };
+    // 3) AIE class template APIs (no template parameters but have a composite type (like struct) as fn parameter)
+    else if (name == "aie::mmul::mul")      *api_config = {0, type_of_arg(1) };
+    else if (name == "aie::mmul::mac")      *api_config = {0, type_of_arg(1) };
+    else if (name == "aie::vector::insert") *api_config = {0, type_of_arg(1) };
+    // 4) AIE struct template static APIs
+    else if (name == "aie::sliding_mul_xy_ops::mul")        *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_xy_ops::mac")        *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_xy_ops::mul_common") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_xy_ops::negmul")     *api_config = sliding_mul_config();
+
+    else if (name == "aie::sliding_mul_x_ops::mul")        *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_x_ops::mac")        *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_x_ops::mul_common") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_x_ops::negmul")     *api_config = sliding_mul_config();
+
+    else if (name == "aie::sliding_mul_y_ops::mul")        *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_y_ops::mac")        *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_y_ops::mul_common") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_y_ops::negmul")     *api_config = sliding_mul_config();
+
+    else if (name == "aie::sliding_mul_sym_x_ops::mac_antisym") *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_x_ops::mac_sym")     *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_x_ops::mul_antisyn") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_x_ops::mul_common")  *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_x_ops::mul_sym")     *api_config = sliding_mul_config();
+
+    else if (name == "aie::sliding_mul_sym_y_ops::mac_antisym") *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_y_ops::mac_sym")     *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_y_ops::mul_antisyn") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_y_ops::mul_common")  *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_y_ops::mul_sym")     *api_config = sliding_mul_config();
+
+    else if (name == "aie::sliding_mul_sym_xy_ops::mac_antisym") *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_xy_ops::mac_sym")     *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_xy_ops::mul_antisyn") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_xy_ops::mul_common")  *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_xy_ops::mul_sym")     *api_config = sliding_mul_config();
+
+    else if (name == "aie::sliding_mul_sym_uct_ops::mac_antisym_uct") *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_uct_ops::mac_sym_uct")     *api_config = sliding_mac_config();
+    else if (name == "aie::sliding_mul_sym_uct_ops::mul_antisyn_uct") *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_uct_ops::mul_common_uct")  *api_config = sliding_mul_config();
+    else if (name == "aie::sliding_mul_sym_uct_ops::mul_sym_uct")     *api_config = sliding_mul_config();
+
+    // 5) AIE commands
+    else if (name == "aie::set_saturation(aie::saturation_mode::saturate)")  *api_config = {0, no_type };
+    else if (name == "aie::set_saturation(aie::saturation_mode::none)")      *api_config = {0, no_type };
+    else if (name == "aie::set_saturation(aie::saturation_mode::truncate)")  *api_config = {0, no_type };
+    else if (name == "aie::set_saturation(aie::saturation_mode::symmetric)") *api_config = {0, no_type };
+    else if (name == "aie::set_rounding(aie::rounding_mode::ceil)")          *api_config = {0, no_type };
+    else if (name == "aie::set_rounding(aie::rounding_mode::floor)")         *api_config = {0, no_type };
+    //TODO: fft, and new way to implement aie::mmul
+    // make aie::mmul<M, K, N, T, T>() like a struct type and pass MKN as members of the struct but make different types of struct
+    // in code make an object of this new type. (like a static global)
+    // make a new device intrinsic like channel that gets this new object and two matrices. but generates the code like obj.mul(block_a, block_b);
+    // then we need to do the same for aie::mmul::mac to get something like obj.mac(block_a, block_b);
+    // for the current purpose it is only useful if we want to do convolution via mmul.
+    // Also we need to implment a specific fn for mmul cast to vector: auto test_ = block_c.template to_vector<T>();
+    //TODO: Alos aie::sliding_mul_xy_ops as struct type? basically all class template device APIs
+    else return nullptr;
+
+    return api_config;
+}
+
 auto CCodeGen::is_accum_type(const Type* type) {
     assert((lang_ == Lang::CGRA) && "Only CGRA is supported");
     auto is_accum = false;
@@ -1769,11 +1894,105 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 bb.tail.fmt("{} ret_val = ", convert(ret_type));
         }
 
-        //TODO:: consider for CGRA objs
-        if (!no_function_call) {
-            //CGRA graph DEBUG point
-            if (!top_scope.cgra_graph)
-                bb.tail.fmt("{}({, });\n", emit(callee), args);
+        if (!no_function_call) { // rest of the calls
+                                 //CGRA graph DEBUG point
+            if (!top_scope.cgra_graph) {
+                if (lang_ != Lang::CGRA) {
+                    bb.tail.fmt("{}({, });\n", emit(callee), args);
+                } else { // if it is a cgra graph kernel
+
+                    std::vector<std::string> template_args, fun_args;
+                    std::vector<std::string>::iterator args_split_point;
+                    auto api_config = special_device_api(cont);
+                    const Type* composite_type = nullptr;
+                    if (api_config) {
+
+                        auto [num_templ_params, type_params] = *api_config;
+                        TempTypeParams temp_type_params;
+                        if (std::holds_alternative<TempTypeParams>(type_params))
+                            temp_type_params = get<TempTypeParams>(type_params);
+                        else if (std::holds_alternative<const Type*>(type_params))
+                            composite_type = get<const Type*>(type_params);
+                        // if empty to fix the bug (tempTypeParam variant but empty)
+
+                        if (temp_type_params.empty() && (args.size() > num_templ_params))
+                            args_split_point = args.begin() + num_templ_params;
+                        else
+                            args_split_point = args.begin() + num_templ_params - temp_type_params.size();
+
+                        template_args.insert(template_args.begin(), args.begin(), args_split_point);
+                        fun_args.insert(fun_args.begin(), args_split_point, args.end());
+
+                        if (!temp_type_params.empty()) {
+                            // augmenting template args with the type params
+                            for (auto[templ_param_index, type_of_arg] : temp_type_params) {
+                                template_args.insert(template_args.begin() + templ_param_index, convert(type_of_arg));
+                            }
+                        }
+                    }
+
+                    // helper lambdas for device APIs
+                    auto get_method = [] (const Continuation* cont) {
+                        auto s = cont->name();
+                        return s.substr(s.find_last_of("::") + 1);
+                    };
+
+                    auto get_struct = [] (const Continuation* cont , const std::string& delimiter = "::") {
+                        auto s = cont->name();
+                        size_t startPos = s.find_first_of(delimiter);
+                        if (startPos == std::string::npos) return std::string();
+                        startPos += delimiter.length();
+                        size_t endPos = s.find_last_of(delimiter);
+                        if (endPos == std::string::npos) return std::string();
+                        endPos -= 1;
+                        return s.substr(startPos, endPos - startPos);
+                    };
+
+                    auto shift_left = [] (std::vector<std::string> vec, size_t shift_by) {
+                        if (shift_by >= vec.size()) {
+                            vec.clear();
+                        } else {
+                            for (size_t i = shift_by; i < vec.size(); ++i) {
+                                vec[i - shift_by] = vec[i];
+                            }
+                            vec.resize(vec.size() - shift_by);
+                        return vec;
+                        }
+                    };
+
+                    auto cont_is_command = [&] () {
+                        // if it is a specialized intrinsic but without any args then it is a command API
+                        return  api_config && template_args.empty() && fun_args.empty();
+                    };
+
+                    auto cont_is_class_obj_method = [&] () {
+                        return (composite_type) && (composite_type->isa<StructType>() || (vector_size_ > 1));
+                    };
+ 
+                    auto cont_is_fun_template = [&] () {
+                        return (template_args.size() > 0); // not enough to check if it is a template
+                    };
+
+                    auto cont_is_struct_templ_method = [&] () {
+                        return ((template_args.size() > 1 ) && (!get_struct(callee).empty()));
+                    };
+
+                    // emit the device API
+                    if (cont_is_command()) {
+                        bb.tail.fmt("{};\n", emit(callee));
+                    } else if(cont_is_class_obj_method()) {
+                        auto composite_arg = args[0];
+                        bb.tail.fmt("{}.{}({, });\n", composite_arg , get_method(callee), shift_left(args, 1) );
+                    } else if (template_args.empty()) {
+                        bb.tail.fmt("{}({, });\n", emit(callee), args);
+                    } else if (cont_is_fun_template()) {
+                        bb.tail.fmt("{}<{, }>({, });\n", emit(callee), template_args, fun_args);
+                    } else if (cont_is_struct_templ_method()) {
+                        bb.tail.fmt("{}<{, }>::{}({, });\n", get_struct(callee), template_args, get_method(callee), fun_args);
+                    }
+                    else THORIN_UNREACHABLE;
+                }
+            }
         }
 
         // Pass the result to the phi nodes of the return continuation

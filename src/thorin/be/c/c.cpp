@@ -1847,41 +1847,42 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             no_function_call = true;
             //TODO: Check it
             channel_transaction = true;
-        } else if (lang_ == Lang::CGRA && callee->is_channel()) {
+        } else if (lang_ == Lang::CGRA) {
+            if (callee->is_channel()) {
 
-            //TODO: Adapt the placeholders for ADF APIs and for differetn interfaces, start with Stream interface
-            //TODO: Simplify it
-            for (size_t i = 0; auto arg : body->args()) {
-                args.size();
-                if (!is_concrete(arg)) continue;
-                const Def* channel_def;
-                if (i == 0)
-                    channel_def = arg; //channel
-                if (i == 1) {
-                    if (name.find("write_channel") != std::string::npos) {
-                        switch (cont->get_interface()) {
-                            case Interface::Stream: case Interface::Free_running: case Interface::Cascade:
-                                bb.tail.fmt("writeincr({}, {});\n", emit(channel_def), emit(arg));
-                                break;
-                            case Interface::Window:
-                                bb.tail.fmt("window_writeincr({}, {});\n", emit(channel_def), emit(arg));
-                                break;
-                            default:
-                                world().WLOG("Interface not determined or not supported yet. Fall back on STREAM");
-                                bb.tail.fmt("writeincr({}, {});\n", emit(channel_def), emit(arg));
-                        }
-                    } else THORIN_UNREACHABLE;
-                }
+                //TODO: Adapt the placeholders for ADF APIs and for differetn interfaces, start with Stream interface
+                //TODO: Simplify it
+                for (size_t i = 0; auto arg : body->args()) {
+                    args.size();
+                    if (!is_concrete(arg)) continue;
+                    const Def* channel_def;
+                    if (i == 0)
+                        channel_def = arg; //channel
+                    if (i == 1) {
+                        if (name.find("write_channel") != std::string::npos) {
+                            switch (cont->get_interface()) {
+                                case Interface::Stream: case Interface::Free_running: case Interface::Cascade:
+                                    bb.tail.fmt("writeincr({}, {});\n", emit(channel_def), emit(arg));
+                                    break;
+                                case Interface::Window:
+                                    bb.tail.fmt("window_writeincr({}, {});\n", emit(channel_def), emit(arg));
+                                    break;
+                                default:
+                                    world().WLOG("Interface not determined or not supported yet. Fall back on STREAM");
+                                    bb.tail.fmt("writeincr({}, {});\n", emit(channel_def), emit(arg));
+                            }
+                        } else THORIN_UNREACHABLE;
+                    }
 
-                auto config_read_api = [&] (std::string interface_prefix) {
-                    bb.tail.fmt("{} = {}readincr{}({});\n",
-                            emit(channel_read_result),
-                            interface_prefix,
-                            is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
-                            emit(channel_def));
-                };
+                    auto config_read_api = [&] (std::string interface_prefix) {
+                        bb.tail.fmt("{} = {}readincr{}({});\n",
+                                emit(channel_read_result),
+                                interface_prefix,
+                                is_scalar_kernel() ? "" : "_v<" + std::to_string(vector_size_) + ">",
+                                emit(channel_def));
+                    };
 
-                if (name.find("read_channel") != std::string::npos) {
+                    if (name.find("read_channel") != std::string::npos) {
                         switch (cont->get_interface()) {
                             case Interface::Stream: case Interface::Free_running: case Interface::Cascade:
                                 config_read_api("");
@@ -1893,12 +1894,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                                 world().WLOG("Interface not determined or not supported yet. Fall back on STREAM");
                                 config_read_api("");
                         }
-
+                    }
+                    ++i;
                 }
-                ++i;
+                no_function_call = true;
+                channel_transaction = true;
             }
-            no_function_call = true;
-            channel_transaction = true;
         }
 
 //TODO:: use a mode bool var for monitoring read/write changes to emit chess_scheduler

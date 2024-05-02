@@ -1436,20 +1436,28 @@ std::string CCodeGen::prepare(const Scope& scope) {
                                 if (gmem_config == HlsInterface::GMEM_OPT)
                                     hls_gmem_index++;
                                 func_impls_ << "#pragma HLS INTERFACE m_axi" << std::string(5, ' ') << "port = " << param->unique_name()
-                                            << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n";
+                                    << " bundle = gmem" << hls_gmem_index << std::string(2, ' ') << "offset = slave" << "\n";
                                 func_impls_ << "#pragma HLS INTERFACE s_axilite"<<" port = " << param->unique_name() << "\n";
                             } else if (interface == HlsInterface::HPC_STREAM) {
                                 func_impls_ << "#pragma HLS INTERFACE axis port = " << param->unique_name() << "\n";
                             }
+
+                            func_impls_ << "#pragma HLS STABLE variable = " << param->unique_name() << "\n";
+
+                        } else if(is_channel_type(param->type())) {
+                            func_impls_ << "#pragma HLS INTERFACE axis port = " << param->unique_name() << "\n";
+
                         } else {
+
                             if (interface == HlsInterface::SOC)
                                 func_impls_ << "#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << "\n";
                             else if (interface == HlsInterface::HPC)
                                 func_impls_ << "#pragma HLS INTERFACE s_axilite port = " << param->unique_name() << " bundle = control" << "\n";
                         }
 
-                        func_impls_ << "#pragma HLS STABLE variable = " << param->unique_name() << "\n";
                     }
+
+                    // return protocol
                     if (interface == HlsInterface::SOC || interface == HlsInterface::HPC_STREAM)
                         func_impls_ << "#pragma HLS INTERFACE ap_ctrl_none port = return\n";
                     else if (interface == HlsInterface::HPC)

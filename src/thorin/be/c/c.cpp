@@ -187,6 +187,15 @@ inline bool is_channel_type(const StructType* struct_type) {
 }
 
 
+inline bool is_mmul_type(const StructType* struct_type) {
+    return struct_type->name().str().find("mmul") != std::string::npos;
+}
+
+inline bool is_mmul_type(const Type* type) {
+    return type->isa<StructType>()->name().str().find("mmul") != std::string::npos;
+}
+
+
 /// Returns true when the def carries concrete data in the final generated code
 inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
 inline bool has_concrete_params(Continuation* cont) {
@@ -393,6 +402,8 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
             graph_stream_.fmt("typedef {} {}_{};\n\n", convert(struct_type->op(0)), name, struct_type->gid());
             //name = ("<" + name + "_" + std::to_string(type->gid()) + ">");
             name = ( name + "_" + std::to_string(type->gid()));
+        } else if (lang_ == Lang::CGRA && is_mmul_type(struct_type)) {
+            s.fmt("//AIE mmul {} obj\n", convert(struct_type) );
         } else {
             s.fmt("typedef struct {{\t\n");
             s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
@@ -1995,13 +2006,45 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return name;
     } else if (def->isa<Aggregate>()) {
         if (bb) {
-            func_impls_.fmt("{} {};\n", convert(def->type()), name);
-            func_defs_.insert(def);
-            for (size_t i = 0, n = def->num_ops(); i < n; ++i) {
-                auto op = emit_unsafe(def->op(i));
-                bb->body << name;
-                emit_access(bb->body, def->type(), world().literal(thorin::pu64{i}));
-                bb->body.fmt(" = {};\n", op);
+            // First we check about CGRA requirements
+            // TODO: make a function for this
+            if (lang_ == Lang::CGRA && is_mmul_type(def->type())) {
+                auto struct_type = def->type()->as<StructType>();
+                auto type_of_mmul = [&] (const Type* type) {
+                    auto s = convert(type);
+                    return s.substr(s.find_last_of('_') + 1);
+                };
+
+                auto mmul_size = [&] () {
+                    std::string m, n, k;
+                    for (int i = 0; const auto& op : def->ops()) {
+                        auto op_name = struct_type->op_name(i++).c_str();
+
+                        if (strlen(op_name) > 1) continue;
+
+                        switch(*op_name) {
+                            case 'M': case 'm' : m = emit_unsafe(op); break;
+                            case 'N': case 'n' : n = emit_unsafe(op); break;
+                            case 'K': case 'k' : k = emit_unsafe(op); break;
+                            default: m = '4'; n = '2'; k = '4';
+                        }
+
+                    }
+                    return std::make_tuple(m, n, k);
+                };
+                auto[m ,n, k] = mmul_size();
+                func_impls_.fmt("aie::mmul<{}, {}, {}, {}, {}> {};\n",
+                        m, n, k, type_of_mmul(def->type()), type_of_mmul(def->type()), name);
+                func_defs_.insert(def);
+            } else {
+                func_impls_.fmt("{} {};\n", convert(def->type()), name);
+                func_defs_.insert(def);
+                for (size_t i = 0, n = def->num_ops(); i < n; ++i) {
+                    auto op = emit_unsafe(def->op(i));
+                    bb->body << name;
+                    emit_access(bb->body, def->type(), world().literal(thorin::pu64{i}));
+                    bb->body.fmt(" = {};\n", op);
+                }
             }
             return name;
         } else {
@@ -2313,7 +2356,6 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 break;
             case Lang::CGRA:
                 std::cout << "C.CPP" <<std::endl;
-                cont->dump();
                 if (cont->get_interface() == Interface::None) {
                     std::cout << "Graph Interface None" <<std::endl;
                 } else if (cont->get_interface() == Interface::Stream) {

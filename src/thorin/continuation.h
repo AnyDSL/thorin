@@ -196,7 +196,15 @@ public:
     bool is_pipe()        const { return name().find("pipe")       != std::string::npos; }
     bool is_hls_top()     const { return name().find("hls_top")    != std::string::npos; }
     bool is_cgra_graph()  const { return name().find("cgra_graph") != std::string::npos; }
+    bool is_mmul()        const { return name().find("mmul")       != std::string::npos; }
     bool is_accelerator() const;
+
+    bool starts_with (const std::string& prefix) const {
+        return name().size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), name().begin());
+    }
+    bool ends_with (const std::string& suffix) const {
+        return name().size() >= suffix.size() && std::equal(suffix.rbegin(), suffix.rend(), name().rbegin());
+    }
 
     const App* body() const { return op(0)->as<App>(); }
     bool has_body() const { return !op(0)->isa<Bottom>(); }

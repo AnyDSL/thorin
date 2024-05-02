@@ -1506,18 +1506,26 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             // code generator will emit two assignments to the phis nodes, but the second one
             // depends on the current value of the phi node.
             // Lookup "lost copy problem" and "swap problem" in literature for SSA destruction for more information.
-            std::string param_type;
+            std::string param_type_str;
             //TODO: assign 1 for scalar core
             //if (lang_ == Lang::CGRA && cont->is_exported())
-            param_type = convert(param->type());
+            param_type_str = convert(param->type());
             if (lang_ == Lang::CGRA) {
-                if (vector_size_ > 1) {
-                    std::string reg_type = is_accum_type(param->type()) ? "aie::accum" : "aie::vector";
-                    param_type = reg_type + "<" + convert(param->type()) + ", " + std::to_string(vector_size_) + ">";
+                if (auto type = param->type(); (vector_size_ > 1) && (!type->isa<PtrType>())) {
+                    std::string reg_type;
+                    if (is_accum_type(type)) {
+                        reg_type = "aie::accum";
+                    } else if (is_mask_type(type)) {
+                        reg_type = "aie::mask";
+                    } else {
+                        reg_type = "aie::vector";
+                    }
+                    param_type_str = is_mask_type(type) ? (reg_type + "<" + std::to_string(vector_size_) + ">") :
+                        (reg_type + "<" + convert(param->type()) + ", " + std::to_string(vector_size_) + ">");
                 }
             }
-            func_impls_.fmt("{}   {};\n", param_type, param->unique_name());
-            func_impls_.fmt("{} p_{};\n", param_type, param->unique_name());
+            func_impls_.fmt("{}   {};\n", param_type_str, param->unique_name());
+            func_impls_.fmt("{} p_{};\n", param_type_str, param->unique_name());
             bb.head.fmt("{} = p_{};\n", param->unique_name(), param->unique_name());
             defs_[param] = param->unique_name();
         }
@@ -1550,8 +1558,10 @@ auto cgra_testbench(int32_t iteration) {
     // TODO: Check testbenchcode for non mem allocation
     // TODO: we probably need to remove interface pragmas for hls xdma interface when connecting to cgra
     // test HPC interface maybe it already does it.  for QDMA we need to add template args
+    // set channel params of cgra graph to axis (both for xdma and qdma), in qdma mem i/o is also axis and it is stream
     // TODO: it seems we need 32bits for stream and 64 or 128 bits for window when creating virtual ports
     //if (options.iteration > 0) { }
+    //TODO: Parallel Streams Access (aie_stream_resource_in::a, aie_stream_resource_out::a) on read and write stream Fns
     s << "#if defined(__AIESIM__) || defined(__X86SIM__)\n";
     s << "int main(void) {\n"
             << "\t" << cgra_obj_name() << ".init();\n"
@@ -2009,6 +2019,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             for (auto param : ret_cont->params()) {
                 if (!is_concrete(param))
                     continue;
+                // TODO: tuple type bypass should be handled
                 if (ret_type->isa<TupleType>())
                     bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
                 else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS) || (lang_ == Lang::CGRA))

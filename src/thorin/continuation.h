@@ -136,11 +136,13 @@ public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         Interface interface = Interface::None;
+        size_t buf_size = 0;
         CC cc = CC::C;
 
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(Interface interface) : interface(interface) {}
+        Attributes(size_t buf_size)   : buf_size(buf_size) {}
         Attributes(CC cc = CC::C) : cc(cc) {}
 };
 
@@ -173,9 +175,11 @@ public:
     Intrinsic intrinsic() const { return attributes().intrinsic; }
     CC cc() const { return attributes().cc; }
     Interface get_interface() const { return attributes().interface; }
+    size_t get_buf_size() const { return attributes().buf_size; }
     //Interface get_interface() const { return interface_; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
     void set_interface(const Interface interface);
+    void set_buf_size(const size_t buf_size);
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const { return attributes().intrinsic != Intrinsic::None; }

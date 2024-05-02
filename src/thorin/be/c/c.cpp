@@ -651,8 +651,9 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                     s =  "<adf::cascade>";
                     break;
                 case Interface::Window: {
+                    auto window_size = cont->get_buf_size();
                     auto type = is_plio(dependence.first) ? dependence.second->type() : dependence.first->type();
-                    s = "<adf::window<WINDOW_SIZE * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>";
+                    s = "<adf::window<" + std::to_string(window_size) + " * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>";
                     }
                     break;
                 case Interface::Free_running:
@@ -997,6 +998,7 @@ void CCodeGen::emit_module() {
 
     Scope::for_each(world(), [&] (const Scope& scope) {
             auto entry = scope.entry();
+
             if (entry->is_hls_top() || entry->is_cgra_graph()) {
                 top_module = entry;
 
@@ -1507,7 +1509,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     assert(cont->has_body());
     auto body = cont->body();
     emit_debug_info(bb.tail, body->arg(0));
-
 
 
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && top_scope.hls)) && (cont->is_exported()))

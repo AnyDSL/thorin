@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <variant>
 
 #include "thorin/be/codegen.h"
 #include "thorin/analyses/schedule.h"

@@ -86,8 +86,10 @@ void annotate_interface(Continuation* imported, const Continuation* use) {
                 if (ikernel->name() == ukernel->unique_name()) {
                     std::cout << "MOUSE FOUND!" << std::endl;
                     auto uiterface = ucallee->as_nom<Continuation>()->get_interface();
+                    auto ubuf_size = ucallee->as_nom<Continuation>()->get_buf_size();
                     // annotating (modifying interface attribute) of enrty block of imported continuation
                     ikernel->set_interface(uiterface);
+                    ikernel->set_buf_size(ubuf_size);
                     // extending the annotation to all blocks of the imported continuation
                     // this solution works and for interface implementation (continuation-wise and not param-wise) makes the
                     // c-backend simpler
@@ -95,6 +97,7 @@ void annotate_interface(Continuation* imported, const Continuation* use) {
                     Scope scope(ikernel);
                     for (auto& block : schedule(scope)) {
                         block->set_interface(uiterface);
+                        block->set_buf_size(ubuf_size);
                     }
                 }
             }

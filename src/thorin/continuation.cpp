@@ -241,6 +241,12 @@ void Continuation::set_interface(const Interface interface) {
     //interface_ = Interface::Stream;
 }
 
+
+void Continuation::set_buf_size(const size_t buf_size) {
+    attributes().buf_size = buf_size;
+}
+
+
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
 bool Continuation::is_external() const { return world().is_external(this); }

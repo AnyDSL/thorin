@@ -2521,7 +2521,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (bb) {
         auto emitted_type_str = convert(emitted_type) ;
-        if ((lang_ == Lang::CGRA) && (vector_size_ > 1)) {
+        if ((lang_ == Lang::CGRA) && (vector_size_ > 1) && (!emitted_type->isa<PtrType>())) {
             std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
             emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
         }

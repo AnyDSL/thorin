@@ -1285,6 +1285,7 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
     else if (name == "aie::vector_cast")     *api_config = {1, TempTypeParams{ { 0, ret_type } } };
     else if (name == "aie::mmul")            *api_config = {5, TempTypeParams{ { 3, type_of_arg(1) }, { 4, type_of_arg(2) } } };
     else if (name == "aie::sliding_mul_ops") *api_config = {7, TempTypeParams{ { 5, type_of_arg(3) }, { 6, type_of_arg(4) } } };
+
     // 2) AIE APIs without any template type parameters
     else if (name == "aie::load_v")          *api_config = {1, no_type };
     else if (name == "aie::store_v")         *api_config = {1, no_type };
@@ -1302,10 +1303,12 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
     else if (name == "aie::sliding_mac_sym_uct")     *api_config = {2, no_type };
     else if (name == "aie::sliding_mul_antisym_uct") *api_config = {2, no_type };
     else if (name == "aie::sliding_mac_antisym_uct") *api_config = {2, no_type };
-    // 3) AIE class template APIs (no template parameters but have a composite type (like struct) as fn parameter)
-    else if (name == "aie::mmul::mul")      *api_config = {0, type_of_arg(1) };
-    else if (name == "aie::mmul::mac")      *api_config = {0, type_of_arg(1) };
-    else if (name == "aie::vector::insert") *api_config = {0, type_of_arg(1) };
+    // 3) AIE class template APIs (no template type parameters but have a composite type (like struct) as fn parameter or they are member of aie::vector class)
+    else if (name == "aie::mmul::mul")           *api_config = {0, type_of_arg(1) };
+    else if (name == "aie::mmul::mac")           *api_config = {0, type_of_arg(1) };
+    else if (name == "aie::vector::insert")      *api_config = {0, type_of_arg(1) };
+    else if (name == "aie::vector::extract")     *api_config = {1, type_of_arg(2) };
+    else if (name == "aie::vector::extract<32>") *api_config = {0, type_of_arg(1) };
     // 4) AIE struct template static APIs
     else if (name == "aie::sliding_mul_xy_ops::mul")        *api_config = sliding_mul_config();
     else if (name == "aie::sliding_mul_xy_ops::mac")        *api_config = sliding_mac_config();
@@ -1533,6 +1536,19 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
 
 }
 
+
+static inline auto get_middle_token (const Continuation* cont , const std::string& delimiter = "::") {
+    auto s = cont->name();
+    size_t startPos = s.find_first_of(delimiter);
+    if (startPos == std::string::npos) return std::string();
+    startPos += delimiter.length();
+    size_t endPos = s.find_last_of(delimiter);
+    if (endPos == std::string::npos) return std::string();
+    endPos -= 1;
+    return s.substr(startPos, endPos - startPos);
+};
+
+
 static inline std::string make_identifier(const std::string& str) {
     auto copy = str;
     // Transform non-alphanumeric characters
@@ -1550,6 +1566,7 @@ static inline std::string make_identifier(const std::string& str) {
 static inline std::string label_name(const Def* def) {
     return make_identifier(def->as_nom<Continuation>()->unique_name());
 }
+
 
 inline std::string cgra_obj_name() { return "cgra_dataflow"; }
 
@@ -1956,15 +1973,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                         return s.substr(s.find_last_of("::") + 1);
                     };
 
-                    auto get_struct = [] (const Continuation* cont , const std::string& delimiter = "::") {
-                        auto s = cont->name();
-                        size_t startPos = s.find_first_of(delimiter);
-                        if (startPos == std::string::npos) return std::string();
-                        startPos += delimiter.length();
-                        size_t endPos = s.find_last_of(delimiter);
-                        if (endPos == std::string::npos) return std::string();
-                        endPos -= 1;
-                        return s.substr(startPos, endPos - startPos);
+                    auto get_struct = [] (const Continuation* cont) {
+                        return get_middle_token(cont, "::");
+                    };
+
+                    auto check_membership= [&] (const Continuation* cont, const std::string& class_name) {
+                        return get_struct(cont) == class_name;
                     };
 
                     auto shift_left = [] (std::vector<std::string> vec, size_t shift_by) {
@@ -1985,7 +1999,13 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     };
 
                     auto cont_is_class_obj_method = [&] () {
-                        return (composite_type) && (composite_type->isa<StructType>() || (vector_size_ > 1));
+                        return ((vector_size_ > 1) && ((composite_type) && (composite_type->isa<StructType>())) ||
+                                (check_membership(callee, "vector") && (template_args.size() == 0)));
+                    };
+
+                    auto cont_is_class_templ_obj_method = [&] () {
+                        return ((vector_size_ > 1) && ((composite_type) && (composite_type->isa<StructType>())) ||
+                                (check_membership(callee, "vector") && (template_args.size() > 0)));
                     };
  
                     auto cont_is_fun_template = [&] () {
@@ -2002,6 +2022,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     } else if(cont_is_class_obj_method()) {
                         auto composite_arg = args[0];
                         bb.tail.fmt("{}.{}({, });\n", composite_arg , get_method(callee), shift_left(args, 1) );
+                    } else if(cont_is_class_templ_obj_method()) {
+                        auto composite_arg = args[1];
+                        bb.tail.fmt("{}.{}<{}>({, });\n", composite_arg , get_method(callee), template_args, shift_left(args, 1 + template_args.size()));
                     } else if (template_args.empty()) {
                         bb.tail.fmt("{}({, });\n", emit(callee), args);
                     } else if (cont_is_fun_template()) {

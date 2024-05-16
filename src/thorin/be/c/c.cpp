@@ -118,6 +118,7 @@ private:
     auto is_accum_type(const Type* type);
     auto is_mask_type(const Type* type);
     bool is_scalar_kernel();
+    bool is_cgra_vector_kernel();
     bool has_vect_arg(Continuation*);
     std::unique_ptr<ApiConfig> special_device_api(const Continuation*);
 
@@ -210,6 +211,11 @@ auto CCodeGen::get_config(Continuation* cont) {
 bool CCodeGen::is_scalar_kernel() {
     assert(lang_ == Lang::CGRA && "is_scalar_kernel is available only for CGRA");
     return (vector_size_ == 0 || vector_size_ == 1);
+}
+
+
+bool CCodeGen::is_cgra_vector_kernel() {
+    return (lang_ == Lang::CGRA && (vector_size_ > 1));
 }
 
 bool CCodeGen::has_vect_arg(Continuation* cont) {
@@ -988,7 +994,7 @@ void CCodeGen::emit_module() {
                         "typedef  int32_t i32;\n"
                         "typedef uint32_t u32;\n"
                         "typedef  int64_t i64;\n" // only for scalar cores
-                        "typedef uint64_t u64;\n"
+                        "typedef uint64_t u64;\n" // only for scalar cores
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
                         "\n");
@@ -1150,10 +1156,11 @@ void CCodeGen::emit_module() {
                         "typedef  int32_t i32;\n"
                         "typedef uint32_t u32;\n"
                         "typedef  {} i64;\n"
-                        "typedef uint64_t u64;\n"
+                        "typedef  {} u64;\n"
                         "typedef    float f32;\n"
                         "typedef   double f64;\n"
-                        "\n", (lang_ == Lang::CGRA && (vector_size_ > 1)) ? "acc64" : "int64_t");
+                        "\n", (is_cgra_vector_kernel()) ? "acc64" : "int64_t",
+                              (is_cgra_vector_kernel()) ? "acc80" : "uint64_t");
 
          if (use_fp_16_ && lang_ == Lang::HLS)
             stream_.fmt("typedef     half f16;\n");
@@ -2547,7 +2554,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (bb) {
         auto emitted_type_str = convert(emitted_type) ;
-        if ((lang_ == Lang::CGRA) && (vector_size_ > 1) && (!emitted_type->isa<PtrType>())) {
+        if (is_cgra_vector_kernel() && (!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type))) {
             std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
             emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
         }

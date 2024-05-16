@@ -16,6 +16,7 @@
 #include <sstream>
 #include <type_traits>
 #include <unordered_map> // TODO don't use std::unordered_*
+#include <unordered_set>
 #include <variant>
 
 namespace thorin::c {
@@ -1514,7 +1515,9 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             //if (lang_ == Lang::CGRA && cont->is_exported())
             param_type_str = convert(param->type());
             if (lang_ == Lang::CGRA) {
-                if (auto type = param->type(); (vector_size_ > 1) && (!type->isa<PtrType>())) {
+                if (auto type = param->type(); (vector_size_ > 1) && (!type->isa<PtrType>())
+                        && (cont->body()->callee() != world().branch())) {
+
                     std::string reg_type;
                     if (is_accum_type(type)) {
                         reg_type = "aie::accum";

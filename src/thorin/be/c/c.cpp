@@ -1541,7 +1541,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
 
                         using DeviceApiSet = std::unordered_set<std::string>;
                         auto new_vector_size = vector_size_;
-                        DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "aie::readincr_v", "aie::window_readincr_v",
+                        DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v", "window_readincr_v",
                             "aie::load_v"};
 
                         for (auto use: cont->uses()) {

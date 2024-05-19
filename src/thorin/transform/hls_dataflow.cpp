@@ -161,6 +161,26 @@ void params2cgra_ports(const Def2Def param2arg, const Def2DependentBlocks def2de
 //
 //}
 
+// TODO: (isa_read and isa_write) could be implemented as Contunation member functions or attribute of continuations
+inline bool isa_read(Continuation* cont) {
+    Array<std::string> read_callee  = {"read_channel" , "readincr_v", "window_readincr_v"  };
+    auto callee_name = cont->name();
+
+    return std::any_of(read_callee.begin(), read_callee.end(), [&callee_name] (const std::string& read_callee) {
+            return callee_name.find(read_callee) != std::string::npos;
+            });
+}
+
+inline bool isa_write(Continuation* cont) {
+    Array<std::string> write_callee = {"write_channel", "writeincr_v", "window_writeincr", };
+    auto callee_name = cont->name();
+
+    return std::any_of(write_callee.begin(), write_callee.end(), [&callee_name] (const std::string& write_callee) {
+            return callee_name.find(write_callee) != std::string::npos;
+            });
+}
+
+
 void channel_mode(const Continuation* continuation, ChannelMode& mode) {
     auto app = continuation->body();
     auto callee = app->callee()->isa_nom<Continuation>();
@@ -168,10 +188,10 @@ void channel_mode(const Continuation* continuation, ChannelMode& mode) {
         if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
             auto def = app->arg(1);
             if (def->isa_structural() && !def->has_dep(Dep::Param)) {
-                if (callee->name().find("write_channel") != std::string::npos) {
+                if (isa_write(callee)) {
                     mode = ChannelMode::Write;
                     return;
-                } else if (callee->name().find("read_channel") != std::string::npos) {
+                } else if (isa_read(callee)) {
                     mode =  ChannelMode::Read;
                     return;
                 } else {
@@ -275,11 +295,11 @@ inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& 
             auto def = app->arg(1);
 
             if (def->isa_structural() && !def->has_dep(Dep::Param)) { //def is a global
-                if (callee->name().find("write_channel") != std::string::npos) {
+                if (isa_write(callee)) {
                     assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Write) &&
                             "Duplicated channel or \"READ\" mode channel redefined as WRITE!");
                     def2mode.emplace(def, ChannelMode::Write);
-                } else if (callee->name().find("read_channel") != std::string::npos) {
+                } else if (isa_read(callee)) {
                     assert((!def2mode.contains(def) || def2mode[def] == ChannelMode::Read)  &&
                             "Duplicated channel or \"WRITE\" mode channel redefined as READ!");
                     def2mode.emplace(def, ChannelMode::Read);

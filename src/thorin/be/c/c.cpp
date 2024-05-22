@@ -660,7 +660,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                 case Interface::Window: {
                     auto window_size = cont->get_buf_size();
                     auto type = is_plio(dependence.first) ? dependence.second->type() : dependence.first->type();
-                    s = "<adf::window<" + std::to_string(window_size) + " * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>";
+                    s = "<adf::window<" + std::to_string(window_size) + " * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>" + ">";
                     }
                     break;
                 case Interface::Free_running:

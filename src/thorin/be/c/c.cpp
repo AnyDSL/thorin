@@ -984,7 +984,7 @@ void CCodeGen::emit_module() {
                 "#include <aie_api/utils.hpp>\n"
                 "#include <iostream>\n"
                 "#include <string>\n"
-                "#include <fstring>\n");
+                "#include <fstream>\n");
 
         graph_stream_.fmt("\n"
                         "typedef   int8_t  i8;\n"

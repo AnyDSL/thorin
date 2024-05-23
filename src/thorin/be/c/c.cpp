@@ -1382,8 +1382,14 @@ auto CCodeGen::is_accum_type(const Type* type) {
     auto is_accum = false;
     if (vector_size_ > 1) {
         if (auto primtype = type->isa<PrimType>()) {
-            auto type_tag = primtype->primtype_tag();
-            is_accum = ((type_tag == PrimType_ps64 ) || (type_tag == PrimType_qs64));
+            switch (primtype->primtype_tag()) {
+                case PrimType_ps64: case PrimType_qs64:
+                case PrimType_pu64: case PrimType_qu64:
+                    is_accum = true;
+                    break;
+                default:
+                    break;
+            }
         }
     }
     return is_accum;

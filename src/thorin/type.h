@@ -107,7 +107,7 @@ public:
     }
 };
 
-class StructType : public NominalType, public TypeOpsMixin<TupleType> {
+class StructType : public NominalType, public TypeOpsMixin<StructType> {
 private:
     StructType(World& world, Symbol name, size_t size, Debug dbg)
         : NominalType(world, Node_StructType, name, size, dbg)
@@ -119,7 +119,7 @@ public:
     friend class World;
 };
 
-class VariantType : public NominalType, public TypeOpsMixin<TupleType> {
+class VariantType : public NominalType, public TypeOpsMixin<VariantType> {
 private:
     VariantType(World& world, Symbol name, size_t size, Debug dbg)
         : NominalType(world, Node_VariantType, name, size, dbg)
@@ -236,7 +236,7 @@ enum class AddrSpace : uint32_t {
 };
 
 /// Pointer type.
-class PtrType : public VectorType, public TypeOpsMixin<TupleType> {
+class PtrType : public VectorType, public TypeOpsMixin<PtrType> {
 private:
     PtrType(World& world, const Type* pointee, size_t length, int32_t device, AddrSpace addr_space, Debug dbg)
         : VectorType(world, Node_PtrType, {pointee}, length, dbg)
@@ -267,7 +267,7 @@ inline bool is_thin(const Type* type) {
     return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
 }
 
-class FnType : public Type, public TypeOpsMixin<TupleType> {
+class FnType : public Type, public TypeOpsMixin<FnType> {
 protected:
     FnType(World& world, Defs ops, NodeTag tag, Debug dbg)
         : Type(world, tag, ops, dbg)
@@ -306,7 +306,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-class ArrayType : public Type, public TypeOpsMixin<TupleType> {
+class ArrayType : public Type, public TypeOpsMixin<ArrayType> {
 protected:
     ArrayType(World& world, NodeTag tag, const Type* elem_type, Debug dbg)
         : Type(world, tag, {elem_type}, dbg)

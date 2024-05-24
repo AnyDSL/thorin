@@ -462,11 +462,8 @@ std::string CCodeGen::device_prefix() {
     switch (lang_) {
         default:           return "";
         case Lang::CUDA:   return "__device__ ";
-        case Lang::OpenCL:
-            if (use_channels_)
-                return "PIPE ";
-            else
-                return "__constant ";
+        case Lang::OpenCL: return use_channels_ ? "PIPE " : "__constant ";
+        case Lang::CGRA:   return "alignas(aie::vector_decl_align) ";
     }
 }
 

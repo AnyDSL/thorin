@@ -12,8 +12,8 @@
 namespace thorin {
 
 class Continuation;
+class Rewriter;
 class Scope;
-struct Rewriter;
 
 typedef std::vector<Continuation*> Continuations;
 

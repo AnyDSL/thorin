@@ -1570,14 +1570,18 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
                             using DeviceApiSet = std::unordered_set<std::string>;
                             auto new_vector_size = vector_size_;
                             DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v", "window_readincr_v",
-                                "aie::load_v"};
+                                "aie::load_v", "aie::sliding_"/*all sliding APIs*/};
 
                             for (auto use: cont->uses()) {
                                 if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
                                     auto callee = app->callee()->as_nom<Continuation>();
                                     if (callee->cc() == CC::Device) {
-                                        if (auto name = callee->name(); irregular_apis.count(name)) {
+                                        auto name = callee->name();
+                                        if (name.find("aie::sliding_") != std::string::npos)
+                                            name = "aie::sliding_";
+                                        if (irregular_apis.count(name)) {
                                             if (app->num_args() > 1) {
+                                                // The first arg of all irregular APIs is the lane size
                                                 if (auto primtype = app->arg(1)->type()->isa<PrimType>()) {
                                                     if (primtype->primtype_tag() == PrimType_pu32) {
                                                         new_vector_size = app->arg(1)->as<PrimLit>()->value().get_u32();

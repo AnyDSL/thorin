@@ -1525,53 +1525,80 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
             //if (lang_ == Lang::CGRA && cont->is_exported())
             param_type_str = convert(param->type());
             if (lang_ == Lang::CGRA) {
-                if (auto type = param->type(); (vector_size_ > 1) && (!type->isa<PtrType>())
-                        && (cont->body()->callee() != world().branch())) {
 
-                    std::string reg_type;
-                    if (is_accum_type(type)) {
-                        reg_type = "aie::accum";
-                    } else if (is_mask_type(type)) {
-                        reg_type = "aie::mask";
-                    } else {
-                        reg_type = "aie::vector";
-                    }
-
-                    //TODO: This lambda should be implemented as an analysis thorin pass that sets a new attribute for the continuations
-                    // Basicaly this new pass marks those continuations that have free variables belonging to the set of irregular_apis
-                    // later on in the c-backend we can check for this attribute and adjust the vector size of params accordingly
-                    auto adjust_vector_size = [&] () {
-
-                        using DeviceApiSet = std::unordered_set<std::string>;
-                        auto new_vector_size = vector_size_;
-                        DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v", "window_readincr_v",
-                            "aie::load_v"};
-
-                        for (auto use: cont->uses()) {
-                            if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
-                                auto callee = app->callee()->as_nom<Continuation>();
-                                if (callee->cc() == CC::Device) {
-                                    if (auto name = callee->name(); irregular_apis.count(name)) {
-                                        if (app->num_args() > 1) {
-                                            if (auto primtype = app->arg(1)->type()->isa<PrimType>()) {
-                                                if (primtype->primtype_tag() == PrimType_pu32) {
-                                                    new_vector_size = app->arg(1)->as<PrimLit>()->value().get_u32();
-                                                } else {
-                                                    world().WLOG("Lane size in {} must be an unsigned integer value to be effective", name);
-                                                }
-                                            }
-
-
-                                        }
+                // TODO: can be merged with adjust vectore size lambda, so that we can make it less costly
+                // in that context this analysis just needs to return zero if the param is not a loop index
+                auto isa_pipline_index = [&] () {
+                    for (auto use: cont->uses()) {
+                        if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
+                            auto callee = app->callee()->as_nom<Continuation>();
+                            if (callee->is_intrinsic())  {
+                                if (callee->intrinsic() == Intrinsic::Pipeline)  {
+                                    auto loop_body = app->arg(4);
+                                    auto loop_index = loop_body->as<Continuation>()->param(1);
+                                    if (param == loop_index)
+                                        return true;
                                     }
-
                                 }
                             }
                         }
-                        return new_vector_size;
+                    return false;
                     };
-                    param_type_str = is_mask_type(type) ? (reg_type + "<" + std::to_string(vector_size_)+ ">") :
-                        (reg_type + "<" + convert(param->type()) + ", " + std::to_string(adjust_vector_size())  + ">");
+
+
+                //TODO: we need two more analysis to consider the uses of pointers and branches.
+                if (auto type = param->type(); (vector_size_ > 1) && (!type->isa<PtrType>())
+                        && (cont->body()->callee() != world().branch()) ) {
+                    if ((vector_size_ > 1) && !isa_pipline_index()) {
+
+
+                        std::string reg_type;
+                        if (is_accum_type(type)) {
+                            reg_type = "aie::accum";
+                        } else if (is_mask_type(type)) {
+                            reg_type = "aie::mask";
+                        } else {
+                            reg_type = "aie::vector";
+                        }
+
+                        //TODO: This lambda should be implemented as an analysis thorin pass that sets a new attribute for the continuations
+                        // Basicaly this new pass marks those continuations that have free variables belonging to the set of irregular_apis
+                        // later on in the c-backend we can check for this attribute and adjust the vector size of params accordingly
+                        // TODO:: all the the defs that use irregular defs also should be modifed
+                        auto adjust_vector_size = [&] () {
+
+                            using DeviceApiSet = std::unordered_set<std::string>;
+                            auto new_vector_size = vector_size_;
+                            DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v", "window_readincr_v",
+                                "aie::load_v"};
+
+                            for (auto use: cont->uses()) {
+                                if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
+                                    auto callee = app->callee()->as_nom<Continuation>();
+                                    if (callee->cc() == CC::Device) {
+                                        if (auto name = callee->name(); irregular_apis.count(name)) {
+                                            if (app->num_args() > 1) {
+                                                if (auto primtype = app->arg(1)->type()->isa<PrimType>()) {
+                                                    if (primtype->primtype_tag() == PrimType_pu32) {
+                                                        new_vector_size = app->arg(1)->as<PrimLit>()->value().get_u32();
+                                                    } else {
+                                                        world().WLOG("Lane size in {} must be an unsigned integer value to be effective", name);
+                                                    }
+                                                }
+
+
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
+                            return new_vector_size;
+                        };
+
+                        param_type_str = is_mask_type(type) ? (reg_type + "<" + std::to_string(vector_size_)+ ">") :
+                            (reg_type + "<" + convert(param->type()) + ", " + std::to_string(adjust_vector_size())  + ">");
+                    }
                 }
             }
             func_impls_.fmt("{}   {};\n", param_type_str, param->unique_name());
@@ -1582,7 +1609,6 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
     }
 
 }
-
 
 static inline auto get_middle_token (const Continuation* cont , const std::string& delimiter = "::") {
     auto s = cont->name();

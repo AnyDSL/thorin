@@ -2617,9 +2617,21 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (bb) {
         auto emitted_type_str = convert(emitted_type) ;
+
+        auto is_pipeline_body = [&] (Continuation* cont) {
+            auto pred_cont = cont->as_nom<Continuation>()->preds().back();
+            auto pred_callee = pred_cont->body()->callee();
+            return pred_callee->isa_nom<Continuation>()->intrinsic() == Intrinsic::Pipeline;
+        };
+
+
         if (is_cgra_vector_kernel() && (!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type))) {
-            std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
-            emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+            // This condition is to avoid the vectorization of the pipeline body but only for window interface since there is no
+            // loop pipelining in stream interface
+            if (!is_pipeline_body(bb->cont) || (!def->isa<Load>() && !def->isa<BinOp>() && !def->isa<AggOp>())) {
+                std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
+                emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+            }
         }
         func_impls_.fmt("{} {};\n", emitted_type_str, name);
         func_defs_.insert(def);

@@ -134,6 +134,7 @@ enum class Intrinsic : uint8_t {
 class Continuation : public Def {
 public:
     struct Attributes {
+        //TODO: add custom lane size attribute (it either shows a custom lane size or avoiding any lane size to stop vectorization) therefore it can manage the two temporary analysis pass implemented in c-backend
         Intrinsic intrinsic = Intrinsic::None;
         Interface interface = Interface::None;
         size_t buf_size = 0;

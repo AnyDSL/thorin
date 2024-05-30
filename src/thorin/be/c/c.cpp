@@ -2104,10 +2104,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                         bb.tail.fmt("{}.{}<{}>({, });\n", composite_arg , get_method(callee), template_args, shift_left(args, 1 + template_args.size()));
                     } else if (template_args.empty()) {
                         bb.tail.fmt("{}({, });\n", emit(callee), args);
-                    } else if (cont_is_fun_template()) {
-                        bb.tail.fmt("{}<{, }>({, });\n", emit(callee), template_args, fun_args);
                     } else if (cont_is_struct_templ_method()) {
                         bb.tail.fmt("{}<{, }>::{}({, });\n", get_struct(callee), template_args, get_method(callee), fun_args);
+                    } else if (cont_is_fun_template()) {
+                        bb.tail.fmt("{}<{, }>({, });\n", emit(callee), template_args, fun_args);
                     }
                     else THORIN_UNREACHABLE;
                 }

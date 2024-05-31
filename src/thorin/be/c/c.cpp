@@ -1614,17 +1614,15 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
 
 }
 
-static inline auto get_middle_token (const Continuation* cont , const std::string& delimiter = "::") {
+static inline auto get_middle_token(const Continuation* cont, const std::string& delimiter = "::") {
     auto s = cont->name();
-    size_t startPos = s.find_first_of(delimiter);
+    size_t startPos = s.find(delimiter);
     if (startPos == std::string::npos) return std::string();
     startPos += delimiter.length();
-    size_t endPos = s.find_last_of(delimiter);
-    if (endPos == std::string::npos) return std::string();
-    endPos -= 1;
+    size_t endPos = s.rfind(delimiter);
+    if (endPos == std::string::npos || endPos <= startPos) return std::string();
     return s.substr(startPos, endPos - startPos);
 };
-
 
 static inline std::string make_identifier(const std::string& str) {
     auto copy = str;
@@ -2086,7 +2084,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                     };
  
                     auto cont_is_fun_template = [&] () {
-                        return (template_args.size() > 0); // not enough to check if it is a template
+                        return ((template_args.size() > 0) && (get_struct(callee).empty())); // not enough to check if it is a template
                     };
 
                     auto cont_is_struct_templ_method = [&] () {
@@ -2106,7 +2104,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                         auto callee_name = callee->name();
                         bb.tail.fmt("{}({, });\n", emit(callee), (callee->name() == "srs") ? shift_left(args, 1) : args);
                     } else if (cont_is_struct_templ_method()) {
-                        bb.tail.fmt("{}<{, }>::{}({, });\n", get_struct(callee), template_args, get_method(callee), fun_args);
+                        bb.tail.fmt("{}<{, }>::{}({, });\n", "aie::" + get_struct(callee), template_args, get_method(callee), fun_args);
                     } else if (cont_is_fun_template()) {
                         bb.tail.fmt("{}<{, }>({, });\n", emit(callee), template_args, fun_args);
                     }

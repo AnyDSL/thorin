@@ -1570,7 +1570,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
                             using DeviceApiSet = std::unordered_set<std::string>;
                             auto new_vector_size = vector_size_;
                             DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v", "window_readincr_v",
-                                "aie::load_v", "aie::sliding_"/*all sliding APIs*/};
+                                "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
 
                             for (auto use: cont->uses()) {
                                 if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
@@ -2103,7 +2103,8 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                         auto composite_arg = args[1];
                         bb.tail.fmt("{}.{}<{}>({, });\n", composite_arg , get_method(callee), template_args, shift_left(args, 1 + template_args.size()));
                     } else if (template_args.empty()) {
-                        bb.tail.fmt("{}({, });\n", emit(callee), args);
+                        auto callee_name = callee->name();
+                        bb.tail.fmt("{}({, });\n", emit(callee), (callee->name() == "srs") ? shift_left(args, 1) : args);
                     } else if (cont_is_struct_templ_method()) {
                         bb.tail.fmt("{}<{, }>::{}({, });\n", get_struct(callee), template_args, get_method(callee), fun_args);
                     } else if (cont_is_fun_template()) {

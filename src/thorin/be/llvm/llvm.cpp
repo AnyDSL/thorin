@@ -614,7 +614,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         call_instr = emit_call(irbuilder, body->callee(), args);
-        if (body->callee()->type()->as<FnType>()->is_returning()) {
+        if (body->callee()->type()->as<FnType>()->is_returning() && !body->callee()->isa<Bottom>()) {
             assert(call_instr && "returning calls always involve one of those");
             assert(ret_arg && "we need a return argument too!");
 

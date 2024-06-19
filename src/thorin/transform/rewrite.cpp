@@ -3,7 +3,11 @@
 namespace thorin {
 
 Rewriter::Rewriter(World& src, World& dst) : src_(src), dst_(dst) {
-    old2new_.rehash(src.defs().capacity());
+    // TODO: rehash is slow-ish, especially in Debug mode
+    // Many short-lived Rewriters are created that only rebuild a tiny portion of the
+    // world, such as in CondEval. For these, we end up paying a significant amount
+    // of time just running this, leading to bad performance. Be smarter or don't do this.
+    //old2new_.rehash(src.defs().capacity());
 }
 
 Rewriter::Rewriter(World& src, World& dst, Rewriter& parent) : Rewriter(src, dst) {

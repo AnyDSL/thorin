@@ -303,8 +303,10 @@ Scope& ScopesForest::get_scope(Continuation* entry) {
     Scope* ptr = scope.get();
     ptr->run();
     scopes_[entry] = std::move(scope);
+#if THORIN_ENABLE_CHECKS
     if (stack_.empty())
        ptr->verify();
+#endif
     return *ptr;
 }
 

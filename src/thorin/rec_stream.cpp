@@ -154,10 +154,10 @@ Stream& Def::stream1(Stream& s) const {
         if (global->is_external())
             return s.fmt("{}", unique_name());
         else
-            return s.fmt("{}({, }))", op_name(), ops());
+            return s.fmt("{}({, })", op_name(), ops());
     }
 
-    return s.fmt("{}({, }))", op_name(), ops());
+    return s.fmt("{}({, })", op_name(), ops());
 }
 
 Stream& Def::stream_let(Stream& s) const {

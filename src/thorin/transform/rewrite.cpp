@@ -48,6 +48,10 @@ const Def* Rewriter::rewrite(const Def* odef) {
     if (odef->isa_nom()) {
         stub = odef->stub(*this, ntype);
         insert(odef, stub);
+
+        if (auto ocont = odef->isa_nom<Continuation>())
+            if (ocont->attributes().depends)
+                stub->as_nom<Continuation>()->attributes().depends = instantiate(ocont->attributes().depends)->as<Continuation>();
     }
 
     if (odef->isa_structural()) {
@@ -59,6 +63,11 @@ const Def* Rewriter::rewrite(const Def* odef) {
             assert(&nops[i]->world() == &dst());
         }
         auto ndef = odef->rebuild(dst(), ntype, nops);
+
+        if (auto global = odef->isa<Global>(); global && global->is_external()) {
+            dst().make_external(const_cast<Def*>(ndef));
+        }
+
         return ndef;
     } else {
         assert(odef->isa_nom() && stub);

@@ -4,13 +4,21 @@ namespace thorin {
 
 void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     s.fmt(Magenta);
-    if (cont->is_external())
-        s.fmt("extern ");
+    if (cont->is_external()) {
+        if (cont->cc() == CC::Thorin)
+            s.fmt("intern ");
+        else
+            s.fmt("extern ");
+    }
     if (cont->is_intrinsic())
         s.fmt("intrinsic ");
 
     s.fmt(Red);
     s.fmt("{}", cont->unique_name());
+    s.fmt(Reset);
+    s.fmt(Green);
+    s.fmt("@");
+    stream_def(s, cont->filter());
     s.fmt(Reset);
     s.fmt("(");
     const FnType* t = cont->type();
@@ -46,6 +54,7 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     }
 
     prepare_def(cont, cont->body());
+    prepare_def(cont, cont->filter());
 
     auto defs = *scopes_to_defs_[cont];
     stream_defs(s, defs);

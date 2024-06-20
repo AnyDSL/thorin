@@ -19,7 +19,7 @@ protected:
     const Def* rewrite(const Def* odef) override;
 };
 
-bool partial_evaluation(World&, bool lower2cff = false);
+bool partial_evaluation(Thorin&, bool lower2cff = false);
 
 }
 

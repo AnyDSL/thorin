@@ -30,6 +30,7 @@ private:
     void clean_pe_info(std::queue<Continuation*>, Continuation*);
     Thorin& thorin_;
     bool todo_ = true;
+friend class Thorin;
 };
 
 void Cleaner::eliminate_tail_rec() {
@@ -244,7 +245,7 @@ void Cleaner::cleanup_fix_point() {
         todo_ |= resolve_loads(world());
         rebuild();
         //if (!world().is_pe_done())
-            todo_ |= partial_evaluation(world());
+            todo_ |= partial_evaluation(thorin_);
         //else
         //    clean_pe_infos();
     }
@@ -258,7 +259,8 @@ void Cleaner::cleanup() {
         world().mark_pe_done();
         for (auto def : world().defs()) {
             if (auto cont = def->isa_nom<Continuation>())
-                cont->destroy_filter();
+                if (cont->cc() != CC::Thorin)
+                    cont->destroy_filter();
         }
 
         todo_ = true;
@@ -273,5 +275,6 @@ void Cleaner::cleanup() {
 }
 
 void Thorin::cleanup() { Cleaner(*this).cleanup(); }
+void Thorin::cleanup_fix_point() { Cleaner(*this).cleanup_fix_point(); }
 
 }

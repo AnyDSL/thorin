@@ -160,7 +160,10 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 } else
                     ops.push_back(convert(op));
             }
-            assert(ret);
+
+            if (!ret) {
+                ret = llvm::Type::getVoidTy(context());
+            }
 
             if (type->tag() == Node_FnType) {
                 auto llvm_type = llvm::FunctionType::get(ret, ops, false);

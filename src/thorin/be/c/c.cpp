@@ -686,7 +686,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     assert(cont->has_body());
     auto body = cont->body();
-    emit_debug_info(bb.tail, body->arg(0));
+    if (body->num_args() > 0) {
+        emit_debug_info(bb.tail, body->arg(0));
+    }
 
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);

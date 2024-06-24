@@ -302,7 +302,7 @@ public:
 
     /// @name logging
     //@{
-    void dump_scoped() const;
+    void dump_scoped(bool=true) const;
     void dump_scoped_to_disk() const;
     Stream& stream(Stream&) const;
     Stream& stream() { return *stream_; }

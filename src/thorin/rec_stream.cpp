@@ -123,7 +123,7 @@ Stream& Def::stream(Stream& s, size_t max) const {
 
 Stream& Def::stream1(Stream& s) const {
     if (auto param = isa<Param>()) {
-        return s.fmt("{}.{}", param->continuation(), param->unique_name());
+        return s.fmt("{}", param->unique_name());
     } else if (isa<Continuation>()) {
 #if THORIN_ENABLE_CREATION_CONTEXT
         if (debug().creation_context != "")
@@ -160,10 +160,10 @@ Stream& Def::stream1(Stream& s) const {
         if (global->is_external())
             return s.fmt("{}", unique_name());
         else
-            return s.fmt("{}({, }))", op_name(), ops());
+            return s.fmt("{}({, })", op_name(), ops());
     }
 
-    return s.fmt("{}({, }))", op_name(), ops());
+    return s.fmt("{}({, })", op_name(), ops());
 }
 
 Stream& Def::stream_let(Stream& s) const {

@@ -157,8 +157,8 @@ Stream& ScopedWorld::stream(thorin::Stream& s) const {
     return s;
 }
 
-void World::dump_scoped() const {
-    ScopedWorld s(*const_cast<World*>(this));
+void World::dump_scoped(bool use_color) const {
+    ScopedWorld s(*const_cast<World*>(this), ScopedWorld::Config { use_color });
     s.dump();
 }
 

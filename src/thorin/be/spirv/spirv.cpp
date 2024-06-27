@@ -373,10 +373,13 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
         bb->branch(current_fn_->labels[dst_cont]);
     } else if (app.callee() == world().branch()) {
-        auto cond = emit(app.arg(0), bb);
-        bb->args.emplace(app.arg(0), cond);
-        auto tbb = current_fn_->labels[app.arg(1)->isa_nom<Continuation>()];
-        auto fbb = current_fn_->labels[app.arg(2)->isa_nom<Continuation>()];
+        auto mem = app.arg(0);
+        emit_unsafe(mem);
+
+        auto cond = emit(app.arg(1), bb);
+        bb->args.emplace(app.arg(2), cond);
+        auto tbb = current_fn_->labels[app.arg(2)->isa_nom<Continuation>()];
+        auto fbb = current_fn_->labels[app.arg(3)->isa_nom<Continuation>()];
         bb->branch_conditional(cond, tbb, fbb);
     } else if (app.callee()->isa<Continuation>() && app.callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         /*auto val = emit(continuation->arg(0));

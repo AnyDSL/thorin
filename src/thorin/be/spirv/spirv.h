@@ -93,12 +93,12 @@ private:
 
 class CodeGen : public thorin::CodeGen {
 public:
-    CodeGen(World&, Cont2Config&, bool debug);
+    CodeGen(Thorin& thorin, Cont2Config&, bool debug);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
 
-    ConvertedType* convert(const Type*);
+    ConvertedType* convert(const Def*);
 protected:
     void structure_loops();
     void structure_flow();
@@ -106,7 +106,7 @@ protected:
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
     SpvId emit(const Def* def, BasicBlockBuilder* bb);
-    std::vector<SpvId> emit_builtin(const Continuation*, const Continuation*, BasicBlockBuilder*);
+    std::vector<SpvId> emit_builtin(const App&, const Continuation*, BasicBlockBuilder*);
 
     SpvId get_codom_type(const Continuation* fn);
 

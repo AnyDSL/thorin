@@ -142,8 +142,8 @@ ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
     shader_printf = builder.extended_import("NonSemantic.DebugPrintf");
 }
 
-CodeGen::CodeGen(thorin::World& world, Cont2Config& kernel_config, bool debug)
-        : thorin::CodeGen(world, debug), kernel_config_(kernel_config)
+CodeGen::CodeGen(Thorin& thorin, Cont2Config& kernel_config, bool debug)
+        : thorin::CodeGen(thorin, debug), kernel_config_(kernel_config)
 {}
 
 void CodeGen::emit_stream(std::ostream& out) {
@@ -156,7 +156,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     structure_flow();
     // cleanup_world(world());
 
-    Scope::for_each(world(), [&](const Scope& scope) { emit(scope); });
+    ScopesForest(world()).for_each([&](const Scope& scope) { emit(scope); });
 
     auto push_constant_arr_type = convert(world().definite_array_type(world().type_pu32(), 128))->type_id;
     auto push_constant_struct_type = builder_->declare_struct_type({ push_constant_arr_type });
@@ -169,7 +169,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_->name(push_constant_struct_ptr, "thorin_push_constant_data");
 
     auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
-    for (auto& cont : world().continuations()) {
+    for (auto& cont : world().copy_continuations()) {
         if (cont->is_exported()) {
             assert(defs_.contains(cont) && kernel_config_.contains(cont));
             auto config = kernel_config_.find(cont);
@@ -207,7 +207,7 @@ void CodeGen::emit_stream(std::ostream& out) {
             for (size_t i = 0; i < cont->num_params(); i++) {
                 auto param = cont->param(i);
                 auto param_type = param->type();
-                if (param_type == world().unit() || param_type == world().mem_type() || param_type->isa<FnType>()) continue;
+                if (param_type == world().unit_type() || param_type == world().mem_type() || param_type->isa<FnType>()) continue;
                 assert(param_type->order() == 0);
                 auto converted = convert(param_type);
                 assert(converted->datatype != nullptr);
@@ -320,7 +320,7 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
     auto ret_cont_type = fn->ret_param()->type();
     std::vector<SpvId> types;
     for (auto& op : ret_cont_type->ops()) {
-        if (op->isa<MemType>() || is_type_unit(op))
+        if (op->isa<MemType>() || is_type_unit(op->type()))
             continue;
         assert(op->order() == 0);
         types.push_back(convert(op)->type_id);
@@ -346,10 +346,12 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
     };
 
-    if (continuation->callee() == entry_->ret_param()) {
+    auto& app = *continuation->body();
+
+    if (app.callee() == entry_->ret_param()) {
         std::vector<SpvId> values;
 
-        for (auto arg : continuation->args()) {
+        for (auto arg : app.args()) {
             assert(arg->order() == 0);
             auto val = emit(arg, bb);
             if (is_mem(arg) || is_unit(arg))
@@ -362,19 +364,19 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             case 1:  bb->return_value(values[0]); break;
             default: bb->return_value(bb->composite(current_fn_->fn_ret_type, values));
         }
-    } else if (auto callee = continuation->callee()->isa_continuation(); callee && callee->is_basicblock()) { // ordinary jump
+    } else if (auto dst_cont = app.callee()->isa_nom<Continuation>(); dst_cont && dst_cont->is_basicblock()) { // ordinary jump
         int index = -1;
-        for (auto& arg : continuation->args()) {
+        for (auto& arg : app.args()) {
             index++;
             auto val = emit(arg, bb);
             if (is_mem(arg) || is_unit(arg)) continue;
             bb->args[arg] = val;
-            auto* param = callee->param(index);
-            auto& phi = current_fn_->bbs_map[callee]->phis_map[param];
+            auto* param = dst_cont->param(index);
+            auto& phi = current_fn_->bbs_map[dst_cont]->phis_map[param];
             phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
         }
-        bb->branch(current_fn_->labels[callee]);
-    } else if (continuation->callee() == world().branch()) {
+        bb->branch(current_fn_->labels[dst_cont]);
+    } else if (app.callee() == world().branch()) {
         auto& domtree = current_fn_->scope->b_cfg().domtree();
         auto merge_cont = domtree.idom(current_fn_->scope->f_cfg().operator[](continuation))->continuation();
         SpvId merge_bb;
@@ -389,24 +391,24 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
             merge_bb = current_fn_->labels[merge_cont];
         }
 
-        auto cond = emit(continuation->arg(0), bb);
-        bb->args.emplace(continuation->arg(0), cond);
-        auto tbb = current_fn_->labels[continuation->arg(1)->as_continuation()];
-        auto fbb = current_fn_->labels[continuation->arg(2)->as_continuation()];
+        auto cond = emit(app.arg(0), bb);
+        bb->args.emplace(app.arg(0), cond);
+        auto tbb = current_fn_->labels[app.arg(1)->isa_nom<Continuation>()];
+        auto fbb = current_fn_->labels[app.arg(2)->isa_nom<Continuation>()];
         bb->selection_merge(merge_bb,spv::SelectionControlMaskNone);
         bb->branch_conditional(cond, tbb, fbb);
-    } else if (continuation->callee()->isa<Continuation>() && continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+    } else if (app.callee()->isa<Continuation>() && app.callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         /*auto val = emit(continuation->arg(0));
-        auto otherwise_bb = cont2bb(continuation->arg(1)->as_continuation());
+        auto otherwise_bb = cont2bb(continuation->arg(1)->isa_nom<Continuation>());
         auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
         for (size_t i = 2; i < continuation->num_args(); i++) {
             auto arg = continuation->arg(i)->as<Tuple>();
             auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
-            auto case_bb    = cont2bb(arg->op(1)->as_continuation());
+            auto case_bb    = cont2bb(arg->op(1)->isa_nom<Continuation>());
             match->addCase(case_const, case_bb);
         }*/
         THORIN_UNREACHABLE;
-    } else if (continuation->callee()->isa<Bottom>()) {
+    } else if (app.callee()->isa<Bottom>()) {
         bb->unreachable();
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
         auto merge_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.merge_target)]->label;
@@ -425,7 +427,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
 
         // TODO handle dispatching to multiple targets
         assert(targets == 1);
-        auto dispatch_target = continuation->op(0)->as_continuation();
+        auto dispatch_target = continuation->op(0)->isa_nom<Continuation>();
         // Extract the relevant variant & expand the tuple if necessary
         auto arg = world().variant_extract(continuation->param(0), 0);
         auto extracted = emit(arg, dispatch_bb);
@@ -441,7 +443,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         dispatch_bb->branch(current_fn_->bbs_map[dispatch_target]->label);
 
     } else if (continuation->intrinsic() == Intrinsic::SCFLoopContinue) {
-        auto loop_header = continuation->op(0)->as_continuation();
+        auto loop_header = continuation->op(0)->isa_nom<Continuation>();
         auto header_label = current_fn_->bbs_map[loop_header]->label;
 
         auto arg = continuation->param(0);
@@ -458,28 +460,28 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
 
         // TODO handle dispatching to multiple targets
         assert(targets == 1);
-        auto callee = continuation->op(0)->as_continuation();
+        auto callee = continuation->op(0)->isa_nom<Continuation>();
         // TODO phis
         bb->branch(current_fn_->bbs_map[callee]->label);
-    } else if (auto builtin = continuation->callee()->isa_continuation(); builtin->is_imported()) {
+    } else if (auto builtin = app.callee()->isa_nom<Continuation>(); builtin->is_imported()) {
         // Ensure we emit previous memory operations
-        assert(is_mem(continuation->arg(0)));
-        emit(continuation->arg(0), bb);
+        assert(is_mem(app.arg(0)));
+        emit(app.arg(0), bb);
 
-        auto productions = emit_builtin(continuation, builtin, bb);
-        auto succ = continuation->args().back()->as_continuation();
+        auto productions = emit_builtin(app, builtin, bb);
+        auto succ = app.args().back()->isa_nom<Continuation>();
         jump_to_next_cont_with_args(succ, productions);
-    } else if (auto intrinsic = continuation->callee()->isa_continuation(); callee && callee->is_intrinsic()) {
+    } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && intrinsic->is_intrinsic()) {
         THORIN_UNREACHABLE;
     } else { // function/closure call
         // put all first-order args into an array
         std::vector<SpvId> call_args;
         const Def* ret_arg = nullptr;
-        for (auto arg : continuation->args()) {
+        for (auto arg : app.args()) {
             if (arg->order() == 0) {
                 auto arg_type = arg->type();
                 auto arg_val = emit(arg, bb);
-                if (arg_type == world().unit() || arg_type == world().mem_type()) continue;
+                if (arg_type == world().unit_type() || arg_type == world().mem_type()) continue;
                 call_args.push_back(arg_val);
             } else {
                 assert(!ret_arg);
@@ -490,7 +492,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         auto ret_type = get_codom_type(continuation);
 
         SpvId call_result;
-        if (auto called_continuation = continuation->callee()->isa_continuation()) {
+        if (auto called_continuation = app.callee()->isa_nom<Continuation>()) {
             call_result = bb->call(ret_type, emit(called_continuation, bb), call_args);
         } else {
             // must be a closure
@@ -502,7 +504,7 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
 
         // must be call + continuation --- call + return has been removed by codegen_prepare
-        auto succ = ret_arg->as_continuation();
+        auto succ = ret_arg->isa_nom<Continuation>();
 
         size_t n = 0;
         const Param* last_param = nullptr;
@@ -922,14 +924,14 @@ SpvId CodeGen::emit(const Def* def, BasicBlockBuilder* bb) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const Continuation* builtin, BasicBlockBuilder* bb) {
+std::vector<SpvId> CodeGen::emit_builtin(const App& app, const Continuation* builtin, BasicBlockBuilder* bb) {
     std::vector<SpvId> productions;
     auto uvec3_t = convert(world().type_pu32(3));
     auto u32_t = convert(world().type_pu32());
     auto i32_t = convert(world().type_ps32());
     if (builtin->name() == "spirv.nonsemantic.printf") {
         std::vector<SpvId> args;
-        auto string = source_cont->arg(1);
+        auto string = app.arg(1);
         if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
             auto arr = string->as<DefiniteArray>();
             std::vector<char> the_string;
@@ -939,8 +941,8 @@ std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const 
             args.push_back(builder_->debug_string(the_string.data()));
         } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
 
-        for (size_t i = 2; i < source_cont->num_args() - 1; i++) {
-            args.push_back(emit(source_cont->arg(i), bb));
+        for (size_t i = 2; i < app.num_args() - 1; i++) {
+            args.push_back(emit(app.arg(i), bb));
         }
 
         bb->ext_instruction(bb->file_builder.void_type, builder_->imported_instrs->shader_printf, 1, args);
@@ -948,23 +950,23 @@ std::vector<SpvId> CodeGen::emit_builtin(const Continuation* source_cont, const 
         THORIN_UNREACHABLE;
     } else if (builtin->name() == "get_global_id") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->global_id);
-        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(app.arg(1), bb));
         productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else if (builtin->name() == "get_local_size") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->workgroup_size);
-        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(app.arg(1), bb));
         productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else if (builtin->name() == "get_local_id") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->local_id);
-        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(app.arg(1), bb));
         productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else if (builtin->name() == "get_num_groups") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->num_workgroups);
-        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(app.arg(1), bb));
         productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else if (builtin->name() == "get_group_id") {
         auto vector = bb->load(uvec3_t->type_id, builder_->builtins->workgroup_id);
-        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(source_cont->arg(1), bb));
+        auto extracted = bb->vector_extract_dynamic(u32_t->type_id, vector, emit(app.arg(1), bb));
         productions.push_back(bb->convert(spv::OpBitcast, i32_t->type_id, extracted));
     } else {
         world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());

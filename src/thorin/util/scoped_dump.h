@@ -41,6 +41,7 @@ struct ScopedWorld : public Streamable<ScopedWorld> {
     Stream& stream(Stream&) const;
 private:
 
+    bool print_inline(const Def* def) const;
     void stream_cont(thorin::Stream& s, Continuation* cont) const;
     void prepare_def(Continuation* in, const Def* def) const;
     void stream_op(thorin::Stream&, const Def* op) const;

@@ -87,7 +87,7 @@ private:
     SpvId u32_t_ { 0 };
 };
 
-class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, SpvId, BasicBlockBuilder*, CodeGen> {
+class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, ConvertedType, BasicBlockBuilder*, CodeGen> {
 public:
     CodeGen(Thorin& thorin, SpvTargetInfo, Cont2Config&, bool debug);
 
@@ -118,11 +118,8 @@ protected:
 
     SpvTargetInfo target_info_;
     std::unique_ptr<FileBuilder> builder_;
-    Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
     ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
-    DefMap<ConvertedType> types_;
-    DefMap<SpvId> defs_;
     const Cont2Config& kernel_config_;
 };
 

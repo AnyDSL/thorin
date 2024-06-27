@@ -152,10 +152,6 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_->builtins = std::make_unique<Builtins>(*builder_);
     builder_->imported_instrs = std::make_unique<ImportedInstructions>(*builder_);
 
-    structure_loops();
-    structure_flow();
-    // cleanup_world(world());
-
     ScopesForest(world()).for_each([&](const Scope& scope) { emit(scope); });
 
     auto push_constant_arr_type = convert(world().definite_array_type(world().type_pu32(), 128))->type_id;
@@ -377,25 +373,10 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         }
         bb->branch(current_fn_->labels[dst_cont]);
     } else if (app.callee() == world().branch()) {
-        auto& domtree = current_fn_->scope->b_cfg().domtree();
-        auto merge_cont = domtree.idom(current_fn_->scope->f_cfg().operator[](continuation))->continuation();
-        SpvId merge_bb;
-        if (merge_cont == current_fn_->scope->exit()) {
-            BasicBlockBuilder* unreachable_merge_bb = current_fn_->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*current_fn_)).get();
-            current_fn_->bbs_to_emit.emplace_back(unreachable_merge_bb);
-            builder_->name(unreachable_merge_bb->label, "merge_unreachable" + continuation->name());
-            unreachable_merge_bb->unreachable();
-            merge_bb = unreachable_merge_bb->label;
-        } else {
-            // TODO create a dedicated merge bb if this one is the merge blocks for more than 1 selection construct
-            merge_bb = current_fn_->labels[merge_cont];
-        }
-
         auto cond = emit(app.arg(0), bb);
         bb->args.emplace(app.arg(0), cond);
         auto tbb = current_fn_->labels[app.arg(1)->isa_nom<Continuation>()];
         auto fbb = current_fn_->labels[app.arg(2)->isa_nom<Continuation>()];
-        bb->selection_merge(merge_bb,spv::SelectionControlMaskNone);
         bb->branch_conditional(cond, tbb, fbb);
     } else if (app.callee()->isa<Continuation>() && app.callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         /*auto val = emit(continuation->arg(0));
@@ -410,59 +391,6 @@ void CodeGen::emit_epilogue(Continuation* continuation, BasicBlockBuilder* bb) {
         THORIN_UNREACHABLE;
     } else if (app.callee()->isa<Bottom>()) {
         bb->unreachable();
-    } else if (continuation->intrinsic() == Intrinsic::SCFLoopHeader) {
-        auto merge_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.merge_target)]->label;
-        auto continue_label = current_fn_->bbs_map[const_cast<Continuation*>(continuation->attributes_.scf_metadata.loop_header.continue_target)]->label;
-        bb->loop_merge(merge_label, continue_label, spv::LoopControlMaskNone, {});
-
-        BasicBlockBuilder* dispatch_bb = current_fn_->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*current_fn_)).get();
-
-        auto header_bb_location = std::find(current_fn_->bbs_to_emit.begin(), current_fn_->bbs_to_emit.end(), bb);
-
-        current_fn_->bbs_to_emit.emplace(header_bb_location + 1, dispatch_bb);
-        builder_->name(dispatch_bb->label, "dispatch_" + continuation->name());
-        bb->branch(dispatch_bb->label);
-        int targets = continuation->num_ops();
-        assert(targets > 0);
-
-        // TODO handle dispatching to multiple targets
-        assert(targets == 1);
-        auto dispatch_target = continuation->op(0)->isa_nom<Continuation>();
-        // Extract the relevant variant & expand the tuple if necessary
-        auto arg = world().variant_extract(continuation->param(0), 0);
-        auto extracted = emit(arg, dispatch_bb);
-
-        if (dispatch_target->param(0)->type()->equal(arg->type())) {
-            auto* param = dispatch_target->param(0);
-            auto& phi = current_fn_->bbs_map[dispatch_target]->phis_map[param];
-            phi.preds.emplace_back(extracted, dispatch_bb->label);
-        } else {
-            assert(false && "TODO destructure argument");
-        }
-
-        dispatch_bb->branch(current_fn_->bbs_map[dispatch_target]->label);
-
-    } else if (continuation->intrinsic() == Intrinsic::SCFLoopContinue) {
-        auto loop_header = continuation->op(0)->isa_nom<Continuation>();
-        auto header_label = current_fn_->bbs_map[loop_header]->label;
-
-        auto arg = continuation->param(0);
-        bb->args[arg] = emit(arg, bb);
-        auto* param = loop_header->param(0);
-        auto& phi = current_fn_->bbs_map[loop_header]->phis_map[param];
-        phi.preds.emplace_back(bb->args[arg], current_fn_->labels[continuation]);
-
-        bb->branch(header_label);
-    } else if (continuation->intrinsic() == Intrinsic::SCFLoopMerge) {
-
-        int targets = continuation->num_ops();
-        assert(targets > 0);
-
-        // TODO handle dispatching to multiple targets
-        assert(targets == 1);
-        auto callee = continuation->op(0)->isa_nom<Continuation>();
-        // TODO phis
-        bb->branch(current_fn_->bbs_map[callee]->label);
     } else if (auto builtin = app.callee()->isa_nom<Continuation>(); builtin->is_imported()) {
         // Ensure we emit previous memory operations
         assert(is_mem(app.arg(0)));

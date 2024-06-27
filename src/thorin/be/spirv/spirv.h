@@ -100,9 +100,6 @@ public:
 
     ConvertedType* convert(const Def*);
 protected:
-    void structure_loops();
-    void structure_flow();
-
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
     SpvId emit(const Def* def, BasicBlockBuilder* bb);

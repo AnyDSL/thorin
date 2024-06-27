@@ -154,30 +154,18 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     ScopesForest(world()).for_each([&](const Scope& scope) { emit(scope); });
 
-    auto push_constant_arr_type = convert(world().definite_array_type(world().type_pu32(), 128)).id;
-    auto push_constant_struct_type = builder_->declare_struct_type({ push_constant_arr_type });
-    auto push_constant_struct_ptr_type = builder_->declare_ptr_type(spv::StorageClassPushConstant, push_constant_struct_type);
-    builder_->name(push_constant_struct_type, "ThorinPushConstant");
-    builder_->decorate(push_constant_struct_type, spv::DecorationBlock);
-    builder_->decorate_member(push_constant_struct_type, 0, spv::DecorationOffset, { 0 });
-    builder_->decorate(push_constant_arr_type, spv::DecorationArrayStride, { 4 });
-    auto push_constant_struct_ptr = builder_->variable(push_constant_struct_ptr_type, spv::StorageClassPushConstant);
-    builder_->name(push_constant_struct_ptr, "thorin_push_constant_data");
+    std::vector<SpvId> interface;
+    for (auto def : world().defs()) {
+        if (auto global = def->isa<Global>())
+            interface.push_back(emit(global));
+    }
 
-    auto entry_pt_signature = builder_->declare_fn_type({}, builder_->void_type);
     for (auto& cont : world().copy_continuations()) {
         if (cont->is_exported()) {
             assert(defs_.contains(cont) && kernel_config_.contains(cont));
             auto config = kernel_config_.find(cont);
 
             SpvId callee = defs_[cont];
-
-            FnBuilder fn_builder(this, *builder_.get());
-            fn_builder.fn_type = entry_pt_signature;
-            fn_builder.fn_ret_type = builder_->void_type;
-
-            BasicBlockBuilder* bb = fn_builder.bbs.emplace_back(std::make_unique<BasicBlockBuilder>(fn_builder)).get();
-            fn_builder.bbs_to_emit.push_back(bb);
 
             auto block = config->second->as<GPUKernelConfig>()->block_size();
             std::vector<uint32_t> local_size = {
@@ -186,50 +174,8 @@ void CodeGen::emit_stream(std::ostream& out) {
                     (uint32_t) std::get<2>(block),
             };
 
-            auto spv_uvec3_t = convert(world().type_pu32(3));
-            SpvId wg_size_constant = builder_->constant_composite(spv_uvec3_t, {
-                    builder_->u32_constant(local_size[0]),
-                    builder_->u32_constant(local_size[1]),
-                    builder_->u32_constant(local_size[2]),
-            });
-            bb->store(wg_size_constant, builder_->builtins->workgroup_size);
-
-            // iterate on cont type and extract the arguments
-            auto ptr_type = convert(world().ptr_type(world().definite_array_type(world().type_pu32(), 128), 1, 4, AddrSpace::Push));
-            auto zero = bb->file_builder.u32_constant(0);
-            auto arr_ref = bb->access_chain(ptr_type, push_constant_struct_ptr, { zero });
-            uint32_t offset = 0;
-            std::vector<SpvId> args;
-            for (size_t i = 0; i < cont->num_params(); i++) {
-                auto param = cont->param(i);
-                auto param_type = param->type();
-                if (param_type == world().unit_type() || param_type == world().mem_type() || param_type->isa<FnType>()) continue;
-                assert(param_type->order() == 0);
-                auto converted = convert(param_type);
-                assert(converted->datatype != nullptr);
-                SpvId arg = converted->datatype->emit_deserialization(*bb, spv::StorageClassPushConstant, arr_ref, bb->file_builder.u32_constant(offset));
-                args.push_back(arg);
-                offset += converted->datatype->serialized_size();
-            }
-
-            bb->call(builder_->void_type, callee, args);
-            bb->return_void();
-
-            builder_->define_function(fn_builder);
-            builder_->name(fn_builder.function_id, "entry_point_" + cont->name());
-
-            std::vector<SpvId> interface = {
-                    push_constant_struct_ptr,
-                    builder_->builtins->workgroup_size,
-                    builder_->builtins->num_workgroups,
-                    builder_->builtins->workgroup_id,
-                    builder_->builtins->local_id,
-                    builder_->builtins->global_id,
-                    builder_->builtins->local_invocation_index,
-            };
-            builder_->declare_entry_point(spv::ExecutionModelGLCompute, fn_builder.function_id, "kernel_main", interface);
-
-            builder_->execution_mode(fn_builder.function_id, spv::ExecutionModeLocalSize, local_size);
+            builder_->declare_entry_point(spv::ExecutionModelGLCompute, callee, cont->name().c_str(), interface);
+            builder_->execution_mode(callee, spv::ExecutionModeLocalSize, local_size);
         }
     }
 

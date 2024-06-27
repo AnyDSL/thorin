@@ -9,22 +9,28 @@ namespace thorin::spirv {
 using SpvId = builder::SpvId;
 
 class CodeGen;
-struct Datatype;
-struct PtrDatatype;
 
 struct FileBuilder;
 struct FnBuilder;
 
+struct SpvTargetInfo {
+    struct {
+        // Either '4' or '8'
+        size_t pointer_size;
+    } mem_layout;
+
+    enum Dialect{
+        OpenCL,
+        Shady
+    };
+};
+
 struct ConvertedType {
-    ConvertedType(CodeGen* cg) : code_gen(cg) {}
-    ConvertedType(const ConvertedType&) = delete;
-
-    spirv::CodeGen* code_gen;
-    const thorin::Type* src_type;
-    SpvId type_id { 0 };
-    std::unique_ptr<Datatype> datatype;
-
-    bool is_known_size() { return datatype != nullptr; }
+    SpvId id;
+    struct Layout {
+        size_t size, alignment;
+    };
+    std::optional<Layout> layout;
 };
 
 struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
@@ -82,23 +88,16 @@ struct FileBuilder : public builder::SpvFileBuilder {
 
 private:
     SpvId u32_t_ { 0 };
-    /*SpvId i32_t;
-    SpvId u32_t;
-    SpvId i64_t;
-    SpvId u64_t;
-    SpvId i32_constant(int32_t);
-    SpvId i64_constant(int64_t);
-    SpvId u64_constant(uint64_t);*/
 };
 
 class CodeGen : public thorin::CodeGen {
 public:
-    CodeGen(Thorin& thorin, Cont2Config&, bool debug);
+    CodeGen(Thorin& thorin, SpvTargetInfo, Cont2Config&, bool debug);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
 
-    ConvertedType* convert(const Def*);
+    ConvertedType convert(const Type*);
 protected:
     void emit(const Scope& scope);
     void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
@@ -107,75 +106,13 @@ protected:
 
     SpvId get_codom_type(const Continuation* fn);
 
+    SpvTargetInfo target_info_;
     std::unique_ptr<FileBuilder> builder_;
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
-    DefMap<std::unique_ptr<ConvertedType>> types_;
+    DefMap<ConvertedType> types_;
     DefMap<SpvId> defs_;
     const Cont2Config& kernel_config_;
-
-    friend PtrDatatype;
-};
-
-/// Thorin data types are mapped to SPIR-V in non-trivial ways, this interface is used by the emission code to abstract over
-/// potentially different mappings, depending on the capabilities of the target platform. The serdes code deals with pointers
-/// in arrays of unsigned 32 bit words, and is there to get around the limitation of not being able to bitcast pointers in the
-/// logical addressing mode.
-struct Datatype {
-public:
-    ConvertedType* type;
-    Datatype(ConvertedType* type) : type(type) {}
-
-    // Datatypes are serialized using a base element, for now it is hardcoded to use 32-bit scalar unsigned integers
-    static constexpr size_t base_element_bitwidth = 32;
-    static constexpr size_t base_element_bytes = base_element_bitwidth / 8;
-
-    virtual size_t serialized_size() = 0;
-    virtual SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) = 0;
-    virtual void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) = 0;
-};
-
-/// For scalar datatypes
-struct ScalarDatatype : public Datatype {
-    int type_tag;
-    size_t size_in_bytes;
-    size_t alignment;
-    ScalarDatatype(ConvertedType* type, int type_tag, size_t size_in_bytes, size_t alignment_in_bytes);
-
-    size_t serialized_size() override { return (size_in_bytes + 3) / 4; };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) override;
-    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) override;
-};
-
-struct PtrDatatype : public Datatype {
-    static constexpr size_t bitwidth = 64;
-    PtrDatatype(ConvertedType* type) : Datatype(type) {}
-
-    size_t serialized_size() override { return bitwidth / 32; };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) override;
-    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) override;
-};
-
-struct DefiniteArrayDatatype : public Datatype {
-    ConvertedType* element_type;
-    size_t length;
-
-    DefiniteArrayDatatype(ConvertedType* type, ConvertedType* element_type, size_t length);
-
-    size_t serialized_size() override { return element_type->datatype->serialized_size(); };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) override;
-    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) override;
-};
-
-struct ProductDatatype : public Datatype {
-    std::vector<ConvertedType*> elements_types;
-    size_t total_size = 0;
-
-    ProductDatatype(ConvertedType* type, const std::vector<ConvertedType*>&& elements_types);
-
-    size_t serialized_size() override { return total_size; };
-    SpvId emit_deserialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset) override;
-    void emit_serialization(BasicBlockBuilder& bb, spv::StorageClass storage_class, SpvId array, SpvId base_offset, SpvId data) override;
 };
 
 }

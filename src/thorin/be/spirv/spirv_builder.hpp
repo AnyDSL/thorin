@@ -9,7 +9,8 @@
 
 namespace thorin::spirv::builder {
 
-struct SpvId { uint32_t id; };
+//struct SpvId { uint32_t id; };
+using SpvId = uint32_t;
 
 struct SpvSectionBuilder;
 struct SpvBasicBlockBuilder;
@@ -38,8 +39,8 @@ public:
     }
 
     void ref_id(SpvId id) {
-        assert(id.id != 0);
-        output_word(id.id);
+        assert(id != 0);
+        output_word(id);
     }
 
     void literal_name(std::string_view str) {
@@ -340,15 +341,13 @@ struct SpvFileBuilder {
         }
     };
 
-    SpvFileBuilder()
-            : void_type(declare_void_type())
-    {}
+    SpvFileBuilder() {}
     SpvFileBuilder(const SpvFileBuilder&) = delete;
 
     SpvId generate_fresh_id() { return { bound++ }; }
 
     void name(SpvId id, std::string_view str) {
-        assert(id.id < bound);
+        assert(id < bound);
         debug_names.op(spv::Op::OpName, 2 + div_roundup(str.size() + 1, 4));
         debug_names.ref_id(id);
         debug_names.literal_name(str);
@@ -379,7 +378,7 @@ struct SpvFileBuilder {
     }
 
     SpvId declare_ptr_type(spv::StorageClass storage_class, SpvId element_type) {
-        auto key = UniqueDeclKey { PTR_TYPE, { element_type.id, (uint32_t) storage_class } };
+        auto key = UniqueDeclKey { PTR_TYPE, { element_type, (uint32_t) storage_class } };
         if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpTypePointer, 4);
         auto id = generate_fresh_id();
@@ -391,7 +390,7 @@ struct SpvFileBuilder {
     }
 
     SpvId declare_array_type(SpvId element_type, SpvId dim) {
-        auto key = UniqueDeclKey { DEF_ARR_TYPE, { element_type.id, dim.id } };
+        auto key = UniqueDeclKey { DEF_ARR_TYPE, { element_type, dim } };
         if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpTypeArray, 4);
         auto id = generate_fresh_id();
@@ -404,8 +403,8 @@ struct SpvFileBuilder {
 
     SpvId declare_fn_type(std::vector<SpvId> dom, SpvId codom) {
         auto key = UniqueDeclKey { FN_TYPE, {} };
-        for (auto d : dom) key.members.push_back(d.id);
-        key.members.push_back(codom.id);
+        for (auto d : dom) key.members.push_back(d);
+        key.members.push_back(codom);
         if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
 
         types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
@@ -471,7 +470,7 @@ struct SpvFileBuilder {
 
     SpvId constant(SpvId type, std::vector<uint32_t> bit_pattern) {
         auto key = UniqueDeclKey { CONSTANT, bit_pattern };
-        key.members.push_back(type.id);
+        key.members.push_back(type);
         if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpConstant, 3 + bit_pattern.size());
         auto id = generate_fresh_id();
@@ -485,8 +484,8 @@ struct SpvFileBuilder {
 
     SpvId constant_composite(SpvId type, std::vector<SpvId> ops) {
         auto key = UniqueDeclKey { CONSTANT_COMPOSITE, {} };
-        key.members.push_back(type.id);
-        for (auto op : ops) key.members.push_back(op.id);
+        key.members.push_back(type);
+        for (auto op : ops) key.members.push_back(op);
         if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.op(spv::Op::OpConstantComposite, 3 + ops.size());
         auto id = generate_fresh_id();
@@ -504,6 +503,13 @@ struct SpvFileBuilder {
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
         types_constants.literal_int(storage_class);
+        return id;
+    }
+
+    SpvId declare_void_type() {
+        types_constants.op(spv::Op::OpTypeVoid, 2);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
         return id;
     }
 
@@ -607,13 +613,6 @@ private:
     // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
     std::unordered_map<UniqueDeclKey, SpvId, UniqueDeclKeyHasher> unique_decls;
 
-    SpvId declare_void_type() {
-        types_constants.op(spv::Op::OpTypeVoid, 2);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        return id;
-    }
-
     void output_word_le(uint32_t word) {
         output_->put((word >> 0) & 0xFFu);
         output_->put((word >> 8) & 0xFFu);
@@ -627,8 +626,6 @@ private:
         }
     }
 public:
-    const SpvId void_type;
-
     void finish(std::ostream& output) {
         output_ = &output;
         SpvSectionBuilder memory_model_section;

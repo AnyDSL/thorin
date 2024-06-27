@@ -199,16 +199,16 @@ FnBuilder& CodeGen::get_fn_builder(thorin::Continuation* continuation) {
     return fn;
 }
 
-FnBuilder& CodeGen::prepare(const thorin::Scope& scope) {
+FnBuilder* CodeGen::prepare(const thorin::Scope& scope) {
     auto& fn = get_fn_builder(scope.entry());
     builder_->name(fn.function_id, scope.entry()->name());
-    return fn;
+    return &fn;
 }
 
-void CodeGen::prepare(thorin::Continuation* cont, FnBuilder& fn) {
-    auto& bb = *fn.bbs.emplace_back(std::make_unique<BasicBlockBuilder>(fn));
+void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
+    auto& bb = *fn->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*fn));
     cont2bb_[cont] = &bb;
-    fn.bbs_to_emit.emplace_back(&bb);
+    fn->bbs_to_emit.emplace_back(&bb);
 
     builder_->name(bb.label, cont->name().c_str());
 
@@ -218,8 +218,8 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder& fn) {
                 // Nothing
             } else if (param->order() == 0) {
                 auto param_t = convert(param->type());
-                auto id = fn.parameter(param_t.id);
-                fn.params[param] = id;
+                auto id = fn->parameter(param_t.id);
+                fn->params[param] = id;
                 if (param->type()->isa<PtrType>()) {
                     builder_->decorate(id, spv::DecorationAliased);
                 }
@@ -422,7 +422,46 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     }
 }
 
-SpvId CodeGen::emit_bb(const Def* def, BasicBlockBuilder* bb) {
+SpvId CodeGen::emit_constant(const thorin::Def* def) {
+    if (auto primlit = def->isa<PrimLit>()) {
+        Box box = primlit->value();
+        auto type = convert(def->type()).id;
+        SpvId constant;
+        switch (primlit->primtype_tag()) {
+            case PrimType_bool:                     constant = builder_->bool_constant(type, box.get_bool()); break;
+            case PrimType_ps8:  case PrimType_qs8:  assertf(false, "not implemented yet");
+            case PrimType_pu8:  case PrimType_qu8:  assertf(false, "not implemented yet");
+            case PrimType_ps16: case PrimType_qs16: assertf(false, "not implemented yet");
+            case PrimType_pu16: case PrimType_qu16: assertf(false, "not implemented yet");
+            case PrimType_ps32: case PrimType_qs32: constant = builder_->constant(type, { static_cast<unsigned int>(box.get_s32()) }); break;
+            case PrimType_pu32: case PrimType_qu32: constant = builder_->constant(type, { static_cast<unsigned int>(box.get_u32()) }); break;
+            case PrimType_ps64: case PrimType_qs64:
+            case PrimType_pu64: case PrimType_qu64: {
+                uint64_t value = static_cast<uint64_t>(box.get_u64());
+                uint64_t upper = value >> 32U;
+                uint64_t lower = value & 0xFFFFFFFFU;
+                constant = builder_->constant(type, { (uint32_t) lower, (uint32_t) upper });
+                break;
+            }
+            case PrimType_pf16: case PrimType_qf16: assertf(false, "not implemented yet");
+            case PrimType_pf32: case PrimType_qf32: assertf(false, "not implemented yet");
+            case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
+        }
+        return constant;
+    } else if (auto param = def->isa<Param>()) {
+        if (is_mem(param)) return spv_none;
+        if (auto param_id = current_fn_->params.lookup(param)) {
+            assert((*param_id) != 0);
+            return *param_id;
+        } else {
+            auto val = cont2bb_[param->continuation()]->phis_map[param].value;
+            assert(val != 0);
+            return val;
+        }
+    } else return emit_bb(nullptr, def);
+}
+
+SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs());
         SpvId rhs = emit(bin->rhs());
@@ -525,41 +564,6 @@ SpvId CodeGen::emit_bb(const Def* def, BasicBlockBuilder* bb) {
                 }
             }
             THORIN_UNREACHABLE;
-        }
-    } else if (auto primlit = def->isa<PrimLit>()) {
-        Box box = primlit->value();
-        auto type = convert(def->type()).id;
-        SpvId constant;
-        switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     constant = bb->file_builder.bool_constant(type, box.get_bool()); break;
-            case PrimType_ps8:  case PrimType_qs8:  assertf(false, "not implemented yet");
-            case PrimType_pu8:  case PrimType_qu8:  assertf(false, "not implemented yet");
-            case PrimType_ps16: case PrimType_qs16: assertf(false, "not implemented yet");
-            case PrimType_pu16: case PrimType_qu16: assertf(false, "not implemented yet");
-            case PrimType_ps32: case PrimType_qs32: constant = bb->file_builder.constant(type, { static_cast<unsigned int>(box.get_s32()) }); break;
-            case PrimType_pu32: case PrimType_qu32: constant = bb->file_builder.constant(type, { static_cast<unsigned int>(box.get_u32()) }); break;
-            case PrimType_ps64: case PrimType_qs64:
-            case PrimType_pu64: case PrimType_qu64: {
-                uint64_t value = static_cast<uint64_t>(box.get_u64());
-                uint64_t upper = value >> 32U;
-                uint64_t lower = value & 0xFFFFFFFFU;
-                constant = bb->file_builder.constant(type, { (uint32_t) lower, (uint32_t) upper });
-                break;
-            }
-            case PrimType_pf16: case PrimType_qf16: assertf(false, "not implemented yet");
-            case PrimType_pf32: case PrimType_qf32: assertf(false, "not implemented yet");
-            case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
-        }
-        return constant;
-    } else if (auto param = def->isa<Param>()) {
-        if (is_mem(param)) return spv_none;
-        if (auto param_id = current_fn_->params.lookup(param)) {
-            assert((*param_id) != 0);
-            return *param_id;
-        } else {
-            auto val = cont2bb_[param->continuation()]->phis_map[param].value;
-            assert(val != 0);
-            return val;
         }
     } else if (auto variant = def->isa<Variant>()) {
         assert(false && "TODO: rewrite");

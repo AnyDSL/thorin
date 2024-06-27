@@ -2,6 +2,7 @@
 #define THORIN_SPIRV_H
 
 #include "thorin/be/spirv/spirv_builder.hpp"
+#include "thorin/analyses/schedule.h"
 #include "thorin/be/codegen.h"
 #include "thorin/be/emitter.h"
 
@@ -101,14 +102,16 @@ public:
 
     SpvId emit_fun_decl(Continuation*);
 
-    FnBuilder& prepare(const Scope&);
-    void prepare(Continuation*, FnBuilder&);
+    FnBuilder* prepare(const Scope&);
+    void prepare(Continuation*, FnBuilder*);
+    void emit_epilogue(Continuation*);
     void finalize(const Scope&);
     void finalize(Continuation*);
+
+    SpvId emit_constant(const Def*);
+    SpvId emit_bb(BasicBlockBuilder* bb, const Def* def);
 protected:
     FnBuilder& get_fn_builder(Continuation*);
-    void emit_epilogue(Continuation*);
-    SpvId emit_bb(const Def* def, BasicBlockBuilder* bb);
     std::vector<SpvId> emit_builtin(const App&, const Continuation*, BasicBlockBuilder*);
 
     SpvId get_codom_type(const Continuation* fn);

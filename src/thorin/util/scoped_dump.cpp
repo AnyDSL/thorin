@@ -9,6 +9,17 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     if (cont->is_intrinsic())
         s.fmt("intrinsic ");
 
+    switch (cont->cc()) {
+        case CC::Thorin: break;
+        case CC::C: s.fmt("cc(C) "); break;
+        case CC::Device: s.fmt("cc(Device) "); break;
+        default: s.fmt("cc(?)"); break;
+    }
+
+    s.fmt(Green);
+    s.fmt("cont ");
+    s.fmt(Reset);
+
     s.fmt(Red);
     s.fmt("{}", cont->unique_name());
     s.fmt(Reset);

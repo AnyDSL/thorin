@@ -49,7 +49,7 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
 
     auto defs = *scopes_to_defs_[cont];
     stream_defs(s, defs);
-
+    s.fmt("{}", cont->body()->unique_name());
     s.fmt("\b\n}}");
 }
 
@@ -119,7 +119,6 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
 }
 
 void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) const {
-    size_t i = 0;
     for (auto def : defs) {
         s.fmt("{}: ", def->unique_name());
         s.fmt(Blue);
@@ -127,9 +126,7 @@ void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) 
         s.fmt(Reset);
         s.fmt(" = ");
         stream_def(s, def);
-        if (i + 1 < defs.size())
-            s.fmt("\n");
-        i++;
+        s.fmt("\n");
     }
 }
 

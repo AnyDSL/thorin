@@ -3,6 +3,7 @@
 
 #include "thorin/be/spirv/spirv_builder.hpp"
 #include "thorin/be/codegen.h"
+#include "thorin/be/emitter.h"
 
 namespace thorin::spirv {
 
@@ -44,16 +45,11 @@ struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {
-    explicit FnBuilder(CodeGen* cg, FileBuilder& file_builder);
+    explicit FnBuilder(FileBuilder& file_builder);
     FnBuilder(const FnBuilder&) = delete;
 
-    CodeGen* cg;
     FileBuilder& file_builder;
-
-    const Scope* scope = nullptr;
     std::vector<std::unique_ptr<BasicBlockBuilder>> bbs;
-    std::unordered_map<Continuation*, BasicBlockBuilder*> bbs_map;
-    ContinuationMap<SpvId> labels;
     DefMap<SpvId> params;
 };
 
@@ -90,18 +86,29 @@ private:
     SpvId u32_t_ { 0 };
 };
 
-class CodeGen : public thorin::CodeGen {
+class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, SpvId, BasicBlockBuilder*, CodeGen> {
 public:
     CodeGen(Thorin& thorin, SpvTargetInfo, Cont2Config&, bool debug);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
 
+    bool is_valid(SpvId id) {
+        return id > 0;
+    }
+
     ConvertedType convert(const Type*);
+
+    SpvId emit_fun_decl(Continuation*);
+
+    FnBuilder& prepare(const Scope&);
+    void prepare(Continuation*, FnBuilder&);
+    void finalize(const Scope&);
+    void finalize(Continuation*);
 protected:
-    void emit(const Scope& scope);
-    void emit_epilogue(Continuation*, BasicBlockBuilder* bb);
-    SpvId emit(const Def* def, BasicBlockBuilder* bb);
+    FnBuilder& get_fn_builder(Continuation*);
+    void emit_epilogue(Continuation*);
+    SpvId emit_bb(const Def* def, BasicBlockBuilder* bb);
     std::vector<SpvId> emit_builtin(const App&, const Continuation*, BasicBlockBuilder*);
 
     SpvId get_codom_type(const Continuation* fn);
@@ -110,6 +117,7 @@ protected:
     std::unique_ptr<FileBuilder> builder_;
     Continuation* entry_ = nullptr;
     FnBuilder* current_fn_ = nullptr;
+    ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
     DefMap<ConvertedType> types_;
     DefMap<SpvId> defs_;
     const Cont2Config& kernel_config_;

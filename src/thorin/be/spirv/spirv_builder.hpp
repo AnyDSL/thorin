@@ -4,6 +4,7 @@
 #include <cassert>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <ostream>
 #include <memory>
 
@@ -580,13 +581,21 @@ struct SpvFileBuilder {
     }
 
     void capability(spv::Capability cap) {
+        auto found = capabilities_set.find(cap);
+        if (found != capabilities_set.end())
+            return;
         capabilities.op(spv::Op::OpCapability, 2);
         capabilities.data_.push_back(cap);
+        capabilities_set.insert(cap);
     }
 
     void extension(std::string name) {
+        auto found = extensions_set.find(name);
+        if (found != extensions_set.end())
+            return;
         extensions.op(spv::Op::OpExtension, 1 + div_roundup(name.size() + 1, 4));
         extensions.literal_name(name);
+        extensions_set.insert(name);
     }
 
     spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
@@ -626,6 +635,8 @@ private:
     // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
     std::unordered_map<UniqueDeclKey, SpvId, UniqueDeclKeyHasher> unique_decls;
     std::unordered_map<std::string, SpvId> extended_instruction_sets;
+    std::unordered_set<spv::Capability> capabilities_set;
+    std::unordered_set<std::string> extensions_set;
 
     void output_word_le(uint32_t word) {
         output_->put((word >> 0) & 0xFFu);

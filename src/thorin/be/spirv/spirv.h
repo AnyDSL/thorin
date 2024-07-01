@@ -36,17 +36,6 @@ struct ConvertedType {
     std::optional<Layout> layout;
 };
 
-struct Builtins {
-    SpvId workgroup_size;
-    SpvId num_workgroups;
-    SpvId workgroup_id;
-    SpvId local_id;
-    SpvId global_id;
-    SpvId local_invocation_index;
-
-    explicit Builtins(FileBuilder&);
-};
-
 struct BasicBlockBuilder;
 
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, ConvertedType, BasicBlockBuilder*, CodeGen> {
@@ -74,7 +63,7 @@ public:
     SpvId emit_bb(BasicBlockBuilder* bb, const Def* def);
 protected:
     FnBuilder& get_fn_builder(Continuation*);
-    std::vector<SpvId> emit_builtin(const App&, const Continuation*, BasicBlockBuilder*);
+    std::vector<SpvId> emit_intrinsic(const App& app, const Continuation* builtin, BasicBlockBuilder* bb);
 
     SpvId emit_as_bb(Continuation*);
     SpvId emit_mathop(BasicBlockBuilder* bb, const MathOp& op);

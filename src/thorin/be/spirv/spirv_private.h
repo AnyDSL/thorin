@@ -34,8 +34,6 @@ struct FileBuilder : public builder::SpvFileBuilder {
 
     CodeGen* cg;
 
-    std::unique_ptr<Builtins> builtins;
-
     FnBuilder* current_fn_ = nullptr;
     ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
 

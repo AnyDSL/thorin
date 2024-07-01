@@ -95,40 +95,6 @@ SpvId FileBuilder::u32_constant(uint32_t pattern) {
     return constant(u32_t(), { pattern });
 }
 
-Builtins::Builtins(FileBuilder& builder) {
-    auto& world = builder.cg->world();
-    auto spv_uvec3_t = builder.cg->convert(world.type_pu32(3));
-    auto spv_uint_t = builder.cg->convert(world.type_pu32());
-    auto spv_uvec3_pt = builder.declare_ptr_type(spv::StorageClassInput, spv_uvec3_t.id);
-    auto spv_uvec3_ptp = builder.declare_ptr_type(spv::StorageClassPrivate, spv_uvec3_t.id);
-    auto spv_uint_pt = builder.declare_ptr_type(spv::StorageClassInput, spv_uint_t.id);
-
-    // Because we technically can have multiple entry points, we take the easy way out and make each entry point
-    // write to a private variable the actual workgroup size for that specific kernel. Dirty, but simple.
-    workgroup_size = builder.variable(spv_uvec3_ptp, spv::StorageClassPrivate);
-    builder.name(workgroup_size, "BuiltInWorkgroupSize");
-
-    num_workgroups = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
-    builder.decorate(num_workgroups, spv::DecorationBuiltIn, { spv::BuiltInNumWorkgroups });
-    builder.name(num_workgroups, "BuiltInNumWorkgroups");
-
-    workgroup_id = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
-    builder.decorate(workgroup_id, spv::DecorationBuiltIn, { spv::BuiltInWorkgroupId });
-    builder.name(workgroup_id, "BuiltInWorkgroupId");
-
-    local_id = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
-    builder.decorate(local_id, spv::DecorationBuiltIn, { spv::BuiltInLocalInvocationId });
-    builder.name(local_id, "BuiltInLocalInvocationId");
-
-    global_id = builder.variable(spv_uvec3_pt, spv::StorageClassInput);
-    builder.decorate(global_id, spv::DecorationBuiltIn, { spv::BuiltInGlobalInvocationId });
-    builder.name(global_id, "BuiltInGlobalInvocationId");
-
-    local_invocation_index = builder.variable(spv_uint_pt, spv::StorageClassInput);
-    builder.decorate(local_invocation_index, spv::DecorationBuiltIn, { spv::BuiltInLocalInvocationIndex });
-    builder.name(local_invocation_index, "BuiltInLocalInvocationIndex");
-}
-
 CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, bool debug, const Cont2Config* kernel_config)
         : thorin::CodeGen(thorin, debug), target_info_(target_info), kernel_config_(kernel_config)
 {}
@@ -150,8 +116,6 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->memory_model = spv::MemoryModel::MemoryModelGLSL450;
             break;
     }
-
-    builder_->builtins = std::make_unique<Builtins>(*builder_);
 
     ScopesForest forest(world());
     forest.for_each([&](const Scope& scope) { emit_scope(scope, forest); });
@@ -364,16 +328,14 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         THORIN_UNREACHABLE;
     } else if (app.callee()->isa<Bottom>()) {
         bb->unreachable();
-    } else if (auto builtin = app.callee()->isa_nom<Continuation>(); builtin->is_imported()) {
+    } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && intrinsic->is_intrinsic()) {
         // Ensure we emit previous memory operations
         assert(is_mem(app.arg(0)));
         emit(app.arg(0));
 
-        auto productions = emit_builtin(app, builtin, bb);
+        auto productions = emit_intrinsic(app, intrinsic, bb);
         auto succ = app.args().back()->isa_nom<Continuation>();
         jump_to_next_cont_with_args(succ, productions);
-    } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && intrinsic->is_intrinsic()) {
-        THORIN_UNREACHABLE;
     } else { // function/closure call
         // put all first-order args into an array
         std::vector<SpvId> call_args;
@@ -832,11 +794,8 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-std::vector<SpvId> CodeGen::emit_builtin(const App& app, const Continuation* builtin, BasicBlockBuilder* bb) {
+std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* builtin, BasicBlockBuilder* bb) {
     std::vector<SpvId> productions;
-    auto uvec3_t = convert(world().type_pu32(3)).id;
-    auto u32_t = convert(world().type_pu32()).id;
-    auto i32_t = convert(world().type_ps32()).id;
     if (builtin->name() == "spirv.nonsemantic.printf") {
         std::vector<SpvId> args;
         auto string = app.arg(1);
@@ -855,28 +814,6 @@ std::vector<SpvId> CodeGen::emit_builtin(const App& app, const Continuation* bui
 
         builder_->extension("SPV_KHR_non_semantic_info");
         bb->ext_instruction(convert(world().unit_type()).id, { "NonSemantic.DebugPrintf", 1}, args);
-    } else if (builtin->name() == "get_work_dim") {
-        THORIN_UNREACHABLE;
-    } else if (builtin->name() == "get_global_id") {
-        auto vector = bb->load(uvec3_t, builder_->builtins->global_id);
-        auto extracted = bb->vector_extract_dynamic(u32_t, vector, emit(app.arg(1)));
-        productions.push_back(bb->convert(spv::OpBitcast, i32_t, extracted));
-    } else if (builtin->name() == "get_local_size") {
-        auto vector = bb->load(uvec3_t, builder_->builtins->workgroup_size);
-        auto extracted = bb->vector_extract_dynamic(u32_t, vector, emit(app.arg(1)));
-        productions.push_back(bb->convert(spv::OpBitcast, i32_t, extracted));
-    } else if (builtin->name() == "get_local_id") {
-        auto vector = bb->load(uvec3_t, builder_->builtins->local_id);
-        auto extracted = bb->vector_extract_dynamic(u32_t, vector, emit(app.arg(1)));
-        productions.push_back(bb->convert(spv::OpBitcast, i32_t, extracted));
-    } else if (builtin->name() == "get_num_groups") {
-        auto vector = bb->load(uvec3_t, builder_->builtins->num_workgroups);
-        auto extracted = bb->vector_extract_dynamic(u32_t, vector, emit(app.arg(1)));
-        productions.push_back(bb->convert(spv::OpBitcast, i32_t, extracted));
-    } else if (builtin->name() == "get_group_id") {
-        auto vector = bb->load(uvec3_t, builder_->builtins->workgroup_id);
-        auto extracted = bb->vector_extract_dynamic(u32_t, vector, emit(app.arg(1)));
-        productions.push_back(bb->convert(spv::OpBitcast, i32_t, extracted));
     } else {
         world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
     }

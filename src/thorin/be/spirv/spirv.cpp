@@ -156,6 +156,7 @@ void CodeGen::emit_stream(std::ostream& out) {
             interface.push_back(emit(global));
     }
 
+    int entry_points_count = 0;
     for (auto& cont : world().copy_continuations()) {
         if (cont->is_exported() && kernel_config_) {
             auto config = kernel_config_->find(cont);
@@ -174,7 +175,12 @@ void CodeGen::emit_stream(std::ostream& out) {
 
             builder_->declare_entry_point(spv::ExecutionModelGLCompute, callee, cont->name().c_str(), interface);
             builder_->execution_mode(callee, spv::ExecutionModeLocalSize, local_size);
+            entry_points_count++;
         }
+    }
+
+    if (entry_points_count == 0) {
+        builder_->capability(spv::Capability::CapabilityLinkage);
     }
 
     builder_->finish(out);

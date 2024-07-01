@@ -274,6 +274,11 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
     return builder_->declare_struct_type(types);
 }
 
+SpvId CodeGen::emit_as_bb(thorin::Continuation* cont) {
+    emit(cont);
+    return cont2bb_[cont]->label;
+}
+
 void CodeGen::emit_epilogue(Continuation* continuation) {
     auto& bb = cont2bb_[continuation];
     // Handles the potential nuances of jumping to another continuation
@@ -285,7 +290,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             if (is_mem(param) || is_unit(param))
                 continue;
             auto& phi = cont2bb_[succ]->phis_map[param];
-            phi.preds.emplace_back(args[j], emit(continuation));
+            phi.preds.emplace_back(args[j], emit_as_bb(continuation));
             j++;
         }
     };
@@ -322,7 +327,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             bb->args[arg] = val;
             auto* param = dst_cont->param(index);
             auto& phi = cont2bb_[dst_cont]->phis_map[param];
-            phi.preds.emplace_back(bb->args[arg], emit(continuation));
+            phi.preds.emplace_back(bb->args[arg], emit_as_bb(continuation));
         }
         bb->branch(emit(dst_cont));
     } else if (app.callee() == world().branch()) {
@@ -407,7 +412,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             bb->branch(emit(succ));
 
             auto& phi = cont2bb_[succ]->phis_map[last_param];
-            phi.preds.emplace_back(call_result, emit(continuation));
+            phi.preds.emplace_back(call_result, emit_as_bb(continuation));
         } else {
             Array<SpvId> extracts(n);
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
@@ -426,7 +431,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                     continue;
 
                 auto& phi = cont2bb_[succ]->phis_map[last_param];
-                phi.preds.emplace_back(extracts[j], emit(continuation));
+                phi.preds.emplace_back(extracts[j], emit_as_bb(continuation));
 
                 j++;
             }

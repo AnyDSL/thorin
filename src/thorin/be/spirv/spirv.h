@@ -74,6 +74,7 @@ protected:
     FnBuilder& get_fn_builder(Continuation*);
     std::vector<SpvId> emit_builtin(const App&, const Continuation*, BasicBlockBuilder*);
 
+    SpvId emit_as_bb(Continuation*);
     SpvId emit_mathop(BasicBlockBuilder* bb, const MathOp& op);
 
     SpvId get_codom_type(const Continuation* fn);

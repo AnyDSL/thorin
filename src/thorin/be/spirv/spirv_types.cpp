@@ -92,7 +92,12 @@ ConvertedType CodeGen::convert(const Type* type) {
             spv::StorageClass storage_class;
             switch (ptr->addr_space()) {
                 case AddrSpace::Function: storage_class = spv::StorageClassFunction;              break;
-                case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;               break;
+                case AddrSpace::Private: {
+                    storage_class = spv::StorageClassPrivate;
+                    if (target_info_.dialect != SpvTargetInfo::Dialect::Vulkan)
+                        builder_->capability(spv::CapabilityVectorComputeINTEL);
+                    break;
+                }
                 case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
                 case AddrSpace::Generic:  storage_class = spv::StorageClassGeneric;               break;
                 case AddrSpace::Global: {

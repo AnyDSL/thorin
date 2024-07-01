@@ -128,6 +128,7 @@ if(THORIN_ENABLE_SPIRV)
     list(APPEND THORIN_SOURCES
         be/spirv/spirv.cpp
         be/spirv/spirv_types.cpp
+        be/spirv/spirv_instructions.cpp
         be/spirv/spirv.h
     )
 endif()

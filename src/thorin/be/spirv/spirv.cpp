@@ -474,6 +474,9 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
 }
 
 SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
+    if (auto mathop = def->isa<MathOp>())
+        return emit_mathop(bb, *mathop);
+
     if (auto bin = def->isa<BinOp>()) {
         SpvId lhs = emit(bin->lhs());
         SpvId rhs = emit(bin->rhs());

@@ -20,9 +20,17 @@ ConvertedType CodeGen::convert(const Type* type) {
     if (auto iter = types_.find(type); iter != types_.end())
         return iter->second;
 
+    // Vector types are stupid and dangerous!
+
     ConvertedType converted = { 0, std::nullopt };
 
-    switch (type->tag()) {
+    if (auto vec = type->isa<VectorType>(); vec && vec->length() > 1) {
+        auto component = vec->scalarize();
+        auto conv_comp = convert(component);
+        converted.id = builder_->declare_vector_type(conv_comp.id, (uint32_t) vec->length());
+        converted.layout = conv_comp.layout;
+        converted.layout->size *= vec->length();
+    } else switch (type->tag()) {
         // Boolean types are typically packed intelligently when declaring in local variables, however with vanilla Vulkan 1.0 they can only be represented via 32-bit integers
         // Using extensions, we could use 16 or 8-bit ints instead
         // We can also pack them inside structures using bit-twiddling tricks, if the need arises
@@ -140,17 +148,6 @@ ConvertedType CodeGen::convert(const Type* type) {
                 assert(false && "TODO: handle closure mess");
                 THORIN_UNREACHABLE;
             }
-            break;
-        }
-
-        case Node_Vector: {
-            auto vec = type->as<VectorType>();
-            assert(vec->length() > 1);
-            auto component = vec->scalarize();
-            auto conv_comp = convert(component);
-            converted.id = builder_->declare_vector_type(conv_comp.id, (uint32_t)vec->length());
-            converted.layout = conv_comp.layout;
-            converted.layout->size *= vec->length();
             break;
         }
 

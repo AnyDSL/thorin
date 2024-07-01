@@ -460,16 +460,6 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
             case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
         }
         return constant;
-    } else if (auto param = def->isa<Param>()) {
-        if (is_mem(param)) return spv_none;
-        if (auto param_id = builder_->current_fn_->params.lookup(param)) {
-            assert((*param_id) != 0);
-            return *param_id;
-        } else {
-            auto val = cont2bb_[param->continuation()]->phis_map[param].value;
-            assert(val != 0);
-            return val;
-        }
     }
 
     assertf(false, "Incomplete emit(def) definition");

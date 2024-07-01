@@ -17,6 +17,11 @@ struct SpvBasicBlockBuilder;
 struct SpvFnBuilder;
 struct SpvFileBuilder;
 
+struct ExtendedInstruction {
+    const char* set_name;
+    uint32_t id;
+};
+
 inline int div_roundup(int a, int b) {
     if (a % b == 0)
         return a / b;
@@ -242,17 +247,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         return id;
     }
 
-    SpvId ext_instruction(SpvId return_type, SpvId set, uint32_t instruction, std::vector<SpvId> arguments) {
-        op(spv::Op::OpExtInst, 5 + arguments.size());
-        auto id = generate_fresh_id();
-        ref_id(return_type);
-        ref_id(id);
-        ref_id(set);
-        literal_int(instruction);
-        for (auto a : arguments)
-            ref_id(a);
-        return id;
-    }
+    SpvId ext_instruction(SpvId return_type, ExtendedInstruction instr, std::vector<SpvId> arguments);
 
     void return_void() {
         op(spv::Op::OpReturn, 1);
@@ -269,6 +264,19 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
 private:
     SpvId generate_fresh_id();
+
+protected:
+    SpvId ext_instruction(SpvId return_type, SpvId set, uint32_t instruction, std::vector<SpvId> arguments) {
+        op(spv::Op::OpExtInst, 5 + arguments.size());
+        auto id = generate_fresh_id();
+        ref_id(return_type);
+        ref_id(id);
+        ref_id(set);
+        literal_int(instruction);
+        for (auto a : arguments)
+            ref_id(a);
+        return id;
+    }
 };
 
 struct SpvFnBuilder {
@@ -581,16 +589,21 @@ struct SpvFileBuilder {
         extensions.literal_name(name);
     }
 
+    spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
+    spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelSimple;
+
+protected:
     SpvId extended_import(std::string name) {
+        auto found = extended_instruction_sets.find(name);
+        if (found != extended_instruction_sets.end())
+            return found->second;
         ext_inst_import.op(spv::Op::OpExtInstImport, 2 + div_roundup(name.size() + 1, 4));
         auto id = generate_fresh_id();
         ext_inst_import.ref_id(id);
         ext_inst_import.literal_name(name);
+        extended_instruction_sets[name] = id;
         return id;
     }
-
-    spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
-    spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelSimple;
 
 private:
     std::ostream* output_ = nullptr;
@@ -612,6 +625,7 @@ private:
 
     // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
     std::unordered_map<UniqueDeclKey, SpvId, UniqueDeclKeyHasher> unique_decls;
+    std::unordered_map<std::string, SpvId> extended_instruction_sets;
 
     void output_word_le(uint32_t word) {
         output_->put((word >> 0) & 0xFFu);
@@ -653,6 +667,8 @@ public:
         output_section(fn_decls);
         output_section(fn_defs);
     }
+
+    friend SpvBasicBlockBuilder;
 };
 
 inline SpvId SpvBasicBlockBuilder::generate_fresh_id() {
@@ -661,6 +677,10 @@ inline SpvId SpvBasicBlockBuilder::generate_fresh_id() {
 
 inline SpvId SpvFnBuilder::generate_fresh_id() {
     return file_builder->generate_fresh_id();
+}
+
+SpvId SpvBasicBlockBuilder::ext_instruction(SpvId return_type, ExtendedInstruction instr, std::vector<SpvId> arguments) {
+    return ext_instruction(return_type, file_builder.extended_import(instr.set_name), instr.id, arguments);
 }
 
 }

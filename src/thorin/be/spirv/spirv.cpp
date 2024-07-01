@@ -847,7 +847,8 @@ std::vector<SpvId> CodeGen::emit_builtin(const App& app, const Continuation* bui
             args.push_back(emit(app.arg(i)));
         }
 
-        bb->ext_instruction(convert(world().unit_type()).id, builder_->imported_instrs->shader_printf, 1, args);
+        builder_->extension("SPV_KHR_non_semantic_info");
+        bb->ext_instruction(convert(world().unit_type()).id, { "NonSemantic.DebugPrintf", 1}, args);
     } else if (builtin->name() == "get_work_dim") {
         THORIN_UNREACHABLE;
     } else if (builtin->name() == "get_global_id") {

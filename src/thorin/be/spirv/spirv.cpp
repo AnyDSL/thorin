@@ -1,4 +1,4 @@
-#include "thorin/be/spirv/spirv.h"
+#include "spirv_private.h"
 
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"

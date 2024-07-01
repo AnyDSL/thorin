@@ -227,6 +227,7 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
             }
         }
     } else {
+        defs_[cont] = bb.label;
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
                 // Nothing

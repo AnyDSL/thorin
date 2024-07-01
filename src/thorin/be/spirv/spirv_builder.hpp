@@ -690,7 +690,7 @@ inline SpvId SpvFnBuilder::generate_fresh_id() {
     return file_builder->generate_fresh_id();
 }
 
-SpvId SpvBasicBlockBuilder::ext_instruction(SpvId return_type, ExtendedInstruction instr, std::vector<SpvId> arguments) {
+inline SpvId SpvBasicBlockBuilder::ext_instruction(SpvId return_type, ExtendedInstruction instr, std::vector<SpvId> arguments) {
     return ext_instruction(return_type, file_builder.extended_import(instr.set_name), instr.id, arguments);
 }
 

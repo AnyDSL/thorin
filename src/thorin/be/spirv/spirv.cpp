@@ -207,7 +207,6 @@ FnBuilder* CodeGen::prepare(const thorin::Scope& scope) {
 void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
     auto& bb = *fn->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*fn));
     cont2bb_[cont] = &bb;
-    defs_[cont] = bb.label;
     fn->bbs_to_emit.emplace_back(&bb);
 
     builder_->name(bb.label, cont->name().c_str());

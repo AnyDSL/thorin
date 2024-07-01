@@ -83,14 +83,6 @@ BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
 FnBuilder::FnBuilder(FileBuilder& file_builder) : builder::SpvFnBuilder(&file_builder), file_builder(file_builder) {}
 
 FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg) {
-    capability(spv::Capability::CapabilityShader);
-    capability(spv::Capability::CapabilityVariablePointers);
-    capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
-    // capability(spv::Capability::CapabilityInt16);
-    capability(spv::Capability::CapabilityInt64);
-
-    addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
-    memory_model = spv::MemoryModel::MemoryModelGLSL450;
 }
 
 SpvId FileBuilder::u32_t() {
@@ -144,6 +136,20 @@ CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, bool debug, const Co
 void CodeGen::emit_stream(std::ostream& out) {
     FileBuilder builder(this);
     builder_ = &builder;
+
+    switch (target_info_.dialect) {
+        case SpvTargetInfo::OpenCL:
+            builder_->capability(spv::Capability::CapabilityKernel);
+            builder_->capability(spv::Capability::CapabilityAddresses);
+            builder_->addressing_model = target_info_.mem_layout.pointer_size == 4 ? spv::AddressingModelPhysical32 : spv::AddressingModelPhysical64;
+            builder_->memory_model = spv::MemoryModel::MemoryModelOpenCL;
+            break;
+        case SpvTargetInfo::Vulkan:
+            builder_->capability(spv::Capability::CapabilityShader);
+            builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
+            builder_->memory_model = spv::MemoryModel::MemoryModelGLSL450;
+            break;
+    }
 
     builder_->builtins = std::make_unique<Builtins>(*builder_);
 

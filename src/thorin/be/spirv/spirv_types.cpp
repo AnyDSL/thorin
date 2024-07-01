@@ -48,10 +48,12 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 1, 1 };
             break;
         case Node_PrimType_ps16:
+            builder_->capability(spv::Capability::CapabilityInt16);
             converted.id = builder_->declare_int_type(16, true);
             converted.layout = { 2, 2 };
             break;
         case Node_PrimType_pu16:
+            builder_->capability(spv::Capability::CapabilityInt16);
             converted.id = builder_->declare_int_type(16, false);
             converted.layout = { 2, 2 };
             break;
@@ -64,10 +66,12 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 4, 4 };
             break;
         case Node_PrimType_ps64:
+            builder_->capability(spv::Capability::CapabilityInt64);
             converted.id = builder_->declare_int_type(64, true);
             converted.layout = { 8, 8 };
             break;
         case Node_PrimType_pu64:
+            builder_->capability(spv::Capability::CapabilityInt64);
             converted.id = builder_->declare_int_type(64, false);
             converted.layout = { 8, 8 };
             break;
@@ -90,8 +94,15 @@ ConvertedType CodeGen::convert(const Type* type) {
                 case AddrSpace::Function: storage_class = spv::StorageClassFunction;              break;
                 case AddrSpace::Private:  storage_class = spv::StorageClassPrivate;               break;
                 case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
-                case AddrSpace::Global:   storage_class = spv::StorageClassCrossWorkgroup;        break;
                 case AddrSpace::Generic:  storage_class = spv::StorageClassGeneric;               break;
+                case AddrSpace::Global: {
+                    if (target_info_.dialect == SpvTargetInfo::Vulkan) {
+                        builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
+                        storage_class = spv::StorageClassPhysicalStorageBuffer;
+                    } else
+                        storage_class = spv::StorageClassCrossWorkgroup;
+                    break;
+                }
                 default:
                     assert(false && "This address space is not supported");
                     break;

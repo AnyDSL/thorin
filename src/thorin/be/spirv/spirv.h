@@ -17,13 +17,15 @@ struct FnBuilder;
 struct SpvTargetInfo {
     struct {
         // Either '4' or '8'
-        size_t pointer_size;
+        size_t pointer_size = 8;
     } mem_layout;
 
     enum Dialect{
         OpenCL,
-        Shady
+        Vulkan
     };
+
+    Dialect dialect = OpenCL;
 };
 
 struct ConvertedType {

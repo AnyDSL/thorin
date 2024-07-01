@@ -45,12 +45,6 @@ struct Builtins {
     explicit Builtins(FileBuilder&);
 };
 
-struct ImportedInstructions {
-    SpvId shader_printf;
-
-    explicit ImportedInstructions(FileBuilder&);
-};
-
 struct BasicBlockBuilder;
 
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, ConvertedType, BasicBlockBuilder*, CodeGen> {

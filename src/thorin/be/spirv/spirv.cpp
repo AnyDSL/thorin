@@ -137,11 +137,6 @@ Builtins::Builtins(FileBuilder& builder) {
     builder.name(local_invocation_index, "BuiltInLocalInvocationIndex");
 }
 
-ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
-    builder.extension("SPV_KHR_non_semantic_info");
-    shader_printf = builder.extended_import("NonSemantic.DebugPrintf");
-}
-
 CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, bool debug, const Cont2Config* kernel_config)
         : thorin::CodeGen(thorin, debug), target_info_(target_info), kernel_config_(kernel_config)
 {}
@@ -151,7 +146,6 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_ = &builder;
 
     builder_->builtins = std::make_unique<Builtins>(*builder_);
-    builder_->imported_instrs = std::make_unique<ImportedInstructions>(*builder_);
 
     ScopesForest forest(world());
     forest.for_each([&](const Scope& scope) { emit_scope(scope, forest); });

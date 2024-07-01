@@ -142,7 +142,7 @@ ImportedInstructions::ImportedInstructions(FileBuilder& builder) {
     shader_printf = builder.extended_import("NonSemantic.DebugPrintf");
 }
 
-CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, Cont2Config& kernel_config, bool debug)
+CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, bool debug, const Cont2Config* kernel_config)
         : thorin::CodeGen(thorin, debug), target_info_(target_info), kernel_config_(kernel_config)
 {}
 
@@ -162,9 +162,11 @@ void CodeGen::emit_stream(std::ostream& out) {
     }
 
     for (auto& cont : world().copy_continuations()) {
-        if (cont->is_exported()) {
-            assert(defs_.contains(cont) && kernel_config_.contains(cont));
-            auto config = kernel_config_.find(cont);
+        assert(defs_.contains(cont));
+        if (cont->is_exported() && kernel_config_) {
+            auto config = kernel_config_->find(cont);
+            if (config == kernel_config_->end())
+                continue;
 
             SpvId callee = defs_[cont];
 

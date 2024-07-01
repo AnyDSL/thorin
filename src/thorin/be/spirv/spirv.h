@@ -55,7 +55,7 @@ struct BasicBlockBuilder;
 
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, ConvertedType, BasicBlockBuilder*, CodeGen> {
 public:
-    CodeGen(Thorin& thorin, SpvTargetInfo, Cont2Config&, bool debug);
+    CodeGen(Thorin& thorin, SpvTargetInfo, bool debug, const Cont2Config* = nullptr);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
@@ -86,7 +86,7 @@ protected:
     std::unique_ptr<FileBuilder> builder_;
     FnBuilder* current_fn_ = nullptr;
     ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
-    const Cont2Config& kernel_config_;
+    const Cont2Config* kernel_config_;
 };
 
 }

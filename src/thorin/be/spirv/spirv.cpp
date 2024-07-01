@@ -445,11 +445,13 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
         SpvId constant;
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     constant = builder_->bool_constant(type, box.get_bool()); break;
-            case PrimType_ps8:  case PrimType_qs8:  assertf(false, "not implemented yet");
-            case PrimType_pu8:  case PrimType_qu8:  assertf(false, "not implemented yet");
-            case PrimType_ps16: case PrimType_qs16: assertf(false, "not implemented yet");
-            case PrimType_pu16: case PrimType_qu16: assertf(false, "not implemented yet");
-            case PrimType_ps32: case PrimType_qs32: constant = builder_->constant(type, { static_cast<unsigned int>(box.get_s32()) }); break;
+            case PrimType_ps8:  case PrimType_qs8:
+            case PrimType_pu8:  case PrimType_qu8:  constant = builder_->constant(type, { static_cast<unsigned int>(box.get_u8()) }); break;
+            case PrimType_ps16: case PrimType_qs16:
+            case PrimType_pu16: case PrimType_qu16:
+            case PrimType_pf16: case PrimType_qf16: constant = builder_->constant(type, { static_cast<unsigned int>(box.get_u16()) }); break;
+            case PrimType_pf32: case PrimType_qf32:
+            case PrimType_ps32: case PrimType_qs32:
             case PrimType_pu32: case PrimType_qu32: constant = builder_->constant(type, { static_cast<unsigned int>(box.get_u32()) }); break;
             case PrimType_ps64: case PrimType_qs64:
             case PrimType_pu64: case PrimType_qu64: {
@@ -459,8 +461,6 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
                 constant = builder_->constant(type, { (uint32_t) lower, (uint32_t) upper });
                 break;
             }
-            case PrimType_pf16: case PrimType_qf16: assertf(false, "not implemented yet");
-            case PrimType_pf32: case PrimType_qf32: assertf(false, "not implemented yet");
             case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
         }
         return constant;

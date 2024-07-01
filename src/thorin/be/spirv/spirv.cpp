@@ -315,8 +315,11 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         int index = -1;
         for (auto& arg : app.args()) {
             index++;
+            if (is_mem(arg) || is_unit(arg)) {
+                emit_unsafe(arg);
+                continue;
+            }
             auto val = emit(arg);
-            if (is_mem(arg) || is_unit(arg)) continue;
             bb->args[arg] = val;
             auto* param = dst_cont->param(index);
             auto& phi = cont2bb_[dst_cont]->phis_map[param];
@@ -362,8 +365,11 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         for (auto arg : app.args()) {
             if (arg->order() == 0) {
                 auto arg_type = arg->type();
+                if (arg_type == world().unit_type() || arg_type == world().mem_type()) {
+                    emit_unsafe(arg);
+                    continue;
+                }
                 auto arg_val = emit(arg);
-                if (arg_type == world().unit_type() || arg_type == world().mem_type()) continue;
                 call_args.push_back(arg_val);
             } else {
                 assert(!ret_arg);

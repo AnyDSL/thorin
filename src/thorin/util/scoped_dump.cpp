@@ -9,6 +9,17 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     if (cont->is_intrinsic())
         s.fmt("intrinsic ");
 
+    switch (cont->cc()) {
+        case CC::Thorin: break;
+        case CC::C: s.fmt("cc(C) "); break;
+        case CC::Device: s.fmt("cc(Device) "); break;
+        default: s.fmt("cc(?)"); break;
+    }
+
+    s.fmt(Green);
+    s.fmt("cont ");
+    s.fmt(Reset);
+
     s.fmt(Red);
     s.fmt("{}", cont->unique_name());
     s.fmt(Reset);
@@ -49,7 +60,7 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
 
     auto defs = *scopes_to_defs_[cont];
     stream_defs(s, defs);
-
+    s.fmt("{}", cont->body()->unique_name());
     s.fmt("\b\n}}");
 }
 
@@ -101,6 +112,12 @@ void ScopedWorld::stream_ops(thorin::Stream& s, Defs ops) const {
     s.fmt(")");
 }
 
+bool ScopedWorld::print_inline(const thorin::Def* def) const {
+    if (def->isa<PrimLit>())
+        return true;
+    return false;
+}
+
 void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
     if (auto app = def->isa<App>()) {
         stream_op(s, app->callee());
@@ -111,6 +128,10 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
         def->stream1(s);
         return;
     }
+    if (def->isa_nom()) {
+        s.fmt("{}", def->unique_name());
+        return;
+    }
 
     s.fmt(Green);
     s.fmt("{}", def->op_name());
@@ -119,17 +140,16 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
 }
 
 void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) const {
-    size_t i = 0;
     for (auto def : defs) {
+        if (print_inline(def))
+            continue;
         s.fmt("{}: ", def->unique_name());
         s.fmt(Blue);
         s.fmt("{}", def->type());
         s.fmt(Reset);
         s.fmt(" = ");
         stream_def(s, def);
-        if (i + 1 < defs.size())
-            s.fmt("\n");
-        i++;
+        s.fmt("\n");
     }
 }
 

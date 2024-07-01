@@ -157,12 +157,12 @@ void CodeGen::emit_stream(std::ostream& out) {
     }
 
     for (auto& cont : world().copy_continuations()) {
-        assert(defs_.contains(cont));
         if (cont->is_exported() && kernel_config_) {
             auto config = kernel_config_->find(cont);
             if (config == kernel_config_->end())
                 continue;
 
+            assert(defs_.contains(cont));
             SpvId callee = defs_[cont];
 
             auto block = config->second->as<GPUKernelConfig>()->block_size();
@@ -193,18 +193,21 @@ FnBuilder& CodeGen::get_fn_builder(thorin::Continuation* continuation) {
     auto& fn = *(builder_->fn_builders_[continuation] = std::make_unique<FnBuilder>(*builder_));
     fn.fn_type = convert(entry_->type()).id;
     fn.fn_ret_type = get_codom_type(entry_);
+    defs_[continuation] = fn.function_id;
     return fn;
 }
 
 FnBuilder* CodeGen::prepare(const thorin::Scope& scope) {
     auto& fn = get_fn_builder(scope.entry());
     builder_->name(fn.function_id, scope.entry()->name());
+    builder_->current_fn_ = &fn;
     return &fn;
 }
 
 void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
     auto& bb = *fn->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*fn));
     cont2bb_[cont] = &bb;
+    defs_[cont] = bb.label;
     fn->bbs_to_emit.emplace_back(&bb);
 
     builder_->name(bb.label, cont->name().c_str());
@@ -373,10 +376,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             }
         }
 
-        auto ret_type = get_codom_type(continuation);
-
         SpvId call_result;
         if (auto called_continuation = app.callee()->isa_nom<Continuation>()) {
+            auto ret_type = get_codom_type(called_continuation);
             call_result = bb->call(ret_type, emit(called_continuation), call_args);
         } else {
             // must be a closure

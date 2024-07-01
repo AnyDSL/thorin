@@ -219,9 +219,11 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
                 // Nothing
+                defs_[param] = 0;
             } else if (param->order() == 0) {
                 auto param_t = convert(param->type());
                 auto id = fn->parameter(param_t.id);
+                defs_[param] = id;
                 fn->params[param] = id;
                 if (param->type()->isa<PtrType>()) {
                     builder_->decorate(id, spv::DecorationAliased);
@@ -232,13 +234,16 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
                 // Nothing
+                defs_[param] = 0;
             } else {
                 // OpPhi requires the full list of predecessors (values, labels)
                 // We don't have that yet! But we will need the Phi node identifier to build the basic blocks ...
                 // To solve this we generate an id for the phi node now, but defer emission of it to a later stage
                 auto type = convert(param->type()).id;
                 assert(type != 0);
-                bb.phis_map[param] = { type, builder_->generate_fresh_id(), {} };
+                auto id = builder_->generate_fresh_id();
+                defs_[param] = id;
+                bb.phis_map[param] = { type, id, {} };
             }
         }
     }

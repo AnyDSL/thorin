@@ -12,7 +12,7 @@ struct SpirMathOps {
 
 SpirMathOps opencl_std = {
     .fabs =     { "OpenCL.std", OpenCLLIB::Fabs },
-    .copysign = { "OpenCL.std", OpenCLLIB::Sign },
+    .copysign = { "OpenCL.std", OpenCLLIB::Copysign },
     .round =    { "OpenCL.std", OpenCLLIB::Round },
     .floor =    { "OpenCL.std", OpenCLLIB::Floor },
     .ceil =     { "OpenCL.std", OpenCLLIB::Ceil },

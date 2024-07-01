@@ -83,9 +83,7 @@ protected:
     SpvId get_codom_type(const Continuation* fn);
 
     SpvTargetInfo target_info_;
-    std::unique_ptr<FileBuilder> builder_;
-    FnBuilder* current_fn_ = nullptr;
-    ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
+    FileBuilder* builder_;
     const Cont2Config* kernel_config_;
 };
 

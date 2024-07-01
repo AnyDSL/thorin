@@ -147,7 +147,8 @@ CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, bool debug, const Co
 {}
 
 void CodeGen::emit_stream(std::ostream& out) {
-    builder_ = std::make_unique<FileBuilder>(this);
+    FileBuilder builder(this);
+    builder_ = &builder;
 
     builder_->builtins = std::make_unique<Builtins>(*builder_);
     builder_->imported_instrs = std::make_unique<ImportedInstructions>(*builder_);
@@ -191,11 +192,11 @@ SpvId CodeGen::emit_fun_decl(thorin::Continuation* continuation) {
 }
 
 FnBuilder& CodeGen::get_fn_builder(thorin::Continuation* continuation) {
-    if (auto found = fn_builders_.find(continuation); found != fn_builders_.end()) {
+    if (auto found = builder_->fn_builders_.find(continuation); found != builder_->fn_builders_.end()) {
         return *found->second;
     }
 
-    auto& fn = *(fn_builders_[continuation] = std::make_unique<FnBuilder>(*builder_));
+    auto& fn = *(builder_->fn_builders_[continuation] = std::make_unique<FnBuilder>(*builder_));
     fn.fn_type = convert(entry_->type()).id;
     fn.fn_ret_type = get_codom_type(entry_);
     return fn;
@@ -252,7 +253,7 @@ void CodeGen::finalize(thorin::Continuation* cont) {
 }
 
 void CodeGen::finalize(const thorin::Scope&) {
-    builder_->define_function(*current_fn_);
+    builder_->define_function(*builder_->current_fn_);
 }
 
 SpvId CodeGen::get_codom_type(const Continuation* fn) {
@@ -303,7 +304,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         switch (values.size()) {
             case 0:  bb->return_void();      break;
             case 1:  bb->return_value(values[0]); break;
-            default: bb->return_value(bb->composite(current_fn_->fn_ret_type, values));
+            default: bb->return_value(bb->composite(builder_->current_fn_->fn_ret_type, values));
         }
     } else if (auto dst_cont = app.callee()->isa_nom<Continuation>(); dst_cont && dst_cont->is_basicblock()) { // ordinary jump
         int index = -1;
@@ -452,7 +453,7 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
         return constant;
     } else if (auto param = def->isa<Param>()) {
         if (is_mem(param)) return spv_none;
-        if (auto param_id = current_fn_->params.lookup(param)) {
+        if (auto param_id = builder_->current_fn_->params.lookup(param)) {
             assert((*param_id) != 0);
             return *param_id;
         } else {

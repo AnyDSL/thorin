@@ -300,9 +300,11 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         for (auto arg : app.args()) {
             assert(arg->order() == 0);
-            auto val = emit(arg);
-            if (is_mem(arg) || is_unit(arg))
+            if (is_mem(arg) || is_unit(arg)) {
+                emit_unsafe(arg);
                 continue;
+            }
+            auto val = emit(arg);
             values.emplace_back(val);
         }
 
@@ -472,7 +474,9 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
             assert(val != 0);
             return val;
         }
-    } else return emit_bb(nullptr, def);
+    }
+
+    assertf(false, "Incomplete emit(def) definition");
 }
 
 SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
@@ -815,6 +819,10 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     } else if (def->isa<Bottom>()) {
         return bb->undef(convert(def->type()).id);
     }
+
+    if (!def->has_dep(Dep::Param))
+        return emit_constant(def);
+
     assertf(false, "Incomplete emit(def) definition");
 }
 

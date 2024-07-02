@@ -205,8 +205,7 @@ ConvertedType CodeGen::convert(const Type* type) {
                 converted.layout->alignment = std::max(converted.layout->alignment, converted_member_type.layout->alignment);
                 converted.layout->size = pad(converted.layout->size + converted_member_type.layout->size, converted.layout->alignment);
             }
-            if (total_serialized_size == 0) {
-                outf("this one is void");
+            if (converted.layout->size == 0) {
                 converted.id = builder_->declare_void_type();
                 converted.layout = std::nullopt;
                 break;

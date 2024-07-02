@@ -17,6 +17,25 @@ ConvertedType CodeGen::convert(const Type* type) {
         default: break;
     }
 
+    // OpenCL has no signed integer types
+    if (target_info_.dialect == Target::OpenCL) {
+        switch (type->tag()) {
+            case Node_PrimType_ps8:
+                type = world().prim_type(PrimType_pu8, type->as<VectorType>()->length()); \
+                break;
+            case Node_PrimType_ps16:
+                type = world().prim_type(PrimType_pu16, type->as<VectorType>()->length()); \
+                break;
+            case Node_PrimType_ps32:
+                type = world().prim_type(PrimType_pu32, type->as<VectorType>()->length()); \
+                break;
+            case Node_PrimType_ps64:
+                type = world().prim_type(PrimType_pu64, type->as<VectorType>()->length()); \
+                break;
+            default: break;
+        }
+    }
+
     if (auto iter = types_.find(type); iter != types_.end())
         return iter->second;
 

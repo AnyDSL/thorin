@@ -235,6 +235,8 @@ enum class AddrSpace : uint32_t {
     Private =  5, // Corresponds to the 'private' storage class in compute kernels/shaders, as in thread-private
     Function = 6, // Corresponds to the 'function' storage class in SPIR-V
     Push     = 7, // Corresponds to the 'push constant' storage class in SPIR-V
+    Input    = 8,
+    Output   = 9,
 };
 
 /// Pointer type.

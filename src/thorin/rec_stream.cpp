@@ -211,11 +211,16 @@ Stream& Type::stream(Stream& s) const {
         if (t->is_vector()) s.fmt(">");
 
         switch (t->addr_space()) {
+            case AddrSpace::Generic: break;
             case AddrSpace::Global:   s.fmt("[Global]");   break;
             case AddrSpace::Texture:  s.fmt("[Tex]");      break;
             case AddrSpace::Shared:   s.fmt("[Shared]");   break;
             case AddrSpace::Constant: s.fmt("[Constant]"); break;
-            default: /* ignore unknown address space */    break;
+            case AddrSpace::Private:  s.fmt("[Private]");  break;
+            case AddrSpace::Function: s.fmt("[Function]"); break;
+            case AddrSpace::Input:    s.fmt("[Input]");    break;
+            case AddrSpace::Output:   s.fmt("[Output]");   break;
+            default: s.fmt("[{}]", (int) t->addr_space()); break;
         }
         return s;
     } else if (auto t = isa<PrimType>()) {

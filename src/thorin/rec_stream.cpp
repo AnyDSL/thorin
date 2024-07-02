@@ -209,7 +209,6 @@ Stream& Type::stream(Stream& s) const {
         if (t->is_vector()) s.fmt("<{} x", t->length());
         s.fmt("{}*", t->pointee());
         if (t->is_vector()) s.fmt(">");
-        if (t->device() != -1) s.fmt("[{}]", t->device());
 
         switch (t->addr_space()) {
             case AddrSpace::Global:   s.fmt("[Global]");   break;

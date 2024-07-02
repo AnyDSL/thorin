@@ -238,17 +238,14 @@ enum class AddrSpace : uint32_t {
 /// Pointer type.
 class PtrType : public VectorType, public TypeOpsMixin<PtrType> {
 private:
-    PtrType(World& world, const Type* pointee, size_t length, int32_t device, AddrSpace addr_space, Debug dbg)
+    PtrType(World& world, const Type* pointee, size_t length, AddrSpace addr_space, Debug dbg)
         : VectorType(world, Node_PtrType, {pointee}, length, dbg)
         , addr_space_(addr_space)
-        , device_(device)
     {}
 
 public:
     const Type* pointee() const { return op(0)->as<Type>(); }
     AddrSpace addr_space() const { return addr_space_; }
-    int32_t device() const { return device_; }
-    bool is_host_device() const { return device_ == -1; }
 
     hash_t vhash() const override;
     bool equal(const Def* other) const override;
@@ -257,7 +254,6 @@ private:
     const Type* rebuild(World&, const Type*, Defs) const override;
 
     AddrSpace addr_space_;
-    int32_t device_;
 
     friend class World;
 };

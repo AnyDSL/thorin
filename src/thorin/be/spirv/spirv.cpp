@@ -95,8 +95,6 @@ SpvId FileBuilder::u32_constant(uint32_t pattern) {
     return constant(u32_t(), { pattern });
 }
 
-
-
 CodeGen::CodeGen(Thorin& thorin, Target& target_info, bool debug, const Cont2Config* kernel_config)
         : thorin::CodeGen(thorin, debug), target_info_(target_info), kernel_config_(kernel_config)
 {}

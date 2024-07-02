@@ -316,16 +316,17 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto fbb = emit(app.arg(3));
         bb->branch_conditional(cond, tbb, fbb);
     } else if (app.callee()->isa<Continuation>() && app.callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
-        /*auto val = emit(continuation->arg(0));
-        auto otherwise_bb = cont2bb(continuation->arg(1)->isa_nom<Continuation>());
-        auto match = irbuilder.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
-        for (size_t i = 2; i < continuation->num_args(); i++) {
-            auto arg = continuation->arg(i)->as<Tuple>();
-            auto case_const = llvm::cast<llvm::ConstantInt>(emit(arg->op(0)));
-            auto case_bb    = cont2bb(arg->op(1)->isa_nom<Continuation>());
-            match->addCase(case_const, case_bb);
-        }*/
-        THORIN_UNREACHABLE;
+        emit_unsafe(app.arg(0));
+        auto val = emit(app.arg(1));
+        auto otherwise_bb = emit_as_bb(app.arg(2)->isa_nom<Continuation>());
+        std::vector<SpvId> literals;
+        std::vector<SpvId> cases;
+        for (size_t i = 3; i < app.num_args(); i++) {
+            auto arg = app.arg(i)->as<Tuple>();
+            literals.push_back(emit(arg->op(0)));
+            cases.push_back(emit_as_bb(arg->op(1)->as_nom<Continuation>()));
+        }
+        bb->branch_switch(val, otherwise_bb, literals, cases);
     } else if (app.callee()->isa<Bottom>()) {
         bb->unreachable();
     } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && (intrinsic->is_intrinsic() || intrinsic->cc() == CC::Device)) {

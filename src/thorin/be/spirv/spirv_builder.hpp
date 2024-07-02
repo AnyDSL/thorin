@@ -220,6 +220,17 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         ref_id(false_target);
     }
 
+    void branch_switch(SpvId selector, SpvId default_case, std::vector<uint32_t> literals, std::vector<uint32_t> cases) {
+        assert(literals.size() == cases.size());
+        op(spv::Op::OpSwitch, 3 + literals.size() * 2);
+        ref_id(selector);
+        ref_id(default_case);
+        for (size_t i = 0; i < literals.size(); i++) {
+            ref_id(literals[i]);
+            ref_id(cases[i]);
+        }
+    }
+
     void selection_merge(SpvId merge_bb, spv::SelectionControlMask selection_control) {
         op(spv::Op::OpSelectionMerge, 3);
         ref_id(merge_bb);

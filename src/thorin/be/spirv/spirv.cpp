@@ -95,7 +95,9 @@ SpvId FileBuilder::u32_constant(uint32_t pattern) {
     return constant(u32_t(), { pattern });
 }
 
-CodeGen::CodeGen(Thorin& thorin, SpvTargetInfo target_info, bool debug, const Cont2Config* kernel_config)
+
+
+CodeGen::CodeGen(Thorin& thorin, Target& target_info, bool debug, const Cont2Config* kernel_config)
         : thorin::CodeGen(thorin, debug), target_info_(target_info), kernel_config_(kernel_config)
 {}
 
@@ -104,13 +106,13 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_ = &builder;
 
     switch (target_info_.dialect) {
-        case SpvTargetInfo::OpenCL:
+        case Target::OpenCL:
             builder_->capability(spv::Capability::CapabilityKernel);
             builder_->capability(spv::Capability::CapabilityAddresses);
             builder_->addressing_model = target_info_.mem_layout.pointer_size == 4 ? spv::AddressingModelPhysical32 : spv::AddressingModelPhysical64;
             builder_->memory_model = spv::MemoryModel::MemoryModelOpenCL;
             break;
-        case SpvTargetInfo::Vulkan:
+        case Target::Vulkan:
             builder_->capability(spv::Capability::CapabilityShader);
             builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
             builder_->memory_model = spv::MemoryModel::MemoryModelGLSL450;

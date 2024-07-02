@@ -94,14 +94,14 @@ ConvertedType CodeGen::convert(const Type* type) {
                 case AddrSpace::Function: storage_class = spv::StorageClassFunction;              break;
                 case AddrSpace::Private: {
                     storage_class = spv::StorageClassPrivate;
-                    if (target_info_.dialect != SpvTargetInfo::Dialect::Vulkan)
+                    if (target_info_.dialect != Target::Dialect::Vulkan)
                         builder_->capability(spv::CapabilityVectorComputeINTEL);
                     break;
                 }
                 case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
                 case AddrSpace::Generic:  storage_class = spv::StorageClassGeneric;               break;
                 case AddrSpace::Global: {
-                    if (target_info_.dialect == SpvTargetInfo::Vulkan) {
+                    if (target_info_.dialect == Target::Dialect::Vulkan) {
                         builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
                         storage_class = spv::StorageClassPhysicalStorageBuffer;
                     } else

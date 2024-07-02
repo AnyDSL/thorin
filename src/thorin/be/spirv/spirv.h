@@ -14,13 +14,13 @@ class CodeGen;
 struct FileBuilder;
 struct FnBuilder;
 
-struct SpvTargetInfo {
+struct Target {
     struct {
         // Either '4' or '8'
         size_t pointer_size = 8;
     } mem_layout;
 
-    enum Dialect{
+    enum Dialect {
         OpenCL,
         Vulkan
     };
@@ -40,7 +40,7 @@ struct BasicBlockBuilder;
 
 class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, ConvertedType, BasicBlockBuilder*, CodeGen> {
 public:
-    CodeGen(Thorin& thorin, SpvTargetInfo, bool debug, const Cont2Config* = nullptr);
+    CodeGen(Thorin& thorin, Target&, bool debug, const Cont2Config* = nullptr);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
@@ -70,9 +70,11 @@ protected:
 
     SpvId get_codom_type(const Continuation* fn);
 
-    SpvTargetInfo target_info_;
+    Target& target_info_;
     FileBuilder* builder_;
     const Cont2Config* kernel_config_;
+
+    friend Target;
 };
 
 }

@@ -14,8 +14,12 @@ uint32_t CodeGen::convert(AddrSpace as) {
                 builder_->capability(spv::CapabilityVectorComputeINTEL);
             break;
         }
+        case AddrSpace::Generic: {
+            storage_class = spv::StorageClassGeneric;
+            builder_->capability(spv::Capability::CapabilityGenericPointer);
+            break;
+        }
         case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
-        case AddrSpace::Generic:  storage_class = spv::StorageClassGeneric;               break;
         case AddrSpace::Input:    storage_class = spv::StorageClassInput;                 break;
         case AddrSpace::Output:   storage_class = spv::StorageClassOutput;                break;
         case AddrSpace::Global: {
@@ -198,7 +202,7 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 0, 0 };
             for (auto member : type->ops()) {
                 auto member_type = member->as<Type>();
-                if (member_type == world().unit_type() || member_type == world().mem_type()) continue;
+                if (member_type == world().unit_type() || member_type == world().mem_type() || member_type->isa<FrameType>()) continue;
                 auto converted_member_type = convert(member_type);
                 assert(converted_member_type.layout);
                 spv_types.push_back(converted_member_type.id);

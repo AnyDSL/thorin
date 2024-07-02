@@ -622,6 +622,14 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             bb->store(emit(store->val()), emit(store->ptr()), operands);
             return spv_none;
         } else THORIN_UNREACHABLE;
+    } else if (auto slot = def->isa<Slot>()) {
+        emit_unsafe(slot->frame());
+        auto type = slot->type();
+        auto id = bb->fn_builder.variable(convert(world().ptr_type(type->pointee(), 1, AddrSpace::Function)).id, spv::StorageClass::StorageClassFunction);
+        id = bb->convert(spv::Op::OpBitcast, convert(type).id, id);
+        return id;
+    } else if (auto enter = def->isa<Enter>()) {
+        return emit_unsafe(enter->mem());
     } else if (auto lea = def->isa<LEA>()) {
         switch (lea->ptr_type()->addr_space()) {
             case AddrSpace::Global:
@@ -635,13 +643,12 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto offset = emit(lea->index());
         return bb->ptr_access_chain(type, emit(lea->ptr()), offset, {});
     } else if (auto aggop = def->isa<AggOp>()) {
-        auto spv_agg = emit(aggop->agg());
         auto agg_type = convert(aggop->agg()->type()).id;
 
         bool mem = false;
         if (auto tt = aggop->agg()->type()->isa<TupleType>(); tt && tt->op(0)->isa<MemType>()) mem = true;
 
-        auto copy_to_alloca = [&] (SpvId target_type) {
+        auto copy_to_alloca = [&] (SpvId spv_agg, SpvId target_type) {
             world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto agg_ptr_type = builder_->declare_ptr_type(spv::StorageClassFunction, agg_type);
 
@@ -654,7 +661,11 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
-            if (is_mem(extract)) return spv_none;
+            if (is_mem(extract) || extract->type()->isa<FrameType>()) {
+                emit_unsafe(extract->agg());
+                return spv_none;
+            }
+            auto spv_agg = emit(aggop->agg());
 
             auto target_type = convert(extract->type()).id;
             auto constant_index = aggop->index()->isa<PrimLit>();
@@ -663,7 +674,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             if (aggop->agg()->type()->isa<ArrayType>() && constant_index == nullptr) {
                 assert(aggop->agg()->type()->isa<DefiniteArrayType>());
                 assert(!is_mem(extract));
-                return bb->load(target_type, copy_to_alloca(target_type).second);
+                return bb->load(target_type, copy_to_alloca(spv_agg, target_type).second);
             }
 
             if (extract->agg()->type()->isa<VectorType>())
@@ -681,6 +692,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
 
             return bb->extract(target_type, spv_agg, { index - offset });
         } else if (auto insert = def->isa<Insert>()) {
+            auto spv_agg = emit(aggop->agg());
             auto value = emit(insert->value());
             auto constant_index = aggop->index()->isa<PrimLit>();
 
@@ -688,7 +700,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
 
             if (insert->agg()->type()->isa<ArrayType>() && constant_index == nullptr) {
                 assert(aggop->agg()->type()->isa<DefiniteArrayType>());
-                auto [variable, cell] = copy_to_alloca(agg_type);
+                auto [variable, cell] = copy_to_alloca(spv_agg, agg_type);
                 bb->store(value, cell);
                 return bb->load(agg_type, variable);
             }

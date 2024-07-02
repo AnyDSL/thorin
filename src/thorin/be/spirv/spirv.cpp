@@ -330,10 +330,10 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         THORIN_UNREACHABLE;
     } else if (app.callee()->isa<Bottom>()) {
         bb->unreachable();
-    } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && intrinsic->is_intrinsic()) {
+    } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && (intrinsic->is_intrinsic() || intrinsic->cc() == CC::Device)) {
         // Ensure we emit previous memory operations
         assert(is_mem(app.arg(0)));
-        emit(app.arg(0));
+        emit_unsafe(app.arg(0));
 
         auto productions = emit_intrinsic(app, intrinsic, bb);
         auto succ = app.args().back()->isa_nom<Continuation>();
@@ -609,7 +609,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         return bb->composite(convert(structagg->type()).id, elements);
     } else if (auto access = def->isa<Access>()) {
         // emit dependent operations first
-        emit(access->mem());
+        emit_unsafe(access->mem());
 
         std::vector<uint32_t> operands;
         auto ptr_type = access->ptr()->type()->as<PtrType>();

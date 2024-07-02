@@ -49,6 +49,7 @@ public:
         return id > 0;
     }
 
+    uint32_t convert(AddrSpace);
     ConvertedType convert(const Type*);
 
     SpvId emit_fun_decl(Continuation*);
@@ -63,7 +64,7 @@ public:
     SpvId emit_bb(BasicBlockBuilder* bb, const Def* def);
 protected:
     FnBuilder& get_fn_builder(Continuation*);
-    std::vector<SpvId> emit_intrinsic(const App& app, const Continuation* builtin, BasicBlockBuilder* bb);
+    std::vector<SpvId> emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb);
 
     SpvId emit_as_bb(Continuation*);
     SpvId emit_mathop(BasicBlockBuilder* bb, const MathOp& op);

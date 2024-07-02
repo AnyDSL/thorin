@@ -796,9 +796,9 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* builtin, BasicBlockBuilder* bb) {
+std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
     std::vector<SpvId> productions;
-    if (builtin->name() == "spirv.nonsemantic.printf") {
+    if (intrinsic->name() == "spirv.nonsemantic.printf") {
         std::vector<SpvId> args;
         auto string = app.arg(1);
         if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
@@ -816,8 +816,24 @@ std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* b
 
         builder_->extension("SPV_KHR_non_semantic_info");
         bb->ext_instruction(convert(world().unit_type()).id, { "NonSemantic.DebugPrintf", 1}, args);
+    } else if (intrinsic->name() == "spirv.builtin") {
+        if (auto spv_builtin_lit = app.arg(1)->isa<PrimLit>()) {
+            auto spv_builtin = spv_builtin_lit->value().get_u32();
+            auto found = builder_->builtins_.find(spv_builtin);
+            if (found != builder_->builtins_.end()) {
+                productions.push_back(found->second);
+            } else {
+                auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
+                auto desired_type = ret_type->types()[1]->as<PtrType>();
+                auto id = builder_->variable(convert(desired_type).id, static_cast<spv::StorageClass>(convert(desired_type->addr_space())));
+                builder_->decorate(id, spv::Decoration::DecorationBuiltIn, { spv_builtin });
+                builder_->builtins_[spv_builtin] = id;
+                productions.push_back(id);
+            }
+        } else
+            world().ELOG("spirv.builtin requires an integer literal as the argument");
     } else {
-        world().ELOG("This spir-v builtin isn't recognised: %s", builtin->name());
+        world().ELOG("This spir-v builtin isn't recognised: %s", intrinsic->name());
     }
     return productions;
 }

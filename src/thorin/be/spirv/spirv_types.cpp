@@ -4,6 +4,35 @@
 
 namespace thorin::spirv {
 
+uint32_t CodeGen::convert(AddrSpace as) {
+    spv::StorageClass storage_class;
+    switch (as) {
+        case AddrSpace::Function: storage_class = spv::StorageClassFunction;              break;
+        case AddrSpace::Private: {
+            storage_class = spv::StorageClassPrivate;
+            if (target_info_.dialect != Target::Dialect::Vulkan)
+                builder_->capability(spv::CapabilityVectorComputeINTEL);
+            break;
+        }
+        case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
+        case AddrSpace::Generic:  storage_class = spv::StorageClassGeneric;               break;
+        case AddrSpace::Input:    storage_class = spv::StorageClassInput;                 break;
+        case AddrSpace::Output:   storage_class = spv::StorageClassOutput;                break;
+        case AddrSpace::Global: {
+            if (target_info_.dialect == Target::Dialect::Vulkan) {
+                builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
+                storage_class = spv::StorageClassPhysicalStorageBuffer;
+            } else
+                storage_class = spv::StorageClassCrossWorkgroup;
+            break;
+        }
+        default:
+            assert(false && "This address space is not supported");
+            break;
+    }
+    return storage_class;
+}
+
 ConvertedType CodeGen::convert(const Type* type) {
     // Spir-V requires each primitive type to be "unique", it doesn't allow for example two 32-bit signed integer types.
     // Therefore we must enforce that precise/quick types map to the same thing.
@@ -108,34 +137,10 @@ ConvertedType CodeGen::convert(const Type* type) {
             break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            spv::StorageClass storage_class;
-            switch (ptr->addr_space()) {
-                case AddrSpace::Function: storage_class = spv::StorageClassFunction;              break;
-                case AddrSpace::Private: {
-                    storage_class = spv::StorageClassPrivate;
-                    if (target_info_.dialect != Target::Dialect::Vulkan)
-                        builder_->capability(spv::CapabilityVectorComputeINTEL);
-                    break;
-                }
-                case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
-                case AddrSpace::Generic:  storage_class = spv::StorageClassGeneric;               break;
-                case AddrSpace::Global: {
-                    if (target_info_.dialect == Target::Dialect::Vulkan) {
-                        builder_->capability(spv::Capability::CapabilityPhysicalStorageBufferAddresses);
-                        storage_class = spv::StorageClassPhysicalStorageBuffer;
-                    } else
-                        storage_class = spv::StorageClassCrossWorkgroup;
-                    break;
-                }
-                default:
-                    assert(false && "This address space is not supported");
-                    break;
-            }
-
             const Type* pointee = ptr->pointee();
             while (auto arr = pointee->isa<IndefiniteArrayType>())
                 pointee = arr->elem_type();
-            converted.id = builder_->declare_ptr_type(storage_class, convert(pointee).id);
+            converted.id = builder_->declare_ptr_type(static_cast<spv::StorageClass>(convert(ptr->addr_space())), convert(pointee).id);
             converted.layout = { target_info_.mem_layout.pointer_size, target_info_.mem_layout.pointer_size };
             break;
         }

@@ -36,6 +36,7 @@ struct FileBuilder : public builder::SpvFileBuilder {
 
     FnBuilder* current_fn_ = nullptr;
     ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
+    std::unordered_map<uint32_t, SpvId> builtins_;
 
     SpvId u32_t();
     SpvId u32_constant(uint32_t);

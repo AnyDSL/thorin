@@ -21,7 +21,7 @@ PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
 {}
 
 Cmp::Cmp(CmpTag tag, World& world, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp(world, (NodeTag) tag, world.type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+    : BinOp(world, (NodeTag) tag, world.vector_or_scalar_type(world.type_bool(), vector_length(lhs->type())), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)
@@ -62,22 +62,17 @@ LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
     auto [len, type] = deconstruct_vector(ptr->type());
     auto ptr_type = type->as<PtrType>();
 
-    const PtrType* t;
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        t = world.ptr_type(get(tuple->types(), index), 1, ptr_type->addr_space());
+        set_type(world.vector_or_scalar_type(world.ptr_type(get(tuple->types(), index), ptr_type->addr_space()), len));
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        t = world.ptr_type(array->elem_type(), 1, ptr_type->addr_space());
+        set_type(world.vector_or_scalar_type(world.ptr_type(array->elem_type(), ptr_type->addr_space()), len));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        t = world.ptr_type(get(struct_type->types(), index), 1, ptr_type->addr_space());
+        set_type(world.vector_or_scalar_type(world.ptr_type(get(struct_type->types(), index), ptr_type->addr_space()), len));
     } else if (auto vector_type = ptr_pointee()->isa<VectorType>()) {
-        t = world.ptr_type(vector_type->scalarize(), 1, ptr_type->addr_space());
+        set_type(world.vector_or_scalar_type(world.ptr_type(vector_type->scalarize(), ptr_type->addr_space()), len));
     } else {
         THORIN_UNREACHABLE;
     }
-    if (len == 1)
-        set_type(t);
-    else
-        set_type(world.vector_type(t, len));
 }
 
 Known::Known(World& world, const Def* def, Debug dbg)

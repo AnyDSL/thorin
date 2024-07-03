@@ -112,14 +112,15 @@ public:
     StructType* struct_type(Symbol name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }
+    const PrimType* type_##T() { return prim_type(PrimType_##T); }
 #include "thorin/tables/primtypetable.h"
-    const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
+    const PrimType* prim_type(PrimTypeTag tag);
     const BottomType* bottom_type() { return make<BottomType>(*this, Debug()); }
     const MemType* mem_type() { return make<MemType>(*this, Debug()); }
     const FrameType* frame_type() { return make<FrameType>(*this, Debug()); }
-    const PtrType* ptr_type(const Type* pointee, size_t length = 1, AddrSpace addr_space = AddrSpace::Generic);
+    const PtrType* ptr_type(const Type* pointee, AddrSpace addr_space = AddrSpace::Generic);
     const VectorType* vector_type(const ScalarType* base, size_t length);
+    const Type* vector_or_scalar_type(const ScalarType* base, size_t length);
     const FnType* fn_type() { return fn_type({}); } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args);
     const ClosureType* closure_type(Types args);

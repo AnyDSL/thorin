@@ -59,7 +59,7 @@ const Type* FrameType          ::rebuild(World& w, const Type*  , Defs  ) const 
 const Type* IndefiniteArrayType::rebuild(World& w, const Type*  , Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
 const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const { return w.mem_type(); }
 const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag()); }
-const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), 1, addr_space()); }
+const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), addr_space()); }
 const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
 const Type* VectorType         ::rebuild(World& w, const Type*  , Defs o) const { return w.vector_type(defs2types(o)[0]->as<ScalarType>(), length()); }
 
@@ -156,21 +156,26 @@ VariantType* World::variant_type(Symbol name, size_t size) {
     return put<VariantType>(*this, name, size, Debug());
 }
 
-const PrimType* World::prim_type(PrimTypeTag tag, size_t length) {
+const PrimType* World::prim_type(PrimTypeTag tag) {
     size_t i = tag - Begin_PrimType;
     assert(i < (size_t) Num_PrimTypes);
-    assert(length == 1);
-    return length == 1 ? types_.primtypes_[i] : make<PrimType>(*this, tag, Debug());
+    return types_.primtypes_[i];
 }
 
-const PtrType* World::ptr_type(const Type* pointee, size_t length, AddrSpace addr_space) {
-    assert(length == 1);
+const PtrType* World::ptr_type(const Type* pointee, AddrSpace addr_space) {
     return make<PtrType>(*this, pointee, addr_space, Debug());
 }
 
 const VectorType* World::vector_type(const ScalarType* base, size_t length) {
     assert(length > 1);
     return make<VectorType>(*this, base, length, Debug());
+}
+
+const Type* World::vector_or_scalar_type(const thorin::ScalarType* base, size_t length) {
+    assert(length > 0);
+    if (length == 1)
+        return base;
+    return vector_type(base, length);
 }
 
 const FnType*              World::fn_type(Types args) { return make<FnType>(*this, types2defs(args), Node_FnType, Debug()); }

@@ -106,7 +106,7 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     assert(vector_length(a->type()) == vector_length(b->type()));
-    PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
+    PrimTypeTag type = get_scalar_type(a->type())->as<PrimType>()->primtype_tag();
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();

@@ -136,11 +136,11 @@ public:
     template<class T>
     const Def* literal(T value, Debug dbg = {}, size_t length = 1) { return literal(type2tag<T>::tag, Box(value), dbg, length); }
     const Def* zero(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 0, dbg, length); }
-    const Def* zero(const Type* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* zero(const Type* type, Debug dbg = {}, size_t length = 1) { return zero(get_scalar_type(type)->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* one(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 1, dbg, length); }
-    const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(get_scalar_type(type)->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
-    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(get_scalar_type(type)->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(*this, type, dbg)), length); }
     const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(*this, type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(prim_type(tag), dbg, length); }

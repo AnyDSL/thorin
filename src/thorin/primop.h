@@ -444,9 +444,9 @@ private:
 public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
-    const PtrType* type() const { return Def::type()->as<PtrType>(); }
-    const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
-    const Type* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
+    const Type* type() const { return Def::type()->as<PtrType>(); }
+    const Type* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
+    const Type* ptr_pointee() const { return get_scalar_type(ptr_type())->as<PtrType>()->pointee(); } ///< Returns the type referenced by @p ptr().
 
     friend class World;
 };

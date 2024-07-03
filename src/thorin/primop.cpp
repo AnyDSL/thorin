@@ -53,32 +53,31 @@ Tuple::Tuple(World& world, Defs args, Debug dbg)
 Vector::Vector(World& world, Defs args, Debug dbg)
     : Aggregate(world, Node_Vector, args, dbg)
 {
-    if (auto primtype = args.front()->type()->isa<PrimType>()) {
-        assert(primtype->length() == 1);
-        set_type(world.prim_type(primtype->primtype_tag(), args.size()));
-    } else {
-        auto ptr = args.front()->type()->as<PtrType>();
-        assert(ptr->length() == 1);
-        set_type(world.ptr_type(ptr->pointee(), args.size()));
-    }
+    set_type(world.vector_type(args.front()->type()->as<ScalarType>(), args.size()));
 }
 
 LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
     : Def(world, Node_LEA, nullptr, {ptr, index}, dbg)
 {
-    auto type = ptr_type();
+    auto [len, type] = deconstruct_vector(ptr->type());
+    auto ptr_type = type->as<PtrType>();
+
+    const PtrType* t;
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->types(), index), type->length(), type->addr_space()));
+        t = world.ptr_type(get(tuple->types(), index), 1, ptr_type->addr_space());
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type->length(), type->addr_space()));
+        t = world.ptr_type(array->elem_type(), 1, ptr_type->addr_space());
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->types(), index), type->length(), type->addr_space()));
-    } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
-        assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->addr_space()));
+        t = world.ptr_type(get(struct_type->types(), index), 1, ptr_type->addr_space());
+    } else if (auto vector_type = ptr_pointee()->isa<VectorType>()) {
+        t = world.ptr_type(vector_type->scalarize(), 1, ptr_type->addr_space());
     } else {
         THORIN_UNREACHABLE;
     }
+    if (len == 1)
+        set_type(t);
+    else
+        set_type(world.vector_type(t, len));
 }
 
 Known::Known(World& world, const Def* def, Debug dbg)

@@ -61,6 +61,7 @@
         THORIN_NODE(StructType, struct_type)
         THORIN_NODE(VariantType, variant_type)
         THORIN_NODE(TupleType, tuple_type)
+        THORIN_NODE(VectorType, vector_type)
         THORIN_NODE(Var, var)
 
 #undef THORIN_NODE

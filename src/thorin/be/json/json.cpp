@@ -152,7 +152,7 @@ public:
                 break;
             }
         } else if (auto vectype = type->isa<VectorType>()) {
-            result["type"] = "ptr";
+            result["type"] = "vectype";
             result["scalar"] = translate_type(vectype->scalarize());
             result["length"] = vectype->length();
         } else {

@@ -2,7 +2,7 @@
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
-#include "partial_evaluation.h"
+#include "thorin/transform/partial_evaluation.h"
 
 namespace thorin {
 

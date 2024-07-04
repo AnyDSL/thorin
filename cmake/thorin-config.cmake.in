@@ -21,7 +21,7 @@ find_path(Thorin_DIR
 )
 
 find_path(Thorin_ROOT_DIR
-    NAMES cmake/thorin-config.cmake.in src/thorin/world.h
+    NAMES cmake/thorin-config.cmake.in include/thorin/world.h
     PATHS ${Thorin_DIR} $ENV{Thorin_DIR} ${Thorin_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@Thorin_ROOT_DIR@" "@CMAKE_SOURCE_DIR@")
 list(APPEND CMAKE_MODULE_PATH "${Thorin_ROOT_DIR}/cmake/modules")
 
@@ -42,7 +42,7 @@ if(Thorin_HAS_LLVM_SUPPORT)
     endif()
 endif()
 
-find_path(Thorin_INCLUDE_DIR NAMES thorin/world.h PATHS ${Thorin_ROOT_DIR}/src)
+find_path(Thorin_INCLUDE_DIR NAMES thorin/world.h PATHS ${Thorin_ROOT_DIR}/include)
 find_path(Thorin_CONFIG_DIR NAMES thorin/config.h
     PATHS
         ${Thorin_DIR} ${AnyDSL_thorin_DIR} $ENV{Thorin_DIR}

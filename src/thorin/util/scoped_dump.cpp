@@ -1,4 +1,4 @@
-#include "scoped_dump.h"
+#include "thorin/util/scoped_dump.h"
 
 namespace thorin {
 

@@ -8,7 +8,7 @@
 #include "thorin/transform/hls_channels.h"
 #include "thorin/be/emitter.h"
 #include "thorin/util/stream.h"
-#include "c.h"
+#include "thorin/be/c/c.h"
 
 #include <cctype>
 #include <cmath>

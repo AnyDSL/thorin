@@ -1,4 +1,4 @@
-#include "rewrite.h"
+#include "thorin/transform/rewrite.h"
 
 namespace thorin {
 

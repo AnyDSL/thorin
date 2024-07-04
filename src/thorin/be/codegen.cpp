@@ -53,7 +53,7 @@ static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Co
     // determine whether or not this kernel uses restrict pointers
     bool has_restrict = true;
     DefSet allocs;
-    for (size_t i = LaunchArgs::Num, e = app->num_args(); has_restrict && i != e; ++i) {
+    for (size_t i = KernelLaunchArgs::Num, e = app->num_args(); has_restrict && i != e; ++i) {
         auto arg = app->arg(i);
         if (!arg->type()->isa<PtrType>()) continue;
         auto alloc = get_alloc_call(arg);
@@ -62,7 +62,7 @@ static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Co
         has_restrict &= p.second;
     }
 
-    auto it_config = app->arg(LaunchArgs::Config)->isa<Tuple>();
+    auto it_config = app->arg(KernelLaunchArgs::Config)->isa<Tuple>();
     if (it_config &&
         it_config->op(0)->isa<PrimLit>() &&
         it_config->op(1)->isa<PrimLit>() &&

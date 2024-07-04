@@ -27,18 +27,6 @@ private:
     bool debug_;
 };
 
-struct LaunchArgs {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
-};
-
 struct DeviceBackends;
 
 struct Backend {

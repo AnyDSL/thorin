@@ -19,6 +19,47 @@
 
 namespace thorin {
 
+std::unique_ptr<Cont2Config> Backend::get_kernel_configs() {
+    device_code_.opt();
+
+    auto kernel_configs = std::make_unique<Cont2Config>();
+
+    auto& externals = backends_.world().externals();
+    for (auto continuation : kernels_) {
+        // recover the imported continuation (lost after the call to opt)
+        Continuation* imported = nullptr;
+        for (auto [_, def] : externals) {
+            auto exported = def->isa<Continuation>();
+            if (!exported) continue;
+            if (!exported->has_body()) continue;
+            if (exported->name() == continuation->name())
+                imported = exported;
+        }
+        if (!imported) continue;
+
+        visit_uses(continuation, [&] (Continuation* use) {
+            assert(use->has_body());
+
+            auto handler = backends_.intrinsics_.find(use->body()->callee()->as<Continuation>()->intrinsic());
+            assert(handler != backends_.intrinsics_.end());
+            auto [backend2, get_config] = handler->second;
+            assert(backend2 == this);
+
+            auto config = get_config(use->body(), imported);
+            if (config) {
+                auto p = kernel_configs->emplace(imported, std::move(config));
+                assert_unused(p.second && "single kernel config entry expected");
+            }
+            return false;
+        }, true);
+
+        continuation->world().make_external(continuation);
+        continuation->destroy("codegen");
+    }
+
+    return kernel_configs;
+}
+
 static const App* get_alloc_call(const Def* def) {
     // look through casts
     while (auto conv_op = def->isa<ConvOp>())
@@ -261,44 +302,8 @@ void DeviceBackends::search_for_device_code() {
         if (backend->thorin().world().empty())
             continue;
 
-        backend->thorin().opt();
-
-        Cont2Config kernel_configs;
-
-        auto externals = world_.externals();
-        for (auto continuation : backend->kernels_) {
-            // recover the imported continuation (lost after the call to opt)
-            Continuation* imported = nullptr;
-            for (auto [_, def] : externals) {
-                auto exported = def->isa<Continuation>();
-                if (!exported) continue;
-                if (!exported->has_body()) continue;
-                if (exported->name() == continuation->name())
-                    imported = exported;
-            }
-            if (!imported) continue;
-
-            visit_uses(continuation, [&] (Continuation* use) {
-                assert(use->has_body());
-
-                auto handler = intrinsics_.find(use->body()->callee()->as<Continuation>()->intrinsic());
-                assert(handler != intrinsics_.end());
-                auto [backend2, get_config] = handler->second;
-                assert(backend2 == &*backend);
-
-                auto config = get_config(use->body(), imported);
-                if (config) {
-                    auto p = kernel_configs.emplace(imported, std::move(config));
-                    assert_unused(p.second && "single kernel config entry expected");
-                }
-                return false;
-            }, true);
-
-            continuation->world().make_external(continuation);
-            continuation->destroy("codegen");
-        }
-
-        cgs.emplace_back(backend->create_cg(kernel_configs));
+        auto kernel_configs = backend->get_kernel_configs();
+        cgs.emplace_back(backend->create_cg(*kernel_configs));
     }
 }
 

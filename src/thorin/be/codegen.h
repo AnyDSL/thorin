@@ -32,6 +32,7 @@ struct DeviceBackends;
 struct Backend {
     Backend(DeviceBackends& backends, World& src);
 
+    std::unique_ptr<Cont2Config> get_kernel_configs();
     virtual std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) = 0;
 
     Thorin& thorin() { return device_code_; }
@@ -68,6 +69,7 @@ private:
     bool debug_;
 
     void search_for_device_code();
+friend Backend;
 };
 
 }

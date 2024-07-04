@@ -1299,6 +1299,8 @@ Thorin::Thorin(const std::string& name)
     : world_(std::make_unique<World>(name))
 {}
 
+Thorin::Thorin(thorin::World& src) : world_(std::make_unique<World>(src)) {}
+
 void Thorin::opt() {
     bool debug_passes = getenv("THORIN_DEBUG_PASSES");
 #define RUN_PASS(pass) \

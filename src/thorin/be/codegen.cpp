@@ -187,7 +187,7 @@ struct ShadyBackend : public Backend {
 
 struct HLSBackend : public Backend {
     explicit HLSBackend(DeviceBackends& b, World& src, std::string& hls_flags) : Backend(b, src), hls_flags_(hls_flags) {
-        b.register_intrinsic(Intrinsic::NVVM, *this, [&](const App* app, Continuation* imported) {
+        b.register_intrinsic(Intrinsic::HLS, *this, [&](const App* app, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {
                 auto arg = app->arg(i);

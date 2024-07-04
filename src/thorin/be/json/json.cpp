@@ -1,4 +1,4 @@
-#include "json.h"
+#include "thorin/be/json/json.h"
 
 namespace thorin::json {
 

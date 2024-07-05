@@ -201,22 +201,23 @@ private:
 };
 
 
-inline std::tuple<size_t, const ScalarType*> deconstruct_vector(const Type* type) {
+template<typename T = ScalarType>
+inline std::tuple<const T*, size_t> deconstruct_vector_type(const Type* type) {
     if (auto v = type->isa<VectorType>()) {
-        return std::make_tuple(v->length(), v->scalarize());
+        return std::make_tuple(v->scalarize()->as<T>(), v->length());
     }
     if (auto s = type->isa<ScalarType>())
-        return std::make_tuple(1, s);
+        return std::make_tuple(s->as<T>(), 1);
     assert(false);
 }
 
 /// Returns the vector length or 1. Raises an assertion if this type is not a @p VectorType or @p ScalarType.
 inline size_t vector_length(const Type* type) {
-    return std::get<0>(deconstruct_vector(type));
+    return std::get<1>(deconstruct_vector_type(type));
 }
 
 inline const ScalarType* get_scalar_type(const Type* type) {
-    return std::get<1>(deconstruct_vector(type));
+    return std::get<0>(deconstruct_vector_type(type));
 }
 
 /// Primitive type.

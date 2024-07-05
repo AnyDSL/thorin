@@ -59,7 +59,7 @@ Vector::Vector(World& world, Defs args, Debug dbg)
 LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
     : Def(world, Node_LEA, nullptr, {ptr, index}, dbg)
 {
-    auto [len, type] = deconstruct_vector(ptr->type());
+    auto [type, len] = deconstruct_vector_type(ptr->type());
     auto ptr_type = type->as<PtrType>();
 
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
@@ -73,6 +73,13 @@ LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
     } else {
         THORIN_UNREACHABLE;
     }
+}
+
+const Type* LEA::ptr_pointee() const {
+    auto [base, len] = deconstruct_vector_type<PtrType>(ptr()->type());
+    if (len > 1)
+        return world().vector_type(base->pointee()->as<ScalarType>(), len);
+    return base;
 }
 
 Known::Known(World& world, const Def* def, Debug dbg)

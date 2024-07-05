@@ -124,6 +124,15 @@ if(THORIN_ENABLE_JSON)
     )
 endif()
 
+if(THORIN_ENABLE_SPIRV)
+    list(APPEND THORIN_SOURCES
+        be/spirv/spirv.cpp
+        be/spirv/spirv_types.cpp
+        be/spirv/spirv_instructions.cpp
+        be/spirv/spirv.h
+    )
+endif()
+
 add_library(thorin ${THORIN_SOURCES})
 target_include_directories(thorin PUBLIC ${Half_INCLUDE_DIRS} ${Thorin_ROOT_DIR}/src ${CMAKE_BINARY_DIR}/include)
 

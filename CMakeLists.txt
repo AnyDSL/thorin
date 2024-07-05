@@ -72,6 +72,12 @@ else()
     set(THORIN_ENABLE_SHADY TRUE)
 endif()
 
+find_package(SPIRV-Headers)
+if (SPIRV-Headers_FOUND)
+    message(STATUS "Found SPIRV-Headers at ${SPIRV-Headers_DIR}")
+    set(THORIN_ENABLE_SPIRV TRUE)
+endif()
+
 message(STATUS "Using Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "Using Release flags: ${CMAKE_CXX_FLAGS_RELEASE}")
 if(DEFINED CMAKE_BUILD_TYPE)

@@ -32,8 +32,7 @@ struct DeviceBackends;
 struct Backend {
     Backend(DeviceBackends& backends, World& src);
 
-    Cont2Config& kernel_configs() { return kernel_configs_; };
-    virtual std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) = 0;
+    virtual std::unique_ptr<CodeGen> create_cg() = 0;
 
     Thorin& thorin() { return device_code_; }
     Importer& importer() { return *importer_; }

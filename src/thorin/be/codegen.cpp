@@ -120,9 +120,9 @@ struct CudaBackend : public Backend {
         b.register_intrinsic(Intrinsic::CUDA, *this, get_gpu_kernel_config);
     }
 
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
+    std::unique_ptr<CodeGen> create_cg() override {
         std::string empty;
-        return std::make_unique<c::CodeGen>(device_code_, config, c::Lang::CUDA, backends_.debug(), empty);
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::CUDA, backends_.debug(), empty);
     }
 };
 
@@ -131,9 +131,9 @@ struct OpenCLBackend : public Backend {
         b.register_intrinsic(Intrinsic::OpenCL, *this, get_gpu_kernel_config);
     }
 
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
+    std::unique_ptr<CodeGen> create_cg() override {
         std::string empty;
-        return std::make_unique<c::CodeGen>(device_code_, config, c::Lang::OpenCL, backends_.debug(), empty);
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::OpenCL, backends_.debug(), empty);
     }
 };
 
@@ -143,8 +143,8 @@ struct AMDHSABackend : public Backend {
         b.register_intrinsic(Intrinsic::AMDGPUHSA, *this, get_gpu_kernel_config);
     }
 
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
-        return std::make_unique<llvm::AMDGPUHSACodeGen>(device_code_, config, backends_.opt(), backends_.debug());
+    std::unique_ptr<CodeGen> create_cg() override {
+        return std::make_unique<llvm::AMDGPUHSACodeGen>(device_code_, kernel_configs_, backends_.opt(), backends_.debug());
     }
 };
 
@@ -153,8 +153,8 @@ struct AMDPALBackend : public Backend {
         b.register_intrinsic(Intrinsic::AMDGPUPAL, *this, get_gpu_kernel_config);
     }
 
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
-        return std::make_unique<llvm::AMDGPUPALCodeGen>(device_code_, config, backends_.opt(), backends_.debug());
+    std::unique_ptr<CodeGen> create_cg() override {
+        return std::make_unique<llvm::AMDGPUPALCodeGen>(device_code_, kernel_configs_, backends_.opt(), backends_.debug());
     }
 };
 
@@ -163,8 +163,8 @@ struct NVVMBackend : public Backend {
         b.register_intrinsic(Intrinsic::NVVM, *this, get_gpu_kernel_config);
     }
 
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
-        return std::make_unique<llvm::NVVMCodeGen>(device_code_, config, backends_.opt(), backends_.debug());
+    std::unique_ptr<CodeGen> create_cg() override {
+        return std::make_unique<llvm::NVVMCodeGen>(device_code_, kernel_configs_, backends_.opt(), backends_.debug());
     }
 };
 #endif
@@ -215,15 +215,15 @@ struct HLSBackend : public Backend {
         });
     }
 
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
+    std::unique_ptr<CodeGen> create_cg() override {
         Top2Kernel top2kernel;
         DeviceParams hls_host_params;
 
         hls_host_params = hls_channels(device_code_, *importer_, top2kernel, backends_.world());
-        hls_annotate_top(device_code_.world(), top2kernel, const_cast<Cont2Config&>(config));
+        hls_annotate_top(device_code_.world(), top2kernel, kernel_configs_);
         hls_kernel_launch(device_code_.world(), hls_host_params);
 
-        return std::make_unique<c::CodeGen>(device_code_, config, c::Lang::HLS, backends_.debug(), hls_flags_);
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::HLS, backends_.debug(), hls_flags_);
     }
 
     std::string& hls_flags_;
@@ -299,7 +299,7 @@ void DeviceBackends::search_for_device_code() {
             continue;
 
         backend->prepare_kernel_configs();
-        cgs.emplace_back(backend->create_cg(backend->kernel_configs()));
+        cgs.emplace_back(backend->create_cg());
     }
 }
 

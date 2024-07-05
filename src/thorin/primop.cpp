@@ -59,17 +59,17 @@ Vector::Vector(World& world, Defs args, Debug dbg)
 LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
     : Def(world, Node_LEA, nullptr, {ptr, index}, dbg)
 {
-    auto [type, len] = deconstruct_vector_type(ptr->type());
-    auto ptr_type = type->as<PtrType>();
+    auto [ptr_type, len] = deconstruct_vector_type<PtrType>(ptr->type());
+    auto type = ptr_type->pointee();
 
-    if (auto tuple = ptr_pointee()->isa<TupleType>()) {
+    if (auto tuple = type->isa<TupleType>()) {
         set_type(world.vector_or_scalar_type(world.ptr_type(get(tuple->types(), index), ptr_type->addr_space()), len));
-    } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
+    } else if (auto array = type->isa<ArrayType>()) {
         set_type(world.vector_or_scalar_type(world.ptr_type(array->elem_type(), ptr_type->addr_space()), len));
-    } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
+    } else if (auto struct_type = type->isa<StructType>()) {
         set_type(world.vector_or_scalar_type(world.ptr_type(get(struct_type->types(), index), ptr_type->addr_space()), len));
-    } else if (auto vector_type = ptr_pointee()->isa<VectorType>()) {
-        set_type(world.vector_or_scalar_type(world.ptr_type(vector_type->scalarize(), ptr_type->addr_space()), len));
+    } else if (len > 1) {
+        set_type(world.vector_or_scalar_type(world.ptr_type(type, ptr_type->addr_space()), len));
     } else {
         THORIN_UNREACHABLE;
     }
@@ -79,7 +79,7 @@ const Type* LEA::ptr_pointee() const {
     auto [base, len] = deconstruct_vector_type<PtrType>(ptr()->type());
     if (len > 1)
         return world().vector_type(base->pointee()->as<ScalarType>(), len);
-    return base;
+    return base->pointee();
 }
 
 Known::Known(World& world, const Def* def, Debug dbg)

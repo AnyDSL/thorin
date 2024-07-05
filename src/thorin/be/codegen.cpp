@@ -19,10 +19,8 @@
 
 namespace thorin {
 
-std::unique_ptr<Cont2Config> Backend::get_kernel_configs() {
+void Backend::prepare_kernel_configs() {
     device_code_.opt();
-
-    auto kernel_configs = std::make_unique<Cont2Config>();
 
     auto& externals = backends_.world().externals();
     for (auto continuation : kernels_) {
@@ -47,7 +45,7 @@ std::unique_ptr<Cont2Config> Backend::get_kernel_configs() {
 
             auto config = get_config(use->body(), imported);
             if (config) {
-                auto p = kernel_configs->emplace(imported, std::move(config));
+                auto p = kernel_configs_.emplace(imported, std::move(config));
                 assert_unused(p.second && "single kernel config entry expected");
             }
             return false;
@@ -56,8 +54,6 @@ std::unique_ptr<Cont2Config> Backend::get_kernel_configs() {
         continuation->world().make_external(continuation);
         continuation->destroy("codegen");
     }
-
-    return kernel_configs;
 }
 
 static const App* get_alloc_call(const Def* def) {
@@ -302,8 +298,8 @@ void DeviceBackends::search_for_device_code() {
         if (backend->thorin().world().empty())
             continue;
 
-        auto kernel_configs = backend->get_kernel_configs();
-        cgs.emplace_back(backend->create_cg(*kernel_configs));
+        backend->prepare_kernel_configs();
+        cgs.emplace_back(backend->create_cg(backend->kernel_configs()));
     }
 }
 

@@ -32,7 +32,7 @@ struct DeviceBackends;
 struct Backend {
     Backend(DeviceBackends& backends, World& src);
 
-    std::unique_ptr<Cont2Config> get_kernel_configs();
+    Cont2Config& kernel_configs() { return kernel_configs_; };
     virtual std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) = 0;
 
     Thorin& thorin() { return device_code_; }
@@ -44,6 +44,9 @@ protected:
     std::unique_ptr<Importer> importer_;
 
     std::vector<Continuation*> kernels_;
+    Cont2Config kernel_configs_;
+
+    void prepare_kernel_configs();
     friend DeviceBackends;
 };
 

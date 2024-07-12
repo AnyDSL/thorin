@@ -29,7 +29,8 @@ void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_m
                 auto callee = body->callee()->isa_nom<Continuation>();
                 if (callee && callee->is_channel()) {
                     if (body->arg(1)->order() == 0 && !(is_mem(body->arg(1)) || is_unit(body->arg(1)))) {
-                        auto def = body->arg(1);
+                        //auto def = body->arg(1);
+                        auto def = body->arg(1)->isa<PrimLit>() ? body->arg(2) : body->arg(1); // skipping the lane size argument
                         if (def->isa_structural() && !def->has_dep(Dep::Param)) {
                             for (auto preds_scope : scope.entry()->preds()) {
                                 if (auto pred_scope_callee = preds_scope->body()->callee()->isa_nom<Continuation>();
@@ -163,7 +164,7 @@ void params2cgra_ports(const Def2Def param2arg, const Def2DependentBlocks def2de
 
 // TODO: (isa_read and isa_write) could be implemented as Contunation member functions or attribute of continuations
 inline bool isa_read(Continuation* cont) {
-    Array<std::string> read_callee  = {"read_channel" , "readincr_v", "window_readincr_v"  };
+    Array<std::string> read_callee  = {"read_channel", "readincr_v_channel", "window_readincr_v_channel"};
     auto callee_name = cont->name();
 
     return std::any_of(read_callee.begin(), read_callee.end(), [&callee_name] (const std::string& read_callee) {
@@ -172,7 +173,7 @@ inline bool isa_read(Continuation* cont) {
 }
 
 inline bool isa_write(Continuation* cont) {
-    Array<std::string> write_callee = {"write_channel", "writeincr_v", "window_writeincr", };
+    Array<std::string> write_callee = {"write_channel", "writeincr_v_channel", "window_writeincr_channel"};
     auto callee_name = cont->name();
 
     return std::any_of(write_callee.begin(), write_callee.end(), [&callee_name] (const std::string& write_callee) {
@@ -186,7 +187,9 @@ void channel_mode(const Continuation* continuation, ChannelMode& mode) {
     auto callee = app->callee()->isa_nom<Continuation>();
     if (callee && callee->is_channel()) {
         if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
-            auto def = app->arg(1);
+            //auto def = app->arg(1);
+            // TODO: more checks on type like pointer type and 
+            auto def = app->arg(1)->isa<PrimLit>() ? app->arg(2) : app->arg(1); // skipping the lane size argument
             if (def->isa_structural() && !def->has_dep(Dep::Param)) {
                 if (isa_write(callee)) {
                     mode = ChannelMode::Write;
@@ -291,8 +294,10 @@ inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& 
     auto app = continuation->body();
     auto callee = app->callee()->isa_nom<Continuation>();
     if (callee && callee->is_channel()) {
+        // we need to find the global def, it is either the first or the second arg of the app depending on the callee
         if (app->arg(1)->order() == 0 && !(is_mem(app->arg(1)) || is_unit(app->arg(1)))) {
-            auto def = app->arg(1);
+            //auto def = app->arg(1);
+            auto def = app->arg(1)->isa<PrimLit>() ? app->arg(2) : app->arg(1); // skipping the lane size argument
 
             if (def->isa_structural() && !def->has_dep(Dep::Param)) { //def is a global
                 if (isa_write(callee)) {

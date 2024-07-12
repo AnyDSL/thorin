@@ -1301,9 +1301,9 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
     // 2) AIE APIs without any template type parameters
     else if (name == "aie::load_v")          *api_config = {1, no_type };
     else if (name == "aie::store_v")         *api_config = {1, no_type };
-    else if (name == "window_readincr_v")    *api_config = {1, no_type };
-    else if (name == "readincr_v")           *api_config = {1, no_type };
-    else if (name == "writeincr_v")          *api_config = {1, no_type };
+    else if (name == "window_readincr_v_channel")    *api_config = {1, no_type };
+    else if (name == "readincr_v_channel")           *api_config = {1, no_type };
+    else if (name == "writeincr_v_channel")          *api_config = {1, no_type };
     else if (name == "aie::accumulate")      *api_config = {1, no_type };
     else if (name == "aie::sliding_mul")             *api_config = {2, no_type };
     else if (name == "aie::sliding_mac")             *api_config = {2, no_type };
@@ -1576,7 +1576,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
 
                             using DeviceApiSet = std::unordered_set<std::string>;
                             auto new_vector_size = vector_size_;
-                            DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v", "window_readincr_v",
+                            DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v_channel", "window_readincr_v_channel",
                                 "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
 
                             for (auto use: cont->uses()) {
@@ -1947,12 +1947,11 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             //TODO: Check it
             channel_transaction = true;
         } else if (lang_ == Lang::CGRA) {
-            if (callee->is_channel()) {
+            if (callee->is_channel() && !body->arg(1)->isa<PrimLit>()) {
 
                 //TODO: Adapt the placeholders for ADF APIs and for differetn interfaces, start with Stream interface
                 //TODO: Simplify it
                 for (size_t i = 0; auto arg : body->args()) {
-                    args.size();
                     if (!is_concrete(arg)) continue;
                     const Def* channel_def;
                     if (i == 0)
@@ -2109,11 +2108,23 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                         bb.tail.fmt("{}.{}<{}>({, });\n", composite_arg , get_method(callee), template_args, shift_left(args, 1 + template_args.size()));
                     } else if (template_args.empty()) {
                         auto callee_name = callee->name();
+                        // SRS API by default does not have a lane size argument but we pass a lane size to define the correct vector variable,
+                        // we remove the vector size argument when emitting the API
                         bb.tail.fmt("{}({, });\n", emit(callee), (callee->name() == "srs") ? shift_left(args, 1) : args);
                     } else if (cont_is_struct_templ_method()) {
                         bb.tail.fmt("{}<{, }>::{}({, });\n", "aie::" + get_struct(callee), template_args, get_method(callee), fun_args);
                     } else if (cont_is_fun_template()) {
-                        bb.tail.fmt("{}<{, }>({, });\n", emit(callee), template_args, fun_args);
+
+                        auto channel_callee = [&] () {
+                            // "channel" is a keyword in continuations and it triggers CGRA-HLS transformations
+                            // Because of that we need channel in the continuation name but we erase it when emitting the API
+                            const std::string channel = "_channel";
+                            auto pos = callee->name().find(channel);
+                            auto name = callee->name();
+                            return (pos != std::string::npos) ? name.replace(pos, channel.size(), "") : name;
+                        };
+
+                        bb.tail.fmt("{}<{, }>({, });\n", callee->is_channel() ? channel_callee() : emit(callee), template_args, fun_args);
                     }
                     else THORIN_UNREACHABLE;
                 }

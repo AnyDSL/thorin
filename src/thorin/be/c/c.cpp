@@ -744,20 +744,27 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
     auto bit_width = [&] (const Type* type) {
         StringStream s;
         assert ((type != world().unit() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
+        size_t actual_num_bits = 0;
+
         if (auto primtype = type->isa<PrimType>()) {
-            switch (primtype->primtype_tag()) {
-                case PrimType_bool:                                                             s << "1" ;  break;
-                case PrimType_ps8 : case PrimType_qs8 : case PrimType_pu8 : case PrimType_qu8 : s << "8" ;  break;
-                case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: s << "16";  break;
-                case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: s << "32";  break;
-                case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: s << "64";  break;
-                case PrimType_pf16: case PrimType_qf16:                                         s << "16";  break;
-                case PrimType_pf32: case PrimType_qf32:                                         s << "32";  break;
-                case PrimType_pf64: case PrimType_qf64:                                         s << "64";  break;
-                default: THORIN_UNREACHABLE;
-            }
+            actual_num_bits = num_bits(primtype->primtype_tag());
+        } else if (auto definite_array = type->isa<DefiniteArrayType>()) {
+            definite_array->elem_type()->dump();
+            if (auto prim_type = definite_array->elem_type()->isa<PrimType>())
+                actual_num_bits = definite_array->dim() * num_bits(prim_type->primtype_tag());
         } else {
-            world().ELOG("Type is not supported");
+            world().ELOG("Type {} is not supported", type);
+        }
+
+        if (actual_num_bits <= 32) {
+            s << "32";
+        } else if (actual_num_bits <= 64) {
+            s << "64";
+        } else if (actual_num_bits <= 128) {
+            s << "128";
+        } else {
+            s << "32";
+            world().WLOG("{} bits is not supported. Fallback to 32 bits", actual_num_bits);
         }
         return s.str();
     };

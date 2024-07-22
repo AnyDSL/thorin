@@ -22,16 +22,15 @@ namespace thorin {
 void Backend::prepare_kernel_configs() {
     device_code_.opt();
 
-    auto& externals = backends_.world().externals();
+    auto conts = device_code_.world().copy_continuations();
     for (auto continuation : kernels_) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto [_, def] : externals) {
-            auto exported = def->isa<Continuation>();
-            if (!exported) continue;
-            if (!exported->has_body()) continue;
-            if (exported->name() == continuation->name())
-                imported = exported;
+        for (auto original_cont : conts) {
+            if (!original_cont) continue;
+            if (!original_cont->has_body()) continue;
+            if (original_cont->name() == continuation->name())
+                imported = original_cont;
         }
         if (!imported) continue;
 

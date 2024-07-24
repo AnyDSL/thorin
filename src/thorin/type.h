@@ -169,38 +169,62 @@ private:
     friend class World;
 };
 
+class ScalarType : public Type {
+public:
+    ScalarType(World& world, NodeTag tag, Defs defs, Debug dbg) : Type(world, tag, defs, dbg) {}
+};
+
 /// Base class for all SIMD types.
 class VectorType : public Type {
-protected:
-    VectorType(World& world, NodeTag tag, Defs ops, size_t length, Debug dbg)
-        : Type(world, tag, ops, dbg)
-        , length_(length)
+public:
+    VectorType(World& world, const ScalarType* base_type, size_t length, Debug dbg)
+            : Type(world, Node_VectorType, { base_type }, dbg)
+            , length_(length)
     {}
 
+    /// The number of vector arguments - the vector length.
+    size_t length() const { return length_; }
+    bool is_vector() const { return length_ != 1; }
+    /// Returns the scalar component
+    const ScalarType* scalarize() const;
+
+    const Type* rebuild(thorin::World &, const thorin::Type *, thorin::Defs) const override;
+
+protected:
     hash_t vhash() const override { return hash_combine(Type::vhash(), length()); }
     bool equal(const Def* other) const override {
         return Def::equal(other) && this->length() == other->as<VectorType>()->length();
     }
 
-public:
-    /// The number of vector arguments - the vector length.
-    size_t length() const { return length_; }
-    bool is_vector() const { return length_ != 1; }
-    /// Rebuilds the type with vector length 1.
-    const VectorType* scalarize() const;
-
 private:
     size_t length_;
 };
 
-/// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
-inline size_t vector_length(const Type* type) { return type->as<VectorType>()->length(); }
+
+template<typename T = ScalarType>
+inline std::tuple<const T*, size_t> deconstruct_vector_type(const Type* type) {
+    if (auto v = type->isa<VectorType>()) {
+        return std::make_tuple(v->scalarize()->as<T>(), v->length());
+    }
+    if (auto s = type->isa<ScalarType>())
+        return std::make_tuple(s->as<T>(), 1);
+    assert(false);
+}
+
+/// Returns the vector length or 1. Raises an assertion if this type is not a @p VectorType or @p ScalarType.
+inline size_t vector_length(const Type* type) {
+    return std::get<1>(deconstruct_vector_type(type));
+}
+
+inline const ScalarType* get_scalar_type(const Type* type) {
+    return std::get<0>(deconstruct_vector_type(type));
+}
 
 /// Primitive type.
-class PrimType : public VectorType {
+class PrimType : public ScalarType {
 private:
-    PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg)
-        : VectorType(world, (NodeTag) tag, Defs(), length, dbg)
+    PrimType(World& world, PrimTypeTag tag, Debug dbg)
+        : ScalarType(world, (NodeTag) tag, Defs(), dbg)
     {}
 
 public:
@@ -240,10 +264,10 @@ enum class AddrSpace : uint32_t {
 };
 
 /// Pointer type.
-class PtrType : public VectorType, public TypeOpsMixin<PtrType> {
+class PtrType : public ScalarType, public TypeOpsMixin<PtrType> {
 private:
-    PtrType(World& world, const Type* pointee, size_t length, AddrSpace addr_space, Debug dbg)
-        : VectorType(world, Node_PtrType, {pointee}, length, dbg)
+    PtrType(World& world, const Type* pointee, AddrSpace addr_space, Debug dbg)
+        : ScalarType(world, Node_PtrType, {pointee}, dbg)
         , addr_space_(addr_space)
     {}
 

@@ -21,7 +21,7 @@ PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
 {}
 
 Cmp::Cmp(CmpTag tag, World& world, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp(world, (NodeTag) tag, world.type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+    : BinOp(world, (NodeTag) tag, world.vector_or_scalar_type(world.type_bool(), vector_length(lhs->type())), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)
@@ -53,32 +53,33 @@ Tuple::Tuple(World& world, Defs args, Debug dbg)
 Vector::Vector(World& world, Defs args, Debug dbg)
     : Aggregate(world, Node_Vector, args, dbg)
 {
-    if (auto primtype = args.front()->type()->isa<PrimType>()) {
-        assert(primtype->length() == 1);
-        set_type(world.prim_type(primtype->primtype_tag(), args.size()));
-    } else {
-        auto ptr = args.front()->type()->as<PtrType>();
-        assert(ptr->length() == 1);
-        set_type(world.ptr_type(ptr->pointee(), args.size()));
-    }
+    set_type(world.vector_type(args.front()->type()->as<ScalarType>(), args.size()));
 }
 
 LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
     : Def(world, Node_LEA, nullptr, {ptr, index}, dbg)
 {
-    auto type = ptr_type();
-    if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->types(), index), type->length(), type->addr_space()));
-    } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type->length(), type->addr_space()));
-    } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->types(), index), type->length(), type->addr_space()));
-    } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
-        assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->addr_space()));
+    auto [ptr_type, len] = deconstruct_vector_type<PtrType>(ptr->type());
+    auto type = ptr_type->pointee();
+
+    if (auto tuple = type->isa<TupleType>()) {
+        set_type(world.vector_or_scalar_type(world.ptr_type(get(tuple->types(), index), ptr_type->addr_space()), len));
+    } else if (auto array = type->isa<ArrayType>()) {
+        set_type(world.vector_or_scalar_type(world.ptr_type(array->elem_type(), ptr_type->addr_space()), len));
+    } else if (auto struct_type = type->isa<StructType>()) {
+        set_type(world.vector_or_scalar_type(world.ptr_type(get(struct_type->types(), index), ptr_type->addr_space()), len));
+    } else if (len > 1) {
+        set_type(world.vector_or_scalar_type(world.ptr_type(type, ptr_type->addr_space()), len));
     } else {
         THORIN_UNREACHABLE;
     }
+}
+
+const Type* LEA::ptr_pointee() const {
+    auto [base, len] = deconstruct_vector_type<PtrType>(ptr()->type());
+    if (len > 1)
+        return world().vector_type(base->pointee()->as<ScalarType>(), len);
+    return base->pointee();
 }
 
 Known::Known(World& world, const Def* def, Debug dbg)

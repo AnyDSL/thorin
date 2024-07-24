@@ -104,7 +104,13 @@ bool is_unit(const Def* def) {
     return def->type() == def->world().unit_type();
 }
 
-size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
+size_t vector_length(const Def* def) {
+    if (auto v = def->type()->isa<VectorType>())
+        return v->length();
+    if (auto s = def->type()->isa<ScalarType>())
+        return 1;
+    assert(false && "not a vector or scalar type!");
+}
 
 bool is_primlit(const Def* def, int64_t val) {
     if (auto lit = def->isa<PrimLit>()) {

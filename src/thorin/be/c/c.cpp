@@ -238,10 +238,10 @@ std::string CCodeGen::convert(const Type* type) {
             case PrimType_pf64: case PrimType_qf64: s <<  "f64";  use_fp_64_ = true; break;
             default: THORIN_UNREACHABLE;
         }
-        if (primtype->is_vector())
-            s << primtype->length();
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
+    } else if (auto vectype = type->isa<VectorType>()) {
+        s.fmt("{} __attribute__ ((ext_vector_size ({})))", convert(vectype->scalarize()), vectype->length());
     } else if (type->isa<FnType>()) {
         assert(false && "todo");
     } else if (auto ptr = type->isa<PtrType>()) {

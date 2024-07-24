@@ -233,14 +233,16 @@ llvm::Type* CodeGen::convert(const Type* type) {
             return llvm::StructType::get(context(), { union_type, tag_type });
         }
 
+        case Node_VectorType: {
+            llvm_type = convert(get_scalar_type(type));
+            llvm_type = llvm::FixedVectorType::get(llvm_type, vector_length(type));
+            break;
+        }
+
         default:
             THORIN_UNREACHABLE;
     }
 
-    if (vector_length(type) == 1)
-        return types_[type] = llvm_type;
-
-    llvm_type = llvm::FixedVectorType::get(llvm_type, vector_length(type));
     return types_[type] = llvm_type;
 }
 

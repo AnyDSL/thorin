@@ -120,7 +120,6 @@ public:
             result["args"] = args;
         } else if (auto prim = type->isa<PrimType>()) {
             result["name"] = "_" + std::to_string(type_table.size());
-            result["length"] = prim->length();
             result["type"] = "prim";
             switch (prim->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimTypeTag::PrimType_##T: { result["tag"] = #T; break; }
@@ -132,7 +131,6 @@ public:
             result["type"] = "ptr";
             result["args"] = { pointee_type };
             result["name"] = pointee_type + "_p_" + std::to_string(type_table.size());
-            result["length"] = ptrtype->length();
             switch (ptrtype->addr_space()) {
             case AddrSpace::Generic:
                 //result["addrspace"] = "generic"; //Default
@@ -153,6 +151,10 @@ public:
                 result["addrspace"] = "private";
                 break;
             }
+        } else if (auto vectype = type->isa<VectorType>()) {
+            result["type"] = "vectype";
+            result["scalar"] = translate_type(vectype->scalarize());
+            result["length"] = vectype->length();
         } else {
             std::cerr << "type cannot be translated\n";
             type->dump();

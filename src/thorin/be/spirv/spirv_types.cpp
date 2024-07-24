@@ -43,7 +43,7 @@ ConvertedType CodeGen::convert(const Type* type) {
     switch (type->tag()) {
 #define THORIN_Q_TYPE(T, M) \
     case PrimType_##T: \
-        type = world().prim_type(PrimType_p##M, type->as<VectorType>()->length()); \
+        type = world().prim_type(PrimType_p##M); \
         break;
 #include "thorin/tables/primtypetable.h"
 #undef THORIN_Q_TYPE
@@ -54,16 +54,16 @@ ConvertedType CodeGen::convert(const Type* type) {
     if (target_info_.dialect == Target::OpenCL) {
         switch (type->tag()) {
             case Node_PrimType_ps8:
-                type = world().prim_type(PrimType_pu8, type->as<VectorType>()->length()); \
+                type = world().prim_type(PrimType_pu8); \
                 break;
             case Node_PrimType_ps16:
-                type = world().prim_type(PrimType_pu16, type->as<VectorType>()->length()); \
+                type = world().prim_type(PrimType_pu16); \
                 break;
             case Node_PrimType_ps32:
-                type = world().prim_type(PrimType_pu32, type->as<VectorType>()->length()); \
+                type = world().prim_type(PrimType_pu32); \
                 break;
             case Node_PrimType_ps64:
-                type = world().prim_type(PrimType_pu64, type->as<VectorType>()->length()); \
+                type = world().prim_type(PrimType_pu64); \
                 break;
             default: break;
         }

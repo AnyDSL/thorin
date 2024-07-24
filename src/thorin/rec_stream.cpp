@@ -206,10 +206,6 @@ Stream& Type::stream(Stream& s) const {
     } else if (auto t = isa<TupleType>()) {
         return s.fmt("[{, }]", t->ops());
     } else if (auto t = isa<PtrType>()) {
-        if (t->is_vector()) s.fmt("<{} x", t->length());
-        s.fmt("{}*", t->pointee());
-        if (t->is_vector()) s.fmt(">");
-
         switch (t->addr_space()) {
             case AddrSpace::Generic: break;
             case AddrSpace::Global:   s.fmt("[Global]");   break;
@@ -223,16 +219,15 @@ Stream& Type::stream(Stream& s) const {
             default: s.fmt("[{}]", (int) t->addr_space()); break;
         }
         return s;
+    } else if (auto t = isa<VectorType>()) {
+        s.fmt("<{} x {}>", t->length(), t->scalarize());
+        return s;
     } else if (auto t = isa<PrimType>()) {
-        if (t->is_vector()) s.fmt("<{} x", t->length());
-
         switch (t->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: s.fmt(#T); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
         }
-
-        if (t->is_vector()) s.fmt(">");
         return s;
     }
     THORIN_UNREACHABLE;

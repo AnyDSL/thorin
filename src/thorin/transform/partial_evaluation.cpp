@@ -154,7 +154,6 @@ bool PartialEvaluator::run() {
                                 queue_.push(const_cast<Continuation*>(cont));
                             }
                         }
-                        todo = true;
                         continue;
                     }
                 }
@@ -170,6 +169,9 @@ bool PartialEvaluator::run() {
                         break;
                     }
                 }
+
+                if (not body->arg(body->num_args() - 1)->isa<Continuation>())
+                    fold = false; //Cannot execute plugin if the target is not a continuation.
 
                 if (fold) {
                     std::vector<const Def*> specialize(body->arg(body->num_args() - 1)->as<Continuation>()->num_params());
@@ -189,6 +191,17 @@ bool PartialEvaluator::run() {
                             }
 
                             const Def* output = plugin_function(&world(), body);
+                            if (output->isa<Bottom>()) { //The plugin cannot produce an output, but we should run another iteration.
+                                world().ddef(continuation, "Plugin did not produce a usable output: {}", callee);
+                                for (auto arg : body->args()) {
+                                    if (auto cont = arg->isa<Continuation>()) {
+                                        queue_.push(const_cast<Continuation*>(cont));
+                                    }
+                                }
+                                todo = true;
+                                continue;
+                            }
+
                             if (output)
                                 specialize[1] = output;
 
@@ -197,14 +210,13 @@ bool PartialEvaluator::run() {
                         }
 
                         continuation->jump(target, specialize);
-                    } catch (const std::runtime_error& e) {
+                    } catch (const std::runtime_error& e) { //The plugin is unhappy about the general state. We should not use it to determine the fixed-point state.
                         std::cerr << "Error in plugin function: " << e.what() << "\n";
                         for (auto arg : body->args()) {
                             if (auto cont = arg->isa<Continuation>()) {
                                 queue_.push(const_cast<Continuation*>(cont));
                             }
                         }
-                        todo = true;
                         continue;
                     }
 

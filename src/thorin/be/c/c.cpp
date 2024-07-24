@@ -103,6 +103,7 @@ public:
     void finalize(Continuation*);
 
 private:
+    void convert_primtype(StringStream&s, PrimTypeTag tag, int len);
     std::string convert(const Type*);
     std::string addr_space_prefix(AddrSpace);
     std::string constructor_prefix(const Type*);
@@ -210,6 +211,97 @@ bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
     return false;
 }
 
+inline const char* stddef_primtype_name(PrimTypeTag tag) {
+    switch (tag) {
+        case PrimType_ps8:  case PrimType_qs8:  return "int8_t";
+        case PrimType_pu8:  case PrimType_qu8:  return "uint8_t";
+        case PrimType_ps16: case PrimType_qs16: return "int16_t";
+        case PrimType_pu16: case PrimType_qu16: return "uint16_t";
+        case PrimType_ps32: case PrimType_qs32: return "int32_t";
+        case PrimType_pu32: case PrimType_qu32: return "uint32_t";
+        case PrimType_ps64: case PrimType_qs64: return "int64_t";
+        case PrimType_pu64: case PrimType_qu64: return "uint64_t";
+        case PrimType_pf16: case PrimType_qf16: return "half";
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+inline const char* cuda_scalar_primtype(PrimTypeTag tag) {
+    switch (tag) {
+        case PrimType_ps8:  case PrimType_qs8:  return "char";
+        case PrimType_pu8:  case PrimType_qu8:  return "unsigned char";
+        case PrimType_ps16: case PrimType_qs16: return "short";
+        case PrimType_pu16: case PrimType_qu16: return "unsigned short";
+        case PrimType_ps32: case PrimType_qs32: return "int";
+        case PrimType_pu32: case PrimType_qu32: return "unsigned int";
+        case PrimType_ps64: case PrimType_qs64: return "long long";
+        case PrimType_pu64: case PrimType_qu64: return "unsigned long long";
+        case PrimType_pf16: case PrimType_qf16: return "f16"; // typedef'd with macro magic
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+/// OpenCL uses these for scalar and vectors.
+/// CUDA actually uses the same prefixes for its vectors
+/// See
+/// https://registry.khronos.org/OpenCL/sdk/3.0/docs/man/html/vectorDataTypes.html
+/// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#built-in-vector-types
+inline const char* opencl_cuda_vectorbase(PrimTypeTag tag) {
+    switch (tag) {
+        case PrimType_ps8:  case PrimType_qs8:  return "char";
+        case PrimType_pu8:  case PrimType_qu8:  return "uchar";
+        case PrimType_ps16: case PrimType_qs16: return "short";
+        case PrimType_pu16: case PrimType_qu16: return "ushort";
+        case PrimType_ps32: case PrimType_qs32: return "int";
+        case PrimType_pu32: case PrimType_qu32: return "uint";
+        case PrimType_ps64: case PrimType_qs64: return "long";
+        case PrimType_pu64: case PrimType_qu64: return "ulong";
+        case PrimType_pf16: case PrimType_qf16: return "half"; // NB: cuda has no vectors of half.
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+void CCodeGen::convert_primtype(StringStream& s, PrimTypeTag tag, int len) {
+    assert(len > 0);
+
+    // Enable special code paths for f16 and f64
+    switch (tag) {
+        case PrimType_pf16: case PrimType_qf16: use_fp_16_ = true; break;
+        case PrimType_pf64: case PrimType_qf64: use_fp_64_ = true; break;
+        default: break;
+    }
+
+    // 'bool', 'float' and 'double' are identical everywhere
+    switch (tag) {
+        case PrimType_bool: s << "bool"; break;
+        case PrimType_pf32: case PrimType_qf32: s << "float"; break;
+        case PrimType_pf64: case PrimType_qf64: s << "double"; break;
+        default: {
+            if (lang_ == Lang::CUDA && len == 1)
+                s << cuda_scalar_primtype(tag);
+            else if (lang_ == Lang::CUDA || lang_ == Lang::OpenCL)
+                s << opencl_cuda_vectorbase(tag);
+            else
+                s << stddef_primtype_name(tag);
+            break;
+        }
+    }
+
+    // length suffixes
+    if (len == 1)
+        return;
+    switch (lang_) {
+        case Lang::CUDA:
+        case Lang::OpenCL:
+            s << len;
+            break;
+        case Lang::HLS:
+        case Lang::C99:
+            s.fmt(" __attribute__ ((ext_vector_size ({})))", len);
+            break;
+    }
+}
+
 /*
  * convert
  */
@@ -223,23 +315,7 @@ std::string CCodeGen::convert(const Type* type) {
     if (type == world().unit_type() || type->isa<MemType>() || type->isa<FrameType>())
         s << "void";
     else if (auto primtype = type->isa<PrimType>()) {
-        switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     s << "bool";                     break;
-            case PrimType_ps8:  case PrimType_qs8:  s <<   "i8";                     break;
-            case PrimType_pu8:  case PrimType_qu8:  s <<   "u8";                     break;
-            case PrimType_ps16: case PrimType_qs16: s <<  "i16";                     break;
-            case PrimType_pu16: case PrimType_qu16: s <<  "u16";                     break;
-            case PrimType_ps32: case PrimType_qs32: s <<  "i32";                     break;
-            case PrimType_pu32: case PrimType_qu32: s <<  "u32";                     break;
-            case PrimType_ps64: case PrimType_qs64: s <<  "i64";                     break;
-            case PrimType_pu64: case PrimType_qu64: s <<  "u64";                     break;
-            case PrimType_pf16: case PrimType_qf16: s <<  "f16";  use_fp_16_ = true; break;
-            case PrimType_pf32: case PrimType_qf32: s <<  "f32";                     break;
-            case PrimType_pf64: case PrimType_qf64: s <<  "f64";  use_fp_64_ = true; break;
-            default: THORIN_UNREACHABLE;
-        }
-        if (primtype->is_vector())
-            s << primtype->length();
+        convert_primtype(s, primtype->primtype_tag(), vector_length(primtype));
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
     } else if (type->isa<FnType>()) {
@@ -402,21 +478,6 @@ void CCodeGen::emit_module() {
             stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
         if (use_fp_64_)
             stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-
-        stream_.fmt(    "\n"
-                        "typedef   char  i8;\n"
-                        "typedef  uchar  u8;\n"
-                        "typedef  short i16;\n"
-                        "typedef ushort u16;\n"
-                        "typedef    int i32;\n"
-                        "typedef   uint u32;\n"
-                        "typedef   long i64;\n"
-                        "typedef  ulong u64;\n");
-        if (use_fp_16_)
-            stream_.fmt("typedef   half f16;\n");
-        stream_.fmt(    "typedef  float f32;\n");
-        if (use_fp_64_)
-            stream_.fmt("typedef double f64;\n");
     }
 
     stream_.endl();
@@ -441,45 +502,15 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <hls_half.h>\n");
     }
 
-    if (lang_ == Lang::C99 || lang_ == Lang::HLS) {
-        stream_.fmt(    "\n"
-                        "typedef   int8_t  i8;\n"
-                        "typedef  uint8_t  u8;\n"
-                        "typedef  int16_t i16;\n"
-                        "typedef uint16_t u16;\n"
-                        "typedef  int32_t i32;\n"
-                        "typedef uint32_t u32;\n"
-                        "typedef  int64_t i64;\n"
-                        "typedef uint64_t u64;\n"
-                        "typedef    float f32;\n"
-                        "typedef   double f64;\n"
-                        "\n");
-
-         if (use_fp_16_ && lang_ == Lang::HLS)
-            stream_.fmt("typedef     half f16;\n");
-    }
-
     if (lang_ == Lang::CUDA) {
-        if (use_fp_16_)
+        if (use_fp_16_) {
             stream_.fmt("#include <cuda_fp16.h>\n\n");
-        stream_.fmt(    "typedef               char  i8;\n"
-                        "typedef      unsigned char  u8;\n"
-                        "typedef              short i16;\n"
-                        "typedef     unsigned short u16;\n"
-                        "typedef                int i32;\n"
-                        "typedef       unsigned int u32;\n"
-                        "typedef          long long i64;\n"
-                        "typedef unsigned long long u64;\n"
-                        "\n");
-        if (use_fp_16_)
             stream_.fmt("#if __CUDACC_VER_MAJOR__ <= 8\n"
                         "typedef               half f16;\n"
                         "#else\n"
                         "typedef         __half_raw f16;\n"
                         "#endif\n");
-        stream_.fmt(    "typedef              float f32;\n"
-                        "typedef             double f64;\n"
-                        "\n");
+        }
     }
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {

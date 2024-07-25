@@ -1088,6 +1088,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             s.fmt("(({})->e)", src);
         } else if (s_ptr && d_ptr && s_ptr->addr_space() == d_ptr->addr_space()) {
             s.fmt("(({}) {})", d_t, src);
+        } else if (s_ptr && d_ptr && s_ptr->addr_space() != d_ptr->addr_space() && lang_ == Lang::OpenCL) {
+            s.fmt("(({}) ((size_t) {}))", d_t, src);
         } else if (conv->isa<Cast>()) {
             auto s_prim = s_type->isa<PrimType>();
             auto d_prim = d_type->isa<PrimType>();

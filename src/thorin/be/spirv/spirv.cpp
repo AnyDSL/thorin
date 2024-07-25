@@ -631,14 +631,14 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
     } else if (auto lea = def->isa<LEA>()) {
-        switch (lea->type()->addr_space()) {
-            case AddrSpace::Global:
-            case AddrSpace::Shared:
-                break;
-            default:
-                world().ELOG("LEA is only allowed in global & shared address spaces");
-                break;
-        }
+        //switch (lea->type()->addr_space()) {
+        //    case AddrSpace::Global:
+        //    case AddrSpace::Shared:
+        //        break;
+        //    default:
+        //        world().ELOG("LEA is only allowed in global & shared address spaces");
+        //        break;
+        //}
         auto type = convert(lea->type()).id;
         auto offset = emit(lea->index());
         return bb->ptr_access_chain(type, emit(lea->ptr()), offset, {});

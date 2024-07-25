@@ -20,7 +20,7 @@ struct ScopedWorld : public Streamable<ScopedWorld> {
         bool use_color;
     };
 
-    ScopedWorld(World& w, Config cfg = { true }) : world_(w), forest_(w), config_(cfg) {
+    ScopedWorld(World& w, Config cfg = { getenv("THORIN_NO_COLOR") ? false : true }) : world_(w), forest_(w), config_(cfg) {
 #define T(n, c) n = cfg.use_color ? c : "";
         COLORS(T)
 #undef T

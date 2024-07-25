@@ -14,6 +14,10 @@
 #undef nodes
 #endif
 
+#if THORIN_ENABLE_SPIRV
+#include "thorin/be/spirv/spirv.h"
+#endif
+
 #include "thorin/transform/hls_channels.h"
 #include "thorin/transform/hls_kernel_launch.h"
 
@@ -136,6 +140,19 @@ struct OpenCLBackend : public Backend {
     }
 };
 
+#if THORIN_ENABLE_SPIRV
+struct OpenCLSPIRVBackend : public Backend {
+    explicit OpenCLSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::OpenCL_SPIRV, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        spirv::Target target;
+        return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
+    }
+};
+#endif
+
 #if THORIN_ENABLE_LLVM
 struct AMDHSABackend : public Backend {
     explicit AMDHSABackend(DeviceBackends& b, World& src) : Backend(b, src) {
@@ -238,6 +255,9 @@ DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::s
 #endif
 #if THORIN_ENABLE_SHADY
     register_backend(std::make_unique<ShadyBackend>(*this, world))
+#endif
+#if THORIN_ENABLE_SPIRV
+    register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));
 #endif
     register_backend(std::make_unique<HLSBackend>(*this, world, hls_flags));
 

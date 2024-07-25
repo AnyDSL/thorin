@@ -248,6 +248,7 @@ void Continuation::set_intrinsic() {
     if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
     else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
     else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "opencl_spirv")   attributes().intrinsic = Intrinsic::OpenCL_SPIRV;
     else if (name() == "amdgpu_hsa")     attributes().intrinsic = Intrinsic::AMDGPUHSA;
     else if (name() == "amdgpu_pal")     attributes().intrinsic = Intrinsic::AMDGPUPAL;
     else if (name() == "shady_compute")  attributes().intrinsic = Intrinsic::ShadyCompute;

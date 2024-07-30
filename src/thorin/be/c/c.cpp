@@ -406,17 +406,15 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
             name = ("hls::stream<" + name + "_" + std::to_string(type->gid()) + ">");
         } else if (is_channel_type(struct_type) && lang_ == Lang::CGRA) {
             // The following condition makes it impossible to use vectorized channels, ie. struct or array type channels, to be accessed via standard array iterations. They can only with cgra intrinsics or APIs be accessed.
-            std::string type_str;
-            if (vector_size_ > 1) {
-                if ( auto array_type = struct_type->op(0)->isa<DefiniteArrayType>())
+            std::string type_str = convert(struct_type->op(0));
+
+            if (vector_size_ > 1)
+                if (auto array_type = struct_type->op(0)->isa<DefiniteArrayType>())
                     type_str = convert(array_type->elem_type());
-            } else {
-                type_str = convert(struct_type->op(0));
-            }
+
             s.fmt("typedef {} {}_{};\n", type_str, name, struct_type->gid());
             graph_stream_.fmt("typedef {} {}_{};\n\n", type_str, name, struct_type->gid());
 
-            //graph_stream_.fmt("typedefG {} {}_{};\n\n", convert(struct_type->op(0)->isa<DefiniteArrayType>()->elem_type()), name, struct_type->gid());
             //name = ("<" + name + "_" + std::to_string(type->gid()) + ">");
             name = ( name + "_" + std::to_string(type->gid()));
         } else if (lang_ == Lang::CGRA && is_mmul_type(struct_type)) {

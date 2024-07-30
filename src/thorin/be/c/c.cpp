@@ -1151,6 +1151,8 @@ void CCodeGen::emit_module() {
                     "#include <hls_math.h>\n");
         if (use_fp_16_)
             stream_.fmt("#include <hls_half.h>\n");
+        if (use_memcpy_)
+            stream_.fmt("#include <string.h>\n");
     }
 
     if (lang_ == Lang::CGRA) {

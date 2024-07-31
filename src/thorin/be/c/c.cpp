@@ -973,7 +973,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                 if (loc_x >= 0 && loc_y >= 0)
                     configs_.fmt( "adf::location<adf::kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
 
-                configs_.fmt( "adf::source({}) = \"{}{}\";\n", krl_node_name(callee), world().name(), source_ext);
+                configs_.fmt( "adf::source({}) = \"{}_kernel{}\";\n", krl_node_name(callee), world().name(), source_ext);
             }
         }
     }

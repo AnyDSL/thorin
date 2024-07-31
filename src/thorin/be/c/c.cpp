@@ -826,8 +826,8 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
                             auto io_index = get_io_mode_index(io_counters, mode);
 
-                            node_impls_.fmt("{} = adf::{}_plio::create(adf::plio_{}_bits{});\n",
-                                    param->unique_name(), direc_prefix, bit_width(op_type),
+                            node_impls_.fmt("{} = adf::{}_plio::create(\"{}\", adf::plio_{}_bits{});\n",
+                                    param->unique_name(), direc_prefix, param->unique_name(), bit_width(op_type),
                                     simulated_data ? (", \"" + direc_prefix + "_" + std::to_string(io_index) + ".txt\"") : (""));
 
                         }

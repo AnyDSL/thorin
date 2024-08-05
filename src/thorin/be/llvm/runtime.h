@@ -32,6 +32,7 @@ public:
         CodeGen&, llvm::IRBuilder<>&, llvm::Value* device,
         llvm::Value* file, llvm::Value* kernel,
         llvm::Value* grid, llvm::Value* block,
+        llvm::Value* lmem,
         llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
         llvm::Value* num_args);
 

@@ -512,6 +512,9 @@ void CCodeGen::emit_module() {
             stream_.fmt("__device__ inline int blockDim_{}() {{ return blockDim.{}; }}\n", x, x);
             stream_.fmt("__device__ inline int gridDim_{}() {{ return gridDim.{}; }}\n", x, x);
         }
+
+        stream_.fmt("\n"
+                    "extern __shared__ unsigned char __dynamic_smem[];\n");
     }
 
     stream_.endl() << func_impls_.str();
@@ -742,7 +745,10 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         bb.tail.fmt("goto {};", label_name(callee));
     } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
+            assert(body->num_args() == 3 && "incorrect number of arguments");
+
             emit_unsafe(body->arg(0));
+
             if (!body->arg(1)->isa<PrimLit>())
                 world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
 
@@ -757,6 +763,16 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 func_impls_<< "#if defined( __VITIS_HLS__ )\n   __attribute__((packed))\n  #endif\n";
             }
             bb.tail.fmt("p_{} = {}_reserved;\n", ret_cont->param(1)->unique_name(), cont->unique_name());
+            bb.tail.fmt("goto {};", label_name(ret_cont));
+        } else if (callee->intrinsic() == Intrinsic::LocalMemory) {
+            if (lang_ == Lang::HLS)
+                world().edef(body, "local_memory not supported for HLS");
+            assert(body->num_args() == 2 && "incorrect number of arguments");
+
+            emit_unsafe(body->arg(0));
+
+            auto ret_cont = body->arg(1)->as_nom<Continuation>();
+            bb.tail.fmt("p_{} = __dynamic_smem;\n", ret_cont->param(1)->unique_name());
             bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
@@ -1440,6 +1456,12 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
         }
         needs_comma = true;
     }
+
+    if (cont->is_exported() && lang_ == Lang::OpenCL) {
+        if (needs_comma) s.fmt(", ");
+        s.fmt("__local unsigned char* __dynamic_smem");
+    }
+
     s << ")";
     return s.str();
 }

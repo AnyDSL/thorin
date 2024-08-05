@@ -64,10 +64,12 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
     assert(continuation->has_body());
     auto body = continuation->body();
     // to-target is the desired kernel call
-    // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
+    // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), lmem, body, return, free_vars)
     auto target = body->callee()->as_nom<Continuation>();
     assert_unused(target->is_intrinsic());
     assert(body->num_args() >= LaunchArgs::Num && "required arguments are missing");
+
+    auto& world = continuation->world();
 
     // arguments
     auto target_device_id = code_gen.emit(body->arg(LaunchArgs::Device));
@@ -78,7 +80,6 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
     auto it_config = body->arg(LaunchArgs::Config);
     auto kernel = body->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
-    auto& world = continuation->world();
     //auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->name());
     auto kernel_name = builder.CreateGlobalStringPtr(kernel->name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
@@ -179,9 +180,12 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
     allocs     = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(allocs)->getAllocatedType(),     allocs,     gep_first_elem);
     types      = builder.CreateInBoundsGEP(llvm::cast<llvm::AllocaInst>(types)->getAllocatedType(),      types,      gep_first_elem);
 
+    auto lmem = code_gen.emit(body->arg(LaunchArgs::LocalMem));
+
     launch_kernel(code_gen, builder, target_device,
                   file_name, kernel_name,
                   grid_size, block_size,
+                  lmem,
                   args, sizes, aligns, allocs, types,
                   builder.getInt32(num_kernel_args));
 }
@@ -190,10 +194,11 @@ llvm::Value* Runtime::launch_kernel(
     CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* device,
     llvm::Value* file, llvm::Value* kernel,
     llvm::Value* grid, llvm::Value* block,
+    llvm::Value* lmem,
     llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* allocs, llvm::Value* types,
     llvm::Value* num_args)
 {
-    llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, aligns, allocs, types, num_args };
+    llvm::Value* launch_args[] = { device, file, kernel, grid, block, lmem, args, sizes, aligns, allocs, types, num_args };
     return builder.CreateCall(get(code_gen, "anydsl_launch_kernel"), launch_args);
 }
 

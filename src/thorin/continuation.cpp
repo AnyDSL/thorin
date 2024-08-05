@@ -245,28 +245,29 @@ const Filter* Continuation::all_true_filter() const {
 
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
 void Continuation::set_intrinsic() {
-    if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
-    else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
-    else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
-    else if (name() == "amdgpu_hsa")     attributes().intrinsic = Intrinsic::AMDGPUHSA;
-    else if (name() == "amdgpu_pal")     attributes().intrinsic = Intrinsic::AMDGPUPAL;
-    else if (name() == "shady_compute")  attributes().intrinsic = Intrinsic::ShadyCompute;
-    else if (name() == "hls")            attributes().intrinsic = Intrinsic::HLS;
-    else if (name() == "parallel")       attributes().intrinsic = Intrinsic::Parallel;
-    else if (name() == "fibers")         attributes().intrinsic = Intrinsic::Fibers;
-    else if (name() == "spawn")          attributes().intrinsic = Intrinsic::Spawn;
-    else if (name() == "sync")           attributes().intrinsic = Intrinsic::Sync;
-    else if (name() == "vectorize")      attributes().intrinsic = Intrinsic::Vectorize;
-    else if (name() == "pe_info")        attributes().intrinsic = Intrinsic::PeInfo;
-    else if (name() == "pipeline")       attributes().intrinsic = Intrinsic::Pipeline;
-    else if (name() == "reserve_shared") attributes().intrinsic = Intrinsic::Reserve;
-    else if (name() == "atomic")         attributes().intrinsic = Intrinsic::Atomic;
-    else if (name() == "atomic_load")    attributes().intrinsic = Intrinsic::AtomicLoad;
-    else if (name() == "atomic_store")   attributes().intrinsic = Intrinsic::AtomicStore;
-    else if (name() == "cmpxchg")        attributes().intrinsic = Intrinsic::CmpXchg;
-    else if (name() == "cmpxchg_weak")   attributes().intrinsic = Intrinsic::CmpXchgWeak;
-    else if (name() == "fence")          attributes().intrinsic = Intrinsic::Fence;
-    else if (name() == "undef")          attributes().intrinsic = Intrinsic::Undef;
+    if      (name() == "cuda")              attributes().intrinsic = Intrinsic::CUDA;
+    else if (name() == "nvvm")              attributes().intrinsic = Intrinsic::NVVM;
+    else if (name() == "opencl")            attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "amdgpu_hsa")        attributes().intrinsic = Intrinsic::AMDGPUHSA;
+    else if (name() == "amdgpu_pal")        attributes().intrinsic = Intrinsic::AMDGPUPAL;
+    else if (name() == "shady_compute")     attributes().intrinsic = Intrinsic::ShadyCompute;
+    else if (name() == "hls")               attributes().intrinsic = Intrinsic::HLS;
+    else if (name() == "parallel")          attributes().intrinsic = Intrinsic::Parallel;
+    else if (name() == "fibers")            attributes().intrinsic = Intrinsic::Fibers;
+    else if (name() == "spawn")             attributes().intrinsic = Intrinsic::Spawn;
+    else if (name() == "sync")              attributes().intrinsic = Intrinsic::Sync;
+    else if (name() == "vectorize")         attributes().intrinsic = Intrinsic::Vectorize;
+    else if (name() == "pe_info")           attributes().intrinsic = Intrinsic::PeInfo;
+    else if (name() == "pipeline")          attributes().intrinsic = Intrinsic::Pipeline;
+    else if (name() == "reserve_shared")    attributes().intrinsic = Intrinsic::Reserve;
+    else if (name() == "local_memory_base") attributes().intrinsic = Intrinsic::LocalMemory;
+    else if (name() == "atomic")            attributes().intrinsic = Intrinsic::Atomic;
+    else if (name() == "atomic_load")       attributes().intrinsic = Intrinsic::AtomicLoad;
+    else if (name() == "atomic_store")      attributes().intrinsic = Intrinsic::AtomicStore;
+    else if (name() == "cmpxchg")           attributes().intrinsic = Intrinsic::CmpXchg;
+    else if (name() == "cmpxchg_weak")      attributes().intrinsic = Intrinsic::CmpXchgWeak;
+    else if (name() == "fence")             attributes().intrinsic = Intrinsic::Fence;
+    else if (name() == "undef")             attributes().intrinsic = Intrinsic::Undef;
     else world().ELOG("unsupported thorin intrinsic '{}'", name());
 }
 

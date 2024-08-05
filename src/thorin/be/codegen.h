@@ -33,6 +33,7 @@ struct LaunchArgs {
         Device,
         Space,
         Config,
+        LocalMem,
         Body,
         Return,
         Num

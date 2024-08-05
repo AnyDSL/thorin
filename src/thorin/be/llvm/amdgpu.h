@@ -21,6 +21,7 @@ protected:
     llvm::Value* emit_global(const Global*) override;
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
     llvm::Value* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
+    llvm::Value* emit_local_memory(llvm::IRBuilder<>&, const Continuation*) override;
     std::string get_alloc_name() const override { return "malloc"; }
 
     const Cont2Config& kernel_config_;

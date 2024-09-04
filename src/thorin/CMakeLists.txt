@@ -78,6 +78,8 @@ set(THORIN_SOURCES
     transform/hls_kernel_launch.cpp
     transform/cgra_dataflow.cpp
     transform/cgra_dataflow.h
+    transform/cgra_launch_ctrl.cpp
+    transform/cgra_launch_ctrl.h
     util/array.h
     util/cast.h
     util/hash.h

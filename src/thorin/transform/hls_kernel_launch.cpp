@@ -76,6 +76,8 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
     const size_t base_opencl_param_num = 6;
     Array<const Def*> opencl_args(base_opencl_param_num + device_params.size());
 
+    // TODO: perf opt, we only need to access the main scope
+    // Maybe using world.externals() would be better
     Scope::for_each(world, [&] (Scope& scope) {
         Schedule scheduled = schedule(scope);
 

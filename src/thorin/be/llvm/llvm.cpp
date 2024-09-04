@@ -1360,7 +1360,7 @@ Continuation* CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* cont
 }
 
 Continuation* CodeGen::emit_cgra(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
-    // fn(mem, device, runtime_ratio, location, body, return_continuation)
+    // fn(mem, device, runtime_ratio, location, body, vector_size, return_continuation)
     assert(continuation->has_body());
     auto body = continuation->body();
 
@@ -1376,8 +1376,21 @@ Continuation* CodeGen::emit_cgra(llvm::IRBuilder<>& irbuilder, Continuation* con
 
     auto callee = body->arg(LaunchArgs<AIE_CGRA>::Body)->as<Global>()->init()->as_nom<Continuation>();
     world().make_external(callee);
-    // calling cgra kernel
-    irbuilder.CreateCall(emit_fun_decl(callee), args);
+
+    std::string name = callee->as<Continuation>()->unique_name();
+    auto f = llvm::cast<llvm::Function>(module().getOrInsertFunction(name, convert_fn_type(callee)).getCallee()->stripPointerCasts());
+    f->setLinkage(llvm::Function::ExternalLinkage);
+    if (callee->cc() == CC::Device)
+        f->setCallingConv(device_calling_convention_);
+     else
+        f->setCallingConv(function_calling_convention_);
+    // TODO: At the moment calling simulated CGRA kernels directly from host without launching them via OpenCL APIs is not possible.
+    // We need to find a way to link against kernels in x86 object format.
+    // A possible solution might be:
+    // 1) Wrap kernels and their headers with extern "C" to avoid name mangling.
+    // 2) Run aiecompile for x86sim and link the host against the object file in Work/pthread/aie_kernels_obj.o
+    // 3) Then we can write a thorin pass to skip all CGRA intrinsic (kernels) when launching via FPGA but when simulating they can call kernels by llvm as follows,
+    //irbuilder.CreateCall(f, args);
     assert(ret);
     return ret;
 }

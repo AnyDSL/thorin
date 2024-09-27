@@ -34,7 +34,7 @@ class World;
 DeviceDefs hls_dataflow(Importer&, Top2Kernel&, World&, Importer&);
 void hls_annotate_top(World&, const Top2Kernel&, Cont2Config&);
 void extract_kernel_channels(const Schedule&, Def2Mode&);
-bool is_single_kernel(Continuation*); // single kernels do not comminicate with any other kernels
+bool is_single_kernel(Continuation*); // single kernels do not communicate with any other kernels
 bool is_channel_type(const Type* type);
 void connecting_blocks_old2new(std::vector<const Def*>&, const Def2DependentBlocks, Importer&, std::function<Continuation*(DependentBlocks)>);
 //PortIndices external_ports_index (const Def2Def, Def2Def, const Def2DependentBlocks, Importer&);

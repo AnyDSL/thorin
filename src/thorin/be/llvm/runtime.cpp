@@ -115,7 +115,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             auto rtype = ptr->pointee();
 
             if (!rtype->isa<ArrayType>())
-                world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
+                world.wdef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
             auto alloca = code_gen.emit_alloca(builder, builder.getInt8PtrTy(), target_arg->name());
             auto target_ptr = builder.CreatePointerCast(target_val, builder.getInt8PtrTy());

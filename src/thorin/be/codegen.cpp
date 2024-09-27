@@ -428,7 +428,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config); // adding hls_top config to cont2config map
     }
 
-    hls_kernel_launch(world, std::get<0>(device_defs));
+    hls_kernel_launch(world, std::get<0>(device_defs), kernel_config);
 
     //TODO: need to write an analysis to check R/W mode on global memory allocaions
     if (!importers_[CGRA].world().empty()) {

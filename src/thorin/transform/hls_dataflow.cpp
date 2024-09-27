@@ -505,14 +505,14 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
 
 /**
  * @param importer hls world
- * @param Top2Kernel annonating hls_top configuration
+ * @param Top2Kernel annonating hls_top configuration (hls_top param index, kernel name, kernel param index)
  * @param old_world to connect with runtime (host) world
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
 DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-    std::cout << "old world" << std::endl;
-    old_world.dump();
+    //std::cout << "old world" << std::endl;
+    //old_world.dump();
     auto& world = importer.world(); // world is hls world
     //std::cout << "HLS before" << std::endl;
     //world.dump();
@@ -886,7 +886,7 @@ auto external_ports_status = [&] {
     world.make_external(hls_top);
 
     debug_verify(world);
-    //world.dump();
+    world.dump();
 
     world.cleanup();
 

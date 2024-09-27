@@ -537,8 +537,8 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
 
     world.make_external(cgra_graph);
 
-    std::cout << "_--------cgra world After rewrite--------" <<std::endl;
-    world.dump();
+    //std::cout << "_--------cgra world After rewrite--------" <<std::endl;
+    //world.dump();
     for (auto def : world.defs()) {
         if (auto cont = def->isa_nom<Continuation>()) {
                 auto gg = cont->get_interface();

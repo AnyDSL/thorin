@@ -44,6 +44,9 @@ struct LaunchArgs<GPU> {
 };
 
 template<>
+struct LaunchArgs<FPGA_CL> : LaunchArgs<GPU> {};
+
+template<>
 struct LaunchArgs<AIE_CGRA> {
     enum {
         Mem = 0,

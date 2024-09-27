@@ -3,12 +3,12 @@
 #include "thorin/world.h"
 #include "thorin/continuation.h"
 #include "thorin/analyses/scope.h"
-//#include "thorin/analyses/schedule.h"
+#include "thorin/be/codegen.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {
 
-static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const HlsDeviceParams& device_params) {
+static Continuation* make_opencl_intrinsic(World& world, const Continuation* cont_hls, const Array<const Def*> top_concrete_params) {
     assert(cont_hls->has_body());
     auto body = cont_hls->body();
 
@@ -20,9 +20,10 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
     std::vector<const Type*> tuple_elems_type(3);
 
     //OpenCL--> fn(mem, device, grid, block, body, re_cont, /..../ )
-    opencl_param_types.emplace_back(world.mem_type());
-    opencl_param_types.emplace_back(world.type_qs32());
-    //  device and grid types
+    opencl_param_types.emplace_back(world.mem_type()); // mem
+    opencl_param_types.emplace_back(world.type_qs32()); // device
+
+    // grid and block
     for (size_t i = 0; i < 2; ++i) {
         for (size_t j = 0 ; j < tuple_elems_type.size() ; ++j)
             tuple_elems_type[j] = world.type_qs32();
@@ -30,13 +31,14 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
         opencl_param_types.emplace_back(world.tuple_type(tuple_elems_type));
     }
 
-    // type for dummy hls_top
+    // type for dummy hls_top (body)
     opencl_param_types.emplace_back(kernel_ptr->type());
+    // re_cont
     opencl_param_types.emplace_back(last_callee_continuation->type());
 
     // all parameters from device IR and the remaining
-    for (auto def : device_params)
-        opencl_param_types.emplace_back(def->type());
+    std::transform(top_concrete_params.begin(), top_concrete_params.end(), std::back_inserter(opencl_param_types),
+            [](const Def* param) { return param->type(); });
 
     auto opencl_type = world.fn_type(opencl_param_types);
 
@@ -69,23 +71,46 @@ const Def* has_hls_callee(Continuation* continuation) {
 }
 
 // Finds instances of HLS kernel launches and wraps them in a OpenCL launch
-void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
+void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config& cont2config) {
+    world.dump();
+
+    auto hls_top_it = std::find_if(cont2config.begin(), cont2config.end(), [] (const auto& pair) {
+        return pair.first->is_hls_top();
+    });
+
+    auto hls_top = (hls_top_it != cont2config.end()) ? hls_top_it->first : nullptr;
+    assert(hls_top && "No hls_top found");
+
+
+    // An array of hls_top parameters in which non-channel types are replaced with corresponding parameters in device_params
+    // we assume that the orders of the parameters are the same in both hls_top and device_params
+    // This is used to determine the location of OpenCL arguments
+    const auto params_offset = 2; // mem and device are not considered as concrete parameters
+    Array<const Def*> top_concrete_params(hls_top->num_params() - params_offset, nullptr);
+    assert((hls_top->num_params() - params_offset) >= device_params.size() && " size of device non-channel params is greater than hls_top params");
+    for (size_t i = params_offset, j = 0; i < hls_top->num_params(); ++i) {
+        auto param = hls_top->param(i);
+        top_concrete_params[i - params_offset] = is_channel_type(param->type()) ? param : device_params[j++];
+    }
+
+
     bool last_hls_found = false;
     Continuation* opencl = nullptr;
 
-    const size_t base_opencl_param_num = 6;
-    Array<const Def*> opencl_args(base_opencl_param_num + device_params.size());
+    const size_t base_opencl_param_num = LaunchArgs<FPGA_CL>::Num;
+    Array<const Def*> opencl_args(base_opencl_param_num + top_concrete_params.size());
 
     // TODO: perf opt, we only need to access the main scope
     // Maybe using world.externals() would be better
     Scope::for_each(world, [&] (Scope& scope) {
-        Schedule scheduled = schedule(scope);
 
+        Schedule scheduled = schedule(scope);
         for (auto& block : scheduled) {
+
             if (!block->has_body())
                 continue;
-            auto block_body = block->body();
 
+            auto block_body = block->body();
             if (auto hls_callee = has_hls_callee(block)) {
                 auto cont_mem_obj = block->mem_param();
                 auto callee_continuation = hls_callee->isa_nom<Continuation>();
@@ -98,13 +123,13 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
                     if ((last_hls_cont = last_basic_block_with_intrinsic(Intrinsic::HLS, scheduled)))
                         last_hls_found = true;
 
-                    opencl = make_opencl_intrinsic(world, last_hls_cont, device_params);
+                    opencl = make_opencl_intrinsic(world, last_hls_cont, top_concrete_params);
 
                     // Building a dummy hls_top function
                     auto hls_top_fn_type = opencl->param(4)->type()->as<PtrType>()->pointee()->as<FnType>();
                     auto hls_top_fn = world.continuation(hls_top_fn_type, Debug("hls_top"));
 
-                    auto hls_top_global = world.global(hls_top_fn,false);
+                    auto hls_top_global = world.global(hls_top_fn, false);
                     opencl_args[4] = hls_top_global;
 
                     auto opencl_mem_param = opencl->mem_param();
@@ -129,8 +154,15 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
                             if (param->type() == opencl_args[4]->type())
                                 // pointer to function is assigned where hls_top is created
                                 continue;
-                        } else if ( param->type()->isa<FnType>() && param->order() == 1)
+                        } else if (param->type()->isa<FnType>() && param->order() == 1) {
                             opencl_args[i] = last_hls_cont->body()->arg(hls_free_vars_offset - 1);
+                        } else if (!is_channel_type(param->type()) && (i > base_opencl_param_num)) {
+                            continue; // they are assigned in the next loop
+                        } else if (is_channel_type(param->type()) && (i > base_opencl_param_num)) {
+                            // Testing
+                            auto temp = world.bottom(param->type());
+                            opencl_args[i] = temp;
+                        }
                     }
                 }
 
@@ -141,10 +173,10 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
                     auto kernel_param =  kernel->param(index - hls_free_vars_offset + 2);
                     // determining the correct location of OpenCL arguments by comparing kernels params with
                     // the location of hls_top params on device code (device_params)
-                    auto param_on_device_it = std::find(device_params.begin(), device_params.end(), kernel_param);
-                    size_t opencl_arg_index = std::distance(device_params.begin(), param_on_device_it);
-                    assert(opencl_arg_index < device_params.size());
-                    opencl_args[opencl_arg_index + base_opencl_param_num] = block_body->arg(index);
+                    auto param_on_device_it = std::find(top_concrete_params.begin(), top_concrete_params.end(), kernel_param);
+                    size_t opencl_arg_index = std::distance(top_concrete_params.begin(), param_on_device_it);
+                    assert(opencl_arg_index < top_concrete_params.size());
+                    opencl_args[base_opencl_param_num + opencl_arg_index] = block_body->arg(index);
                 }
 
                 Array<const Def*> args(callee_continuation->type()->num_ops());
@@ -157,16 +189,19 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params) {
                 }
                 // jump over all hls basic blocks until the last one
                 // Replace the last one with the specialized basic block with Opencl intrinsic
-                if (block != last_hls_cont)
+                if (block != last_hls_cont) {
                     block->jump(callee_continuation, args);
-                else
+                } else
                     block->jump(opencl, opencl_args);
             }
+
         }
+
+
     });
 
     debug_verify(world);
-    //world.dump();
+    world.dump();
     //world.cleanup();
 }
 

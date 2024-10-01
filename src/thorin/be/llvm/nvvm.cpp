@@ -3,7 +3,7 @@
 #include <sstream>
 #include <unordered_map> // TODO don't used std::unordered_*
 
-#include <llvm/ADT/Triple.h>
+#include <llvm/TargetParser/Triple.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
@@ -11,7 +11,7 @@
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IRReader/IRReader.h>
-#include <llvm/Support/Host.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"

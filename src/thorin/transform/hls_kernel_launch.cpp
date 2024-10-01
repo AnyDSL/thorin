@@ -38,7 +38,17 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
 
     // all parameters from device IR and the remaining
     std::transform(top_concrete_params.begin(), top_concrete_params.end(), std::back_inserter(opencl_param_types),
-            [](const Def* param) { return param->type(); });
+            [&](const Def* param) {
+
+                if (is_channel_type(param->type())) {
+                    auto struct_type = world.struct_type("channel", 1);
+                    struct_type->set(0, world.type_bool());
+                    return struct_type->as<Type>();
+                }
+
+                return param->type();
+            });
+
 
     auto opencl_type = world.fn_type(opencl_param_types);
 
@@ -156,12 +166,12 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config
                                 continue;
                         } else if (param->type()->isa<FnType>() && param->order() == 1) {
                             opencl_args[i] = last_hls_cont->body()->arg(hls_free_vars_offset - 1);
-                        } else if (!is_channel_type(param->type()) && (i > base_opencl_param_num)) {
+                        } else if (!(param->type()->isa<StructType>()) && (i > base_opencl_param_num)) {
                             continue; // they are assigned in the next loop
-                        } else if (is_channel_type(param->type()) && (i > base_opencl_param_num)) {
-                            // Testing
-                            auto temp = world.bottom(param->type());
-                            opencl_args[i] = temp;
+                        } else if ((param->type()->isa<StructType>()) && (i > base_opencl_param_num)) {
+                            auto bool_literal = {world.literal_bool(true, {"dummy_field"})};
+                            auto dummy_struct =  world.struct_agg(param->type()->as<StructType>(), bool_literal, {"dummy_cgra_channel"});
+                            opencl_args[i] = dummy_struct;
                         }
                     }
                 }

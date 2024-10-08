@@ -2811,12 +2811,18 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
 
         } else {
             std::string qualifier;
-            if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&
-                config && config->as<GPUKernelConfig>()->has_restrict() &&
-                param->type()->isa<PtrType>())
-            {
-                qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
+            if (cont->is_exported() && config && param->type()->isa<PtrType>()) {
+                if (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) {
+                    if (auto gpu_config = config->isa<GPUKernelConfig>(); gpu_config && gpu_config->has_restrict()) {
+                        qualifier = (lang_ == Lang::CUDA) ? " __restrict" : " restrict";
+                    }
+                } else if (lang_ == Lang::CGRA) {
+                    if (auto cgra_config = config->isa<CGRAKernelConfig>(); cgra_config && cgra_config->has_restrict()) {
+                        qualifier = " __restrict";
+                    }
+                }
             }
+
             if (lang_ == Lang::CGRA && !cont->is_cgra_graph())
                 s.fmt("{}{}", prefix_type(param), qualifier);
             else

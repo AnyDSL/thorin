@@ -772,8 +772,8 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
         } else if (actual_num_bits <= 128) {
             s << "128";
         } else {
-            s << "32";
-            world().WLOG("{} bits is not supported. Fallback to 32 bits", actual_num_bits);
+            s << "128";
+            world().WLOG("{} bits is not supported. Fallback to 128 bits", actual_num_bits);
         }
         return s.str();
     };

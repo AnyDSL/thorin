@@ -773,7 +773,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
             s << "128";
         } else {
             s << "128";
-            world().WLOG("{} bits is not supported. Fallback to 128 bits", actual_num_bits);
+            world().WLOG("{} bits PLIO is not supported. Fallback to 128 bits", actual_num_bits);
         }
         return s.str();
     };

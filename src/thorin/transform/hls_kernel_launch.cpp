@@ -100,7 +100,7 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config
     });
 
     auto hls_top = (hls_top_it != cont2config.end()) ? hls_top_it->first : nullptr;
-    assert(hls_top && "No hls_top found");
+    if (!hls_top) return world.WLOG("No hls_top found!");
 
 
     // An array of hls_top parameters in which non-channel types are replaced with corresponding parameters in device_params

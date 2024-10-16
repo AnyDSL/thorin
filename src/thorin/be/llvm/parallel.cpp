@@ -51,7 +51,7 @@ void CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation* continua
 
     // create wrapper function and call the runtime
     // wrapper(void* closure, int lower, int upper)
-    llvm::Type* wrapper_arg_types[] = { irbuilder.getInt8PtrTy(0), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
+    llvm::Type* wrapper_arg_types[] = { irbuilder.getPtrTy(), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_parallel_for";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
@@ -143,7 +143,7 @@ void CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* continuati
 
     // create wrapper function and call the runtime
     // wrapper(void* closure, int lower, int upper)
-    llvm::Type* wrapper_arg_types[] = { irbuilder.getInt8PtrTy(0), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
+    llvm::Type* wrapper_arg_types[] = { irbuilder.getPtrTy(), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_fibers";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
@@ -225,7 +225,7 @@ llvm::Value* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* con
 
     // create wrapper function and call the runtime
     // wrapper(void* closure)
-    llvm::Type* wrapper_arg_types[] = { irbuilder.getInt8PtrTy(0) };
+    llvm::Type* wrapper_arg_types[] = { irbuilder.getPtrTy() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_spawn_thread";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();

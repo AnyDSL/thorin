@@ -6,18 +6,6 @@
 
 namespace thorin {
 
-struct KernelLaunchArgs {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
-};
-
 class KernelConfig : public RuntimeCast<KernelConfig> {
 public:
     virtual ~KernelConfig() {}

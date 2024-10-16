@@ -7,6 +7,7 @@
 #include <llvm/IR/Module.h>
 
 #include "thorin/world.h"
+#include "thorin/be/runtime.h"
 
 namespace thorin::llvm {
 
@@ -17,16 +18,6 @@ class CodeGen;
 class Runtime {
 public:
     Runtime(llvm::LLVMContext&, llvm::Module&);
-
-    enum Platform {
-        CPU_PLATFORM,
-        CUDA_PLATFORM,
-        OPENCL_PLATFORM,
-        HSA_PLATFORM,
-        PAL_PLATFORM,
-        LEVEL_ZERO_PLATFORM,
-        SHADY_PLATFORM,
-    };
 
     /// Emits a call to anydsl_launch_kernel.
     llvm::Value* launch_kernel(

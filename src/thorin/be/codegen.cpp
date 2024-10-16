@@ -1,6 +1,7 @@
 #include "thorin/be/codegen.h"
 
 #include "thorin/be/c/c.h"
+#include "thorin/be/runtime.h"
 
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/nvvm.h"

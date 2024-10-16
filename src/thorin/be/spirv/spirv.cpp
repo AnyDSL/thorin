@@ -641,7 +641,9 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         //}
         auto type = convert(lea->type()).id;
         auto offset = emit(lea->index());
-        return bb->ptr_access_chain(type, emit(lea->ptr()), offset, {});
+        if (lea->ptr_pointee()->isa<ArrayType>())
+            return bb->ptr_access_chain(type, emit(lea->ptr()), offset, {  });
+        return bb->access_chain(type, emit(lea->ptr()), { offset });
     } else if (auto aggop = def->isa<AggOp>()) {
         auto agg_type = convert(aggop->agg()->type()).id;
 

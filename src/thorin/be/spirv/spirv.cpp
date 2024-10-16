@@ -738,8 +738,8 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
 
             auto src_kind = classify_primtype(src_prim);
             auto dst_kind = classify_primtype(dst_prim);
-            size_t src_bitwidth = conv_src_type.layout->size;
-            size_t dst_bitwidth = conv_src_type.layout->size;
+            size_t src_bitwidth = conv_src_type.layout->size * 8;
+            size_t dst_bitwidth = conv_src_type.layout->size * 8;
 
             SpvId data = emit(cast->from());
 
@@ -796,6 +796,8 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
                     }
                 }
             }
+
+            return data;
         } else THORIN_UNREACHABLE;
     } else if (def->isa<Bottom>()) {
         return bb->undef(convert(def->type()).id);

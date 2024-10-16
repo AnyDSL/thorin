@@ -151,6 +151,17 @@ struct OpenCLSPIRVBackend : public Backend {
         return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
     }
 };
+
+struct LevelZeroSPIRVBackend : public Backend {
+    explicit LevelZeroSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::LevelZero_SPIRV, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        spirv::Target target;
+        return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
+    }
+};
 #endif
 
 #if THORIN_ENABLE_LLVM

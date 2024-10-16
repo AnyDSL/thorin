@@ -24,6 +24,7 @@ public:
         OPENCL_PLATFORM,
         HSA_PLATFORM,
         PAL_PLATFORM,
+        LEVEL_ZERO_PLATFORM,
         SHADY_PLATFORM,
     };
 

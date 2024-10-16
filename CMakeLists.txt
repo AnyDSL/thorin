@@ -48,7 +48,7 @@ if(LLVM_FOUND)
         endif()
     endif()
     # check for RV
-    find_package(RV)
+    find_package(RV QUIET CONFIG)
     if(RV_FOUND)
         message(STATUS "Building with RV from LLVM installation.")
     else()

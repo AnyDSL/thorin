@@ -85,11 +85,11 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
     const size_t num_kernel_args = body->num_args() - KernelLaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types
-    llvm::Value* args   = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8PtrTy(), num_kernel_args), "args");
-    llvm::Value* sizes  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(),   num_kernel_args), "sizes");
-    llvm::Value* aligns = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(),   num_kernel_args), "aligns");
-    llvm::Value* allocs = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(),   num_kernel_args), "allocs");
-    llvm::Value* types  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8Ty(),    num_kernel_args), "types");
+    llvm::Value* args   = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getPtrTy(),   num_kernel_args), "args");
+    llvm::Value* sizes  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(), num_kernel_args), "sizes");
+    llvm::Value* aligns = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(), num_kernel_args), "aligns");
+    llvm::Value* allocs = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(), num_kernel_args), "allocs");
+    llvm::Value* types  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8Ty(),  num_kernel_args), "types");
 
     // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
@@ -109,7 +109,7 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
             if (!contains_ptrtype(target_arg->type()))
                 world.wdef(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
-            void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
+            void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());
             arg_type = KernelArgType::Struct;
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
@@ -118,17 +118,17 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
             if (!rtype->isa<ArrayType>())
                 world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
-            auto alloca = code_gen.emit_alloca(builder, builder.getInt8PtrTy(), target_arg->name());
-            auto target_ptr = builder.CreatePointerCast(target_val, builder.getInt8PtrTy());
+            auto alloca = code_gen.emit_alloca(builder, builder.getPtrTy(), target_arg->name());
+            auto target_ptr = builder.CreatePointerCast(target_val, builder.getPtrTy());
             builder.CreateStore(target_ptr, alloca);
-            void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
+            void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());
             arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(builder, target_val->getType(), target_arg->name());
             builder.CreateStore(target_val, alloca);
 
-            void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
+            void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());
             arg_type = KernelArgType::Val;
         }
 
@@ -203,8 +203,8 @@ llvm::Value* Runtime::parallel_for(
 {
     llvm::Value* parallel_args[] = {
         num_threads, lower, upper,
-        builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
-        builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
+        builder.CreatePointerCast(closure_ptr, builder.getPtrTy()),
+        builder.CreatePointerCast(fun_ptr, builder.getPtrTy())
     };
     return builder.CreateCall(get(code_gen, "anydsl_parallel_for"), parallel_args);
 }
@@ -215,16 +215,16 @@ llvm::Value* Runtime::spawn_fibers(
 {
     llvm::Value* fibers_args[] = {
         num_threads, num_blocks, num_warps,
-        builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
-        builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
+        builder.CreatePointerCast(closure_ptr, builder.getPtrTy()),
+        builder.CreatePointerCast(fun_ptr, builder.getPtrTy())
     };
     return builder.CreateCall(get(code_gen, "anydsl_fibers_spawn"), fibers_args);
 }
 
 llvm::Value* Runtime::spawn_thread(CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* spawn_args[] = {
-        builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
-        builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
+        builder.CreatePointerCast(closure_ptr, builder.getPtrTy()),
+        builder.CreatePointerCast(fun_ptr, builder.getPtrTy())
     };
     return builder.CreateCall(get(code_gen, "anydsl_spawn_thread"), spawn_args);
 }

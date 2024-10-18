@@ -139,6 +139,12 @@ const Param* Continuation::mem_param() const {
 }
 
 const Param* Continuation::ret_param() const {
+    switch (intrinsic()) {
+        case Intrinsic::Branch:
+        case Intrinsic::Match:
+            return nullptr;
+        default: break;
+    }
     const Param* result = nullptr;
     for (auto param : params()) {
         if (param->order() >= 1) {

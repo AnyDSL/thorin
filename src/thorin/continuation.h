@@ -60,10 +60,15 @@ private:
     App(World&, const Defs ops, Debug dbg);
 
 public:
-    const Def* callee() const { return op(0); }
-    const Def* arg(size_t i) const { return op(1 + i); }
-    size_t num_args() const { return num_ops() - 1; }
-    const Defs args() const { return ops().skip_front(); }
+    enum Ops {
+        Callee = 0,
+        FirstArg = 1,
+    };
+
+    const Def* callee() const { return op(Ops::Callee); }
+    const Def* arg(size_t i) const { return op(Ops::FirstArg + i); }
+    size_t num_args() const { return num_ops() - Ops::FirstArg; }
+    const Defs args() const { return ops().skip_front(Ops::FirstArg); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {

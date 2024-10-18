@@ -15,7 +15,6 @@ struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
     FnBuilder& fn_builder;
     FileBuilder& file_builder;
     std::unordered_map<const Param*, Phi> phis_map;
-    DefMap<SpvId> args;
 };
 
 struct FnBuilder : public builder::SpvFnBuilder {

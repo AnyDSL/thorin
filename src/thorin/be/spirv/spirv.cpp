@@ -300,10 +300,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 continue;
             }
             auto val = emit(arg);
-            bb->args[arg] = val;
             auto* param = dst_cont->param(index);
             auto& phi = cont2bb_[dst_cont]->phis_map[param];
-            phi.preds.emplace_back(bb->args[arg], emit_as_bb(continuation));
+            phi.preds.emplace_back(val, emit_as_bb(continuation));
         }
         bb->branch(emit(dst_cont));
     } else if (app.callee() == world().branch()) {
@@ -311,7 +310,6 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         emit_unsafe(mem);
 
         auto cond = emit(app.arg(1));
-        bb->args.emplace(app.arg(2), cond);
         auto tbb = emit(app.arg(2));
         auto fbb = emit(app.arg(3));
         bb->branch_conditional(cond, tbb, fbb);

@@ -180,12 +180,38 @@ FnBuilder* CodeGen::prepare(const thorin::Scope& scope) {
     return &fn;
 }
 
+static bool is_return_block(thorin::Continuation* cont) {
+    if (!cont->is_basicblock())
+        return false;
+    int uses_as_ret_param = 0;
+    for (auto use : cont->copy_uses()) {
+        if (use.def()->isa<Param>())
+            continue; // the block can have params
+        else if (auto app = use.def()->isa<App>()) {
+            if (auto callee = app->callee()->isa_nom<Continuation>()) {
+                auto arg_index = use.index() - App::FirstArg;
+                auto ret_param = callee->ret_param();
+                if (ret_param && arg_index == ret_param->index()) {
+                    uses_as_ret_param++;
+                    continue;
+                }
+            }
+        }
+        return false; // any other use disqualifies the block
+    }
+    return uses_as_ret_param == 1;
+}
+
 void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
     auto& bb = *fn->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*fn));
     cont2bb_[cont] = &bb;
     fn->bbs_to_emit.emplace_back(&bb);
 
     builder_->name(bb.label, cont->name().c_str());
+
+    bb.semi_inline = is_return_block(cont);
+    if (bb.semi_inline)
+        world().ddef(cont, "Emitting {} as return block", cont);
 
     if (entry_ == cont) {
         for (auto param : cont->params()) {
@@ -204,6 +230,8 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
         }
     } else {
         defs_[cont] = bb.label;
+        if (bb.semi_inline)
+            return;
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
                 // Nothing
@@ -256,20 +284,30 @@ SpvId CodeGen::emit_as_bb(thorin::Continuation* cont) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
-    auto& bb = cont2bb_[continuation];
+    BasicBlockBuilder* bb = cont2bb_[continuation];
+
     // Handles the potential nuances of jumping to another continuation
     auto jump_to_next_cont_with_args = [&](Continuation* succ, std::vector<SpvId> args) {
         assert(succ->is_basicblock());
-        bb->branch(emit(succ));
+        BasicBlockBuilder* dstbb = cont2bb_[succ];
+
         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
             assert(j < args.size());
             auto param = succ->param(i);
-            if (is_mem(param) || is_unit(param))
+            if (is_mem(param) || is_unit(param)) {
+                if (dstbb->semi_inline)
+                    defs_[param] = 0;
                 continue;
-            auto& phi = cont2bb_[succ]->phis_map[param];
-            phi.preds.emplace_back(args[j], emit_as_bb(continuation));
+            }
+            if (dstbb->semi_inline) {
+                defs_[param] = args[j];
+            } else {
+                auto& phi = cont2bb_[succ]->phis_map[param];
+                phi.preds.emplace_back(args[j], emit_as_bb(continuation));
+            }
             j++;
         }
+        bb->branch(emit(succ));
     };
 
     auto& app = *continuation->body();

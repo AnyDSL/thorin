@@ -262,6 +262,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         assert(succ->is_basicblock());
         bb->branch(emit(succ));
         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+            assert(j < args.size());
             auto param = succ->param(i);
             if (is_mem(param) || is_unit(param))
                 continue;
@@ -370,45 +371,32 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         // must be call + continuation --- call + return has been removed by codegen_prepare
         auto succ = ret_arg->isa_nom<Continuation>();
 
-        size_t n = 0;
+        size_t real_params_count = 0;
         const Param* last_param = nullptr;
         for (auto param : succ->params()) {
             if (is_mem(param) || is_unit(param))
                 continue;
             last_param = param;
-            n++;
+            real_params_count++;
         }
 
-        if (n == 0) {
-            bb->branch(emit(succ));
-        } else if (n == 1) {
-            bb->branch(emit(succ));
+        std::vector<SpvId> args(real_params_count);
 
-            auto& phi = cont2bb_[succ]->phis_map[last_param];
-            phi.preds.emplace_back(call_result, emit_as_bb(continuation));
-        } else {
-            Array<SpvId> extracts(n);
+        if (real_params_count == 1) {
+            args[0] = call_result;
+        } else if (real_params_count > 1) {
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                 auto param = succ->param(i);
                 if (is_mem(param) || is_unit(param))
                     continue;
-                extracts[j] = bb->extract(convert(param->type()).id, call_result, { (uint32_t) j });
+                args[j] = bb->extract(convert(param->type()).id, call_result, { (uint32_t) j });
                 j++;
             }
 
             bb->branch(emit(succ));
-
-            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                auto param = succ->param(i);
-                if (is_mem(param) || is_unit(param))
-                    continue;
-
-                auto& phi = cont2bb_[succ]->phis_map[last_param];
-                phi.preds.emplace_back(extracts[j], emit_as_bb(continuation));
-
-                j++;
-            }
         }
+
+        jump_to_next_cont_with_args(succ, args);
     }
 }
 

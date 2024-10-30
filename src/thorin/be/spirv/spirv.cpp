@@ -121,10 +121,9 @@ void CodeGen::emit_stream(std::ostream& out) {
     ScopesForest forest(world());
     forest.for_each([&](const Scope& scope) { emit_scope(scope, forest); });
 
-    std::vector<SpvId> interface;
     for (auto def : world().defs()) {
         if (auto global = def->isa<Global>())
-            interface.push_back(emit(global));
+            builder.interface.push_back(emit(global));
     }
 
     int entry_points_count = 0;
@@ -144,7 +143,7 @@ void CodeGen::emit_stream(std::ostream& out) {
                     (uint32_t) std::get<2>(block),
             };
 
-            builder_->declare_entry_point(target_info_.dialect == Target::Vulkan ? spv::ExecutionModelGLCompute : spv::ExecutionModelKernel, callee, cont->name().c_str(), interface);
+            builder_->declare_entry_point(target_info_.dialect == Target::Vulkan ? spv::ExecutionModelGLCompute : spv::ExecutionModelKernel, callee, cont->name().c_str(), builder.interface);
             builder_->execution_mode(callee, spv::ExecutionModeLocalSize, local_size);
             entry_points_count++;
         }
@@ -868,6 +867,7 @@ std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* i
                 auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
                 auto desired_type = ret_type->types()[1]->as<PtrType>();
                 auto id = builder_->variable(convert(desired_type).id, static_cast<spv::StorageClass>(convert(desired_type->addr_space())));
+                builder_->interface.push_back(id);
                 builder_->decorate(id, spv::Decoration::DecorationBuiltIn, { spv_builtin });
                 builder_->builtins_[spv_builtin] = id;
                 productions.push_back(id);

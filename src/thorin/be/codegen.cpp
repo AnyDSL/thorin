@@ -270,6 +270,7 @@ DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::s
 #endif
 #if THORIN_ENABLE_SPIRV
     register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));
+    register_backend(std::make_unique<LevelZeroSPIRVBackend>(*this, world));
 #endif
     register_backend(std::make_unique<HLSBackend>(*this, world, hls_flags));
 

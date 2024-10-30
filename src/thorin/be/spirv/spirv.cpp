@@ -873,7 +873,7 @@ std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* i
         } else
             world().ELOG("spirv.builtin requires an integer literal as the argument");
     } else {
-        world().ELOG("This spir-v builtin isn't recognised: %s", intrinsic->name());
+        world().ELOG("This spir-v builtin isn't recognised: {}", intrinsic->name());
     }
     return productions;
 }

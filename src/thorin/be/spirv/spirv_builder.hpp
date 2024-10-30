@@ -609,6 +609,8 @@ struct SpvFileBuilder {
         extensions_set.insert(name);
     }
 
+    uint32_t version = spv::Version;
+
     spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
     spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelSimple;
 
@@ -670,7 +672,7 @@ public:
         memory_model_section.data_.push_back(memory_model);
 
         output_word_le(spv::MagicNumber);
-        output_word_le(spv::Version); // TODO: target a specific spirv version
+        output_word_le(version); // TODO: target a specific spirv version
         output_word_le(uint32_t(0)); // TODO get a magic number ?
         output_word_le(bound);
         output_word_le(uint32_t(0)); // instruction schema padding

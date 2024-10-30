@@ -109,6 +109,7 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->capability(spv::Capability::CapabilityAddresses);
             builder_->addressing_model = target_info_.mem_layout.pointer_size == 4 ? spv::AddressingModelPhysical32 : spv::AddressingModelPhysical64;
             builder_->memory_model = spv::MemoryModel::MemoryModelOpenCL;
+            builder_->version = 0x10200;
             break;
         case Target::Vulkan:
             builder_->capability(spv::Capability::CapabilityShader);

@@ -766,7 +766,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             auto src_kind = classify_primtype(src_prim);
             auto dst_kind = classify_primtype(dst_prim);
             size_t src_bitwidth = conv_src_type.layout->size * 8;
-            size_t dst_bitwidth = conv_src_type.layout->size * 8;
+            size_t dst_bitwidth = conv_dst_type.layout->size * 8;
 
             SpvId data = emit(cast->from());
 
@@ -801,6 +801,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
                         case PrimTypeKind::Float:
                             data = bb->convert(spv::OpFConvert, target_type, data);
                             break;
+                        default: assert(false);
                     }
                 }
 
@@ -820,6 +821,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
                         case PrimTypeKind::Float:
                             data = bb->convert(spv::OpFConvert, target_type, data);
                             break;
+                        default: assert(false);
                     }
                 }
             }

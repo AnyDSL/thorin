@@ -144,7 +144,7 @@ void CodeGen::emit_stream(std::ostream& out) {
                     (uint32_t) std::get<2>(block),
             };
 
-            builder_->declare_entry_point(spv::ExecutionModelGLCompute, callee, cont->name().c_str(), interface);
+            builder_->declare_entry_point(target_info_.dialect == Target::Vulkan ? spv::ExecutionModelGLCompute : spv::ExecutionModelKernel, callee, cont->name().c_str(), interface);
             builder_->execution_mode(callee, spv::ExecutionModeLocalSize, local_size);
             entry_points_count++;
         }

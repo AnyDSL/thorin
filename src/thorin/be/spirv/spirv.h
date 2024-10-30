@@ -71,7 +71,7 @@ protected:
 
     SpvId get_codom_type(const Continuation* fn);
 
-    Target& target_info_;
+    Target target_info_;
     FileBuilder* builder_;
     const Cont2Config* kernel_config_;
 

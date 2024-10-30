@@ -115,6 +115,7 @@ void CodeGen::emit_stream(std::ostream& out) {
             builder_->addressing_model = spv::AddressingModelPhysicalStorageBuffer64;
             builder_->memory_model = spv::MemoryModel::MemoryModelGLSL450;
             break;
+        default: assert(false && "unknown spirv dialect");
     }
 
     ScopesForest forest(world());

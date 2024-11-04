@@ -92,10 +92,12 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 1, 1 };
             break;
         case Node_PrimType_ps8:
+            builder_->capability(spv::Capability::CapabilityInt8);
             converted.id = builder_->declare_int_type(8, true);
             converted.layout = { 1, 1 };
             break;
         case Node_PrimType_pu8:
+            builder_->capability(spv::Capability::CapabilityInt8);
             converted.id = builder_->declare_int_type(8, false);
             converted.layout = { 1, 1 };
             break;
@@ -128,6 +130,7 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 8, 8 };
             break;
         case Node_PrimType_pf16:
+            builder_->capability(spv::Capability::CapabilityFloat16);
             converted.id = builder_->declare_float_type(16);
             converted.layout = { 2, 2 };
             break;
@@ -136,6 +139,7 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 4, 4 };
             break;
         case Node_PrimType_pf64:
+            builder_->capability(spv::Capability::CapabilityFloat64);
             converted.id = builder_->declare_float_type(64);
             converted.layout = { 8, 8 };
             break;

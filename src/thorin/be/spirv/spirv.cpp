@@ -10,7 +10,7 @@ namespace thorin::spirv {
 
 /// Used as a dummy SSA value for emitting things like mem/unit
 /// Should never make it in the binary files !
-constexpr SpvId spv_none { 0 };
+constexpr Id spv_none { 0 };
 
 // SPIR-V has 3 "kinds" of primitives, and the user may declare arbitrary bitwidths, the following helps in translation:
 enum class PrimTypeKind {
@@ -76,22 +76,22 @@ switch (bitwidth) { \
 }
 
 BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
-        : builder::SpvBasicBlockBuilder(fn_builder.file_builder), fn_builder(fn_builder), file_builder(fn_builder.file_builder) {
+        : builder::BasicBlockBuilder(fn_builder.file_builder), fn_builder(fn_builder), file_builder(fn_builder.file_builder) {
     label = file_builder.generate_fresh_id();
 }
 
-FnBuilder::FnBuilder(FileBuilder& file_builder) : builder::SpvFnBuilder(file_builder), file_builder(file_builder) {}
+FnBuilder::FnBuilder(FileBuilder& file_builder) : builder::FnBuilder(file_builder), file_builder(file_builder) {}
 
-FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg) {
+FileBuilder::FileBuilder(CodeGen* cg) : builder::FileBuilder(), cg(cg) {
 }
 
-SpvId FileBuilder::u32_t() {
+Id FileBuilder::u32_t() {
     if (u32_t_ == 0)
         u32_t_ = cg->convert(cg->world().type_pu32()).id;
     return u32_t_;
 }
 
-SpvId FileBuilder::u32_constant(uint32_t pattern) {
+Id FileBuilder::u32_constant(uint32_t pattern) {
     return constant(u32_t(), { pattern });
 }
 
@@ -135,7 +135,7 @@ void CodeGen::emit_stream(std::ostream& out) {
                 continue;
 
             assert(defs_.contains(cont));
-            SpvId callee = defs_[cont];
+            Id callee = defs_[cont];
 
             auto block = config->second->as<GPUKernelConfig>()->block_size();
             std::vector<uint32_t> local_size = {
@@ -158,7 +158,7 @@ void CodeGen::emit_stream(std::ostream& out) {
     builder_ = nullptr;
 }
 
-SpvId CodeGen::emit_fun_decl(thorin::Continuation* continuation) {
+Id CodeGen::emit_fun_decl(thorin::Continuation* continuation) {
     return get_fn_builder(continuation).function_id;
 }
 
@@ -263,9 +263,9 @@ void CodeGen::finalize(const thorin::Scope&) {
     builder_->define_function(*builder_->current_fn_);
 }
 
-SpvId CodeGen::get_codom_type(const Continuation* fn) {
+Id CodeGen::get_codom_type(const Continuation* fn) {
     auto ret_cont_type = fn->ret_param()->type()->as<FnType>();
-    std::vector<SpvId> types;
+    std::vector<Id> types;
     for (auto& op : ret_cont_type->types()) {
         if (op->isa<MemType>() || is_type_unit(op->type()))
             continue;
@@ -279,7 +279,7 @@ SpvId CodeGen::get_codom_type(const Continuation* fn) {
     return builder_->declare_struct_type(types);
 }
 
-SpvId CodeGen::emit_as_bb(thorin::Continuation* cont) {
+Id CodeGen::emit_as_bb(thorin::Continuation* cont) {
     emit(cont);
     return cont2bb_[cont]->label;
 }
@@ -288,7 +288,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     BasicBlockBuilder* bb = cont2bb_[continuation];
 
     // Handles the potential nuances of jumping to another continuation
-    auto jump_to_next_cont_with_args = [&](Continuation* succ, std::vector<SpvId> args) {
+    auto jump_to_next_cont_with_args = [&](Continuation* succ, std::vector<Id> args) {
         assert(succ->is_basicblock());
         BasicBlockBuilder* dstbb = cont2bb_[succ];
 
@@ -314,7 +314,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     auto& app = *continuation->body();
 
     if (app.callee() == entry_->ret_param()) {
-        std::vector<SpvId> values;
+        std::vector<Id> values;
 
         for (auto arg : app.args()) {
             assert(arg->order() == 0);
@@ -357,8 +357,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         emit_unsafe(app.arg(0));
         auto val = emit(app.arg(1));
         auto otherwise_bb = emit_as_bb(app.arg(2)->isa_nom<Continuation>());
-        std::vector<SpvId> literals;
-        std::vector<SpvId> cases;
+        std::vector<Id> literals;
+        std::vector<Id> cases;
         for (size_t i = 3; i < app.num_args(); i++) {
             auto arg = app.arg(i)->as<Tuple>();
             literals.push_back(emit(arg->op(0)));
@@ -377,7 +377,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         jump_to_next_cont_with_args(succ, productions);
     } else { // function/closure call
         // put all first-order args into an array
-        std::vector<SpvId> call_args;
+        std::vector<Id> call_args;
         const Def* ret_arg = nullptr;
         for (auto arg : app.args()) {
             if (arg->order() == 0) {
@@ -394,7 +394,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             }
         }
 
-        SpvId call_result;
+        Id call_result;
         if (auto called_continuation = app.callee()->isa_nom<Continuation>()) {
             auto ret_type = get_codom_type(called_continuation);
             call_result = bb->call(ret_type, emit(called_continuation), call_args);
@@ -419,7 +419,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             real_params_count++;
         }
 
-        std::vector<SpvId> args(real_params_count);
+        std::vector<Id> args(real_params_count);
 
         if (real_params_count == 1) {
             args[0] = call_result;
@@ -441,11 +441,11 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
 static_assert(sizeof(double) == sizeof(uint64_t), "This code assumes 64-bit double");
 
-SpvId CodeGen::emit_constant(const thorin::Def* def) {
+Id CodeGen::emit_constant(const thorin::Def* def) {
     if (auto primlit = def->isa<PrimLit>()) {
         Box box = primlit->value();
         auto type = convert(def->type()).id;
-        SpvId constant;
+        Id constant;
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     constant = builder_->bool_constant(type, box.get_bool()); break;
             case PrimType_ps8:  case PrimType_qs8:
@@ -472,14 +472,14 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
+Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     if (auto mathop = def->isa<MathOp>())
         return emit_mathop(bb, *mathop);
 
     if (auto bin = def->isa<BinOp>()) {
-        SpvId lhs = emit(bin->lhs());
-        SpvId rhs = emit(bin->rhs());
-        SpvId result_type = convert(def->type()).id;
+        Id lhs = emit(bin->lhs());
+        Id rhs = emit(bin->rhs());
+        Id result_type = convert(def->type()).id;
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -618,7 +618,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto value = emit(vindex->op(0));
         return bb->extract(convert(world().type_pu32()).id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
-        std::vector<SpvId> elements;
+        std::vector<Id> elements;
         elements.resize(tuple->num_ops());
         size_t x = 0;
         for (auto& e : tuple->ops()) {
@@ -626,7 +626,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         }
         return bb->composite(convert(tuple->type()).id, elements);
     } else if (auto structagg = def->isa<StructAgg>()) {
-        std::vector<SpvId> elements;
+        std::vector<Id> elements;
         elements.resize(structagg->num_ops());
         size_t x = 0;
         for (auto& e : structagg->ops()) {
@@ -677,7 +677,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         bool mem = false;
         if (auto tt = aggop->agg()->type()->isa<TupleType>(); tt && tt->op(0)->isa<MemType>()) mem = true;
 
-        auto copy_to_alloca = [&] (SpvId spv_agg, SpvId target_type) {
+        auto copy_to_alloca = [&] (Id spv_agg, Id target_type) {
             world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto agg_ptr_type = builder_->declare_ptr_type(spv::StorageClassFunction, agg_type);
 
@@ -770,7 +770,7 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             size_t src_bitwidth = conv_src_type.layout->size * 8;
             size_t dst_bitwidth = conv_dst_type.layout->size * 8;
 
-            SpvId data = emit(cast->from());
+            Id data = emit(cast->from());
 
             // If floating point is involved (src or dst), OpConvert*ToF and OpConvertFTo* can take care of the bit width transformation so no need for any chopping/expanding
             if (src_kind == PrimTypeKind::Float || dst_kind == PrimTypeKind::Float) {
@@ -840,10 +840,10 @@ SpvId CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-std::vector<SpvId> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
-    std::vector<SpvId> productions;
+std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
+    std::vector<Id> productions;
     if (intrinsic->name() == "spirv.nonsemantic.printf") {
-        std::vector<SpvId> args;
+        std::vector<Id> args;
         auto string = app.arg(1);
         if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
             auto arr = string->as<DefiniteArray>();

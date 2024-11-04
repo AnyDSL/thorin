@@ -7,7 +7,7 @@
 
 namespace thorin::spirv {
 
-struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
+struct BasicBlockBuilder : public builder::BasicBlockBuilder {
     explicit BasicBlockBuilder(FnBuilder& fn_builder);
 
     BasicBlockBuilder(const BasicBlockBuilder&) = delete;
@@ -19,17 +19,17 @@ struct BasicBlockBuilder : public builder::SpvBasicBlockBuilder {
     bool semi_inline;
 };
 
-struct FnBuilder : public builder::SpvFnBuilder {
+struct FnBuilder : public builder::FnBuilder {
     explicit FnBuilder(FileBuilder& file_builder);
 
     FnBuilder(const FnBuilder&) = delete;
 
     FileBuilder& file_builder;
     std::vector<std::unique_ptr<BasicBlockBuilder>> bbs;
-    DefMap<SpvId> params;
+    DefMap<Id> params;
 };
 
-struct FileBuilder : public builder::SpvFileBuilder {
+struct FileBuilder : public builder::FileBuilder {
     explicit FileBuilder(CodeGen* cg);
     FileBuilder(const FileBuilder&) = delete;
 
@@ -37,14 +37,14 @@ struct FileBuilder : public builder::SpvFileBuilder {
 
     FnBuilder* current_fn_ = nullptr;
     ContinuationMap<std::unique_ptr<FnBuilder>> fn_builders_;
-    std::unordered_map<uint32_t, SpvId> builtins_;
-    std::vector<SpvId> interface;
+    std::unordered_map<uint32_t, Id> builtins_;
+    std::vector<Id> interface;
 
-    SpvId u32_t();
-    SpvId u32_constant(uint32_t);
+    Id u32_t();
+    Id u32_constant(uint32_t);
 
 private:
-    SpvId u32_t_ { 0 };
+    Id u32_t_ { 0 };
 };
 
 }

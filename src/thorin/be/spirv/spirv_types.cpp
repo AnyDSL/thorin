@@ -164,15 +164,15 @@ ConvertedType CodeGen::convert(const Type* type) {
         case Node_FnType: {
             // extract "return" type, collect all other types
             auto fn = type->as<FnType>();
-            SpvId ret = 0;
-            std::vector<SpvId> ops;
+            Id ret = 0;
+            std::vector<Id> ops;
             for (auto op : fn->types()) {
                 if (op->isa<MemType>() || op == world().unit_type())
                     continue;
                 auto fn_type = op->isa<FnType>();
                 if (fn_type && !op->isa<ClosureType>()) {
                     assert(!ret && "only one 'return' supported");
-                    std::vector<SpvId> ret_types;
+                    std::vector<Id> ret_types;
                     for (auto fn_op : fn_type->types()) {
                         if (fn_op->isa<MemType>() || fn_op == world().unit_type())
                             continue;
@@ -197,7 +197,7 @@ ConvertedType CodeGen::convert(const Type* type) {
 
         case Node_StructType:
         case Node_TupleType: {
-            std::vector<SpvId> spv_types;
+            std::vector<Id> spv_types;
             size_t total_serialized_size = 0;
             converted.layout = { 0, 0 };
             for (auto member : type->ops()) {
@@ -223,7 +223,7 @@ ConvertedType CodeGen::convert(const Type* type) {
         case Node_VariantType: {
             assert(type->num_ops() > 0 && "empty variants not supported");
             auto tag_type = world().type_pu32();
-            SpvId converted_tag_type = convert(tag_type).id;
+            Id converted_tag_type = convert(tag_type).id;
 
             size_t max_serialized_size = 0;
             for (auto member : type->as<VariantType>()->types()) {

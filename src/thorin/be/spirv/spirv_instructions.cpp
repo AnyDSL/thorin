@@ -35,11 +35,11 @@ SpirMathOps opencl_std = {
     .log10 =    { "OpenCL.std", OpenCLLIB::Log10 },
 };
 
-SpvId CodeGen::emit_mathop(BasicBlockBuilder* bb, const thorin::MathOp& mathop) {
+Id CodeGen::emit_mathop(BasicBlockBuilder* bb, const thorin::MathOp& mathop) {
     auto type = mathop.type();
 
     SpirMathOps& impl = opencl_std;
-    std::vector<SpvId> ops;
+    std::vector<Id> ops;
     for (auto& op : mathop.ops()) {
         ops.push_back(emit(op));
     }

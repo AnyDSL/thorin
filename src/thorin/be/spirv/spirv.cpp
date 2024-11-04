@@ -329,7 +329,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         switch (values.size()) {
             case 0:  bb->terminator.return_void();      break;
             case 1:  bb->terminator.return_value(values[0]); break;
-            default: bb->terminator.return_value(bb->composite(builder_->current_fn_->fn_ret_type, values));
+            default: bb->terminator.return_value(emit_composite(bb, builder_->current_fn_->fn_ret_type, values));
         }
     } else if (auto dst_cont = app.callee()->isa_nom<Continuation>(); dst_cont && dst_cont->is_basicblock()) { // ordinary jump
         int index = -1;
@@ -470,6 +470,32 @@ Id CodeGen::emit_constant(const thorin::Def* def) {
     }
 
     assertf(false, "Incomplete emit(def) definition");
+}
+Id CodeGen::emit_composite(BasicBlockBuilder* bb, Id t, Defs defs) {
+    std::vector<Id> ids;
+    for (auto& def : defs) {
+        ids.push_back(emit(def));
+    }
+    return emit_composite(bb, t, ids);
+}
+
+Id CodeGen::emit_composite(BasicBlockBuilder* bb, Id t, ArrayRef<Id> ids) {
+    if (target_info_.bugs.broken_op_construct_composite) {
+        Id c = bb->undef(t);
+        uint32_t x = 0;
+        for (auto& e : ids) {
+            c = bb->insert(t, e, c, { x++ });
+        }
+        return c;
+    } else {
+        std::vector<Id> elements;
+        elements.resize(ids.size());
+        size_t x = 0;
+        for (auto& e : ids) {
+            elements[x++] = e;
+        }
+        return bb->composite(t, elements);
+    }
 }
 
 Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
@@ -618,21 +644,9 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto value = emit(vindex->op(0));
         return bb->extract(convert(world().type_pu32()).id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
-        std::vector<Id> elements;
-        elements.resize(tuple->num_ops());
-        size_t x = 0;
-        for (auto& e : tuple->ops()) {
-            elements[x++] = emit(e);
-        }
-        return bb->composite(convert(tuple->type()).id, elements);
+        return emit_composite(bb, convert(tuple->type()).id, tuple->ops());
     } else if (auto structagg = def->isa<StructAgg>()) {
-        std::vector<Id> elements;
-        elements.resize(structagg->num_ops());
-        size_t x = 0;
-        for (auto& e : structagg->ops()) {
-            elements[x++] = emit(e);
-        }
-        return bb->composite(convert(structagg->type()).id, elements);
+        return emit_composite(bb, convert(structagg->type()).id, structagg->ops());
     } else if (auto access = def->isa<Access>()) {
         // emit dependent operations first
         emit_unsafe(access->mem());

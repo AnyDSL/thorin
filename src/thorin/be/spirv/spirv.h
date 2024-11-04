@@ -20,6 +20,10 @@ struct Target {
         size_t pointer_size = 8;
     } mem_layout;
 
+    struct {
+        bool broken_op_construct_composite = true;
+    } bugs;
+
     enum Dialect {
         OpenCL,
         Vulkan
@@ -68,6 +72,8 @@ protected:
 
     Id emit_as_bb(Continuation*);
     Id emit_mathop(BasicBlockBuilder* bb, const MathOp& op);
+    Id emit_composite(BasicBlockBuilder* bb, Id, Defs);
+    Id emit_composite(BasicBlockBuilder* bb, Id, ArrayRef<Id>);
 
     Id get_codom_type(const Continuation* fn);
 

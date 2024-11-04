@@ -616,13 +616,13 @@ protected:
 };
 
 struct SpvFnBuilder {
-    explicit SpvFnBuilder(SpvFileBuilder* file_builder)
+    explicit SpvFnBuilder(SpvFileBuilder& file_builder)
             : file_builder(file_builder)
     {
-        function_id = file_builder->generate_fresh_id();
+        function_id = file_builder.generate_fresh_id();
     }
 
-    SpvFileBuilder* file_builder;
+    SpvFileBuilder& file_builder;
     SpvId function_id;
 
     SpvId fn_type;
@@ -636,7 +636,7 @@ struct SpvFnBuilder {
 
     SpvId parameter(SpvId param_type) {
         header.op(spv::Op::OpFunctionParameter, 3);
-        auto id = file_builder->generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         header.ref_id(param_type);
         header.ref_id(id);
         return id;
@@ -645,7 +645,7 @@ struct SpvFnBuilder {
     SpvId variable(SpvId type, spv::StorageClass storage_class) {
         variables.op(spv::Op::OpVariable, 4);
         variables.ref_id(type);
-        auto id = file_builder->generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         variables.ref_id(id);
         variables.literal_int(storage_class);
         return id;

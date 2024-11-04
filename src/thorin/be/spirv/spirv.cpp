@@ -80,7 +80,7 @@ BasicBlockBuilder::BasicBlockBuilder(FnBuilder& fn_builder)
     label = file_builder.generate_fresh_id();
 }
 
-FnBuilder::FnBuilder(FileBuilder& file_builder) : builder::SpvFnBuilder(&file_builder), file_builder(file_builder) {}
+FnBuilder::FnBuilder(FileBuilder& file_builder) : builder::SpvFnBuilder(file_builder), file_builder(file_builder) {}
 
 FileBuilder::FileBuilder(CodeGen* cg) : builder::SpvFileBuilder(), cg(cg) {
 }

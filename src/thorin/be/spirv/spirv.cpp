@@ -308,7 +308,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             }
             j++;
         }
-        bb->branch(emit(succ));
+        bb->terminator.branch(emit(succ));
     };
 
     auto& app = *continuation->body();
@@ -327,9 +327,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         switch (values.size()) {
-            case 0:  bb->return_void();      break;
-            case 1:  bb->return_value(values[0]); break;
-            default: bb->return_value(bb->composite(builder_->current_fn_->fn_ret_type, values));
+            case 0:  bb->terminator.return_void();      break;
+            case 1:  bb->terminator.return_value(values[0]); break;
+            default: bb->terminator.return_value(bb->composite(builder_->current_fn_->fn_ret_type, values));
         }
     } else if (auto dst_cont = app.callee()->isa_nom<Continuation>(); dst_cont && dst_cont->is_basicblock()) { // ordinary jump
         int index = -1;
@@ -344,7 +344,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             auto& phi = cont2bb_[dst_cont]->phis_map[param];
             phi.preds.emplace_back(val, emit_as_bb(continuation));
         }
-        bb->branch(emit(dst_cont));
+        bb->terminator.branch(emit(dst_cont));
     } else if (app.callee() == world().branch()) {
         auto mem = app.arg(0);
         emit_unsafe(mem);
@@ -352,7 +352,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto cond = emit(app.arg(1));
         auto tbb = emit(app.arg(2));
         auto fbb = emit(app.arg(3));
-        bb->branch_conditional(cond, tbb, fbb);
+        bb->terminator.branch_conditional(cond, tbb, fbb);
     } else if (app.callee()->isa<Continuation>() && app.callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
         emit_unsafe(app.arg(0));
         auto val = emit(app.arg(1));
@@ -364,9 +364,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             literals.push_back(emit(arg->op(0)));
             cases.push_back(emit_as_bb(arg->op(1)->as_nom<Continuation>()));
         }
-        bb->branch_switch(val, otherwise_bb, literals, cases);
+        bb->terminator.branch_switch(val, otherwise_bb, literals, cases);
     } else if (app.callee()->isa<Bottom>()) {
-        bb->unreachable();
+        bb->terminator.unreachable();
     } else if (auto intrinsic = app.callee()->isa_nom<Continuation>(); intrinsic && (intrinsic->is_intrinsic() || intrinsic->cc() == CC::Device)) {
         // Ensure we emit previous memory operations
         assert(is_mem(app.arg(0)));
@@ -432,7 +432,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 j++;
             }
 
-            bb->branch(emit(succ));
+            bb->terminator.branch(emit(succ));
         }
 
         jump_to_next_cont_with_args(succ, args);

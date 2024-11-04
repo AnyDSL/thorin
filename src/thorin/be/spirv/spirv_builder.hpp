@@ -395,8 +395,7 @@ public:
 
 struct BasicBlockBuilder : public SectionBuilder {
     explicit BasicBlockBuilder(FileBuilder& file_builder)
-            : file_builder(file_builder)
-    {}
+            : file_builder(file_builder), terminator(*this) {}
 
     FileBuilder& file_builder;
 
@@ -532,45 +531,6 @@ struct BasicBlockBuilder : public SectionBuilder {
         return id;
     }
 
-    void branch(Id target) {
-        begin_op(spv::Op::OpBranch, 2);
-        ref_id(target);
-    }
-
-    void branch_conditional(Id condition, Id true_target, Id false_target) {
-        begin_op(spv::Op::OpBranchConditional, 4);
-        ref_id(condition);
-        ref_id(true_target);
-        ref_id(false_target);
-    }
-
-    void branch_switch(Id selector, Id default_case, std::vector<uint32_t> literals, std::vector<uint32_t> cases) {
-        assert(literals.size() == cases.size());
-        begin_op(spv::Op::OpSwitch, 3 + literals.size() * 2);
-        ref_id(selector);
-        ref_id(default_case);
-        for (size_t i = 0; i < literals.size(); i++) {
-            ref_id(literals[i]);
-            ref_id(cases[i]);
-        }
-    }
-
-    void selection_merge(Id merge_bb, spv::SelectionControlMask selection_control) {
-        begin_op(spv::Op::OpSelectionMerge, 3);
-        ref_id(merge_bb);
-        literal_int(selection_control);
-    }
-
-    void loop_merge(Id merge_bb, Id continue_bb, spv::LoopControlMask loop_control, std::vector<uint32_t> loop_control_ops) {
-        begin_op(spv::Op::OpLoopMerge, 4 + loop_control_ops.size());
-        ref_id(merge_bb);
-        ref_id(continue_bb);
-        literal_int(loop_control);
-
-        for (auto e : loop_control_ops)
-            literal_int(e);
-    }
-
     Id call(Id return_type, Id callee, std::vector<Id> arguments) {
         begin_op(spv::Op::OpFunctionCall, 4 + arguments.size());
         auto id = file_builder.generate_fresh_id();
@@ -585,18 +545,66 @@ struct BasicBlockBuilder : public SectionBuilder {
 
     Id ext_instruction(Id return_type, ExtendedInstruction instr, std::vector<Id> arguments);
 
-    void return_void() {
-        begin_op(spv::Op::OpReturn, 1);
-    }
+    struct TerminatorBuilder : public SectionBuilder {
+        TerminatorBuilder(BasicBlockBuilder& bb) : bb(bb) {}
 
-    void return_value(Id value) {
-        begin_op(spv::Op::OpReturnValue, 2);
-        ref_id(value);
-    }
+        void branch(Id target) {
+            begin_op(spv::Op::OpBranch, 2);
+            ref_id(target);
+        }
 
-    void unreachable() {
-        begin_op(spv::Op::OpUnreachable, 1);
-    }
+        void branch_conditional(Id condition, Id true_target, Id false_target) {
+            begin_op(spv::Op::OpBranchConditional, 4);
+            ref_id(condition);
+            ref_id(true_target);
+            ref_id(false_target);
+        }
+
+        void branch_switch(Id selector, Id default_case, std::vector<uint32_t> literals, std::vector<uint32_t> cases) {
+            assert(literals.size() == cases.size());
+            begin_op(spv::Op::OpSwitch, 3 + literals.size() * 2);
+            ref_id(selector);
+            ref_id(default_case);
+            for (size_t i = 0; i < literals.size(); i++) {
+                ref_id(literals[i]);
+                ref_id(cases[i]);
+            }
+        }
+
+        void selection_merge(Id merge_bb, spv::SelectionControlMask selection_control) {
+            begin_op(spv::Op::OpSelectionMerge, 3);
+            ref_id(merge_bb);
+            literal_int(selection_control);
+        }
+
+        void loop_merge(Id merge_bb, Id continue_bb, spv::LoopControlMask loop_control, std::vector<uint32_t> loop_control_ops) {
+            begin_op(spv::Op::OpLoopMerge, 4 + loop_control_ops.size());
+            ref_id(merge_bb);
+            ref_id(continue_bb);
+            literal_int(loop_control);
+
+            for (auto e : loop_control_ops)
+                literal_int(e);
+        }
+
+        void return_void() {
+            begin_op(spv::Op::OpReturn, 1);
+        }
+
+        void return_value(Id value) {
+            begin_op(spv::Op::OpReturnValue, 2);
+            ref_id(value);
+        }
+
+        void unreachable() {
+            begin_op(spv::Op::OpUnreachable, 1);
+        }
+
+    private:
+        BasicBlockBuilder& bb;
+    };
+
+    TerminatorBuilder terminator;
 
 protected:
     Id ext_instruction(Id return_type, Id set, uint32_t instruction, std::vector<Id> arguments) {
@@ -683,6 +691,9 @@ inline Id FileBuilder::define_function(FnBuilder &fn_builder) {
         }
 
         for (auto w : bb->data_)
+            fn_defs.data_.push_back(w);
+
+        for (auto w : bb->terminator.data_)
             fn_defs.data_.push_back(w);
     }
 

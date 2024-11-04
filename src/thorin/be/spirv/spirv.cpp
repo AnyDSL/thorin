@@ -641,7 +641,7 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto ptr_type = access->ptr()->type()->as<PtrType>();
         if (ptr_type->addr_space() == AddrSpace::Global) {
             operands.push_back(spv::MemoryAccessAlignedMask);
-            operands.push_back( 4 ); // TODO: SPIR-V docs say to consult client API for valid values.
+            operands.push_back(4); // TODO: SPIR-V docs say to consult client API for valid values.
         }
         if (auto load = def->isa<Load>()) {
             return bb->load(convert(load->out_val_type()).id, emit(load->ptr()), operands);
@@ -668,8 +668,10 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         //}
         auto type = convert(lea->type()).id;
         auto offset = emit(lea->index());
-        if (lea->ptr_pointee()->isa<ArrayType>())
-            return bb->ptr_access_chain(type, emit(lea->ptr()), offset, {  });
+        if (auto arr_type = lea->ptr_pointee()->isa<ArrayType>()) {
+            auto base = bb->convert(spv::OpBitcast, type, emit(lea->ptr()));
+            return bb->ptr_access_chain(type, base, offset, {  });
+        }
         return bb->access_chain(type, emit(lea->ptr()), { offset });
     } else if (auto aggop = def->isa<AggOp>()) {
         auto agg_type = convert(aggop->agg()->type()).id;

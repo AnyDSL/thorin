@@ -686,6 +686,8 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             auto base = bb->convert(spv::OpBitcast, type, emit(lea->ptr()));
             return bb->ptr_access_chain(type, base, offset, {  });
         }
+        if (target_info_.bugs.static_ac_indices_must_be_i32)
+            offset = emit(world().cast(world().type_pu32(), lea->index()));
         return bb->access_chain(type, emit(lea->ptr()), { offset });
     } else if (auto aggop = def->isa<AggOp>()) {
         auto agg_type = convert(aggop->agg()->type()).id;

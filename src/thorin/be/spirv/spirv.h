@@ -22,6 +22,7 @@ struct Target {
 
     struct {
         bool broken_op_construct_composite = true;
+        bool static_ac_indices_must_be_i32 = true;
     } bugs;
 
     enum Dialect {

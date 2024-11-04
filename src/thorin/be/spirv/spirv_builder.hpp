@@ -69,6 +69,333 @@ public:
     }
 };
 
+
+
+struct SpvFileBuilder {
+
+    enum UniqueDeclTag {
+        NONE,
+        FN_TYPE,
+        PTR_TYPE,
+        DEF_ARR_TYPE,
+        CONSTANT,
+        CONSTANT_COMPOSITE,
+    };
+
+    /// Prevents duplicate declarations
+    struct UniqueDeclKey {
+        UniqueDeclTag tag;
+        std::vector<uint32_t> members;
+
+        bool operator==(const UniqueDeclKey &b) const {
+            return tag == b.tag && members == b.members;
+        }
+    };
+
+    struct UniqueDeclKeyHasher {
+        size_t operator() (const UniqueDeclKey& key) const {
+            size_t acc = 0;
+            for (auto id : key.members)
+                acc ^= std::hash<uint32_t>{}(id);
+            return std::hash<size_t>{}(key.tag) ^ acc;
+        }
+    };
+
+    SpvFileBuilder() {}
+    SpvFileBuilder(const SpvFileBuilder&) = delete;
+
+    SpvId generate_fresh_id() { return { bound++ }; }
+
+    void name(SpvId id, std::string_view str) {
+        assert(id < bound);
+        debug_names.op(spv::Op::OpName, 2 + div_roundup(str.size() + 1, 4));
+        debug_names.ref_id(id);
+        debug_names.literal_name(str);
+    }
+
+    SpvId declare_bool_type() {
+        types_constants.op(spv::Op::OpTypeBool, 2);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        return id;
+    }
+
+    SpvId declare_int_type(int width, bool signed_) {
+        types_constants.op(spv::Op::OpTypeInt, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(width);
+        types_constants.literal_int(signed_ ? 1 : 0);
+        return id;
+    }
+
+    SpvId declare_float_type(int width) {
+        types_constants.op(spv::Op::OpTypeFloat, 3);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(width);
+        return id;
+    }
+
+    SpvId declare_ptr_type(spv::StorageClass storage_class, SpvId element_type) {
+        auto key = UniqueDeclKey { PTR_TYPE, { element_type, (uint32_t) storage_class } };
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+        types_constants.op(spv::Op::OpTypePointer, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(storage_class);
+        types_constants.ref_id(element_type);
+        unique_decls[key] = id;
+        return id;
+    }
+
+    SpvId declare_array_type(SpvId element_type, SpvId dim) {
+        auto key = UniqueDeclKey { DEF_ARR_TYPE, { element_type, dim } };
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+        types_constants.op(spv::Op::OpTypeArray, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.ref_id(element_type);
+        types_constants.ref_id(dim);
+        unique_decls[key] = id;
+        return id;
+    }
+
+    SpvId declare_fn_type(std::vector<SpvId> dom, SpvId codom) {
+        auto key = UniqueDeclKey { FN_TYPE, {} };
+        for (auto d : dom) key.members.push_back(d);
+        key.members.push_back(codom);
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+
+        types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.ref_id(codom);
+        for (auto arg : dom)
+            types_constants.ref_id(arg);
+        unique_decls[key] = id;
+        return id;
+    }
+
+    SpvId declare_struct_type(std::vector<SpvId> elements) {
+        types_constants.op(spv::Op::OpTypeStruct, 2 + elements.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        for (auto arg : elements)
+            types_constants.ref_id(arg);
+        return id;
+    }
+
+    SpvId declare_vector_type(SpvId component_type, uint32_t dim) {
+        types_constants.op(spv::Op::OpTypeVector, 4);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.ref_id(component_type);
+        types_constants.literal_int(dim);
+        return id;
+    }
+
+    void decorate(SpvId target, spv::Decoration decoration, std::vector<uint32_t> extra = {}) {
+        annotations.op(spv::Op::OpDecorate, 3 + extra.size());
+        annotations.ref_id(target);
+        annotations.literal_int(decoration);
+        for (auto e : extra)
+            annotations.literal_int(e);
+    }
+
+    void decorate_member(SpvId target, uint32_t member, spv::Decoration decoration, std::vector<uint32_t> extra = {}) {
+        annotations.op(spv::Op::OpMemberDecorate, 4 + extra.size());
+        annotations.ref_id(target);
+        annotations.literal_int(member);
+        annotations.literal_int(decoration);
+        for (auto e : extra)
+            annotations.literal_int(e);
+    }
+
+    SpvId debug_string(std::string string) {
+        debug_string_source.op(spv::Op::OpString, 2 + div_roundup(string.size() + 1, 4));
+        auto id = generate_fresh_id();
+        debug_string_source.ref_id(id);
+        debug_string_source.literal_name(string);
+        return id;
+    }
+
+    SpvId bool_constant(SpvId type, bool value) {
+        types_constants.op(value ? spv::Op::OpConstantTrue : spv::Op::OpConstantFalse, 3);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(type);
+        types_constants.ref_id(id);
+        return id;
+    }
+
+    SpvId constant(SpvId type, std::vector<uint32_t> bit_pattern) {
+        auto key = UniqueDeclKey { CONSTANT, bit_pattern };
+        key.members.push_back(type);
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+        types_constants.op(spv::Op::OpConstant, 3 + bit_pattern.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(type);
+        types_constants.ref_id(id);
+        for (auto arg : bit_pattern)
+            types_constants.literal_int(arg);
+        unique_decls[key] = id;
+        return id;
+    }
+
+    SpvId constant_composite(SpvId type, std::vector<SpvId> ops) {
+        auto key = UniqueDeclKey { CONSTANT_COMPOSITE, {} };
+        key.members.push_back(type);
+        for (auto op : ops) key.members.push_back(op);
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
+        types_constants.op(spv::Op::OpConstantComposite, 3 + ops.size());
+        auto id = generate_fresh_id();
+        types_constants.ref_id(type);
+        types_constants.ref_id(id);
+        for (auto op : ops)
+            types_constants.ref_id(op);
+        unique_decls[key] = id;
+        return id;
+    }
+
+    SpvId variable(SpvId type, spv::StorageClass storage_class) {
+        types_constants.op(spv::Op::OpVariable, 4);
+        types_constants.ref_id(type);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        types_constants.literal_int(storage_class);
+        return id;
+    }
+
+    SpvId declare_void_type() {
+        types_constants.op(spv::Op::OpTypeVoid, 2);
+        auto id = generate_fresh_id();
+        types_constants.ref_id(id);
+        return id;
+    }
+
+    SpvId define_function(SpvFnBuilder& fn_builder);
+
+    void declare_entry_point(spv::ExecutionModel execution_model, SpvId entry_point, std::string name, std::vector<SpvId> interface) {
+        entry_points.op(spv::Op::OpEntryPoint, 3 + div_roundup(name.size() + 1, 4) + interface.size());
+        entry_points.literal_int(execution_model);
+        entry_points.ref_id(entry_point);
+        entry_points.literal_name(name);
+        for (auto i : interface)
+            entry_points.ref_id(i);
+    }
+
+    void execution_mode(SpvId entry_point, spv::ExecutionMode execution_mode, std::vector<uint32_t> payloads) {
+        entry_points.op(spv::Op::OpExecutionMode, 3 + payloads.size());
+        entry_points.ref_id(entry_point);
+        entry_points.literal_int(execution_mode);
+        for (auto d : payloads)
+            entry_points.literal_int(d);
+    }
+
+    void capability(spv::Capability cap) {
+        auto found = capabilities_set.find(cap);
+        if (found != capabilities_set.end())
+            return;
+        capabilities.op(spv::Op::OpCapability, 2);
+        capabilities.data_.push_back(cap);
+        capabilities_set.insert(cap);
+    }
+
+    void extension(std::string name) {
+        auto found = extensions_set.find(name);
+        if (found != extensions_set.end())
+            return;
+        extensions.op(spv::Op::OpExtension, 1 + div_roundup(name.size() + 1, 4));
+        extensions.literal_name(name);
+        extensions_set.insert(name);
+    }
+
+    uint32_t version = spv::Version;
+
+    spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
+    spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelSimple;
+
+protected:
+    SpvId extended_import(std::string name) {
+        auto found = extended_instruction_sets.find(name);
+        if (found != extended_instruction_sets.end())
+            return found->second;
+        ext_inst_import.op(spv::Op::OpExtInstImport, 2 + div_roundup(name.size() + 1, 4));
+        auto id = generate_fresh_id();
+        ext_inst_import.ref_id(id);
+        ext_inst_import.literal_name(name);
+        extended_instruction_sets[name] = id;
+        return id;
+    }
+
+private:
+    std::ostream* output_ = nullptr;
+    uint32_t bound = 1;
+
+    // Ordered as per https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.pdf#subsection.2.4
+    SpvSectionBuilder capabilities;
+    SpvSectionBuilder extensions;
+    SpvSectionBuilder ext_inst_import;
+    SpvSectionBuilder entry_points;
+    SpvSectionBuilder execution_modes;
+    SpvSectionBuilder debug_string_source;
+    SpvSectionBuilder debug_names;
+    SpvSectionBuilder debug_module_processed;
+    SpvSectionBuilder annotations;
+    SpvSectionBuilder types_constants;
+    SpvSectionBuilder fn_decls;
+    SpvSectionBuilder fn_defs;
+
+    // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
+    std::unordered_map<UniqueDeclKey, SpvId, UniqueDeclKeyHasher> unique_decls;
+    std::unordered_map<std::string, SpvId> extended_instruction_sets;
+    std::unordered_set<spv::Capability> capabilities_set;
+    std::unordered_set<std::string> extensions_set;
+
+    void output_word_le(uint32_t word) {
+        output_->put((word >> 0) & 0xFFu);
+        output_->put((word >> 8) & 0xFFu);
+        output_->put((word >> 16) & 0xFFu);
+        output_->put((word >> 24) & 0xFFu);
+    }
+
+    void output_section(SpvSectionBuilder& section) {
+        for (auto& word : section.data_) {
+            output_word_le(word);
+        }
+    }
+public:
+    void finish(std::ostream& output) {
+        output_ = &output;
+        SpvSectionBuilder memory_model_section;
+        memory_model_section.op(spv::Op::OpMemoryModel, 3);
+        memory_model_section.data_.push_back(addressing_model);
+        memory_model_section.data_.push_back(memory_model);
+
+        output_word_le(spv::MagicNumber);
+        output_word_le(version); // TODO: target a specific spirv version
+        output_word_le(uint32_t(0)); // TODO get a magic number ?
+        output_word_le(bound);
+        output_word_le(uint32_t(0)); // instruction schema padding
+
+        output_section(capabilities);
+        output_section(extensions);
+        output_section(ext_inst_import);
+        output_section(memory_model_section);
+        output_section(entry_points);
+        output_section(execution_modes);
+        output_section(debug_string_source);
+        output_section(debug_names);
+        output_section(debug_module_processed);
+        output_section(annotations);
+        output_section(types_constants);
+        output_section(fn_decls);
+        output_section(fn_defs);
+    }
+
+    friend SpvBasicBlockBuilder;
+};
+
 struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     explicit SpvBasicBlockBuilder(SpvFileBuilder& file_builder)
             : file_builder(file_builder)
@@ -331,369 +658,47 @@ private:
     SpvId generate_fresh_id();
 };
 
-struct SpvFileBuilder {
+inline SpvId SpvFileBuilder::define_function(SpvFnBuilder &fn_builder) {
+    fn_defs.op(spv::Op::OpFunction, 5);
+    fn_defs.ref_id(fn_builder.fn_ret_type);
+    fn_defs.ref_id(fn_builder.function_id);
+    fn_defs.data_.push_back(spv::FunctionControlMaskNone);
+    fn_defs.ref_id(fn_builder.fn_type);
 
-    enum UniqueDeclTag {
-        NONE,
-        FN_TYPE,
-        PTR_TYPE,
-        DEF_ARR_TYPE,
-        CONSTANT,
-        CONSTANT_COMPOSITE,
-    };
+    // Includes stuff like OpFunctionParameters
+    for (auto w : fn_builder.header.data_)
+        fn_defs.data_.push_back(w);
 
-    /// Prevents duplicate declarations
-    struct UniqueDeclKey {
-        UniqueDeclTag tag;
-        std::vector<uint32_t> members;
+    bool first = true;
+    for (auto& bb : fn_builder.bbs_to_emit) {
+        fn_defs.op(spv::Op::OpLabel, 2);
+        fn_defs.ref_id(bb->label);
 
-        bool operator==(const UniqueDeclKey &b) const {
-            return tag == b.tag && members == b.members;
-        }
-    };
-
-    struct UniqueDeclKeyHasher {
-        size_t operator() (const UniqueDeclKey& key) const {
-            size_t acc = 0;
-            for (auto id : key.members)
-                acc ^= std::hash<uint32_t>{}(id);
-            return std::hash<size_t>{}(key.tag) ^ acc;
-        }
-    };
-
-    SpvFileBuilder() {}
-    SpvFileBuilder(const SpvFileBuilder&) = delete;
-
-    SpvId generate_fresh_id() { return { bound++ }; }
-
-    void name(SpvId id, std::string_view str) {
-        assert(id < bound);
-        debug_names.op(spv::Op::OpName, 2 + div_roundup(str.size() + 1, 4));
-        debug_names.ref_id(id);
-        debug_names.literal_name(str);
-    }
-
-    SpvId declare_bool_type() {
-        types_constants.op(spv::Op::OpTypeBool, 2);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        return id;
-    }
-
-    SpvId declare_int_type(int width, bool signed_) {
-        types_constants.op(spv::Op::OpTypeInt, 4);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.literal_int(width);
-        types_constants.literal_int(signed_ ? 1 : 0);
-        return id;
-    }
-
-    SpvId declare_float_type(int width) {
-        types_constants.op(spv::Op::OpTypeFloat, 3);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.literal_int(width);
-        return id;
-    }
-
-    SpvId declare_ptr_type(spv::StorageClass storage_class, SpvId element_type) {
-        auto key = UniqueDeclKey { PTR_TYPE, { element_type, (uint32_t) storage_class } };
-        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
-        types_constants.op(spv::Op::OpTypePointer, 4);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.literal_int(storage_class);
-        types_constants.ref_id(element_type);
-        unique_decls[key] = id;
-        return id;
-    }
-
-    SpvId declare_array_type(SpvId element_type, SpvId dim) {
-        auto key = UniqueDeclKey { DEF_ARR_TYPE, { element_type, dim } };
-        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
-        types_constants.op(spv::Op::OpTypeArray, 4);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.ref_id(element_type);
-        types_constants.ref_id(dim);
-        unique_decls[key] = id;
-        return id;
-    }
-
-    SpvId declare_fn_type(std::vector<SpvId> dom, SpvId codom) {
-        auto key = UniqueDeclKey { FN_TYPE, {} };
-        for (auto d : dom) key.members.push_back(d);
-        key.members.push_back(codom);
-        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
-
-        types_constants.op(spv::Op::OpTypeFunction, 3 + dom.size());
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.ref_id(codom);
-        for (auto arg : dom)
-            types_constants.ref_id(arg);
-        unique_decls[key] = id;
-        return id;
-    }
-
-    SpvId declare_struct_type(std::vector<SpvId> elements) {
-        types_constants.op(spv::Op::OpTypeStruct, 2 + elements.size());
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        for (auto arg : elements)
-            types_constants.ref_id(arg);
-        return id;
-    }
-
-    SpvId declare_vector_type(SpvId component_type, uint32_t dim) {
-        types_constants.op(spv::Op::OpTypeVector, 4);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.ref_id(component_type);
-        types_constants.literal_int(dim);
-        return id;
-    }
-
-    void decorate(SpvId target, spv::Decoration decoration, std::vector<uint32_t> extra = {}) {
-        annotations.op(spv::Op::OpDecorate, 3 + extra.size());
-        annotations.ref_id(target);
-        annotations.literal_int(decoration);
-        for (auto e : extra)
-            annotations.literal_int(e);
-    }
-
-    void decorate_member(SpvId target, uint32_t member, spv::Decoration decoration, std::vector<uint32_t> extra = {}) {
-        annotations.op(spv::Op::OpMemberDecorate, 4 + extra.size());
-        annotations.ref_id(target);
-        annotations.literal_int(member);
-        annotations.literal_int(decoration);
-        for (auto e : extra)
-            annotations.literal_int(e);
-    }
-
-    SpvId debug_string(std::string string) {
-        debug_string_source.op(spv::Op::OpString, 2 + div_roundup(string.size() + 1, 4));
-        auto id = generate_fresh_id();
-        debug_string_source.ref_id(id);
-        debug_string_source.literal_name(string);
-        return id;
-    }
-
-    SpvId bool_constant(SpvId type, bool value) {
-        types_constants.op(value ? spv::Op::OpConstantTrue : spv::Op::OpConstantFalse, 3);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(type);
-        types_constants.ref_id(id);
-        return id;
-    }
-
-    SpvId constant(SpvId type, std::vector<uint32_t> bit_pattern) {
-        auto key = UniqueDeclKey { CONSTANT, bit_pattern };
-        key.members.push_back(type);
-        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
-        types_constants.op(spv::Op::OpConstant, 3 + bit_pattern.size());
-        auto id = generate_fresh_id();
-        types_constants.ref_id(type);
-        types_constants.ref_id(id);
-        for (auto arg : bit_pattern)
-            types_constants.literal_int(arg);
-        unique_decls[key] = id;
-        return id;
-    }
-
-    SpvId constant_composite(SpvId type, std::vector<SpvId> ops) {
-        auto key = UniqueDeclKey { CONSTANT_COMPOSITE, {} };
-        key.members.push_back(type);
-        for (auto op : ops) key.members.push_back(op);
-        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
-        types_constants.op(spv::Op::OpConstantComposite, 3 + ops.size());
-        auto id = generate_fresh_id();
-        types_constants.ref_id(type);
-        types_constants.ref_id(id);
-        for (auto op : ops)
-            types_constants.ref_id(op);
-        unique_decls[key] = id;
-        return id;
-    }
-
-    SpvId variable(SpvId type, spv::StorageClass storage_class) {
-        types_constants.op(spv::Op::OpVariable, 4);
-        types_constants.ref_id(type);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        types_constants.literal_int(storage_class);
-        return id;
-    }
-
-    SpvId declare_void_type() {
-        types_constants.op(spv::Op::OpTypeVoid, 2);
-        auto id = generate_fresh_id();
-        types_constants.ref_id(id);
-        return id;
-    }
-
-    SpvId define_function(SpvFnBuilder& fn_builder) {
-        fn_defs.op(spv::Op::OpFunction, 5);
-        fn_defs.ref_id(fn_builder.fn_ret_type);
-        fn_defs.ref_id(fn_builder.function_id);
-        fn_defs.data_.push_back(spv::FunctionControlMaskNone);
-        fn_defs.ref_id(fn_builder.fn_type);
-
-        // Includes stuff like OpFunctionParameters
-        for (auto w : fn_builder.header.data_)
-            fn_defs.data_.push_back(w);
-
-        bool first = true;
-        for (auto& bb : fn_builder.bbs_to_emit) {
-            fn_defs.op(spv::Op::OpLabel, 2);
-            fn_defs.ref_id(bb->label);
-
-            if (first) {
-                for (auto w : fn_builder.variables.data_)
-                    fn_defs.data_.push_back(w);
-                first = false;
-            }
-
-            for (auto& phi : bb->phis) {
-                fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
-                fn_defs.ref_id(phi->type);
-                fn_defs.ref_id(phi->value);
-                assert(!phi->preds.empty());
-                for (auto& [pred_value, pred_label] : phi->preds) {
-                    fn_defs.ref_id(pred_value);
-                    fn_defs.ref_id(pred_label);
-                }
-            }
-
-            for (auto w : bb->data_)
+        if (first) {
+            for (auto w : fn_builder.variables.data_)
                 fn_defs.data_.push_back(w);
+            first = false;
         }
 
-        fn_defs.op(spv::Op::OpFunctionEnd, 1);
-        return fn_builder.function_id;
-    }
-
-    void declare_entry_point(spv::ExecutionModel execution_model, SpvId entry_point, std::string name, std::vector<SpvId> interface) {
-        entry_points.op(spv::Op::OpEntryPoint, 3 + div_roundup(name.size() + 1, 4) + interface.size());
-        entry_points.literal_int(execution_model);
-        entry_points.ref_id(entry_point);
-        entry_points.literal_name(name);
-        for (auto i : interface)
-            entry_points.ref_id(i);
-    }
-
-    void execution_mode(SpvId entry_point, spv::ExecutionMode execution_mode, std::vector<uint32_t> payloads) {
-        entry_points.op(spv::Op::OpExecutionMode, 3 + payloads.size());
-        entry_points.ref_id(entry_point);
-        entry_points.literal_int(execution_mode);
-        for (auto d : payloads)
-            entry_points.literal_int(d);
-    }
-
-    void capability(spv::Capability cap) {
-        auto found = capabilities_set.find(cap);
-        if (found != capabilities_set.end())
-            return;
-        capabilities.op(spv::Op::OpCapability, 2);
-        capabilities.data_.push_back(cap);
-        capabilities_set.insert(cap);
-    }
-
-    void extension(std::string name) {
-        auto found = extensions_set.find(name);
-        if (found != extensions_set.end())
-            return;
-        extensions.op(spv::Op::OpExtension, 1 + div_roundup(name.size() + 1, 4));
-        extensions.literal_name(name);
-        extensions_set.insert(name);
-    }
-
-    uint32_t version = spv::Version;
-
-    spv::AddressingModel addressing_model = spv::AddressingModel::AddressingModelLogical;
-    spv::MemoryModel memory_model = spv::MemoryModel::MemoryModelSimple;
-
-protected:
-    SpvId extended_import(std::string name) {
-        auto found = extended_instruction_sets.find(name);
-        if (found != extended_instruction_sets.end())
-            return found->second;
-        ext_inst_import.op(spv::Op::OpExtInstImport, 2 + div_roundup(name.size() + 1, 4));
-        auto id = generate_fresh_id();
-        ext_inst_import.ref_id(id);
-        ext_inst_import.literal_name(name);
-        extended_instruction_sets[name] = id;
-        return id;
-    }
-
-private:
-    std::ostream* output_ = nullptr;
-    uint32_t bound = 1;
-
-    // Ordered as per https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.pdf#subsection.2.4
-    SpvSectionBuilder capabilities;
-    SpvSectionBuilder extensions;
-    SpvSectionBuilder ext_inst_import;
-    SpvSectionBuilder entry_points;
-    SpvSectionBuilder execution_modes;
-    SpvSectionBuilder debug_string_source;
-    SpvSectionBuilder debug_names;
-    SpvSectionBuilder debug_module_processed;
-    SpvSectionBuilder annotations;
-    SpvSectionBuilder types_constants;
-    SpvSectionBuilder fn_decls;
-    SpvSectionBuilder fn_defs;
-
-    // SPIR-V disallows duplicate non-aggregate type declarations, we protect against these with this
-    std::unordered_map<UniqueDeclKey, SpvId, UniqueDeclKeyHasher> unique_decls;
-    std::unordered_map<std::string, SpvId> extended_instruction_sets;
-    std::unordered_set<spv::Capability> capabilities_set;
-    std::unordered_set<std::string> extensions_set;
-
-    void output_word_le(uint32_t word) {
-        output_->put((word >> 0) & 0xFFu);
-        output_->put((word >> 8) & 0xFFu);
-        output_->put((word >> 16) & 0xFFu);
-        output_->put((word >> 24) & 0xFFu);
-    }
-
-    void output_section(SpvSectionBuilder& section) {
-        for (auto& word : section.data_) {
-            output_word_le(word);
+        for (auto& phi : bb->phis) {
+            fn_defs.op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
+            fn_defs.ref_id(phi->type);
+            fn_defs.ref_id(phi->value);
+            assert(!phi->preds.empty());
+            for (auto& [pred_value, pred_label] : phi->preds) {
+                fn_defs.ref_id(pred_value);
+                fn_defs.ref_id(pred_label);
+            }
         }
-    }
-public:
-    void finish(std::ostream& output) {
-        output_ = &output;
-        SpvSectionBuilder memory_model_section;
-        memory_model_section.op(spv::Op::OpMemoryModel, 3);
-        memory_model_section.data_.push_back(addressing_model);
-        memory_model_section.data_.push_back(memory_model);
 
-        output_word_le(spv::MagicNumber);
-        output_word_le(version); // TODO: target a specific spirv version
-        output_word_le(uint32_t(0)); // TODO get a magic number ?
-        output_word_le(bound);
-        output_word_le(uint32_t(0)); // instruction schema padding
-
-        output_section(capabilities);
-        output_section(extensions);
-        output_section(ext_inst_import);
-        output_section(memory_model_section);
-        output_section(entry_points);
-        output_section(execution_modes);
-        output_section(debug_string_source);
-        output_section(debug_names);
-        output_section(debug_module_processed);
-        output_section(annotations);
-        output_section(types_constants);
-        output_section(fn_decls);
-        output_section(fn_defs);
+        for (auto w : bb->data_)
+            fn_defs.data_.push_back(w);
     }
 
-    friend SpvBasicBlockBuilder;
-};
+    fn_defs.op(spv::Op::OpFunctionEnd, 1);
+    return fn_builder.function_id;
+}
+
 
 inline SpvId SpvBasicBlockBuilder::generate_fresh_id() {
     return file_builder.generate_fresh_id();

@@ -250,6 +250,9 @@ const Filter* Continuation::all_true_filter() const {
 }
 
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
+
+bool Continuation::is_offload_intrinsic() const { return Intrinsic::OffloadBegin <= intrinsic() && intrinsic() < Intrinsic::OffloadEnd; }
+
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
     else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;

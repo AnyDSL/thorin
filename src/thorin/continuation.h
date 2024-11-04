@@ -97,7 +97,8 @@ enum class CC : uint8_t {
 enum class Intrinsic : uint8_t {
     None,
     AcceleratorBegin,
-    CUDA = AcceleratorBegin,    ///< Internal CUDA-Backend.
+    OffloadBegin = AcceleratorBegin,
+    CUDA = OffloadBegin,    ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     OpenCL_SPIRV,               ///< Internal OpenCL-Backend.
@@ -106,6 +107,7 @@ enum class Intrinsic : uint8_t {
     AMDGPUPAL,                  ///< Internal AMDGPU-PAL-Backend.
     ShadyCompute,               ///< Internal Shady Compute Backend.
     HLS,                        ///< Internal HLS-Backend.
+    OffloadEnd = HLS,
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
@@ -186,6 +188,7 @@ public:
     bool is_channel() const { return name().find("channel") != std::string::npos; }
     bool is_pipe() const { return name().find("pipe") != std::string::npos; }
     bool is_accelerator() const;
+    bool is_offload_intrinsic() const;
 
     const App* body() const { return op(0)->as<App>(); }
     bool has_body() const { return !op(0)->isa<Bottom>(); }

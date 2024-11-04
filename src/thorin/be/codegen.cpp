@@ -297,7 +297,7 @@ void DeviceBackends::search_for_device_code() {
 
         Intrinsic intrinsic = Intrinsic::None;
         visit_capturing_intrinsics(continuation, [&] (Continuation* continuation) {
-            if (continuation->is_accelerator()) {
+            if (continuation->is_offload_intrinsic()) {
                 intrinsic = continuation->intrinsic();
                 return true;
             }

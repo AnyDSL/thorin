@@ -72,6 +72,7 @@ public:
 struct FileBuilder {
     enum UniqueDeclTag {
         NONE,
+        VOID_TYPE,
         FN_TYPE,
         PTR_TYPE,
         DEF_ARR_TYPE,
@@ -264,9 +265,12 @@ struct FileBuilder {
     }
 
     Id declare_void_type() {
+        auto key = UniqueDeclKey { VOID_TYPE, { } };
+        if (auto iter = unique_decls.find(key); iter != unique_decls.end()) return iter->second;
         types_constants.begin_op(spv::Op::OpTypeVoid, 2);
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
+        unique_decls[key] = id;
         return id;
     }
 

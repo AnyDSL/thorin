@@ -414,7 +414,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     SpvId undef(SpvId type) {
         op(spv::Op::OpUndef, 3);
         ref_id(type);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(id);
         return id;
     }
@@ -422,7 +422,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     SpvId composite(SpvId aggregate_t, std::vector<SpvId>& elements) {
         op(spv::Op::OpCompositeConstruct, 3 + elements.size());
         ref_id(aggregate_t);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(id);
         for (auto e : elements)
             ref_id(e);
@@ -432,7 +432,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     SpvId extract(SpvId target_type, SpvId composite, std::vector<uint32_t> indices) {
         op(spv::Op::OpCompositeExtract, 4 + indices.size());
         ref_id(target_type);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(id);
         ref_id(composite);
         for (auto i : indices)
@@ -443,7 +443,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     SpvId insert(SpvId target_type, SpvId object, SpvId composite, std::vector<uint32_t> indices) {
         op(spv::Op::OpCompositeInsert, 5 + indices.size());
         ref_id(target_type);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(id);
         ref_id(object);
         ref_id(composite);
@@ -455,7 +455,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     SpvId vector_extract_dynamic(SpvId target_type, SpvId vector, SpvId index) {
         op(spv::Op::OpVectorExtractDynamic, 5);
         ref_id(target_type);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(id);
         ref_id(vector);
         ref_id(index);
@@ -465,7 +465,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     SpvId vector_insert_dynamic(SpvId target_type, SpvId vector, SpvId component, SpvId index) {
         op(spv::Op::OpVectorInsertDynamic, 6);
         ref_id(target_type);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(id);
         ref_id(vector);
         ref_id(component);
@@ -476,7 +476,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
     // Used for almost all conversion operations
     SpvId convert(spv::Op op_, SpvId target_type, SpvId value) {
         op(op_, 4);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(value);
@@ -485,7 +485,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     SpvId access_chain(SpvId target_type, SpvId element, std::vector<SpvId> indexes) {
         op(spv::Op::OpAccessChain, 4 + indexes.size());
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(element);
@@ -496,7 +496,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     SpvId ptr_access_chain(SpvId target_type, SpvId base, SpvId element, std::vector<SpvId> indexes) {
         op(spv::Op::OpPtrAccessChain, 5 + indexes.size());
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(base);
@@ -508,7 +508,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     SpvId load(SpvId target_type, SpvId pointer, std::vector<uint32_t> operands = {}) {
         op(spv::Op::OpLoad, 4 + operands.size());
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(pointer);
@@ -527,7 +527,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     SpvId binop(spv::Op op_, SpvId result_type, SpvId lhs, SpvId rhs) {
         op(op_, 5);
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(result_type);
         ref_id(id);
         ref_id(lhs);
@@ -576,7 +576,7 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
 
     SpvId call(SpvId return_type, SpvId callee, std::vector<SpvId> arguments) {
         op(spv::Op::OpFunctionCall, 4 + arguments.size());
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(return_type);
         ref_id(id);
         ref_id(callee);
@@ -601,13 +601,10 @@ struct SpvBasicBlockBuilder : public SpvSectionBuilder {
         op(spv::Op::OpUnreachable, 1);
     }
 
-private:
-    SpvId generate_fresh_id();
-
 protected:
     SpvId ext_instruction(SpvId return_type, SpvId set, uint32_t instruction, std::vector<SpvId> arguments) {
         op(spv::Op::OpExtInst, 5 + arguments.size());
-        auto id = generate_fresh_id();
+        auto id = file_builder.generate_fresh_id();
         ref_id(return_type);
         ref_id(id);
         ref_id(set);
@@ -622,7 +619,7 @@ struct SpvFnBuilder {
     explicit SpvFnBuilder(SpvFileBuilder* file_builder)
             : file_builder(file_builder)
     {
-        function_id = generate_fresh_id();
+        function_id = file_builder->generate_fresh_id();
     }
 
     SpvFileBuilder* file_builder;
@@ -639,7 +636,7 @@ struct SpvFnBuilder {
 
     SpvId parameter(SpvId param_type) {
         header.op(spv::Op::OpFunctionParameter, 3);
-        auto id = generate_fresh_id();
+        auto id = file_builder->generate_fresh_id();
         header.ref_id(param_type);
         header.ref_id(id);
         return id;
@@ -648,14 +645,11 @@ struct SpvFnBuilder {
     SpvId variable(SpvId type, spv::StorageClass storage_class) {
         variables.op(spv::Op::OpVariable, 4);
         variables.ref_id(type);
-        auto id = generate_fresh_id();
+        auto id = file_builder->generate_fresh_id();
         variables.ref_id(id);
         variables.literal_int(storage_class);
         return id;
     }
-
-private:
-    SpvId generate_fresh_id();
 };
 
 inline SpvId SpvFileBuilder::define_function(SpvFnBuilder &fn_builder) {
@@ -697,15 +691,6 @@ inline SpvId SpvFileBuilder::define_function(SpvFnBuilder &fn_builder) {
 
     fn_defs.op(spv::Op::OpFunctionEnd, 1);
     return fn_builder.function_id;
-}
-
-
-inline SpvId SpvBasicBlockBuilder::generate_fresh_id() {
-    return file_builder.generate_fresh_id();
-}
-
-inline SpvId SpvFnBuilder::generate_fresh_id() {
-    return file_builder->generate_fresh_id();
 }
 
 inline SpvId SpvBasicBlockBuilder::ext_instruction(SpvId return_type, ExtendedInstruction instr, std::vector<SpvId> arguments) {

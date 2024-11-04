@@ -653,7 +653,7 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         emit_unsafe(slot->frame());
         auto type = slot->type();
         auto id = bb->fn_builder.variable(convert(world().ptr_type(type->pointee(), 1, AddrSpace::Function)).id, spv::StorageClass::StorageClassFunction);
-        id = bb->convert(spv::Op::OpBitcast, convert(type).id, id);
+        id = bb->convert(spv::Op::OpPtrCastToGeneric, convert(type).id, id);
         return id;
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());

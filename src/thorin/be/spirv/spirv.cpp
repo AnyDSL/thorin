@@ -439,6 +439,8 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     }
 }
 
+static_assert(sizeof(double) == sizeof(uint64_t), "This code assumes 64-bit double");
+
 SpvId CodeGen::emit_constant(const thorin::Def* def) {
     if (auto primlit = def->isa<PrimLit>()) {
         Box box = primlit->value();
@@ -454,6 +456,7 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
             case PrimType_pf32: case PrimType_qf32:
             case PrimType_ps32: case PrimType_qs32:
             case PrimType_pu32: case PrimType_qu32: constant = builder_->constant(type, { static_cast<unsigned int>(box.get_u32()) }); break;
+            case PrimType_pf64: case PrimType_qf64:
             case PrimType_ps64: case PrimType_qs64:
             case PrimType_pu64: case PrimType_qu64: {
                 uint64_t value = static_cast<uint64_t>(box.get_u64());
@@ -462,7 +465,6 @@ SpvId CodeGen::emit_constant(const thorin::Def* def) {
                 constant = builder_->constant(type, { (uint32_t) lower, (uint32_t) upper });
                 break;
             }
-            case PrimType_pf64: case PrimType_qf64: assertf(false, "not implemented yet");
         }
         return constant;
     }

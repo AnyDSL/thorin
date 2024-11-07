@@ -219,20 +219,41 @@ void channel_mode(const Continuation* continuation, ChannelMode& mode) {
  */
 void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent_blocks_size, std::vector<const Def*> cgra_defs, std::vector<const Def*> hls_defs) {
 
-    auto scope_of_block = [&] (const Continuation* cont) -> Continuation* {
+    auto scope_of_block = [&](const Continuation* cont) -> Continuation* {
+
         Continuation* entry_block = nullptr;
-        // we look for the first inner scope entry
+        // looking for the first inner scope entry
+        // We try to avoid searching in the scope in the first place
         auto pred_cont = cont->preds().back();
-        while (pred_cont) {
-            if (pred_cont->is_external()) {
-                entry_block = pred_cont;
-                return entry_block;
-            } else {
-                 pred_cont = pred_cont->preds().back();
-            }
+        if (pred_cont->is_external()) {
+            entry_block = pred_cont;
+            return entry_block;
+        } else {
+
+            auto& cgra_world = cont->world();
+            Scope::for_each(cgra_world, [&](Scope& scope) {
+                // Check if the scope contains a Continuation that matches the provided basic block (cont)
+                auto continuation_itr = std::find_if(scope.defs().begin(), scope.defs().end(), [&](const auto& def) {
+                    if (def->template isa_nom<Continuation>()) {
+                        auto* continuation = def->template as_nom<Continuation>();
+                        return continuation == cont;
+                    }
+                    return false;
+                });
+
+                // If a matching Continuation is found, save the entry block
+                if (continuation_itr != scope.defs().end()) {
+                    entry_block = scope.entry();
+                }
+
+                if (entry_block) {
+                    return;
+                }
+            });
         }
         return entry_block;
     };
+
 
     // basic blocks of the same kernel are in the same map
     auto current_scope = static_cast<Continuation*>(nullptr);
@@ -688,41 +709,40 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     }
 
 
-// index and R/W mode of hls_top params that connect to CGRA
-// order of insertion in the array is important
-auto& def2dependent_blocks = old_globals2old_dependent_blocks;
-PortStatus index2mode(def2dependent_blocks.size());
-auto external_ports_status = [&] {
-    //Array<size_t> param_indices(def2dependent_blocks.size()); // TODO: change it to a map index2mode
-    size_t i = 0;
-    for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
-        auto old_common_global = it->first; //def type
-        if (importer.def_old2new_.contains(old_common_global)) {
-            for (const auto& [global, param] : global2param) {
-                if (global == importer.def_old2new_[old_common_global]) {
-                    // this param2arg is after replacing global args with hls_top params that connect to cgra
-                    // basically we can name it kernelparam2hls_top_cgra_param
-                    auto top_param = param2arg[param];
-                    auto param_index = top_param->as<Param>()->index();
-                    //param_indices[i++] = param_index;
-                    for (const auto& elem : kernels_ch_modes)
-                        if (elem.contains(global)) {
-                            auto target_global = elem.find(global); // TODO: check against end of it
-                            target_global->first->dump();
-                            //index2mode.emplace(param_index, target_global->second);
-                            index2mode[i++] = std::make_pair(param_index, target_global->second);
-                        }
+    // index and R/W mode of hls_top params that connect to CGRA
+    // order of insertion in the array is important
+    auto& def2dependent_blocks = old_globals2old_dependent_blocks;
+    PortStatus index2mode(def2dependent_blocks.size());
+    auto external_ports_status = [&] {
+        //Array<size_t> param_indices(def2dependent_blocks.size()); // TODO: change it to a map index2mode
+        size_t i = 0;
+        for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
+            auto old_common_global = it->first; //def type
+            if (importer.def_old2new_.contains(old_common_global)) {
+                for (const auto& [global, param] : global2param) {
+                    if (global == importer.def_old2new_[old_common_global]) {
+                        // this param2arg is after replacing global args with hls_top params that connect to cgra
+                        // basically we can name it kernelparam2hls_top_cgra_param
+                        auto top_param = param2arg[param];
+                        auto param_index = top_param->as<Param>()->index();
+                        //param_indices[i++] = param_index;
+                        for (const auto& elem : kernels_ch_modes)
+                            if (elem.contains(global)) {
+                                auto target_global = elem.find(global); // TODO: check against end of it
+                                //index2mode.emplace(param_index, target_global->second);
+                                index2mode[i++] = std::make_pair(param_index, target_global->second);
+                            }
+                    }
                 }
+
             }
-
         }
-    }
-    //return param_indices;
-    return index2mode;
-};
+        //return param_indices;
+        return index2mode;
+    };
 
-        //auto cgra_port_indices = external_ports_index(global2param, param2arg, old_globals2old_dependent_blocks, importer);
-        auto cgra_port_indices = external_ports_status();
+    //auto cgra_port_indices = external_ports_index(global2param, param2arg, old_globals2old_dependent_blocks, importer);
+    auto cgra_port_indices = external_ports_status();
 
 
 

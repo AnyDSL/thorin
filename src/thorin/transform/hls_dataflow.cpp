@@ -511,12 +511,9 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
  */
 
 DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-    //std::cout << "old world" << std::endl;
-    //old_world.dump();
     auto& world = importer.world(); // world is hls world
-    //std::cout << "HLS before" << std::endl;
-    //world.dump();
     auto& cgra_world = importer_cgra.world();
+
     // TODO: rename to hls_new_kernels
     // the size of this vector is equal to the size of kernels with deps.
     // we need a similar size for cgra. i.e the size of kernels with deps.
@@ -886,11 +883,9 @@ auto external_ports_status = [&] {
     world.make_external(hls_top);
 
     debug_verify(world);
-    world.dump();
 
     world.cleanup();
 
-    //return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks, cgra_port_indices);
     return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks, index2mode);
 }
 

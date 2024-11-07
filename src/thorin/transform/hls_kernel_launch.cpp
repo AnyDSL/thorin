@@ -93,7 +93,6 @@ const Def* has_hls_callee(Continuation* continuation) {
 
 // Finds instances of HLS kernel launches and wraps them in a OpenCL launch
 void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config& cont2config) {
-    world.dump();
 
     auto hls_top_it = std::find_if(cont2config.begin(), cont2config.end(), [] (const auto& pair) {
         return pair.first->is_hls_top();
@@ -224,7 +223,6 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config
     });
 
     debug_verify(world);
-    world.dump();
     //world.cleanup();
 }
 

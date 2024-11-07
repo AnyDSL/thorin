@@ -758,7 +758,6 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
         if (auto primtype = type->isa<PrimType>()) {
             actual_num_bits = num_bits(primtype->primtype_tag());
         } else if (auto definite_array = type->isa<DefiniteArrayType>()) {
-            definite_array->elem_type()->dump();
             if (auto prim_type = definite_array->elem_type()->isa<PrimType>())
                 actual_num_bits = definite_array->dim() * num_bits(prim_type->primtype_tag());
         } else {
@@ -811,7 +810,6 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
                 for (auto param : cont->params()) {
                     if (is_concrete(param) || is_channel_type(param->type())) {
-                        param->dump();
                         if (visited_defs.empty() || visited_defs.count(param) == 0) {
                             // Note that nodes of the same edge have the same names in IR (args of Fns) but different names in C
                             visited_defs.emplace(param);
@@ -1034,22 +1032,22 @@ void CCodeGen::emit_module() {
                         std::cout << "___CGRA___\n";
                         for (auto param : entry->params()) {
                             if (is_concrete(param) || is_channel_type(param->type())) {
-                                param->dump();
+                                //param->dump();
                             }
                         }
                         std::cout << "___CGRA_ END__\n";
                     }
 
                     if (cont->isa_nom<Continuation>() && !cont->body()->empty()) {
-                        std::cout <<"UP callee "; cont->body()->callee()->dump();
+                        //std::cout <<"UP callee "; cont->body()->callee()->dump();
                         if (cont->has_body()) {
                             if (auto counted = cont->body()->callee()->isa_nom<Continuation>()){
-                                std::cout <<"UP CONT ";
-                                counted->dump();
+                                //std::cout <<"UP CONT ";
+                                //counted->dump();
                                 //params to find direction using arg index
                                 for (auto param : counted->params()) {
                                     if (is_concrete(param)) {
-                                        std::cout << "graph_param "; param->dump();
+                                        //std::cout << "graph_param "; param->dump();
                                     }
                                 }
                             }
@@ -1058,7 +1056,7 @@ void CCodeGen::emit_module() {
                         //args to find edges of the graph
                         for (size_t arg_index = 0; auto arg : cont->body()->args()) {
                             if (is_concrete(arg) || is_channel_type(arg->type())) {
-                                arg->dump();
+                                //arg->dump();
                             }
                             arg_index++;
                         }
@@ -1316,7 +1314,7 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
     else if (name == "window_readincr_v_channel")    *api_config = {1, no_type };
     else if (name == "readincr_v_channel")           *api_config = {1, no_type };
     else if (name == "writeincr_v_channel")          *api_config = {1, no_type };
-    else if (name == "aie::accumulate")      *api_config = {1, no_type };
+    else if (name == "aie::accumulate")              *api_config = {1, no_type };
     else if (name == "aie::sliding_mul")             *api_config = {2, no_type };
     else if (name == "aie::sliding_mac")             *api_config = {2, no_type };
     else if (name == "aie::sliding_mul_sym")         *api_config = {2, no_type };

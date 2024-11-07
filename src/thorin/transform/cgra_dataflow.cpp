@@ -128,8 +128,6 @@ void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra
                 cgra_param_mode = ChannelMode::Write;
             else
                 cgra_param_mode = ChannelMode::Undef;
-            //cgra_param.value()->dump();
-            //cgra_param.value()->as<Param>()->continuation()->dump();
 
             param2mode.emplace(cgra_param.value(), cgra_param_mode);
 
@@ -148,7 +146,7 @@ void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra
     }
     for (auto [param, mode] : param2mode) {
         std::cout << "PARAM: ";
-        param->dump();
+        //param->dump();
         std::cout << "MODE: ";
         if (mode == ChannelMode::Read) {std::cout << "Read"<< std::endl;
         } else if (mode == ChannelMode::Write) {
@@ -166,13 +164,9 @@ void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra
 
 
 
-//Array<size_t> cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 
     auto& world = importer.world();
-// std::cout << "_--------cgra world before rewrite--------" <<std::endl;
-//    world.dump();
-
 
     for (auto [_, cont] : old_world.externals()) {
         Scope scope(cont);
@@ -444,7 +438,6 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
     //cgra_graph->attributes().interface = Interface::None;
 
     //auto struct_type = world.struct_type("hey",1);
-    //struct_type->dump();
     // need variant type?
     //auto struct_ =  world.struct_agg(struct_type, {world.one(world.type_ps32())}, Debug("struct"));
     //auto struct_ =  world.struct_agg(struct_type, {world.literal_bool(true, Debug("test"))}, Debug("struct"));
@@ -538,13 +531,11 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
     world.make_external(cgra_graph);
 
     //std::cout << "_--------cgra world After rewrite--------" <<std::endl;
-    //world.dump();
     for (auto def : world.defs()) {
         if (auto cont = def->isa_nom<Continuation>()) {
                 auto gg = cont->get_interface();
                 if (gg == Interface::Stream) {
                     std::cout << "MMMMMMMM" << std::endl;
-                    cont->dump();
                 }
         }
     }

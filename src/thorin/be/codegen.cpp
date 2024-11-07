@@ -489,13 +489,13 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
             for (auto [_, exported] : externals) {
                 if (auto temp = exported->isa_nom<Continuation>()) {
                     std::cout << "external codegen" << std::endl;
-                    temp->dump();
+                    //temp->dump();
                 }
                 if (exported->isa_nom<Continuation>()->is_cgra_graph()) {
                     cgra_graph_cont = exported;
                     for (auto param : exported->params()){
                         std::cout << "external" << std::endl;
-                        param->dump();
+                        //param->dump();
                     }
                 }
             }
@@ -507,12 +507,12 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
         // just copied from down
    //     if (!hls_cgra_ports.empty()) {
         // the aim is passing cgra_graph cont to annotate_cgra_graph_modes to import the config for non-channel params
-            cgra_graph_cont->dump();
+            //cgra_graph_cont->dump();
             annotate_cgra_graph_modes(cgra_graph_cont, hls_cgra_ports, kernel_config); // adding cgra_graph config to cont2config map
             for (const auto& item : kernel_config) {
                 auto cont = item.first;
-                if (auto config = item.second->isa<CGRAKernelConfig>(); config) {std::cout << "FOUND CGRA CONFIG" << std::endl;
-                    cont->dump();
+                if (auto config = item.second->isa<CGRAKernelConfig>(); config) {//std::cout << "FOUND CGRA CONFIG" << std::endl;
+                    //cont->dump();
                     for (auto param : cont->params()) {
                         if (auto mode = config->param_mode(param); mode != ChannelMode::Undef) {
                             std::cout << "param" << std::endl;
@@ -590,7 +590,6 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
     //if (!importers_[CGRA  ].world().empty()) cgs[CGRA  ] = std::make_unique<config_script::CodeGen>(importers_[CGRA  ].world(), debug);
     for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS }, std::pair { CGRA, c::Lang::CGRA } })
         if (!importers_[backend].world().empty()) { cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
-            //importers_[HLS].world().dump();
         }
 
 }

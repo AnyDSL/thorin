@@ -235,8 +235,8 @@ void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent
                 // Check if the scope contains a Continuation that matches the provided basic block (cont)
                 auto continuation_itr = std::find_if(scope.defs().begin(), scope.defs().end(), [&](const auto& def) {
                     if (def->template isa_nom<Continuation>()) {
-                        auto* continuation = def->template as_nom<Continuation>();
-                        return continuation == cont;
+                        auto* matching_cont = def->template as_nom<Continuation>();
+                        return matching_cont == cont;
                     }
                     return false;
                 });

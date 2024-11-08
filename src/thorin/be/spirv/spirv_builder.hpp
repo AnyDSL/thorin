@@ -411,23 +411,25 @@ struct BasicBlockBuilder : public SectionBuilder {
     std::vector<Phi*> phis;
     Id label;
 
-    Id undef(Id type) {
-        begin_op(spv::Op::OpUndef, 3);
+    void op(spv::Op op, std::vector<uint32_t> operands) {
+        begin_op(op, operands.size() + 1);
+        for (auto e : operands)
+            literal_int(e);
+    }
+
+    Id op_with_result(spv::Op op, Id type, std::vector<uint32_t> operands) {
+        begin_op(op, operands.size() + 3);
         ref_id(type);
         auto id = file_builder.generate_fresh_id();
         ref_id(id);
+        for (auto e : operands)
+            literal_int(e);
         return id;
     }
 
-    Id composite(Id aggregate_t, std::vector<Id>& elements) {
-        begin_op(spv::Op::OpCompositeConstruct, 3 + elements.size());
-        ref_id(aggregate_t);
-        auto id = file_builder.generate_fresh_id();
-        ref_id(id);
-        for (auto e : elements)
-            ref_id(e);
-        return id;
-    }
+    Id undef(Id type) { return op_with_result(spv::Op::OpUndef, type, {}); }
+
+    Id composite(Id aggregate_t, std::vector<Id> elements) { return op_with_result(spv::Op::OpCompositeConstruct, aggregate_t, elements); }
 
     Id extract(Id target_type, Id composite, std::vector<uint32_t> indices) {
         begin_op(spv::Op::OpCompositeExtract, 4 + indices.size());

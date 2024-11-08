@@ -293,13 +293,13 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         BasicBlockBuilder* dstbb = cont2bb_[succ];
 
         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-            assert(j < args.size());
             auto param = succ->param(i);
             if (is_mem(param) || is_unit(param)) {
                 if (dstbb->semi_inline)
                     defs_[param] = 0;
                 continue;
             }
+            assert(j < args.size());
             if (dstbb->semi_inline) {
                 defs_[param] = args[j];
             } else {
@@ -786,15 +786,28 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         if (auto bitcast = def->isa<Bitcast>()) {
             assert(conv_src_type.layout && conv_dst_type.layout);
             if (conv_src_type.layout->size != conv_dst_type.layout->size)
-                world().ELOG("Source (%) and destination (%) datatypes sizes do not match (% vs % bytes)", src_type->to_string(), dst_type->to_string(), conv_src_type.layout->size, conv_dst_type.layout->size);
+                world().ELOG("Source ({}) and destination ({}) datatypes sizes do not match ({} vs {} bytes)", src_type, dst_type, conv_src_type.layout->size, conv_dst_type.layout->size);
 
             return bb->convert(spv::OpBitcast, convert(bitcast->type()).id, emit(bitcast->from()));
         } else if (auto cast = def->isa<Cast>()) {
+            if (auto src_ptr_type = src_type->isa<PtrType>()) {
+                if (auto dst_ptr_type = dst_type->isa<PtrType>()) {
+                    if (src_ptr_type->addr_space() == AddrSpace::Generic) {
+                        return bb->op_with_result(spv::Op::OpGenericCastToPtr, convert(cast->type()).id, { emit(cast->from()) });
+                    } else if (dst_ptr_type->addr_space() == AddrSpace::Generic) {
+                        return bb->op_with_result(spv::Op::OpPtrCastToGeneric, convert(cast->type()).id, { emit(cast->from()) });
+                    } else {
+                        world().WLOG("Abnormal ptr-ptr cast: {} to {}, should be a bitcast", src_ptr_type, dst_ptr_type);
+                        return bb->convert(spv::OpBitcast, convert(cast->type()).id, emit(cast->from()));
+                    }
+                }
+            }
+
             // NB: all ops used here are scalar/vector agnostic
             auto src_prim = src_type->isa<PrimType>();
             auto dst_prim = dst_type->isa<PrimType>();
             if (!src_prim || !dst_prim || src_prim->length() != dst_prim->length())
-                world().ELOG("Illegal cast: % to %, casts are only supported between primitives with identical vector length", src_type->to_string(), dst_type->to_string());
+                world().ELOG("Illegal cast: {} to {}, casts are only supported between primitives with identical vector length", src_type, dst_type);
 
             auto length = src_prim->length();
 
@@ -865,6 +878,8 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         } else THORIN_UNREACHABLE;
     } else if (def->isa<Bottom>()) {
         return bb->undef(convert(def->type()).id);
+    } else if (auto select = def->isa<Select>()) {
+        return bb->op_with_result(spv::Op::OpSelect, convert(def->type()).id, emit_args(select->ops()));
     }
 
     if (!def->has_dep(Dep::Param))

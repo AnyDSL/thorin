@@ -858,47 +858,4 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
-std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
-    std::vector<Id> productions;
-    if (intrinsic->name() == "spirv.nonsemantic.printf") {
-        std::vector<Id> args;
-        auto string = app.arg(1);
-        if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {
-            auto arr = string->as<DefiniteArray>();
-            std::vector<char> the_string;
-            for (size_t i = 0; i < arr_type->dim(); i++)
-                the_string.push_back(arr->op(i)->as<PrimLit>()->value().get_u8());
-            the_string.push_back('\0');
-            args.push_back(builder_->debug_string(the_string.data()));
-        } else world().ELOG("spirv.nonsemantic.printf takes a string literal");
-
-        for (size_t i = 2; i < app.num_args() - 1; i++) {
-            args.push_back(emit(app.arg(i)));
-        }
-
-        builder_->extension("SPV_KHR_non_semantic_info");
-        bb->ext_instruction(convert(world().unit_type()).id, { "NonSemantic.DebugPrintf", 1}, args);
-    } else if (intrinsic->name() == "spirv.builtin") {
-        if (auto spv_builtin_lit = app.arg(1)->isa<PrimLit>()) {
-            auto spv_builtin = spv_builtin_lit->value().get_u32();
-            auto found = builder_->builtins_.find(spv_builtin);
-            if (found != builder_->builtins_.end()) {
-                productions.push_back(found->second);
-            } else {
-                auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
-                auto desired_type = ret_type->types()[1]->as<PtrType>();
-                auto id = builder_->variable(convert(desired_type).id, static_cast<spv::StorageClass>(convert(desired_type->addr_space())));
-                builder_->interface.push_back(id);
-                builder_->decorate(id, spv::Decoration::DecorationBuiltIn, { spv_builtin });
-                builder_->builtins_[spv_builtin] = id;
-                productions.push_back(id);
-            }
-        } else
-            world().ELOG("spirv.builtin requires an integer literal as the argument");
-    } else {
-        world().ELOG("This spir-v builtin isn't recognised: {}", intrinsic->name());
-    }
-    return productions;
-}
-
 }

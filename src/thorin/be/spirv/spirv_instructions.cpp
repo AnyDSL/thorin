@@ -53,8 +53,6 @@ Id CodeGen::emit_mathop(BasicBlockBuilder* bb, const thorin::MathOp& mathop) {
 }
 
 std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
-    std::vector<Id> productions;
-
     auto get_produced_type = [&]() {
         auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
         return ret_type->types()[1];
@@ -86,7 +84,9 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
 
         builder_->extension("SPV_KHR_non_semantic_info");
         bb->ext_instruction(convert(world().unit_type()).id, { "NonSemantic.DebugPrintf", 1}, args);
+        return {};
     } else if (intrinsic->name() == "spirv.builtin") {
+        std::vector<Id> productions;
         if (auto spv_builtin_lit = app.arg(1)->isa<PrimLit>()) {
             auto spv_builtin = spv_builtin_lit->value().get_u32();
             auto found = builder_->builtins_.find(spv_builtin);
@@ -100,12 +100,23 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
                 builder_->builtins_[spv_builtin] = id;
                 productions.push_back(id);
             }
+            return productions;
         } else
             world().ELOG("spirv.builtin requires an integer literal as the argument");
-    } else {
-        world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());
+    } else if (intrinsic->name() == "reserve_shared") {
+        auto size = app.arg(1)->isa<PrimLit>();
+        if (!size)
+            world().error(app.loc(), "reserve_shared called with non-constant size");
+        else {
+            auto in_bytes = size->value().get_u64();
+            auto type = world().definite_array_type(world().type_pu8(), in_bytes);
+            Id id = builder_->variable(convert(type).id, spv::StorageClass::StorageClassCrossWorkgroup);
+            id = bb->convert(spv::Op::OpBitcast, convert(get_produced_type()).id, id);
+            return { id };
+        }
     }
-    return productions;
+    world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());
+    exit(-1);
 }
 
 }

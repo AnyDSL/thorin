@@ -19,6 +19,10 @@ uint32_t CodeGen::convert(AddrSpace as) {
             builder_->capability(spv::Capability::CapabilityGenericPointer);
             break;
         }
+        case AddrSpace::Shared: {
+            storage_class = spv::StorageClassWorkgroup;
+            break;
+        }
         case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
         case AddrSpace::Input:    storage_class = spv::StorageClassInput;                 break;
         case AddrSpace::Output:   storage_class = spv::StorageClassOutput;                break;

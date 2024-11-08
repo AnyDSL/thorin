@@ -55,6 +55,19 @@ Id CodeGen::emit_mathop(BasicBlockBuilder* bb, const thorin::MathOp& mathop) {
 std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
     std::vector<Id> productions;
 
+    auto get_produced_type = [&]() {
+        auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
+        return ret_type->types()[1];
+    };
+
+    SpirMathOps& impl = opencl_std;
+    auto intrinsic_name = intrinsic->name();
+#define THORIN_MATHOP(mathop_name) \
+    if ((#mathop_name) == intrinsic_name) { \
+        return { bb->ext_instruction(convert(get_produced_type()).id, impl.mathop_name, emit_args(app.args().skip_back())) }; \
+    }
+#include "thorin/tables/mathoptable.h"
+
     if (intrinsic->name() == "spirv.nonsemantic.printf") {
         std::vector<Id> args;
         auto string = app.arg(1);
@@ -80,8 +93,7 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             if (found != builder_->builtins_.end()) {
                 productions.push_back(found->second);
             } else {
-                auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
-                auto desired_type = ret_type->types()[1]->as<PtrType>();
+                auto desired_type = get_produced_type()->as<PtrType>();
                 auto id = builder_->variable(convert(desired_type).id, static_cast<spv::StorageClass>(convert(desired_type->addr_space())));
                 builder_->interface.push_back(id);
                 builder_->decorate(id, spv::Decoration::DecorationBuiltIn, { spv_builtin });

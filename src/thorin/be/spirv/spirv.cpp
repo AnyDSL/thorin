@@ -471,6 +471,21 @@ Id CodeGen::emit_constant(const thorin::Def* def) {
 
     assertf(false, "Incomplete emit(def) definition");
 }
+
+std::vector<Id> CodeGen::emit_args(Defs defs) {
+    std::vector<Id> emitted;
+    for (auto arg : defs) {
+        auto arg_type = arg->type();
+        if (arg_type == world().unit_type() || arg_type == world().mem_type()) {
+            emit_unsafe(arg);
+            continue;
+        } else {
+            emitted.push_back(emit(arg));
+        }
+    }
+    return emitted;
+}
+
 Id CodeGen::emit_composite(BasicBlockBuilder* bb, Id t, Defs defs) {
     std::vector<Id> ids;
     for (auto& def : defs) {

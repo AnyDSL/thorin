@@ -114,6 +114,22 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             id = bb->convert(spv::Op::OpBitcast, convert(get_produced_type()).id, id);
             return { id };
         }
+    } else if (intrinsic->name() == "min") {
+        auto type = get_produced_type();
+        if (is_type_f(type))
+            return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::Fmin }, emit_args(app.args().skip_back())) };
+        if (is_type_u(type))
+            return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::UMin }, emit_args(app.args().skip_back())) };
+        if (is_type_i(type))
+            return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::SMin }, emit_args(app.args().skip_back())) };
+    } else if (intrinsic->name() == "max") {
+        auto type = get_produced_type();
+        if (is_type_f(type))
+            return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::Fmax }, emit_args(app.args().skip_back())) };
+        if (is_type_u(type))
+            return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::UMax }, emit_args(app.args().skip_back())) };
+        if (is_type_i(type))
+            return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::SMax }, emit_args(app.args().skip_back())) };
     }
     world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());
     exit(-1);

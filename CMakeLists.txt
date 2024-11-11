@@ -93,7 +93,7 @@ endif()
 if(RV_FOUND)
     set(THORIN_ENABLE_RV TRUE)
 endif()
-configure_file(src/thorin/config.h.in ${CMAKE_BINARY_DIR}/include/thorin/config.h @ONLY)
+configure_file(include/thorin/config.h.in ${CMAKE_BINARY_DIR}/include/thorin/config.h @ONLY)
 
 add_subdirectory(src)
 

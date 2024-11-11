@@ -6,7 +6,7 @@ namespace thorin {
         declare noalias ptr @anydsl_alloc(i32, i64);
         declare noalias ptr @anydsl_alloc_unified(i32, i64);
         declare void @anydsl_release(i32, ptr);
-        declare void @anydsl_launch_kernel(i32, ptr, ptr, ptr, ptr, ptr, ptr, ptr, ptr, ptr, i32);
+        declare void @anydsl_launch_kernel(i32, ptr, ptr, ptr, ptr, i32, ptr, ptr, ptr, ptr, ptr, i32);
         declare void @anydsl_parallel_for(i32, i32, i32, ptr, ptr);
         declare void @anydsl_fibers_spawn(i32, i32, i32, ptr, ptr);
         declare i32  @anydsl_spawn_thread(ptr, ptr);

@@ -106,6 +106,7 @@ enum class Intrinsic : uint8_t {
     Vectorize,                  ///< External vectorizer.
     AcceleratorEnd,
     Reserve = AcceleratorEnd,   ///< Intrinsic memory reserve function
+    LocalMemory,                ///< Intrinsic get local memory base pointer
     Atomic,                     ///< Intrinsic atomic function
     AtomicLoad,                 ///< Intrinsic atomic load function
     AtomicStore,                ///< Intrinsic atomic store function

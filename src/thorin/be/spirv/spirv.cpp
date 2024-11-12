@@ -121,7 +121,7 @@ void CodeGen::emit_stream(std::ostream& out) {
 
     ScopesForest forest(world());
     forest.for_each<false>([&](const Scope& scope) {
-        if (scope.entry()->is_intrinsic())
+        if (scope.entry()->is_intrinsic() || scope.entry()->cc() == CC::Device)
             return;
         emit_scope(scope, forest);
     });
@@ -269,7 +269,7 @@ void CodeGen::finalize(thorin::Continuation* cont) {
 
 void CodeGen::finalize(const thorin::Scope& scope) {
     builder_->define_function(*builder_->current_fn_, scope.entry()->has_body());
-    assert(!scope.entry()->is_intrinsic());
+    assert(!(scope.entry()->is_intrinsic() || scope.entry()->cc() == CC::Device));
     if (scope.entry()->is_external()) {
         if (!scope.entry()->has_body()) {
             auto v = builder::make_literal_string(scope.entry()->name());

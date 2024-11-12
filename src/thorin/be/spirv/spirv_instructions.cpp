@@ -110,7 +110,7 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
         else {
             auto in_bytes = size->value().get_u64();
             auto type = world().definite_array_type(world().type_pu8(), in_bytes);
-            Id id = builder_->variable(convert(type).id, spv::StorageClass::StorageClassCrossWorkgroup);
+            Id id = builder_->variable(convert(world().ptr_type(type, 1, AddrSpace::Shared)).id, static_cast<spv::StorageClass>(convert(AddrSpace::Shared)));
             id = bb->convert(spv::Op::OpBitcast, convert(get_produced_type()).id, id);
             return { id };
         }

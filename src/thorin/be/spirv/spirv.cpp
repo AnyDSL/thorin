@@ -625,40 +625,44 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             THORIN_UNREACHABLE;
         }
     } else if (auto variant = def->isa<Variant>()) {
-        assert(false && "TODO: rewrite");
-        /*auto variant_type = def->type()->as<VariantType>();
-        auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
+        auto variant_type = def->type()->as<VariantType>();
+        auto converted_type = convert(variant_type);
         auto tag = builder_->u32_constant(variant->index());
 
-        if (variant_datatype->elements_types.size() > 1) {
-            auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function));
-            auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
-            auto converted_payload_type = convert(variant_type->op(variant->index()));
+        if (auto payload_t = converted_type.variant.payload_t) {
+            auto scratch_type = convert(world().ptr_type(payload_t.value(), 1, AddrSpace::Function));
+            auto scratch = bb->fn_builder.variable(scratch_type.id, spv::StorageClassFunction);
 
-            converted_payload_type->datatype->emit_serialization(*bb, spv::StorageClassFunction, payload_arr, bb->file_builder.u32_constant(0), emit(variant->value(), bb));
-            auto payload = bb->load(variant_datatype->elements_types[1], payload_arr);
+            auto cast_type = convert(world().ptr_type(variant->value()->type(), 1, AddrSpace::Function));
+            auto scratch_cast = bb->op_with_result(spv::Op::OpBitcast, cast_type.id, { scratch });
+            bb->store(scratch_cast, emit(variant->value()));
 
-            std::vector<SpvId> with_tag = {tag, payload};
-            return bb->composite(convert(variant->type()), with_tag);
+            auto payload = bb->load(convert(payload_t.value()).id, scratch);
+
+            std::vector<Id> with_tag = {tag, payload};
+            return bb->composite(converted_type.id, with_tag);
         } else {
             // Zero-sized payload case
-            std::vector<SpvId> with_tag = { tag };
-            return bb->composite(convert(variant->type()), with_tag);
-        }*/
+            std::vector<Id> with_tag = { tag };
+            return bb->composite(converted_type.id, with_tag);
+        }
     } else if (auto vextract = def->isa<VariantExtract>()) {
-        assert(false && "TODO: rewrite");
-        /*auto variant_type = vextract->value()->type()->as<VariantType>();
-        auto variant_datatype = (ProductDatatype*) convert(variant_type)->datatype.get();
+        auto variant_type = vextract->value()->type()->as<VariantType>();
+        auto converted_type = convert(variant_type);
+        auto target_type = def->type();
 
-        auto target_type = convert(def->type());
+        assert(converted_type.variant.payload_t.has_value() && "Can't extract zero-sized datatypes");
+        auto payload_t = converted_type.variant.payload_t.value();
 
-        assert(variant_datatype->elements_types.size() > 1 && "Can't extract zero-sized datatypes");
-        auto alloc_type = convert(world().ptr_type(variant_datatype->elements_types[1]->src_type, 1, 4, AddrSpace::Function));
-        auto payload_arr = current_fn_->variable(alloc_type, spv::StorageClassFunction);
-        auto payload = bb->extract(variant_datatype->elements_types[1], emit(vextract->value(), bb), {1});
-        bb->store(payload, payload_arr);
+        auto scratch_type = convert(world().ptr_type(target_type, 1, AddrSpace::Function));
+        auto scratch = bb->fn_builder.variable(scratch_type.id, spv::StorageClassFunction);
 
-        return target_type->datatype->emit_deserialization(*bb, spv::StorageClassFunction, payload_arr, bb->file_builder.u32_constant(0));*/
+        auto cast_type = convert(world().ptr_type(payload_t, 1, AddrSpace::Function));
+        auto scratch_cast = bb->op_with_result(spv::Op::OpBitcast, cast_type.id, { scratch });
+        auto payload = bb->extract(convert(payload_t).id, emit(vextract->value()), { 1 });
+        bb->store(payload, scratch_cast);
+
+        return bb->load(convert(target_type).id, scratch);
     } else if (auto vindex = def->isa<VariantIndex>()) {
         auto value = emit(vindex->op(0));
         return bb->extract(convert(world().type_pu32()).id, value, { 0 });

@@ -39,6 +39,9 @@ struct ConvertedType {
         size_t size, alignment;
     };
     std::optional<Layout> layout;
+    struct {
+        std::optional<const thorin::Type*> payload_t;
+    } variant;
 };
 
 struct BasicBlockBuilder;

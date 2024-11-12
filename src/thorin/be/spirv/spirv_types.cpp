@@ -231,14 +231,14 @@ ConvertedType CodeGen::convert(const Type* type) {
         case Node_VariantType: {
             assert(type->num_ops() > 0 && "empty variants not supported");
             auto tag_type = world().type_pu32();
-            Id converted_tag_type = convert(tag_type).id;
 
             size_t max_serialized_size = 0;
             for (auto member : type->as<VariantType>()->types()) {
                 auto member_type = member->as<Type>();
                 if (member_type == world().unit_type() || member_type == world().mem_type()) continue;
                 auto converted_member_type = convert(member_type);
-                assert(converted_member_type.layout);
+                if(!converted_member_type.layout)
+                    continue;
                 if (converted_member_type.layout->size > max_serialized_size)
                     max_serialized_size = converted_member_type.layout->size;
             }
@@ -248,14 +248,15 @@ ConvertedType CodeGen::convert(const Type* type) {
                 auto struct_t = world().struct_type(type->name(), 2);
                 struct_t->set_op(0, tag_type);
                 struct_t->set_op(1, payload_type);
-                return convert(struct_t);
+                converted = convert(struct_t);
+                converted.variant.payload_t = std::make_optional(payload_type);
             } else {
                 // We keep this useless level of struct so the rest of the code doesn't need a special path to extract the tag
                 auto struct_t = world().struct_type(type->name(), 1);
                 struct_t->set_op(0, tag_type);
-                return convert(struct_t);
+                converted = convert(struct_t);
             }
-            THORIN_UNREACHABLE;
+            break;
         }
 
         case Node_MemType: {

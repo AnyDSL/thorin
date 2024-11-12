@@ -120,7 +120,11 @@ void CodeGen::emit_stream(std::ostream& out) {
     }
 
     ScopesForest forest(world());
-    forest.for_each([&](const Scope& scope) { emit_scope(scope, forest); });
+    forest.for_each<false>([&](const Scope& scope) {
+        if (scope.entry()->is_intrinsic())
+            return;
+        emit_scope(scope, forest);
+    });
 
     for (auto def : world().defs()) {
         if (auto global = def->isa<Global>())
@@ -204,6 +208,8 @@ static bool is_return_block(thorin::Continuation* cont) {
 }
 
 void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
+    if (!cont->has_body())
+        return;
     auto& bb = *fn->bbs.emplace_back(std::make_unique<BasicBlockBuilder>(*fn));
     cont2bb_[cont] = &bb;
     fn->bbs_to_emit.emplace_back(&bb);
@@ -285,6 +291,9 @@ Id CodeGen::emit_as_bb(thorin::Continuation* cont) {
 }
 
 void CodeGen::emit_epilogue(Continuation* continuation) {
+    if (!continuation->has_body())
+        return;
+
     BasicBlockBuilder* bb = cont2bb_[continuation];
 
     // Handles the potential nuances of jumping to another continuation

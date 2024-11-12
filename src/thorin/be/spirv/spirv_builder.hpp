@@ -663,47 +663,48 @@ struct FnBuilder {
     }
 };
 
-inline Id FileBuilder::define_function(FnBuilder &fn_builder) {
-    fn_defs.begin_op(spv::Op::OpFunction, 5);
-    fn_defs.ref_id(fn_builder.fn_ret_type);
-    fn_defs.ref_id(fn_builder.function_id);
-    fn_defs.data_.push_back(spv::FunctionControlMaskNone);
-    fn_defs.ref_id(fn_builder.fn_type);
+inline Id FileBuilder::define_function(FnBuilder &fn_builder, bool definition) {
+    auto& tgt = definition ? fn_defs : fn_decls;
+    tgt.begin_op(spv::Op::OpFunction, 5);
+    tgt.ref_id(fn_builder.fn_ret_type);
+    tgt.ref_id(fn_builder.function_id);
+    tgt.data_.push_back(spv::FunctionControlMaskNone);
+    tgt.ref_id(fn_builder.fn_type);
 
     // Includes stuff like OpFunctionParameters
     for (auto w : fn_builder.header.data_)
-        fn_defs.data_.push_back(w);
+        tgt.data_.push_back(w);
 
     bool first = true;
     for (auto& bb : fn_builder.bbs_to_emit) {
-        fn_defs.begin_op(spv::Op::OpLabel, 2);
-        fn_defs.ref_id(bb->label);
+        tgt.begin_op(spv::Op::OpLabel, 2);
+        tgt.ref_id(bb->label);
 
         if (first) {
             for (auto w : fn_builder.variables.data_)
-                fn_defs.data_.push_back(w);
+                tgt.data_.push_back(w);
             first = false;
         }
 
         for (auto& phi : bb->phis) {
-            fn_defs.begin_op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
-            fn_defs.ref_id(phi->type);
-            fn_defs.ref_id(phi->value);
+            tgt.begin_op(spv::Op::OpPhi, 3 + 2 * phi->preds.size());
+            tgt.ref_id(phi->type);
+            tgt.ref_id(phi->value);
             assert(!phi->preds.empty());
             for (auto& [pred_value, pred_label] : phi->preds) {
-                fn_defs.ref_id(pred_value);
-                fn_defs.ref_id(pred_label);
+                tgt.ref_id(pred_value);
+                tgt.ref_id(pred_label);
             }
         }
 
         for (auto w : bb->data_)
-            fn_defs.data_.push_back(w);
+            tgt.data_.push_back(w);
 
         for (auto w : bb->terminator.data_)
-            fn_defs.data_.push_back(w);
+            tgt.data_.push_back(w);
     }
 
-    fn_defs.begin_op(spv::Op::OpFunctionEnd, 1);
+    tgt.begin_op(spv::Op::OpFunctionEnd, 1);
     return fn_builder.function_id;
 }
 

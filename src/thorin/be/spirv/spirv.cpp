@@ -639,7 +639,7 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
 
             auto cast_type = convert(world().ptr_type(variant->value()->type(), 1, AddrSpace::Function));
             auto scratch_cast = bb->op_with_result(spv::Op::OpBitcast, cast_type.id, { scratch });
-            bb->store(scratch_cast, emit(variant->value()));
+            bb->store(emit(variant->value()), scratch_cast);
 
             auto payload = bb->load(convert(payload_t.value()).id, scratch);
 

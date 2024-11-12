@@ -804,10 +804,18 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         } else if (auto cast = def->isa<Cast>()) {
             if (auto src_ptr_type = src_type->isa<PtrType>()) {
                 if (auto dst_ptr_type = dst_type->isa<PtrType>()) {
-                    if (src_ptr_type->addr_space() == AddrSpace::Generic) {
-                        return bb->op_with_result(spv::Op::OpGenericCastToPtr, convert(cast->type()).id, { emit(cast->from()) });
-                    } else if (dst_ptr_type->addr_space() == AddrSpace::Generic) {
-                        return bb->op_with_result(spv::Op::OpPtrCastToGeneric, convert(cast->type()).id, { emit(cast->from()) });
+                    if (src_ptr_type->addr_space() == AddrSpace::Generic && dst_ptr_type->addr_space() != AddrSpace::Generic) {
+                        auto casted = emit(cast->from());
+                        if (src_ptr_type->pointee() != dst_ptr_type->pointee())
+                            casted = bb->convert(spv::OpBitcast, convert(world().ptr_type(dst_ptr_type->pointee(), 1, src_ptr_type->addr_space())).id, casted);
+                        casted = bb->op_with_result(spv::Op::OpGenericCastToPtr, convert(cast->type()).id, { casted });
+                        return casted;
+                    } else if (src_ptr_type->addr_space() != AddrSpace::Generic && dst_ptr_type->addr_space() == AddrSpace::Generic) {
+                        auto casted = emit(cast->from());
+                        if (src_ptr_type->pointee() != dst_ptr_type->pointee())
+                            casted = bb->convert(spv::OpBitcast, convert(world().ptr_type(dst_ptr_type->pointee(), 1, src_ptr_type->addr_space())).id, casted);
+                        casted = bb->op_with_result(spv::Op::OpPtrCastToGeneric, convert(cast->type()).id, { casted });
+                        return casted;
                     } else {
                         world().WLOG("Abnormal ptr-ptr cast: {} to {}, should be a bitcast", src_ptr_type, dst_ptr_type);
                         return bb->convert(spv::OpBitcast, convert(cast->type()).id, emit(cast->from()));
@@ -840,50 +848,22 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
                         switch (dst_kind) {
                             case PrimTypeKind::Signed:   data = bb->convert(spv::OpConvertFToS, target_type, data); break;
                             case PrimTypeKind::Unsigned: data = bb->convert(spv::OpConvertFToU, target_type, data); break;
-                            default: THORIN_UNREACHABLE;
+                            case PrimTypeKind::Float:    data = bb->convert(spv::OpFConvert, target_type, data); break;
                         }
                         break;
                 }
+            } else if (src_bitwidth == dst_bitwidth) {
+                auto target_type = convert(get_primtype(world(), dst_kind, dst_bitwidth, length)).id;
+                data = bb->convert(spv::OpBitcast, target_type, data);
+            }
+            else if (src_kind == PrimTypeKind::Unsigned) {
+                auto target_type = convert(get_primtype(world(), dst_kind, dst_bitwidth, length)).id;
+                data = bb->convert(spv::OpUConvert, target_type, data);
+            } else if (src_kind == PrimTypeKind::Signed) {
+                auto target_type = convert(get_primtype(world(), dst_kind, dst_bitwidth, length)).id;
+                data = bb->convert(spv::OpSConvert, target_type, data);
             } else {
-                // we expand first and shrink last to minimize precision losses, with bitcast in the middle
-                bool needs_chopping = src_bitwidth > dst_bitwidth;
-                bool needs_expanding = src_bitwidth < dst_bitwidth;
-
-                if (needs_expanding) {
-                    auto target_type = convert(get_primtype(world(), src_kind, src_bitwidth, length)).id;
-                    switch (src_kind) {
-                        case PrimTypeKind::Signed:
-                            data = bb->convert(spv::OpSConvert, target_type, data);
-                            break;
-                        case PrimTypeKind::Unsigned:
-                            data = bb->convert(spv::OpUConvert, target_type, data);
-                            break;
-                        case PrimTypeKind::Float:
-                            data = bb->convert(spv::OpFConvert, target_type, data);
-                            break;
-                        default: assert(false);
-                    }
-                }
-
-                auto expanded_bitwidth = needs_expanding ? dst_bitwidth : src_bitwidth;
-                auto bitcast_target_type = convert(get_primtype(world(), dst_kind, expanded_bitwidth, length)).id;
-                data = bb->convert(spv::OpBitcast, bitcast_target_type, data);
-
-                if (needs_chopping) {
-                    auto target_type = convert(get_primtype(world(), dst_kind, dst_bitwidth, length)).id;
-                    switch (dst_kind) {
-                        case PrimTypeKind::Signed:
-                            data = bb->convert(spv::OpSConvert, target_type, data);
-                            break;
-                        case PrimTypeKind::Unsigned:
-                            data = bb->convert(spv::OpUConvert, target_type, data);
-                            break;
-                        case PrimTypeKind::Float:
-                            data = bb->convert(spv::OpFConvert, target_type, data);
-                            break;
-                        default: assert(false);
-                    }
-                }
+                assert(false && "unsupported cast");
             }
 
             return data;

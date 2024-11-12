@@ -30,6 +30,23 @@ inline int div_roundup(int a, int b) {
         return (a / b) + 1;
 }
 
+static inline std::vector<uint32_t> make_literal_string(std::string_view str) {
+    std::vector<uint32_t> v;
+    int i = 0;
+    uint32_t cword = 0;
+    for (char c : str) {
+        cword = cword | (c & 0xFF) << (i * 8);
+        i++;
+        if (i == 4) {
+            v.push_back(cword);
+            cword = 0;
+            i = 0;
+        }
+    }
+    v.push_back(cword);
+    return v;
+}
+
 struct SectionBuilder {
     std::vector<uint32_t> data_;
 
@@ -49,7 +66,7 @@ public:
         output_word(id);
     }
 
-    void literal_name(std::string_view str) {
+    void literal_string(std::string_view str) {
         int i = 0;
         uint32_t cword = 0;
         for (char c : str) {
@@ -108,7 +125,7 @@ struct FileBuilder {
         assert(id < bound);
         debug_names.begin_op(spv::Op::OpName, 2 + div_roundup(str.size() + 1, 4));
         debug_names.ref_id(id);
-        debug_names.literal_name(str);
+        debug_names.literal_string(str);
     }
 
     Id declare_bool_type() {
@@ -214,7 +231,7 @@ struct FileBuilder {
         debug_string_source.begin_op(spv::Op::OpString, 2 + div_roundup(string.size() + 1, 4));
         auto id = generate_fresh_id();
         debug_string_source.ref_id(id);
-        debug_string_source.literal_name(string);
+        debug_string_source.literal_string(string);
         return id;
     }
 
@@ -274,13 +291,13 @@ struct FileBuilder {
         return id;
     }
 
-    Id define_function(FnBuilder& fn_builder);
+    Id define_function(FnBuilder& fn_builder, bool define);
 
     void declare_entry_point(spv::ExecutionModel execution_model, Id entry_point, std::string name, std::vector<Id> interface) {
         entry_points.begin_op(spv::Op::OpEntryPoint, 3 + div_roundup(name.size() + 1, 4) + interface.size());
         entry_points.literal_int(execution_model);
         entry_points.ref_id(entry_point);
-        entry_points.literal_name(name);
+        entry_points.literal_string(name);
         for (auto i : interface)
             entry_points.ref_id(i);
     }
@@ -307,7 +324,7 @@ struct FileBuilder {
         if (found != extensions_set.end())
             return;
         extensions.begin_op(spv::Op::OpExtension, 1 + div_roundup(name.size() + 1, 4));
-        extensions.literal_name(name);
+        extensions.literal_string(name);
         extensions_set.insert(name);
     }
 
@@ -324,7 +341,7 @@ protected:
         ext_inst_import.begin_op(spv::Op::OpExtInstImport, 2 + div_roundup(name.size() + 1, 4));
         auto id = generate_fresh_id();
         ext_inst_import.ref_id(id);
-        ext_inst_import.literal_name(name);
+        ext_inst_import.literal_string(name);
         extended_instruction_sets[name] = id;
         return id;
     }

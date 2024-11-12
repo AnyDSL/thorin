@@ -132,12 +132,12 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::SMax }, emit_args(app.args().skip_back())) };
     } else if (intrinsic->name() == "barrier") {
         emit_args(app.args().skip_back());
-        bb->op(spv::Op::OpMemoryBarrier, { spv::Scope::ScopeInvocation, spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask });
+        bb->op(spv::Op::OpMemoryBarrier, { literal(spv::Scope::ScopeInvocation), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask) });
         return { };
     } else if (intrinsic->name() == "atomic_add") {
         auto args = emit_args(app.args().skip_back());
         auto [ptr, value] = *(std::array<Id, 2>*)args.data();
-        auto result = bb->op_with_result(spv::Op::OpAtomicIAdd, convert(get_produced_type()).id,  { ptr, spv::Scope::ScopeInvocation, spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask, value });
+        auto result = bb->op_with_result(spv::Op::OpAtomicIAdd, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeInvocation), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask), value });
         return { result };
     }
     world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());

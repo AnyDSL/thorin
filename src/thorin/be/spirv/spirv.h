@@ -71,6 +71,7 @@ protected:
     FnBuilder& get_fn_builder(Continuation*);
     std::vector<Id> emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb);
     std::vector<Id> emit_args(Defs);
+    Id literal(uint32_t);
 
     Id emit_as_bb(Continuation*);
     Id emit_mathop(BasicBlockBuilder* bb, const MathOp& op);

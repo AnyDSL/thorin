@@ -486,6 +486,10 @@ std::vector<Id> CodeGen::emit_args(Defs defs) {
     return emitted;
 }
 
+Id CodeGen::literal(uint32_t value) {
+    return emit(world().literal_pu32(value, {}));
+}
+
 Id CodeGen::emit_composite(BasicBlockBuilder* bb, Id t, Defs defs) {
     std::vector<Id> ids;
     for (auto& def : defs) {

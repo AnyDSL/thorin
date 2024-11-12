@@ -137,7 +137,26 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
     } else if (intrinsic->name() == "atomic_add") {
         auto args = emit_args(app.args().skip_back());
         auto [ptr, value] = *(std::array<Id, 2>*)args.data();
-        auto result = bb->op_with_result(spv::Op::OpAtomicIAdd, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeInvocation), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask), value });
+        auto produced = get_produced_type();
+        spv::Op op;
+        if (is_type_f(produced)) {
+            op = spv::OpAtomicFAddEXT;
+            auto ct = convert(produced);
+            switch (ct.layout->size) {
+                case 2: builder_->capability(spv::Capability::CapabilityAtomicFloat16AddEXT); break;
+                case 4: builder_->capability(spv::Capability::CapabilityAtomicFloat32AddEXT); break;
+                case 8: builder_->capability(spv::Capability::CapabilityAtomicFloat64AddEXT); break;
+            }
+            builder_->extension("SPV_EXT_shader_atomic_float_add");
+        } else if (is_type_i(produced))
+            op = spv::OpAtomicIAdd;
+        else
+            assert(false && "unknown primitive type for atomic_add");
+        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeInvocation), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask), value });
+        return { result };
+    } else if (intrinsic->name() == "rv_all") {
+        auto args = emit_args(app.args().skip_back());
+        auto result = bb->op_with_result(spv::Op::OpGroupAll, convert(get_produced_type()).id,  { literal(spv::Scope::ScopeInvocation), emit(app.arg(1)) });
         return { result };
     }
     world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());

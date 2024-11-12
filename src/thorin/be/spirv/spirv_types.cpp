@@ -41,7 +41,38 @@ uint32_t CodeGen::convert(AddrSpace as) {
     return storage_class;
 }
 
-ConvertedType CodeGen::convert(const Type* type) {
+Id CodeGen::get_codom_type(const FnType* fn) {
+    auto [dom, codom] = get_dom_codom(fn);
+    assert(codom);
+    return codom;
+}
+
+std::tuple<std::vector<Id>, Id> CodeGen::get_dom_codom(const FnType* fn) {
+    Id ret = 0;
+    std::vector<Id> ops;
+    for (auto op : fn->types()) {
+        if (op->isa<MemType>() || op == world().unit_type())
+            continue;
+        auto fn_type = op->isa<FnType>();
+        if (fn_type && !op->isa<ClosureType>()) {
+            assert(!ret && "only one 'return' supported");
+            std::vector<const Type*> ret_types;
+            for (auto fn_op : fn_type->types()) {
+                if (fn_op->isa<MemType>() || fn_op == world().unit_type())
+                    continue;
+                ret_types.push_back(fn_op);
+            }
+            if (ret_types.size() == 1)
+                ret = convert(ret_types.back()).id;
+            else
+                ret = convert(world().tuple_type(ret_types), true).id;
+        } else
+            ops.push_back(convert(op).id);
+    }
+    return std::make_tuple(ops, ret);
+}
+
+ConvertedType CodeGen::convert(const Type* type, bool allow_void) {
     // Spir-V requires each primitive type to be "unique", it doesn't allow for example two 32-bit signed integer types.
     // Therefore we must enforce that precise/quick types map to the same thing.
     switch (type->tag()) {
@@ -170,32 +201,10 @@ ConvertedType CodeGen::convert(const Type* type) {
 
         case Node_ClosureType:
         case Node_FnType: {
-            // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
-            Id ret = 0;
-            std::vector<Id> ops;
-            for (auto op : fn->types()) {
-                if (op->isa<MemType>() || op == world().unit_type())
-                    continue;
-                auto fn_type = op->isa<FnType>();
-                if (fn_type && !op->isa<ClosureType>()) {
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<Id> ret_types;
-                    for (auto fn_op : fn_type->types()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit_type())
-                            continue;
-                        ret_types.push_back(convert(fn_op).id);
-                    }
-                    if (ret_types.empty())          ret = convert(world().tuple_type({})).id;
-                    else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            assert(false && "Didn't we refactor this out yet by making functions single-argument ?");
-                } else
-                    ops.push_back(convert(op).id);
-            }
-            assert(ret);
+            auto [dom, codom] = get_dom_codom(type->as<FnType>());
 
             if (type->tag() == Node_FnType) {
-                converted.id = builder_->declare_fn_type(ops, ret);
+                converted.id = builder_->declare_fn_type(dom, codom);
             } else {
                 assert(false && "TODO: handle closure mess");
                 THORIN_UNREACHABLE;
@@ -217,10 +226,10 @@ ConvertedType CodeGen::convert(const Type* type) {
                 converted.layout->alignment = std::max(converted.layout->alignment, converted_member_type.layout->alignment);
                 converted.layout->size = pad(converted.layout->size + converted_member_type.layout->size, converted.layout->alignment);
             }
-            if (converted.layout->size == 0) {
+            if (allow_void && converted.layout->size == 0) {
                 converted.id = builder_->declare_void_type();
                 converted.layout = std::nullopt;
-                break;
+                return converted;
             }
 
             converted.id = builder_->declare_struct_type(spv_types);
@@ -237,8 +246,7 @@ ConvertedType CodeGen::convert(const Type* type) {
                 auto member_type = member->as<Type>();
                 if (member_type == world().unit_type() || member_type == world().mem_type()) continue;
                 auto converted_member_type = convert(member_type);
-                if(!converted_member_type.layout)
-                    continue;
+                assert(converted_member_type.layout);
                 if (converted_member_type.layout->size > max_serialized_size)
                     max_serialized_size = converted_member_type.layout->size;
             }

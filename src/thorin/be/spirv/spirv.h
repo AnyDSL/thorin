@@ -58,7 +58,7 @@ public:
     }
 
     uint32_t convert(AddrSpace);
-    ConvertedType convert(const Type*);
+    ConvertedType convert(const Type*, bool allow_void = false);
 
     Id emit_fun_decl(Continuation*);
 
@@ -81,7 +81,8 @@ protected:
     Id emit_composite(BasicBlockBuilder* bb, Id, Defs);
     Id emit_composite(BasicBlockBuilder* bb, Id, ArrayRef<Id>);
 
-    Id get_codom_type(const Continuation* fn);
+    std::tuple<std::vector<Id>, Id> get_dom_codom(const FnType* fn);
+    Id get_codom_type(const FnType*);
 
     Target target_info_;
     FileBuilder* builder_;

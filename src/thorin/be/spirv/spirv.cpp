@@ -173,7 +173,7 @@ FnBuilder& CodeGen::get_fn_builder(thorin::Continuation* continuation) {
 
     auto& fn = *(builder_->fn_builders_[continuation] = std::make_unique<FnBuilder>(*builder_));
     fn.fn_type = convert(entry_->type()).id;
-    fn.fn_ret_type = get_codom_type(entry_);
+    fn.fn_ret_type = get_codom_type(entry_->type());
     defs_[continuation] = fn.function_id;
     return fn;
 }
@@ -259,30 +259,25 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
 }
 
 void CodeGen::finalize(thorin::Continuation* cont) {
+    if (!cont->has_body())
+        return;
     auto& bb = *cont2bb_[cont];
     for (auto& [param, phi] : bb.phis_map) {
         bb.phis.emplace_back(&phi);
     }
 }
 
-void CodeGen::finalize(const thorin::Scope&) {
-    builder_->define_function(*builder_->current_fn_);
-}
-
-Id CodeGen::get_codom_type(const Continuation* fn) {
-    auto ret_cont_type = fn->ret_param()->type()->as<FnType>();
-    std::vector<Id> types;
-    for (auto& op : ret_cont_type->types()) {
-        if (op->isa<MemType>() || is_type_unit(op->type()))
-            continue;
-        assert(op->order() == 0);
-        types.push_back(convert(op).id);
+void CodeGen::finalize(const thorin::Scope& scope) {
+    builder_->define_function(*builder_->current_fn_, scope.entry()->has_body());
+    assert(!scope.entry()->is_intrinsic());
+    if (scope.entry()->is_external()) {
+        if (!scope.entry()->has_body()) {
+            auto v = builder::make_literal_string(scope.entry()->name());
+            v.push_back(spv::LinkageType::LinkageTypeImport);
+            builder_->decorate(builder_->current_fn_->function_id, spv::Decoration::DecorationLinkageAttributes, v);
+            builder_->capability(spv::CapabilityLinkage);
+        }
     }
-    if (types.empty())
-        return convert(world().unit_type()).id;
-    if (types.size() == 1)
-        return types[0];
-    return builder_->declare_struct_type(types);
 }
 
 Id CodeGen::emit_as_bb(thorin::Continuation* cont) {
@@ -336,7 +331,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         switch (values.size()) {
-            case 0:  bb->terminator.return_void();      break;
+            case 0:  bb->terminator.return_void(); break;
             case 1:  bb->terminator.return_value(values[0]); break;
             default: bb->terminator.return_value(emit_composite(bb, builder_->current_fn_->fn_ret_type, values));
         }
@@ -405,7 +400,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         Id call_result;
         if (auto called_continuation = app.callee()->isa_nom<Continuation>()) {
-            auto ret_type = get_codom_type(called_continuation);
+            auto ret_type = get_codom_type(called_continuation->type());
             call_result = bb->call(ret_type, emit(called_continuation), call_args);
         } else {
             // must be a closure

@@ -644,11 +644,11 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             auto payload = bb->load(convert(payload_t.value()).id, scratch);
 
             std::vector<Id> with_tag = {tag, payload};
-            return bb->composite(converted_type.id, with_tag);
+            return emit_composite(bb, converted_type.id, with_tag);
         } else {
             // Zero-sized payload case
             std::vector<Id> with_tag = { tag };
-            return bb->composite(converted_type.id, with_tag);
+            return emit_composite(bb, converted_type.id, with_tag);
         }
     } else if (auto vextract = def->isa<VariantExtract>()) {
         auto variant_type = vextract->value()->type()->as<VariantType>();

@@ -166,14 +166,40 @@ Id CodeGen::emit_fun_decl(thorin::Continuation* continuation) {
     return get_fn_builder(continuation).function_id;
 }
 
+static bool prefers_passing_by_ptr(const Type* t) {
+    return t->isa<VariantType>() || t->isa<TupleType>() || t->isa<StructType>();
+}
+
+static const FnType* patch_entry_point_signature(const FnType* type) {
+    assert(type->tag() == Node_FnType && "only plain functions expected");
+    auto& world = type->world();
+    std::vector<const Type*> new_ops;
+    for (auto t : type->types()) {
+        if (prefers_passing_by_ptr(t))
+            t = world.ptr_type(t, 1, AddrSpace::Global);
+        else if (auto fn = t->isa<FnType>())
+            t = patch_entry_point_signature(fn);
+        else if (auto ptr = t->isa<PtrType>()) {
+            if (ptr->addr_space() == AddrSpace::Generic)
+                t = world.ptr_type(ptr->pointee(), 1, AddrSpace::Global);
+        }
+        new_ops.push_back(t);
+    }
+    return world.fn_type(new_ops);
+}
+
 FnBuilder& CodeGen::get_fn_builder(thorin::Continuation* continuation) {
     if (auto found = builder_->fn_builders_.find(continuation); found != builder_->fn_builders_.end()) {
         return *found->second;
     }
 
     auto& fn = *(builder_->fn_builders_[continuation] = std::make_unique<FnBuilder>(*builder_));
-    fn.fn_type = convert(entry_->type()).id;
-    fn.fn_ret_type = get_codom_type(entry_->type());
+    auto fn_type = entry_->type();
+    if (kernel_config_->contains(continuation)) {
+        fn_type = patch_entry_point_signature(fn_type);
+    }
+    fn.fn_type = convert(fn_type).id;
+    fn.fn_ret_type = get_codom_type(fn_type);
     defs_[continuation] = fn.function_id;
     return fn;
 }
@@ -221,13 +247,28 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
         world().ddef(cont, "Emitting {} as return block", cont);
 
     if (entry_ == cont) {
+        bool entry_point = kernel_config_->contains(entry_);
         for (auto param : cont->params()) {
             if (is_mem(param) || is_unit(param)) {
                 // Nothing
                 defs_[param] = 0;
             } else if (param->order() == 0) {
-                auto param_t = convert(param->type());
-                auto id = fn->parameter(param_t.id);
+                Id id;
+                if (entry_point && prefers_passing_by_ptr(param->type())) {
+                    auto param_t = convert(world().ptr_type(param->type(), 1, AddrSpace::Global));
+                    id = fn->parameter(param_t.id);
+                    builder_->decorate(id, spv::DecorationFuncParamAttr, { spv::FunctionParameterAttribute::FunctionParameterAttributeByVal });
+                    builder_->decorate(id, spv::DecorationFuncParamAttr, { spv::FunctionParameterAttribute::FunctionParameterAttributeNoCapture });
+                    builder_->decorate(id, spv::DecorationFuncParamAttr, { spv::FunctionParameterAttribute::FunctionParameterAttributeNoWrite });
+                    id = bb.load(convert(param->type()).id, id);
+                } else {
+                    auto param_t = param->type();
+                    if (auto ptr = param_t->isa<PtrType>()) {
+                        if (ptr->addr_space() == AddrSpace::Generic)
+                            param_t = world().ptr_type(ptr->pointee(), 1, AddrSpace::Global);
+                    }
+                    id = fn->parameter(convert(param_t).id);
+                }
                 defs_[param] = id;
                 fn->params[param] = id;
                 if (param->type()->isa<PtrType>()) {

@@ -166,7 +166,7 @@ Id CodeGen::emit_fun_decl(thorin::Continuation* continuation) {
     return get_fn_builder(continuation).function_id;
 }
 
-static bool prefers_passing_by_ptr(const Type* t) {
+static bool cl_demands_passed_by_reference(const Type* t) {
     return t->isa<VariantType>() || t->isa<TupleType>() || t->isa<StructType>();
 }
 
@@ -175,8 +175,8 @@ static const FnType* patch_entry_point_signature(const FnType* type) {
     auto& world = type->world();
     std::vector<const Type*> new_ops;
     for (auto t : type->types()) {
-        if (prefers_passing_by_ptr(t))
-            t = world.ptr_type(t, 1, AddrSpace::Global);
+        if (cl_demands_passed_by_reference(t))
+            t = world.ptr_type(t, 1, AddrSpace::Function);
         else if (auto fn = t->isa<FnType>())
             t = patch_entry_point_signature(fn);
         else if (auto ptr = t->isa<PtrType>()) {
@@ -254,8 +254,8 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
                 defs_[param] = 0;
             } else if (param->order() == 0) {
                 Id id;
-                if (entry_point && prefers_passing_by_ptr(param->type())) {
-                    auto param_t = convert(world().ptr_type(param->type(), 1, AddrSpace::Global));
+                if (entry_point && cl_demands_passed_by_reference(param->type())) {
+                    auto param_t = convert(world().ptr_type(param->type(), 1, AddrSpace::Function));
                     id = fn->parameter(param_t.id);
                     builder_->decorate(id, spv::DecorationFuncParamAttr, { spv::FunctionParameterAttribute::FunctionParameterAttributeByVal });
                     builder_->decorate(id, spv::DecorationFuncParamAttr, { spv::FunctionParameterAttribute::FunctionParameterAttributeNoCapture });

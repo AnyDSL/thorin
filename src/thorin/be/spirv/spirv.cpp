@@ -263,17 +263,22 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
                     id = bb.load(convert(param->type()).id, id);
                 } else {
                     auto param_t = param->type();
+                    bool needs_cast_back_to_generic = false;
                     if (auto ptr = param_t->isa<PtrType>()) {
-                        if (ptr->addr_space() == AddrSpace::Generic)
+                        if (ptr->addr_space() == AddrSpace::Generic) {
                             param_t = world().ptr_type(ptr->pointee(), 1, AddrSpace::Global);
+                            needs_cast_back_to_generic = true;
+                        }
                     }
                     id = fn->parameter(convert(param_t).id);
+                    if (param->type()->isa<PtrType>()) {
+                        builder_->decorate(id, spv::DecorationAliased);
+                    }
+                    if (needs_cast_back_to_generic)
+                        id = emit_ptr_bitcast(&bb, param_t->as<PtrType>(), param->type()->as<PtrType>(), id);
                 }
                 defs_[param] = id;
                 fn->params[param] = id;
-                if (param->type()->isa<PtrType>()) {
-                    builder_->decorate(id, spv::DecorationAliased);
-                }
             }
         }
     } else {
@@ -562,6 +567,22 @@ Id CodeGen::emit_composite(BasicBlockBuilder* bb, Id t, ArrayRef<Id> ids) {
     }
 }
 
+Id CodeGen::emit_ptr_bitcast(BasicBlockBuilder* bb, const thorin::PtrType* from, const thorin::PtrType* to, Id id) {
+    if (from->pointee() != to->pointee()) {
+        auto ptr_t = world().ptr_type(to->pointee(), 1, from->addr_space());
+        id = bb->convert(spv::OpBitcast, convert(ptr_t).id, id);
+        from = ptr_t;
+    }
+
+    if (from->addr_space() == AddrSpace::Generic && to->addr_space() != AddrSpace::Generic) {
+        id = bb->op_with_result(spv::Op::OpGenericCastToPtr, convert(to).id, { id });
+    } else if (from->addr_space() != AddrSpace::Generic && to->addr_space() == AddrSpace::Generic) {
+        id = bb->op_with_result(spv::Op::OpPtrCastToGeneric, convert(to).id, { id });
+    }
+
+    return id;
+}
+
 Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
     if (auto mathop = def->isa<MathOp>())
         return emit_mathop(bb, *mathop);
@@ -836,6 +857,12 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto conv_src_type = convert(src_type);
         auto conv_dst_type = convert(dst_type);
 
+        if (auto src_ptr_type = src_type->isa<PtrType>()) {
+            if (auto dst_ptr_type = dst_type->isa<PtrType>()) {
+                return emit_ptr_bitcast(bb, src_ptr_type, dst_ptr_type, emit(conv->from()));
+            }
+        }
+
         if (auto bitcast = def->isa<Bitcast>()) {
             assert(conv_src_type.layout && conv_dst_type.layout);
             if (conv_src_type.layout->size != conv_dst_type.layout->size)
@@ -843,26 +870,6 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
 
             return bb->convert(spv::OpBitcast, convert(bitcast->type()).id, emit(bitcast->from()));
         } else if (auto cast = def->isa<Cast>()) {
-            if (auto src_ptr_type = src_type->isa<PtrType>()) {
-                if (auto dst_ptr_type = dst_type->isa<PtrType>()) {
-                    if (src_ptr_type->addr_space() == AddrSpace::Generic && dst_ptr_type->addr_space() != AddrSpace::Generic) {
-                        auto casted = emit(cast->from());
-                        if (src_ptr_type->pointee() != dst_ptr_type->pointee())
-                            casted = bb->convert(spv::OpBitcast, convert(world().ptr_type(dst_ptr_type->pointee(), 1, src_ptr_type->addr_space())).id, casted);
-                        casted = bb->op_with_result(spv::Op::OpGenericCastToPtr, convert(cast->type()).id, { casted });
-                        return casted;
-                    } else if (src_ptr_type->addr_space() != AddrSpace::Generic && dst_ptr_type->addr_space() == AddrSpace::Generic) {
-                        auto casted = emit(cast->from());
-                        if (src_ptr_type->pointee() != dst_ptr_type->pointee())
-                            casted = bb->convert(spv::OpBitcast, convert(world().ptr_type(dst_ptr_type->pointee(), 1, src_ptr_type->addr_space())).id, casted);
-                        casted = bb->op_with_result(spv::Op::OpPtrCastToGeneric, convert(cast->type()).id, { casted });
-                        return casted;
-                    } else {
-                        world().WLOG("Abnormal ptr-ptr cast: {} to {}, should be a bitcast", src_ptr_type, dst_ptr_type);
-                        return bb->convert(spv::OpBitcast, convert(cast->type()).id, emit(cast->from()));
-                    }
-                }
-            }
 
             // NB: all ops used here are scalar/vector agnostic
             auto src_prim = src_type->isa<PrimType>();

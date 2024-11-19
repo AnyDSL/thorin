@@ -80,6 +80,7 @@ protected:
     Id emit_mathop(BasicBlockBuilder* bb, const MathOp& op);
     Id emit_composite(BasicBlockBuilder* bb, Id, Defs);
     Id emit_composite(BasicBlockBuilder* bb, Id, ArrayRef<Id>);
+    Id emit_ptr_bitcast(BasicBlockBuilder* bb, const PtrType* from, const PtrType* to, Id);
 
     std::tuple<std::vector<Id>, Id> get_dom_codom(const FnType* fn);
     Id get_codom_type(const FnType*);

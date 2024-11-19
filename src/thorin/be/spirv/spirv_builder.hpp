@@ -303,11 +303,11 @@ struct FileBuilder {
     }
 
     void execution_mode(Id entry_point, spv::ExecutionMode execution_mode, std::vector<uint32_t> payloads) {
-        entry_points.begin_op(spv::Op::OpExecutionMode, 3 + payloads.size());
-        entry_points.ref_id(entry_point);
-        entry_points.literal_int(execution_mode);
+        execution_modes.begin_op(spv::Op::OpExecutionMode, 3 + payloads.size());
+        execution_modes.ref_id(entry_point);
+        execution_modes.literal_int(execution_mode);
         for (auto d : payloads)
-            entry_points.literal_int(d);
+            execution_modes.literal_int(d);
     }
 
     void capability(spv::Capability cap) {

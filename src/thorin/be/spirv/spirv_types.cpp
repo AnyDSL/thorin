@@ -51,28 +51,40 @@ std::tuple<std::vector<Id>, Id> CodeGen::get_dom_codom(const FnType* fn) {
     Id ret = 0;
     std::vector<Id> ops;
     for (auto op : fn->types()) {
-        if (op->isa<MemType>() || op == world().unit_type())
-            continue;
         auto fn_type = op->isa<FnType>();
         if (fn_type && !op->isa<ClosureType>()) {
             assert(!ret && "only one 'return' supported");
             std::vector<const Type*> ret_types;
             for (auto fn_op : fn_type->types()) {
-                if (fn_op->isa<MemType>() || fn_op == world().unit_type())
+                if (!should_emit(fn_op))
                     continue;
                 ret_types.push_back(fn_op);
             }
             if (ret_types.size() == 1)
-                ret = convert(ret_types.back()).id;
+                ret = convert_maybe_void(ret_types.back()).id;
             else
-                ret = convert(world().tuple_type(ret_types), true).id;
-        } else
+                ret = convert_maybe_void(world().tuple_type(ret_types)).id;
+        } else if (!should_emit(op))
+            continue;
+        else
             ops.push_back(convert(op).id);
     }
     return std::make_tuple(ops, ret);
 }
 
-ConvertedType CodeGen::convert(const Type* type, bool allow_void) {
+ConvertedType CodeGen::convert_maybe_void(const thorin::Type* type) {
+    auto converted = convert(type);
+
+    if ((type->isa<StructType>() || type->isa<TupleType>()) && converted.layout->size == 0) {
+        converted.id = builder_->declare_void_type();
+        converted.layout = std::nullopt;
+        return converted;
+    }
+
+    return converted;
+}
+
+ConvertedType CodeGen::convert(const Type* type) {
     // Spir-V requires each primitive type to be "unique", it doesn't allow for example two 32-bit signed integer types.
     // Therefore we must enforce that precise/quick types map to the same thing.
     switch (type->tag()) {
@@ -225,11 +237,6 @@ ConvertedType CodeGen::convert(const Type* type, bool allow_void) {
                 spv_types.push_back(converted_member_type.id);
                 converted.layout->alignment = std::max(converted.layout->alignment, converted_member_type.layout->alignment);
                 converted.layout->size = pad(converted.layout->size + converted_member_type.layout->size, converted.layout->alignment);
-            }
-            if (allow_void && converted.layout->size == 0) {
-                converted.id = builder_->declare_void_type();
-                converted.layout = std::nullopt;
-                return converted;
             }
 
             converted.id = builder_->declare_struct_type(spv_types);

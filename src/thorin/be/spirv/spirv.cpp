@@ -249,7 +249,7 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
     if (entry_ == cont) {
         bool entry_point = kernel_config_->contains(entry_);
         for (auto param : cont->params()) {
-            if (is_mem(param) || is_unit(param)) {
+            if (!should_emit(param->type())) {
                 // Nothing
                 defs_[param] = 0;
             } else if (param->order() == 0) {
@@ -286,7 +286,7 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
         if (bb.semi_inline)
             return;
         for (auto param : cont->params()) {
-            if (is_mem(param) || is_unit(param)) {
+            if (!should_emit(param->type())) {
                 // Nothing
                 defs_[param] = 0;
             } else {
@@ -344,7 +344,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
             auto param = succ->param(i);
-            if (is_mem(param) || is_unit(param)) {
+            if (!should_emit(param->type())) {
                 if (dstbb->semi_inline)
                     defs_[param] = 0;
                 continue;
@@ -368,7 +368,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
 
         for (auto arg : app.args()) {
             assert(arg->order() == 0);
-            if (is_mem(arg) || is_unit(arg)) {
+            if (!should_emit(arg->type())) {
                 emit_unsafe(arg);
                 continue;
             }
@@ -385,7 +385,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         int index = -1;
         for (auto& arg : app.args()) {
             index++;
-            if (is_mem(arg) || is_unit(arg)) {
+            if (!should_emit(arg->type())) {
                 emit_unsafe(arg);
                 continue;
             }
@@ -463,7 +463,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         size_t real_params_count = 0;
         const Param* last_param = nullptr;
         for (auto param : succ->params()) {
-            if (is_mem(param) || is_unit(param))
+            if (!should_emit(param->type()))
                 continue;
             last_param = param;
             real_params_count++;
@@ -476,7 +476,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         } else if (real_params_count > 1) {
             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                 auto param = succ->param(i);
-                if (is_mem(param) || is_unit(param))
+                if (!should_emit(param->type()))
                     continue;
                 args[j] = bb->extract(convert(param->type()).id, call_result, { (uint32_t) j });
                 j++;
@@ -522,11 +522,22 @@ Id CodeGen::emit_constant(const thorin::Def* def) {
     assertf(false, "Incomplete emit(def) definition");
 }
 
+bool CodeGen::should_emit(const thorin::Type* type) {
+    if (type == world().mem_type())
+        return false;
+    if (auto fn_t = type->isa<FnType>())
+        return fn_t->is_returning();
+    auto converted = convert_maybe_void(type);
+    if (converted.id == builder_->declare_void_type())
+        return false;
+    return true;
+}
+
 std::vector<Id> CodeGen::emit_args(Defs defs) {
     std::vector<Id> emitted;
     for (auto arg : defs) {
         auto arg_type = arg->type();
-        if (arg_type == world().unit_type() || arg_type == world().mem_type()) {
+        if (!should_emit(arg_type)) {
             emit_unsafe(arg);
             continue;
         } else {

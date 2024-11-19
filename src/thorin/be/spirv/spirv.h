@@ -58,7 +58,8 @@ public:
     }
 
     uint32_t convert(AddrSpace);
-    ConvertedType convert(const Type*, bool allow_void = false);
+    ConvertedType convert_maybe_void(const Type*);
+    ConvertedType convert(const Type*);
 
     Id emit_fun_decl(Continuation*);
 
@@ -74,6 +75,7 @@ protected:
     FnBuilder& get_fn_builder(Continuation*);
     std::vector<Id> emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb);
     std::vector<Id> emit_args(Defs);
+    bool should_emit(const Type*);
     Id literal(uint32_t);
 
     Id emit_as_bb(Continuation*);

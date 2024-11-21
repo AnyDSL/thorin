@@ -152,7 +152,7 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             op = spv::OpAtomicIAdd;
         else
             assert(false && "unknown primitive type for atomic_add");
-        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeInvocation), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask), value });
+        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeDevice), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsCrossWorkgroupMemoryMask), value });
         return { result };
     } else if (intrinsic->name() == "rv_all") {
         auto args = emit_args(app.args().skip_back());

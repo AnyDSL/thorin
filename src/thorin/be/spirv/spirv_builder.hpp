@@ -48,8 +48,13 @@ static inline std::vector<uint32_t> make_literal_string(std::string_view str) {
 }
 
 struct SectionBuilder {
-    std::vector<uint32_t> data_;
+    explicit SectionBuilder(FileBuilder& file_builder) : file_builder_(file_builder) {}
 
+    std::vector<uint32_t> data_;
+    FileBuilder& file_builder_;
+
+protected:
+    inline Id fresh_id();
 private:
     void output_word(uint32_t word) {
         data_.push_back(word);
@@ -84,6 +89,22 @@ public:
     void literal_int(uint32_t i) {
         output_word(i);
     }
+
+    void op(spv::Op op, std::vector<uint32_t> operands) {
+        begin_op(op, operands.size() + 1);
+        for (auto e : operands)
+            literal_int(e);
+    }
+
+    Id op_with_result(spv::Op op, Id type, std::vector<uint32_t> operands) {
+        begin_op(op, operands.size() + 3);
+        ref_id(type);
+        auto id = fresh_id();
+        ref_id(id);
+        for (auto e : operands)
+            literal_int(e);
+        return id;
+    }
 };
 
 struct FileBuilder {
@@ -116,7 +137,7 @@ struct FileBuilder {
         }
     };
 
-    FileBuilder() {}
+    FileBuilder() : capabilities(*this), extensions(*this), ext_inst_import(*this), entry_points(*this), execution_modes(*this), debug_string_source(*this), debug_names(*this), debug_module_processed(*this), annotations(*this), types_constants(*this), fn_decls(*this), fn_defs(*this) {}
     FileBuilder(const FileBuilder&) = delete;
 
     Id generate_fresh_id() { return { bound++ }; }
@@ -385,7 +406,7 @@ private:
 public:
     void finish(std::ostream& output) {
         output_ = &output;
-        SectionBuilder memory_model_section;
+        SectionBuilder memory_model_section(*this);
         memory_model_section.begin_op(spv::Op::OpMemoryModel, 3);
         memory_model_section.data_.push_back(addressing_model);
         memory_model_section.data_.push_back(memory_model);
@@ -414,11 +435,13 @@ public:
     friend BasicBlockBuilder;
 };
 
+inline Id SectionBuilder::fresh_id() {
+    return file_builder_.generate_fresh_id();
+}
+
 struct BasicBlockBuilder : public SectionBuilder {
     explicit BasicBlockBuilder(FileBuilder& file_builder)
-            : file_builder(file_builder), terminator(*this) {}
-
-    FileBuilder& file_builder;
+            : SectionBuilder(file_builder), terminator(*this) {}
 
     struct Phi {
         Id type;
@@ -428,22 +451,6 @@ struct BasicBlockBuilder : public SectionBuilder {
     std::vector<Phi*> phis;
     Id label;
 
-    void op(spv::Op op, std::vector<uint32_t> operands) {
-        begin_op(op, operands.size() + 1);
-        for (auto e : operands)
-            literal_int(e);
-    }
-
-    Id op_with_result(spv::Op op, Id type, std::vector<uint32_t> operands) {
-        begin_op(op, operands.size() + 3);
-        ref_id(type);
-        auto id = file_builder.generate_fresh_id();
-        ref_id(id);
-        for (auto e : operands)
-            literal_int(e);
-        return id;
-    }
-
     Id undef(Id type) { return op_with_result(spv::Op::OpUndef, type, {}); }
 
     Id composite(Id aggregate_t, std::vector<Id> elements) { return op_with_result(spv::Op::OpCompositeConstruct, aggregate_t, elements); }
@@ -451,7 +458,7 @@ struct BasicBlockBuilder : public SectionBuilder {
     Id extract(Id target_type, Id composite, std::vector<uint32_t> indices) {
         begin_op(spv::Op::OpCompositeExtract, 4 + indices.size());
         ref_id(target_type);
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(id);
         ref_id(composite);
         for (auto i : indices)
@@ -462,7 +469,7 @@ struct BasicBlockBuilder : public SectionBuilder {
     Id insert(Id target_type, Id object, Id composite, std::vector<uint32_t> indices) {
         begin_op(spv::Op::OpCompositeInsert, 5 + indices.size());
         ref_id(target_type);
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(id);
         ref_id(object);
         ref_id(composite);
@@ -474,7 +481,7 @@ struct BasicBlockBuilder : public SectionBuilder {
     Id vector_extract_dynamic(Id target_type, Id vector, Id index) {
         begin_op(spv::Op::OpVectorExtractDynamic, 5);
         ref_id(target_type);
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(id);
         ref_id(vector);
         ref_id(index);
@@ -484,7 +491,7 @@ struct BasicBlockBuilder : public SectionBuilder {
     Id vector_insert_dynamic(Id target_type, Id vector, Id component, Id index) {
         begin_op(spv::Op::OpVectorInsertDynamic, 6);
         ref_id(target_type);
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(id);
         ref_id(vector);
         ref_id(component);
@@ -495,7 +502,7 @@ struct BasicBlockBuilder : public SectionBuilder {
     // Used for almost all conversion operations
     Id convert(spv::Op op_, Id target_type, Id value) {
         begin_op(op_, 4);
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(value);
@@ -504,7 +511,7 @@ struct BasicBlockBuilder : public SectionBuilder {
 
     Id access_chain(Id target_type, Id element, std::vector<Id> indexes) {
         begin_op(spv::Op::OpAccessChain, 4 + indexes.size());
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(element);
@@ -515,7 +522,7 @@ struct BasicBlockBuilder : public SectionBuilder {
 
     Id ptr_access_chain(Id target_type, Id base, Id element, std::vector<Id> indexes) {
         begin_op(spv::Op::OpPtrAccessChain, 5 + indexes.size());
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(base);
@@ -527,7 +534,7 @@ struct BasicBlockBuilder : public SectionBuilder {
 
     Id load(Id target_type, Id pointer, std::vector<uint32_t> operands = {}) {
         begin_op(spv::Op::OpLoad, 4 + operands.size());
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(target_type);
         ref_id(id);
         ref_id(pointer);
@@ -546,7 +553,7 @@ struct BasicBlockBuilder : public SectionBuilder {
 
     Id binop(spv::Op op_, Id result_type, Id lhs, Id rhs) {
         begin_op(op_, 5);
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(result_type);
         ref_id(id);
         ref_id(lhs);
@@ -556,7 +563,7 @@ struct BasicBlockBuilder : public SectionBuilder {
 
     Id call(Id return_type, Id callee, std::vector<Id> arguments) {
         begin_op(spv::Op::OpFunctionCall, 4 + arguments.size());
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(return_type);
         ref_id(id);
         ref_id(callee);
@@ -569,7 +576,7 @@ struct BasicBlockBuilder : public SectionBuilder {
     Id ext_instruction(Id return_type, ExtendedInstruction instr, std::vector<Id> arguments);
 
     struct TerminatorBuilder : public SectionBuilder {
-        TerminatorBuilder(BasicBlockBuilder& bb) : bb(bb) {}
+        TerminatorBuilder(BasicBlockBuilder& bb) : SectionBuilder(bb.file_builder_), bb(bb) {}
 
         void branch(Id target) {
             begin_op(spv::Op::OpBranch, 2);
@@ -632,7 +639,7 @@ struct BasicBlockBuilder : public SectionBuilder {
 protected:
     Id ext_instruction(Id return_type, Id set, uint32_t instruction, std::vector<Id> arguments) {
         begin_op(spv::Op::OpExtInst, 5 + arguments.size());
-        auto id = file_builder.generate_fresh_id();
+        auto id = fresh_id();
         ref_id(return_type);
         ref_id(id);
         ref_id(set);
@@ -645,7 +652,7 @@ protected:
 
 struct FnBuilder {
     explicit FnBuilder(FileBuilder& file_builder)
-            : file_builder(file_builder)
+            : file_builder(file_builder), header(file_builder), variables(file_builder)
     {
         function_id = file_builder.generate_fresh_id();
     }
@@ -726,7 +733,7 @@ inline Id FileBuilder::define_function(FnBuilder &fn_builder, bool definition) {
 }
 
 inline Id BasicBlockBuilder::ext_instruction(Id return_type, ExtendedInstruction instr, std::vector<Id> arguments) {
-    return ext_instruction(return_type, file_builder.extended_import(instr.set_name), instr.id, arguments);
+    return ext_instruction(return_type, file_builder_.extended_import(instr.set_name), instr.id, arguments);
 }
 
 }

@@ -324,6 +324,11 @@ void CodeGen::finalize(const thorin::Scope& scope) {
             builder_->capability(spv::CapabilityLinkage);
         }
     }
+
+    for (auto def : scope_local_defs_) {
+        defs_.erase(def);
+    }
+    scope_local_defs_.clear();
 }
 
 Id CodeGen::emit_as_bb(thorin::Continuation* cont) {
@@ -706,6 +711,7 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto converted_type = convert(variant_type);
         auto tag = builder_->u32_constant(variant->index());
 
+        scope_local_defs_.insert(def);
         if (auto payload_t = converted_type.variant.payload_t) {
             auto scratch_type = convert(world().ptr_type(payload_t.value(), 1, AddrSpace::Function));
             auto scratch = bb->fn_builder.variable(scratch_type.id, spv::StorageClassFunction);
@@ -744,8 +750,10 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         auto value = emit(vindex->op(0));
         return bb->extract(convert(world().type_pu32()).id, value, { 0 });
     } else if (auto tuple = def->isa<Tuple>()) {
+        scope_local_defs_.insert(def);
         return emit_composite(bb, convert(tuple->type()).id, tuple->ops());
     } else if (auto structagg = def->isa<StructAgg>()) {
+        scope_local_defs_.insert(def);
         return emit_composite(bb, convert(structagg->type()).id, structagg->ops());
     } else if (auto access = def->isa<Access>()) {
         // emit dependent operations first
@@ -928,6 +936,7 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
             return data;
         } else THORIN_UNREACHABLE;
     } else if (def->isa<Bottom>()) {
+        scope_local_defs_.insert(def);
         return bb->undef(convert(def->type()).id);
     } else if (auto select = def->isa<Select>()) {
         return bb->op_with_result(spv::Op::OpSelect, convert(def->type()).id, emit_args(select->ops()));

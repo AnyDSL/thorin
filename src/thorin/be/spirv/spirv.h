@@ -90,6 +90,7 @@ protected:
     Target target_info_;
     FileBuilder* builder_;
     const Cont2Config* kernel_config_;
+    DefSet scope_local_defs_;
 
     friend Target;
 };

@@ -188,7 +188,7 @@ bool Slot::equal(const Def* other) const { return this == other; }
  * rebuild
  */
 
-const Def* App           ::rebuild(World& w, const Type*  , Defs o) const { return w.app(o[0], o.skip_front(), debug()); }
+const Def* App           ::rebuild(World& w, const Type*  , Defs o) const { return w.app(o[App::Ops::Callee], o.skip_front(App::Ops::FirstArg), debug()); }
 const Def* ArithOp       ::rebuild(World& w, const Type*  , Defs o) const { return w.arithop(arithop_tag(), o[0], o[1], debug()); }
 const Def* Bitcast       ::rebuild(World& w, const Type* t, Defs o) const { return w.bitcast(t, o[0], debug()); }
 const Def* Bottom        ::rebuild(World& w, const Type* t, Defs  ) const { return w.bottom(t, debug()); }

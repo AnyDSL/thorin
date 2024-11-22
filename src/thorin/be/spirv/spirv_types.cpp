@@ -19,6 +19,10 @@ uint32_t CodeGen::convert(AddrSpace as) {
             builder_->capability(spv::Capability::CapabilityGenericPointer);
             break;
         }
+        case AddrSpace::Shared: {
+            storage_class = spv::StorageClassWorkgroup;
+            break;
+        }
         case AddrSpace::Push:     storage_class = spv::StorageClassPushConstant;          break;
         case AddrSpace::Input:    storage_class = spv::StorageClassInput;                 break;
         case AddrSpace::Output:   storage_class = spv::StorageClassOutput;                break;
@@ -35,6 +39,49 @@ uint32_t CodeGen::convert(AddrSpace as) {
             break;
     }
     return storage_class;
+}
+
+Id CodeGen::get_codom_type(const FnType* fn) {
+    auto [dom, codom] = get_dom_codom(fn);
+    assert(codom);
+    return codom;
+}
+
+std::tuple<std::vector<Id>, Id> CodeGen::get_dom_codom(const FnType* fn) {
+    Id ret = 0;
+    std::vector<Id> ops;
+    for (auto op : fn->types()) {
+        auto fn_type = op->isa<FnType>();
+        if (fn_type && !op->isa<ClosureType>()) {
+            assert(!ret && "only one 'return' supported");
+            std::vector<const Type*> ret_types;
+            for (auto fn_op : fn_type->types()) {
+                if (!should_emit(fn_op))
+                    continue;
+                ret_types.push_back(fn_op);
+            }
+            if (ret_types.size() == 1)
+                ret = convert_maybe_void(ret_types.back()).id;
+            else
+                ret = convert_maybe_void(world().tuple_type(ret_types)).id;
+        } else if (!should_emit(op))
+            continue;
+        else
+            ops.push_back(convert(op).id);
+    }
+    return std::make_tuple(ops, ret);
+}
+
+ConvertedType CodeGen::convert_maybe_void(const thorin::Type* type) {
+    auto converted = convert(type);
+
+    if ((type->isa<StructType>() || type->isa<TupleType>()) && converted.layout->size == 0) {
+        converted.id = builder_->declare_void_type();
+        converted.layout = std::nullopt;
+        return converted;
+    }
+
+    return converted;
 }
 
 ConvertedType CodeGen::convert(const Type* type) {
@@ -92,10 +139,12 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 1, 1 };
             break;
         case Node_PrimType_ps8:
+            builder_->capability(spv::Capability::CapabilityInt8);
             converted.id = builder_->declare_int_type(8, true);
             converted.layout = { 1, 1 };
             break;
         case Node_PrimType_pu8:
+            builder_->capability(spv::Capability::CapabilityInt8);
             converted.id = builder_->declare_int_type(8, false);
             converted.layout = { 1, 1 };
             break;
@@ -128,6 +177,7 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 8, 8 };
             break;
         case Node_PrimType_pf16:
+            builder_->capability(spv::Capability::CapabilityFloat16);
             converted.id = builder_->declare_float_type(16);
             converted.layout = { 2, 2 };
             break;
@@ -136,6 +186,7 @@ ConvertedType CodeGen::convert(const Type* type) {
             converted.layout = { 4, 4 };
             break;
         case Node_PrimType_pf64:
+            builder_->capability(spv::Capability::CapabilityFloat64);
             converted.id = builder_->declare_float_type(64);
             converted.layout = { 8, 8 };
             break;
@@ -162,32 +213,10 @@ ConvertedType CodeGen::convert(const Type* type) {
 
         case Node_ClosureType:
         case Node_FnType: {
-            // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
-            SpvId ret = 0;
-            std::vector<SpvId> ops;
-            for (auto op : fn->types()) {
-                if (op->isa<MemType>() || op == world().unit_type())
-                    continue;
-                auto fn_type = op->isa<FnType>();
-                if (fn_type && !op->isa<ClosureType>()) {
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<SpvId> ret_types;
-                    for (auto fn_op : fn_type->types()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit_type())
-                            continue;
-                        ret_types.push_back(convert(fn_op).id);
-                    }
-                    if (ret_types.empty())          ret = convert(world().tuple_type({})).id;
-                    else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            assert(false && "Didn't we refactor this out yet by making functions single-argument ?");
-                } else
-                    ops.push_back(convert(op).id);
-            }
-            assert(ret);
+            auto [dom, codom] = get_dom_codom(type->as<FnType>());
 
             if (type->tag() == Node_FnType) {
-                converted.id = builder_->declare_fn_type(ops, ret);
+                converted.id = builder_->declare_fn_type(dom, codom);
             } else {
                 assert(false && "TODO: handle closure mess");
                 THORIN_UNREACHABLE;
@@ -197,7 +226,7 @@ ConvertedType CodeGen::convert(const Type* type) {
 
         case Node_StructType:
         case Node_TupleType: {
-            std::vector<SpvId> spv_types;
+            std::vector<Id> spv_types;
             size_t total_serialized_size = 0;
             converted.layout = { 0, 0 };
             for (auto member : type->ops()) {
@@ -209,11 +238,6 @@ ConvertedType CodeGen::convert(const Type* type) {
                 converted.layout->alignment = std::max(converted.layout->alignment, converted_member_type.layout->alignment);
                 converted.layout->size = pad(converted.layout->size + converted_member_type.layout->size, converted.layout->alignment);
             }
-            if (converted.layout->size == 0) {
-                converted.id = builder_->declare_void_type();
-                converted.layout = std::nullopt;
-                break;
-            }
 
             converted.id = builder_->declare_struct_type(spv_types);
             builder_->name(converted.id, type->to_string());
@@ -223,7 +247,6 @@ ConvertedType CodeGen::convert(const Type* type) {
         case Node_VariantType: {
             assert(type->num_ops() > 0 && "empty variants not supported");
             auto tag_type = world().type_pu32();
-            SpvId converted_tag_type = convert(tag_type).id;
 
             size_t max_serialized_size = 0;
             for (auto member : type->as<VariantType>()->types()) {
@@ -240,14 +263,15 @@ ConvertedType CodeGen::convert(const Type* type) {
                 auto struct_t = world().struct_type(type->name(), 2);
                 struct_t->set_op(0, tag_type);
                 struct_t->set_op(1, payload_type);
-                return convert(struct_t);
+                converted = convert(struct_t);
+                converted.variant.payload_t = std::make_optional(payload_type);
             } else {
                 // We keep this useless level of struct so the rest of the code doesn't need a special path to extract the tag
                 auto struct_t = world().struct_type(type->name(), 1);
                 struct_t->set_op(0, tag_type);
-                return convert(struct_t);
+                converted = convert(struct_t);
             }
-            THORIN_UNREACHABLE;
+            break;
         }
 
         case Node_MemType: {

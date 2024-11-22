@@ -139,6 +139,12 @@ const Param* Continuation::mem_param() const {
 }
 
 const Param* Continuation::ret_param() const {
+    switch (intrinsic()) {
+        case Intrinsic::Branch:
+        case Intrinsic::Match:
+            return nullptr;
+        default: break;
+    }
     const Param* result = nullptr;
     for (auto param : params()) {
         if (param->order() >= 1) {
@@ -244,10 +250,15 @@ const Filter* Continuation::all_true_filter() const {
 }
 
 bool Continuation::is_accelerator() const { return Intrinsic::AcceleratorBegin <= intrinsic() && intrinsic() < Intrinsic::AcceleratorEnd; }
+
+bool Continuation::is_offload_intrinsic() const { return Intrinsic::OffloadBegin <= intrinsic() && intrinsic() < Intrinsic::OffloadEnd; }
+
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")           attributes().intrinsic = Intrinsic::CUDA;
     else if (name() == "nvvm")           attributes().intrinsic = Intrinsic::NVVM;
     else if (name() == "opencl")         attributes().intrinsic = Intrinsic::OpenCL;
+    else if (name() == "opencl_spirv")   attributes().intrinsic = Intrinsic::OpenCL_SPIRV;
+    else if (name() == "levelzero")      attributes().intrinsic = Intrinsic::LevelZero_SPIRV;
     else if (name() == "amdgpu_hsa")     attributes().intrinsic = Intrinsic::AMDGPUHSA;
     else if (name() == "amdgpu_pal")     attributes().intrinsic = Intrinsic::AMDGPUPAL;
     else if (name() == "shady_compute")  attributes().intrinsic = Intrinsic::ShadyCompute;

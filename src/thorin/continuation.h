@@ -60,10 +60,15 @@ private:
     App(World&, const Defs ops, Debug dbg);
 
 public:
-    const Def* callee() const { return op(0); }
-    const Def* arg(size_t i) const { return op(1 + i); }
-    size_t num_args() const { return num_ops() - 1; }
-    const Defs args() const { return ops().skip_front(); }
+    enum Ops {
+        Callee = 0,
+        FirstArg = 1,
+    };
+
+    const Def* callee() const { return op(Ops::Callee); }
+    const Def* arg(size_t i) const { return op(Ops::FirstArg + i); }
+    size_t num_args() const { return num_ops() - Ops::FirstArg; }
+    const Defs args() const { return ops().skip_front(Ops::FirstArg); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {
@@ -92,13 +97,17 @@ enum class CC : uint8_t {
 enum class Intrinsic : uint8_t {
     None,
     AcceleratorBegin,
-    CUDA = AcceleratorBegin,    ///< Internal CUDA-Backend.
+    OffloadBegin = AcceleratorBegin,
+    CUDA = OffloadBegin,    ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
+    OpenCL_SPIRV,               ///< Internal OpenCL-Backend.
+    LevelZero_SPIRV,            ///< Internal SPIRV for Level0-Backend.
     AMDGPUHSA,                  ///< Internal AMDGPU-HSA-Backend.
     AMDGPUPAL,                  ///< Internal AMDGPU-PAL-Backend.
     ShadyCompute,               ///< Internal Shady Compute Backend.
     HLS,                        ///< Internal HLS-Backend.
+    OffloadEnd = HLS,
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
@@ -179,6 +188,7 @@ public:
     bool is_channel() const { return name().find("channel") != std::string::npos; }
     bool is_pipe() const { return name().find("pipe") != std::string::npos; }
     bool is_accelerator() const;
+    bool is_offload_intrinsic() const;
 
     const App* body() const { return op(0)->as<App>(); }
     bool has_body() const { return !op(0)->isa<Bottom>(); }

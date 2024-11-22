@@ -7,7 +7,7 @@
 
 namespace thorin::spirv {
 
-using SpvId = uint32_t;
+using Id = uint32_t;
 
 class CodeGen;
 
@@ -20,6 +20,11 @@ struct Target {
         size_t pointer_size = 8;
     } mem_layout;
 
+    struct {
+        bool broken_op_construct_composite = true;
+        bool static_ac_indices_must_be_i32 = true;
+    } bugs;
+
     enum Dialect {
         OpenCL,
         Vulkan
@@ -29,30 +34,34 @@ struct Target {
 };
 
 struct ConvertedType {
-    SpvId id;
+    Id id;
     struct Layout {
         size_t size, alignment;
     };
     std::optional<Layout> layout;
+    struct {
+        std::optional<const thorin::Type*> payload_t;
+    } variant;
 };
 
 struct BasicBlockBuilder;
 
-class CodeGen : public thorin::CodeGen, public thorin::Emitter<SpvId, ConvertedType, BasicBlockBuilder*, CodeGen> {
+class CodeGen : public thorin::CodeGen, public thorin::Emitter<Id, ConvertedType, BasicBlockBuilder*, CodeGen> {
 public:
     CodeGen(Thorin& thorin, Target&, bool debug, const Cont2Config* = nullptr);
 
     void emit_stream(std::ostream& stream) override;
     const char* file_ext() const override { return ".spv"; }
 
-    bool is_valid(SpvId id) {
+    bool is_valid(Id id) {
         return id > 0;
     }
 
     uint32_t convert(AddrSpace);
+    ConvertedType convert_maybe_void(const Type*);
     ConvertedType convert(const Type*);
 
-    SpvId emit_fun_decl(Continuation*);
+    Id emit_fun_decl(Continuation*);
 
     FnBuilder* prepare(const Scope&);
     void prepare(Continuation*, FnBuilder*);
@@ -60,20 +69,28 @@ public:
     void finalize(const Scope&);
     void finalize(Continuation*);
 
-    SpvId emit_constant(const Def*);
-    SpvId emit_bb(BasicBlockBuilder* bb, const Def* def);
+    Id emit_constant(const Def*);
+    Id emit_bb(BasicBlockBuilder* bb, const Def* def);
 protected:
     FnBuilder& get_fn_builder(Continuation*);
-    std::vector<SpvId> emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb);
+    std::vector<Id> emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb);
+    std::vector<Id> emit_args(Defs);
+    bool should_emit(const Type*);
+    Id literal(uint32_t);
 
-    SpvId emit_as_bb(Continuation*);
-    SpvId emit_mathop(BasicBlockBuilder* bb, const MathOp& op);
+    Id emit_as_bb(Continuation*);
+    Id emit_mathop(BasicBlockBuilder* bb, const MathOp& op);
+    Id emit_composite(BasicBlockBuilder* bb, Id, Defs);
+    Id emit_composite(BasicBlockBuilder* bb, Id, ArrayRef<Id>);
+    Id emit_ptr_bitcast(BasicBlockBuilder* bb, const PtrType* from, const PtrType* to, Id);
 
-    SpvId get_codom_type(const Continuation* fn);
+    std::tuple<std::vector<Id>, Id> get_dom_codom(const FnType* fn);
+    Id get_codom_type(const FnType*);
 
-    Target& target_info_;
+    Target target_info_;
     FileBuilder* builder_;
     const Cont2Config* kernel_config_;
+    DefSet scope_local_defs_;
 
     friend Target;
 };

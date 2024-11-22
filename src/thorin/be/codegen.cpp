@@ -1,6 +1,7 @@
 #include "thorin/be/codegen.h"
 
 #include "thorin/be/c/c.h"
+#include "thorin/be/runtime.h"
 
 #if THORIN_ENABLE_LLVM
 #include "thorin/be/llvm/nvvm.h"
@@ -12,6 +13,10 @@
 #include "thorin/be/shady/shady.h"
 #undef empty
 #undef nodes
+#endif
+
+#if THORIN_ENABLE_SPIRV
+#include "thorin/be/spirv/spirv.h"
 #endif
 
 #include "thorin/transform/hls_channels.h"
@@ -136,6 +141,30 @@ struct OpenCLBackend : public Backend {
     }
 };
 
+#if THORIN_ENABLE_SPIRV
+struct OpenCLSPIRVBackend : public Backend {
+    explicit OpenCLSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::OpenCL_SPIRV, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        spirv::Target target;
+        return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
+    }
+};
+
+struct LevelZeroSPIRVBackend : public Backend {
+    explicit LevelZeroSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::LevelZero_SPIRV, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        spirv::Target target;
+        return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
+    }
+};
+#endif
+
 #if THORIN_ENABLE_LLVM
 struct AMDHSABackend : public Backend {
     explicit AMDHSABackend(DeviceBackends& b, World& src) : Backend(b, src) {
@@ -239,6 +268,10 @@ DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::s
 #if THORIN_ENABLE_SHADY
     register_backend(std::make_unique<ShadyBackend>(*this, world))
 #endif
+#if THORIN_ENABLE_SPIRV
+    register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));
+    register_backend(std::make_unique<LevelZeroSPIRVBackend>(*this, world));
+#endif
     register_backend(std::make_unique<HLSBackend>(*this, world, hls_flags));
 
     search_for_device_code();
@@ -264,7 +297,7 @@ void DeviceBackends::search_for_device_code() {
 
         Intrinsic intrinsic = Intrinsic::None;
         visit_capturing_intrinsics(continuation, [&] (Continuation* continuation) {
-            if (continuation->is_accelerator()) {
+            if (continuation->is_offload_intrinsic()) {
                 intrinsic = continuation->intrinsic();
                 return true;
             }

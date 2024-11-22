@@ -1296,24 +1296,26 @@ std::vector<llvm::Value*> CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, 
     }
 
     switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:       return { emit_atomic(irbuilder, continuation) };
-        case Intrinsic::AtomicLoad:   return { emit_atomic_load(irbuilder, continuation) };
-        case Intrinsic::AtomicStore:  emit_atomic_store(irbuilder, continuation); break;
-        case Intrinsic::CmpXchg:      return emit_cmpxchg(irbuilder, continuation, false);
-        case Intrinsic::CmpXchgWeak:  return emit_cmpxchg(irbuilder, continuation, true);
-        case Intrinsic::Fence:        emit_fence(irbuilder, continuation); break;
-        case Intrinsic::Reserve:      return { emit_reserve(irbuilder, continuation) };
-        case Intrinsic::CUDA:         runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".cu",     continuation); break;
-        case Intrinsic::NVVM:         runtime_->emit_host_code(*this, irbuilder, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation); break;
-        case Intrinsic::OpenCL:       runtime_->emit_host_code(*this, irbuilder, Runtime::OPENCL_PLATFORM, ".cl",     continuation); break;
-        case Intrinsic::AMDGPUHSA:    runtime_->emit_host_code(*this, irbuilder, Runtime::HSA_PLATFORM,    ".amdgpu", continuation); break;
-        case Intrinsic::AMDGPUPAL:    runtime_->emit_host_code(*this, irbuilder, Runtime::PAL_PLATFORM,    ".amdgpu", continuation); break;
-        case Intrinsic::ShadyCompute: runtime_->emit_host_code(*this, irbuilder, Runtime::SHADY_PLATFORM,  ".shady",  continuation); break;
-        case Intrinsic::HLS:          emit_hls(irbuilder, continuation);      break;
-        case Intrinsic::Parallel:     emit_parallel(irbuilder, continuation); break;
-        case Intrinsic::Fibers:       emit_fibers(irbuilder, continuation);   break;
-        case Intrinsic::Spawn:        return { emit_spawn(irbuilder, continuation) };
-        case Intrinsic::Sync:         emit_sync(irbuilder, continuation);     break;
+        case Intrinsic::Atomic:          return { emit_atomic(irbuilder, continuation) };
+        case Intrinsic::AtomicLoad:      return { emit_atomic_load(irbuilder, continuation) };
+        case Intrinsic::AtomicStore:     emit_atomic_store(irbuilder, continuation); break;
+        case Intrinsic::CmpXchg:         return emit_cmpxchg(irbuilder, continuation, false);
+        case Intrinsic::CmpXchgWeak:     return emit_cmpxchg(irbuilder, continuation, true);
+        case Intrinsic::Fence:           emit_fence(irbuilder, continuation); break;
+        case Intrinsic::Reserve:         return { emit_reserve(irbuilder, continuation) };
+        case Intrinsic::CUDA:            runtime_->emit_host_code(*this, irbuilder, Platform::CUDA_PLATFORM,       ".cu",     continuation); break;
+        case Intrinsic::NVVM:            runtime_->emit_host_code(*this, irbuilder, Platform::CUDA_PLATFORM,       ".nvvm",   continuation); break;
+        case Intrinsic::OpenCL:          runtime_->emit_host_code(*this, irbuilder, Platform::OPENCL_PLATFORM,     ".cl",     continuation); break;
+        case Intrinsic::OpenCL_SPIRV:    runtime_->emit_host_code(*this, irbuilder, Platform::OPENCL_PLATFORM,     ".spv",    continuation); break;
+        case Intrinsic::LevelZero_SPIRV: runtime_->emit_host_code(*this, irbuilder, Platform::LEVEL_ZERO_PLATFORM, ".spv",    continuation); break;
+        case Intrinsic::AMDGPUHSA:       runtime_->emit_host_code(*this, irbuilder, Platform::HSA_PLATFORM,        ".amdgpu", continuation); break;
+        case Intrinsic::AMDGPUPAL:       runtime_->emit_host_code(*this, irbuilder, Platform::PAL_PLATFORM,        ".amdgpu", continuation); break;
+        case Intrinsic::ShadyCompute:    runtime_->emit_host_code(*this, irbuilder, Platform::SHADY_PLATFORM,      ".shady",  continuation); break;
+        case Intrinsic::HLS:             emit_hls(irbuilder, continuation);      break;
+        case Intrinsic::Parallel:        emit_parallel(irbuilder, continuation); break;
+        case Intrinsic::Fibers:          emit_fibers(irbuilder, continuation);   break;
+        case Intrinsic::Spawn:           return { emit_spawn(irbuilder, continuation) };
+        case Intrinsic::Sync:            emit_sync(irbuilder, continuation);     break;
 #if THORIN_ENABLE_RV
         case Intrinsic::Vectorize:    emit_vectorize_continuation(irbuilder, continuation); break;
 #else

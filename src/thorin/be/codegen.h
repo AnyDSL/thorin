@@ -27,29 +27,51 @@ private:
     bool debug_;
 };
 
-struct LaunchArgs {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
+struct DeviceBackends;
+
+struct Backend {
+    Backend(DeviceBackends& backends, World& src);
+
+    virtual std::unique_ptr<CodeGen> create_cg() = 0;
+
+    Thorin& thorin() { return device_code_; }
+    Importer& importer() { return *importer_; }
+
+protected:
+    DeviceBackends& backends_;
+    Thorin device_code_;
+    std::unique_ptr<Importer> importer_;
+
+    std::vector<Continuation*> kernels_;
+    Cont2Config kernel_configs_;
+
+    void prepare_kernel_configs();
+    friend DeviceBackends;
 };
 
 struct DeviceBackends {
     DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);
 
-    Cont2Config kernel_config;
-    std::vector<Continuation*> kernels;
+    World& world();
+    std::vector<std::unique_ptr<CodeGen>> cgs;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU_HSA, AMDGPU_PAL, HLS, Shady, BackendCount };
-    std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
+    int opt();
+    bool debug();
+
+    void register_backend(std::unique_ptr<Backend>);
+    using GetKernelConfigFn = std::function<std::unique_ptr<KernelConfig>(const App*, Continuation*)>;
+    void register_intrinsic(Intrinsic, Backend&, GetKernelConfigFn);
+
 private:
-    std::array<const char*, BackendCount> backend_names = { "CUDA", "NVVM", "OpenCL", "AMDGPU_HSA", "AMDGPU_PAL", "HLS", "Shady" };
-    std::vector<Thorin> accelerator_code;
+    World& world_;
+    std::vector<std::unique_ptr<Backend>> backends_;
+    std::unordered_map<Intrinsic, std::pair<Backend*, GetKernelConfigFn>> intrinsics_;
+
+    int opt_;
+    bool debug_;
+
+    void search_for_device_code();
+friend Backend;
 };
 
 }

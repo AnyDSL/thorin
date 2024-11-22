@@ -68,14 +68,14 @@ LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
 {
     auto type = ptr_type();
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->types(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(tuple->types(), index), type->length(), type->addr_space()));
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(array->elem_type(), type->length(), type->addr_space()));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->types(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(struct_type->types(), index), type->length(), type->addr_space()));
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
         assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->addr_space()));
     } else {
         THORIN_UNREACHABLE;
     }
@@ -188,7 +188,7 @@ bool Slot::equal(const Def* other) const { return this == other; }
  * rebuild
  */
 
-const Def* App           ::rebuild(World& w, const Type*  , Defs o) const { return w.app(o[0], o.skip_front(), debug()); }
+const Def* App           ::rebuild(World& w, const Type*  , Defs o) const { return w.app(o[App::Ops::Callee], o.skip_front(App::Ops::FirstArg), debug()); }
 const Def* ArithOp       ::rebuild(World& w, const Type*  , Defs o) const { return w.arithop(arithop_tag(), o[0], o[1], debug()); }
 const Def* Bitcast       ::rebuild(World& w, const Type* t, Defs o) const { return w.bitcast(t, o[0], debug()); }
 const Def* Bottom        ::rebuild(World& w, const Type* t, Defs  ) const { return w.bottom(t, debug()); }

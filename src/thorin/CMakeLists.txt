@@ -33,6 +33,7 @@ set(THORIN_SOURCES
     be/emitter.h
     be/c/c.cpp
     be/c/c.h
+    be/runtime.h
     be/kernel_config.h
     tables/allnodes.h
     tables/arithoptable.h
@@ -121,6 +122,15 @@ if(THORIN_ENABLE_JSON)
     list(APPEND THORIN_SOURCES
         be/json/json.cpp
         be/json/json.h
+    )
+endif()
+
+if(THORIN_ENABLE_SPIRV)
+    list(APPEND THORIN_SOURCES
+        be/spirv/spirv.cpp
+        be/spirv/spirv_types.cpp
+        be/spirv/spirv_instructions.cpp
+        be/spirv/spirv.h
     )
 endif()
 

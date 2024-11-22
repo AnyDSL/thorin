@@ -59,7 +59,7 @@ const Type* FrameType          ::rebuild(World& w, const Type*  , Defs  ) const 
 const Type* IndefiniteArrayType::rebuild(World& w, const Type*  , Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
 const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const { return w.mem_type(); }
 const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag(), length()); }
-const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), device(), addr_space()); }
+const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), addr_space()); }
 const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
 
 /*
@@ -115,7 +115,7 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
  */
 
 hash_t PtrType::vhash() const {
-    return hash_combine(VectorType::vhash(), (hash_t)device(), (hash_t)addr_space());
+    return hash_combine(VectorType::vhash(), (hash_t)addr_space());
 }
 
 //------------------------------------------------------------------------------
@@ -128,7 +128,7 @@ bool PtrType::equal(const Def* other) const {
     if (!VectorType::equal(other))
         return false;
     auto ptr = other->as<PtrType>();
-    return ptr->device() == device() && ptr->addr_space() == addr_space();
+    return ptr->addr_space() == addr_space();
 }
 
 TypeTable::TypeTable(World& world)
@@ -163,8 +163,8 @@ const PrimType* World::prim_type(PrimTypeTag tag, size_t length) {
     return length == 1 ? types_.primtypes_[i] : make<PrimType>(*this, tag, length, Debug());
 }
 
-const PtrType* World::ptr_type(const Type* pointee, size_t length, int32_t device, AddrSpace addr_space) {
-    return make<PtrType>(*this, pointee, length, device, addr_space, Debug());
+const PtrType* World::ptr_type(const Type* pointee, size_t length, AddrSpace addr_space) {
+    return make<PtrType>(*this, pointee, length, addr_space, Debug());
 }
 
 const FnType*              World::fn_type(Types args) { return make<FnType>(*this, types2defs(args), Node_FnType, Debug()); }

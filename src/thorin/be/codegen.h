@@ -31,6 +31,7 @@ struct DeviceBackends;
 
 struct Backend {
     Backend(DeviceBackends& backends, World& src);
+    virtual ~Backend() = default;
 
     virtual std::unique_ptr<CodeGen> create_cg() = 0;
 

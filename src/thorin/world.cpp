@@ -105,8 +105,8 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
 
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
-    assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
-    PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
+    assert(vector_length(a->type()) == vector_length(b->type()));
+    PrimTypeTag type = get_scalar_type(a->type())->as<PrimType>()->primtype_tag();
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
@@ -114,7 +114,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->length();
+        size_t num = vector_length(lvec->type());
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = arithop(tag, lvec->op(i), rvec->op(i), dbg);
@@ -436,7 +436,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->length();
+        size_t num = vector_length(lvec->type());
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cmp(tag, lvec->op(i), rvec->op(i), dbg);
@@ -668,14 +668,10 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
 
 static bool fold_1_tuple(const Type* type, const Def* index) {
     if (auto lit = index->isa<PrimLit>()) {
-        if (primlit_value<u64>(lit) == 0
-                && !type->isa<ArrayType>()
-                && !type->isa<StructType>()
-                && !type->isa<TupleType>()) {
-            if (auto prim_type = type->isa<PrimType>())
-                return prim_type->length() == 1;
+        // TODO: When adding vector type constructors, I've tried to keep the meaning of this the same
+        // TODO: But I seriously doubt the value/validity of allowing extract on non-aggregate types to begin with.
+        if (primlit_value<u64>(lit) == 0 && (type->isa<ScalarType>() || type->isa<MemType>() || type->isa<FrameType>()))
             return true;
-        }
     }
     return false;
 }

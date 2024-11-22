@@ -58,9 +58,10 @@ const Type* FnType             ::rebuild(World& w, const Type*  , Defs o) const 
 const Type* FrameType          ::rebuild(World& w, const Type*  , Defs  ) const { return w.frame_type(); }
 const Type* IndefiniteArrayType::rebuild(World& w, const Type*  , Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
 const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const { return w.mem_type(); }
-const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag(), length()); }
-const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), addr_space()); }
+const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag()); }
+const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), addr_space()); }
 const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
+const Type* VectorType         ::rebuild(World& w, const Type*  , Defs o) const { return w.vector_type(defs2types(o)[0]->as<ScalarType>(), length()); }
 
 /*
  * stub
@@ -80,10 +81,8 @@ VariantType* VariantType::stub(Rewriter& rewriter, const Type*) const {
 
 //------------------------------------------------------------------------------
 
-const VectorType* VectorType::scalarize() const {
-    if (auto ptr = isa<PtrType>())
-        return world().ptr_type(ptr->pointee());
-    return world().prim_type(as<PrimType>()->primtype_tag());
+const ScalarType* VectorType::scalarize() const {
+    return op(0)->as<ScalarType>();
 }
 
 bool FnType::is_returning() const {
@@ -115,7 +114,7 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
  */
 
 hash_t PtrType::vhash() const {
-    return hash_combine(VectorType::vhash(), (hash_t)addr_space());
+    return hash_combine(ScalarType::vhash(), (hash_t)addr_space());
 }
 
 //------------------------------------------------------------------------------
@@ -125,7 +124,7 @@ hash_t PtrType::vhash() const {
  */
 
 bool PtrType::equal(const Def* other) const {
-    if (!VectorType::equal(other))
+    if (!ScalarType::equal(other))
         return false;
     auto ptr = other->as<PtrType>();
     return ptr->addr_space() == addr_space();
@@ -141,7 +140,7 @@ TypeTable::TypeTable(World& world)
     , frame_    (world.put<FrameType >(world, Debug()))
 {
 #define THORIN_ALL_TYPE(T, M) \
-    primtypes_[PrimType_##T - Begin_PrimType] = world.make<PrimType>(world, PrimType_##T, 1, Debug());
+    primtypes_[PrimType_##T - Begin_PrimType] = world.make<PrimType>(world, PrimType_##T, Debug());
 #include "thorin/tables/primtypetable.h"
 }
 
@@ -157,14 +156,26 @@ VariantType* World::variant_type(Symbol name, size_t size) {
     return put<VariantType>(*this, name, size, Debug());
 }
 
-const PrimType* World::prim_type(PrimTypeTag tag, size_t length) {
+const PrimType* World::prim_type(PrimTypeTag tag) {
     size_t i = tag - Begin_PrimType;
     assert(i < (size_t) Num_PrimTypes);
-    return length == 1 ? types_.primtypes_[i] : make<PrimType>(*this, tag, length, Debug());
+    return types_.primtypes_[i];
 }
 
-const PtrType* World::ptr_type(const Type* pointee, size_t length, AddrSpace addr_space) {
-    return make<PtrType>(*this, pointee, length, addr_space, Debug());
+const PtrType* World::ptr_type(const Type* pointee, AddrSpace addr_space) {
+    return make<PtrType>(*this, pointee, addr_space, Debug());
+}
+
+const VectorType* World::vector_type(const ScalarType* base, size_t length) {
+    assert(length > 1);
+    return make<VectorType>(*this, base, length, Debug());
+}
+
+const Type* World::vector_or_scalar_type(const thorin::ScalarType* base, size_t length) {
+    assert(length > 0);
+    if (length == 1)
+        return base;
+    return vector_type(base, length);
 }
 
 const FnType*              World::fn_type(Types args) { return make<FnType>(*this, types2defs(args), Node_FnType, Debug()); }

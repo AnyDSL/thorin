@@ -195,7 +195,7 @@ FnBuilder& CodeGen::get_fn_builder(thorin::Continuation* continuation) {
 
     auto& fn = *(builder_->fn_builders_[continuation] = std::make_unique<FnBuilder>(*builder_));
     auto fn_type = entry_->type();
-    if (kernel_config_->contains(continuation)) {
+    if (kernel_config_ && kernel_config_->contains(continuation)) {
         fn_type = patch_entry_point_signature(fn_type);
     }
     fn.fn_type = convert(fn_type).id;
@@ -247,7 +247,7 @@ void CodeGen::prepare(thorin::Continuation* cont, FnBuilder* fn) {
         world().ddef(cont, "Emitting {} as return block", cont);
 
     if (entry_ == cont) {
-        bool entry_point = kernel_config_->contains(entry_);
+        bool entry_point = kernel_config_ && kernel_config_->contains(entry_);
         for (auto param : cont->params()) {
             if (!should_emit(param->type())) {
                 // Nothing

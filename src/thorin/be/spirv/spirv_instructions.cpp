@@ -52,6 +52,18 @@ Id CodeGen::emit_mathop(BasicBlockBuilder* bb, const thorin::MathOp& mathop) {
     }
 }
 
+std::tuple<spv::Scope, spv::MemorySemanticsMask> addrspace_atomics_params(World& world, AddrSpace as) {
+    switch (as) {
+        case AddrSpace::Global:
+            return std::make_tuple(spv::ScopeDevice, spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsCrossWorkgroupMemoryMask);
+        case AddrSpace::Shared:
+            return std::make_tuple(spv::ScopeWorkgroup, spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsWorkgroupMemoryMask);
+        default:
+            world.ELOG("Unsupported address space for atomics: {}", (int) as);
+            THORIN_UNREACHABLE;
+    }
+}
+
 std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
     auto get_produced_type = [&]() {
         auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
@@ -152,7 +164,8 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             op = spv::OpAtomicIAdd;
         else
             assert(false && "unknown primitive type for atomic_add");
-        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeDevice), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsCrossWorkgroupMemoryMask), value });
+        auto [scope, semantics] = addrspace_atomics_params(world(), app.arg(1)->type()->as<PtrType>()->addr_space());
+        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(scope), literal(semantics), value });
         return { result };
     } else if (intrinsic->name() == "atomic_min") {
         auto args = emit_args(app.args().skip_back());
@@ -174,7 +187,8 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             op = spv::OpAtomicUMin;
         else
             assert(false && "unknown primitive type for atomic_add");
-        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeDevice), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsCrossWorkgroupMemoryMask), value });
+        auto [scope, semantics] = addrspace_atomics_params(world(), app.arg(1)->type()->as<PtrType>()->addr_space());
+        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(scope), literal(semantics), value });
         return { result };
     } else if (intrinsic->name() == "rv_all") {
         auto args = emit_args(app.args().skip_back());

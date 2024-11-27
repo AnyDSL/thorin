@@ -116,14 +116,18 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
         } else
             world().ELOG("spirv.builtin requires an integer literal as the argument");
     } else if (intrinsic->name() == "reserve_shared") {
+        auto produced_t = get_produced_type()->as<PtrType>();
+        auto pointee = produced_t->pointee();
+        if (auto indef = pointee->isa<IndefiniteArrayType>())
+            pointee = indef->elem_type();
         auto size = app.arg(1)->isa<PrimLit>();
         if (!size)
             world().error(app.loc(), "reserve_shared called with non-constant size");
         else {
-            auto in_bytes = size->value().get_u64();
+            auto in_bytes = size->value().get_u64() * convert(pointee).layout->size;
             auto type = world().definite_array_type(world().type_pu8(), in_bytes);
             Id id = builder_->variable(convert(world().ptr_type(type, 1, AddrSpace::Shared)).id, static_cast<spv::StorageClass>(convert(AddrSpace::Shared)));
-            id = bb->convert(spv::Op::OpBitcast, convert(get_produced_type()).id, id);
+            id = bb->convert(spv::Op::OpBitcast, convert(produced_t).id, id);
             return { id };
         }
     } else if (intrinsic->name() == "min") {

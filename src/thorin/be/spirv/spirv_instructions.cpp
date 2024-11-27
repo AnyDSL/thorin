@@ -154,6 +154,28 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             assert(false && "unknown primitive type for atomic_add");
         auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeDevice), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsCrossWorkgroupMemoryMask), value });
         return { result };
+    } else if (intrinsic->name() == "atomic_min") {
+        auto args = emit_args(app.args().skip_back());
+        auto [ptr, value] = *(std::array<Id, 2>*)args.data();
+        auto produced = get_produced_type();
+        spv::Op op;
+        if (is_type_f(produced)) {
+            op = spv::OpAtomicFMinEXT;
+            auto ct = convert(produced);
+            switch (ct.layout->size) {
+                case 2: builder_->capability(spv::Capability::CapabilityAtomicFloat16MinMaxEXT); break;
+                case 4: builder_->capability(spv::Capability::CapabilityAtomicFloat32MinMaxEXT); break;
+                case 8: builder_->capability(spv::Capability::CapabilityAtomicFloat64MinMaxEXT); break;
+            }
+            builder_->extension("SPV_EXT_shader_atomic_float_min_max");
+        } else if (is_type_s(produced))
+            op = spv::OpAtomicSMin;
+        else if (is_type_u(produced))
+            op = spv::OpAtomicUMin;
+        else
+            assert(false && "unknown primitive type for atomic_add");
+        auto result = bb->op_with_result(op, convert(get_produced_type()).id,  { ptr, literal(spv::Scope::ScopeDevice), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask | spv::MemorySemanticsMask::MemorySemanticsCrossWorkgroupMemoryMask), value });
+        return { result };
     } else if (intrinsic->name() == "rv_all") {
         auto args = emit_args(app.args().skip_back());
         auto result = bb->op_with_result(spv::Op::OpGroupAll, convert(get_produced_type()).id,  { literal(spv::Scope::ScopeInvocation), emit(app.arg(1)) });

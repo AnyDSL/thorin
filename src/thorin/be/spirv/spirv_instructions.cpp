@@ -148,7 +148,7 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
             return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::SMax }, emit_args(app.args().skip_back())) };
     } else if (intrinsic->name() == "barrier") {
         emit_args(app.args().skip_back());
-        bb->op(spv::Op::OpMemoryBarrier, { literal(spv::Scope::ScopeInvocation), literal(spv::MemorySemanticsMask::MemorySemanticsAcquireReleaseMask) });
+        bb->op(spv::Op::OpControlBarrier, { literal(spv::Scope::ScopeWorkgroup), literal(spv::Scope::ScopeWorkgroup), literal(spv::MemorySemanticsMask::MemorySemanticsWorkgroupMemoryMask | spv::MemorySemanticsMask::MemorySemanticsSequentiallyConsistentMask) });
         return { };
     } else if (intrinsic->name() == "atomic_add") {
         auto args = emit_args(app.args().skip_back());

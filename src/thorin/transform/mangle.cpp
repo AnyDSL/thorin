@@ -74,15 +74,18 @@ Continuation* Mangler::mangle() {
         insert(old_entry(), old_entry());
     else {
         // if we're only adding parameters, we can replace the entry by a small wrapper calling into the lifted entry
-        auto recursion_wrapper = dst().continuation(old_entry()->type());
-        insert(old_entry(), recursion_wrapper);
-        std::vector<const Def*> args;
-        for (auto p : recursion_wrapper->params_as_defs())
-            args.push_back(p);
-        size_t i = 0;
-        for ([[maybe_unused]] auto def : lift_)
-            args.push_back(new_entry()->param(recursion_wrapper->num_params() + i++));
-        recursion_wrapper->jump(new_entry(), args);
+        // only do this if the entry is not also lifted, otherwise this would overwrite the newly generated parameter.
+        if (!lookup(old_entry())) {
+            auto recursion_wrapper = dst().continuation(old_entry()->type());
+            insert(old_entry(), recursion_wrapper);
+            std::vector<const Def*> args;
+            for (auto p : recursion_wrapper->params_as_defs())
+                args.push_back(p);
+            size_t i = 0;
+            for ([[maybe_unused]] auto def : lift_)
+                args.push_back(new_entry()->param(recursion_wrapper->num_params() + i++));
+            recursion_wrapper->jump(new_entry(), args);
+        }
     }
 
     // cut/widen filter

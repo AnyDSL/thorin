@@ -10,6 +10,11 @@
 #endif
 
 #include <cmath>
+#ifdef _MSC_VER
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 #if THORIN_ENABLE_CREATION_CONTEXT
 #include <execinfo.h>
@@ -25,6 +30,7 @@
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/transform/plugin_execute.h"
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
@@ -1053,6 +1059,10 @@ const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debu
     return cse(new Alloc(*this, type, mem, extra, dbg));
 }
 
+const Def* World::release(const Def* mem, const Def* alloc, Debug dbg) {
+    return cse(new Release(*this, mem, alloc, dbg));
+}
+
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
     return cse(new Global(*this, init, is_mutable, dbg));
 }
@@ -1312,9 +1322,13 @@ void Thorin::opt() {
 }
 
     RUN_PASS(cleanup())
-    RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
+    RUN_PASS(while (partial_evaluation(*this, true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
+    //if (plugin_handles.size() > 0) {
+    //    RUN_PASS(plugin_execute(*this));
+    //    RUN_PASS(cleanup());
+    //}
     RUN_PASS(closure_conversion(world()))
     RUN_PASS(lift_builtins(*this))
     RUN_PASS(inliner(*this))
@@ -1340,5 +1354,40 @@ bool Thorin::ensure_stack_size(size_t new_size) {
 #endif
 }
 
+bool Thorin::register_plugin(const char* plugin_name) {
+#ifdef _MSC_VER
+    return false;
+#else // _MSC_VER
+    void *handle = dlopen(plugin_name, RTLD_LAZY | RTLD_GLOBAL);
+    if (!handle) {
+        world().ELOG("Error loading plugin {}: {}", plugin_name, dlerror());
+        world().ELOG("Is plugin contained in LD_LIBRARY_PATH?");
+        return false;
+    }
+    dlerror();
 
+    char *error;
+    auto initfunc = reinterpret_cast<plugin_init_func_t*>(dlsym(handle, "init"));
+    if ((error = dlerror()) != NULL) {
+        world().ILOG("Plugin {} did not provide an init function", plugin_name);
+    } else {
+        initfunc(&world());
+    }
+
+    plugin_handles.push_back(handle);
+    return true;
+#endif // _MSC_VER
+}
+
+Thorin::plugin_func_t* Thorin::search_plugin_function(const char* function_name) const {
+#ifdef _MSC_VER
+#else // _MSC_VER
+    for (auto plugin : plugin_handles) {
+        if (void* plugin_function = dlsym(plugin, function_name)) {
+            return reinterpret_cast<plugin_func_t*>(plugin_function);
+        }
+    }
+#endif // _MSC_VER
+    return nullptr;
+}
 }

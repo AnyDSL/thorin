@@ -127,6 +127,7 @@ enum class Intrinsic : uint8_t {
     Branch,                     ///< branch(mem, cond, T, F).
     Match,                      ///< match(mem, val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
+    Plugin,                     ///< Some plugin derived intrinsic. Indentified by its name.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
 
@@ -140,12 +141,13 @@ public:
     struct Attributes {
         Intrinsic intrinsic = Intrinsic::None;
         CC cc = CC::Thorin;
+        const Continuation* depends = nullptr;
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(CC cc = CC::Thorin) : cc(cc) {}
     };
 
-private:
+protected:
     Continuation(World&, const FnType* pi, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
 

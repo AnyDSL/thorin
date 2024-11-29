@@ -248,6 +248,7 @@ public:
     const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* release(const Def* mem, const Def* alloc, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
@@ -339,7 +340,8 @@ public:
     static std::string colorize(const std::string& str, int color);
     //@}
 
-private:
+//TODO: Some example plugins need access to cse and data_.defs_ to put new defs in, there has to be a better way than eposing this direcly though.
+//private:
     const Param* param(const Type* type, const Continuation*, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
@@ -412,12 +414,21 @@ public:
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
+    void cleanup_fix_point();
     void opt();
 
     bool ensure_stack_size(size_t new_size);
 
+    // plugins
+
+    using plugin_init_func_t = void(World*);
+    using plugin_func_t = const Def*(World*, const App*);
+
+    bool register_plugin(const char* plugin_name);
+    plugin_func_t* search_plugin_function(const char* function_name) const;
 private:
     std::unique_ptr<World> world_;
+    std::vector<void*> plugin_handles;
 };
 
 }

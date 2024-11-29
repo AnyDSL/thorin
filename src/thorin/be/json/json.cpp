@@ -224,6 +224,45 @@ public:
                     result["intrinsic"] = "match";
                     result["variant_type"] = variant_type;
                     result["num_patterns"] = num_patterns;
+                } else if (cont->intrinsic() == Intrinsic::Plugin) {
+                    auto intrinsic_name = cont->name();
+                    auto intrinsic_type = type_table_.translate_type(cont->type());
+                    auto name = "_plugin_" + std::to_string(decl_table.size());
+                    known_defs[def] = name;
+
+                    json forward_decl;
+                    forward_decl["name"] = name;
+                    forward_decl["type"] = "continuation";
+                    forward_decl["intrinsic"] = intrinsic_name;
+                    forward_decl["fn_type"] = intrinsic_type;
+                    forward_decl["plugin"] = true;
+
+                    bool emit_node = false;
+                    if (cont->attributes().depends) {
+                        result["depends"] = translate_def(cont->attributes().depends);
+
+                        emit_node = true;
+                    }
+                    if (cont->filter() && !cont->filter()->empty()) {
+                        //The filter will most certainly rely on these parameters.
+                        json arg_names = json::array();
+                        for (auto arg : cont->params()) {
+                            arg_names.push_back(translate_def(arg));
+                        }
+                        forward_decl["arg_names"] = arg_names;
+
+                        emit_node = true;
+                    }
+
+                    decl_table.push_back(forward_decl);
+
+                    if (emit_node) {
+                        result["name"] = name;
+                        result["type"] = "continuation";
+                        result["plugin"] = true;
+                    } else {
+                        return name;
+                    }
                 } else {
                     auto intrinsic_name = cont->name();
                     auto intrinsic_type = type_table_.translate_type(cont->type());
@@ -280,9 +319,12 @@ public:
                     };
                 } else {
                     //Early return. We do not have a body, so there is no point in writing something to the def table.
-                    if (cont->filter() && !cont->filter()->empty())
-                        assert(false && "These filters cannot be generated RN");
-                    return name;
+                    if (cont->filter() && !cont->filter()->empty()) {
+                        result["name"] = name;
+                        result["type"] = "continuation";
+                        result["filter"] = translate_def(cont->filter());
+                    } else
+                        return name;
                 }
             }
         } else if (auto lit = def->isa<PrimLit>()) {
@@ -292,11 +334,19 @@ public:
             result["name"] = name;
             result["type"] = "const";
             result["const_type"] = type;
-            //result["value"] = lit->value().get_s32(); //TODO: this looks wrong. What I get should depend on the lit type.
+
             switch (lit->primtype_tag()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: { result["value"] = lit->value().get_##M(); break; }
 #define THORIN_BOOL_TYPE(T, M) case PrimType_##T: { result["value"] = lit->value().get_##M(); break; }
-#define THORIN_F_TYPE(T, M) case PrimType_##T: { result["value"] = (double)lit->value().get_##M(); break; }
+#define THORIN_F_TYPE(T, M) case PrimType_##T: { \
+    double value = (double)lit->value().get_##M(); \
+    result["value"] = value; \
+    if (value == INFINITY) { result["special"] = "inf"; } \
+    if (value == - INFINITY) { result["special"] = "-inf"; } \
+    if (value == NAN) { result["special"] = "nan"; } \
+    if (value == - NAN) { result["special"] = "- nan"; } \
+    break; \
+}
 #include <thorin/tables/primtypetable.h>
             default:
                 assert(false && "not implemented");

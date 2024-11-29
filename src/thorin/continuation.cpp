@@ -59,6 +59,18 @@ bool App::verify() const {
     return true;
 }
 
+void App::jump(const Def* callee, Defs args, Debug dbg) {
+    unset_ops();
+    resize(args.size() + 1);
+
+    set_op(0, callee);
+    for (int i = 0, e = args.size(); i < e; i++) {
+        set_op(i + 1, args[i]);
+    }
+
+    verify();
+}
+
 //------------------------------------------------------------------------------
 
 Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(world, Node_Filter, world.bottom_type(), defs, dbg) {}
@@ -311,9 +323,7 @@ void Continuation::match(const Def* mem, const Def* val, Continuation* otherwise
 
 bool Continuation::verify() const {
     bool ok = true;
-    if (!has_body())
-        assertf(filter()->is_empty(), "continuations with no body should have an empty (no) filter");
-    else {
+    if (has_body()) {
         ok &= body()->verify();
         assert(!dead_); // destroy() should remove the body
         assert(intrinsic() == Intrinsic::None);

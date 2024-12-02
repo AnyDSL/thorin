@@ -194,8 +194,9 @@ inline bool is_mmul_type(const StructType* struct_type) {
     return struct_type->name().str().find("mmul") != std::string::npos;
 }
 
+
 inline bool is_mmul_type(const Type* type) {
-    return type->isa<StructType>()->name().str().find("mmul") != std::string::npos;
+    return type && type->isa<StructType>() && type->as<StructType>()->name().str().find("mmul") != std::string::npos;
 }
 
 

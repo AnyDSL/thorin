@@ -1,5 +1,5 @@
 namespace thorin {
-    enum class KernelArgType : uint8_t { Val = 0, Ptr, Struct };
+    enum class KernelArgType : uint8_t { Val = 0, Ptr, Struct, LSM };
 
     static const char* runtime_definitions = R"(
         ; Module anydsl runtime decls

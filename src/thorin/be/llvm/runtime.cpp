@@ -106,7 +106,7 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
             builder.CreateStore(target_val, alloca);
 
             // check if argument type contains pointers
-            if (!contains_ptrtype(target_arg->type()))
+            if (!contains_ptrtype(target_arg->type()) && platform == Platform::OPENCL_PLATFORM)
                 world.wdef(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
             void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());

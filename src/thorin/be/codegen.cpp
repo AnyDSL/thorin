@@ -24,20 +24,52 @@
 
 namespace thorin {
 
+void Backend::lift_dynamic_reserve_shared() {
+    auto forest = ScopesForest(device_code_.world());
+    for (auto cont : kernels_) {
+        Continuation* kernel = find_imported_kernel(cont);
+        auto& scope = forest.get_scope(kernel);
+        for (auto def : scope.defs()) {
+            if (auto app = def->isa<App>()) {
+                auto callee = app->callee()->isa<Continuation>();
+                if (!callee || callee->intrinsic() != Intrinsic::Reserve)
+                    continue;
+
+                auto size = app->arg(1);
+                size->dump();
+                if (!scope.contains(size))
+                    continue;
+
+                auto ret = callee->ret_param()->type()->as<FnType>()->types()[1];
+                auto param = kernel->append_param(ret);
+
+                auto napp = device_code_.world().app(app->arg(2), { app->arg(0), param });
+                app->replace_uses(napp);
+            }
+        }
+    }
+}
+
+Continuation* Backend::find_imported_kernel(const Continuation* continuation) {
+    auto conts = device_code_.world().copy_continuations();
+    for (auto original_cont : conts) {
+        if (!original_cont) continue;
+        if (!original_cont->has_body()) continue;
+        if (original_cont->name() == continuation->name())
+            return original_cont;
+    }
+    return nullptr;
+}
+
 void Backend::prepare_kernel_configs() {
     device_code_.opt();
 
     auto conts = device_code_.world().copy_continuations();
     for (auto continuation : kernels_) {
         // recover the imported continuation (lost after the call to opt)
-        Continuation* imported = nullptr;
-        for (auto original_cont : conts) {
-            if (!original_cont) continue;
-            if (!original_cont->has_body()) continue;
-            if (original_cont->name() == continuation->name())
-                imported = original_cont;
-        }
-        if (!imported) continue;
+        Continuation* imported = find_imported_kernel(continuation);
+        if (!imported)
+            continue;
 
         visit_uses(continuation, [&] (Continuation* use) {
             assert(use->has_body());
@@ -117,7 +149,7 @@ static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Co
     return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
 }
 
-Backend::Backend(thorin::DeviceBackends& backends, World& src) : backends_(backends), device_code_(src), importer_(std::make_unique<Importer>(src, device_code_.world())) {}
+Backend::Backend(thorin::DeviceBackends& backends, World& src) : backends_(backends), src_(src), device_code_(src), importer_(std::make_unique<Importer>(src, device_code_.world())) {}
 
 struct CudaBackend : public Backend {
     explicit CudaBackend(DeviceBackends& b, World& src) : Backend(b, src) {
@@ -331,6 +363,7 @@ void DeviceBackends::search_for_device_code() {
             continue;
 
         backend->prepare_kernel_configs();
+        backend->lift_dynamic_reserve_shared();
         cgs.emplace_back(backend->create_cg());
     }
 }

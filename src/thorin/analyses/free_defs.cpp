@@ -34,6 +34,14 @@ DefSet free_defs(const Scope& scope, bool include_closures) {
                     result.emplace(def);
                     goto queue_next;
                 }
+                if (auto app = def->isa<App>()) {
+                    if (auto cont = app->callee()->isa<Continuation>()) {
+                        if (cont->intrinsic() == Intrinsic::Reserve && op == app->arg(1) && !op->isa<PrimLit>()) {
+                            result.emplace(op);
+                            goto queue_next;
+                        }
+                    }
+                }
             }
 
             // HACK for bitcasting address spaces

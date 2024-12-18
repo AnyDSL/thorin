@@ -2659,7 +2659,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         };
 
 
-        if (is_cgra_vector_kernel() && (!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type))) {
+        if (is_cgra_vector_kernel() && (!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type)) && (!emitted_type->isa<DefiniteArrayType>())) {
             // This condition is to avoid the vectorization of the pipeline body but only for window interface since there is no
             // loop pipelining in stream interface
             if (!is_pipeline_body(bb->cont) || (!def->isa<Load>() && !def->isa<BinOp>() && !def->isa<AggOp>())) {

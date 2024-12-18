@@ -110,7 +110,7 @@ private:
     std::string addr_space_prefix(AddrSpace);
     std::string constructor_prefix(const Type*);
     std::string prefix_type(const Param* param);
-    std::string device_prefix();
+    std::string device_prefix(const Def*);
     Stream& emit_debug_info(Stream&, const Def*);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
     bool get_cgra_options();
@@ -468,12 +468,12 @@ std::string CCodeGen::constructor_prefix(const Type* type) {
 }
 
 
-std::string CCodeGen::device_prefix() {
+std::string CCodeGen::device_prefix(const Def* def) {
     switch (lang_) {
         default:           return "";
         case Lang::CUDA:   return "__device__ ";
         case Lang::OpenCL: return use_channels_ ? "PIPE " : "__constant ";
-        case Lang::CGRA:   return "alignas(aie::vector_decl_align) ";
+        case Lang::CGRA:   return (def->isa<Global>() && def->as<Global>()->init()->isa<DefiniteArray>()) ? "alignas(aie::vector_decl_align) ": "";
     }
 }
 
@@ -2624,7 +2624,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
         auto converted_type = convert(global->alloced_type());
 
-        std::string prefix = device_prefix();
+        std::string prefix = device_prefix(global);
         std::string suffix = "";
 
         if (lang_ == Lang::OpenCL && use_channels_) {

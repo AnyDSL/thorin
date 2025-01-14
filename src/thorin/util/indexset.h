@@ -82,7 +82,7 @@ public:
 
     template<class Op>
     IndexSet& transform(const IndexSet& other, Op op) {
-        assert(this->size() == other.size());
+        assert(this->capacity() == other.capacity());
         for (size_t i = 0, e = capacity(); i != e; ++i)
             this->bits_[i] = op(this->bits_[i], other.bits_[i]);
         return *this;

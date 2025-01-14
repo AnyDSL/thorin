@@ -167,6 +167,23 @@ public:
 #endif
         {}
 
+#ifdef __clang__
+        iterator_base<false>(const iterator_base<false>& i)
+            : ptr_(i.ptr_)
+            , table_(i.table_)
+#if THORIN_ENABLE_CHECKS
+            , id_(i.id_)
+#endif
+        {}
+
+        iterator_base<true>(const iterator_base<true>& i)
+            : ptr_(i.ptr_)
+            , table_(i.table_)
+#if THORIN_ENABLE_CHECKS
+            , id_(i.id_)
+#endif
+        {}
+#else
         iterator_base(const iterator_base<false>& i)
             : ptr_(i.ptr_)
             , table_(i.table_)
@@ -174,6 +191,7 @@ public:
             , id_(i.id_)
 #endif
         {}
+#endif
 
 #if THORIN_ENABLE_CHECKS
         inline int id() const { return id_; }

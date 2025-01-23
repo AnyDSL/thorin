@@ -2524,9 +2524,54 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         emit_unsafe(slot->frame());
         auto t = convert(slot->alloced_type());
         //TODO: check slot condition, as we need slots for CGRA kernels but not for cgra_graph
-        if (!top_scope.cgra_graph ) {
-            func_impls_.fmt("{} {}_slot;\n", t, name);
-            func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
+        if (!top_scope.cgra_graph) {
+
+            //TODO: this lambda is duplicated with a minor change, it should be refactored as a normal (member) function
+            auto adjust_vector_size = [&] () {
+
+                using DeviceApiSet = std::unordered_set<std::string>;
+                auto new_vector_size = vector_size_;
+                DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::zeros", "aie::store_v", "readincr_v_channel", "window_readincr_v_channel",
+                    "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
+
+                for (auto use: bb->cont->uses()) {
+                    if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
+                        auto callee = app->callee()->as_nom<Continuation>();
+                        if (callee->cc() == CC::Device) {
+                            auto name = callee->name();
+                            if (name.find("aie::sliding_") != std::string::npos)
+                                name = "aie::sliding_";
+                            if (irregular_apis.count(name)) {
+                                if (app->num_args() > 1) {
+                                    // The first arg of all irregular APIs is the lane size
+                                    if (auto primtype = app->arg(1)->type()->isa<PrimType>()) {
+                                        if (primtype->primtype_tag() == PrimType_pu32) {
+                                            new_vector_size = app->arg(1)->as<PrimLit>()->value().get_u32();
+                                        } else {
+                                            world().WLOG("Lane size in {} must be an unsigned integer value to be effective", name);
+                                        }
+                                    }
+
+
+                                }
+                            }
+
+                        }
+                    }
+                }
+                return new_vector_size;
+            };
+
+
+            auto is_not_array = !(slot->alloced_type()->isa<ArrayType>());
+            auto is_not_mem_op = !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
+            if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op) {
+                func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
+                func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
+            } else {
+                func_impls_.fmt("{} {}_slot;\n", t, name);
+                func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
+            }
         }
         func_defs_.insert(def);
         if (top_scope.hls)

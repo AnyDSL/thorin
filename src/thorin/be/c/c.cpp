@@ -1311,7 +1311,7 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
 
     // 2) AIE APIs without any template type parameters
     else if (name == "aie::load_v")          *api_config = {1, no_type };
-    else if (name == "aie::store_v")         *api_config = {1, no_type };
+    //else if (name == "aie::store_v")         *api_config = {1, no_type };
     else if (name == "window_readincr_v_channel")    *api_config = {1, no_type };
     else if (name == "readincr_v_channel")           *api_config = {1, no_type };
     else if (name == "writeincr_v_channel")          *api_config = {1, no_type };
@@ -1587,7 +1587,7 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
 
                             using DeviceApiSet = std::unordered_set<std::string>;
                             auto new_vector_size = vector_size_;
-                            DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::store_v", "readincr_v_channel", "window_readincr_v_channel",
+                            DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::zeros", "aie::store_v", "readincr_v_channel", "window_readincr_v_channel",
                                 "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
 
                             for (auto use: cont->uses()) {

@@ -2704,14 +2704,93 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         };
 
 
-        if (is_cgra_vector_kernel() && (!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type)) && (!emitted_type->isa<DefiniteArrayType>())) {
-            // This condition is to avoid the vectorization of the pipeline body but only for window interface since there is no
-            // loop pipelining in stream interface
-            if (!is_pipeline_body(bb->cont) || (!def->isa<Load>() && !def->isa<BinOp>() && !def->isa<AggOp>())) {
-                std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
-                emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+        if (is_cgra_vector_kernel()) {
+            //TODO: this whole block should be written as a pass and mark a vectorization attributes for defs
+            //so that we can use it all around the codegen
+
+            if ((!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type)) && (!emitted_type->isa<DefiniteArrayType>())) {
+                auto check_slot = [](const Slot* slot) {
+                    return !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
+                };
+
+                auto get_type = [&](const Type* type, const std::string& base) {
+                    std::string reg = is_accum_type(type) ? "aie::accum" : "aie::vector";
+                    return reg + "<" + base + ", " + std::to_string(vector_size_) + ">";
+                };
+
+                auto check_load = [&](const Load* load) {
+                    for (int i : {0, 1}) {
+                        if (auto slot = load->op(i)->isa<Slot>()) {
+                            if (check_slot(slot)) return true;
+                        }
+                    }
+                    return false;
+                };
+
+                auto check_extract = [&](const Extract* extract) {
+                    if (extract->type()->isa<MemType>()) return false;
+                    if (auto load = extract->op(0)->isa<Load>()) {
+                        if (auto slot = load->op(1)->isa<Slot>()) {
+                            return check_slot(slot);
+                        }
+                    }
+                    return false;
+                };
+
+                bool should_modify = false;
+                if (auto load = def->isa<Load>()) {
+                    should_modify = check_load(load);
+                } else if (auto extract = def->isa<Extract>()) {
+                    should_modify = check_extract(extract);
+                } else {
+                    should_modify = !def->isa<BinOp>() && !def->isa<Load>() &&
+                        !def->isa<AggOp>() && !is_pipeline_body(bb->cont);
+                }
+
+                if (should_modify) {
+                    emitted_type_str = get_type(emitted_type, emitted_type_str);
+                }
             }
+
+
+           // if ((!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type)) && (!emitted_type->isa<DefiniteArrayType>())) {
+           //     // This condition is to avoid the vectorization of the pipeline body but only for window interface since there is no
+           //     // loop pipelining in stream interface
+           //     //if (!is_pipeline_body(bb->cont) || (!def->isa<Load>() && !def->isa<BinOp>() && !def->isa<AggOp>()))
+           //     if (!def->isa<BinOp>() && !def->isa<Load>() && !def->isa<AggOp>() && !is_pipeline_body(bb->cont)) {
+           //         std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
+           //         emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+           //     }
+           //     if (auto load = def->isa<Load>()) {
+           //         for (int i : {0, 1}) {
+           //             if (auto slot = load->op(i)->isa<Slot>()) {
+           //                 auto is_not_mem_op = !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
+           //                 if (is_not_mem_op) {
+           //                     std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
+           //                     emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+           //                 }
+           //             }
+           //         }
+           //     }
+
+           //     if (auto extract = def->isa<Extract>()) {
+           //         if (!extract->type()->isa<MemType>()) {
+           //             auto extracted = extract->op(0);
+           //             if (auto load = extracted->isa<Load>()) {
+           //                 if (auto slot = load->op(1)->isa<Slot>()) {
+           //                     auto is_not_mem_op = !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
+           //                     if (is_not_mem_op) {
+           //                         std::string reg_type = is_accum_type(emitted_type) ? "aie::accum" : "aie::vector";
+           //                         emitted_type_str = reg_type + "<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+           //                     }
+           //                 }
+           //             }
+           //         }
+           //     }
+           // }
+
         }
+
         func_impls_.fmt("{} {};\n", emitted_type_str, name);
         func_defs_.insert(def);
         bb->body.fmt("{} = {};\n", name, s.str());

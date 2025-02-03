@@ -1289,15 +1289,15 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
     auto type_of_arg = [&] (const size_t index) -> const Type* { return cont->body()->arg(index)->type();};
 
     auto sliding_mul_config = [&] () -> ApiConfig {
-        const auto temp_params_size = 6;
+        const auto temp_params_size = 6; //total number of template parameters
         TempTypeParams temp_type_params = { { 4, type_of_arg(5) }, { 5, type_of_arg(7) } };
         ApiConfig api_config {temp_params_size, temp_type_params};
         return {api_config};
     };
 
     auto sliding_mac_config = [&] () -> ApiConfig {
-        const auto temp_params_size = 6;
-        TempTypeParams temp_type_params = { { 4, type_of_arg(6) }, { 5, type_of_arg(8) } };
+        const auto temp_params_size = 7; //total number of template parameters
+        TempTypeParams temp_type_params = { { 4, type_of_arg(6) }, { 5, type_of_arg(8) }, { 6, ret_type }/*AIE API bug, not documented*/ };
         ApiConfig api_config {temp_params_size, temp_type_params};
         return {api_config};
     };

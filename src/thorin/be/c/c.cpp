@@ -2717,9 +2717,6 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
             bool should_modify = false;
 
-          //  if (is_accum_type(emitted_type))
-          //     should_modify = true;
-
             if ((!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type)) && (!emitted_type->isa<DefiniteArrayType>())) {
                 auto check_slot = [](const Slot* slot) {
                     return !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());

@@ -2568,6 +2568,9 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op) {
                 func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
                 func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
+            } else if (is_cgra_vector_kernel() && is_accum_type(slot->alloced_type())) {
+                func_impls_.fmt("aie::accum<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
+                func_impls_.fmt("aie::accum<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
             } else {
                 func_impls_.fmt("{} {}_slot;\n", t, name);
                 func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
@@ -2707,16 +2710,21 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         if (is_cgra_vector_kernel()) {
             //TODO: this whole block should be written as a pass and mark a vectorization attributes for defs
             //so that we can use it all around the codegen
+            auto get_type = [&](const Type* type, const std::string& base) {
+                std::string reg = is_accum_type(type) ? "aie::accum" : "aie::vector";
+                return reg + "<" + base + ", " + std::to_string(vector_size_) + ">";
+            };
+
+            bool should_modify = false;
+
+          //  if (is_accum_type(emitted_type))
+          //     should_modify = true;
 
             if ((!emitted_type->isa<PtrType>()) && (!is_mask_type(emitted_type)) && (!emitted_type->isa<DefiniteArrayType>())) {
                 auto check_slot = [](const Slot* slot) {
                     return !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
                 };
 
-                auto get_type = [&](const Type* type, const std::string& base) {
-                    std::string reg = is_accum_type(type) ? "aie::accum" : "aie::vector";
-                    return reg + "<" + base + ", " + std::to_string(vector_size_) + ">";
-                };
 
                 auto check_load = [&](const Load* load) {
                     for (int i : {0, 1}) {
@@ -2737,7 +2745,6 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                     return false;
                 };
 
-                bool should_modify = false;
                 if (auto load = def->isa<Load>()) {
                     should_modify = check_load(load);
                 } else if (auto extract = def->isa<Extract>()) {
@@ -2746,10 +2753,10 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                     should_modify = !def->isa<BinOp>() && !def->isa<Load>() &&
                         !def->isa<AggOp>() && !is_pipeline_body(bb->cont);
                 }
+            }
 
-                if (should_modify) {
-                    emitted_type_str = get_type(emitted_type, emitted_type_str);
-                }
+            if (should_modify || is_accum_type(emitted_type)) {
+                emitted_type_str = get_type(emitted_type, emitted_type_str);
             }
 
 
@@ -2790,7 +2797,9 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
            // }
 
         }
-
+      //  if (is_cgra_vector_kernel() && is_accum_type(emitted_type)) {
+      //      emitted_type_str = "aie::accum<" + emitted_type_str + ", " + std::to_string(vector_size_) + ">";
+      //  }
         func_impls_.fmt("{} {};\n", emitted_type_str, name);
         func_defs_.insert(def);
         bb->body.fmt("{} = {};\n", name, s.str());

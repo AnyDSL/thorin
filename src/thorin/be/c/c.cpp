@@ -5,6 +5,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/cgra_vector_width.h"
 #include "thorin/transform/hls_dataflow.h"
 #include "thorin/be/emitter.h"
 #include "thorin/util/stream.h"
@@ -161,7 +162,11 @@ private:
     struct { bool hls = false; bool cgra_graph = false; } top_scope;
     //TODO: debug var should enable top debug point and add names to plio ports
     struct { bool sim_data = false; bool debug = false; int32_t iteration = -1;} options;
+
     size_t vector_size_;
+
+    std::unique_ptr<CGRAVectorWidthAnalysis<true>> cgraVectorWidthAnalysis;
+
     ContinuationMap<FuncMode> builtin_funcs_; // OpenCL builtin functions
 };
 
@@ -1426,8 +1431,10 @@ auto CCodeGen::is_mask_type(const Type* type) {
 std::string CCodeGen::prepare(const Scope& scope) {
     auto cont = scope.entry();
 
-    if (lang_ == Lang::CGRA && !cont->is_cgra_graph() && cont->is_exported())
+    if (lang_ == Lang::CGRA && !cont->is_cgra_graph() && cont->is_exported()) {
         vector_size_ = get_vector_size(cont);
+        cgraVectorWidthAnalysis = std::unique_ptr<CGRAVectorWidthAnalysis<true>>(new CGRAVectorWidthAnalysis<true>(world_, vector_size_));
+    }
 
     //TODO: for interface attr. 1) check codegen use, cont (seems not working)
     //2) use old2new to find old cont. then probably  "using conts" then check for interface attr on that cont and then set for all new apps
@@ -1579,48 +1586,14 @@ void CCodeGen::prepare(Continuation* cont, const std::string&) {
                             reg_type = "aie::vector";
                         }
 
-                        //TODO: This lambda should be implemented as an analysis thorin pass that sets a new attribute for the continuations
-                        // Basicaly this new pass marks those continuations that have free variables belonging to the set of irregular_apis
-                        // later on in the c-backend we can check for this attribute and adjust the vector size of params accordingly
-                        // TODO:: all the the defs that use irregular defs also should be modifed
-                        auto adjust_vector_size = [&] () {
-
-                            using DeviceApiSet = std::unordered_set<std::string>;
-                            auto new_vector_size = vector_size_;
-                            DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::zeros", "aie::store_v", "readincr_v_channel", "window_readincr_v_channel",
-                                "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
-
-                            for (auto use: cont->uses()) {
-                                if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
-                                    auto callee = app->callee()->as_nom<Continuation>();
-                                    if (callee->cc() == CC::Device) {
-                                        auto name = callee->name();
-                                        if (name.find("aie::sliding_") != std::string::npos)
-                                            name = "aie::sliding_";
-                                        if (irregular_apis.count(name)) {
-                                            if (app->num_args() > 1) {
-                                                // The first arg of all irregular APIs is the lane size
-                                                if (auto primtype = app->arg(1)->type()->isa<PrimType>()) {
-                                                    if (primtype->primtype_tag() == PrimType_pu32) {
-                                                        new_vector_size = app->arg(1)->as<PrimLit>()->value().get_u32();
-                                                    } else {
-                                                        world().WLOG("Lane size in {} must be an unsigned integer value to be effective", name);
-                                                    }
-                                                }
-
-
-                                            }
-                                        }
-
-                                    }
-                                }
-                            }
-                            return new_vector_size;
-                        };
+                        if (!is_mask_type(type) && !type->isa<DefiniteArrayType>()) {
+                            size_t vector_width = cgraVectorWidthAnalysis->get_width_for(cont);
+                            cgraVectorWidthAnalysis->register_width(param, vector_width);
+                        }
 
                         param_type_str = is_mask_type(type) ? (reg_type + "<" + std::to_string(vector_size_)+ ">") :
-                            (type->isa<DefiniteArrayType>() ? (reg_type + "<" + convert(type->as<DefiniteArrayType>()->elem_type()) + ", " + std::to_string(vector_size_) + ">") :
-                            (reg_type + "<" + convert(param->type()) + ", " + std::to_string(adjust_vector_size())  + ">"));
+                            (type->isa<DefiniteArrayType>() ? (reg_type + "<" + convert(type->as<DefiniteArrayType>()->elem_type()) + ", " + std::to_string(vector_size_) + " /*def_array*/>") :
+                            (reg_type + "<" + convert(param->type()) + ", " + std::to_string(cgraVectorWidthAnalysis->get_width_for(cont))  + " /*parm*/>"));
                         //TODO: we should also check if the array types are used in a read/write instrinsic
                     }
                 }
@@ -2525,52 +2498,17 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         auto t = convert(slot->alloced_type());
         //TODO: check slot condition, as we need slots for CGRA kernels but not for cgra_graph
         if (!top_scope.cgra_graph) {
-
-            //TODO: this lambda is duplicated with a minor change, it should be refactored as a normal (member) function
-            auto adjust_vector_size = [&] () {
-
-                using DeviceApiSet = std::unordered_set<std::string>;
-                auto new_vector_size = vector_size_;
-                DeviceApiSet irregular_apis = { "aie::vector::extract", "aie::zeros", "aie::store_v", "readincr_v_channel", "window_readincr_v_channel",
-                    "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
-
-                for (auto use: bb->cont->uses()) {
-                    if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
-                        auto callee = app->callee()->as_nom<Continuation>();
-                        if (callee->cc() == CC::Device) {
-                            auto name = callee->name();
-                            if (name.find("aie::sliding_") != std::string::npos)
-                                name = "aie::sliding_";
-                            if (irregular_apis.count(name)) {
-                                if (app->num_args() > 1) {
-                                    // The first arg of all irregular APIs is the lane size
-                                    if (auto primtype = app->arg(1)->type()->isa<PrimType>()) {
-                                        if (primtype->primtype_tag() == PrimType_pu32) {
-                                            new_vector_size = app->arg(1)->as<PrimLit>()->value().get_u32();
-                                        } else {
-                                            world().WLOG("Lane size in {} must be an unsigned integer value to be effective", name);
-                                        }
-                                    }
-
-
-                                }
-                            }
-
-                        }
-                    }
-                }
-                return new_vector_size;
-            };
-
-
             auto is_not_array = !(slot->alloced_type()->isa<ArrayType>());
             auto is_not_mem_op = !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
             if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op) {
-                func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
-                func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
+                auto vector_width = cgraVectorWidthAnalysis->get_width_for(bb->cont);
+                cgraVectorWidthAnalysis->register_width(def, vector_width);
+
+                func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, vector_width, name);
+                func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, vector_width, name, name);
             } else if (is_cgra_vector_kernel() && is_accum_type(slot->alloced_type())) {
-                func_impls_.fmt("aie::accum<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
-                func_impls_.fmt("aie::accum<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
+                func_impls_.fmt("aie::accum<{}, {}> {}_slot;\n", t, cgraVectorWidthAnalysis->get_width_for(bb->cont), name);
+                func_impls_.fmt("aie::accum<{}, {}>* {} = &{}_slot;\n", t, cgraVectorWidthAnalysis->get_width_for(bb->cont), name, name);
             } else {
                 func_impls_.fmt("{} {}_slot;\n", t, name);
                 func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
@@ -2712,7 +2650,25 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             //so that we can use it all around the codegen
             auto get_type = [&](const Type* type, const std::string& base) {
                 std::string reg = is_accum_type(type) ? "aie::accum" : "aie::vector";
-                return reg + "<" + base + ", " + std::to_string(vector_size_) + ">";
+                auto vector_width = cgraVectorWidthAnalysis->get_width_for(bb->cont);
+                if (auto load = def->isa<Load>()) {
+                    auto alt_width = cgraVectorWidthAnalysis->get_width_for(load->ptr());
+                    if (alt_width > vector_width) {
+                        vector_width = alt_width;
+                    }
+                }
+                if (auto extract = def->isa<Extract>()) {
+                    if (auto load = extract->agg()->isa<Load>()) {
+                        auto alt_width = cgraVectorWidthAnalysis->get_width_for(load->ptr());
+                        if (alt_width > vector_width) {
+                            vector_width = alt_width;
+                        }
+                    }
+                }
+
+                cgraVectorWidthAnalysis->register_width(def, vector_width);
+
+                return reg + "<" + base + ", " + std::to_string(vector_width) + " /*val*/>";
             };
 
             bool should_modify = false;

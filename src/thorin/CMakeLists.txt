@@ -16,6 +16,8 @@ set(THORIN_SOURCES
     world.h
     analyses/cfg.cpp
     analyses/cfg.h
+    analyses/cgra_vector_width.cpp
+    analyses/cgra_vector_width.h
     analyses/domfrontier.cpp
     analyses/domfrontier.h
     analyses/domtree.cpp

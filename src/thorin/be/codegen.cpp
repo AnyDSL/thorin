@@ -24,32 +24,6 @@
 
 namespace thorin {
 
-void Backend::lift_dynamic_reserve_shared() {
-    auto forest = ScopesForest(device_code_.world());
-    for (auto cont : kernels_) {
-        Continuation* kernel = find_imported_kernel(cont);
-        auto& scope = forest.get_scope(kernel);
-        for (auto def : scope.defs()) {
-            if (auto app = def->isa<App>()) {
-                auto callee = app->callee()->isa<Continuation>();
-                if (!callee || callee->intrinsic() != Intrinsic::Reserve)
-                    continue;
-
-                auto size = app->arg(1);
-                size->dump();
-                if (!scope.contains(size))
-                    continue;
-
-                auto ret = callee->ret_param()->type()->as<FnType>()->types()[1];
-                auto param = kernel->append_param(ret);
-
-                auto napp = device_code_.world().app(app->arg(2), { app->arg(0), param });
-                app->replace_uses(napp);
-            }
-        }
-    }
-}
-
 Continuation* Backend::find_imported_kernel(const Continuation* continuation) {
     auto conts = device_code_.world().copy_continuations();
     for (auto original_cont : conts) {
@@ -65,7 +39,7 @@ void Backend::prepare_kernel_configs() {
     device_code_.opt();
 
     auto conts = device_code_.world().copy_continuations();
-    for (auto continuation : kernels_) {
+    for (auto [continuation, _] : kernels_) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = find_imported_kernel(continuation);
         if (!imported)
@@ -328,9 +302,11 @@ void DeviceBackends::search_for_device_code() {
         Continuation* imported = nullptr;
 
         Intrinsic intrinsic = Intrinsic::None;
-        visit_capturing_intrinsics(continuation, [&] (Continuation* continuation) {
-            if (continuation->is_offload_intrinsic()) {
-                intrinsic = continuation->intrinsic();
+        const App* call = nullptr;
+        visit_capturing_intrinsics(continuation, [&] (Continuation* intrinsic_cont, const App* app) {
+            if (intrinsic_cont->is_offload_intrinsic()) {
+                intrinsic = intrinsic_cont->intrinsic();
+                call = app;
                 return true;
             }
             return false;
@@ -342,6 +318,8 @@ void DeviceBackends::search_for_device_code() {
         auto handler = intrinsics_.find(intrinsic);
         assert(handler != intrinsics_.end());
         auto [backend, get_config] = handler->second;
+
+        //lift_dynamic_reserve_shared(continuation, call);
 
         imported = backend->importer_->import(continuation)->as_nom<Continuation>();
         if (imported == nullptr)
@@ -355,7 +333,7 @@ void DeviceBackends::search_for_device_code() {
         imported->world().make_external(imported);
         imported->attributes().cc = CC::C;
 
-        backend->kernels_.emplace_back(continuation);
+        backend->kernels_.emplace_back(std::make_tuple(continuation, call));
     });
 
     for (auto& backend : backends_) {
@@ -363,7 +341,7 @@ void DeviceBackends::search_for_device_code() {
             continue;
 
         backend->prepare_kernel_configs();
-        backend->lift_dynamic_reserve_shared();
+        //backend->lift_dynamic_reserve_shared();
         cgs.emplace_back(backend->create_cg());
     }
 }

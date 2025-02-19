@@ -44,11 +44,11 @@ protected:
     Thorin device_code_;
     std::unique_ptr<Importer> importer_;
 
-    std::vector<Continuation*> kernels_;
+    std::vector<std::tuple<Continuation*, const App*>> kernels_;
     Cont2Config kernel_configs_;
 
     Continuation* find_imported_kernel(const Continuation*);
-    void lift_dynamic_reserve_shared();
+    //void lift_dynamic_reserve_shared();
     void prepare_kernel_configs();
     friend DeviceBackends;
 };

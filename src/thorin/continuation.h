@@ -252,7 +252,7 @@ public:
 };
 
 bool visit_uses(Continuation*, std::function<bool(Continuation*)>, bool include_globals);
-bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)>, bool include_globals = true);
+bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*, const App*)>, bool include_globals = true);
 bool is_passed_to_accelerator(Continuation*, bool include_globals = true);
 bool is_passed_to_intrinsic(Continuation*, Intrinsic, bool include_globals = true);
 

@@ -385,22 +385,24 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, boo
     return false;
 }
 
-bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
+bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation* cont, const App*)> func, bool include_globals) {
     return visit_uses(cont, [&] (auto continuation) {
-        if (!continuation->has_body()) return false;
-        auto callee = continuation->body()->callee()->template isa_nom<Continuation>();
+        if (!continuation->has_body())
+            return false;
+        auto app = continuation->body();
+        auto callee = app->callee()->template isa_nom<Continuation>();
         if (callee)
-            return callee->is_intrinsic() && func(callee);
+            return callee->is_intrinsic() && func(callee, app);
         return false;
     }, include_globals);
 }
 
 bool is_passed_to_accelerator(Continuation* cont, bool include_globals) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->is_accelerator(); }, include_globals);
+    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation, const App* app) { return continuation->is_accelerator(); }, include_globals);
 }
 
 bool is_passed_to_intrinsic(Continuation* cont, Intrinsic intrinsic, bool include_globals) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; }, include_globals);
+    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation, const App* app) { return continuation->intrinsic() == intrinsic; }, include_globals);
 }
 
 }

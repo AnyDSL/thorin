@@ -26,6 +26,10 @@ void lift_dynamic_reserve_shared(Thorin& thorin) {
         if (intrinsic == Intrinsic::None)
             continue;
 
+        std::vector<const Def*> new_launch_args(launch_call->args().size());
+        for (size_t i = 0; i < launch_call->args().size(); i++)
+            new_launch_args[i] = launch_call->arg(i);
+
         auto kernel = continuation;
         auto& scope = forest.get_scope(kernel);
         for (auto def: scope.defs()) {
@@ -45,21 +49,21 @@ void lift_dynamic_reserve_shared(Thorin& thorin) {
                 auto napp = world.app(app->arg(2), { app->arg(0), param });
                 app->replace_uses(napp);
 
-                Array<const Def*> new_launch_args(launch_call->args().size() + 1);
-                for (size_t i = 0; i < launch_call->args().size(); i++)
-                    new_launch_args[i] = launch_call->arg(i);
-                new_launch_args.back() = size;
 
-                auto and_blackjack = launch_call->callee()->as<Continuation>();
-                // auto with_hookers = world.continuation(and_blackjack->type(), and_blackjack->attributes(), {});
-                auto with_hookers = world.continuation();
-                with_hookers->attributes_ = and_blackjack->attributes();
-                for (auto arg: new_launch_args)
-                    with_hookers->append_param(arg->type());
-                auto napp2 = world.app(with_hookers, new_launch_args);
-                launch_call->replace_uses(napp2);
+                new_launch_args.emplace_back(size);
             }
         }
+
+        if (new_launch_args.size() == launch_call->num_args())
+            continue;
+
+        auto old_intrinsic = launch_call->callee()->as<Continuation>();
+        auto new_intrinsic = world.continuation(old_intrinsic->debug());
+        new_intrinsic->attributes_ = old_intrinsic->attributes();
+        for (auto arg: new_launch_args)
+            new_intrinsic->append_param(arg->type());
+        auto napp2 = world.app(new_intrinsic, new_launch_args);
+        launch_call->replace_uses(napp2);
     };
 }
 

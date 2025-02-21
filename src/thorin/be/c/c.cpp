@@ -543,6 +543,9 @@ void CCodeGen::emit_module() {
             stream_.fmt("__device__ inline int blockDim_{}() {{ return blockDim.{}; }}\n", x, x);
             stream_.fmt("__device__ inline int gridDim_{}() {{ return gridDim.{}; }}\n", x, x);
         }
+
+        stream_.fmt("\n"
+                    "extern __shared__ unsigned char __dynamic_smem[];\n");
     }
 
     stream_.endl() << func_impls_.str();
@@ -650,6 +653,24 @@ std::string CCodeGen::prepare(const Scope& scope) {
         if (lang_ == Lang::OpenCL && cont->is_exported() && is_passed_via_buffer(param))
             func_impls_.fmt("{} {} = *{}_;\n", convert(param->type()), param->unique_name(), param->unique_name());
     }
+
+    // map dynamic smem offsets to pointers of matching type
+    if (lang_ == Lang::CUDA && cont->is_exported()) {
+        for (auto param : cont->params()) {
+            if (!param->type()->isa<PtrType>())
+                continue;
+
+            auto ptr_type = param->type()->as<PtrType>();
+            if (ptr_type->addr_space() != AddrSpace::Shared)
+                continue;
+
+            //auto elem_type = pointee_or_elem_type(ptr_type);
+            func_impls_.fmt("{} {} = ({})(__dynamic_smem + lsm_off{});\n",
+                convert(ptr_type), param->unique_name(),
+                convert(ptr_type), param->unique_name());
+        }
+    }
+
     return {};
 }
 
@@ -1462,6 +1483,8 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
                 s << "[" << array_size << "]";
             }
 
+        } else if (lang_ == Lang::CUDA && cont->is_exported() && param->type()->isa<PtrType>() && param->type()->as<PtrType>()->addr_space() == AddrSpace::Shared) {
+            s.fmt("{} lsm_off{}", convert(world().type_qu32()), param->unique_name());
         } else {
             std::string qualifier;
             if (cont->is_exported() && (lang_ == Lang::OpenCL || lang_ == Lang::CUDA) &&

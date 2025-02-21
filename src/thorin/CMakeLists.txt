@@ -58,6 +58,8 @@ set(THORIN_SOURCES
     transform/inliner.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
+    transform/lift_dynamic_reserve_shared.cpp
+    transform/lift_dynamic_reserve_shared.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

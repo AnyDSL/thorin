@@ -2739,7 +2739,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                 }
             };
 
-            auto process_load = [&](auto load_ptr) {
+            auto inspect_load_addr = [&](auto load_ptr) {
                 if (auto slot = load_ptr->template isa<Slot>()) {
                     for (auto use : load_ptr->uses()) {
                         if (auto store = use->template isa<Store>()) {
@@ -2753,12 +2753,12 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             };
 
             if (auto load = def->isa<Load>()) {
-                process_load(load->as<Load>()->ptr());
+                inspect_load_addr(load->as<Load>()->ptr());
             }
 
             if (auto extract = def->isa<Extract>()) {
                 if (auto load = extract->op(0)->isa<Load>()) {
-                    process_load(load->ptr());
+                    inspect_load_addr(load->ptr());
                 }
             }
 

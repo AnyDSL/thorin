@@ -2706,13 +2706,80 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             return pred_callee->isa_nom<Continuation>()->intrinsic() == Intrinsic::Pipeline;
         };
 
+        //TODO: this lambda is repeated, all versions should be merged and refactored as a normal (member) function
+        auto adjust_vector_size = [&]() {
+            using DeviceApiSet = std::unordered_set<std::string>;
+            auto new_vector_size = vector_size_;
+            DeviceApiSet irregular_apis = {"aie::vector::extract", "aie::zeros", "aie::store_v", "readincr_v_channel",
+                                        "window_readincr_v_channel", "aie::load_v", "aie::sliding_"/*all sliding APIs*/, "srs"};
+
+            auto check_irregular_api = [&](auto use) -> bool {
+                if (auto app = use->template isa<App>(); app && app->callee()->template isa_nom<Continuation>()) {
+                    auto callee = app->callee()->template as_nom<Continuation>();
+                    if (callee->cc() == CC::Device) {
+                        auto name = callee->name();
+                        if (name.find("aie::sliding_") != std::string::npos) {
+                            name = "aie::sliding_";
+                        }
+                        return irregular_apis.count(name) > 0;
+                    }
+                }
+                return false;
+            };
+
+            auto update_vector_size = [&](auto app) {
+                if (app->num_args() > 1) {
+                    if (auto primtype = app->arg(1)->type()->template isa<PrimType>()) {
+                        if (primtype->primtype_tag() == PrimType_pu32) {
+                            new_vector_size = app->arg(1)->template as<PrimLit>()->value().get_u32();
+                        } else {
+                            world().WLOG("Lane size in {} must be an unsigned integer value to be effective", app->callee()->name());
+                        }
+                    }
+                }
+            };
+
+            auto process_load = [&](auto load_ptr) {
+                if (auto slot = load_ptr->template isa<Slot>()) {
+                    for (auto use : load_ptr->uses()) {
+                        if (auto store = use->template isa<Store>()) {
+                            auto it = std::find_if(store->uses().begin(), store->uses().end(), check_irregular_api);
+                            if (it != store->uses().end()) {
+                                update_vector_size((*it)->template as<App>());
+                            }
+                        }
+                    }
+                }
+            };
+
+            if (auto load = def->isa<Load>()) {
+                process_load(load->as<Load>()->ptr());
+            }
+
+            if (auto extract = def->isa<Extract>()) {
+                if (auto load = extract->op(0)->isa<Load>()) {
+                    process_load(load->ptr());
+                }
+            }
+
+            // Most likely we need to remove this loop since the above analysis should be enough
+            for (auto use : bb->cont->uses()) {
+                if (auto app = use->isa<App>(); app && app->callee()->isa_nom<Continuation>()) {
+                    if (check_irregular_api(use)) {
+                        update_vector_size(app);
+                    }
+                }
+            }
+
+            return new_vector_size;
+        };
 
         if (is_cgra_vector_kernel()) {
             //TODO: this whole block should be written as a pass and mark a vectorization attributes for defs
             //so that we can use it all around the codegen
             auto get_type = [&](const Type* type, const std::string& base) {
                 std::string reg = is_accum_type(type) ? "aie::accum" : "aie::vector";
-                return reg + "<" + base + ", " + std::to_string(vector_size_) + ">";
+                return reg + "<" + base + ", " + std::to_string(adjust_vector_size()) + ">";
             };
 
             bool should_modify = false;

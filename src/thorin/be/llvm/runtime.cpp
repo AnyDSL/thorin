@@ -45,54 +45,55 @@ static bool contains_ptrtype(const Type* type) {
         case Node_StructType: {
             bool good = true;
             auto struct_type = type->as<StructType>();
-            for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(struct_type->op(i));
+            for (auto& t : struct_type->types())
+                good &= contains_ptrtype(t);
             return good;
         }
         case Node_TupleType: {
             bool good = true;
             auto tuple = type->as<TupleType>();
-            for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(tuple->op(i));
+            for (auto& t : tuple->types())
+                good &= contains_ptrtype(t);
             return good;
         }
         default: return true;
     }
 }
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Platform platform, const std::string& ext, Continuation* continuation) {
+void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Platform platform, const std::string& ext, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = body->callee()->as_nom<Continuation>();
     assert_unused(target->is_intrinsic());
-    assert(body->num_args() >= LaunchArgs<GPU>::Num && "required arguments are missing");
+    assert(body->num_args() >= KernelLaunchArgs<GPU>::Num && "required arguments are missing");
 
     // arguments
-    auto target_device_id = code_gen.emit(body->arg(LaunchArgs<GPU>::Device));
+    auto target_device_id = code_gen.emit(body->arg(KernelLaunchArgs<GPU>::Device));
     auto target_platform = builder.getInt32(platform);
     auto target_device = builder.CreateOr(target_platform, builder.CreateShl(target_device_id, builder.getInt32(4)));
 
-    auto it_space = body->arg(LaunchArgs<GPU>::Space);
-    auto it_config = body->arg(LaunchArgs<GPU>::Config);
-    auto kernel = body->arg(LaunchArgs<GPU>::Body)->as<Global>()->init()->as<Continuation>();
+    auto it_space = body->arg(KernelLaunchArgs<GPU>::Space);
+    auto it_config = body->arg(KernelLaunchArgs<GPU>::Config);
+    auto kernel = body->arg(KernelLaunchArgs<GPU>::Body)->as<Global>()->init()->as<Continuation>();
 
     auto& world = continuation->world();
-    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->unique_name());
+    //auto kernel_name = builder.CreateGlobalStringPtr(kernel->name() == "hls_top" ? kernel->name() : kernel->name());
+    auto kernel_name = builder.CreateGlobalStringPtr(kernel->name());
     auto file_name = builder.CreateGlobalStringPtr(world.name() + ext);
-    const size_t num_kernel_args = body->num_args() - LaunchArgs<GPU>::Num;
+    const size_t num_kernel_args = body->num_args() - KernelLaunchArgs<GPU>::Num;
 
     // allocate argument pointers, sizes, and types
-    llvm::Value* args   = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8PtrTy(), num_kernel_args), "args");
-    llvm::Value* sizes  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(),   num_kernel_args), "sizes");
-    llvm::Value* aligns = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(),   num_kernel_args), "aligns");
-    llvm::Value* allocs = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(),   num_kernel_args), "allocs");
-    llvm::Value* types  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8Ty(),    num_kernel_args), "types");
+    llvm::Value* args   = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getPtrTy(),   num_kernel_args), "args");
+    llvm::Value* sizes  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(), num_kernel_args), "sizes");
+    llvm::Value* aligns = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(), num_kernel_args), "aligns");
+    llvm::Value* allocs = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt32Ty(), num_kernel_args), "allocs");
+    llvm::Value* types  = code_gen.emit_alloca(builder, llvm::ArrayType::get(builder.getInt8Ty(),  num_kernel_args), "types");
 
     // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto target_arg = body->arg(i + LaunchArgs<GPU>::Num);
+        auto target_arg = body->arg(i + KernelLaunchArgs<GPU>::Num);
         const auto target_val = code_gen.emit(target_arg);
 
         KernelArgType arg_type;
@@ -108,7 +109,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             if (!contains_ptrtype(target_arg->type()))
                 world.wdef(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
-            void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
+            void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());
             arg_type = KernelArgType::Struct;
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
@@ -117,17 +118,17 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
             if (!rtype->isa<ArrayType>())
                 world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
-            auto alloca = code_gen.emit_alloca(builder, builder.getInt8PtrTy(), target_arg->name());
-            auto target_ptr = builder.CreatePointerCast(target_val, builder.getInt8PtrTy());
+            auto alloca = code_gen.emit_alloca(builder, builder.getPtrTy(), target_arg->name());
+            auto target_ptr = builder.CreatePointerCast(target_val, builder.getPtrTy());
             builder.CreateStore(target_ptr, alloca);
-            void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
+            void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());
             arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(builder, target_val->getType(), target_arg->name());
             builder.CreateStore(target_val, alloca);
 
-            void_ptr = builder.CreatePointerCast(alloca, builder.getInt8PtrTy());
+            void_ptr = builder.CreatePointerCast(alloca, builder.getPtrTy());
             arg_type = KernelArgType::Val;
         }
 
@@ -183,8 +184,6 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& buil
                   grid_size, block_size,
                   args, sizes, aligns, allocs, types,
                   builder.getInt32(num_kernel_args));
-
-    return body->arg(LaunchArgs<GPU>::Return)->as_nom<Continuation>();
 }
 
 llvm::Value* Runtime::launch_kernel(
@@ -204,8 +203,8 @@ llvm::Value* Runtime::parallel_for(
 {
     llvm::Value* parallel_args[] = {
         num_threads, lower, upper,
-        builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
-        builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
+        builder.CreatePointerCast(closure_ptr, builder.getPtrTy()),
+        builder.CreatePointerCast(fun_ptr, builder.getPtrTy())
     };
     return builder.CreateCall(get(code_gen, "anydsl_parallel_for"), parallel_args);
 }
@@ -216,16 +215,16 @@ llvm::Value* Runtime::spawn_fibers(
 {
     llvm::Value* fibers_args[] = {
         num_threads, num_blocks, num_warps,
-        builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
-        builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
+        builder.CreatePointerCast(closure_ptr, builder.getPtrTy()),
+        builder.CreatePointerCast(fun_ptr, builder.getPtrTy())
     };
     return builder.CreateCall(get(code_gen, "anydsl_fibers_spawn"), fibers_args);
 }
 
 llvm::Value* Runtime::spawn_thread(CodeGen& code_gen, llvm::IRBuilder<>& builder, llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* spawn_args[] = {
-        builder.CreatePointerCast(closure_ptr, builder.getInt8PtrTy()),
-        builder.CreatePointerCast(fun_ptr, builder.getInt8PtrTy())
+        builder.CreatePointerCast(closure_ptr, builder.getPtrTy()),
+        builder.CreatePointerCast(fun_ptr, builder.getPtrTy())
     };
     return builder.CreateCall(get(code_gen, "anydsl_spawn_thread"), spawn_args);
 }

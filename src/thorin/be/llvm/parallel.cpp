@@ -12,7 +12,7 @@ enum {
     PAR_NUM_ARGS
 };
 
-Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+void CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     // Emit memory dependencies up to this point
@@ -36,7 +36,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world().tuple_type(continuation->arg_fn_type()->ops().skip_front(PAR_NUM_ARGS)));
+    auto closure_type = convert(world().tuple_type(continuation->body()->callee()->type()->as<FnType>()->types().skip_front(PAR_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -51,7 +51,7 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
 
     // create wrapper function and call the runtime
     // wrapper(void* closure, int lower, int upper)
-    llvm::Type* wrapper_arg_types[] = { irbuilder.getInt8PtrTy(0), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
+    llvm::Type* wrapper_arg_types[] = { irbuilder.getPtrTy(), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_parallel_for";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
@@ -91,8 +91,6 @@ Continuation* CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation*
 
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
-
-    return body->arg(PAR_ARG_RETURN)->as_nom<Continuation>();
 }
 
 enum {
@@ -105,7 +103,7 @@ enum {
     FIB_NUM_ARGS
 };
 
-Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+void CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     // Emit memory dependencies up to this point
@@ -130,7 +128,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world().tuple_type(continuation->arg_fn_type()->ops().skip_front(FIB_NUM_ARGS)));
+    auto closure_type = convert(world().tuple_type(continuation->body()->callee()->type()->as<FnType>()->types().skip_front(FIB_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -145,7 +143,7 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
 
     // create wrapper function and call the runtime
     // wrapper(void* closure, int lower, int upper)
-    llvm::Type* wrapper_arg_types[] = { irbuilder.getInt8PtrTy(0), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
+    llvm::Type* wrapper_arg_types[] = { irbuilder.getPtrTy(), irbuilder.getInt32Ty(), irbuilder.getInt32Ty() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_fibers";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
@@ -183,8 +181,6 @@ Continuation* CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* c
 
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
-
-    return body->arg(FIB_ARG_RETURN)->as_nom<Continuation>();
 }
 
 enum {
@@ -194,7 +190,7 @@ enum {
     SPAWN_NUM_ARGS
 };
 
-Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+llvm::Value* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
@@ -213,7 +209,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world().tuple_type(continuation->arg_fn_type()->ops().skip_front(SPAWN_NUM_ARGS)));
+    auto closure_type = convert(world().tuple_type(continuation->body()->callee()->type()->as<FnType>()->types().skip_front(SPAWN_NUM_ARGS)));
     llvm::Value* closure = nullptr;
     if (closure_type->isStructTy()) {
         closure = llvm::UndefValue::get(closure_type);
@@ -229,7 +225,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
 
     // create wrapper function and call the runtime
     // wrapper(void* closure)
-    llvm::Type* wrapper_arg_types[] = { irbuilder.getInt8PtrTy(0) };
+    llvm::Type* wrapper_arg_types[] = { irbuilder.getPtrTy() };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_spawn_thread";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft).getCallee()->stripPointerCasts();
@@ -262,10 +258,7 @@ Continuation* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* co
     // restore old insert point
     irbuilder.SetInsertPoint(old_bb);
 
-    // bind parameter of continuation to received handle
-    auto cont = body->arg(SPAWN_ARG_RETURN)->as_nom<Continuation>();
-    emit_phi_arg(irbuilder, cont->param(1), call);
-    return cont;
+    return call;
 }
 
 enum {
@@ -275,7 +268,7 @@ enum {
     SYNC_NUM_ARGS
 };
 
-Continuation* CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+void CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     assert(body->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
@@ -285,7 +278,6 @@ Continuation* CodeGen::emit_sync(llvm::IRBuilder<>& irbuilder, Continuation* con
 
     auto id = emit(body->arg(SYNC_ARG_ID));
     runtime_->sync_thread(*this, irbuilder, id);
-    return body->arg(SYNC_ARG_RETURN)->as_nom<Continuation>();
 }
 
 }

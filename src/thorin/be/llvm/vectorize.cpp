@@ -29,7 +29,6 @@
 #include <rv/vectorizationInfo.h>
 #include <rv/resolver/resolvers.h>
 #include <rv/passes/loopExitCanonicalizer.h>
-#include <rv/passes.h>
 #include <rv/region/FunctionRegion.h>
 
 #include "thorin/primop.h"
@@ -48,7 +47,7 @@ struct VectorizeArgs {
     };
 };
 
-Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
+void CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continuation* continuation) {
     assert(continuation->has_body());
     auto body = continuation->body();
     auto target = body->callee()->as_nom<Continuation>();
@@ -93,8 +92,6 @@ Continuation* CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder,
         world().edef(body->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = body->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, emit_fun_decl(kernel), simd_kernel_call);
-
-    return body->arg(VectorizeArgs::Return)->as_nom<Continuation>();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
@@ -166,20 +163,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     if (vector_length == 1) {
-        llvm::ValueToValueMapTy argMap;
-        auto itCalleeArgs = simd_kernel_func->args().begin();
-        auto itSourceArgs = kernel_func->args().begin();
-        auto endSourceArgs = kernel_func->args().end();
-
-        for (; itSourceArgs != endSourceArgs; ++itCalleeArgs, ++itSourceArgs) {
-            argMap[&*itSourceArgs] = &*itCalleeArgs;
-        }
-
-        llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, llvm::CloneFunctionChangeType::LocalChangesOnly, retVec);
-
-        // lower mask intrinsics for scalar code (vector_length == 1)
-        rv::lowerIntrinsics(*simd_kernel_func);
+        rv::cloneFunctionAndLowerIntrinsics(*kernel_func, *simd_kernel_func);
     } else {
         rv::Config config = rv::Config::createForFunction(*kernel_func);
         config.enableIRPolish = config.useAVX2;
@@ -217,8 +201,6 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
         bool vectorize_ok = vectorizer.vectorize(vec_info, FAM, nullptr);
         assert_unused(vectorize_ok);
-
-        vectorizer.finalize();
     }
 
     // inline kernel

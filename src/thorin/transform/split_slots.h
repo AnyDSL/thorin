@@ -8,7 +8,7 @@ class World;
 /**
  * Tries to split @p Slot%s that are accessed through constant @p LEA%s.
  */
-void split_slots(World&);
+void split_slots(Thorin&);
 
 }
 

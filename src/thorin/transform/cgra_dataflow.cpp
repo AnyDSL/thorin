@@ -37,9 +37,9 @@ PortIndices external_ports_index(const Def2Def global2param, Def2Def param2arg, 
     size_t i = 0;
     for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
         auto old_common_global = it->first; //def type
-        if (importer.def_old2new_.contains(old_common_global)) {
+        if (importer.lookup(old_common_global)) {
             for (const auto& [global, param] : global2param) {
-                if (global == importer.def_old2new_[old_common_global]) {
+                if (global == importer.lookup(old_common_global)) {
                     // this param2arg is after replacing global args with hls_top params that connect to cgra
                     // basically we can name it kernelparam2hls_top_cgra_param
                     auto top_param = param2arg[param];
@@ -166,10 +166,12 @@ void annotate_cgra_graph_modes(Continuation* continuation, const Ports& hls_cgra
 
 CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2DependentBlocks& def2dependent_blocks) {
 
-    auto& world = importer.world();
+    auto& world = importer.dst();
 
     for (auto [_, cont] : old_world.externals()) {
-        Scope scope(cont);
+        if (!cont->isa<Continuation>())
+            continue;
+        Scope scope(cont->as<Continuation>());
         for (auto& block : schedule(scope)) {
             if (!block->has_body())
                 continue;
@@ -196,91 +198,90 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
     std::vector<Continuation*> new_kernels;
     Def2Def param2arg; // contains map from new kernel channel-parameters to channels (globals)
     ContName2ParamModes kernel_name2chan_param_modes; // contains map from new kernel to its channel parameter modes
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
         Def2Mode def2mode; // channels and their R/W modes
         extract_kernel_channels(schedule(scope), def2mode);
-
-
 
         auto old_kernel = scope.entry();
         //old_kernel->set_interface();
         // for each kernel new_param_types contains both the type of kernel parameters and the channels used inside that kernel
         Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
-            std::copy(old_kernel->type()->ops().begin(),
-                    old_kernel->type()->ops().end(),
-                    new_param_types.begin());
+        for (int i = 0; i < old_kernel->type()->num_ops(); i++) {
+            new_param_types[i] = old_kernel->type()->op(i)->as<Type>();
+        }
 
-            size_t channel_index = old_kernel->num_params();
+        size_t channel_index = old_kernel->num_params();
 
-            // The position of the channel parameters in new kernels and their corresponding channel defintion
-            Array<ParamMode> modes(def2mode.size());
-            size_t i = 0;
-            std::vector<std::pair<size_t, const Def*>> channel_param_index2def;
-            for (auto [channel, mode]: def2mode) {
-                modes[i++] = mode;
-                channel_param_index2def.emplace_back(channel_index, channel);
-                new_param_types[channel_index++] = channel->type();
+        // The position of the channel parameters in new kernels and their corresponding channel defintion
+        Array<ParamMode> modes(def2mode.size());
+        size_t i = 0;
+        std::vector<std::pair<size_t, const Def*>> channel_param_index2def;
+        for (auto [channel, mode]: def2mode) {
+            modes[i++] = mode;
+            channel_param_index2def.emplace_back(channel_index, channel);
+            new_param_types[channel_index++] = channel->type();
+        }
+
+        // new kernels signature
+        // fn(mem, ret_cnt, ... , /channels/ )
+        //auto new_kernel = world.continuation(world.fn_type(new_param_types), Interface::Stream, old_kernel->debug());
+        auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
+        world.make_external(new_kernel);
+        new_kernel->attributes().cc = CC::C;
+        new_kernel->set_filter(new_kernel->all_false_filter());
+        //new_kernel->set_interface();
+
+        //kernel_new2old.emplace(new_kernel, old_kernel);
+
+        // Kernels without any channels are scheduled in the begening
+        if (is_single_kernel(new_kernel))
+            new_kernels.emplace(new_kernels.begin(),new_kernel);
+        else
+            new_kernels.emplace_back(new_kernel);
+
+        world.make_internal(old_kernel);
+
+        Rewriter rewriter(world, world);
+
+        // rewriting channel parameters
+        for (auto [channel_param_index, channel] : channel_param_index2def) {
+            auto channel_param = new_kernel->param(channel_param_index);
+            rewriter.insert(channel, channel_param);
+            param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
+        }
+
+        // rewriting basicblocks and their parameters
+        for (auto def : scope.defs()) {
+            if (auto cont = def->isa_nom<Continuation>()) {
+                // Copy the basic block by calling stub
+                // Or reuse the newly created kernel copy if def is the old kernel
+                auto new_cont = def == old_kernel ? new_kernel : cont->stub(rewriter, cont->type());
+                //new_cont->set_interface();
+                rewriter.insert(cont, new_cont);
+                for (size_t i = 0; i < cont->num_params(); ++i)
+                    rewriter.insert(cont->param(i), new_cont->param(i));
             }
+        }
 
-            // new kernels signature
-            // fn(mem, ret_cnt, ... , /channels/ )
-            //auto new_kernel = world.continuation(world.fn_type(new_param_types), Interface::Stream, old_kernel->debug());
-            auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
-            world.make_external(new_kernel);
-            //new_kernel->set_interface();
+        // Rewriting the basic blocks of the kernel using the map
+        // The rewrite eventually maps the parameters of the old kernel to the first N parameters of the new one
+        // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
+        for (auto def : scope.defs()) {
+            if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
+                if (!cont->has_body()) continue;
+                auto body = cont->body();
+                auto new_callee = rewriter.instantiate(body->callee());
 
+                Array<const Def*> new_args(body->num_args());
+                for ( size_t i = 0; i < body->num_args(); ++i)
+                    new_args[i] = rewriter.instantiate(body->arg(i));
 
-            //kernel_new2old.emplace(new_kernel, old_kernel);
-
-            // Kernels without any channels are scheduled in the begening
-            if (is_single_kernel(new_kernel))
-                new_kernels.emplace(new_kernels.begin(),new_kernel);
-            else
-                new_kernels.emplace_back(new_kernel);
-
-            world.make_internal(old_kernel);
-
-            Rewriter rewriter;
-
-          // rewriting channel parameters
-            for (auto [channel_param_index, channel] : channel_param_index2def) {
-                auto channel_param = new_kernel->param(channel_param_index);
-                rewriter.old2new[channel] = channel_param;
-                param2arg[channel_param] = channel; // (channel as kernel param, channel as global)
+                auto new_cont = rewriter.lookup(cont)->isa_nom<Continuation>();
+                //new_cont->set_interface();
+                new_cont->jump(new_callee, new_args, cont->debug());
+                //new_cont->set_interface();
             }
-
-          // rewriting basicblocks and their parameters
-            for (auto def : scope.defs()) {
-                if (auto cont = def->isa_nom<Continuation>()) {
-                    // Copy the basic block by calling stub
-                    // Or reuse the newly created kernel copy if def is the old kernel
-                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
-                    //new_cont->set_interface();
-                    rewriter.old2new[cont] = new_cont;
-                    for (size_t i = 0; i < cont->num_params(); ++i)
-                        rewriter.old2new[cont->param(i)] = new_cont->param(i);
-                }
-            }
-
-            // Rewriting the basic blocks of the kernel using the map
-            // The rewrite eventually maps the parameters of the old kernel to the first N parameters of the new one
-            // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
-            for (auto def : scope.defs()) {
-                if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
-                    if (!cont->has_body()) continue;
-                    auto body = cont->body();
-                    auto new_callee = rewriter.instantiate(body->callee());
-
-                    Array<const Def*> new_args(body->num_args());
-                    for ( size_t i = 0; i < body->num_args(); ++i)
-                        new_args[i] = rewriter.instantiate(body->arg(i));
-
-                    auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
-                    //new_cont->set_interface();
-                    new_cont->jump(new_callee, new_args, cont->debug());
-                    //new_cont->set_interface();
-                }
-            }
+        }
 
     kernel_name2chan_param_modes.emplace_back(new_kernel->name(), modes);
 
@@ -309,7 +310,7 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
                                 std::cout << "OLD ASS STREAM2" << std::endl;
                             }
                             if (auto okernel = body->arg(5)->as<Global>()->init()) {
-                                auto nkernel = importer.def_old2new_[okernel];
+                                auto nkernel = importer.lookup(okernel);
                                 auto nkernel_cont = nkernel->as_nom<Continuation>();
                                 //nkernel_cont->attributes().interface = callee->interface();
                                 //TODO: IT WORKS here!
@@ -540,7 +541,7 @@ CgraDeviceDefs cgra_dataflow(Importer& importer, World& old_world, Def2Dependent
         }
     }
 
-    world.cleanup();
+    //world.cleanup();
 
    // for (auto def : world.defs()) {
    //     if (auto cont = def->isa_nom<Continuation>()) {

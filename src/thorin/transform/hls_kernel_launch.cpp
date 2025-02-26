@@ -4,6 +4,7 @@
 #include "thorin/continuation.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/codegen.h"
+#include "thorin/be/runtime.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {
@@ -54,11 +55,11 @@ static Continuation* make_opencl_intrinsic(World& world, const Continuation* con
                 // Basicaly on host side we assume that the top channel type is a struct with a single bool field which will is set to true.
                 if (is_channel_type(param->type())) {
                     auto struct_type = world.struct_type("channel", 1);
-                    struct_type->set(0, world.type_bool());
+                    struct_type->set_op(0, world.type_bool());
                     return struct_type->as<Type>();
                 }
 
-                return param->type();
+                return const_cast<thorin::Type*>(param->type());
             });
 
     auto opencl_type = world.fn_type(opencl_param_types);
@@ -117,12 +118,12 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config
     bool last_hls_found = false;
     Continuation* opencl = nullptr;
 
-    const size_t base_opencl_param_num = LaunchArgs<FPGA_CL>::Num;
+    const size_t base_opencl_param_num = KernelLaunchArgs<FPGA_CL>::Num;
     Array<const Def*> opencl_args(base_opencl_param_num + top_concrete_params.size());
 
     // TODO: perf opt, we only need to access the main scope
     // Maybe using world.externals() would be better
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
 
         Schedule scheduled = schedule(scope);
         for (auto& block : scheduled) {
@@ -134,7 +135,7 @@ void hls_kernel_launch(World& world, HlsDeviceParams& device_params, Cont2Config
             if (auto hls_callee = has_hls_callee(block)) {
                 auto cont_mem_obj = block->mem_param();
                 auto callee_continuation = hls_callee->isa_nom<Continuation>();
-                Continuation* last_hls_cont;
+                Continuation* last_hls_cont = nullptr;
                 if (!last_hls_found) {
                     // TODO I'm at a loss for what is intended here. This is an assignment - not a check, the net result
                     // is the _only the first_ block with an HLS callee will enter this, which means the first block in the schedule

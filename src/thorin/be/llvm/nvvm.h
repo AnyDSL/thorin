@@ -13,7 +13,7 @@ namespace llvm = ::llvm;
 
 class NVVMCodeGen : public CodeGen {
 public:
-    NVVMCodeGen(World& world, const Cont2Config&, bool debug); // NVVM-specific optimizations are run in the runtime
+    NVVMCodeGen(Thorin&, const Cont2Config&, int opt, bool debug); // NVVM-specific optimizations are run in the runtime
 
     const char* file_ext() const override { return ".nvvm"; }
 
@@ -28,7 +28,7 @@ protected:
     llvm::Value* emit_lea(llvm::IRBuilder<>&,    const LEA*) override;
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
 
-    Continuation* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
+    llvm::Value* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;
 
     llvm::Value* emit_global(const Global*) override;
 

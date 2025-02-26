@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/continuation.h"
+#include "thorin/transform/rewrite.h"
 
 #include "thorin/config.h"
 #include "thorin/type.h"
@@ -15,16 +16,16 @@ namespace thorin {
  */
 
 PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
-    : Literal((NodeTag) tag, world.prim_type(tag), dbg)
+    : Literal(world, (NodeTag) tag, world.prim_type(tag), dbg)
     , box_(box)
 {}
 
-Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp((NodeTag) tag, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+Cmp::Cmp(CmpTag tag, World& world, const Def* lhs, const Def* rhs, Debug dbg)
+    : BinOp(world, (NodeTag) tag, world.type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)
-    : Aggregate(Node_DefiniteArray, args, dbg)
+    : Aggregate(world, Node_DefiniteArray, args, dbg)
 {
     set_type(world.definite_array_type(elem, args.size()));
 #if THORIN_ENABLE_CHECKS
@@ -34,13 +35,13 @@ DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug db
 }
 
 IndefiniteArray::IndefiniteArray(World& world, const Type* elem, const Def* dim, Debug dbg)
-    : Aggregate(Node_IndefiniteArray, {dim}, dbg)
+    : Aggregate(world, Node_IndefiniteArray, {dim}, dbg)
 {
     set_type(world.indefinite_array_type(elem));
 }
 
 Tuple::Tuple(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Tuple, args, dbg)
+    : Aggregate(world, Node_Tuple, args, dbg)
 {
     Array<const Type*> elems(num_ops());
     for (size_t i = 0, e = num_ops(); i != e; ++i)
@@ -50,7 +51,7 @@ Tuple::Tuple(World& world, Defs args, Debug dbg)
 }
 
 Vector::Vector(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Vector, args, dbg)
+    : Aggregate(world, Node_Vector, args, dbg)
 {
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
@@ -62,73 +63,69 @@ Vector::Vector(World& world, Defs args, Debug dbg)
     }
 }
 
-LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
-    : Def(Node_LEA, nullptr, {ptr, index}, dbg)
+LEA::LEA(World& world, const Def* ptr, const Def* index, Debug dbg)
+    : Def(world, Node_LEA, nullptr, {ptr, index}, dbg)
 {
-    auto& world = index->world();
     auto type = ptr_type();
     if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(tuple->types(), index), type->length(), type->addr_space()));
     } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(array->elem_type(), type->length(), type->addr_space()));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->ops(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(struct_type->types(), index), type->length(), type->addr_space()));
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
         assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(world.prim_type(prim_type->primtype_tag()), type->length(), type->addr_space()));
     } else {
         THORIN_UNREACHABLE;
     }
 }
 
-Known::Known(const Def* def, Debug dbg)
-    : Def(Node_Known, def->world().type_bool(), {def}, dbg)
+Known::Known(World& world, const Def* def, Debug dbg)
+    : Def(world, Node_Known, world.type_bool(), {def}, dbg)
 {}
 
-AlignOf::AlignOf(const Def* def, Debug dbg)
-    : Def(Node_AlignOf, def->world().type_qs64(), {def}, dbg)
+AlignOf::AlignOf(World& world, const Def* def, Debug dbg)
+    : Def(world, Node_AlignOf, world.type_qs64(), {def}, dbg)
 {}
 
-SizeOf::SizeOf(const Def* def, Debug dbg)
-    : Def(Node_SizeOf, def->world().type_qs64(), {def}, dbg)
+SizeOf::SizeOf(World& world, const Def* def, Debug dbg)
+    : Def(world, Node_SizeOf, world.type_qs64(), {def}, dbg)
 {}
 
-Slot::Slot(const Type* type, const Def* frame, Debug dbg)
-    : Def(Node_Slot, type->table().ptr_type(type), {frame}, dbg)
+Slot::Slot(World& world, const Type* type, const Def* frame, Debug dbg)
+    : Def(world, Node_Slot, world.ptr_type(type), {frame}, dbg)
 {
     assert(frame->type()->isa<FrameType>());
 }
 
-Global::Global(const Def* init, bool is_mutable, Debug dbg)
-    : Def(Node_Global, init->type()->table().ptr_type(init->type()), {init}, dbg)
+Global::Global(World& world, const Def* init, bool is_mutable, Debug dbg)
+    : Def(world, Node_Global, world.ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
     assert(!init->has_dep(Dep::Param));
 }
 
-Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg)
-    : MemOp(Node_Alloc, nullptr, {mem, extra}, dbg)
+Alloc::Alloc(World& world, const Type* type, const Def* mem, const Def* extra, Debug dbg)
+    : MemOp(world, Node_Alloc, nullptr, {mem, extra}, dbg)
 {
-    World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), w.ptr_type(type)}));
+    set_type(world.tuple_type({world.mem_type(), world.ptr_type(type)}));
 }
 
-Load::Load(const Def* mem, const Def* ptr, Debug dbg)
-    : Access(Node_Load, nullptr, {mem, ptr}, dbg)
+Load::Load(World& world, const Def* mem, const Def* ptr, Debug dbg)
+    : Access(world, Node_Load, nullptr, {mem, ptr}, dbg)
 {
-    World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
+    set_type(world.tuple_type({world.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
 }
 
-Enter::Enter(const Def* mem, Debug dbg)
-    : MemOp(Node_Enter, nullptr, {mem}, dbg)
+Enter::Enter(World& world, const Def* mem, Debug dbg)
+    : MemOp(world, Node_Enter, nullptr, {mem}, dbg)
 {
-    World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
+    set_type(world.tuple_type({world.mem_type(), world.frame_type()}));
 }
 
-Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
-    : MemOp(Node_Assembly, type, inputs, dbg)
+Assembly::Assembly(World& world, const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
+    : MemOp(world, Node_Assembly, type, inputs, dbg)
     , asm_template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
@@ -191,7 +188,7 @@ bool Slot::equal(const Def* other) const { return this == other; }
  * rebuild
  */
 
-const Def* App           ::rebuild(World& w, const Type*  , Defs o) const { return w.app(o[0], o.skip_front(), debug()); }
+const Def* App           ::rebuild(World& w, const Type*  , Defs o) const { return w.app(o[App::Ops::Callee], o.skip_front(App::Ops::FirstArg), debug()); }
 const Def* ArithOp       ::rebuild(World& w, const Type*  , Defs o) const { return w.arithop(arithop_tag(), o[0], o[1], debug()); }
 const Def* Bitcast       ::rebuild(World& w, const Type* t, Defs o) const { return w.bitcast(t, o[0], debug()); }
 const Def* Bottom        ::rebuild(World& w, const Type* t, Defs  ) const { return w.bottom(t, debug()); }
@@ -250,32 +247,13 @@ const Def* IndefiniteArray::rebuild(World& w, const Type* t, Defs o) const {
 
 const char* Def::op_name() const {
     switch (tag()) {
+#define THORIN_GLUE(pre, next)
 #define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
-#include "thorin/tables/nodetable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* ArithOp::op_name() const {
-    switch (tag()) {
+#define THORIN_PRIMTYPE(T) case Node_PrimType_##T: return #T;
 #define THORIN_ARITHOP(op) case ArithOp_##op: return #op;
-#include "thorin/tables/arithoptable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* Cmp::op_name() const {
-    switch (tag()) {
 #define THORIN_CMP(op) case Cmp_##op: return #op;
-#include "thorin/tables/cmptable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* MathOp::op_name() const {
-    switch (tag()) {
 #define THORIN_MATHOP(op) case MathOp_##op: return #op;
-#include "thorin/tables/mathoptable.h"
+#include "thorin/tables/allnodes.h"
         default: THORIN_UNREACHABLE;
     }
 }
@@ -287,6 +265,8 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
 /*
  * misc
  */
+
+bool Global::is_external() const { return world().is_external(this); }
 
 std::string DefiniteArray::as_string() const {
     std::string res;
@@ -305,13 +285,13 @@ const Def* Def::out(size_t i) const {
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type()->isa<TupleType>())
-        return get(tuple->ops(), index);
+        return get(tuple->types(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
-        return get(struct_type->ops(), index);
+        return get(struct_type->types(), index);
 
     THORIN_UNREACHABLE;
 }
@@ -331,6 +311,10 @@ const Type* Closure::environment_type(World& world) {
 
 const PtrType* Closure::environment_ptr_type(World& world) {
     return world.ptr_type(world.type_pu8());
+}
+
+Continuation* Closure::fn() const {
+    return op(0)->as_nom<Continuation>();
 }
 
 //------------------------------------------------------------------------------

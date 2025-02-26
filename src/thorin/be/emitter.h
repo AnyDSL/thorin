@@ -1,6 +1,9 @@
 #ifndef THORIN_BE_EMITTER_H
 #define THORIN_BE_EMITTER_H
 
+#include<stack>
+#include<queue>
+
 namespace thorin {
 
 template<class Value, class Type, class BB, class Child>
@@ -11,9 +14,41 @@ private:
 
     /// Internal wrapper for @p emit that checks and retrieves/puts the @c Value from @p defs_.
     Value emit_(const Def* def) {
-        auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
-        auto& bb = cont2bb_[place];
-        return child().emit_bb(bb, def);
+        std::stack<const Def*> required_defs;
+        std::queue<const Def*> todo;
+        todo.push(def);
+
+        while (!todo.empty()) {
+            auto def = todo.front();
+            todo.pop();
+            if (defs_.lookup(def)) continue;
+
+            if (auto memop = def->isa<MemOp>()) {
+                todo.push(memop->mem());
+                required_defs.push(memop->mem());
+            } else if (auto extract = def->isa<Extract>()) {
+                if (is_mem(extract)) {
+                    todo.push(extract->agg());
+                    required_defs.push(extract->agg());
+                }
+            }
+        }
+
+        while (!required_defs.empty()) {
+            auto r = required_defs.top();
+            required_defs.pop();
+            emit_unsafe(r);
+        }
+
+        //auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
+        auto place = !scheduler_.scope().contains(def) ? entry_ : scheduler_.smart(def);
+
+        if (place) {
+            auto& bb = cont2bb_[place];
+            return child().emit_bb(bb, def);
+        } else {
+            return child().emit_constant(def);
+        }
     }
 
 protected:
@@ -39,22 +74,23 @@ protected:
         return defs_[def] = val;
     }
 
-    void emit_scope(const Scope& scope) {
+    void emit_scope(const Scope& scope, ScopesForest& forest) {
+        scope_ = &scope;
         auto conts = schedule(scope);
         entry_ = scope.entry();
-        assert(entry_->is_returning());
+        //assert(entry_->is_returning());
 
         auto fct = child().prepare(scope);
         for (auto cont : conts) {
             if (cont->intrinsic() != Intrinsic::EndScope) child().prepare(cont, fct);
         }
 
-        Scheduler new_scheduler(scope);
+        Scheduler new_scheduler(scope, forest);
         swap(scheduler_, new_scheduler);
 
         for (auto cont : conts) {
             if (cont->intrinsic() == Intrinsic::EndScope) continue;
-            assert(cont == entry_ || cont->is_basicblock());
+            //assert(cont == entry_ || cont->is_basicblock());
             child().emit_epilogue(cont);
         }
 
@@ -62,13 +98,15 @@ protected:
             if (cont->intrinsic() != Intrinsic::EndScope) child().finalize(cont);
         }
         child().finalize(scope);
+        scope_ = nullptr;
     }
 
     Scheduler scheduler_;
     DefMap<Value> defs_;
-    TypeMap<Type> types_;
+    DefMap<Type> types_;
     ContinuationMap<BB> cont2bb_;
     Continuation* entry_ = nullptr;
+    const Scope* scope_ = nullptr;
 };
 
 }

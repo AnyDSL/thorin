@@ -12,6 +12,7 @@
 namespace thorin {
 
 class Continuation;
+class Rewriter;
 class Scope;
 
 typedef std::vector<Continuation*> Continuations;
@@ -24,12 +25,15 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    Param(World&, const Type* type, const Continuation* continuation, size_t index, Debug dbg);
 
 public:
     Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
     size_t index() const { return index_; }
 
+    const Def* rebuild(World&, const Type*, Defs) const override;
+    bool equal(const Def*) const override;
+    hash_t vhash() const override;
 private:
     const size_t index_;
 
@@ -53,13 +57,18 @@ public:
 
 class App : public Def {
 private:
-    App(const Defs ops, Debug dbg);
+    App(World&, const Defs ops, Debug dbg);
 
 public:
-    const Def* callee() const { return op(0); }
-    const Def* arg(size_t i) const { return op(1 + i); }
-    size_t num_args() const { return num_ops() - 1; }
-    const Defs args() const { return ops().skip_front(); }
+    enum Ops {
+        Callee = 0,
+        FirstArg = 1,
+    };
+
+    const Def* callee() const { return op(Ops::Callee); }
+    const Def* arg(size_t i) const { return op(Ops::FirstArg + i); }
+    size_t num_args() const { return num_ops() - Ops::FirstArg; }
+    const Defs args() const { return ops().skip_front(Ops::FirstArg); }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {
@@ -72,7 +81,7 @@ public:
     }
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void verify() const;
+    bool verify() const;
 
     friend class World;
 };
@@ -80,8 +89,9 @@ public:
 //------------------------------------------------------------------------------
 
 enum class CC : uint8_t {
-    C,          ///< C calling convention.
-    Device,     ///< Device calling convention. These are special functions only available on a particular device.
+    Thorin,         ///< Standard calling convention for everything that solely lives inside thorin.
+    C,              ///< C calling convention.
+    Device,         ///< Device calling convention. These are special functions only available on a particular device.
 };
 
 
@@ -98,13 +108,19 @@ enum class Interface : uint8_t {
 enum class Intrinsic : uint8_t {
     None,
     AcceleratorBegin,
-    CUDA = AcceleratorBegin,    ///< Internal CUDA-Backend.
+    OffloadBegin = AcceleratorBegin,
+    CUDA = OffloadBegin,    ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
-    AMDGPU,                     ///< Internal AMDGPU-Backend.
+    OpenCL_SPIRV,               ///< Internal OpenCL-Backend.
+    LevelZero_SPIRV,            ///< Internal SPIRV for Level0-Backend.
+    AMDGPUHSA,                  ///< Internal AMDGPU-HSA-Backend.
+    AMDGPUPAL,                  ///< Internal AMDGPU-PAL-Backend.
+    ShadyCompute,               ///< Internal Shady Compute Backend.
     CGRA,                       ///< Internal CGRA-Backend.
     HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
+    OffloadEnd = Parallel,
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
@@ -120,8 +136,8 @@ enum class Intrinsic : uint8_t {
     Undef,                      ///< Intrinsic undef function
     PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
     Pipeline,                   ///< Intrinsic loop-pipelining-HLS-Backend
-    Branch,                     ///< branch(cond, T, F).
-    Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
+    Branch,                     ///< branch(mem, cond, T, F).
+    Match,                      ///< match(mem, val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope                    ///< Dummy function which marks the end of a @p Scope.
 };
@@ -138,18 +154,17 @@ public:
         Intrinsic intrinsic = Intrinsic::None;
         Interface interface = Interface::None;
         size_t buf_size = 0;
-        CC cc = CC::C;
+        CC cc = CC::Thorin;
 
 
         Attributes(Intrinsic intrinsic) : intrinsic(intrinsic) {}
         Attributes(Interface interface) : interface(interface) {}
-        Attributes(size_t buf_size)   : buf_size(buf_size) {}
-        Attributes(CC cc = CC::C) : cc(cc) {}
-};
-
+        Attributes(size_t buf_size)     : buf_size(buf_size) {}
+        Attributes(CC cc = CC::Thorin)  : cc(cc) {}
+    };
 
 private:
-    Continuation(const FnType* fn, const Attributes& attributes, Debug dbg);
+    Continuation(World&, const FnType* pi, const Attributes& attributes, Debug dbg);
     virtual ~Continuation() { for (auto param : params()) delete param; }
     //Interface interface_ = Interface::None;
     //Interface interface_;
@@ -157,7 +172,8 @@ private:
 public:
     const FnType* type() const { return Def::type()->as<FnType>(); }
 
-    Continuation* stub() const;
+    Continuation* stub(Rewriter&, const Type*) const override;
+    void rebuild_from(Rewriter&, const Def* old) override;
     const Param* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;
@@ -167,9 +183,6 @@ public:
     const Param* mem_param() const;
     const Param* ret_param() const;
     size_t num_params() const { return params().size(); }
-
-    // TODO only used in parallel.cpp to create a dummy value, should be refactored in something cleaner
-    const FnType* arg_fn_type() const;
 
     Attributes& attributes() { return attributes_; }
     const Attributes& attributes() const { return attributes_; }
@@ -203,6 +216,7 @@ public:
     bool is_cgra_graph()  const { return name().find("cgra_graph") != std::string::npos; }
     bool is_mmul()        const { return name().find("mmul")       != std::string::npos; }
     bool is_accelerator() const;
+    bool is_offload_intrinsic() const;
 
     bool starts_with (const std::string& prefix) const {
         return name().size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), name().begin());
@@ -222,9 +236,9 @@ public:
     void destroy(const char*);
 
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    void verify() const;
+    void branch(const Def* mem, const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void match(const Def* mem, const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
+    bool verify() const;
 
     const Filter* filter() const { return op(1)->as<Filter>(); }
     void set_filter(const Filter* f) {
@@ -233,6 +247,7 @@ public:
     }
     void destroy_filter();
     const Filter* all_true_filter() const;
+    const Filter* all_false_filter() const;
 
     /// Counts how many time that continuation is truly used, excluding its own Params and counting reused Apps multiple times
     /// We need to count re-used apps multiple times because this function is used to make inlining decisions.
@@ -246,6 +261,18 @@ public:
 
             if (potentially_called >= 2)
                 return false;
+        }
+        return true;
+    }
+    bool never_called() const {
+        for (auto use : uses()) {
+            if (auto app = use->isa<App>()) {
+                if (app->num_uses() != 0) {
+                    return false;
+                }
+            } else if (!use->isa<Param>()) {
+                return false;
+            }
         }
         return true;
     }

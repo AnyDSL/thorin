@@ -8,7 +8,7 @@ namespace thorin {
 
 class CodeGen {
 protected:
-    CodeGen(World& world, bool debug);
+    CodeGen(Thorin& thorin, bool debug);
 public:
     virtual ~CodeGen() {}
 
@@ -17,67 +17,62 @@ public:
 
     /// @name getters
     //@{
-    World& world() const { return world_; }
+    Thorin& thorin() const { return thorin_; }
+    World& world() const { return thorin().world(); }
     bool debug() const { return debug_; }
     //@}
 
 private:
-    World& world_;
+    Thorin& thorin_;
     bool debug_;
 };
 
-enum Device_code {GPU, FPGA_HLS, FPGA_CL, AIE_CGRA};
-template<Device_code T>
-struct LaunchArgs {};
-template <>
-struct LaunchArgs<GPU> {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
+struct DeviceBackends;
 
+struct Backend {
+    Backend(DeviceBackends& backends, World& src);
+    virtual ~Backend() = default;
+
+    virtual std::unique_ptr<CodeGen> create_cg() = 0;
+
+    Thorin& thorin() { return device_code_; }
+    Importer& importer() { return *importer_; }
+
+protected:
+    DeviceBackends& backends_;
+    Thorin device_code_;
+    std::unique_ptr<Importer> importer_;
+
+    std::vector<Continuation*> kernels_;
+    Cont2Config kernel_configs_;
+
+    void prepare_kernel_configs();
+    friend DeviceBackends;
 };
-
-template<>
-struct LaunchArgs<FPGA_CL> : LaunchArgs<GPU> {};
-
-template<>
-struct LaunchArgs<AIE_CGRA> {
-    enum {
-        Mem = 0,
-        Device,
-        Runtime_ratio,
-        Location,
-        Vector_size,
-        Body,
-        Return,
-        Num
-    };
-};
-
-//template<Device_code T>
-//LaunchArgs<T> launch_args(Device_code device_code) {
-//    if (device_code == GPU)
-//        return LaunchArgs<GPU>{};
-//    else if (device_code == AIE_CGRA)
-//        return LaunchArgs<AIE_CGRA>{};
-//}
 
 struct DeviceBackends {
     DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);
 
-    Cont2Config kernel_config;
-    std::vector<Continuation*> kernels;
+    World& world();
+    std::vector<std::unique_ptr<CodeGen>> cgs;
 
-    enum { CUDA, NVVM, OpenCL, AMDGPU, CGRA, HLS, BackendCount };
-    std::array<std::unique_ptr<CodeGen>, BackendCount> cgs;
+    int opt();
+    bool debug();
+
+    void register_backend(std::unique_ptr<Backend>);
+    using GetKernelConfigFn = std::function<std::unique_ptr<KernelConfig>(const App*, Continuation*)>;
+    void register_intrinsic(Intrinsic, Backend&, GetKernelConfigFn);
+
 private:
-    std::vector<Importer> importers_;
+    World& world_;
+    std::vector<std::unique_ptr<Backend>> backends_;
+    std::unordered_map<Intrinsic, std::pair<Backend*, GetKernelConfigFn>> intrinsics_;
+
+    int opt_;
+    bool debug_;
+
+    void search_for_device_code();
+friend Backend;
 };
 
 }

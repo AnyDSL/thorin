@@ -6,7 +6,6 @@
 #include <stack>
 
 #include "thorin/world.h"
-#include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
@@ -30,7 +29,7 @@ Stream& CFNode::stream(Stream& s) const { return s << continuation(); }
 CFA::CFA(const Scope& scope)
     : scope_(scope)
     , entry_(node(scope.entry()))
-    , exit_ (node(scope.exit() ))
+    , exit_ (node(scope.entry()->world().end_scope()))
 {
     std::queue<Continuation*> cfg_queue;
     ContinuationSet cfg_done;
@@ -194,7 +193,6 @@ template<bool forward> const CFNodes& CFG<forward>::preds(const CFNode* n) const
 template<bool forward> const CFNodes& CFG<forward>::succs(const CFNode* n) const { assert(n != nullptr); return forward ? n->succs() : n->preds(); }
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
-template<bool forward> const DomFrontierBase<forward>& CFG<forward>::domfrontier() const { return lazy_init(this, domfrontier_); }
 
 template class CFG<true>;
 template class CFG<false>;

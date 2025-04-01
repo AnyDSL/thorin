@@ -61,6 +61,7 @@ const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const 
 const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag(), length()); }
 const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), addr_space()); }
 const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
+const Type* ExternType         ::rebuild(World& w, const Type*  , Defs  ) const { return w.extern_type(name(), args()); }
 
 /*
  * stub

@@ -369,6 +369,11 @@ std::string CCodeGen::convert(const Type* type) {
             s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->types()[i]), struct_type->op_name(i)); });
             s.fmt("\b\n}} {};\n", name);
         }
+    } else if (auto extern_type = type->isa<ExternType>()) {
+        name = extern_type->name().str();
+        assert(extern_type->args().size() == 1 && "External type in C backend unsupported.");
+        auto first_arg = extern_type->args()[0];
+        s.fmt("typedef {} {};", first_arg, name);
     } else {
         THORIN_UNREACHABLE;
     }

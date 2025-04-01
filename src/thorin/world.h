@@ -116,6 +116,7 @@ public:
 #include "thorin/tables/primtypetable.h"
     const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
     const BottomType* bottom_type() { return make<BottomType>(*this, Debug()); }
+    const ExternType* extern_type(Symbol name, std::vector<std::string> args) { return make<ExternType>(*this, name, args, Debug()); }
     const MemType* mem_type() { return make<MemType>(*this, Debug()); }
     const FrameType* frame_type() { return make<FrameType>(*this, Debug()); }
     const PtrType* ptr_type(const Type* pointee, size_t length = 1, AddrSpace addr_space = AddrSpace::Generic);

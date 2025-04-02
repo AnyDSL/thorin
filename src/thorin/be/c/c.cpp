@@ -373,7 +373,7 @@ std::string CCodeGen::convert(const Type* type) {
         name = extern_type->name().str();
         assert(extern_type->args().size() == 1 && "External type in C backend unsupported.");
         auto first_arg = extern_type->args()[0];
-        s.fmt("typedef {} {};", first_arg, name);
+        s.fmt("typedef {} {};\n", first_arg, name);
     } else {
         THORIN_UNREACHABLE;
     }

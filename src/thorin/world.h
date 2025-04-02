@@ -110,13 +110,13 @@ public:
     const TupleType* unit_type() { return tuple_type({})->as<TupleType>(); } ///< Returns unit, i.e., an empty @p TupleType.
     VariantType* variant_type(Symbol name, size_t size);
     StructType* struct_type(Symbol name, size_t size);
+    ExternType* extern_type(Symbol name, std::vector<std::string> args);
 
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }
 #include "thorin/tables/primtypetable.h"
     const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
     const BottomType* bottom_type() { return make<BottomType>(*this, Debug()); }
-    const ExternType* extern_type(Symbol name, std::vector<std::string> args) { return make<ExternType>(*this, name, args, Debug()); }
     const MemType* mem_type() { return make<MemType>(*this, Debug()); }
     const FrameType* frame_type() { return make<FrameType>(*this, Debug()); }
     const PtrType* ptr_type(const Type* pointee, size_t length = 1, AddrSpace addr_space = AddrSpace::Generic);

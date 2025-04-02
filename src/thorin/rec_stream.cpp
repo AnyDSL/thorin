@@ -234,6 +234,9 @@ Stream& Type::stream(Stream& s) const {
 
         if (t->is_vector()) s.fmt(">");
         return s;
+    } else if (auto t = isa<ExternType>()) {
+        s.fmt("{}", t->name());
+        return s;
     }
     THORIN_UNREACHABLE;
 }

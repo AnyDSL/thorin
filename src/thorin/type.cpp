@@ -61,7 +61,6 @@ const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const 
 const Type* PrimType           ::rebuild(World& w, const Type*  , Defs  ) const { return w.prim_type(primtype_tag(), length()); }
 const Type* PtrType            ::rebuild(World& w, const Type*  , Defs o) const { return w.ptr_type(o[0]->as<Type>(), length(), addr_space()); }
 const Type* TupleType          ::rebuild(World& w, const Type*  , Defs o) const { return w.tuple_type(defs2types(o)); }
-const Type* ExternType         ::rebuild(World& w, const Type*  , Defs  ) const { return w.extern_type(name(), args()); }
 
 /*
  * stub
@@ -77,6 +76,10 @@ VariantType* VariantType::stub(Rewriter& rewriter, const Type*) const {
     auto type = rewriter.dst().variant_type(name(), num_ops());
     std::copy(op_names_.begin(), op_names_.end(), type->op_names().begin());
     return type;
+}
+
+ExternType* ExternType::stub(Rewriter& rewriter, const Type*) const {
+    return rewriter.dst().extern_type(name(), args());
 }
 
 //------------------------------------------------------------------------------
@@ -156,6 +159,10 @@ StructType* World::struct_type(Symbol name, size_t size) {
 
 VariantType* World::variant_type(Symbol name, size_t size) {
     return put<VariantType>(*this, name, size, Debug());
+}
+
+ExternType* World::extern_type(Symbol name, std::vector<std::string> args) {
+    return put<ExternType>(*this, name, args, Debug());
 }
 
 const PrimType* World::prim_type(PrimTypeTag tag, size_t length) {

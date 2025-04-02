@@ -133,6 +133,23 @@ public:
     friend class World;
 };
 
+class ExternType : public NominalType {
+private:
+    ExternType(World& world, Symbol name, std::vector<std::string> args, Debug dbg)
+        : NominalType(world, Node_ExternType, name, 0, dbg)
+        , args_(args)
+    {}
+
+    std::vector<std::string> args_;
+
+public:
+    virtual ExternType* stub(Rewriter&, const Type*) const override;
+
+    std::vector<std::string> args() const { return args_; }
+
+    friend class World;
+};
+
 /// The type of the memory monad.
 class MemType : public Type {
 private:
@@ -151,26 +168,6 @@ private:
     BottomType(World& world, Debug dbg)
         : Type(world, Node_BotType, Defs(), dbg)
     {}
-
-    const Type* rebuild(World&, const Type*, Defs) const override;
-
-    friend class World;
-};
-
-class ExternType : public Type {
-private:
-    ExternType(World& world, Symbol name, std::vector<std::string> args, Debug dbg)
-        : Type(world, Node_ExternType, Defs(), dbg)
-        , name_(name)
-        , args_(args)
-    {}
-
-    Symbol name_;
-    std::vector<std::string> args_;
-
-public:
-    Symbol name() const { return name_; }
-    std::vector<std::string> args() const { return args_; }
 
     const Type* rebuild(World&, const Type*, Defs) const override;
 

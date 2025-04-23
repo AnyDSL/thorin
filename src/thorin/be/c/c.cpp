@@ -146,6 +146,7 @@ private:
     std::string flags_;
     Stream& stream_;
     Stream graph_stream_;
+    DefMap<std::string> promoted_constants_;
 
     StringStream func_impls_;
     StringStream func_decls_;
@@ -1834,6 +1835,32 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 func_impls_<< "#if defined( __VITIS_HLS__ )\n   __attribute__((packed))\n  #endif\n";
             }
             bb.tail.fmt("p_{} = {}_reserved;\n", ret_cont->param(1)->unique_name(), cont->unique_name());
+            bb.tail.fmt("goto {};", label_name(ret_cont));
+        } else if (callee->intrinsic() == Intrinsic::PromoteStatic) {
+            emit_unsafe(body->arg(0));
+
+            auto constant = body->arg(1);
+            //TODO: check it's actually a constant
+            auto ret_cont = body->arg(2)->as_nom<Continuation>();
+            std::string name = ret_cont->param(1)->unique_name();
+            auto cached = promoted_constants_.lookup(constant);
+            if (cached) {
+                name = *cached;
+            } else {
+                auto elem_type = ret_cont->param(1)->type()->as<PtrType>()->pointee();
+
+                std::string prefix = "alignas(aie::vector_decl_align) ";
+                std::string suffix = "";
+            
+                vars_decls_.fmt("{}{} g_{} {}", prefix, convert(elem_type), name, suffix);
+                if (body->arg(1)->isa<Bottom>())
+                    vars_decls_.fmt("; // bottom\n");
+                else
+                    vars_decls_.fmt(" = {};\n", emit_constant(constant));
+                promoted_constants_[constant] = name;
+            }
+    
+            bb.tail.fmt("p_{} = g_{};\n", ret_cont->param(1)->unique_name(), name);
             bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS || lang_ == Lang::CGRA) && "pipelining not supported on this backend");

@@ -35,7 +35,8 @@ public:
     };
 
     // TODO write iterators
-    // TODO add size
+    // TODO add size, gcc 15 checks for it
+    size_t size() const { return capacity(); }
 
     IndexSet(const Indexer& indexer)
         : indexer_(indexer)

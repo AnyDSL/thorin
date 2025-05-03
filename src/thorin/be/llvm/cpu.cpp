@@ -1,15 +1,15 @@
 #include "thorin/be/llvm/cpu.h"
 
 #include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/Host.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 
 namespace thorin::llvm {
 
-CPUCodeGen::CPUCodeGen(World& world, int opt, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
+CPUCodeGen::CPUCodeGen(Thorin& thorin, int opt, bool debug, std::string& target_triple, std::string& target_cpu, std::string& target_attr)
+    : CodeGen(thorin, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, opt, debug)
 {
     llvm::InitializeNativeTarget();
     auto triple_str = llvm::sys::getDefaultTargetTriple();

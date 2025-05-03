@@ -1,100 +1,136 @@
 #include "thorin/transform/importer.h"
+#include "thorin/transform/mangle.h"
+#include "thorin/primop.h"
 
 namespace thorin {
 
-const Type* Importer::import(const Type* otype) {
-    if (auto ntype = type_old2new_.lookup(otype)) {
-        assert(&(*ntype)->table() == &world_);
-        return *ntype;
+const Def* Importer::rewrite(const Def* const odef) {
+    assert(&odef->world() == &src());
+    if (auto memop = odef->isa<MemOp>()) {
+        // Optimise out dead loads when importing
+        if (memop->isa<Load>() || memop->isa<Enter>()) {
+            if (memop->out(1)->num_uses() == 0) {
+                auto imported_mem = import(memop->mem());
+                auto imported_ty = import(memop->out(1)->type())->as<Type>();
+                todo_ = true;
+                return(dst().tuple({ imported_mem, dst().bottom(imported_ty) }));
+            }
+        }
+    } else if (auto app = odef->isa<App>()) {
+        // eat calls to known continuations that are only used once
+        if (auto callee = app->callee()->isa_nom<Continuation>()) {
+            if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
+                todo_ = true;
+                src().VLOG("simplify: inlining continuation {} because it is called exactly once", callee);
+                for (size_t i = 0; i < callee->num_params(); i++)
+                    insert(callee->param(i), import(app->arg(i)));
+
+                return instantiate(callee->body());
+            }
+        }
+    } else if (auto closure = odef->isa<Closure>()) {
+        bool only_called = true;
+        for (auto use : closure->uses()) {
+            if (use.def()->isa<App>() && use.index() == 0)
+                continue;
+            only_called = false;
+            break;
+        }
+        if (only_called) {
+            bool self_param_ok = true;
+            for (auto use: closure->fn()->params().back()->uses()) {
+                // the closure argument can be used, but only to extract the environment!
+                if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
+                    continue;
+                self_param_ok = false;
+                break;
+            }
+            if (self_param_ok) {
+                src().VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
+                Array<const Def*> args(closure->fn()->num_params());
+                args.back() = closure;
+                todo_ = true;
+                return instantiate(drop(closure->fn(), args));
+            }
+        }
+    } else if (auto cont = odef->isa_nom<Continuation>()) {
+        if (cont->has_body()) {
+            auto body = cont->body();
+            // try to subsume continuations which call a def
+            // (that is free within that continuation) with that def
+            auto callee = body->callee();
+            auto& scope = forest_->get_scope(cont);
+            if (!scope.contains(callee)) {
+                if (src().is_external(cont) || callee->type()->tag() != Node_FnType)
+                    goto rebuild;
+
+                if (body->args() == cont->params_as_defs()) {
+                    src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
+                    // We completely replace the original continuation
+                    // If we don't do so, then we miss some simplifications
+                    return instantiate(body->callee());
+                } else {
+                    // build the permutation of the arguments
+                    Array<size_t> perm(body->num_args());
+                    bool is_permutation = true;
+                    for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+                        auto param_it = std::find(cont->params().begin(),
+                                                  cont->params().end(),
+                                                  body->arg(i));
+
+                        if (param_it == cont->params().end()) {
+                            is_permutation = false;
+                            break;
+                        }
+
+                        perm[i] = param_it - cont->params().begin();
+                    }
+
+                    if (!is_permutation)
+                        goto rebuild;
+                }
+
+                bool has_calls = false;
+                // for every use of the continuation at a call site,
+                // permute the arguments and call the parameter instead
+                for (auto use : cont->copy_uses()) {
+                    auto uapp = use->isa<App>();
+                    if (uapp && use.index() == 0) {
+                        todo_ = true;
+                        has_calls = true;
+                        break;
+                    }
+                }
+
+                if (has_calls) {
+                    auto rebuilt = cont->stub(*this, instantiate(cont->type())->as<Type>());
+                    src().VLOG("simplify: continuation {} calls a free def: {} (with permuted args), introducing a wrapper: {}", cont->unique_name(), body->callee(), rebuilt);
+                    auto wrapped = dst().run(rebuilt);
+                    insert(odef, wrapped);
+
+                    rebuilt->set_body(instantiate(body)->as<App>());
+                    return wrapped;
+                }
+            }
+        }
     }
-    size_t size = otype->num_ops();
 
-    if (auto nominal_type = otype->isa<NominalType>()) {
-        auto ntype = nominal_type->stub(world_);
-        type_old2new_[otype] = ntype;
-        for (size_t i = 0; i != size; ++i)
-            ntype->set(i, import(otype->op(i)));
-        return ntype;
+    rebuild:
+    auto ndef = Rewriter::rewrite(odef);
+    if (odef->isa_structural()) {
+        // If some substitution took place
+        // TODO: this might be dead code at the moment
+        todo_ |= odef->tag() != ndef->tag();
     }
-
-    Array<const Type*> nops(size);
-    for (size_t i = 0; i != size; ++i)
-        nops[i] = import(otype->op(i));
-
-    auto ntype = otype->rebuild(world_, nops);
-    type_old2new_[otype] = ntype;
-    assert(&ntype->table() == &world_);
-
-    return ntype;
+    return ndef;
 }
 
-const Def* Importer::import(const Def* odef) {
-    if (auto ndef = def_old2new_.lookup(odef)) {
-        assert(&(*ndef)->world() == &world_);
-        return *ndef;
+const Def* Importer::find_origin(const Def* ndef) {
+    for (auto def : src().defs()) {
+        if (ndef == lookup(def))
+            return def;
     }
-
-    auto ntype = import(odef->type());
-
-    if (auto oparam = odef->isa<Param>()) {
-        import(oparam->continuation())->as_nom<Continuation>();
-        auto nparam = def_old2new_[oparam];
-        assert(nparam && &nparam->world() == &world_);
-        return nparam;
-    }
-
-    if (auto ofilter = odef->isa<Filter>()) {
-        Array<const Def*> new_conditions(ofilter->num_ops());
-        for (size_t i = 0, e = ofilter->size(); i != e; ++i)
-            new_conditions[i] = import(ofilter->condition(i));
-        auto nfilter = world().filter(new_conditions, ofilter->debug());
-        return nfilter;
-    }
-
-    Continuation* ncontinuation = nullptr;
-    if (auto ocontinuation = odef->isa_nom<Continuation>()) { // create stub in new world
-        assert(!ocontinuation->dead_);
-        // TODO maybe we want to deal with intrinsics in a more streamlined way
-        if (ocontinuation == ocontinuation->world().branch())
-            return def_old2new_[ocontinuation] = world().branch();
-        if (ocontinuation == ocontinuation->world().end_scope())
-            return def_old2new_[ocontinuation] = world().end_scope();
-        auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->attributes(), ocontinuation->debug_history());
-        assert(&ncontinuation->world() == &world());
-        assert(&npi->table() == &world());
-        for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-            ncontinuation->param(i)->set_name(ocontinuation->param(i)->debug_history().name);
-            def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
-        }
-
-        def_old2new_[ocontinuation] = ncontinuation;
-
-        if (ocontinuation->is_external())
-            world().make_external(ncontinuation);
-    }
-
-    size_t size = odef->num_ops();
-    Array<const Def*> nops(size);
-    for (size_t i = 0; i != size; ++i) {
-        assert(odef->op(i) != odef);
-        nops[i] = import(odef->op(i));
-        assert(&nops[i]->world() == &world());
-    }
-
-    if (odef->isa_structural()) {
-        auto ndef = odef->rebuild(world(), ntype, nops);
-        todo_ |= odef->tag() != ndef->tag();
-        return def_old2new_[odef] = ndef;
-    }
-
-    assert(ncontinuation && &ncontinuation->world() == &world());
-    auto napp = nops[0]->isa<App>();
-    if (napp)
-        ncontinuation->set_body(napp);
-    ncontinuation->set_filter(nops[1]->as<Filter>());
-    ncontinuation->verify();
-    return ncontinuation;
+    return nullptr;
 }
 
 }

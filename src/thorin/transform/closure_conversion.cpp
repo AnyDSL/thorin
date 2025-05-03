@@ -24,29 +24,27 @@ public:
                 continue;
             }
 
-            auto new_type = world_.fn_type(convert(continuation->type())->ops());
+            auto new_type = world_.fn_type(defs2types(convert_type(continuation->type())->ops()));
             if (new_type != continuation->type()) {
+                //The function type was changed, so the continuation takes another function as a parameter.
                 auto new_continuation = world_.continuation(new_type->as<FnType>(), continuation->debug());
                 if (continuation->is_intrinsic())
                     new_continuation->set_intrinsic();
 
+                converted.emplace_back(continuation, new_continuation);
                 new_defs_[continuation] = new_continuation;
-                if (continuation->has_body()) {
-                    auto body = continuation->body();
-                    for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-                        new_defs_[continuation->param(i)] = new_continuation->param(i);
-                    // copy existing call from old continuation
-                    new_continuation->jump(body->callee(), body->args(), continuation->debug());
-                    converted.emplace_back(continuation, new_continuation);
-                }
-            } else if (continuation->has_body()) {
+                for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
+                    new_defs_[continuation->param(i)] = new_continuation->param(i);
+            } else {
+                //The type remains unchanged, do not generate a new continuation.
+                //We still need to add the continuation to converted, to ensure the jump will be converted later on.
                 converted.emplace_back(continuation, continuation);
             }
         }
 
         // convert the calls to each continuation
         for (auto pair : converted)
-            convert_jump(pair.second);
+            convert_jump(pair.first, pair.second);
 
         // remove old continuations
         for (auto pair : converted) {
@@ -57,31 +55,64 @@ public:
         }
     }
 
-    void convert_jump(Continuation* continuation) {
-        assert(continuation->has_body());
-        auto body = continuation->body();
-        // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
+    //Convert jump and all arguments.
+    void convert_jump(Continuation* source, Continuation* target) {
+        assert(source);
+        assert(target);
+
+        if (!converted_.emplace(source).second)
+            return; //Was already converted once before.
+
+        assert(source->has_body());
+        auto body = source->body();
+
         auto callee = body->callee()->isa_nom<Continuation>();
-        if (callee == continuation) return;
+
+        if (callee == source) {
+            target->jump(callee, body->args(), source->debug());
+            return;
+        }
+
+        // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
         if (!callee || !callee->is_intrinsic()) {
             Array<const Def*> new_args(body->num_args());
             for (size_t i = 0, e = body->num_args(); i != e; ++i)
-                new_args[i] = convert(body->arg(i));
-            continuation->jump(convert(body->callee(), true), new_args, continuation->debug());
+                new_args[i] = convert_def(body->arg(i));
+            target->jump(convert_def(body->callee(), true), new_args, source->debug());
+        } else {
+            Array<const Def*> new_args(body->num_args());
+            for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+                if (body->arg(i)->type()->isa<FnType>())
+                    new_args[i] = body->arg(i);
+                else if (callee->intrinsic() == Intrinsic::Match && i > 2)
+                    new_args[i] = body->arg(i);
+                else if (callee->intrinsic() == Intrinsic::HLS && i > 1)
+                    new_args[i] = body->arg(i);
+                else
+                    new_args[i] = convert_def(body->arg(i));
+            }
+            target->jump(callee, new_args, source->debug());
         }
     }
 
-    const Def* convert(const Def* def, bool as_callee = false) {
-        if (new_defs_.count(def)) def = new_defs_[def];
-        if (def->order() <= 1)
-            return def;
+    const Def* convert_def(const Def* def, bool as_callee = false) {
+        if (auto t = def->isa<Type>())
+            return convert_type(t);
 
-        if (auto continuation = def->isa_nom<Continuation>()) {
-            if (!continuation->has_body())
-                return continuation;
-            convert_jump(continuation);
+        if (auto * source = def->isa_nom<Continuation>()) {
+            if (new_defs_.count(def)) def = new_defs_[def];
+            auto continuation = def->isa_nom<Continuation>();
+            assert(continuation);
+
             if (as_callee)
                 return continuation;
+            if (!source->has_body())
+                return continuation;
+            if (continuation->order() <= 1)
+                return continuation;
+
+            convert_jump(source, continuation); //convert_jump must be executed so that continuation has a body.
+            assert(continuation->has_body());
 
             world_.WLOG("slow: closure generated for '{}'", continuation);
 
@@ -95,7 +126,7 @@ public:
                 return continuation && (!continuation->has_body() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
-            auto lifted = lift(scope, free_vars);
+            auto lifted = lift(scope, scope.entry(), free_vars);
 
             // get the environment type
             const Type* env_type = nullptr;
@@ -145,13 +176,17 @@ public:
             }
             wrapper->jump(lifted, wrapper_args);
 
-            auto closure_type = convert(continuation->type());
+            auto closure_type = convert_type(continuation->type());
             return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
         } else {
+            if (new_defs_.count(def)) return new_defs_[def];
+            if (def->isa<Param>() || def->isa<Closure>())
+                return def;
+
             // TODO need to consider Params?
             Array<const Def*> ops(def->ops());
-            for (auto& op : ops) op = convert(op);
-            return new_defs_[def] = def->rebuild(world_, convert(def->type()), ops);
+            for (auto& op : ops) op = convert_def(op);
+            return new_defs_[def] = def->rebuild(world_, convert_type(def->type()), ops);
         }
         THORIN_UNREACHABLE;
     }
@@ -160,10 +195,10 @@ public:
     // - fn (A, B, fn(C), fn(D)) => closure(fn (A, B, fn(convert(C)), closure(fn(convert(D)))))
     // - struct S { fn (X, fn(Y)) } => struct T { closure(fn (X, fn(Y))) }
     // - ...
-    const Type* convert(const Type* type) {
+    const Type* convert_type(const Type* type) {
         if (new_types_.count(type)) return new_types_[type];
         if (type->order() <= 1) return type;
-        Array<const Type*> ops(type->ops());
+        Array<const Def*> ops(type->ops());
 
         const Type* new_type = nullptr;
         if (type->isa<StructType>()) {
@@ -175,32 +210,33 @@ public:
         // accept one parameter of order 1 (the return continuation) for function types
         bool ret = !type->isa<FnType>();
         for (auto& op : ops) {
-            op = convert(op);
+            op = convert_def(op);
             if (!ret &&
                 op->isa<ClosureType>() &&
                 op->as<ClosureType>()->inner_order() == 1) {
                 ret = true;
-                op = world_.fn_type(op->ops());
+                op = world_.fn_type(defs2types(op->ops()));
             }
         }
 
         if (type->isa<StructType>()) {
-            auto struct_type = new_type->as<StructType>();
+            StructType* struct_type = const_cast<StructType*>(new_type->as<StructType>());
             for (size_t i = 0, e = ops.size(); i != e; ++i)
-                struct_type->set(i, ops[i]);
+                struct_type->set_op(i, ops[i]);
         } else {
-            new_type = type->rebuild(type->table(), ops);
+            new_type = type->rebuild(world_, type->type(), ops)->as<Type>();
         }
         if (new_type->order() <= 1)
             return new_types_[type] = new_type;
         else
-            return new_types_[type] = world_.closure_type(new_type->ops());
+            return new_types_[type] = world_.closure_type(defs2types(new_type->ops()));
     }
 
 private:
     World& world_;
     Def2Def new_defs_;
-    Type2Type new_types_;
+    DefMap<const Type*> new_types_;
+    ContinuationSet converted_;
 };
 
 

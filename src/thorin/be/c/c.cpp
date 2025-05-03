@@ -55,6 +55,17 @@ inline std::string cl_dialect_guard(CLDialect dialect) {
     }
 }
 
+inline const char* lang_to_ext (Lang lang) {
+    switch (lang) {
+        case Lang::C99:    return ".c";
+        case Lang::HLS:    return ".hls";
+        case Lang::CGRA:   return ".cxx";
+        case Lang::CUDA:   return ".cu";
+        case Lang::OpenCL: return ".cl";
+        default: THORIN_UNREACHABLE;
+    }
+}
+
 template<typename Fn>
 inline std::string guarded_statement(const std::string guard, Fn fn) {
     StringStream s;
@@ -74,18 +85,19 @@ enum class HlsInterface : uint8_t {
 
 class CCodeGen : public thorin::Emitter<std::string, std::string, BB, CCodeGen> {
 public:
-    CCodeGen(World& world, const Cont2Config& kernel_config, Stream& stream, Stream& graph_stream, Lang lang, bool debug, std::string& flags)
-        : world_(world)
+    CCodeGen(Thorin& thorin, const Cont2Config& kernel_config, Stream& stream, Stream& graph_stream, Lang lang, bool debug, std::string& flags)
+        : thorin_(thorin)
+        , forest_(world())
         , kernel_config_(kernel_config)
         , lang_(lang)
-        , fn_mem_(world.fn_type({world.mem_type()}))
+        , fn_mem_(world().fn_type({world().mem_type()}))
         , debug_(debug)
         , flags_(flags)
         , stream_(stream)
         , graph_stream_(graph_stream)
     {}
 
-    World& world() const { return world_; }
+    World& world() const { return thorin_.world(); }
     void emit_module();
     void emit_c_int();
     void emit_epilogue(Continuation*);
@@ -106,7 +118,8 @@ public:
     void finalize(Continuation*);
 
 private:
-    std::string convert(const Type*, bool = false);
+    void convert_primtype(StringStream&s, PrimTypeTag tag, int len, bool templated = false);
+    std::string convert(const Type*, bool templated = false);
     std::string addr_space_prefix(AddrSpace);
     std::string constructor_prefix(const Type*);
     std::string prefix_type(const Param* param);
@@ -129,7 +142,8 @@ private:
     std::string array_name(const DefiniteArrayType*);
     std::string tuple_name(const TupleType*);
 
-    World& world_;
+    Thorin& thorin_;
+    ScopesForest forest_;
     const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
@@ -319,6 +333,104 @@ bool CCodeGen::get_interface(HlsInterface &interface, HlsInterface &gmem) {
     return false;
 }
 
+inline const char* stddef_primtype_name(PrimTypeTag tag) {
+    switch (tag) {
+        case PrimType_ps8:  case PrimType_qs8:  return "int8_t";
+        case PrimType_pu8:  case PrimType_qu8:  return "uint8_t";
+        case PrimType_ps16: case PrimType_qs16: return "int16_t";
+        case PrimType_pu16: case PrimType_qu16: return "uint16_t";
+        case PrimType_ps32: case PrimType_qs32: return "int32_t";
+        case PrimType_pu32: case PrimType_qu32: return "uint32_t";
+        case PrimType_ps64: case PrimType_qs64: return "int64_t";
+        case PrimType_pu64: case PrimType_qu64: return "uint64_t";
+        case PrimType_pf16: case PrimType_qf16: return "half";
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+inline const char* cuda_scalar_primtype(PrimTypeTag tag) {
+    switch (tag) {
+        case PrimType_ps8:  case PrimType_qs8:  return "char";
+        case PrimType_pu8:  case PrimType_qu8:  return "unsigned char";
+        case PrimType_ps16: case PrimType_qs16: return "short";
+        case PrimType_pu16: case PrimType_qu16: return "unsigned short";
+        case PrimType_ps32: case PrimType_qs32: return "int";
+        case PrimType_pu32: case PrimType_qu32: return "unsigned int";
+        case PrimType_ps64: case PrimType_qs64: return "long long";
+        case PrimType_pu64: case PrimType_qu64: return "unsigned long long";
+        case PrimType_pf16: case PrimType_qf16: return "f16"; // typedef'd with macro magic
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+/// OpenCL uses these for scalar and vectors.
+/// CUDA actually uses the same prefixes for its vectors
+/// See
+/// https://registry.khronos.org/OpenCL/sdk/3.0/docs/man/html/vectorDataTypes.html
+/// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#built-in-vector-types
+inline const char* opencl_cuda_vectorbase(PrimTypeTag tag) {
+    switch (tag) {
+        case PrimType_ps8:  case PrimType_qs8:  return "char";
+        case PrimType_pu8:  case PrimType_qu8:  return "uchar";
+        case PrimType_ps16: case PrimType_qs16: return "short";
+        case PrimType_pu16: case PrimType_qu16: return "ushort";
+        case PrimType_ps32: case PrimType_qs32: return "int";
+        case PrimType_pu32: case PrimType_qu32: return "uint";
+        case PrimType_ps64: case PrimType_qs64: return "long";
+        case PrimType_pu64: case PrimType_qu64: return "ulong";
+        case PrimType_pf16: case PrimType_qf16: return "half"; // NB: cuda has no vectors of half.
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+void CCodeGen::convert_primtype(StringStream& s, PrimTypeTag tag, int len, bool templated) {
+    assert(len > 0);
+
+    // Enable special code paths for f16 and f64
+    switch (tag) {
+        case PrimType_pf16: case PrimType_qf16: use_fp_16_ = true; break;
+        case PrimType_pf64: case PrimType_qf64: use_fp_64_ = true; break;
+        default: break;
+    }
+
+    // 'bool', 'float' and 'double' are identical everywhere
+    switch (tag) {
+        case PrimType_bool: s << "bool"; break;
+        case PrimType_pf32: case PrimType_qf32: s << "float"; break;
+        case PrimType_pf64: case PrimType_qf64: s << "double"; break;
+        default: {
+            if (lang_ == Lang::CUDA && len == 1)
+                s << cuda_scalar_primtype(tag);
+            else if (lang_ == Lang::CUDA || lang_ == Lang::OpenCL)
+                s << opencl_cuda_vectorbase(tag);
+            else
+                s << stddef_primtype_name(tag);
+            break;
+        }
+    }
+
+    if (templated) {
+        StringStream temp;
+        temp << "<" << s.str();
+        swap(s, temp);
+        s << ">";
+    }
+
+    // length suffixes
+    if (len == 1)
+        return;
+    switch (lang_) {
+        case Lang::CUDA:
+        case Lang::OpenCL:
+            s << len;
+            break;
+        case Lang::HLS:
+        case Lang::C99:
+            s.fmt(" __attribute__ ((ext_vector_size ({})))", len);
+            break;
+    }
+}
+
 /*
  * convert
  */
@@ -329,33 +441,10 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
     StringStream s;
     std::string name;
 
-    if (type == world().unit() || type->isa<MemType>() || type->isa<FrameType>())
+    if (type == world().unit_type() || type->isa<MemType>() || type->isa<FrameType>())
         s << "void";
     else if (auto primtype = type->isa<PrimType>()) {
-        switch (primtype->primtype_tag()) {
-            case PrimType_bool:                     s << "bool";                     break;
-            case PrimType_ps8:  case PrimType_qs8:  s <<   "i8";                     break;
-            case PrimType_pu8:  case PrimType_qu8:  s <<   "u8";                     break;
-            case PrimType_ps16: case PrimType_qs16: s <<  "i16";                     break;
-            case PrimType_pu16: case PrimType_qu16: s <<  "u16";                     break;
-            case PrimType_ps32: case PrimType_qs32: s <<  "i32";                     break;
-            case PrimType_pu32: case PrimType_qu32: s <<  "u32";                     break;
-            case PrimType_ps64: case PrimType_qs64: s <<  "i64";                     break;
-            case PrimType_pu64: case PrimType_qu64: s <<  "u64";                     break;
-            case PrimType_pf16: case PrimType_qf16: s <<  "f16";  use_fp_16_ = true; break;
-            case PrimType_pf32: case PrimType_qf32: s <<  "f32";                     break;
-            case PrimType_pf64: case PrimType_qf64: s <<  "f64";  use_fp_64_ = true; break;
-            default: THORIN_UNREACHABLE;
-        }
-
-        if (templated) {
-            StringStream temp;
-            temp << "<" << s.str();
-            swap(s, temp);
-            s << ">";
-        }
-        if (primtype->is_vector())
-            s << primtype->length();
+        convert_primtype(s, primtype->primtype_tag(), vector_length(primtype), templated);
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
     } else if (type->isa<FnType>()) {
@@ -373,24 +462,24 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
     } else if (auto tuple = type->isa<TupleType>()) {
         name = tuple_name(tuple);
         s.fmt("typedef struct {{\t\n");
-        s.rangei(tuple->ops(), "\n", [&](size_t i) { s.fmt("{} e{};", convert(tuple->op(i)), i); });
+        s.rangei(tuple->ops(), "\n", [&](size_t i) { s.fmt("{} e{};", convert(tuple->types()[i]), i); });
         s.fmt("\b\n}} {};\n", name);
     } else if (auto variant = type->isa<VariantType>()) {
         types_[variant] = name = variant->name().str();
         auto tag_type =
-            variant->num_ops() < (UINT64_C(1) <<  8u) ? world_.type_qu8()  :
-            variant->num_ops() < (UINT64_C(1) << 16u) ? world_.type_qu16() :
-            variant->num_ops() < (UINT64_C(1) << 32u) ? world_.type_qu32() :
-                                                        world_.type_qu64();
+            variant->num_ops() < (UINT64_C(1) <<  8u) ? world().type_qu8()  :
+            variant->num_ops() < (UINT64_C(1) << 16u) ? world().type_qu16() :
+            variant->num_ops() < (UINT64_C(1) << 32u) ? world().type_qu32() :
+                                                        world().type_qu64();
         s.fmt("typedef struct {{\t\n");
 
         // This is required because we have zero-sized types but C/C++ do not
         if (variant->has_payload()) {
             s.fmt("union {{\t\n");
             s.rangei(variant->ops(), "\n", [&] (size_t i) {
-                if (is_type_unit(variant->op(i)))
+                if (is_type_unit(variant->types()[i]))
                     s << "// ";
-                s.fmt("{} {};", convert(variant->op(i)), variant->op_name(i));
+                s.fmt("{} {};", convert(variant->types()[i]), variant->op_name(i));
             });
             s.fmt("\b\n}} data;\n");
         }
@@ -402,14 +491,14 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
         if ((lang_ == Lang::OpenCL || lang_ == Lang::HLS) && is_channel_type(struct_type))
             use_channels_ = true;
         if (lang_ == Lang::OpenCL && use_channels_) {
-            s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
+            s.fmt("typedef {} {}_{};\n", convert(struct_type->types()[0]), name, struct_type->gid());
             name = (struct_type->name().str() + "_" + std::to_string(type->gid()));
         } else if (is_channel_type(struct_type) && lang_ == Lang::HLS) {
-            s.fmt("typedef {} {}_{};\n", convert(struct_type->op(0)), name, struct_type->gid());
+            s.fmt("typedef {} {}_{};\n", convert(struct_type->types()[0]), name, struct_type->gid());
             name = ("hls::stream<" + name + "_" + std::to_string(type->gid()) + ">");
         } else if (is_channel_type(struct_type) && lang_ == Lang::CGRA) {
             // The following condition makes it impossible to use vectorized channels, ie. struct or array type channels, to be accessed via standard array iterations. They can only with cgra intrinsics or APIs be accessed.
-            std::string type_str = convert(struct_type->op(0));
+            std::string type_str = convert(struct_type->op(0)->as<Type>());
 
             if (vector_size_ > 1)
                 if (auto array_type = struct_type->op(0)->isa<DefiniteArrayType>())
@@ -424,7 +513,7 @@ std::string CCodeGen::convert(const Type* type, bool templated) {
             s.fmt("//AIE mmul {} obj\n", convert(struct_type) );
         } else {
             s.fmt("typedef struct {{\t\n");
-            s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->op(i)), struct_type->op_name(i)); });
+            s.rangei(struct_type->ops(), "\n", [&] (size_t i) { s.fmt("{} {};", convert(struct_type->types()[i]), struct_type->op_name(i)); });
             s.fmt("\b\n}} {};\n", name);
         }
     } else {
@@ -754,7 +843,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
     auto bit_width = [&] (const Type* type) {
         StringStream s;
-        assert ((type != world().unit() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
+        assert ((type != world().unit_type() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
         size_t actual_num_bits = 0;
 
         if (auto primtype = type->isa<PrimType>()) {
@@ -822,7 +911,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                             auto op_type = param->type();// TODO: Dummy value for GMem direct access.
                             if (auto ptr_type = param->type()->isa<PtrType>()) { // if not then it is a runtime parameter
                                 if(auto struct_type = ptr_type->pointee()->isa<StructType>())
-                                    op_type = struct_type->op(0);
+                                    op_type = struct_type->op(0)->as<Type>();
                             }
 
                             auto io_index = get_io_mode_index(io_counters, mode);
@@ -964,7 +1053,7 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                 cur_arg_index++;
             }
 
-            auto source_ext = thorin::c::CodeGen(world(), kernel_config_, lang_, debug_, flags_).file_ext();
+            auto source_ext = lang_to_ext(lang_);
             if (cont->has_body() && cont->body()->callee()->isa_nom<Continuation>()) {
                 // TODO: return is_a<cont> in if and use it in the body
                 // TODO: soure(kernels) = addr
@@ -1017,7 +1106,7 @@ void CCodeGen::emit_module() {
     Continuation* top_module = nullptr;
     interface_status = get_interface(interface, gmem_config);
 
-    Scope::for_each(world(), [&] (const Scope& scope) {
+    forest_.for_each([&] (const Scope& scope) {
             auto entry = scope.entry();
 
             if (entry->is_hls_top() || entry->is_cgra_graph()) {
@@ -1065,8 +1154,8 @@ void CCodeGen::emit_module() {
                     }
                     }
             }
-        } else
-            emit_scope(scope);
+        } else if (scope.entry()->cc() != CC::Thorin && scope.entry()->is_returning())
+            emit_scope(scope, forest_);
     });
 
     if (top_module) {
@@ -1076,7 +1165,7 @@ void CCodeGen::emit_module() {
         } else if (top_module->is_cgra_graph())
             top_scope.cgra_graph = true;
             //hls_top_scope    = false;
-        emit_scope(Scope(top_module));
+        emit_scope(Scope(top_module), forest_);
     }
 
 
@@ -1114,21 +1203,6 @@ void CCodeGen::emit_module() {
             stream_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
         if (use_fp_64_)
             stream_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-
-        stream_.fmt(    "\n"
-                        "typedef   char  i8;\n"
-                        "typedef  uchar  u8;\n"
-                        "typedef  short i16;\n"
-                        "typedef ushort u16;\n"
-                        "typedef    int i32;\n"
-                        "typedef   uint u32;\n"
-                        "typedef   long i64;\n"
-                        "typedef  ulong u64;\n");
-        if (use_fp_16_)
-            stream_.fmt("typedef   half f16;\n");
-        stream_.fmt(    "typedef  float f32;\n");
-        if (use_fp_64_)
-            stream_.fmt("typedef double f64;\n");
     }
 
     stream_.endl();
@@ -1160,49 +1234,23 @@ void CCodeGen::emit_module() {
                     "#include <aie_api/aie_adf.hpp>\n"
                     "#include <aie_api/utils.hpp>\n"
                     "#include <aie_api/operators.hpp>\n"
-                    "using namespace aie::operators;\n");
-    }
-
-    if (lang_ == Lang::C99 || lang_ == Lang::HLS || lang_ == Lang::CGRA) {
-        stream_.fmt(    "\n"
-                        "typedef   int8_t  i8;\n"
-                        "typedef  uint8_t  u8;\n"
-                        "typedef  int16_t i16;\n"
-                        "typedef uint16_t u16;\n"
-                        "typedef  int32_t i32;\n"
-                        "typedef uint32_t u32;\n"
-                        "typedef  {} i64;\n"
-                        "typedef  {} u64;\n"
-                        "typedef    float f32;\n"
-                        "typedef   double f64;\n"
-                        "\n", (is_cgra_vector_kernel()) ? "acc64" : "int64_t",
-                              (is_cgra_vector_kernel()) ? "acc80" : "uint64_t");
-
-         if (use_fp_16_ && lang_ == Lang::HLS)
-            stream_.fmt("typedef     half f16;\n");
+                    "using namespace aie::operators;\n"
+                    "\n"
+                    "typedef  {} i64;\n"
+                    "typedef  {} u64;\n"
+                    "\n", (is_cgra_vector_kernel()) ? "acc64" : "int64_t",
+                          (is_cgra_vector_kernel()) ? "acc80" : "uint64_t");
     }
 
     if (lang_ == Lang::CUDA) {
-        if (use_fp_16_)
+        if (use_fp_16_) {
             stream_.fmt("#include <cuda_fp16.h>\n\n");
-        stream_.fmt(    "typedef               char  i8;\n"
-                        "typedef      unsigned char  u8;\n"
-                        "typedef              short i16;\n"
-                        "typedef     unsigned short u16;\n"
-                        "typedef                int i32;\n"
-                        "typedef       unsigned int u32;\n"
-                        "typedef          long long i64;\n"
-                        "typedef unsigned long long u64;\n"
-                        "\n");
-        if (use_fp_16_)
             stream_.fmt("#if __CUDACC_VER_MAJOR__ <= 8\n"
                         "typedef               half f16;\n"
                         "#else\n"
                         "typedef         __half_raw f16;\n"
                         "#endif\n");
-        stream_.fmt(    "typedef              float f32;\n"
-                        "typedef             double f64;\n"
-                        "\n");
+        }
     }
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS) {
@@ -1247,15 +1295,15 @@ void CCodeGen::emit_module() {
 
 static inline const Type* ret_type(const FnType* fn_type) {
     auto ret_fn_type = (*std::find_if(
-        fn_type->ops().begin(), fn_type->ops().end(), [] (const Type* op) {
+        fn_type->types().begin(), fn_type->types().end(), [] (const Type* op) {
             return op->order() % 2 == 1;
         }))->as<FnType>();
     std::vector<const Type*> types;
-    for (auto op : ret_fn_type->ops()) {
+    for (auto op : ret_fn_type->types()) {
         if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0) continue;
         types.push_back(op);
     }
-    return fn_type->table().tuple_type(types);
+    return fn_type->world().tuple_type(types);
 }
 
 static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
@@ -1764,7 +1812,9 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     assert(cont->has_body());
     auto body = cont->body();
-    emit_debug_info(bb.tail, body->arg(0));
+    if (body->num_args() > 0) {
+        emit_debug_info(bb.tail, body->arg(0));
+    }
 
 
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && top_scope.hls)) && (cont->is_exported()))
@@ -1795,19 +1845,22 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 break;
         }
     } else if (body->callee() == world().branch()) {
-        auto c = emit(body->arg(0));
-        auto t = label_name(body->arg(1));
-        auto f = label_name(body->arg(2));
+        emit_unsafe(body->arg(0));
+        auto c = emit(body->arg(1));
+        auto t = label_name(body->arg(2));
+        auto f = label_name(body->arg(3));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
     } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
-        bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(0)));
+        emit_unsafe(body->arg(0));
 
-        for (size_t i = 2; i < body->num_args(); i++) {
+        bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
+
+        for (size_t i = 3; i < body->num_args(); i++) {
             auto arg = body->arg(i)->as<Tuple>();
             bb.tail.fmt("case {}: goto {};\n", emit_constant(arg->op(0)), label_name(arg->op(1)));
         }
 
-        bb.tail.fmt("default: goto {};", label_name(body->arg(1)));
+        bb.tail.fmt("default: goto {};", label_name(body->arg(2)));
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
@@ -2222,12 +2275,12 @@ std::string CCodeGen::emit_bottom(const Type* type) {
         StringStream s;
         s.fmt("{} ", constructor_prefix(type));
         s << "{ ";
-        s.range(type->ops(), ", ", [&] (const Type* op) { s << emit_bottom(op); });
+        s.range(type->ops(), ", ", [&] (const Def* op) { s << emit_bottom(op->as<Type>()); });
         s << " }";
         return s.str();
     } else if (auto variant_type = type->isa<VariantType>()) {
         if (variant_type->has_payload()) {
-            auto non_unit = *std::find_if(variant_type->ops().begin(), variant_type->ops().end(),
+            auto non_unit = *std::find_if(variant_type->types().begin(), variant_type->types().end(),
                 [] (const Type* op) { return !is_type_unit(op); });
             return constructor_prefix(type) + " { { " + emit_bottom(non_unit) + " }, 0 }";
         }
@@ -2245,7 +2298,7 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
     } else if (agg_type->isa<IndefiniteArrayType>()) {
         s.fmt("[{}]", emit(index));
     } else if (agg_type->isa<TupleType>()) {
-        s.fmt("{}e{}", prefix, emit_constant(index));
+        s.fmt("{}e{}", prefix, primlit_value<size_t>(index));
     } else if (agg_type->isa<StructType>()) {
         s.fmt("{}{}", prefix, agg_type->as<StructType>()->op_name(primlit_value<size_t>(index)));
     } else if (agg_type->isa<VectorType>()) {
@@ -2282,7 +2335,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
     if (is_unit(def)) return "";
     else if (auto bin = def->isa<BinOp>()) {
-        const char* op;
+        const char* op = "";
         if (auto cmp = bin->isa<Cmp>()) {
             switch (cmp->cmp_tag()) {
                 case Cmp_eq: op = "=="; break;
@@ -2359,6 +2412,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
             s.fmt("(({})->e)", src);
         } else if (s_ptr && d_ptr && s_ptr->addr_space() == d_ptr->addr_space()) {
             s.fmt("(({}) {})", d_t, src);
+        } else if (s_ptr && d_ptr && s_ptr->addr_space() != d_ptr->addr_space() && lang_ == Lang::OpenCL) {
+            s.fmt("(({}) ((size_t) {}))", d_t, src);
         } else if (conv->isa<Cast>()) {
             auto s_prim = s_type->isa<PrimType>();
             auto d_prim = d_type->isa<PrimType>();
@@ -2644,7 +2699,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         if (auto tup = ass->type()->isa<TupleType>()) {
             for (size_t i = 1, e = tup->num_ops(); i != e; ++i) {
                 auto name = ass->out(i)->unique_name();
-                func_impls_.fmt("{} {};\n", convert(tup->op(i)), name);
+                func_impls_.fmt("{} {};\n", convert(tup->types()[i]), name);
                 func_defs_.insert(ass->out(i));
                 outputs.emplace_back(name);
                 defs_[ass->out(i)] = name;
@@ -3072,7 +3127,7 @@ Stream& CCodeGen::emit_debug_info(Stream& s, const Def* def) {
 
 void CCodeGen::emit_c_int() {
     // Do not emit C interfaces for definitions that are not used
-    world().cleanup();
+    thorin_.cleanup();
 
     for (auto def : world().defs()) {
         auto cont = def->isa_nom<Continuation>();
@@ -3084,10 +3139,10 @@ void CCodeGen::emit_c_int() {
             continue;
 
         // Generate C types for structs used by imported or exported functions
-        for (auto op : cont->type()->ops()) {
+        for (auto op : cont->type()->types()) {
             if (auto fn_type = op->isa<FnType>()) {
                 // Convert the return types as well (those are embedded in return continuations)
-                for (auto other_op : fn_type->ops()) {
+                for (auto other_op : fn_type->types()) {
                     if (!other_op->isa<FnType>())
                         convert(other_op);
                 }
@@ -3121,6 +3176,9 @@ void CCodeGen::emit_c_int() {
     stream_.fmt("#ifdef __cplusplus\n");
     stream_.fmt("extern \"C\" {{\n");
     stream_.fmt("#endif\n\n");
+
+    stream_.fmt("#include <stdbool.h>\n"    // for the 'bool' type
+                "#include <stdint.h>\n\n");   // for the fixed-width integer types
 
     stream_.fmt("typedef   int8_t  i8;\n"
                 "typedef  uint8_t  u8;\n"
@@ -3205,7 +3263,7 @@ std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
 void CodeGen::emit_stream(std::ostream& stream) {
     Stream s0(stream);
     Stream s1 = {};
-    CCodeGen(world(), kernel_config_, s0, s1,  lang_, debug_, flags_).emit_module();
+    CCodeGen(thorin(), kernel_config_, s0, s1,  lang_, debug_, flags_).emit_module();
 }
 
 void CodeGen::emit_stream(std::ostream& stream0, std::ostream& stream1) {
@@ -3213,14 +3271,14 @@ void CodeGen::emit_stream(std::ostream& stream0, std::ostream& stream1) {
         world().WLOG("This backend does not support multiple streams");
     Stream s0(stream0);
     Stream s1(stream1);
-    CCodeGen CCodeGen_obj(world(), kernel_config_, s0, s1, lang_, debug_, flags_);
+    CCodeGen CCodeGen_obj(thorin(), kernel_config_, s0, s1, lang_, debug_, flags_);
     CCodeGen_obj.emit_module();
 }
 
-void emit_c_int(World& world, Stream& stream) {
+void emit_c_int(Thorin& thorin, Stream& stream) {
     std::string flags;
     Stream s {};
-    CCodeGen(world, {}, stream, s, Lang::C99, false, flags).emit_c_int();
+    CCodeGen(thorin, {}, stream, s, Lang::C99, false, flags).emit_c_int();
 }
 
 //------------------------------------------------------------------------------

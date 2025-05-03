@@ -11,7 +11,7 @@ using DomTree = DomTreeBase<true>;
 class Scheduler {
 public:
     Scheduler() = default;
-    explicit Scheduler(const Scope&);
+    explicit Scheduler(const Scope&, ScopesForest&);
 
     /// @name getters
     //@{
@@ -19,8 +19,10 @@ public:
     const F_CFG& cfg() const { return *cfg_; }
     const CFNode* cfg(Continuation* cont) const { return cfg()[cont]; }
     const DomTree& domtree() const { return *domtree_; }
-    const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
+    const Uses& uses(const Def* def) const { assert(def2uses_.contains(def)); return def2uses_.find(def)->second; }
     //@}
+
+    void register_defs(const Scope&);
 
     /// @name compute schedules
     //@{
@@ -31,6 +33,7 @@ public:
 
     friend void swap(Scheduler& s1, Scheduler& s2) {
         using std::swap;
+        swap(s1.forest_,   s2.forest_);
         swap(s1.scope_,    s2.scope_);
         swap(s1.cfg_,      s2.cfg_);
         swap(s1.domtree_,  s2.domtree_);
@@ -41,6 +44,7 @@ public:
     }
 
 private:
+    ScopesForest* forest_ = nullptr;
     const Scope* scope_     = nullptr;
     const F_CFG* cfg_       = nullptr;
     const DomTree* domtree_ = nullptr;

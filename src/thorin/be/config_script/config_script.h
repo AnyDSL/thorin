@@ -19,9 +19,8 @@ namespace config_script {
 
 class CodeGen : public thorin::CodeGen {
 public:
-    CodeGen(World& world, bool debug, Ports& hls_cgra_ports, std::string& flags)
-    //CodeGen(World& world, bool debug, Ports& hls_cgra_ports)
-        : thorin::CodeGen(world, debug)
+    CodeGen(Thorin& thorin, bool debug, Ports& hls_cgra_ports, std::string& flags)
+        : thorin::CodeGen(thorin, debug)
         , hls_cgra_ports_(hls_cgra_ports)
         , flags_(flags)
     {}

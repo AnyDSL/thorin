@@ -16,6 +16,8 @@ typedef CFG<false> B_CFG;
 class CFA;
 class CFNode;
 
+class ScopesForest;
+
 /**
  * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
@@ -28,6 +30,7 @@ public:
     Scope& operator=(Scope) = delete;
 
     explicit Scope(Continuation* entry);
+    explicit Scope(Continuation* entry, ScopesForest&);
     ~Scope();
 
     /// Invoke if you have modified sth in this Scope.
@@ -36,19 +39,23 @@ public:
     //@{ misc getters
     World& world() const { return world_; }
     Continuation* entry() const { return entry_; }
-    Continuation* exit() const { return exit_; }
+    ScopesForest& forest() const { return forest_; }
     //@}
 
     //@{ get Def%s contained in this Scope
     const DefSet& defs() const { return defs_; }
+    const DefSet& free_frontier() const { return free_frontier_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
-    /// All @p Def%s referenced but @em not contained in this @p Scope.
-    const DefSet& free() const;
+    //@}
+
     /// All @p Param%s that appear free in this @p Scope.
     const ParamSet& free_params() const;
     /// Are there any free @p Param%s within this @p Scope.
-    bool has_free_params() const { return !free_params().empty(); }
-    //@}
+    bool has_free_params() const;
+    const Param* first_free_param() const;
+
+    Continuation* parent_scope() const;
+    ContinuationSet children_scopes() const;
 
     //@{ simple CFA to construct a CFG
     const CFA& cfa() const;
@@ -61,24 +68,50 @@ public:
     Stream& stream(Stream&) const;                  ///< Streams thorin to file @p out.
     //@}
 
+    void verify();
+private:
+    void run();
+    DefSet potentially_contained() const;
+
+    template<bool stop_after_first>
+    std::tuple<ParamSet, bool> search_free_params() const;
+
+    World& world_;
+    std::unique_ptr<ScopesForest> root;
+    ScopesForest& forest_;
+    Continuation* entry_ = nullptr;
+    DefSet defs_;
+    DefSet free_frontier_;
+    mutable std::optional<const Param*> first_free_param_;
+    mutable std::unique_ptr<ParamSet> free_params_;
+    mutable std::unique_ptr<const CFA> cfa_;
+    mutable std::optional<Continuation*> parent_scope_;
+
+    friend ScopesForest;
+};
+
+class ScopesForest {
+public:
+    ScopesForest(World& world) : world_(world) {}
+
+    Scope& get_scope(Continuation* entry);
+
+    ContinuationSet top_level_scopes();
+
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
      * Select with @p elide_empty whether you want to visit trivial Scope%s of Continuation%s without body.
      */
     template<bool elide_empty = true>
-    static void for_each(const World&, std::function<void(Scope&)>);
+    void for_each(std::function<void(Scope&)>);
 
 private:
-    void run();
-
     World& world_;
-    DefSet defs_;
-    Continuation* entry_ = nullptr;
-    Continuation* exit_ = nullptr;
-    mutable std::unique_ptr<DefSet> free_;
-    mutable std::unique_ptr<ParamSet> free_params_;
-    mutable std::unique_ptr<const CFA> cfa_;
+    std::vector<Continuation*> stack_;
+    ContinuationMap<std::unique_ptr<Scope>> scopes_;
+
+    friend Scope;
 };
 
 }

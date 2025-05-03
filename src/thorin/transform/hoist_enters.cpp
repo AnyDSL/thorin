@@ -24,42 +24,54 @@ static void find_enters(std::deque<const Enter*>& enters, Continuation* continua
         find_enters(enters, mem_param);
 }
 
-static void hoist_enters(const Scope& scope) {
+static bool hoist_enters(const Scope& scope) {
     World& world = scope.world();
     std::deque<const Enter*> enters;
 
     for (auto n : scope.f_cfg().reverse_post_order())
         find_enters(enters, n->continuation());
 
-
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {
         world.VLOG("cannot optimize {} - didn't find entry enter", scope.entry());
-        return;
+        return false;
     }
 
     auto entry_enter = enters[0];
     auto frame = entry_enter->out_frame();
     enters.pop_front();
 
+    bool todo = false;
     for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i) {
         auto old_enter = *i;
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
+            if (slot->uses().size() > 0)
+                todo = true;
             slot->replace_uses(world.slot(slot->alloced_type(), frame, slot->debug()));
             assert(slot->num_uses() == 0);
         }
     }
-
-    for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i)
-        (*i)->out_mem()->replace_uses((*i)->mem());
-
-    if (frame->num_uses() == 0)
-        entry_enter->out_mem()->replace_uses(entry_enter->mem());
+    return todo;
 }
 
-void hoist_enters(World& world) {
-    Scope::for_each(world, [] (const Scope& scope) { hoist_enters(scope); });
-    world.cleanup();
+// TODO: rewrite this and put it out of its misery
+void hoist_enters(Thorin& thorin) {
+    bool todo = false;
+    do {
+        todo = false;
+        ScopesForest forest(thorin.world());
+        for (auto cont : thorin.world().copy_continuations()) {
+            if (!cont->has_body())
+                continue;
+            auto& scope = forest.get_scope(cont);
+            if(!scope.has_free_params()) {
+                if (!todo) todo = hoist_enters(scope);
+                if (todo)
+                    break;
+            }
+        }
+    } while (todo);
+    thorin.cleanup();
 }
 
 }

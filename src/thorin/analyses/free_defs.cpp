@@ -23,7 +23,7 @@ DefSet free_defs(const Scope& scope, bool include_closures) {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (def->isa_structural()) {
+        if (def->isa_structural() && !def->isa<Param>()) {
             if (!include_closures && def->isa<Closure>()) {
                 result.emplace(def);
                 queue.push(def->op(1));

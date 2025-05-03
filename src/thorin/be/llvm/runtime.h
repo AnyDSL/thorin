@@ -7,6 +7,7 @@
 #include <llvm/IR/Module.h>
 
 #include "thorin/world.h"
+#include "thorin/be/runtime.h"
 
 namespace thorin::llvm {
 
@@ -17,13 +18,6 @@ class CodeGen;
 class Runtime {
 public:
     Runtime(llvm::LLVMContext&, llvm::Module&);
-
-    enum Platform {
-        CPU_PLATFORM,
-        CUDA_PLATFORM,
-        OPENCL_PLATFORM,
-        HSA_PLATFORM
-    };
 
     /// Emits a call to anydsl_launch_kernel.
     llvm::Value* launch_kernel(
@@ -50,7 +44,7 @@ public:
     /// Emits a call to anydsl_sync_thread.
     llvm::Value* sync_thread(CodeGen&, llvm::IRBuilder<>&, llvm::Value* id);
 
-    Continuation* emit_host_code(
+    void emit_host_code(
         CodeGen& code_gen, llvm::IRBuilder<>& builder,
         Platform platform, const std::string& ext, Continuation* continuation);
 

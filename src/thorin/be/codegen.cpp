@@ -1,91 +1,65 @@
 #include "thorin/world.h"
 #include "thorin/be/codegen.h"
-#include "thorin/analyses/scope.h"
+
+#include "thorin/be/c/c.h"
+#include "thorin/be/config_script/config_script.h"
+#include "thorin/be/runtime.h"
+
+#if THORIN_ENABLE_LLVM
+#include "thorin/be/llvm/nvvm.h"
+#include "thorin/be/llvm/amdgpu_hsa.h"
+#include "thorin/be/llvm/amdgpu_pal.h"
+#endif
+
+#if THORIN_ENABLE_SHADY
+#include "thorin/be/shady/shady.h"
+#undef empty
+#undef nodes
+#endif
+
+#if THORIN_ENABLE_SPIRV
+#include "thorin/be/spirv/spirv.h"
+#endif
+
 #include "thorin/transform/hls_dataflow.h"
 #include "thorin/transform/hls_kernel_launch.h"
 #include "thorin/transform/cgra_dataflow.h"
 
-#if THORIN_ENABLE_LLVM
-#include "thorin/be/llvm/cpu.h"
-#include "thorin/be/llvm/nvvm.h"
-#include "thorin/be/llvm/amdgpu.h"
-#endif
-#include "thorin/be/c/c.h"
-#include "thorin/be/config_script/config_script.h"
-
 namespace thorin {
 
-static void get_kernel_configs(
-    Importer& importer,
-    const std::vector<Continuation*>& kernels,
-    Cont2Config& kernel_configs,
-    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback,
-    const std::function<void(const World::Externals&)>& cgra_callback = {})
-{
-    importer.world().opt();
+void Backend::prepare_kernel_configs() {
+    device_code_.opt();
 
-    auto externals = importer.world().externals();
-    if (cgra_callback)
-        cgra_callback(externals);
-
-    // accessd one time
-    // add index to extract the port
-    // make it a function like "kernel find by name"
-   // for (auto [_, exported] : externals) {
-   //     if (exported->name() == "hls_top") {
-   //         std::cout << "I AM HLS_TOP" <<std::endl;
-   //         for (auto param : exported->params()) {
-   //             std::cout << "PARAM" <<std::endl;
-   //             param->dump();
-   //         }
-   //     } else if (exported->name() == "cgra_graph"){
-
-   //         std::cout << "I AM CGRA_GRAPH" <<std::endl;
-   //         for (auto param : exported->params()) {
-   //             std::cout << "PARAM" <<std::endl;
-   //             param->dump();
-   //         }
-
-   //     }
-   // }
-    for (auto continuation : kernels) {
+    auto conts = device_code_.world().copy_continuations();
+    for (auto continuation : kernels_) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
-        for (auto [_, exported] : externals) {
-            if (!exported->has_body()) continue;
-            if (exported->name() == continuation->unique_name())
-                imported = exported;
-
-        //    if (exported->name() == "hls_top") {
-        //        std::cout << "I AM HLS_TOP" <<std::endl;
-        //        for (auto param : exported->params()) {
-        //            std::cout << "PARAM" <<std::endl;
-        //            param->dump();
-        //        }
-        //    } else if (exported->name() == "cgra_graph"){
-
-        //        std::cout << "I AM CGRA_GRAPH" <<std::endl;
-        //        for (auto param : exported->params()) {
-        //            std::cout << "PARAM" <<std::endl;
-        //            param->dump();
-        //        }
-
-        //    }
-
-
+        for (auto original_cont : conts) {
+            if (!original_cont) continue;
+            if (!original_cont->has_body()) continue;
+            if (!original_cont->is_exported()) continue;
+            if (original_cont->name() == continuation->name())
+                imported = original_cont;
         }
         if (!imported) continue;
 
         visit_uses(continuation, [&] (Continuation* use) {
             assert(use->has_body());
-            auto config = use_callback(use, imported);
+
+            auto handler = backends_.intrinsics_.find(use->body()->callee()->as<Continuation>()->intrinsic());
+            assert(handler != backends_.intrinsics_.end());
+            auto [backend2, get_config] = handler->second;
+            assert(backend2 == this);
+
+            auto config = get_config(use->body(), imported);
             if (config) {
-                auto p = kernel_configs.emplace(imported, std::move(config));
+                auto p = kernel_configs_.emplace(imported, std::move(config));
                 assert_unused(p.second && "single kernel config entry expected");
             }
             return false;
         }, true);
 
+        continuation->world().make_external(continuation);
         continuation->destroy("codegen");
     }
 }
@@ -120,33 +94,9 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-//template<typename T>
-//static bool has_restrict_pointer(const T device, Continuation* use) {
-//    bool has_restrict = true;
-//    auto app = use->body();
-//    // determine whether or not this kernel uses restrict pointers
-//    DefSet allocs;
-//    for (size_t i = LaunchArgs<device>::Num, e = app->num_args(); has_restrict && i != e; ++i) {
-//        auto arg = app->arg(i);
-//        if (!arg->type()->isa<PtrType>()) continue;
-//        auto alloc = get_alloc_call(arg);
-//        if (!alloc) has_restrict = false;
-//        auto p = allocs.insert(alloc);
-//        has_restrict &= p.second;
-//    }
-//    return has_restrict;
-//}
-//
-//
-//
-//
-//
-
-//static bool has_restrict_pointer(int launch_args_num, Continuation* use) {
-static bool has_restrict_pointer(int launch_args_num, Continuation* use) {
-// determines whether or not a kernel uses restrict pointers
+static bool has_restrict_pointer(int launch_args_num, const App* app) {
+    // determines whether or not a kernel uses restrict pointers
     auto has_restrict = true;
-    auto app = use->body();
     DefSet allocs;
     for (size_t i = launch_args_num, e = app->num_args(); has_restrict && i != e; ++i) {
         auto arg = app->arg(i);
@@ -164,9 +114,10 @@ static bool has_restrict_pointer(int launch_args_num, Continuation* use) {
 // It is true beacause of the design of the data structure
 // for example the hls_top param with index 2 at position 1 and cgra_graph param with index 3 at position 1 of the array are semantically related.
 template<typename T>
-//static const auto get_ports(const T param_status, const World::Externals& externals, HlsCgraPorts hls_cgra_ports = HlsCgraPorts()) {
 static const auto get_ports(const T param_status, const World::Externals& externals, Ports& hls_cgra_ports) {
-    for (auto [_, exported] : externals) {
+    for (auto [_, exported_def] : externals) {
+        auto exported = exported_def->isa<Continuation>();
+        if (!exported) continue;
         //if (exported->name() == "hls_top" || exported->name() == "cgra_graph" ) {
         if (exported->is_hls_top() || exported->is_cgra_graph() ) {
             if constexpr (std::is_same_v<T, Array<size_t>>) {
@@ -201,170 +152,129 @@ static const auto get_ports(const T param_status, const World::Externals& extern
                     }
                 }
             }
-                return;
+            return;
         }
     }
     assert(false && "No top module found!");
 }
 
-//static const void get_ports_for(const std::string device_top, Array<size_t> param_indices, const World::Externals& externals) {
-////static const void get_ports_for(const std::string device_top, PortStatus  param_indices, const World::Externals& externals) {
-//    assert((device_top == "hls_top" || device_top == "cgra_graph") && "device top name is not valid!");
-//    for (auto [_, exported] : externals) {
-//        if (exported->name() == device_top) {
-//            std::cout << "I am " << device_top <<std::endl;
-//            for (auto param_index : param_indices) {
-//                std::cout << "Ext port: ";
-//                exported->param(param_index)->dump();
-//                std::cout << exported->param(param_index)->unique_name() << std::endl;
-//                //TODO: use index to check if a port is W or R. using global2mode or def2mde inside dataflow_HLS
-//            }
-//        }
-//    }
-//}
-//
-//
-//
-//
-//static const void get_ports_for(const std::string device_top, PortStatus port_status, const World::Externals& externals) {
-////static const void get_ports_for(const std::string device_top, PortStatus  param_indices, const World::Externals& externals) {
-//    assert((device_top == "hls_top" || device_top == "cgra_graph") && "device top name is not valid!");
-//    for (auto [_, exported] : externals) {
-//        if (exported->name() == device_top) {
-//            std::cout << "I am " << device_top <<std::endl;
-//            for (auto [param_index, _] : port_status) {
-//                std::cout << "Ext port: ";
-//                exported->param(param_index)->dump();
-//                std::cout << exported->param(param_index)->unique_name() << std::endl;
-//                //TODO: use index to check if a port is W or R. using global2mode or def2mde inside dataflow_HLS
-//            }
-//        }
-//    }
-//}
+static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Continuation* imported) {
+    bool has_restrict = has_restrict_pointer(KernelLaunchArgs<GPU>::Num, app);
 
+    auto it_config = app->arg(KernelLaunchArgs<GPU>::Config)->isa<Tuple>();
+    if (it_config &&
+        it_config->op(0)->isa<PrimLit>() &&
+        it_config->op(1)->isa<PrimLit>() &&
+        it_config->op(2)->isa<PrimLit>()) {
+        return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
+                it_config->op(0)->as<PrimLit>()->qu32_value().data(),
+                it_config->op(1)->as<PrimLit>()->qu32_value().data(),
+                it_config->op(2)->as<PrimLit>()->qu32_value().data()
+        }, has_restrict);
+    }
+    return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
+}
 
-////template<typename T>
-//static bool has_restrict_pointer(Device_code device, Continuation* use) {
-//    bool has_restrict = true;
-//    auto app = use->body();
-//    // determine whether or not this kernel uses restrict pointers
-//    DefSet allocs;
-//    //for (size_t i = LaunchArgs<device>::Num, e = app->num_args(); has_restrict && i != e; ++i) {
-//    for (size_t i = launch_args(device)::Num, e = app->num_args(); has_restrict && i != e; ++i) {
-//        auto arg = app->arg(i);
-//        if (!arg->type()->isa<PtrType>()) continue;
-//        auto alloc = get_alloc_call(arg);
-//        if (!alloc) has_restrict = false;
-//        auto p = allocs.insert(alloc);
-//        has_restrict &= p.second;
-//    }
-//    return has_restrict;
-//}
+Backend::Backend(thorin::DeviceBackends& backends, World& src) : backends_(backends), device_code_(src), importer_(std::make_unique<Importer>(src, device_code_.world())) {}
 
-DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& flags)
-    : cgs {}
-{
-    for (size_t i = 0; i < cgs.size(); ++i)
-        importers_.emplace_back(world);
-
-    // determine different parts of the world which need to be compiled differently
-    Scope::for_each(world, [&] (const Scope& scope) {
-        auto continuation = scope.entry();
-        Continuation* imported = nullptr;
-
-        static const auto backend_intrinsics = std::array {
-            std::pair { CUDA,   Intrinsic::CUDA   },
-            std::pair { NVVM,   Intrinsic::NVVM   },
-            std::pair { OpenCL, Intrinsic::OpenCL },
-            std::pair { AMDGPU, Intrinsic::AMDGPU },
-            std::pair { HLS,    Intrinsic::HLS    },
-            std::pair { CGRA,   Intrinsic::CGRA   }
-        };
-        for (auto [backend, intrinsic] : backend_intrinsics) {
-            if (is_passed_to_intrinsic(continuation, intrinsic)) {
-                imported = importers_[backend].import(continuation)->as_nom<Continuation>();
-                break;
-            }
-        }
-
-        if (imported == nullptr)
-            return;
-
-        // Necessary so that the names match in the original and imported worlds
-        imported->set_name(continuation->unique_name());
-        for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->set_name(continuation->param(i)->name());
-        imported->world().make_external(imported);
-
-        kernels.emplace_back(continuation);
-    });
-
-    //for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU, CGRA }) {
-    for (auto backend : std::array { CUDA, NVVM, OpenCL, AMDGPU}) {
-        if (!importers_[backend].world().empty()) {
-            //size_t launch_args_num;
-           // switch (backend) {
-             //   case CUDA: case NVVM: case OpenCL: case AMDGPU:
-                    //launch_args_num = LaunchArgs<GPU>::Num; break;
-              //  case CGRA: {
-                    //cgra_dataflow(importers_[CGRA]);
-              //      launch_args_num = LaunchArgs<AIE_CGRA>::Num; break;
-        //        }
-          //      default:
-           //         THORIN_UNREACHABLE;
-           // }
-
-            get_kernel_configs(importers_[backend], kernels, kernel_config, [&](Continuation *use, Continuation * /* imported */) {
-               // bool has_restrict = true;
-                auto has_restrict = has_restrict_pointer(LaunchArgs<GPU>::Num, use);
-                //auto app = use->body();
-                // determine whether or not this kernel uses restrict pointers
-            //    DefSet allocs;
-            //    for (size_t i = launch_args_num, e = app->num_args(); has_restrict && i != e; ++i) {
-            //        auto arg = app->arg(i);
-            //        if (!arg->type()->isa<PtrType>()) continue;
-            //        auto alloc = get_alloc_call(arg);
-            //        if (!alloc) has_restrict = false;
-            //        auto p = allocs.insert(alloc);
-            //        has_restrict &= p.second;
-            //    }
-           // if (backend != CGRA) {
-                auto it_config = use->body()->arg(LaunchArgs<GPU>::Config)->as<Tuple>();
-                if (it_config->op(0)->isa<PrimLit>() &&
-                    it_config->op(1)->isa<PrimLit>() &&
-                    it_config->op(2)->isa<PrimLit>()) {
-                    return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
-                        it_config->op(0)->as<PrimLit>()->qu32_value().data(),
-                        it_config->op(1)->as<PrimLit>()->qu32_value().data(),
-                        it_config->op(2)->as<PrimLit>()->qu32_value().data()
-                    }, has_restrict);
-                }
-           // }
-                return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
-            });
-        }
+struct CudaBackend : public Backend {
+    explicit CudaBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::CUDA, *this, get_gpu_kernel_config);
     }
 
-  //  if (!importers_[CGRA].world().empty()) {
-  //      cgra_dataflow(importers_[CGRA]);
-  //  }
-    // get the HLS kernel configurations
-    Top2Kernel top2kernel;
-    DeviceDefs device_defs;
-    Ports hls_cgra_ports; // channel-params between HLS and CGRA
-    if (!importers_[HLS].world().empty()) {
-        device_defs = hls_dataflow(importers_[HLS], top2kernel, world, importers_[CGRA]);
+    std::unique_ptr<CodeGen> create_cg() override {
+        std::string empty;
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::CUDA, backends_.debug(), empty);
+    }
+};
 
-        get_kernel_configs(importers_[HLS], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
-            auto app = use->body();
+struct OpenCLBackend : public Backend {
+    explicit OpenCLBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::OpenCL, *this, get_gpu_kernel_config);
+    }
 
-           // auto externals = importers_[HLS].world().externals();
-           // std::cout << "LOCAL CODE EXTERNALS" << std::endl;
-           // for (auto [_, exported] : externals) {
-           //     exported->dump();
-           //     }
+    std::unique_ptr<CodeGen> create_cg() override {
+        std::string empty;
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::OpenCL, backends_.debug(), empty);
+    }
+};
 
+#if THORIN_ENABLE_SPIRV
+struct OpenCLSPIRVBackend : public Backend {
+    explicit OpenCLSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::OpenCL_SPIRV, *this, get_gpu_kernel_config);
+    }
 
+    std::unique_ptr<CodeGen> create_cg() override {
+        spirv::Target target;
+        return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
+    }
+};
+
+struct LevelZeroSPIRVBackend : public Backend {
+    explicit LevelZeroSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::LevelZero_SPIRV, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        spirv::Target target;
+        return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
+    }
+};
+#endif
+
+#if THORIN_ENABLE_LLVM
+struct AMDHSABackend : public Backend {
+    explicit AMDHSABackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::AMDGPUHSA, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        return std::make_unique<llvm::AMDGPUHSACodeGen>(device_code_, kernel_configs_, backends_.opt(), backends_.debug());
+    }
+};
+
+struct AMDPALBackend : public Backend {
+    explicit AMDPALBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::AMDGPUPAL, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        return std::make_unique<llvm::AMDGPUPALCodeGen>(device_code_, kernel_configs_, backends_.opt(), backends_.debug());
+    }
+};
+
+struct NVVMBackend : public Backend {
+    explicit NVVMBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::NVVM, *this, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg() override {
+        return std::make_unique<llvm::NVVMCodeGen>(device_code_, kernel_configs_, backends_.opt(), backends_.debug());
+    }
+};
+#endif
+
+#if THORIN_ENABLE_SHADY
+struct ShadyBackend : public Backend {
+    explicit ShadyBackend(DeviceBackends2& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::ShadyCompute, get_gpu_kernel_config);
+    }
+
+    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
+        return std::make_unique<shady_be::CodeGen>(device_code_, config, backends_.debug());
+    }
+};
+#endif
+
+//TODO: move this somewhere sane.
+static Ports hls_cgra_ports; // chanel-params between HLS and CGRA
+static DeviceDefs hls_device_defs;
+static Top2Kernel hls_top2kernel;
+
+struct HLSBackend : public Backend {
+    explicit HLSBackend(DeviceBackends& b, World& src, std::string& hls_flags) : Backend(b, src), hls_flags_(hls_flags) {
+        b.register_intrinsic(Intrinsic::HLS, *this, [&](const App* app, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {
                 auto arg = app->arg(i);
@@ -372,7 +282,7 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);
                 if (size == 0)
-                    world.edef(arg, "array size is not known at compile time");
+                    b.world().edef(arg, "array size is not known at compile time");
                 auto elem_type = ptr_type->pointee();
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
@@ -387,132 +297,88 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                 }
                 auto prim_type = elem_type->isa<PrimType>();
                 if (!prim_type)
-                    world.edef(arg, "only pointers to arrays of primitive types are supported");
+                    b.world().edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - hls_free_vars_offset + 2), num_elems);
             }
-            return std::make_unique<HLSKernelConfig>(param_sizes); // this config is added into cont2config (kernel_config) map with its continuation
-        }, [&] (const World::Externals& externals) {
-
-            //auto externals = importers_[HLS].world().externals();
-       //     for (auto [_, exported] : externals) {
-       //         if (exported->name() == "hls_top") {
-       //             std::cout << "I AM HLS_TOP" <<std::endl;
-       //         //    for (auto param : exported->params()) {
-       //         //        std::cout << "PARAM" <<std::endl;
-       //         //        param->dump();
-       //         //    }
-
-       //             for (auto param_index : std::get<2>(device_defs)) {
-       //                 std::cout << "CGRA port param: " << std::endl;
-       //                 exported->param(param_index)->dump();
-       //             }
-
-       //         } else if (exported->name() == "cgra_graph"){
-
-       //             std::cout << "I AM CGRA_GRAPH" <<std::endl;
-       //             for (auto param : exported->params()) {
-       //                 std::cout << "PARAM" <<std::endl;
-       //                 param->dump();
-       //             }
-
-       //         }
-       //     }
-
-        //get_ports_for("hls_top", std::get<2>(device_defs), externals);
-        get_ports(std::get<2>(device_defs), externals, hls_cgra_ports);
-        }
-
-            );
-        hls_annotate_top(importers_[HLS].world(), top2kernel, kernel_config); // adding hls_top config to cont2config map
+            return std::make_unique<HLSKernelConfig>(param_sizes);
+        });
     }
 
-    hls_kernel_launch(world, std::get<0>(device_defs), kernel_config);
+    std::unique_ptr<CodeGen> create_cg() override {
+        if (!device_code_.world().empty()) {
+            get_ports(std::get<2>(hls_device_defs), device_code_.world().externals(), hls_cgra_ports);
 
-    //TODO: need to write an analysis to check R/W mode on global memory allocaions
-    if (!importers_[CGRA].world().empty()) {
-        // at the moment only kernel channel modes are returned
-        // ports are cgra_graph params that are connected to hls_top
-       auto [port_indices, cont2param_modes] = cgra_dataflow(importers_[CGRA], world, std::get<1>(device_defs));
+            hls_annotate_top(device_code_.world(), hls_top2kernel, kernel_configs_);
+            hls_kernel_launch(device_code_.world(), std::get<0>(hls_device_defs), kernel_configs_);
+        }
 
-       get_kernel_configs(importers_[CGRA], kernels, kernel_config, [&] (Continuation* use, Continuation* imported) {
-               CGRAKernelConfig::Param2Mode param2mode;
-               // The order that channel modes are inserted in param_modes cosecuteviley is aligned with the order that channels appear in imported continuations
-               // for example, the first mode in param_modes (index = 0) is equal to the first channel in the imported continuation (kernel)
-               annotate_channel_modes(imported, cont2param_modes, param2mode);
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::HLS, backends_.debug(), hls_flags_);
+    }
 
-               annotate_interface(imported, use);
+    std::string& hls_flags_;
+};
 
-            auto app = use->body();
-          //  for(const auto& [cont, param_modes] : cont2param_modes) {
-          //  //TODO: check for continuation names then insert channel param modes
-          //   //std::cout << "check names" << std::endl;
-          //      //std::cout << cont->name() << "==" << imported->name() << " ?" << std::endl;
-          //      //if (cont->name() == imported->name()) {std::cout << "BINGO" << std::endl;}
-          //      for (auto const& param : imported->params()) {
-          //          if ((param->index() < 2) || is_mem(param) || param->order() != 0 || is_unit(param))
-          //              continue;
-          //          else if (auto type = param->type(); is_channel_type(type)) {}
+static ContName2ParamModes cgra_cont2param_modes;
+static PortIndices cgra_port_indices;
 
-          //          param->dump();
-          //      }
-          //  }
+struct CGRABackend : public Backend {
+    explicit CGRABackend(DeviceBackends& b, World& src) : Backend(b, src) {
+        b.register_intrinsic(Intrinsic::CGRA, *this, [&](const App* app, Continuation* imported) {
+            CGRAKernelConfig::Param2Mode param2mode;
+            // The order that channel modes are inserted in param_modes cosecuteviley is aligned with the order that channels appear in imported continuations
+            // for example, the first mode in param_modes (index = 0) is equal to the first channel in the imported continuation (kernel)
 
-            auto has_restrict = has_restrict_pointer(LaunchArgs<AIE_CGRA>::Num, use);
+            annotate_channel_modes(imported, cgra_cont2param_modes, param2mode);
+            for (auto use : app->uses()) {
+                if (use->isa<Continuation>())
+                    annotate_interface(imported, use->as<Continuation>());
+            }
+
+            auto has_restrict = has_restrict_pointer(KernelLaunchArgs<AIE_CGRA>::Num, app);
             // TODO: (-10,-10) auto location , default rtm_ratio to 1
-                auto runtime_ratio = app->arg(LaunchArgs<AIE_CGRA>::Runtime_ratio);
-                auto tile_location = app->arg(LaunchArgs<AIE_CGRA>::Location)->as<Tuple>();
-                auto vector_size   = app->arg(LaunchArgs<AIE_CGRA>::Vector_size);
-                if (runtime_ratio->isa<PrimLit>() &&
+            auto runtime_ratio = app->arg(KernelLaunchArgs<AIE_CGRA>::Runtime_ratio);
+            auto tile_location = app->arg(KernelLaunchArgs<AIE_CGRA>::Location)->as<Tuple>();
+            auto vector_size   = app->arg(KernelLaunchArgs<AIE_CGRA>::Vector_size);
+            if (runtime_ratio->isa<PrimLit>() &&
                     tile_location->op(0)->isa<PrimLit>() &&
                     tile_location->op(1)->isa<PrimLit>() &&
                     vector_size->isa<PrimLit>()) {
-                    auto runtime_ratio_val = runtime_ratio->as<PrimLit>()->qf32_value().data();
-                    auto tile_location_val = std::make_pair(tile_location->op(0)->as<PrimLit>()->qu32_value().data(),
-                           tile_location->op(1)->as<PrimLit>()->qu32_value().data());
-                    auto vector_size_val = vector_size->as<PrimLit>()->qu32_value().data();
+                auto runtime_ratio_val = runtime_ratio->as<PrimLit>()->qf32_value().data();
+                auto tile_location_val = std::make_pair(tile_location->op(0)->as<PrimLit>()->qu32_value().data(),
+                        tile_location->op(1)->as<PrimLit>()->qu32_value().data());
+                auto vector_size_val = vector_size->as<PrimLit>()->qu32_value().data();
 
-                    return std::make_unique<CGRAKernelConfig>(runtime_ratio_val, tile_location_val, vector_size_val, param2mode, has_restrict);
-                }
-                    return std::make_unique<CGRAKernelConfig>(-1, std::make_pair(-1, -1), -1, param2mode, has_restrict);
+                return std::make_unique<CGRAKernelConfig>(runtime_ratio_val, tile_location_val, vector_size_val, param2mode, has_restrict);
+            }
+            return std::make_unique<CGRAKernelConfig>(-1, std::make_pair(-1, -1), -1, param2mode, has_restrict);
+        });
+    }
 
-            // TODO: insert corresponding params from imported  using index and add mode
-            //    for (size_t i = cgra_free_vars_offset, e = app->num_args(); i != e; ++i) {
-            //        auto arg = app->arg(i);
-            //        auto ptr_type = arg->type()->isa<PtrType>();
-            //        //TODO : check types and assign to param2mode
-            //    }
-        }, [&] (const World::Externals& externals) {
+    std::unique_ptr<CodeGen> create_cg() override {
+        std::string empty;
+
+        if (!device_code_.world().empty()) {
             // TODO: HERE cgra_graph params are correct!
             Continuation* cgra_graph_cont = nullptr;
-            for (auto [_, exported] : externals) {
-                if (auto temp = exported->isa_nom<Continuation>()) {
-                    std::cout << "external codegen" << std::endl;
-                    //temp->dump();
-                }
-                if (exported->isa_nom<Continuation>()->is_cgra_graph()) {
-                    cgra_graph_cont = exported;
-                    for (auto param : exported->params()){
+            for (auto [_, exported] : device_code_.world().externals()) {
+                if (auto cont = exported->isa_nom<Continuation>(); cont && cont->is_cgra_graph()) {
+                    cgra_graph_cont = cont;
+                    for (auto param : cont->params()){
                         std::cout << "external" << std::endl;
                         //param->dump();
                     }
                 }
             }
-      //  }
 
-                //get_ports_for("cgra_graph", port_indices, externals);
-                //get_ports(std::get<0>(port_indices), externals, hls_cgra_ports);
-                get_ports(port_indices, externals, hls_cgra_ports);
-        // just copied from down
-   //     if (!hls_cgra_ports.empty()) {
-        // the aim is passing cgra_graph cont to annotate_cgra_graph_modes to import the config for non-channel params
-            //cgra_graph_cont->dump();
-            annotate_cgra_graph_modes(cgra_graph_cont, hls_cgra_ports, kernel_config); // adding cgra_graph config to cont2config map
-            for (const auto& item : kernel_config) {
+            get_ports(cgra_port_indices, device_code_.world().externals(), hls_cgra_ports);
+            annotate_cgra_graph_modes(cgra_graph_cont, hls_cgra_ports, kernel_configs_); // adding cgra_graph config to cont2config map
+                                                                                         //
+            for (const auto& item : kernel_configs_) {
                 auto cont = item.first;
                 if (auto config = item.second->isa<CGRAKernelConfig>(); config) {//std::cout << "FOUND CGRA CONFIG" << std::endl;
-                    //cont->dump();
+                                                                                 //cont->dump();
                     for (auto param : cont->params()) {
                         if (auto mode = config->param_mode(param); mode != ChannelMode::Undef) {
                             std::cout << "param" << std::endl;
@@ -526,78 +392,113 @@ DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& f
                     }
                 }
             }
-      //  }
-        //else
-          //  world.WLOG("TODO: CGRA graph is not correclty generated due to direct memory access!");
 
-        }
-        );
-        // just moved up but here is a better place as it is called only once
-//        if (!hls_cgra_ports.empty()) {
-//            annotate_cgra_graph_modes(hls_cgra_ports, kernel_config); // adding cgra_graph config to cont2config map
-//            for (const auto& item : kernel_config) {
-//                auto cont = item.first;
-//                if (auto config = item.second->isa<CGRAKernelConfig>(); config) {std::cout << "FOUND CGRA CONFIG" << std::endl;
-//                    cont->dump();
-//                    for (auto param : cont->params()) {
-//                        if (auto mode = config->param_mode(param); mode != ChannelMode::Undef) {
-//                            std::cout << "param" << std::endl;
-//                            param->dump();
-//                            std::cout << "mode" << std::endl;
-//                            if (mode == ChannelMode::Read) {std::cout << "Read"<< std::endl;
-//                            } else {
-//                                std::cout << "Write"<< std::endl;
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        else
-//            world.WLOG("TODO: CGRA graph is not correclty generated due to direct memory access!");
-    }
+            //TODO: This should not be emitted here. Eiter find a way to move this code generator outside, or integrate this into the CGRA code generator.
+            //Maybe a wrapper around these code generators would be in order? We currently expect a single code generator to emit a single file,
+            //but this is not the case with CGRA.
+            auto cfg_generator = std::make_unique<config_script::CodeGen>(device_code_, backends_.debug(), hls_cgra_ports, empty);
 
-
-#if THORIN_ENABLE_LLVM
-    if (!importers_[NVVM  ].world().empty()) cgs[NVVM  ] = std::make_unique<llvm::NVVMCodeGen  >(importers_[NVVM  ].world(), kernel_config,      debug);
-    if (!importers_[AMDGPU].world().empty()) cgs[AMDGPU] = std::make_unique<llvm::AMDGPUCodeGen>(importers_[AMDGPU].world(), kernel_config, opt, debug);
-#else
-    (void)opt;
-#endif
-
-        //thorin::config_script::CodeGen cg(world,debug, hls_cgra_ports);
-        //emit_to_file(cg);
-   // std::cout << "--------> " <<hls_cgra_ports.size() << std::endl;
-   // for (auto elem : hls_cgra_ports)
-       // std::cout << "--------> " << elem.first.value().first << "-----" << elem.second.value() << std::endl;
-        //elem.second.value();
-    if (!importers_[CGRA].world().empty()){
-        cgs[CGRA] = std::make_unique<config_script::CodeGen>(importers_[CGRA].world(), debug, hls_cgra_ports, flags);
-        thorin::config_script::CodeGen cg(world, debug, hls_cgra_ports, flags);
-
-    auto emit_to_file = [&] (thorin::CodeGen& cg) {
-            auto name = world.name() + cg.file_ext();
+            auto name = device_code_.world().name() + cfg_generator->file_ext();
             std::ofstream file(name);
             if (!file)
-                world.ELOG("cannot open '{}' for writing", name);
+                device_code_.world().ELOG("cannot open '{}' for writing", name);
             else
-                cg.emit_stream(file);
-        };
-
-        emit_to_file(cg);
-    }
-
-    //if (!importers_[CGRA  ].world().empty()) cgs[CGRA  ] = std::make_unique<config_script::CodeGen>(importers_[CGRA  ].world(), debug);
-    for (auto [backend, lang] : std::array { std::pair { CUDA, c::Lang::CUDA }, std::pair { OpenCL, c::Lang::OpenCL }, std::pair { HLS, c::Lang::HLS }, std::pair { CGRA, c::Lang::CGRA } })
-        if (!importers_[backend].world().empty()) { cgs[backend] = std::make_unique<c::CodeGen>(importers_[backend].world(), kernel_config, lang, debug, flags);
+                cfg_generator->emit_stream(file);
         }
 
+        return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::CGRA, backends_.debug(), empty);
+    }
+};
+
+DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::string& hls_flags) : world_(world), opt_(opt), debug_(debug) {
+    register_backend(std::make_unique<CudaBackend>(*this, world));
+    register_backend(std::make_unique<OpenCLBackend>(*this, world));
+#if THORIN_ENABLE_LLVM
+    register_backend(std::make_unique<AMDHSABackend>(*this, world));
+    register_backend(std::make_unique<AMDPALBackend>(*this, world));
+    register_backend(std::make_unique<NVVMBackend>(*this, world));
+#endif
+#if THORIN_ENABLE_SHADY
+    register_backend(std::make_unique<ShadyBackend>(*this, world))
+#endif
+#if THORIN_ENABLE_SPIRV
+    register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));
+    register_backend(std::make_unique<LevelZeroSPIRVBackend>(*this, world));
+#endif
+    register_backend(std::make_unique<HLSBackend>(*this, world, hls_flags));
+    register_backend(std::make_unique<CGRABackend>(*this, world));
+
+    search_for_device_code();
 }
 
+void DeviceBackends::register_backend(std::unique_ptr<Backend> backend) {
+    backends_.push_back(std::move(backend));
+}
 
+World& DeviceBackends::world() { return world_; }
+bool DeviceBackends::debug() { return debug_; }
+int DeviceBackends::opt() { return opt_; }
 
-CodeGen::CodeGen(World& world, bool debug)
-    : world_(world)
+void DeviceBackends::register_intrinsic(thorin::Intrinsic intrinsic, Backend& backend, GetKernelConfigFn f) {
+    intrinsics_[intrinsic] = std::make_pair(&backend, f);
+}
+
+void DeviceBackends::search_for_device_code() {
+    // determine different parts of the world which need to be compiled differently
+    ScopesForest(world_).for_each([&] (const Scope& scope) {
+        auto continuation = scope.entry();
+        Continuation* imported = nullptr;
+
+        Intrinsic intrinsic = Intrinsic::None;
+        visit_capturing_intrinsics(continuation, [&] (Continuation* continuation) {
+            if (continuation->is_offload_intrinsic()) {
+                intrinsic = continuation->intrinsic();
+                return true;
+            }
+            return false;
+        });
+
+        if (intrinsic == Intrinsic::None)
+            return;
+
+        auto handler = intrinsics_.find(intrinsic);
+        assert(handler != intrinsics_.end());
+        auto [backend, get_config] = handler->second;
+
+        imported = backend->importer_->import(continuation)->as_nom<Continuation>();
+        if (imported == nullptr)
+            return;
+
+        // Necessary so that the names match in the original and imported worlds
+        imported->set_name(continuation->unique_name());
+        continuation->set_name(continuation->unique_name());
+        for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
+            imported->param(i)->set_name(continuation->param(i)->name());
+        imported->world().make_external(imported);
+        imported->attributes().cc = CC::C;
+
+        backend->kernels_.emplace_back(continuation);
+    });
+
+    auto [hls_backend, _] = intrinsics_.find(Intrinsic::HLS)->second;
+    auto [cgra_backend, _] = intrinsics_.find(Intrinsic::CGRA)->second;
+
+    hls_device_defs = hls_dataflow(*hls_backend->importer_, hls_top2kernel, world_, *cgra_backend->importer_);
+    auto dataflow_result = cgra_dataflow(*cgra_backend->importer_, world_, std::get<1>(hls_device_defs));
+    cgra_port_indices = std::get<0>(dataflow_result);
+    cgra_cont2param_modes = std::get<1>(dataflow_result);
+
+    for (auto& backend : backends_) {
+        if (backend->thorin().world().empty())
+            continue;
+
+        backend->prepare_kernel_configs();
+        cgs.emplace_back(backend->create_cg());
+    }
+}
+
+CodeGen::CodeGen(Thorin& thorin, bool debug)
+    : thorin_(thorin)
     , debug_(debug)
 {}
 

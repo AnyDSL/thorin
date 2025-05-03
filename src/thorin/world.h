@@ -43,7 +43,7 @@ enum class LogLevel { Debug, Verbose, Info, Warn, Error };
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
-class World : public TypeTable, public Streamable<World> {
+class World : public Streamable<World> {
 public:
     struct SeaHash {
         static hash_t hash(const Def* def) { return def->hash(); }
@@ -65,7 +65,7 @@ public:
 
     using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
-    using Externals   = HashMap<std::string, Continuation*, ExternalsHash>;
+    using Externals   = HashMap<std::string, Def*, ExternalsHash>;
 
     World(World&&) = delete;
     World& operator=(const World&) = delete;
@@ -78,7 +78,6 @@ public:
         stream_ = other.stream_;
         state_  = other.state_;
     }
-    ~World();
 
     /// @name manage global identifier - a unique number for each Def
     //@{
@@ -90,11 +89,41 @@ public:
     //@{
     bool empty() { return data_.externals_.empty(); }
     const Externals& externals() const { return data_.externals_; }
-    void make_external(Continuation* cont) { data_.externals_.emplace(cont->unique_name(), cont); }
-    void make_internal(Continuation* cont) { data_.externals_.erase(cont->unique_name()); }
-    bool is_external(const Continuation* cont) { return data_.externals_.contains(cont->unique_name()); }
-    Continuation* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
+    void make_external(Def* cont) { assert(&cont->world() == this); data_.externals_.emplace(cont->unique_name(), cont); }
+    void make_internal(Def* cont) { assert(&cont->world() == this); data_.externals_.erase(cont->unique_name()); }
+    bool is_external(const Def* cont) { return data_.externals_.contains(cont->unique_name()); }
+    Def* lookup(const std::string& name) { return data_.externals_.lookup(name).value_or(nullptr); }
+    DEBUG_UTIL Continuation* find_cont(const char* name) {
+        for (auto cont : copy_continuations()) {
+            if (cont->unique_name() == name)
+                return cont;
+        }
+        return nullptr;
+    }
     //@}
+
+    // types
+
+    const Type* star() { return types_.star_; }
+
+    const Type* tuple_type(Types ops);
+    const TupleType* unit_type() { return tuple_type({})->as<TupleType>(); } ///< Returns unit, i.e., an empty @p TupleType.
+    VariantType* variant_type(Symbol name, size_t size);
+    StructType* struct_type(Symbol name, size_t size);
+
+#define THORIN_ALL_TYPE(T, M) \
+    const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }
+#include "thorin/tables/primtypetable.h"
+    const PrimType* prim_type(PrimTypeTag tag, size_t length = 1);
+    const BottomType* bottom_type() { return make<BottomType>(*this, Debug()); }
+    const MemType* mem_type() { return make<MemType>(*this, Debug()); }
+    const FrameType* frame_type() { return make<FrameType>(*this, Debug()); }
+    const PtrType* ptr_type(const Type* pointee, size_t length = 1, AddrSpace addr_space = AddrSpace::Generic);
+    const FnType* fn_type() { return fn_type({}); } ///< Returns an empty @p FnType.
+    const FnType* fn_type(Types args);
+    const ClosureType* closure_type(Types args);
+    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
+    const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 
     // literals
 
@@ -110,8 +139,8 @@ public:
     const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
     const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(type, dbg)), length); }
-    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
+    const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(*this, type, dbg)), length); }
+    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(*this, type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(prim_type(tag), dbg, length); }
 
     // arithops
@@ -156,15 +185,15 @@ public:
         return cse(new IndefiniteArray(*this, elem, dim, dbg));
     }
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
+        return try_fold_aggregate(cse(new StructAgg(*this, struct_type, args, dbg)));
     }
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
 
-    const Def* variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg = {}) { return cse(new Variant(variant_type, value, index, dbg)); }
+    const Def* variant(const VariantType* variant_type, const Def* value, size_t index, Debug dbg = {}) { return cse(new Variant(*this, variant_type, value, index, dbg)); }
     const Def* variant_index  (const Def* value, Debug dbg = {});
     const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
 
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(closure_type, fn, env, dbg)); }
+    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(*this, closure_type, fn, env, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(cse(new Vector(*this, args, dbg)));
@@ -216,7 +245,7 @@ public:
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
-    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(type, frame, dbg)); }
+    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
@@ -243,11 +272,8 @@ public:
     Continuation* branch() const { return data_.branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return data_.end_scope_; }
+    const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Filter* filter(const Defs, Debug dbg = {});
-
-    /// Performs dead code, unreachable code and unused type elimination.
-    void cleanup();
-    void opt();
 
     // getters
 
@@ -275,6 +301,8 @@ public:
 
     /// @name logging
     //@{
+    void dump_scoped(bool=true) const;
+    void dump_scoped_to_disk() const;
     Stream& stream(Stream&) const;
     Stream& stream() { return *stream_; }
     /// Writes to a file named @c name().
@@ -301,6 +329,7 @@ public:
     // Ignore log
     void ignore() {}
 
+    template<class... Args> void ddef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Debug, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
     template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }
@@ -310,17 +339,8 @@ public:
     static std::string colorize(const std::string& str, int color);
     //@}
 
-    friend void swap(World& w1, World& w2) {
-        using std::swap;
-        swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
-        swap(w1.state_,  w2.state_);
-        swap(w1.data_,   w2.data_);
-        swap(w1.stream_, w2.stream_);
-    }
-
 private:
-    const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
-    const App* app(const Def* callee, const Defs args, Debug dbg = {});
+    const Param* param(const Type* type, const Continuation*, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     template <class F> const Def* transcendental(MathOpTag, const Def*, Debug, F&&);
     template <class F> const Def* transcendental(MathOpTag, const Def*, const Def*, Debug, F&&);
@@ -329,6 +349,11 @@ private:
     //@{
     template <class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
     const Def* cse_base(const Def*);
+    template <class T, class... Args>
+    const T* make(Args&&... args) {
+        auto def = new T(args...);
+        return cse<T>(def);
+    }
 
     template<class T, class... Args>
     T* put(Args&&... args) {
@@ -361,14 +386,38 @@ private:
         Continuation* end_scope_;
     } data_;
 
+    TypeTable types_;
+
     std::shared_ptr<Stream> stream_;
 
     friend class Mangler;
     friend class Cleaner;
     friend class Continuation;
+    friend class Param;
     friend class Filter;
     friend class App;
     friend class Importer;
+    friend class Thorin;
+    friend class TypeTable;
+};
+
+class Thorin {
+public:
+    /// Initial world constructor
+    explicit Thorin(const std::string& name);
+    explicit Thorin(World& src);
+
+    World& world() { return *world_; };
+    std::unique_ptr<World>& world_container() { return world_; }
+
+    /// Performs dead code, unreachable code and unused type elimination.
+    void cleanup();
+    void opt();
+
+    bool ensure_stack_size(size_t new_size);
+
+private:
+    std::unique_ptr<World> world_;
 };
 
 }

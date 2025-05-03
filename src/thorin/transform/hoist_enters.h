@@ -5,7 +5,7 @@ namespace thorin {
 
 class World;
 
-void hoist_enters(World&);
+void hoist_enters(Thorin&);
 
 }
 

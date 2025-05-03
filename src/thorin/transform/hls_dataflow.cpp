@@ -17,7 +17,7 @@ using Cycle        = std::vector<std::pair<size_t, size_t>>;
 
 // makes a data structure that maps global variables to their basic block and their HLS/ CGRA intrinsic
 void hls_cgra_global_analysis(World& world, std::vector<Def2Block>& old_global_maps) {
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
             auto kernel = scope.entry();
             Def2Block global2block; // global, using basic block, HLS/CGRA
             for (auto& block : schedule(scope)) {
@@ -92,9 +92,9 @@ void hls_cgra_dependency_analysis(Def2DependentBlocks& global2dependent_blocks, 
 void connecting_blocks_old2new(std::vector<const Def*>& target_blocks, const Def2DependentBlocks def2dependent_blocks, Importer& importer, std::function<Continuation*(DependentBlocks)> select_block) {
     for (const auto& [old_common_global, pair] : def2dependent_blocks) {
         auto old_basicblock = select_block(pair);
-                    if (importer.def_old2new_.contains(old_basicblock)) {
-                        target_blocks.emplace_back(importer.def_old2new_[old_basicblock]);
-            }
+        if (importer.lookup(old_basicblock)) {
+            target_blocks.emplace_back(importer.lookup(old_basicblock));
+        }
     }
 }
 
@@ -102,8 +102,8 @@ void common_globals_old2new(Array<const Def*>& target_global, const Def2Dependen
     size_t i = 0;
     for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
         auto old_common_global = it->first;
-        if (importer.def_old2new_.contains(old_common_global)) {
-            target_global[i++] = importer.def_old2new_[old_common_global];
+        if (importer.lookup(old_common_global)) {
+            target_global[i++] = importer.lookup(old_common_global);
         }
     }
 }
@@ -112,10 +112,10 @@ void common_globals_old2new(Array<const Def*>& target_global, const Def2Dependen
 void params2cgra_ports(const Def2Def param2arg, const Def2DependentBlocks def2dependent_blocks, Importer& importer) {
     for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
         auto old_common_global = it->first;
-        if (importer.def_old2new_.contains(old_common_global)) {
+        if (importer.lookup(old_common_global)) {
             for (const auto& [param, arg] : param2arg) {
                 if (arg->isa<Global>()) {
-                    if (arg == importer.def_old2new_[old_common_global]) {
+                    if (arg == importer.lookup(old_common_global)) {
                         std::cout << "I AM HEREEEE!!!" << std::endl;
                         param->dump();
                         // these params need to be check after their are written with hls_top in next lines of codes
@@ -231,7 +231,7 @@ void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent
         } else {
 
             auto& cgra_world = cont->world();
-            Scope::for_each(cgra_world, [&](Scope& scope) {
+            ScopesForest(cgra_world).for_each([&](Scope& scope) {
                 // Check if the scope contains a Continuation that matches the provided basic block (cont)
                 auto continuation_itr = std::find_if(scope.defs().begin(), scope.defs().end(), [&](const auto& def) {
                     if (def->template isa_nom<Continuation>()) {
@@ -452,7 +452,7 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
 
 bool has_cgra_callee(World& world) {
     auto found_cgra = false;
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
         for (auto& block : schedule(scope)) {
             if (!block->has_body())
                 continue;
@@ -532,8 +532,8 @@ void circle_analysis(Dependencies dependencies, World& world, size_t single_kern
  */
 
 DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_world, Importer& importer_cgra) {
-    auto& world = importer.world(); // world is hls world
-    auto& cgra_world = importer_cgra.world();
+    auto& world = importer.dst(); // world is hls world
+    auto& cgra_world = importer_cgra.dst();
 
     // TODO: rename to hls_new_kernels
     // the size of this vector is equal to the size of kernels with deps.
@@ -546,7 +546,6 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
     // hls_top should be transformed whenever there is a CGRA
     if (has_cgra_callee(old_world)) std::cout << "FOUND CGRA!" << std::endl;
-
 
     std::vector<Def2Block> old_global_maps;
     hls_cgra_global_analysis(old_world, old_global_maps);
@@ -563,7 +562,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     });
 
 
-    Scope::for_each(world, [&] (Scope& scope) {
+    ScopesForest(world).for_each([&] (Scope& scope) {
             auto old_kernel = scope.entry();
             // def is a global in hls world
             // mode states the global is written/read in a kernel
@@ -571,9 +570,10 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
             extract_kernel_channels(schedule(scope), hls_def2hls_mode);
 
             Array<const Type*> new_param_types(hls_def2hls_mode.size() + old_kernel->num_params());
-            std::copy(old_kernel->type()->ops().begin(),
-                    old_kernel->type()->ops().end(),
-                    new_param_types.begin());
+            for (auto i = 0; i < old_kernel->type()->num_ops(); i++) {
+                auto old_type = old_kernel->type()->op(i);
+                new_param_types[i] = old_type->as<Type>();
+            }
             size_t i = old_kernel->num_params();
             // This vector records pairs containing:
             // - The position of the channel parameter for the new kernel
@@ -589,6 +589,8 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
             // fn(mem, ret_cnt, ... , /channels/ )
             auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
             world.make_external(new_kernel);
+            new_kernel->attributes().cc = CC::C;
+            new_kernel->set_filter(new_kernel->all_false_filter());
 
             kernel_new2old.emplace(new_kernel, old_kernel);
 
@@ -599,22 +601,27 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
             world.make_internal(old_kernel);
 
-            Rewriter rewriter;
+            //TODO: Instead of using this weird contraption, replace the importer in the HLS and CGRA backends respectively.
+            //These new importers would do the analysis and transformations from cgra_dataflow and hls_dataflow when the kernels are instantiated.
+            //Some additional analyses could be performed as well, during import possibly.
+
+            Rewriter rewriter(world, world);
+
             // Map the parameters of the old kernel to the first N parameters of the new one
             // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
             for (auto pair : index2def) {
                 auto param = new_kernel->param(pair.first);
-                rewriter.old2new[pair.second] = param;
+                rewriter.insert(pair.second, param);
                 param2arg[param] = pair.second; // (channel params, globals)
             }
             for (auto def : scope.defs()) {
                 if (auto cont = def->isa_nom<Continuation>()) {
                     // Copy the basic block by calling stub
                     // Or reuse the newly created kernel copy if def is the old kernel
-                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
-                    rewriter.old2new[cont] = new_cont;
+                    auto new_cont = def == old_kernel ? new_kernel : cont->stub(rewriter, cont->type());
+                    rewriter.insert(cont, new_cont);
                     for (size_t i = 0; i < cont->num_params(); ++i)
-                        rewriter.old2new[cont->param(i)] = new_cont->param(i); //non-channel params
+                        rewriter.insert(cont->param(i), new_cont->param(i)); //non-channel params
                 }
             }
             // Rewriting the basic blocks of the kernel using the map
@@ -622,7 +629,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
                 if (auto cont = def->isa_nom<Continuation>()) { // all basic blocks of the scope
                     if (!cont->has_body()) continue;
                     auto body = cont->body();
-                    auto new_cont = rewriter.old2new[cont]->isa_nom<Continuation>();
+                    auto new_cont = rewriter.lookup(cont)->isa_nom<Continuation>();
                     auto new_callee = rewriter.instantiate(body->callee());
                     Array<const Def*> new_args(body->num_args());
                     for ( size_t i = 0; i < body->num_args(); ++i)
@@ -630,6 +637,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
                     new_cont->jump(new_callee, new_args, cont->debug());
                 }
             }
+
             if (!is_single_kernel(new_kernel))
                 kernels_ch_modes.emplace_back(hls_def2hls_mode);
     });
@@ -718,9 +726,9 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         size_t i = 0;
         for (auto it = def2dependent_blocks.begin(); it != def2dependent_blocks.end(); ++it) {
             auto old_common_global = it->first; //def type
-            if (importer.def_old2new_.contains(old_common_global)) {
+            if (importer.lookup(old_common_global)) {
                 for (const auto& [global, param] : global2param) {
-                    if (global == importer.def_old2new_[old_common_global]) {
+                    if (global == importer.lookup(old_common_global)) {
                         // this param2arg is after replacing global args with hls_top params that connect to cgra
                         // basically we can name it kernelparam2hls_top_cgra_param
                         auto top_param = param2arg[param];
@@ -759,7 +767,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     std::vector<const Def*> old_kernels_params;
     for (auto param : hls_top->params()) {
         if (arg2param.contains(param)) {
-            auto new_kernel_param = arg2param[param]->as<Param>();
+            auto new_kernel_param = arg2param[param]->as<thorin::Param>();
             auto old_kernel = kernel_new2old[new_kernel_param->continuation()];
             old_kernels_params.emplace_back(old_kernel->as_nom<Continuation>()->param(new_kernel_param->index()));
         }
@@ -771,7 +779,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
         for (auto def : old_world.defs()) {
             if (auto ocontinuation = def->isa_nom<Continuation>()) {
                 auto ncontinuation = elem->as<Param>()->continuation(); //TODO: for optimization This line can go out of inner loop
-                if (ncontinuation == importer.def_old2new_[ocontinuation]) {
+                if (ncontinuation == importer.lookup(ocontinuation)) {
                     elem = ocontinuation->param(elem->as<Param>()->index());
                     break;
                 }
@@ -780,6 +788,8 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
     }
 
     std::vector<Def2Mode> target_cgra_kernels_ch_modes; // an elem for each cgra-hls kernel
+    assert(target_blocks_in_cgra_world.size() == old_globals2old_dependent_blocks.size());
+    assert(target_blocks_in_hls_world.size() == old_globals2old_dependent_blocks.size());
     target_cgra_modes(target_cgra_kernels_ch_modes, old_globals2old_dependent_blocks.size(), target_blocks_in_cgra_world, target_blocks_in_hls_world);
 
     auto enter   = world.enter(hls_top->mem_param());
@@ -904,7 +914,7 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
     debug_verify(world);
 
-    world.cleanup();
+    //world.cleanup();
 
     return std::make_tuple(old_kernels_params, old_globals2old_dependent_blocks, index2mode);
 }

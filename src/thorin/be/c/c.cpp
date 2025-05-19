@@ -1862,7 +1862,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
                 promoted_constants_[constant] = name;
             }
     
-            bb.tail.fmt("p_{} = g_{};\n", ret_cont->param(1)->unique_name(), name);
+            bb.tail.fmt("p_{} = &g_{};\n", ret_cont->param(1)->unique_name(), name);
             bb.tail.fmt("goto {};", label_name(ret_cont));
         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
             assert((lang_ == Lang::OpenCL || lang_ == Lang::HLS || lang_ == Lang::CGRA) && "pipelining not supported on this backend");

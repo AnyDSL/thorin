@@ -860,7 +860,6 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                                         // After each param counters should be reset
                                         // or use a visitig def list to filter those params that have already been visited
                                         set_mode_counters(kernel, mode, mode_counters, cont2index);
-
                                         if (param == arg) { // edge found
                                             dependence.second = kernel_param;
 
@@ -905,14 +904,17 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
             cur_mode_counters.fill(counter_init);
             for (size_t cur_arg_index = 0; const auto& cur_arg : cont->body()->args()) {
                 if (is_concrete(cur_arg)) {
+
+                    auto graph_callee = cont->body()->callee();
+                    if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
+                        visited_conts.emplace(graph_callee);
+                        node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
+                    }
+
                     if (visited_defs.empty() || visited_defs.count(cur_arg) == 0) {
+
                         // Note that nodes of the same edge have the same names in IR (args of Fns) but different names in C
                         visited_defs.emplace(cur_arg);
-                        auto graph_callee = cont->body()->callee();
-                        if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
-                            visited_conts.emplace(graph_callee);
-                            node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
-                        }
 
                         if (auto kernel = graph_callee->isa_nom<Continuation>()) {
                             assert(kernel->name() == graph_callee->name());

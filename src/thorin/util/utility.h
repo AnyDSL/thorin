@@ -2,6 +2,7 @@
 #define THORIN_UTILITY_H
 
 #include <cassert>
+#include <cstdint>
 #include <memory>
 #include <stack>
 #include <queue>

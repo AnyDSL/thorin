@@ -80,23 +80,6 @@ public:
     bool contains(Key key) const { return (*this)[key]; }
     void clear() { std::fill(bits_.begin(), bits_.end(), 0u); }
 
-    template<class Op>
-    IndexSet& transform(const IndexSet& other, Op op) {
-        assert(this->size() == other.size());
-        for (size_t i = 0, e = capacity(); i != e; ++i)
-            this->bits_[i] = op(this->bits_[i], other.bits_[i]);
-        return *this;
-    }
-    IndexSet& operator&=(const IndexSet& other) { return transform(other, std::bit_and<uint64_t>()); }
-    IndexSet& operator|=(const IndexSet& other) { return transform(other, std::bit_or <uint64_t>()); }
-    IndexSet& operator^=(const IndexSet& other) { return transform(other, std::bit_xor<uint64_t>()); }
-    IndexSet& operator =(IndexSet other) { swap(*this, other); return *this; }
-    friend void swap(IndexSet& set1, IndexSet& set2) {
-        using std::swap;
-        assert(&set1.indexer() == &set2.indexer());
-        swap(set1.bits_, set2.bits_);
-    }
-
 private:
     const Indexer& indexer_;
     Array<uint64_t> bits_;

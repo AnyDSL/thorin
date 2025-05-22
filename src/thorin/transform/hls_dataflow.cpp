@@ -206,18 +206,8 @@ void channel_mode(const Continuation* continuation, ChannelMode& mode) {
     }
 }
 
-
-/* HLS scheduling algorithm needs to know how hls kernels read/write from/to CGRA kernels
- we consider target CGRA kernels as if they are HLS kernels to resolve hls dependencies.
- with this aim, this function returns a vector on def2modes param, each elements of that corresponds to def2mode map of a target CGRA kernel
-*/
-/**
- * @param def2modes, each elements of this vector indicates a cgra kernel that connects to a hls kernel (target kernels) and includes a map betwen their globals in hls world and their read/write mode in cgra world
- * @param size_t, size of dependent blocks (target blocks size)
- * @param cgra_defs, target blocks in cgra world
- * @param hls_defs, target blocks in hls world
- */
-void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent_blocks_size, std::vector<const Def*> cgra_defs, std::vector<const Def*> hls_defs) {
+// TODO: currently a dead code as another algorithm is used. should be removed after enough testing
+void target_cgra_modes_(std::vector<Def2Mode>& defs2modes, const size_t dependent_blocks_size, std::vector<const Def*> cgra_defs, std::vector<const Def*> hls_defs) {
 
     auto scope_of_block = [&](const Continuation* cont) -> Continuation* {
 
@@ -305,10 +295,96 @@ void target_cgra_modes(std::vector<Def2Mode>& defs2modes, const size_t dependent
 
         previous_scope = current_scope;
     }
-   // defs2modes.size() is equal to the number of CGRA kernels that connect to hls
+    // defs2modes.size() is equal to the number of CGRA kernels that connect to hls
 
 }
 
+
+/* HLS scheduling algorithm needs to know how hls kernels read/write from/to CGRA kernels
+ we consider target CGRA kernels as if they are HLS kernels to resolve hls dependencies.
+ with this aim, this function returns a vector on def2modes param, each elements of that corresponds to def2mode map of a target CGRA kernel
+*/
+/**
+ * @param def2modes, each elements of this vector indicates a cgra kernel that connects to a hls kernel (target kernels) and includes a map betwen their globals in hls world and their read/write mode in cgra world
+ * @param size_t, size of dependent blocks (target blocks size)
+ * @param cgra_defs, target blocks in cgra world
+ * @param hls_defs, target blocks in hls world
+ */
+void target_cgra_modes(std::vector<Def2Mode>& defs2modes, size_t dependent_blocks_size, const std::vector<const Def*>& cgra_defs, const std::vector<const Def*>& hls_defs) {
+    // Helper to find the “entry” block for any inner Continuation
+    auto scope_of_block = [&](const Continuation* cont) -> Continuation* {
+        Continuation* entry_block = nullptr;
+
+        // Fast path: if its predecessor is external, that IS the entry
+        auto pred = cont->preds().back();
+        if (pred->is_external()) {
+            return pred;
+        }
+
+        // Otherwise walk all scopes in the world to locate which one contains cont
+        auto& world = cont->world();
+        Scope::for_each(world, [&](Scope& scope) {
+            auto it = std::find_if( scope.defs().begin(), scope.defs().end(), [&](const Def* def) {
+                    if (auto matching_cont = def->isa_nom<Continuation>()) {
+                        return matching_cont == cont;
+                    }
+                    return false;
+                });
+            if (it != scope.defs().end()) {
+                entry_block = scope.entry();
+                return;  // stop the for_each
+            }
+        });
+
+        return entry_block;
+    };
+
+    std::optional<Continuation*> current_kernel;  // which CGRA-kernel we are building right now
+    Def2Mode current_map;  // it is a map from global-def -> ChannelMode
+
+    for (size_t i = 0; i < dependent_blocks_size; ++i) {
+        // 1) Identify which CGRA-kernel "cont" belongs to
+        auto cont = cgra_defs[i]->as_nom<Continuation>();
+        Continuation* kernel_entry = nullptr; // scope entry block
+        if (cont->has_body() && cont->is_returning() && cont->is_external()) {
+            // this is itself the entry block
+            kernel_entry = cont;
+        } else {
+            // find its parent scope entry
+            kernel_entry = scope_of_block(cont);
+        }
+
+        // 2) If we have switched to a new kernel, flush the old map
+        if (!current_kernel.has_value() || *current_kernel != kernel_entry) {
+            if (current_kernel.has_value()) {
+                defs2modes.emplace_back(current_map);
+                current_map.clear();
+            }
+            current_kernel = kernel_entry;
+        }
+
+        // 3) Compute the ChannelMode for this CGRA block
+        ChannelMode mode;
+        channel_mode(cont, mode);
+
+        // 4) Look at the corresponding HLS def and maybe insert a (global, mode)
+        auto hls_cont = hls_defs[i]->as_nom<Continuation>();
+        auto hls_app  = hls_cont->body();
+        if (auto callee = hls_app->callee()->as_nom<Continuation>()) {
+            if (callee->is_channel()) {
+                auto arg1 = hls_app->arg(1);
+                if (arg1->order() == 0 && !is_mem(arg1) && !is_unit(arg1)) {
+                    current_map.emplace(arg1, mode);
+                }
+            }
+        }
+    }
+
+    // 5) After the loop, flush the very last kernel's map
+    if (current_kernel.has_value()) {
+        defs2modes.emplace_back(current_map);
+    }
+}
 
 inline void extract_kernel_channels(const Continuation* continuation, Def2Mode& def2mode) {
     // only for one block (continuation)
@@ -466,6 +542,35 @@ bool has_cgra_callee(World& world) {
     });
     return found_cgra;
 }
+
+
+// Finding all dependencies between the kernels (building a dependency graph)
+// for each global variables find the kernels which use it,
+// check the mode on each kernel and fill a dpendency data structure: < Write, Read> => <From, To>
+// It is not possible to read a channel before writing that, so dependencies are "From write To read"
+void make_dependency_graph(Dependencies& dependencies, const std::vector<Def2Mode>& kernels_ch_modes, const Def* global) {
+    size_t from = 0, to = 0;
+    for(size_t index_from = 0; index_from < kernels_ch_modes.size(); ++index_from) {
+        auto channel_it = kernels_ch_modes[index_from].find(global);
+        if (channel_it != kernels_ch_modes[index_from].end()) {
+            auto mode = channel_it->second;
+            if (mode == ChannelMode::Write) {
+                from = index_from;
+                for (size_t index_to = 0; index_to < kernels_ch_modes.size(); ++index_to) {
+                    auto channel_it = kernels_ch_modes[index_to].find(global);
+                    if (channel_it != kernels_ch_modes[index_to].end()) {
+                        auto mode = channel_it->second;
+                        if (mode == ChannelMode::Read) {
+                            to = index_to;
+                            dependencies.emplace_back(from, to);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 void circle_analysis(Dependencies dependencies, World& world, size_t single_kernels_size, std::vector<Continuation*> new_kernels) {
 
@@ -804,36 +909,14 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
     // We need to iterate over globals twice because we cannot iterate over primops while creating new primops
     for (auto global : globals) {
+
         if (is_channel_type(global->type())) {
             channel_slots.emplace_back(world.slot(global->type()->as<PtrType>()->pointee(), frame));
             global2slot.emplace(global, channel_slots.back());
         }
 
-        //TODO: better to make it like a function and call it make_depenceny_graph
-        // Finding all dependencies between the kernels (building a dependency graph)
-        // for each global variables find the kernels which use it,
-        // check the mode on each kernel and fill a dpendency data structure: < Write, Read> => <From, To>
-        // It is not possible to read a channel before writing that, so dependencies are "From write To read"
-        size_t from, to = 0;
-        for(size_t index_from = 0; index_from < kernels_ch_modes.size(); ++index_from) {
-            auto channel_it = kernels_ch_modes[index_from].find(global);
-            if (channel_it != kernels_ch_modes[index_from].end()) {
-                auto mode = channel_it->second;
-                if (mode == ChannelMode::Write) {
-                    from = index_from;
-                    for (size_t index_to = 0; index_to < kernels_ch_modes.size(); ++index_to) {
-                        auto channel_it = kernels_ch_modes[index_to].find(global);
-                        if (channel_it != kernels_ch_modes[index_to].end()) {
-                            auto mode = channel_it->second;
-                            if (mode == ChannelMode::Read) {
-                                to = index_to;
-                                dependencies.emplace_back(from, to);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+       make_dependency_graph(dependencies, kernels_ch_modes, global);
+
     }
 
     // resolving dependencies
@@ -854,18 +937,19 @@ DeviceDefs hls_dataflow(Importer& importer, Top2Kernel& top2kernel, World& old_w
 
     // reordering kernels, resolving dependencies
     auto copy_new_kernels = new_kernels;
-    size_t index_offset = 0;
+    size_t cgra_index_offset = 0; // counting the number of CGRA kernels
     for (size_t i = 0; i < resolved.size(); ++i) {
         // resolved size is hls-dep + cgra-dep
         // resolved elems are modified indices that include all hls-single, hls-dep and CGRA-dep kernels
         auto succ_kernel_index = resolved[i];
         // select HLS kernels from copy_new_kernels and skip CGRA kernels
         if (succ_kernel_index  >= (hls_kernels_ch_modes_size + single_kernels_size)) {
-            index_offset++;
+            cgra_index_offset++;
             continue;
         }
-        new_kernels[single_kernels_size + i - index_offset] = copy_new_kernels[succ_kernel_index];
-        index_offset = 0;
+
+        new_kernels[single_kernels_size + i - cgra_index_offset] = copy_new_kernels[succ_kernel_index];
+
     }
 
     auto cur_bb = hls_top;

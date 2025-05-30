@@ -48,12 +48,12 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
     Scope& sc = forest_.get_scope(cont);
     scopes_to_defs_[cont] = std::make_unique<std::vector<const Def*>>();
     auto children = sc.children_scopes();
-    size_t i = 0;
+    //size_t i = 0;
     for (auto child : children) {
         stream_cont(s, child);
         //if (i + 1 < children.size())
             s.fmt("\n\n");
-        i++;
+        //i++;
     }
 
     prepare_def(cont, cont->body());
@@ -155,12 +155,12 @@ void ScopedWorld::stream_defs(thorin::Stream& s, std::vector<const Def*>& defs) 
 
 Stream& ScopedWorld::stream(thorin::Stream& s) const {
     auto tl = forest_.top_level_scopes();
-    size_t i = 0;
+    //size_t i = 0;
     for (auto root : tl) {
         stream_cont(s, root);
         //if (i + 1 < tl.size())
             s.fmt("\n\n");
-        i++;
+        //i++;
     }
 
     stream_defs(s, top_lvl_);

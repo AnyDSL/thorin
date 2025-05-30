@@ -17,7 +17,7 @@ public:
 
 protected:
     void emit_fun_decl_hook(Continuation*, llvm::Function*) override;
-    virtual llvm::Function* emit_fun_decl(Continuation*) = 0;
+    llvm::Function* emit_fun_decl(Continuation*) override = 0;
     llvm::Value* emit_global(const Global*) override;
     llvm::Value* emit_mathop(llvm::IRBuilder<>&, const MathOp*) override;
     llvm::Value* emit_reserve(llvm::IRBuilder<>&, const Continuation*) override;

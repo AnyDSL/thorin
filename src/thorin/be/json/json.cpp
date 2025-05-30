@@ -152,6 +152,18 @@ public:
             case AddrSpace::Private:
                 result["addrspace"] = "private";
                 break;
+            case AddrSpace::Function:
+                result["addrspace"] = "function";
+                break;
+            case AddrSpace::Push:
+                result["addrspace"] = "push";
+                break;
+            case AddrSpace::Input:
+                result["addrspace"] = "input";
+                break;
+            case AddrSpace::Output:
+                result["addrspace"] = "output";
+                break;
             }
         } else {
             std::cerr << "type cannot be translated\n";

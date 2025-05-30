@@ -156,14 +156,6 @@ static inline const std::string lang_as_string(Lang lang) {
     }
 }
 
-static inline bool is_string_type(const Type* type) {
-    if (auto array = type->isa<DefiniteArrayType>())
-        if (auto primtype = array->elem_type()->isa<PrimType>())
-            if (primtype->primtype_tag() == PrimType_pu8)
-                return true;
-    return false;
-}
-
 // TODO I think we should have a full-blown channel type
 inline bool is_channel_type(const StructType* struct_type) {
     return struct_type->name().str().find("channel") != std::string::npos;
@@ -988,10 +980,6 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
     } else {
         THORIN_UNREACHABLE;
     }
-}
-
-static inline bool is_const_primop(const Def* def) {
-    return def->isa_structural() && !def->has_dep(Dep::Param);
 }
 
 std::string CCodeGen::emit_bb(BB& bb, const Def* def) {

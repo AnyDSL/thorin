@@ -2580,12 +2580,13 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
             auto is_not_array = !(slot->alloced_type()->isa<ArrayType>());
             auto is_not_mem_op = !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
-            if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op) {
-                func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
-                func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
-            } else if (is_cgra_vector_kernel() && is_accum_type(slot->alloced_type())) {
+
+            if (is_cgra_vector_kernel() && is_accum_type(slot->alloced_type())) {
                 func_impls_.fmt("aie::accum<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
                 func_impls_.fmt("aie::accum<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
+            } else if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op) {
+                func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
+                func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
             } else {
                 func_impls_.fmt("{} {}_slot;\n", t, name);
                 func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);

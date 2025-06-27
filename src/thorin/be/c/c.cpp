@@ -561,355 +561,307 @@ std::string CCodeGen::prefix_type(const Param* param) {
     return prefix + convert(param->type());
 }
 
-// TODO: multicast is not supported yet, if used, the generated graph might be incorrect
-void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
+    void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
 
-    using ModeCounters = std::array<int32_t, to_underlying(ChannelMode::Count)>;
-    using Cont2Index = ContinuationMap<ModeCounters>;
-    using Dependence = std::pair<const Def*, const Def*>;
+        using ModeCounters = std::array<int32_t, to_underlying(ChannelMode::Count)>;
+        using Cont2Index = ContinuationMap<ModeCounters>;
+        using Dependence = std::pair<const Def*, const Def*>;
 
-    if (!get_cgra_options())
-        world().WLOG("No CGRA options are provided, using default options");
+        if (!get_cgra_options())
+            world().WLOG("No CGRA options are provided, using default options");
 
-    // Configuration helper lambdas
-    auto get_param_mode = [&] (auto index, Continuation* cont) {
-        if(auto config = get_config(cont)) {
-            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
-            auto mode = config->as<CGRAKernelConfig>()->param_mode(cont->param(index));
-            return mode;
-        }
-        assert(false && "kernel has no config");
-    };
-
-    auto get_runtime_ratio = [&] (Continuation* cont) {
-        if(auto config = get_config(cont)) {
-            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
-            return config->as<CGRAKernelConfig>()->runtime_ratio();
-        }
-        assert(false && "kernel has no config");
-    };
-
-    auto get_location = [&] (Continuation* cont) {
-        if(auto config = get_config(cont)) {
-            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
-            return config->as<CGRAKernelConfig>()->location();
-        }
-        assert(false && "kernel has no config");
-    };
-
-    // Plio params are those that on one side ther are connected to the outside of the cgra_graph
-    // they are defined in the cgra_graph continuation
-    auto is_plio = [&] (const Def* def) {
-        return def->as<Param>()->continuation()->is_cgra_graph();
-    };
-
-    auto node_name = [&] (const Def* def) {
-        return def->as<Param>()->continuation()->is_cgra_graph() ? def->unique_name() : "k" + def->name();
-    };
-
-    auto get_node_names = [&] (const Dependence dependence) {
-        auto start_node = node_name(dependence.first);
-        auto end_node   = node_name(dependence.second);
-        return std::make_pair(start_node, end_node);
-    };
-
-    // get_node_indices to differentiate between PLIOs and Kernels
-    auto get_node_indices = [&] (const Dependence dependence, Cont2Index& cont2index) {
-        auto from_cont = dependence.first->as<Param>()->continuation();
-        auto to_cont = dependence.second->as<Param>()->continuation();
-
-        int32_t from_idx;
-        int32_t to_idx;
-
-        // Handle 'from' side (output)
-        if (is_plio(dependence.first)) {
-            from_idx = 0; // PLIOs always use index 0 for connections
-        } else {
-            if (!cont2index.contains(from_cont)) {
-                cont2index.emplace(from_cont, ModeCounters{});
-                cont2index[from_cont].fill(0);
+        // Configuration helper lambdas
+        auto get_param_mode = [&] (auto index, Continuation* cont) {
+            if(auto config = get_config(cont)) {
+                assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+                auto mode = config->as<CGRAKernelConfig>()->param_mode(cont->param(index));
+                return mode;
             }
-            auto from_mode = get_param_mode(dependence.first->as<Param>()->index(), from_cont);
-            from_idx = cont2index[from_cont][to_underlying(from_mode)];
-            cont2index[from_cont][to_underlying(from_mode)]++; // Increment for next use
-        }
+            assert(false && "kernel has no config");
+        };
 
-        // Handle 'to' side (input)
-        if (is_plio(dependence.second)) {
-            to_idx = 0; // PLIOs always use index 0 for connections
-        } else {
-            if (!cont2index.contains(to_cont)) {
-                cont2index.emplace(to_cont, ModeCounters{});
-                cont2index[to_cont].fill(0);
+        auto get_runtime_ratio = [&] (Continuation* cont) {
+            if(auto config = get_config(cont)) {
+                assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+                return config->as<CGRAKernelConfig>()->runtime_ratio();
             }
-            auto to_mode = get_param_mode(dependence.second->as<Param>()->index(), to_cont);
-            to_idx = cont2index[to_cont][to_underlying(to_mode)];
-            cont2index[to_cont][to_underlying(to_mode)]++; // Increment for next use
-        }
+            assert(false && "kernel has no config");
+        };
 
-        return std::make_pair(from_idx, to_idx);
-    };
+        auto get_location = [&] (Continuation* cont) {
+            if(auto config = get_config(cont)) {
+                assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+                return config->as<CGRAKernelConfig>()->location();
+            }
+            assert(false && "kernel has no config");
+        };
 
-    auto get_io_mode_index = [] (const ModeCounters& mode_counters, ChannelMode mode) {
-        return mode_counters[to_underlying(mode)];
-    };
+        // Node and edge helper lambdas
+        auto is_plio = [&] (const Def* def) {
+            return def->as<Param>()->continuation()->is_cgra_graph();
+        };
 
-    auto get_edge_label = [&] (const Dependence& dependence) {
-        return dependence.first->as<Param>()->continuation()->name() + "_"
-            + dependence.second->as<Param>()->continuation()->name();
-    };
+        auto node_name = [&] (const Def* def) {
+            return def->as<Param>()->continuation()->is_cgra_graph() ? def->unique_name() : "k" + def->name();
+        };
 
-    auto krl_node_name = [&] (auto& kernel) {
-        return "k" + kernel->name();
-    };
+        auto get_node_names = [&] (const Dependence dependence) {
+            auto start_node = node_name(dependence.first);
+            auto end_node   = node_name(dependence.second);
+            return std::make_pair(start_node, end_node);
+        };
 
-    auto get_direction_prefix = [&] (ChannelMode mode) {
-        std::string direction;
-        switch (mode) {
-            case ChannelMode::Write:
-                direction = "output";
-                break;
-            case ChannelMode::Read:
-                direction = "input";
-                break;
-            case ChannelMode::ReadWrite:
-                direction = "inout";
-                break;
-            default:
-                world().WLOG("Direction of the parameter is undefined. Direct GMem access is not fully supported yet");
-                break;
-        }
-        return direction;
-    };
+        // MODIFIED: get_node_indices to differentiate between PLIOs and Kernels
+        auto get_node_indices = [&] (const Dependence dependence, Cont2Index& cont2index) {
+            auto from_cont = dependence.first->as<Param>()->continuation();
+            auto to_cont = dependence.second->as<Param>()->continuation();
 
-    // Connection method helper lambdas
-    auto connection_method = [&] (const Continuation* cont, const Dependence& dependence) {
-        std::string s;
-        switch (cont->get_interface()) {
-            case Interface::Stream:
-                s = "<adf::stream>";
-                break;
-            case Interface::Cascade:
-                s =  "<adf::cascade>";
-                break;
-            case Interface::Window: {
-                auto window_size = cont->get_buf_size();
-                auto type = is_plio(dependence.first) ? dependence.second->type() : dependence.first->type();
-                s = "<adf::window<" + std::to_string(window_size) + " * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>" + ">";
-                }
-                break;
-            case Interface::Free_running:
-                s = "<>";
-                break;
-            case Interface::Circular_buffer: case Interface::Buffer:
-                s = " ";
-                break;
-            case Interface::None: {
-                world().WLOG("Connection method could not be determined, using stream by default");
-                s = "<adf::stream>";
-                }
-                break;
-            default:
-                assert(false && "No connection method is defined for the this interface");
-        }
-        return s;
-    };
+            int32_t from_idx;
+            int32_t to_idx;
 
-    auto get_continuation = [&] (const Def* def) {
-        return def->as<Param>()->continuation();
-    };
-
-    auto get_interface = [&] (const Def* def) {
-        return get_continuation(def)->get_interface();
-    };
-
-    auto is_buffer_interface = [] (Interface interface) {
-        return interface == Interface::Buffer || interface == Interface::Circular_buffer;
-    };
-
-    auto get_connection_method = [&] (const Dependence& dependence) {
-        // unless the interface is buffer, kernels with different interfaces are not supported.
-        // a more proper solution would be param-wise interface definition which is not supported yet.
-        auto [from, to] = dependence;
-        auto [from_intf, to_intf] = std::make_pair(get_interface(from), get_interface(to));
-        std::string method = "METHOD";
-        if ((from_intf == to_intf) && from_intf != Interface::Cascade) {
-            method = connection_method(get_continuation(from), dependence);
-        } else if (is_plio(from) || is_plio(to)) {
-            if (from_intf == Interface::None) {
-                assert(to_intf != Interface::None && "CGRA PLIOs cannot directly connect to each other");
-                method = connection_method(get_continuation(to), dependence);
+            // Handle 'from' side (output)
+            if (is_plio(dependence.first)) {
+                from_idx = 0; // PLIOs always use index 0 for connections
             } else {
+                if (!cont2index.contains(from_cont)) {
+                    cont2index.emplace(from_cont, ModeCounters{});
+                    cont2index[from_cont].fill(0);
+                }
+                auto from_mode = get_param_mode(dependence.first->as<Param>()->index(), from_cont);
+                from_idx = cont2index[from_cont][to_underlying(from_mode)];
+                cont2index[from_cont][to_underlying(from_mode)]++; // Increment for next use
+            }
+
+            // Handle 'to' side (input)
+            if (is_plio(dependence.second)) {
+                to_idx = 0; // PLIOs always use index 0 for connections
+            } else {
+                if (!cont2index.contains(to_cont)) {
+                    cont2index.emplace(to_cont, ModeCounters{});
+                    cont2index[to_cont].fill(0);
+                }
+                auto to_mode = get_param_mode(dependence.second->as<Param>()->index(), to_cont);
+                to_idx = cont2index[to_cont][to_underlying(to_mode)];
+                cont2index[to_cont][to_underlying(to_mode)]++; // Increment for next use
+            }
+
+            return std::make_pair(from_idx, to_idx);
+        };
+
+        auto get_io_mode_index = [] (const ModeCounters& mode_counters, ChannelMode mode) {
+            return mode_counters[to_underlying(mode)];
+        };
+
+        auto get_edge_label = [&] (const Dependence& dependence) {
+            return dependence.first->as<Param>()->continuation()->name() + "_"
+                + dependence.second->as<Param>()->continuation()->name();
+        };
+
+        auto krl_node_name = [&] (auto& kernel) {
+            return "k" + kernel->name();
+        };
+
+        auto get_direction_prefix = [&] (ChannelMode mode) {
+            std::string direction;
+            switch (mode) {
+                case ChannelMode::Write:
+                    direction = "output";
+                    break;
+                case ChannelMode::Read:
+                    direction = "input";
+                    break;
+                case ChannelMode::ReadWrite:
+                    direction = "inout";
+                    break;
+                default:
+                    world().WLOG("Direction of the parameter is undefined. Direct GMem access is not fully supported yet");
+                    break;
+            }
+            return direction;
+        };
+
+        // Connection method helper lambdas
+        auto connection_method = [&] (const Continuation* cont, const Dependence& dependence) {
+            std::string s;
+            switch (cont->get_interface()) {
+                case Interface::Stream:
+                    s = "<adf::stream>";
+                    break;
+                case Interface::Cascade:
+                    s =  "<adf::cascade>";
+                    break;
+                case Interface::Window: {
+                                            auto window_size = cont->get_buf_size();
+                                            auto type = is_plio(dependence.first) ? dependence.second->type() : dependence.first->type();
+                                            s = "<adf::window<" + std::to_string(window_size) + " * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>" + ">";
+                                        }
+                                        break;
+                case Interface::Free_running:
+                                        s = "<>";
+                                        break;
+                case Interface::Circular_buffer: case Interface::Buffer:
+                                        s = " ";
+                                        break;
+                case Interface::None: {
+                                          world().WLOG("Connection method could not be determined, using stream by default");
+                                          s = "<adf::stream>";
+                                      }
+                                      break;
+                default:
+                                      assert(false && "No connection method is defined for the this interface");
+            }
+            return s;
+        };
+
+        auto get_continuation = [&] (const Def* def) {
+            return def->as<Param>()->continuation();
+        };
+
+        auto get_interface = [&] (const Def* def) {
+            return get_continuation(def)->get_interface();
+        };
+
+        auto is_buffer_interface = [] (Interface interface) {
+            return interface == Interface::Buffer || interface == Interface::Circular_buffer;
+        };
+
+        auto get_connection_method = [&] (const Dependence& dependence) {
+            // unless the interface is buffer, kernels with different interfaces are not supported.
+            // a more proper solution would be param-wise interface definition which is not supported yet.
+            auto [from, to] = dependence;
+            auto [from_intf, to_intf] = std::make_pair(get_interface(from), get_interface(to));
+            std::string method = "METHOD";
+            if ((from_intf == to_intf) && from_intf != Interface::Cascade) {
                 method = connection_method(get_continuation(from), dependence);
-            }
-
-            if (from_intf == Interface::Cascade || to_intf == Interface::Cascade) {
-                // special case for cascade. using stream instead of cascade
-                method = "<adf::stream>";
-            }
-        } else if (is_buffer_interface(from_intf) || !is_buffer_interface(to_intf)) {
-            // if intfs are different not plio and at least one of them is a buffer
-            world().WLOG("TODO: buffer is not supported yet");
-        } else { // TODO: cascade
-            world().ELOG("Interface mismatch");
-        }
-
-        return method;
-    };
-
-    auto bit_width = [&] (const Type* type) {
-        StringStream s;
-        assert ((type != world().unit() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
-        size_t actual_num_bits = 0;
-
-        if (auto primtype = type->isa<PrimType>()) {
-            actual_num_bits = num_bits(primtype->primtype_tag());
-        } else if (auto definite_array = type->isa<DefiniteArrayType>()) {
-            if (auto prim_type = definite_array->elem_type()->isa<PrimType>())
-                actual_num_bits = definite_array->dim() * num_bits(prim_type->primtype_tag());
-        } else {
-            world().ELOG("Type {} is not supported", type);
-        }
-
-        if (actual_num_bits <= 32) {
-            s << "32";
-        } else if (actual_num_bits <= 64) {
-            s << "64";
-        } else if (actual_num_bits <= 128) {
-            s << "128";
-        } else {
-            s << "128";
-            world().WLOG("{} bits PLIO is not supported. Fallback to 128 bits", actual_num_bits);
-        }
-        return s.str();
-    };
-
-    // adjusting dependence operands
-    auto adjust_operands = [&] (Dependence& dependence) {
-        std::swap(dependence.first, dependence.second);
-    };
-
-    auto create_kernel_node_if_needed = [&] (const auto& graph_callee, DefSet& visited_conts, StringStream& node_impls) {
-        if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
-            visited_conts.emplace(graph_callee);
-            node_impls.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
-        }
-    };
-
-    // The cont2index is still passed for historical reasons if needed, but the actual index in ADF connect is always 0
-    // plio nodes are public nodes of the resulting graph class and they have their own unique names, hence no need for index.
-    auto create_plio_node = [&] (const Def* param, ChannelMode mode, Cont2Index& cont2index, bool simulated_data, StringStream& node_impls) {
-        auto direc_prefix = get_direction_prefix(mode);
-        auto op_type = param->type();
-        if (auto ptr_type = param->type()->isa<PtrType>()) {
-            if(auto struct_type = ptr_type->pointee()->isa<StructType>())
-                op_type = struct_type->op(0);
-        }
-
-        // For PLIOs, the 'io_index' is only relevant for the simulated data filename.
-        // It should NOT affect the port index in adf::connect.
-        auto plio_cont = param->as<Param>()->continuation();
-        if (!cont2index.contains(plio_cont)) {
-            cont2index.emplace(plio_cont, ModeCounters{});
-            cont2index[plio_cont].fill(0);
-        }
-        auto io_index_for_filename = cont2index[plio_cont][to_underlying(mode)];
-        cont2index[plio_cont][to_underlying(mode)]++; // Increment for next unique filename
-
-        node_impls.fmt("{} = adf::{}_plio::create(\"{}\", adf::plio_{}_bits{});\n",
-                param->unique_name(), direc_prefix, param->unique_name(), bit_width(op_type),
-                simulated_data ? (", \"" + direc_prefix + "_" + std::to_string(io_index_for_filename) + ".txt\"") : (""));
-    };
-
-    auto create_edge_connection = [&] (const Dependence& dependence, Cont2Index& cont2index, StringStream& edge_impls) {
-        auto [start_node, end_node] = get_node_names(dependence);
-        auto [start_index, end_index] = get_node_indices(dependence, cont2index); // get_node_indices now handles setting up the counters
-
-        auto edge_label = get_edge_label(dependence);
-        auto method = get_connection_method(dependence);
-        edge_impls.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n", method, edge_label, start_node, start_index, end_node, end_index);
-    };
-
-    // cont2index is now passed by reference
-    auto process_cgra_graph_connections = [&] (auto cont, const auto& graph_conts, DefSet& visited_defs, DefSet& visited_conts, StringStream& node_impls, StringStream& edge_impls, Cont2Index& cont2index) {
-        auto simulated_data = options.sim_data;
-        Dependence dependence;
-
-        for (auto param : cont->params()) {
-            if (is_concrete(param) || is_channel_type(param->type())) {
-                if (visited_defs.empty() || visited_defs.count(param) == 0) {
-                    visited_defs.emplace(param);
-                    auto mode = get_param_mode(param->index(), cont);
-                    // PLIO node creation handles its own counter increment for filename
-                    create_plio_node(param, mode, cont2index, simulated_data, node_impls);
+            } else if (is_plio(from) || is_plio(to)) {
+                if (from_intf == Interface::None) {
+                    assert(to_intf != Interface::None && "CGRA PLIOs cannot directly connect to each other");
+                    method = connection_method(get_continuation(to), dependence);
+                } else {
+                    method = connection_method(get_continuation(from), dependence);
                 }
 
-                dependence.first = param;
-                for (size_t i = 0; i < graph_conts.size() - 1; ++i) {
-                    for (size_t arg_index = 0; const auto& arg : graph_conts[i]->body()->args()) {
-                        if (is_concrete(arg) || is_channel_type(arg->type())) {
-                            auto graph_callee = graph_conts[i]->body()->callee();
-                            if (auto kernel = graph_callee->template isa_nom<Continuation>()) {
-                                assert(kernel->name() == graph_callee->name());
-                                auto kernel_param = kernel->param(arg_index);
-                                auto mode = get_param_mode(kernel_param->index(), kernel);
-
-                                if (param == arg) {
-                                    dependence.second = kernel_param;
-                                    if (mode == ChannelMode::Write) {
-                                        adjust_operands(dependence);
-                                    }
-                                    create_kernel_node_if_needed(graph_callee, visited_conts, node_impls);
-                                    // Index increment handled in create_edge_connection via get_node_indices
-                                    create_edge_connection(dependence, cont2index, edge_impls);
-                                }
-                            }
-                        }
-                        arg_index++;
-                    }
+                if (from_intf == Interface::Cascade || to_intf == Interface::Cascade) {
+                    // special case for cascade. using stream instead of cascade
+                    method = "<adf::stream>";
                 }
+            } else if (is_buffer_interface(from_intf) || !is_buffer_interface(to_intf)) {
+                // if intfs are different not plio and at least one of them is a buffer
+                world().WLOG("TODO: buffer is not supported yet");
+            } else { // TODO: cascade
+                world().ELOG("Interface mismatch");
             }
-        }
-    };
 
-    // cont2index is passed by reference
-    auto process_kernel_connections = [&] (auto cont, const auto& graph_conts, DefSet& visited_defs, DefSet& visited_conts, StringStream& node_impls, StringStream& edge_impls, Cont2Index& cont2index) {
-        Dependence dependence;
+            return method;
+        };
 
-        for (size_t cur_arg_index = 0; const auto& cur_arg : cont->body()->args()) {
-            if (is_concrete(cur_arg)) {
-                auto graph_callee = cont->body()->callee();
-                create_kernel_node_if_needed(graph_callee, visited_conts, node_impls);
+        // Bit width helper lambda
+        auto bit_width = [&] (const Type* type) {
+            StringStream s;
+            assert ((type != world().unit() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
+            size_t actual_num_bits = 0;
 
-                if (visited_defs.empty() || visited_defs.count(cur_arg) == 0) {
-                    visited_defs.emplace(cur_arg);
+            if (auto primtype = type->isa<PrimType>()) {
+                actual_num_bits = num_bits(primtype->primtype_tag());
+            } else if (auto definite_array = type->isa<DefiniteArrayType>()) {
+                if (auto prim_type = definite_array->elem_type()->isa<PrimType>())
+                    actual_num_bits = definite_array->dim() * num_bits(prim_type->primtype_tag());
+            } else {
+                world().ELOG("Type {} is not supported", type);
+            }
 
-                    if (auto kernel = graph_callee->template isa_nom<Continuation>()) {
-                        assert(kernel->name() == graph_callee->name());
-                        auto kernel_param = kernel->param(cur_arg_index);
-                        // No counter increment here; it's handled in get_node_indices for actual connections
-                        dependence.first = kernel_param;
+            if (actual_num_bits <= 32) {
+                s << "32";
+            } else if (actual_num_bits <= 64) {
+                s << "64";
+            } else if (actual_num_bits <= 128) {
+                s << "128";
+            } else {
+                s << "128";
+                world().WLOG("{} bits PLIO is not supported. Fallback to 128 bits", actual_num_bits);
+            }
+            return s.str();
+        };
+
+        // Helper lambda for adjusting dependence operands
+        auto adjust_operands = [&] (Dependence& dependence) {
+            std::swap(dependence.first, dependence.second);
+        };
+
+        // Helper lambda for creating kernel nodes
+        auto create_kernel_node_if_needed = [&] (const auto& graph_callee, DefSet& visited_conts, StringStream& node_impls) {
+            if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
+                visited_conts.emplace(graph_callee);
+                node_impls.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
+            }
+        };
+
+        // Helper lambda for creating PLIO nodes
+        // The cont2index is still passed for historical reasons if needed, but the actual index in ADF connect is always 0
+        auto create_plio_node = [&] (const Def* param, ChannelMode mode, Cont2Index& cont2index, bool simulated_data, StringStream& node_impls) {
+            auto direc_prefix = get_direction_prefix(mode);
+            auto op_type = param->type();
+            if (auto ptr_type = param->type()->isa<PtrType>()) {
+                if(auto struct_type = ptr_type->pointee()->isa<StructType>())
+                    op_type = struct_type->op(0);
+            }
+
+            // For PLIOs, the 'io_index' is only relevant for the simulated data filename.
+            // It should NOT affect the port index in adf::connect.
+            auto plio_cont = param->as<Param>()->continuation();
+            if (!cont2index.contains(plio_cont)) {
+                cont2index.emplace(plio_cont, ModeCounters{});
+                cont2index[plio_cont].fill(0);
+            }
+            auto io_index_for_filename = cont2index[plio_cont][to_underlying(mode)];
+            cont2index[plio_cont][to_underlying(mode)]++; // Increment for next unique filename
+
+            node_impls.fmt("{} = adf::{}_plio::create(\"{}\", adf::plio_{}_bits{});\n",
+                    param->unique_name(), direc_prefix, param->unique_name(), bit_width(op_type),
+                    simulated_data ? (", \"" + direc_prefix + "_" + std::to_string(io_index_for_filename) + ".txt\"") : (""));
+        };
+
+        // Helper lambda for creating edge connections (no change, it uses get_node_indices)
+        auto create_edge_connection = [&] (const Dependence& dependence, Cont2Index& cont2index, StringStream& edge_impls) {
+            auto [start_node, end_node] = get_node_names(dependence);
+            auto [start_index, end_index] = get_node_indices(dependence, cont2index); // get_node_indices now handles setting up the counters
+
+            auto edge_label = get_edge_label(dependence);
+            auto method = get_connection_method(dependence);
+            edge_impls.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n", method, edge_label, start_node, start_index, end_node, end_index);
+        };
+
+        // Helper lambda for processing CGRA graph connections
+        // cont2index is now passed by reference
+        auto process_cgra_graph_connections = [&] (auto cont, const auto& graph_conts, DefSet& visited_defs, DefSet& visited_conts, StringStream& node_impls, StringStream& edge_impls, Cont2Index& cont2index) {
+            auto simulated_data = options.sim_data;
+            Dependence dependence;
+
+            for (auto param : cont->params()) {
+                if (is_concrete(param) || is_channel_type(param->type())) {
+                    if (visited_defs.empty() || visited_defs.count(param) == 0) {
+                        visited_defs.emplace(param);
+                        auto mode = get_param_mode(param->index(), cont);
+                        // PLIO node creation now handles its own counter increment for filename
+                        create_plio_node(param, mode, cont2index, simulated_data, node_impls);
                     }
 
-                    for (size_t i = 0; i < graph_conts.size() - 1 ; ++i) {
-                        auto cur_app = cont->body();
-                        auto app = graph_conts[i]->body();
-                        for (size_t arg_index = 0; const auto& arg : app->args()) {
-                            if (cur_app->callee() == app->callee())
-                                continue;
-
+                    dependence.first = param;
+                    for (size_t i = 0; i < graph_conts.size() - 1; ++i) {
+                        for (size_t arg_index = 0; const auto& arg : graph_conts[i]->body()->args()) {
                             if (is_concrete(arg) || is_channel_type(arg->type())) {
-                                auto graph_callee_target = graph_conts[i]->body()->callee();
-                                if (auto kernel = graph_callee_target->template isa_nom<Continuation>()) {
-                                    assert(kernel->name() == graph_callee_target->name());
+                                auto graph_callee = graph_conts[i]->body()->callee();
+                                if (auto kernel = graph_callee->template isa_nom<Continuation>()) {
+                                    assert(kernel->name() == graph_callee->name());
                                     auto kernel_param = kernel->param(arg_index);
                                     auto mode = get_param_mode(kernel_param->index(), kernel);
 
-                                    if (cur_arg == arg) {
+                                    if (param == arg) {
                                         dependence.second = kernel_param;
                                         if (mode == ChannelMode::Write) {
                                             adjust_operands(dependence);
                                         }
+                                        create_kernel_node_if_needed(graph_callee, visited_conts, node_impls);
                                         // Index increment handled in create_edge_connection via get_node_indices
                                         create_edge_connection(dependence, cont2index, edge_impls);
                                     }
@@ -920,57 +872,534 @@ void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
                     }
                 }
             }
-            cur_arg_index++;
-        }
-    };
+        };
 
+        // Helper lambda for processing kernel-to-kernel connections
+        // cont2index is now passed by reference
+        auto process_kernel_connections = [&] (auto cont, const auto& graph_conts, DefSet& visited_defs, DefSet& visited_conts, StringStream& node_impls, StringStream& edge_impls, Cont2Index& cont2index) {
+            Dependence dependence;
 
-    auto generate_kernel_configs = [&] (auto cont, StringStream& configs) {
-        auto source_ext = thorin::c::CodeGen(world(), kernel_config_, lang_, debug_, flags_).file_ext();
-        if (cont->has_body() && cont->body()->callee()->template isa_nom<Continuation>()) {
-            auto callee = cont->body()->callee();
-            configs.fmt( "adf::runtime<ratio>({}) = {};\n", krl_node_name(callee), get_runtime_ratio(callee->template as_nom<Continuation>()));
-            auto [loc_x, loc_y] = get_location(callee->template as_nom<Continuation>());
-            if (loc_x >= 0 && loc_y >= 0)
-                configs.fmt( "adf::location<adf::kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
+            for (size_t cur_arg_index = 0; const auto& cur_arg : cont->body()->args()) {
+                if (is_concrete(cur_arg)) {
+                    auto graph_callee = cont->body()->callee();
+                    create_kernel_node_if_needed(graph_callee, visited_conts, node_impls);
 
-            auto source_name = std::filesystem::path(world().name()).filename().string();
-            configs.fmt( "adf::source({}) = \"{}_kernel{}\";\n", krl_node_name(callee), source_name, source_ext);
-        }
-    };
+                    if (visited_defs.empty() || visited_defs.count(cur_arg) == 0) {
+                        visited_defs.emplace(cur_arg);
 
-    StringStream node_impls_;
-    StringStream edge_impls_;
-    StringStream configs_;
+                        if (auto kernel = graph_callee->template isa_nom<Continuation>()) {
+                            assert(kernel->name() == graph_callee->name());
+                            auto kernel_param = kernel->param(cur_arg_index);
+                            // No counter increment here; it's handled in get_node_indices for actual connections
+                            dependence.first = kernel_param;
+                        }
 
-    node_impls_.indent(2);
-    edge_impls_.indent(2);
-    configs_.indent(2);
+                        for (size_t i = 0; i < graph_conts.size() - 1 ; ++i) {
+                            auto cur_app = cont->body();
+                            auto app = graph_conts[i]->body();
+                            for (size_t arg_index = 0; const auto& arg : app->args()) {
+                                if (cur_app->callee() == app->callee())
+                                    continue;
 
-    DefSet visited_defs;
-    DefSet visited_conts;
-    // cont2index here, outside the main loop, so it persists
-    Cont2Index cont2index;
+                                if (is_concrete(arg) || is_channel_type(arg->type())) {
+                                    auto graph_callee_target = graph_conts[i]->body()->callee();
+                                    if (auto kernel = graph_callee_target->template isa_nom<Continuation>()) {
+                                        assert(kernel->name() == graph_callee_target->name());
+                                        auto kernel_param = kernel->param(arg_index);
+                                        auto mode = get_param_mode(kernel_param->index(), kernel);
 
-    for (auto cont : graph_conts) {
-        if (cont->intrinsic() == Intrinsic::EndScope) continue;
-
-        auto entry = cont->is_cgra_graph() ? cont: nullptr;
-
-        if (cont->isa_nom<Continuation>() && (!cont->body()->empty()) && cont->has_body()) {
-            if (cont == entry) {
-                process_cgra_graph_connections(cont, graph_conts, visited_defs, visited_conts, node_impls_, edge_impls_, cont2index);
+                                        if (cur_arg == arg) {
+                                            dependence.second = kernel_param;
+                                            if (mode == ChannelMode::Write) {
+                                                adjust_operands(dependence);
+                                            }
+                                            // Index increment handled in create_edge_connection via get_node_indices
+                                            create_edge_connection(dependence, cont2index, edge_impls);
+                                        }
+                                    }
+                                }
+                                arg_index++;
+                            }
+                        }
+                    }
+                }
+                cur_arg_index++;
             }
+        };
 
-            process_kernel_connections(cont, graph_conts, visited_defs, visited_conts, node_impls_, edge_impls_, cont2index);
-            generate_kernel_configs(cont, configs_);
+        // Helper lambda for generating kernel configurations
+        auto generate_kernel_configs = [&] (auto cont, StringStream& configs) {
+            auto source_ext = thorin::c::CodeGen(world(), kernel_config_, lang_, debug_, flags_).file_ext();
+            if (cont->has_body() && cont->body()->callee()->template isa_nom<Continuation>()) {
+                auto callee = cont->body()->callee();
+                configs.fmt( "adf::runtime<ratio>({}) = {};\n", krl_node_name(callee), get_runtime_ratio(callee->template as_nom<Continuation>()));
+                auto [loc_x, loc_y] = get_location(callee->template as_nom<Continuation>());
+                if (loc_x >= 0 && loc_y >= 0)
+                    configs.fmt( "adf::location<adf::kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
+
+                auto source_name = std::filesystem::path(world().name()).filename().string();
+                configs.fmt( "adf::source({}) = \"{}_kernel{}\";\n", krl_node_name(callee), source_name, source_ext);
+            }
+        };
+
+        // Main processing logic
+        StringStream node_impls_;
+        StringStream edge_impls_;
+        StringStream configs_;
+
+        node_impls_.indent(2);
+        edge_impls_.indent(2);
+        configs_.indent(2);
+
+        DefSet visited_defs;
+        DefSet visited_conts;
+        // Declare cont2index here, outside the main loop, so it persists
+        Cont2Index cont2index;
+
+        for (auto cont : graph_conts) {
+            if (cont->intrinsic() == Intrinsic::EndScope) continue;
+
+            auto entry = cont->is_cgra_graph() ? cont: nullptr;
+
+            if (cont->isa_nom<Continuation>() && (!cont->body()->empty()) && cont->has_body()) {
+                if (cont == entry) {
+                    process_cgra_graph_connections(cont, graph_conts, visited_defs, visited_conts, node_impls_, edge_impls_, cont2index);
+                }
+
+                process_kernel_connections(cont, graph_conts, visited_defs, visited_conts, node_impls_, edge_impls_, cont2index);
+                generate_kernel_configs(cont, configs_);
+            }
         }
-    }
 
-    graph_ctor_ <<"// Nodes\n\t\t" << node_impls_.str() << "// Edges\n\t\t" << edge_impls_.str() << "// Constrains and Configurations\n\t\t" << configs_.str();
+        graph_ctor_ <<"// Nodes\n\t\t" << node_impls_.str() << "// Edges\n\t\t" << edge_impls_.str() << "// Constrains and Configurations\n\t\t" << configs_.str();
 
-    return;
+        return;
 }
+
+//void CCodeGen::graph_ctor_gen (const Continuations& graph_conts) {
+//
+//    using ModeCounters = std::array<int32_t, to_underlying(ChannelMode::Count)>;
+//    using Cont2Index = ContinuationMap<ModeCounters>;
+//    using Dependence = std::pair<const Def*, const Def*>;
+//
+//    if (!get_cgra_options())
+//        world().WLOG("No CGRA options are provided, using default options");
+//
+//    auto get_param_mode = [&] (auto index, Continuation* cont) {
+//        if(auto config = get_config(cont)) {
+//            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+//            auto mode = config->as<CGRAKernelConfig>()->param_mode(cont->param(index));
+//            return mode;
+//        }
+//        assert(false && "kernel has no config");
+//    };
+//
+//
+//    auto get_runtime_ratio = [&] (Continuation* cont) {
+//        if(auto config = get_config(cont)) {
+//            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+//            return config->as<CGRAKernelConfig>()->runtime_ratio();
+//        }
+//        assert(false && "kernel has no config");
+//    };
+//
+//
+//    auto get_location = [&] (Continuation* cont) {
+//        if(auto config = get_config(cont)) {
+//            assert(config->isa<CGRAKernelConfig>() && "CGRAKernelConfig expected");
+//            return config->as<CGRAKernelConfig>()->location();
+//        }
+//        assert(false && "kernel has no config");
+//    };
+//
+//    // Plio params are those that on one side ther are connected to the outside of the cgra_graph
+//    // they are defined in the cgra_graph continuation
+//    auto is_plio = [&] (const Def* def) {
+//        return def->as<Param>()->continuation()->is_cgra_graph();
+//    };
+//
+//    auto node_name = [&] (const Def* def) {
+//        return def->as<Param>()->continuation()->is_cgra_graph() ? def->unique_name() : "k" + def->name();
+//    };
+//
+//    auto get_node_names = [&] (const Dependence dependence) {
+//        auto start_node = node_name(dependence.first);
+//        auto end_node   = node_name(dependence.second);
+//        return std::make_pair(start_node, end_node);
+//    };
+//
+//    auto get_node_indices = [&] (const Dependence dependence, Cont2Index& cont2index) {
+//        auto from_indices = cont2index[dependence.first->as<Param>()->continuation()];
+//        auto from = from_indices[to_underlying(ChannelMode::Write)];
+//        auto to_indices = cont2index[dependence.second->as<Param>()->continuation()];
+//        auto to = to_indices[to_underlying(ChannelMode::Read)];
+//        return std::make_pair(from, to);
+//    };
+//
+//    auto get_io_mode_index = [] (const ModeCounters& mode_counters, ChannelMode mode) {
+//        return mode_counters[to_underlying(mode)];
+//    };
+//
+//    auto get_edge_label = [&] (const Dependence& dependence) {
+//        return dependence.first->as<Param>()->continuation()->name() + "_"
+//            + dependence.second->as<Param>()->continuation()->name();
+//    };
+//
+//    auto krl_node_name = [&] (auto& kernel) {
+//        return "k" + kernel->name();
+//    };
+//
+//    auto get_direction_prefix = [&] (ChannelMode mode) {
+//        std::string direction;
+//        switch (mode) {
+//            case ChannelMode::Write:
+//                direction = "output";
+//                break;
+//            case ChannelMode::Read:
+//                direction = "input";
+//                break;
+//            case ChannelMode::ReadWrite:
+//                direction = "inout";
+//                break;
+//            default:
+//                world().WLOG("Direction of the parameter is undefined. Direct GMem access is not fully supported yet");
+//                break;
+//        }
+//        return direction;
+//    };
+//
+//    auto get_connection_method = [&] (const Dependence& dependence) {
+//
+//        auto connection_method = [&] (const Continuation* cont) {
+//            std::string s;
+//            switch (cont->get_interface()) {
+//                case Interface::Stream:
+//                    s = "<adf::stream>";
+//                    break;
+//                case Interface::Cascade:
+//                    s =  "<adf::cascade>";
+//                    break;
+//                case Interface::Window: {
+//                    auto window_size = cont->get_buf_size();
+//                    auto type = is_plio(dependence.first) ? dependence.second->type() : dependence.first->type();
+//                    s = "<adf::window<" + std::to_string(window_size) + " * sizeof(" + convert(type->as<PtrType>()->pointee()) + ")>" + ">";
+//                    }
+//                    break;
+//                case Interface::Free_running:
+//                    s = "<>";
+//                    break;
+//                case Interface::Circular_buffer: case Interface::Buffer:
+//                    s = " ";
+//                    break;
+//                case Interface::None: {
+//                    world().WLOG("Connection method could not be determined, using stream by default");
+//                    s = "<adf::stream>";
+//                    }
+//                    break;
+//                default:
+//                    assert(false && "No connection method is defined for the this interface");
+//            }
+//            return s;
+//        };
+//
+//
+//        static auto get_continuation = [&] (const Def* def) {
+//            return def->as<Param>()->continuation();
+//        };
+//
+//        static auto get_interface = [&] (const Def* def) {
+//            return get_continuation(def)->get_interface();
+//        };
+//
+//        auto is_buffer_interface = [] (Interface interface) {
+//            return interface == Interface::Buffer || interface == Interface::Circular_buffer;
+//        };
+//
+//
+//        // unless the interface is buffer, kernels with different interfaces are not supported.
+//        // a more proper solution would be param-wise interface definition which is not supported yet.
+//        auto [from, to] = dependence;
+//        auto [from_intf, to_intf] = std::make_pair(get_interface(from), get_interface(to));
+//        std::string method = "METHOD";
+//        if ((from_intf == to_intf) && from_intf != Interface::Cascade) {
+//            method = connection_method(get_continuation(from));
+//        } else if (is_plio(from) || is_plio(to)) {
+//            if (from_intf == Interface::None) {
+//                assert(to_intf != Interface::None && "CGRA PLIOs cannot directly connect to each other");
+//                method = connection_method(get_continuation(to));
+//            } else {
+//                method = connection_method(get_continuation(from));
+//            }
+//
+//            if (from_intf == Interface::Cascade || to_intf == Interface::Cascade) {
+//                // special case for cascade. using stream instead of cascade
+//                method = "<adf::stream>";
+//            }
+//        } else if (is_buffer_interface(from_intf) || !is_buffer_interface(to_intf)) {
+//            // if intfs are different not plio and at least one of them is a buffer
+//            world().WLOG("TODO: buffer is not supported yet");
+//        } else { // TODO: cascade
+//            world().ELOG("Interface mismatch");
+//        }
+//
+//        return method;
+//    };
+//        //TODO:
+//        // we can ovverride interface attr using kernel config so that we can kernels with different interfaces on the same code
+//        // for the moment for cascade we can check if the conts are not from cgra_graph then we can change the stream to cascade
+//
+//  //  };
+//
+//    auto set_mode_counters = [&] (const auto& kernel, const auto& mode, auto& mode_counters, Cont2Index& cont2index) {
+//        if (!cont2index.contains(kernel)) {
+//            mode_counters[to_underlying(mode)] = 0;
+//            cont2index.emplace(kernel, mode_counters);
+//        } else {
+//            auto mode_counters = cont2index[kernel];
+//            mode_counters[to_underlying(mode)]++;
+//            cont2index[kernel] = mode_counters;
+//         }
+//    };
+//
+//    auto set_io_mode_counters = [] (const auto& mode, auto& mode_counters) {
+//            mode_counters[to_underlying(mode)]++;
+//    };
+//
+//
+//    auto bit_width = [&] (const Type* type) {
+//        StringStream s;
+//        assert ((type != world().unit() || !(type->isa<MemType>()) || !(type->isa<FrameType>())) && "Only primary types allowed.");
+//        size_t actual_num_bits = 0;
+//
+//        if (auto primtype = type->isa<PrimType>()) {
+//            actual_num_bits = num_bits(primtype->primtype_tag());
+//        } else if (auto definite_array = type->isa<DefiniteArrayType>()) {
+//            if (auto prim_type = definite_array->elem_type()->isa<PrimType>())
+//                actual_num_bits = definite_array->dim() * num_bits(prim_type->primtype_tag());
+//        } else {
+//            world().ELOG("Type {} is not supported", type);
+//        }
+//
+//        if (actual_num_bits <= 32) {
+//            s << "32";
+//        } else if (actual_num_bits <= 64) {
+//            s << "64";
+//        } else if (actual_num_bits <= 128) {
+//            s << "128";
+//        } else {
+//            s << "128";
+//            world().WLOG("{} bits PLIO is not supported. Fallback to 128 bits", actual_num_bits);
+//        }
+//        return s.str();
+//    };
+//
+//    StringStream node_impls_;
+//    StringStream edge_impls_;
+//    StringStream configs_;
+//
+//    node_impls_.indent(2);
+//    edge_impls_.indent(2);
+//    configs_.indent(2);
+//
+//    DefSet visited_defs; // edges are emitted only if none of the corresponding nodes (dependence) has already been visited
+//    DefSet visited_conts;
+//    const auto counter_init = -1;
+//
+//    for (auto cont : graph_conts) {
+//        if (cont->intrinsic() == Intrinsic::EndScope) continue;
+//
+//        auto entry = cont->is_cgra_graph() ? cont: nullptr;
+//
+//        Dependence dependence; //<From, To>
+//        auto adjust_operands = [&] (Dependence& dependence) {
+//            std::swap(dependence.first, dependence.second);
+//        };
+//
+//        // emitting the connections between cgra_graph top and all other kernels
+//        if (cont->isa_nom<Continuation>() && (!cont->body()->empty()) && cont->has_body()) {
+//
+//            if (cont == entry) {
+//
+//                auto simulated_data = options.sim_data;
+//                ModeCounters io_counters; // only for naming simulation data files
+//                io_counters.fill(0);
+//
+//                for (auto param : cont->params()) {
+//                    if (is_concrete(param) || is_channel_type(param->type())) {
+//                        if (visited_defs.empty() || visited_defs.count(param) == 0) {
+//                            // Note that nodes of the same edge have the same names in IR (args of Fns) but different names in C
+//                            visited_defs.emplace(param);
+//
+//                            auto mode = get_param_mode(param->index(), cont);
+//                            set_io_mode_counters(mode, io_counters);
+//                            auto direc_prefix = get_direction_prefix(mode);
+//                            auto op_type = param->type();// TODO: Dummy value for GMem direct access.
+//                            if (auto ptr_type = param->type()->isa<PtrType>()) { // if not then it is a runtime parameter
+//                                if(auto struct_type = ptr_type->pointee()->isa<StructType>())
+//                                    op_type = struct_type->op(0);
+//                            }
+//
+//                            auto io_index = get_io_mode_index(io_counters, mode);
+//
+//                            node_impls_.fmt("{} = adf::{}_plio::create(\"{}\", adf::plio_{}_bits{});\n",
+//                                    param->unique_name(), direc_prefix, param->unique_name(), bit_width(op_type),
+//                                    simulated_data ? (", \"" + direc_prefix + "_" + std::to_string(io_index) + ".txt\"") : (""));
+//
+//                        }
+//
+//                        dependence.first = param;
+//                        for (size_t i = 0; i < graph_conts.size() - 1; ++i) {
+//                            Cont2Index cont2index;
+//                            ModeCounters cont_mode_counters, mode_counters;
+//                            // check if it works in the last version of aie compiler otherwise we need to remove any array index for plio/gmem ports and use them only if they are literally arrays of ports
+//                            cont_mode_counters.fill(0);
+//                            // mode indices of cgra_graph cont can actually resemble indices for arrays of plio/gmem ports
+//                            // but for now we assume that each param (port) is a scalar type (single port), therefore, we assign
+//                            // a zero index to each param, like param1.[0]
+//                            //auto mode = get_param_mode(kernel_param->index(), kernel);
+//                            //cont_mode_counters[to_underlying(mode)] = 0;
+//                            cont2index[cont] = cont_mode_counters;
+//                            //ModeCounters mode_counters;
+//                            mode_counters.fill(counter_init);
+//                            for (size_t arg_index = 0; const auto& arg : graph_conts[i]->body()->args()) {
+//                                if (is_concrete(arg) || is_channel_type(arg->type())) {
+//                                    auto graph_callee = graph_conts[i]->body()->callee();
+//                                    if (auto kernel = graph_callee->isa_nom<Continuation>()) {
+//                                        assert(kernel->name() == graph_callee->name());
+//                                        auto kernel_param = kernel->param(arg_index);
+//                                        //auto mode = get_param_mode(arg_index, kernel);
+//                                        auto mode = get_param_mode(kernel_param->index(), kernel);
+//
+//                                        // The problem is some params are counted several times
+//                                        // After each param counters should be reset
+//                                        // or use a visitig def list to filter those params that have already been visited
+//                                        set_mode_counters(kernel, mode, mode_counters, cont2index);
+//                                        if (param == arg) { // edge found
+//                                            dependence.second = kernel_param;
+//
+//                                            if (mode == ChannelMode::Write) {
+//                                                adjust_operands(dependence);
+//                                            }
+//
+//                                            if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
+//                                                visited_conts.emplace(graph_callee);
+//                                                node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
+//                                            }
+//                                            //note: at the moment the interface type is an attribute of the continuation not the param
+//                                            // therefore, we cannot have a contiunation having different interfaces on their params.
+//                                            // we can overcome this by adding an attribute to the param class
+//
+//                                            auto [start_node, end_node] = get_node_names(dependence);
+//                                            auto [start_index, end_index] = get_node_indices(dependence, cont2index);
+//                                            auto edge_label = get_edge_label(dependence);
+//                                            auto method = get_connection_method(dependence);
+//                                            edge_impls_.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n", method, edge_label, start_node, start_index, end_node, end_index);
+//
+//                                        }
+//
+//                                    }
+//
+//
+//                                }
+//
+//                                arg_index++;
+//                            }
+//
+//                        }
+//
+//                    }
+//                }
+//            }
+//
+//
+//            // emiting all other connections (those among callees without cgra_graph continuation)
+//            Cont2Index cur_cont2index;
+//            ModeCounters cur_mode_counters;
+//            cur_mode_counters.fill(counter_init);
+//            for (size_t cur_arg_index = 0; const auto& cur_arg : cont->body()->args()) {
+//                if (is_concrete(cur_arg)) {
+//
+//                    auto graph_callee = cont->body()->callee();
+//                    if (visited_conts.empty() || visited_conts.count(graph_callee) == 0) {
+//                        visited_conts.emplace(graph_callee);
+//                        node_impls_.fmt("{} = adf::kernel::create({});\n", krl_node_name(graph_callee), graph_callee->name());
+//                    }
+//
+//                    if (visited_defs.empty() || visited_defs.count(cur_arg) == 0) {
+//
+//                        // Note that nodes of the same edge have the same names in IR (args of Fns) but different names in C
+//                        visited_defs.emplace(cur_arg);
+//
+//                        if (auto kernel = graph_callee->isa_nom<Continuation>()) {
+//                            assert(kernel->name() == graph_callee->name());
+//                            auto kernel_param = kernel->param(cur_arg_index);
+//                            auto mode = get_param_mode(kernel_param->index(), kernel);
+//                            set_mode_counters(kernel, mode, cur_mode_counters, cur_cont2index);
+//                            dependence.first = kernel_param;
+//                        }
+//
+//                        Cont2Index cont2index;
+//                        ModeCounters mode_counters;
+//                        mode_counters.fill(counter_init);
+//                        for (size_t i = 0; i < graph_conts.size() - 1 ; ++i) {
+//                            auto cur_app = cont->body();
+//                            auto app = graph_conts[i]->body();
+//                            for (size_t arg_index = 0; const auto& arg : app->args()) {
+//
+//                                if (cur_app->callee() == app->callee())
+//                                    continue;
+//
+//                                if (is_concrete(arg) || is_channel_type(arg->type())) {
+//                                    auto graph_callee = graph_conts[i]->body()->callee();
+//                                    if (auto kernel = graph_callee->isa_nom<Continuation>()) {
+//                                        assert(kernel->name() == graph_callee->name());
+//                                        auto kernel_param = kernel->param(arg_index);
+//                                        //auto mode = get_param_mode(arg_index, kernel);
+//                                        auto mode = get_param_mode(kernel_param->index(), kernel);
+//                                        set_mode_counters(kernel, mode, mode_counters, cont2index);
+//                                        if (cur_arg == arg) { // edge found
+//                                            dependence.second = kernel_param;
+//                                            if (mode == ChannelMode::Write) {
+//                                                adjust_operands(dependence);
+//                                            }
+//                                            // We can safely merge the two maps because there won't be any similar keys(continuations)
+//                                            cont2index.insert(cur_cont2index.begin(), cur_cont2index.end());
+//                                            auto [start_index, end_index] = get_node_indices(dependence, cont2index);
+//                                            auto [start_node, end_node] = get_node_names(dependence);
+//                                            auto edge_label = get_edge_label(dependence);
+//                                            auto method = get_connection_method(dependence);
+//                                            edge_impls_.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n",method , edge_label, start_node, start_index, end_node, end_index);
+//                                        }
+//                                    }
+//                                }
+//                                arg_index++;
+//                            }
+//                        }
+//                    }
+//                }
+//                cur_arg_index++;
+//            }
+//
+//            auto source_ext = thorin::c::CodeGen(world(), kernel_config_, lang_, debug_, flags_).file_ext();
+//            if (cont->has_body() && cont->body()->callee()->isa_nom<Continuation>()) {
+//                // TODO: return is_a<cont> in if and use it in the body
+//                // TODO: soure(kernels) = addr
+//                auto callee = cont->body()->callee();
+//                configs_.fmt( "adf::runtime<ratio>({}) = {};\n", krl_node_name(callee), get_runtime_ratio(callee->as_nom<Continuation>()));
+//                auto [loc_x, loc_y] = get_location(callee->as_nom<Continuation>());
+//                if (loc_x >= 0 && loc_y >= 0)
+//                    configs_.fmt( "adf::location<adf::kernel>({}) = adf::tile({}, {});\n", krl_node_name(callee), loc_x, loc_y);
+//
+//                auto source_name = std::filesystem::path(world().name()).filename().string();
+//                configs_.fmt( "adf::source({}) = \"{}_kernel{}\";\n", krl_node_name(callee), source_name, source_ext);
+//            }
+//        }
+//    }
+//
+//    graph_ctor_ <<"// Nodes\n\t\t" << node_impls_.str() << "// Edges\n\t\t" << edge_impls_.str() << "// Constrains and Configurations\n\t\t" << configs_.str();
+//
+//    return;
+//}
 
 
 
@@ -2589,6 +3018,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                 func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
                 func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
             } else {
+
                 func_impls_.fmt("{} {}_slot;\n", t, name);
                 func_impls_.fmt("{}* {} = &{}_slot;\n", t, name, name);
             }

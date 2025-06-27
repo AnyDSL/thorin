@@ -2579,12 +2579,13 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
 
             auto is_not_array = !(slot->alloced_type()->isa<ArrayType>());
+            auto is_not_bool = !(slot->alloced_type()->isa<PrimType>() && slot->alloced_type()->as<PrimType>()->primtype_tag() == PrimType_bool);
             auto is_not_mem_op = !(slot->frame()->op(0)->as<Enter>()->mem()->isa<MemOp>());
 
             if (is_cgra_vector_kernel() && is_accum_type(slot->alloced_type())) {
                 func_impls_.fmt("aie::accum<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
                 func_impls_.fmt("aie::accum<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
-            } else if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op) {
+            } else if (is_cgra_vector_kernel() && is_not_array && is_not_mem_op && is_not_bool) {
                 func_impls_.fmt("aie::vector<{}, {}> {}_slot;\n", t, adjust_vector_size(), name);
                 func_impls_.fmt("aie::vector<{}, {}>* {} = &{}_slot;\n", t, adjust_vector_size(), name, name);
             } else {

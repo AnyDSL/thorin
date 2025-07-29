@@ -66,6 +66,7 @@ public:
             auto slot = find_slot(store->ptr());
             if (slot) {
                 if (only_stores(slot)) {
+                    todo_ = true;
                     store->replace_uses(store->mem());
                 } else {
                     // If the slot has been found and is safe, try to find a value for it

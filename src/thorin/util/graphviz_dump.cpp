@@ -8,7 +8,7 @@ namespace thorin {
 
 /// Outputs the raw thorin IR as a graph without performing any scope or scheduling analysis
 struct DotPrinter {
-    DotPrinter(World& world, const char* filename = "world.dot") : world_(world), forest_(world) {
+    DotPrinter(World& world, const char* filename = "world.dot") : /* world_(world), */ forest_(world) {
         file = std::ofstream(filename);
         begin();
     }
@@ -94,7 +94,7 @@ public:
     Scope* single_scope = nullptr;
 
 private:
-    thorin::World& world_;
+    //thorin::World& world_;
     ScopesForest forest_;
 
     int u_ = 0;

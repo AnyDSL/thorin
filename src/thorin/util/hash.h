@@ -193,6 +193,14 @@ public:
         {}
 #endif
 
+        iterator_base(const iterator_base<true>& i)
+            : ptr_(i.ptr_)
+            , table_(i.table_)
+#if THORIN_ENABLE_CHECKS
+            , id_(i.id_)
+#endif
+        { static_assert(is_const); }
+
 #if THORIN_ENABLE_CHECKS
         inline int id() const { return id_; }
         inline void verify() const { assert(table_->id_ == id_); }

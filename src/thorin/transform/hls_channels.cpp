@@ -151,7 +151,7 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
-DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2kernel, World& old_world) {
+DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2kernel, World& /* old_world */) {
     auto& world = thorin.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;

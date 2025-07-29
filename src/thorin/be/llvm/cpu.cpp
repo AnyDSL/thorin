@@ -15,8 +15,7 @@ CPUCodeGen::CPUCodeGen(Thorin& thorin, int opt, bool debug, std::string& target_
     auto triple_str = llvm::sys::getDefaultTargetTriple();
     auto cpu_str    = llvm::sys::getHostCPUName();
     std::string features_str;
-    llvm::StringMap<bool> features;
-    llvm::sys::getHostCPUFeatures(features);
+    auto features = llvm::sys::getHostCPUFeatures();
     for (auto& feature : features)
         features_str += (feature.getValue() ? "+" : "-") + feature.getKey().str() + ",";
 

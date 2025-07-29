@@ -90,7 +90,7 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Continuation* imported) {
+static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Continuation* /* imported */) {
     // determine whether or not this kernel uses restrict pointers
     bool has_restrict = true;
     DefSet allocs;

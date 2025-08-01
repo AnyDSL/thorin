@@ -134,7 +134,7 @@ class map_iterator {
 public:
     using iterator          = I;
     using difference_type   = typename std::iterator_traits<iterator>::difference_type;
-    using value_type        = typename std::result_of<F(typename std::iterator_traits<I>::value_type)>::type;
+    using value_type        = typename std::invoke_result<F, typename std::iterator_traits<I>::value_type>::type;
     using reference         = value_type&;
     using pointer           = value_type*;
     using iterator_category = typename std::iterator_traits<I>::iterator_category;

@@ -1291,6 +1291,12 @@ const Def* World::cse_base(const Def* def) {
     return def;
 }
 
+World::~World() {
+    for (const Def* def : data_.defs_) {
+        delete def;
+    }
+}
+
 /*
  * optimizations
  */

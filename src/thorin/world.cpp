@@ -1185,10 +1185,10 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
         }
     }
 
-    Array<const Def*> ops(1 + args.size());
-    ops[0] = callee;
+    Array<const Def*> ops(App::Ops::FirstArg + args.size());
+    ops[App::Ops::Callee] = callee;
     for (size_t i = 0; i < args.size(); i++)
-        ops[i + 1] = args[i];
+        ops[App::Ops::FirstArg + i] = args[i];
 
     return cse(new App(*this, ops, dbg));
 }

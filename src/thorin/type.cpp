@@ -55,6 +55,7 @@ const Type* BottomType         ::rebuild(World& w, const Type*  , Defs  ) const 
 const Type* ClosureType        ::rebuild(World& w, const Type*  , Defs o) const { return w.closure_type(defs2types(o)); }
 const Type* DefiniteArrayType  ::rebuild(World& w, const Type*  , Defs o) const { return w.definite_array_type(o[0]->as<Type>(), dim()); }
 const Type* FnType             ::rebuild(World& w, const Type*  , Defs o) const { return w.fn_type(defs2types(o)); }
+const Type* ReturnType         ::rebuild(World& w, const Type* t, Defs o) const { return w.return_type(defs2types(o)); }
 const Type* FrameType          ::rebuild(World& w, const Type*  , Defs  ) const { return w.frame_type(); }
 const Type* IndefiniteArrayType::rebuild(World& w, const Type*  , Defs o) const { return w.indefinite_array_type(o[0]->as<Type>()); }
 const Type* MemType            ::rebuild(World& w, const Type*  , Defs  ) const { return w.mem_type(); }
@@ -86,20 +87,51 @@ const VectorType* VectorType::scalarize() const {
     return world().prim_type(as<PrimType>()->primtype_tag());
 }
 
-bool FnType::is_returning() const {
-    bool ret = false;
-    for (auto op : ops()) {
-        switch (op->order()) {
-            case 1:
-                if (!ret) {
-                    ret = true;
-                    continue;
-                }
-                return false;
-            default: continue;
+const ReturnType* FnType::return_param_type() const {
+    auto i = ret_param_index();
+    if (i < 0)
+        return nullptr;
+    return op(i)->as<ReturnType>();
+}
+
+const Type* ReturnType::mangle_for_codegen() const {
+    // treat non-returning calls as if they return nothing, for now
+    std::vector<const Type*> types;
+    for (auto op: this->types()) {
+        assert(op->order() == 0);
+        if (op->isa<MemType>() || is_type_unit(op)) continue;
+        types.push_back(op);
+    }
+    return world().tuple_type(types);
+}
+
+Array<const Type*> FnType::domain() const {
+    auto r = ret_param_index();
+    Array<const Type*> dom(r < 0 ? num_ops() : num_ops() - 1);
+    int j = 0;
+    for (int i = 0; i < num_ops(); i++) {
+        if (i == r) continue;
+        dom[j++] = op(i)->as<Type>();
+    }
+    return dom;
+}
+
+std::optional<Array<const Type*>> FnType::codomain() const {
+    if (auto ret_t = return_param_type())
+        return std::make_optional(ret_t->domain());
+    return std::nullopt;
+}
+
+int FnType::ret_param_index() const {
+    int p = -1;
+    for (unsigned int i = num_ops() - 1; i < num_ops(); i--) {
+        if (op(i)->isa<ReturnType>()) {
+            // this also does not work for schemes like exceptions etc where multiple 'returns' are valid
+            assert(p == -1 && "only one return parameter allowed");
+            p = i;
         }
     }
-    return ret;
+    return p;
 }
 
 bool VariantType::has_payload() const {
@@ -169,6 +201,7 @@ const PtrType* World::ptr_type(const Type* pointee, size_t length, AddrSpace add
 
 const FnType*              World::fn_type(Types args) { return make<FnType>(*this, types2defs(args), Node_FnType, Debug()); }
 const ClosureType*         World::closure_type(Types args) { return make<ClosureType>(*this, types2defs(args), Debug()); }
+const ReturnType*          World::return_type(Types args) { return make<ReturnType>(*this, types2defs(args), Debug()); }
 const DefiniteArrayType*   World::definite_array_type(const Type* elem, u64 dim) { return make<DefiniteArrayType>(*this, elem, dim, Debug()); }
 const IndefiniteArrayType* World::indefinite_array_type(const Type* elem) { return make<IndefiniteArrayType>(*this, elem, Debug()); }
 

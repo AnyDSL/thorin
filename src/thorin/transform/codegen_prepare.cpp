@@ -19,13 +19,13 @@ struct CodegenPrepare : public Rewriter {
         if (auto app = odef->isa<App>()) {
             auto new_ops = Array<const Def*>(app->num_args(), [&](size_t i) -> const Def* {
                 auto oarg = app->arg(i);
-                if (auto oparam = oarg->isa<Param>()) {
-                    if (oparam == oparam->continuation()->ret_param()) {
+                if (oarg->type()->isa<ReturnType>()) {
+                    if (!oarg->isa<ReturnPoint>()) {
                         auto wrapped = make_wrapper(oarg);
-                        insert(oarg, wrapped);
-                        auto imported_param = instantiate(oparam->continuation())->as_nom<Continuation>()->ret_param();
+                        insert(oarg, dst().return_point(wrapped));
+                        auto imported_param = instantiate(app->arg(i));
                         wrapped->jump(imported_param, wrapped->params_as_defs(), imported_param->debug());
-                        return wrapped;
+                        return dst().return_point(wrapped);
                     }
                 }
                 return instantiate(app->arg(i));

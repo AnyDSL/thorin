@@ -124,6 +124,7 @@ public:
     const FnType* fn_type() { return fn_type({}); } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args);
     const ClosureType* closure_type(Types args);
+    const ReturnType* return_type(Types args);
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
     const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 
@@ -275,6 +276,7 @@ public:
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return data_.end_scope_; }
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
+    const ReturnPoint* return_point(const Continuation* destination, Debug dbg = {}) { return cse(new ReturnPoint(*this, destination, dbg)); }
     const Filter* filter(const Defs, Debug dbg = {});
 
     // getters

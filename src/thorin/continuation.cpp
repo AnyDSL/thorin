@@ -61,6 +61,22 @@ bool App::verify() const {
 
 //------------------------------------------------------------------------------
 
+ReturnPoint::ReturnPoint(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
+
+const Def* ReturnPoint::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const {
+    auto def = nops.front();
+    // TODO: have some kind of generalised mechanism to obtain the 'real' def
+    while (auto run = def->isa<Run>()) {
+        def = run->def();
+    }
+    while (auto closure = def->isa<Closure>()) {
+        def = closure->fn();
+    }
+    return world.return_point(def->as<Continuation>());
+}
+
+//------------------------------------------------------------------------------
+
 Filter::Filter(World& world, const Defs defs, Debug dbg) : Def(world, Node_Filter, world.bottom_type(), defs, dbg) {}
 
 const Filter* Filter::cut(ArrayRef<size_t> indices) const {
@@ -145,14 +161,8 @@ const Param* Continuation::ret_param() const {
             return nullptr;
         default: break;
     }
-    const Param* result = nullptr;
-    for (auto param : params()) {
-        if (param->order() >= 1) {
-            assertf(is_intrinsic() || result == nullptr, "only one ret_param allowed");
-            result = param;
-        }
-    }
-    return result;
+    int ret_param = type()->ret_param_index();
+    return (ret_param > 0) ? param(ret_param) : nullptr;
 }
 
 void Continuation::destroy(const char* cause) {

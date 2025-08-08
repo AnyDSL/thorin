@@ -86,6 +86,16 @@ public:
     friend class World;
 };
 
+class ReturnPoint : public Def {
+private:
+    ReturnPoint(World&, const Continuation* destination, Debug dbg);
+
+public:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+    Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
+    friend class World;
+};
+
 //------------------------------------------------------------------------------
 
 enum class CC : uint8_t {

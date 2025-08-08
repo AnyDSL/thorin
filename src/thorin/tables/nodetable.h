@@ -45,13 +45,15 @@
         THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
     THORIN_NODE(Filter, filter)
+    THORIN_NODE(App, app)
+    THORIN_NODE(ReturnPoint, return)
     // Type
         // PrimType
         THORIN_NODE(Star, star)
-        THORIN_NODE(App, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(FnType, fn)
         THORIN_NODE(ClosureType, closure_type)
+        THORIN_NODE(ReturnType, return_type)
         THORIN_NODE(FrameType, frame)
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
         THORIN_NODE(Lambda, lambda)

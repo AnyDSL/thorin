@@ -20,7 +20,7 @@ static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
                     nops.push_back(arg);
             } else
                 nops.push_back(op);
-        } else if (auto op_fn_type = op->isa<FnType>()) {
+        } else if (auto op_fn_type = op->isa<FnType>(); op_fn_type && op_fn_type->tag() == NodeTag::Node_FnType) {
             nops.push_back(wrapped_type(op_fn_type, max_tuple_size));
         } else {
             nops.push_back(op);
@@ -98,7 +98,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
                 call_args[i + 1] = world.tuple(tuple_args);
             } else
                 call_args[i + 1] = new_cont->param(j++);
-        } else if (auto fn_type = op->isa<FnType>()) {
+        } else if (auto fn_type = op->isa<FnType>(); fn_type && fn_type->tag() == NodeTag::Node_FnType) {
             auto fn_param = new_cont->param(j++);
             // no need to unwrap if the types are identical
             if (fn_param->type() != op)
@@ -149,7 +149,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
                     call_args[j++] = world.extract(param, k);
             } else
                 call_args[j++] = param;
-        } else if (auto fn_type = param->type()->isa<FnType>()) {
+        } else if (auto fn_type = param->type()->isa<FnType>(); fn_type && fn_type->tag() == NodeTag::Node_FnType) {
             auto new_fn_type = new_type->op(j - 1)->as<FnType>();
             // no need to wrap if the types are identical
             if (fn_type != new_fn_type)

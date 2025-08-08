@@ -93,6 +93,7 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
+    void emit_call(BB& bb, const Def* callee, ArrayRef<std::string>);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -109,13 +110,18 @@ private:
     std::string constructor_prefix(const Type*);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
+    const Type* mangle_return_type(const ReturnType* return_type);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
+    const Param* get_channel_read_output(Continuation*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
 
     std::string array_name(const DefiniteArrayType*);
     std::string tuple_name(const TupleType*);
+    std::string closure_name(const ClosureType*);
+    std::string return_name(const ReturnType*);
+    std::string fn_name(const FnType*);
 
     Thorin& thorin_;
     ScopesForest forest_;
@@ -549,17 +555,11 @@ static inline bool is_passed_via_buffer(const Param* param) {
         || param->type()->isa<TupleType>();
 }
 
-static inline const Type* ret_type(const FnType* fn_type) {
-    auto ret_fn_type = (*std::find_if(
-        fn_type->types().begin(), fn_type->types().end(), [] (const Type* op) {
-            return op->order() % 2 == 1;
-        }))->as<FnType>();
-    std::vector<const Type*> types;
-    for (auto op : ret_fn_type->types()) {
-        if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0) continue;
-        types.push_back(op);
-    }
-    return fn_type->world().tuple_type(types);
+const Type* CCodeGen::mangle_return_type(const ReturnType* return_type) {
+    // treat non-returning calls as if they return nothing, for now
+    if(!return_type)
+        return world().unit_type();
+    return return_type->mangle_for_codegen();
 }
 
 static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
@@ -705,6 +705,44 @@ void CCodeGen::finalize(Continuation* cont) {
     func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
+const Param* CCodeGen::get_channel_read_output(Continuation* cont) {
+    size_t num_params = cont->num_params();
+    size_t n = 0;
+    Array<const Param*> values(num_params);
+    for (auto param : cont->params()) {
+        if (!is_mem(param) && !is_unit(param)) {
+            values[n] = param;
+            n++;
+        }
+    }
+    return n == 1 ? values[0] : nullptr;
+}
+
+void CCodeGen::emit_call(BB& bb, const Def* callee, ArrayRef<std::string> args) {
+    if (auto cont = callee->isa_nom<Continuation>()) {
+        auto& scope = forest_.get_scope(entry_);
+        // Use goto syntax when calling within the local scope
+        // (and it's not recursion)
+        if (scope.contains(cont) && cont != entry_) {
+            assert(cont->num_params() == args.size());
+            for (size_t i = 0, size = cont->num_params(); i != size; ++i) {
+                if (auto arg = args[i]; !arg.empty())
+                    bb.tail.fmt("p_{} = {};\n", cont->param(i)->unique_name(), arg);
+            }
+            bb.tail.fmt("goto {};", label_name(cont));
+            return;
+        }
+    }
+
+    auto ecallee = emit(callee);
+    if (auto closure_t = callee->type()->isa<ClosureType>()) {
+        auto appended = concat(args, ecallee);
+        auto as_fnt = world().fn_type(concat(closure_t->types(), closure_t->as<Type>()));
+        bb.tail.fmt("(({}) {}.f)({, });", convert(as_fnt), ecallee, appended);
+    } else
+        bb.tail.fmt("{}({, });", ecallee, args);
+}
+
 void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     assert(cont->has_body());
@@ -716,7 +754,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
-    if (body->callee() == entry_->ret_param()) { // return
+    if (body->callee()->type()->isa<ReturnType>()) { // return
         std::vector<std::string> values;
         std::vector<const Type*> types;
 
@@ -727,16 +765,28 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             }
         }
 
+        std::string emitted_return;
+
         switch (values.size()) {
-            case 0: bb.tail.fmt(lang_ == Lang::HLS ? "return void();" : "return;"); break;
-            case 1: bb.tail.fmt("return {};", values[0]); break;
+            case 0: emitted_return = lang_ == Lang::HLS ? "void()" : ""; break;
+            case 1: emitted_return = values[0]; break;
             default:
                 auto tuple = convert(world().tuple_type(types));
                 bb.tail.fmt("{} ret_val;\n", tuple);
                 for (size_t i = 0, e = types.size(); i != e; ++i)
                     bb.tail.fmt("ret_val.e{} = {};\n", i, values[i]);
-                bb.tail.fmt("return ret_val;");
+                emitted_return = "ret_val";
                 break;
+        }
+
+        if (body->callee() == entry_->ret_param()) {
+            // local return
+            if (emitted_return.empty())
+                bb.tail.fmt("return;");
+            else
+                bb.tail.fmt("return {};", emitted_return);
+        } else {
+            assert(false && "TODO: implement capturing returns");
         }
     } else if (body->callee() == world().branch()) {
         emit_unsafe(body->arg(0));
@@ -828,93 +878,99 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
             THORIN_UNREACHABLE;
         }
-    } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
-        auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
-            return arg->isa_nom<Continuation>();
-        }))->as_nom<Continuation>();
+    } else { // function/closure call
+        auto callee_type = body->callee()->type()->as<FnType>();
+        int ret_param = callee_type->ret_param_index();
+        const Def* ret = nullptr;
+        if (ret_param >= 0)
+            ret = body->arg(ret_param);
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
-            if (arg == ret_cont) continue;
+            if (arg == ret) continue;
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
         }
 
-        size_t num_params = ret_cont->num_params();
-        size_t n = 0;
-        Array<const Param*> values(num_params);
-        Array<const Type*> types(num_params);
-        for (auto param : ret_cont->params()) {
-            if (!is_mem(param) && !is_unit(param)) {
-                values[n] = param;
-                types[n] = param->type();
-                n++;
-            }
-        }
-
-        const Param* channel_read_result = n == 1 ? values[0] : nullptr;
-
         bool channel_transaction = false, no_function_call = false;
 
-        auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
-        if (lang_ == Lang::OpenCL && use_channels_ && callee->is_channel()) {
-            auto [usage, _] = builtin_funcs_.emplace(callee, FuncMode::Read);
+        if (auto known_callee = body->callee()->isa_nom<Continuation>()) {
+            auto name = (known_callee->is_exported() || known_callee->empty()) ? known_callee->name() : known_callee->unique_name();
+            if (lang_ == Lang::OpenCL && use_channels_ && known_callee->is_channel()) {
+                auto [usage, _] = builtin_funcs_.emplace(known_callee, FuncMode::Read);
 
-            if (name.find("write") != std::string::npos) {
-                usage->second = FuncMode::Write;
-            } else if (name.find("read") != std::string::npos) {
-                usage->second = FuncMode::Read;
-                assert(channel_read_result != nullptr);
-                args.emplace(args.begin(), emit(channel_read_result));
-            } else THORIN_UNREACHABLE;
-            channel_transaction = true;
-        } else if (lang_ == Lang::HLS && callee->is_channel()) {
-            int i = 0;
-            for (auto arg : body->args()) {
-                if (!is_concrete(arg)) continue;
-                if (i == 0)
-                    bb.tail.fmt("*{}", emit(arg));
-                if (i == 1) {
-                    if (name.find("write_channel") != std::string::npos) {
-                        bb.tail.fmt(" << {};\n", emit(arg));
-                    } else THORIN_UNREACHABLE;
+                if (name.find("write") != std::string::npos) {
+                    usage->second = FuncMode::Write;
+                } else if (name.find("read") != std::string::npos) {
+                    usage->second = FuncMode::Read;
+                    auto channel_read_result = get_channel_read_output(ret->as_nom<ReturnPoint>()->continuation());
+                    assert(channel_read_result != nullptr);
+                    args.emplace(args.begin(), emit(channel_read_result));
+                } else
+                    THORIN_UNREACHABLE;
+                channel_transaction = true;
+            } else if (lang_ == Lang::HLS && known_callee->is_channel()) {
+                int i = 0;
+                for (auto arg: body->args()) {
+                    if (!is_concrete(arg)) continue;
+                    if (i == 0)
+                        bb.tail.fmt("*{}", emit(arg));
+                    if (i == 1) {
+                        if (name.find("write_channel") != std::string::npos) {
+                            bb.tail.fmt(" << {};\n", emit(arg));
+                        } else
+                            THORIN_UNREACHABLE;
+                    }
+                    if (name.find("read_channel") != std::string::npos)
+                        bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret->as_nom<ReturnPoint>()->continuation())));
+                    i++;
                 }
-                if (name.find("read_channel") != std::string::npos) {
-                    bb.tail.fmt(" >> {};\n", emit(channel_read_result));
-                }
-                i++;
+                no_function_call = true;
+                //TODO: Check it
+                channel_transaction = true;
             }
-            no_function_call = true;
-            //TODO: Check it
-            channel_transaction = true;
         }
 
         // Do not store the result of `void` calls
-        auto ret_type = thorin::c::ret_type(callee->type());
+        auto ret_type = mangle_return_type(callee_type->return_param_type());
         if (!is_type_unit(ret_type) && !channel_transaction)
             bb.tail.fmt("{} ret_val = ", convert(ret_type));
 
-        if (!no_function_call)
-            bb.tail.fmt("{}({, });\n", emit(callee), args);
-
-        // Pass the result to the phi nodes of the return continuation
-        if (!is_type_unit(ret_type)) {
-            size_t i = 0;
-            for (auto param : ret_cont->params()) {
-                if (!is_concrete(param))
-                    continue;
-                if (ret_type->isa<TupleType>())
-                    bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
-                else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
-                    bb.tail.fmt(" p_{} = {};\n", emit(channel_read_result), param->unique_name());
-                else
-                    bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
-            }
+        if (!no_function_call) {
+            emit_call(bb, body->callee(), args);
         }
-        if (!hls_top_scope)
-            bb.tail.fmt("goto {};", label_name(ret_cont));
-    } else {
-        THORIN_UNREACHABLE;
+
+        if (auto ret_pt = ret->isa<ReturnPoint>()) {
+            // Pass the result to the phi nodes of the return continuation
+            if (!is_type_unit(ret_type)) {
+                size_t i = 0;
+                for (auto param: ret_pt->continuation()->params()) {
+                    if (!is_concrete(param))
+                        continue;
+                    bb.tail.fmt("\n");
+                    if (ret_type->isa<TupleType>())
+                        bb.tail.fmt("p_{} = ret_val.e{};", param->unique_name(), i++);
+                    else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
+                        bb.tail.fmt(" p_{} = {};", emit(get_channel_read_output(ret_pt->continuation())),
+                                    param->unique_name());
+                    else
+                        bb.tail.fmt("p_{} = ret_val;", param->unique_name());
+                }
+            }
+
+            if (!hls_top_scope) {
+                bb.tail.fmt("\ngoto {};", label_name(ret_pt->continuation()));
+            }
+        } else if (ret && ret == entry_->ret_param()) {
+            // TODO: tail call annotations ?
+            if (!is_type_unit(ret_type)) {
+                bb.tail.fmt("\n");
+                bb.tail.fmt("return ret_val;");
+            }
+        } else {
+            assert(!ret);
+            // TODO: dummy return statements ?
+        }
     }
 }
 
@@ -1413,13 +1469,17 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     }
 
     s.fmt("{} {}(",
-        convert(ret_type(cont->type())),
+        convert(mangle_return_type(cont->type()->return_param_type())),
         !world().is_external(cont) ? cont->unique_name() : cont->name());
 
     // Emit and store all first-order params
     bool needs_comma = false;
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
+        if (lang_ == Lang::C99 && param->type()->isa<ReturnType>()) {
+            defs_[param] = "&return_buf";
+            continue;
+        }
         if (!is_concrete(param)) {
             defs_[param] = {};
             continue;
@@ -1611,6 +1671,18 @@ std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {
 
 std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
     return "tuple_" + std::to_string(tuple_type->gid());
+}
+
+std::string CCodeGen::fn_name(const FnType* fn_type) {
+    return "fn_" + std::to_string(fn_type->gid());
+}
+
+std::string CCodeGen::closure_name(const ClosureType* fn_type) {
+    return "closure_" + std::to_string(fn_type->gid());
+}
+
+std::string CCodeGen::return_name(const ReturnType* fn_type) {
+    return "return_" + std::to_string(fn_type->gid());
 }
 
 //------------------------------------------------------------------------------

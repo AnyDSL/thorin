@@ -1154,6 +1154,14 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 
 /// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
+    while (true) {
+        if (auto ret = callee->isa<ReturnPoint>()) {
+            callee = ret->continuation();
+            continue;
+        }
+        break;
+    }
+
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             // See also mangle::instantiate when modifying this.

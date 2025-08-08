@@ -1207,6 +1207,7 @@ const Def* World::return_point(const thorin::Continuation* destination, thorin::
     // but we're wrapping the cont here so we can do just that!
     if (destination->has_body()) {
         auto dbody = destination->body();
+        assert(dbody->callee() != destination);
         if (dbody->callee()->type()->isa<ReturnType>() && dbody->args() == destination->params_as_defs()) {
             Scope s((Continuation*) destination);
             if (!s.contains(dbody->callee())) {

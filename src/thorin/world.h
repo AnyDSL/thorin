@@ -276,7 +276,7 @@ public:
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return data_.end_scope_; }
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
-    const ReturnPoint* return_point(const Continuation* destination, Debug dbg = {}) { return cse(new ReturnPoint(*this, destination, dbg)); }
+    const Def* return_point(const Continuation* destination, Debug dbg = {});
     const Filter* filter(const Defs, Debug dbg = {});
 
     // getters

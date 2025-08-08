@@ -1201,6 +1201,23 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
     return cse(new App(*this, ops, dbg));
 }
 
+const Def* World::return_point(const thorin::Continuation* destination, thorin::Debug dbg) {
+    // We need a slightly different flavor of eta-conversion here
+    // regular eta-conversion will not turn `cont() { ret(...) }` into `ret` because the types wouldn't match
+    // but we're wrapping the cont here so we can do just that!
+    if (destination->has_body()) {
+        auto dbody = destination->body();
+        if (dbody->callee()->type()->isa<ReturnType>() && dbody->args() == destination->params_as_defs()) {
+            Scope s((Continuation*) destination);
+            if (!s.contains(dbody->callee())) {
+                VLOG("simplify: return_point with continuation {} just returns to another one {}", destination->unique_name(), dbody->callee());
+                return dbody->callee();
+            }
+        }
+    }
+    return cse(new ReturnPoint(*this, destination, dbg));
+}
+
 /*
  * misc
  */

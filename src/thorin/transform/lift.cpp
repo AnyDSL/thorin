@@ -104,7 +104,7 @@ struct ClosureConverter {
         return std::make_tuple(env_type, thin_env);
     }
 
-    std::vector<const Type*> rewrite_params(ScopeRewriter& rewriter, Continuation* ocont) {
+    std::vector<const Type*> rewrite_param_types(ScopeRewriter& rewriter, Continuation* ocont) {
         std::vector<const Type*> nparam_types;
 
         bool is_accelerator = ocont->is_accelerator();
@@ -112,10 +112,18 @@ struct ClosureConverter {
         for (auto pt : ocont->type()->types()) {
             const Type* npt = rewriter.instantiate(pt)->as<Type>();
             // in intrinsics, don't closure-convert immediate parameters
-            if ((ocont->is_intrinsic() && pt->tag() == Node_FnType) && (!is_accelerator || !acc_body_found)) {
-                npt = dst().fn_type(npt->as<FnType>()->types());
-                if (is_accelerator)
-                    acc_body_found = true;
+            if (ocont->is_intrinsic() && (!is_accelerator || !acc_body_found)) {
+                if (pt->tag() == Node_FnType) {
+                    npt = dst().fn_type(npt->as<FnType>()->types());
+                    if (is_accelerator)
+                        acc_body_found = true;
+                } else if (auto tuple_t = pt->isa<TupleType>(); tuple_t && tuple_t->types().size() == 2) {
+                    // this is because of how we encode match() ...
+                    if (tuple_t->types()[1]->tag() == Node_FnType) {
+                        auto ntt = npt->as<TupleType>();
+                        npt = dst().tuple_type({ntt->types()[0], dst().fn_type(ntt->types()[1]->as<FnType>()->types())});
+                    }
+                }
             }
             nparam_types.push_back(npt);
         }
@@ -174,13 +182,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         auto& scope = converter_.forest_.get_scope(ocont);
         assert(scope.parent_scope() == (scope_ ? scope_->entry() : nullptr));
 
+        auto nparam_types = converter_.rewrite_param_types(*this, ocont);
         if (ocont->is_intrinsic()) {
-            return Rewriter::rewrite(ocont);
+            auto ntype = dst().fn_type(nparam_types);
+            auto ndef = ocont->stub(*this, ntype);
+            insert(odef, ndef);
+            ndef->rebuild_from(*this, odef);
+            return ndef;
         }
 
         ScopeRewriter* body_rewriter;
         const Def* ndef = nullptr;
-        auto nparam_types = converter_.rewrite_params(*this, ocont);
         auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
 
         // only the root rewriter is a parent, we're remaking everything else
@@ -302,9 +314,15 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
 
             for (size_t i = 0; i < app->num_args(); i++) {
                 auto oarg = app->arg(i);
-                if (ncont->is_intrinsic() && ncont->type()->types()[i]->tag() == Node_FnType)
-                    nargs[i] = converter_.as_continuation(instantiate(oarg));
-                else nargs[i] = instantiate(oarg);
+                nargs[i] = instantiate(oarg);
+                if (ncont->is_intrinsic()) {
+                    auto pt = ncont->type()->types()[i];
+                    if (pt->tag() == Node_FnType)
+                        nargs[i] = converter_.as_continuation(nargs[i]);
+                    else if (auto tuple_t = pt->isa<TupleType>(); tuple_t && tuple_t->types()[1]->tag() == Node_FnType) {
+                        nargs[i] = dst().tuple({dst().extract(nargs[i], (u32) 0), converter_.as_continuation(dst().extract(nargs[i], (u32) 1)) });
+                    }
+                }
             };
 
             if (ncont->is_accelerator()) {

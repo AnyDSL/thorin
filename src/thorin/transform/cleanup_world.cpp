@@ -7,6 +7,7 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "demote_closures.h"
 
 namespace thorin {
 
@@ -20,6 +21,7 @@ public:
     void cleanup();
     void eliminate_tail_rec();
     void eliminate_params();
+    void demote_closures();
     void rebuild();
     void verify_closedness();
     void within(const Def*);
@@ -148,6 +150,10 @@ next_continuation:;
     }
 }
 
+void Cleaner::demote_closures() {
+    todo_ |= thorin::demote_closures(*thorin_.world_container());
+}
+
 void Cleaner::rebuild() {
     auto fresh_world = std::make_unique<World>(world());
     Importer importer(world(), *fresh_world);
@@ -241,6 +247,7 @@ void Cleaner::cleanup_fix_point() {
         rebuild();
         eliminate_tail_rec();
         eliminate_params();
+        demote_closures();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();

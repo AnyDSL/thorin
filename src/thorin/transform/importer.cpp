@@ -18,19 +18,6 @@ const Def* Importer::rewrite(const Def* const odef) {
             }
         }
     } else if (auto app = odef->isa<App>()) {
-        // always peel calls to closures
-        if (auto closure = app->callee()->isa<Closure>()) {
-            BetaReducer r(dst());
-            auto fn= import(closure->fn())->as<Continuation>();
-            if (fn->has_body()) {
-                for (size_t i = 0; i < app->args().size(); i++)
-                    r.provide_arg(fn->param(i), import(app->arg(i)));
-                r.provide_arg(fn->params().back(), import(closure));
-                todo_ = true;
-                return r.instantiate(fn->body())->as<App>();
-            }
-        }
-
         // eat calls to known continuations that are only used once
         if (auto callee = app->callee()->isa_nom<Continuation>()) {
             if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {

@@ -48,6 +48,8 @@ set(THORIN_SOURCES
     transform/codegen_prepare.cpp
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
+    transform/demote_closures.cpp
+    transform/demote_closures.h
     transform/hoist_enters.cpp
     transform/hoist_enters.h
     transform/flatten_tuples.cpp

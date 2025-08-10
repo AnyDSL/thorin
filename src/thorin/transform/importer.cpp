@@ -1,6 +1,7 @@
 #include "thorin/transform/importer.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/primop.h"
+#include "partial_evaluation.h"
 
 namespace thorin {
 
@@ -17,6 +18,19 @@ const Def* Importer::rewrite(const Def* const odef) {
             }
         }
     } else if (auto app = odef->isa<App>()) {
+        // always peel calls to closures
+        if (auto closure = app->callee()->isa<Closure>()) {
+            BetaReducer r(dst());
+            auto fn= import(closure->fn())->as<Continuation>();
+            if (fn->has_body()) {
+                for (size_t i = 0; i < app->args().size(); i++)
+                    r.provide_arg(fn->param(i), import(app->arg(i)));
+                r.provide_arg(fn->params().back(), import(closure));
+                todo_ = true;
+                return r.instantiate(fn->body())->as<App>();
+            }
+        }
+
         // eat calls to known continuations that are only used once
         if (auto callee = app->callee()->isa_nom<Continuation>()) {
             if (callee->has_body() && !src().is_external(callee) && callee->can_be_inlined()) {
@@ -26,31 +40,6 @@ const Def* Importer::rewrite(const Def* const odef) {
                     insert(callee->param(i), import(app->arg(i)));
 
                 return instantiate(callee->body());
-            }
-        }
-    } else if (auto closure = odef->isa<Closure>()) {
-        bool only_called = true;
-        for (auto use : closure->uses()) {
-            if (use.def()->isa<App>() && use.index() == App::Ops::Callee)
-                continue;
-            only_called = false;
-            break;
-        }
-        if (only_called) {
-            bool self_param_ok = true;
-            for (auto use: closure->fn()->params().back()->uses()) {
-                // the closure argument can be used, but only to extract the environment!
-                if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
-                    continue;
-                self_param_ok = false;
-                break;
-            }
-            if (self_param_ok) {
-                src().VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
-                Array<const Def*> args(closure->fn()->num_params());
-                args.back() = closure;
-                todo_ = true;
-                return instantiate(drop(closure->fn(), args));
             }
         }
     } else if (auto cont = odef->isa_nom<Continuation>()) {

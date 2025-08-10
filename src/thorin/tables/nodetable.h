@@ -16,6 +16,7 @@
             // Access
                 THORIN_NODE(Load, load)
                 THORIN_NODE(Store, store)
+            THORIN_NODE(ClosureEnv, closure_env)
             THORIN_NODE(Enter, enter)
             THORIN_NODE(Leave, leave)
         THORIN_NODE(Select, select)

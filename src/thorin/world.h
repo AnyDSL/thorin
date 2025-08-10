@@ -251,6 +251,7 @@ public:
     const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* closure_env(const Type* env_type, const Def* mem, const Def* closure, Debug dbg = {});
     const Def* heap_cell(const Def* contents, Debug dbg = {}) { return cse(new Cell(*this, ptr_type(contents->type()), contents, true, dbg)); }
     const Def* stack_cell(const Def* contents, Debug dbg = {}) { return cse(new Cell(*this, ptr_type(contents->type()), contents, false, dbg)); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});

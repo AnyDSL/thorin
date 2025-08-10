@@ -1054,6 +1054,12 @@ const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debu
     return cse(new Alloc(*this, type, mem, extra, dbg));
 }
 
+const Def* World::closure_env(const Type* type, const thorin::Def* mem, const thorin::Def* src, thorin::Debug dbg) {
+    if (auto closure = src->isa<Closure>())
+        return tuple({mem, closure->env()});
+    return cse(new ClosureEnv(*this, type, mem, src, dbg));
+}
+
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
     return cse(new Global(*this, init, is_mutable, dbg));
 }
@@ -1350,12 +1356,11 @@ void Thorin::opt() {
     RUN_PASS(split_slots(*this))
     //RUN_PASS(closure_conversion(world()))
     //RUN_PASS(lift_builtins(*this))
-    RUN_PASS(inliner(*this))
+    //RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
     RUN_PASS(dead_load_opt(world()))
     //RUN_PASS(cleanup())
-    RUN_PASS(lift(*this, LiftMode::Lift2Cff));
-    RUN_PASS(lift(*this, LiftMode::ClosureConversion));
+    RUN_PASS(lift(*this));
     RUN_PASS(codegen_prepare(*this))
 }
 

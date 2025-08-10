@@ -576,6 +576,20 @@ private:
     bool equal(const Def* other) const override { return this == other; }
 };
 
+class ClosureEnv : public MemOp {
+private:
+    ClosureEnv(World& world, const Type* type, const Def* mem, const Def* src, Debug dbg);
+
+public:
+    bool has_multiple_outs() const override { return true; }
+    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+
+private:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
 /// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:

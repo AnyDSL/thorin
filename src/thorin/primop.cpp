@@ -106,6 +106,12 @@ Global::Global(World& world, const Def* init, bool is_mutable, Debug dbg)
     assert(!init->has_dep(Dep::Param));
 }
 
+ClosureEnv::ClosureEnv(World& world, const Type* type, const Def* mem, const Def* src, Debug dbg)
+    : MemOp(world, Node_ClosureEnv, nullptr, {mem, src}, dbg)
+{
+    set_type(world.tuple_type({world.mem_type(), type}));
+}
+
 Alloc::Alloc(World& world, const Type* type, const Def* mem, const Def* extra, Debug dbg)
     : MemOp(world, Node_Alloc, nullptr, {mem, extra}, dbg)
 {
@@ -221,6 +227,7 @@ const Def* Variant       ::rebuild(World& w, const Type* t, Defs o) const { retu
 const Def* VariantIndex  ::rebuild(World& w, const Type*  , Defs o) const { return w.variant_index(o[0], debug()); }
 const Def* VariantExtract::rebuild(World& w, const Type*  , Defs o) const { return w.variant_extract(o[0], index(), debug()); }
 const Def* Vector        ::rebuild(World& w, const Type*  , Defs o) const { return w.vector(o, debug()); }
+const Def* ClosureEnv    ::rebuild(World& w, const Type* t, Defs o) const { return w.closure_env(t->as<TupleType>()->op(1)->as<Type>(), o[0], o[1], debug()); }
 
 const Def* Cell::rebuild(World& w, const Type* t, Defs o) const {
     if (is_heap_allocated())

@@ -340,7 +340,7 @@ CodeGen::emit_module() {
 
         Scope& scope = forest.get_scope(todo);
 
-        emit_scope(scope, forest);
+        queue_scope(todo);
 
         for(auto free : scope.free_frontier()) {
             if (const Continuation* cont_const = free->isa<Continuation>()) {
@@ -356,6 +356,8 @@ CodeGen::emit_module() {
         }
     }
 
+    emit_scopes(forest);
+
     if (debug()) dibuilder_.finalize();
 
 #if THORIN_ENABLE_RV
@@ -365,6 +367,8 @@ CodeGen::emit_module() {
 
     rv::lowerIntrinsics(module());
 #endif
+
+    emit_scopes(forest);
 
     verify();
     optimize();

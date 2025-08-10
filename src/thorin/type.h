@@ -59,11 +59,20 @@ template<class T>
 class TypeOpsMixin {
 public:
     Types types() const {
-        Defs defs = static_cast<const T*>(this)->ops();
+        auto it = static_cast<const T*>(this);
+        Defs defs = it->ops();
         const Def* const* ptr = defs.begin();
         auto ptr2 = reinterpret_cast<const Type* const*>(ptr);
         auto types = Types(ptr2, defs.size());
         return types;
+    }
+
+    Array<const Type*> copy_types() const {
+        auto it = static_cast<const T*>(this);
+        auto copy = Array<const Type*>(it->num_ops(), [&](int i) -> const Type* {
+            return it->op(i)->template as<Type>();
+        });
+        return copy;
     }
 };
 

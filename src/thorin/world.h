@@ -196,7 +196,7 @@ public:
     const Def* variant_index  (const Def* value, Debug dbg = {});
     const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
 
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(*this, closure_type, fn, env, dbg)); }
+    Closure* closure(const ClosureType* closure_type, Debug dbg = {}) { return put<Closure>(*this, closure_type, dbg); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(cse(new Vector(*this, args, dbg)));
@@ -251,6 +251,8 @@ public:
     const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* heap_cell(const Def* contents, Debug dbg = {}) { return cse(new Cell(*this, ptr_type(contents->type()), contents, true, dbg)); }
+    const Def* stack_cell(const Def* contents, Debug dbg = {}) { return cse(new Cell(*this, ptr_type(contents->type()), contents, false, dbg)); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);

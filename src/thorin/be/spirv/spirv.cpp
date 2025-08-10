@@ -123,13 +123,15 @@ void CodeGen::emit_stream(std::ostream& out) {
     forest.for_each<false>([&](const Scope& scope) {
         if (scope.entry()->is_intrinsic() || scope.entry()->cc() == CC::Device)
             return;
-        emit_scope(scope, forest);
+        queue_scope(scope.entry());
     });
 
     for (auto def : world().defs()) {
         if (auto global = def->isa<Global>())
             builder.interface.push_back(emit(global));
     }
+
+    emit_scopes(forest);
 
     int entry_points_count = 0;
     for (auto& cont : world().copy_continuations()) {

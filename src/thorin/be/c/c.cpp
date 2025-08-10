@@ -168,7 +168,8 @@ inline bool is_channel_type(const StructType* struct_type) {
 }
 
 /// Returns true when the def carries concrete data in the final generated code
-inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
+inline bool is_concrete(const Def* def) { return !is_mem(def) && !is_unit(def);}
+inline bool is_concrete_type(const Type* t) { return !t->isa<MemType>() && t != t->world().unit_type(); }
 inline bool has_concrete_params(Continuation* cont) {
     return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
 }
@@ -316,8 +317,23 @@ std::string CCodeGen::convert(const Type* type) {
         convert_primtype(s, primtype->primtype_tag(), vector_length(primtype));
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
-    } else if (type->isa<FnType>()) {
-        assert(false && "todo");
+    } else if (auto closure_t = type->isa<ClosureType>()) {
+        types_[closure_t] = name = closure_name(closure_t);
+        auto as_fnt = world().fn_type(closure_t->types());
+        s.fmt("typedef struct {{\t\n");
+        s.fmt("{} f;\n", convert(as_fnt));
+        s.fmt("void* data;");
+        s.fmt("\b\n}} {};\n", name);
+    } else if (auto pi = type->isa<FnType>()) {
+        assert(lang_ == Lang::C99 || lang_ == Lang::CUDA && "Only C and CUDA support function pointers");
+        name = fn_name(pi);
+        std::vector<std::string> dom;
+        for (auto p : pi->domain()) {
+            if (!is_concrete_type(p))
+                continue;
+            dom.push_back(convert(p));
+        }
+        s.fmt("typedef {} (*{})({, });\n", convert(mangle_return_type(pi->return_param_type())), name, dom);
     } else if (auto ptr = type->isa<PtrType>()) {
         // CUDA supports generic pointers, so there is no need to annotate them (moreover, annotating them triggers a bug in NVCC 11)
         s.fmt("{}{}*", lang_ != Lang::CUDA ? addr_space_prefix(ptr->addr_space()) : "", convert(ptr->pointee()));
@@ -435,12 +451,14 @@ void CCodeGen::emit_module() {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else if (scope.entry()->cc() != CC::Thorin && scope.entry()->is_returning())
-            emit_scope(scope, forest_);
+            queue_scope(scope.entry());
     });
     if (hls_top) {
         hls_top_scope = true;
-        emit_scope(Scope(hls_top), forest_);
+        queue_scope(hls_top);
     }
+
+    emit_scopes(forest_);
 
     if (lang_ == Lang::OpenCL) {
         if (use_channels_) {
@@ -482,7 +500,8 @@ void CCodeGen::emit_module() {
 
     if (lang_ == Lang::C99) {
         stream_.fmt(    "#include <stdbool.h>\n"    // for the 'bool' type
-                        "#include <stdint.h>\n");   // for the fixed-width integer types
+                        "#include <stdint.h>\n"     // for the fixed-width integer types
+                        "#include <stddef.h>\n");   // for size_t
         if (use_align_of_)
             stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
         if (use_memcpy_)
@@ -794,7 +813,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         auto t = label_name(body->arg(2));
         auto f = label_name(body->arg(3));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
-    } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
         emit_unsafe(body->arg(0));
 
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
@@ -1033,6 +1052,12 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
         else
             world().edef(index, "only constants are supported as vector component indices");
         s.fmt("{}s{}", prefix, os.str());
+    } else if (agg_type->isa<ClosureType>()) {
+        switch (primlit_value<size_t>(index)) {
+            case 0: s.fmt("{}f", prefix); break;
+            case 1: s.fmt("{}data", prefix); break;
+            default: assert(false);
+        }
     } else {
         THORIN_UNREACHABLE;
     }
@@ -1176,6 +1201,28 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         func_impls_.fmt("{} {}; // indefinite array: bottom\n", convert(def->type()), name);
         func_defs_.insert(def);
         return name;
+    } else if (def->isa<Closure>()) {
+        if (bb) {
+            if (!func_defs_.contains(def))
+                func_impls_.fmt("{} {};\n", convert(def->type()), name);
+            func_defs_.insert(def);
+            bb->body << name;
+            emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 0 }));
+            auto fn_t = world().fn_type(def->type()->as<ClosureType>()->types());
+            bb->body.fmt(" = ({}) {};\n", convert(fn_t), emit_unsafe(def->op(0)));
+
+            auto env = def->op(1);
+            if (!is_unit(env)) {
+                auto eenv = emit_unsafe(env);
+                bb->body << name;
+                emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
+                // thin environment
+                bb->body.fmt(" = (void*) (size_t) {};\n", eenv);
+            }
+        } else {
+            assert(false && "todo");
+        }
+        return name;
     } else if (def->isa<Aggregate>()) {
         if (bb) {
             func_impls_.fmt("{} {};\n", convert(def->type()), name);
@@ -1313,6 +1360,15 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         } else {
             bb->body.fmt("{} = malloc(sizeof({}));\n", name, t);
         }
+        return name;
+    } else if (auto cell = def->isa<Cell>()) {
+        auto ptr_t = cell->type()->as<PtrType>();
+        if (cell->is_heap_allocated())
+            func_impls_.fmt("{} {} = malloc(sizeof({})); // heap allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));
+        else
+            func_impls_.fmt("{} {} = alloca(sizeof({})); // stack allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));
+        defs_[cell] = name;
+        bb->body.fmt("*{} = {};\n", name, emit(cell->contents()));
         return name;
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());

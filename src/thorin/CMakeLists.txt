@@ -56,6 +56,8 @@ set(THORIN_SOURCES
     transform/importer.h
     transform/inliner.cpp
     transform/inliner.h
+    transform/lift.cpp
+    transform/lift.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
     transform/mangle.cpp

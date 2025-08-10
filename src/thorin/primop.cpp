@@ -133,6 +133,10 @@ Assembly::Assembly(World& world, const Type *type, Defs inputs, std::string asm_
     , flags_(flags)
 {}
 
+void Closure::set_fn(thorin::Continuation* f) {
+    set_op(0, f);
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -216,8 +220,13 @@ const Def* Tuple         ::rebuild(World& w, const Type*  , Defs o) const { retu
 const Def* Variant       ::rebuild(World& w, const Type* t, Defs o) const { return w.variant(t->as<VariantType>(), o[0], index(), debug()); }
 const Def* VariantIndex  ::rebuild(World& w, const Type*  , Defs o) const { return w.variant_index(o[0], debug()); }
 const Def* VariantExtract::rebuild(World& w, const Type*  , Defs o) const { return w.variant_extract(o[0], index(), debug()); }
-const Def* Closure       ::rebuild(World& w, const Type* t, Defs o) const { return w.closure(t->as<ClosureType>(), o[0], o[1], debug()); }
 const Def* Vector        ::rebuild(World& w, const Type*  , Defs o) const { return w.vector(o, debug()); }
+
+const Def* Cell::rebuild(World& w, const Type* t, Defs o) const {
+    if (is_heap_allocated())
+        return w.heap_cell(o[0], debug());
+    return w.stack_cell(o[0], debug());
+}
 
 const Def* Alloc::rebuild(World& w, const Type* t, Defs o) const {
     return w.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), o[0], o[1], debug());
@@ -237,6 +246,16 @@ const Def* StructAgg::rebuild(World& w, const Type* t, Defs o) const {
 
 const Def* IndefiniteArray::rebuild(World& w, const Type* t, Defs o) const {
     return w.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), o[0], debug());
+}
+
+Def* Closure::stub(thorin::Rewriter& r, const thorin::Type* t) const {
+    return r.dst().closure(t->as<ClosureType>(), debug());
+}
+
+void Closure::rebuild_from(thorin::Rewriter& r, const thorin::Def* old) {
+    auto oclosure = old->as<Closure>();
+    set_fn(r.instantiate(oclosure->fn())->as_nom<Continuation>());
+    set_env(r.instantiate(oclosure->env()));
 }
 
 //------------------------------------------------------------------------------
@@ -292,6 +311,13 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
         return get(struct_type->types(), index);
+    else if (auto closure = agg->type()->isa<ClosureType>()) {
+        switch (primlit_value<int>(index)) {
+            case 0: return closure->world().fn_type(closure->types());
+            case 1: return closure->world().type_qu64();
+            default: assert(false);
+        }
+    }
 
     THORIN_UNREACHABLE;
 }
@@ -303,7 +329,6 @@ const Enter* Enter::is_out_mem(const Def* def) {
                 return enter;
     return nullptr;
 }
-
 const Type* Closure::environment_type(World& world) {
     // We assume that ptrs are <= 64 bits, if they're not, god help you
     return world.type_qu64();

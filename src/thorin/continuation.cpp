@@ -24,6 +24,10 @@ const Def* Param::rebuild(World&, const Type*, Defs defs) const {
     const Def* c = defs[0];
     if (auto r = c->isa<Run>())
         c = r->def()->as_nom<Continuation>();
+    // required when rewriting a fn as a closure (say, during closure conversion)
+    while (auto closure = c->isa<Closure>()) {
+        c = closure->fn();
+    }
     auto cont = c->as<Continuation>();
     return cont->param(index());
 }

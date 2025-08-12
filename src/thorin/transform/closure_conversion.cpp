@@ -178,7 +178,7 @@ public:
 
             auto closure_type = convert_type(continuation->type());
             auto closure = world_.closure(closure_type->as<ClosureType>(), continuation->debug());
-            closure->set_fn(wrapper);
+            closure->set_fn(wrapper, env_param_index);
             closure->set_env(thin_env ? free_vars[0] : world_.tuple(free_vars));
             return closure;
         } else {

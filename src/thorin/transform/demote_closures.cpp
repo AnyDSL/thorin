@@ -41,20 +41,30 @@ struct ClosureDemoter {
                     self_param_ok = false;
                     break;
                 }
-                auto fn_t = (closure->fn()->type())->as<FnType>();
-                auto types = fn_t->copy_types();//.skip_back(1);
-                fn_t = world_.fn_type(types.skip_back(1));
 
                 world_.VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
                 todo_ = true;
 
-                auto wrapper = world_.continuation(fn_t, closure->fn()->debug());
-                //Array<const Def*> args(closure->fn()->num_params());
+                // the wrapper type has the same params as the closure
+                auto wrapper = world_.continuation(world_.fn_type(closure->type()->types()), closure->fn()->debug());
+
+                // the regular params just get forwarded
+                std::vector<const Def*> wrapper_args;
+                for (auto p : wrapper->params_as_defs())
+                    wrapper_args.push_back(p);
+
                 auto dummy_closure = world_.closure((closure->type())->as<ClosureType>());
-                dummy_closure->set_fn(world_.continuation((closure->fn()->type())->as<FnType>()));
+                // the dummy closure has a dummy function and no self param
+                dummy_closure->set_fn(world_.continuation((closure->fn()->type())->as<FnType>()), -1);
+                // the dummy closure environment is a new wrapper param (closure lives in wrapper scope)
                 auto env_param = wrapper->append_param(closure->env()->type());
                 dummy_closure->set_env(env_param);
-                wrapper->jump(world_.run((closure->fn())), concat(wrapper->params_as_defs().skip_back(1), static_cast<const Def*>(dummy_closure)));
+
+                // if we had a self param, make sure we insert the closure where that was
+                if (closure->self_param() >= 0)
+                    wrapper_args.insert(wrapper_args.begin() + closure->self_param(), dummy_closure);
+
+                wrapper->jump(world_.run((closure->fn())), wrapper_args);
 
                 replace_calls(closure, wrapper);
             }

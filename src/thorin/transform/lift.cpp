@@ -220,7 +220,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         }
 
         closure = dst().closure(closure_type, ocont->debug());
-        closure->set_fn(ncont);
+        closure->set_fn(ncont, closure_param ? (int) closure_param->index() : -1);
         ndef = closure;
         insert(ocont, closure);
         // what to use as the closure internally

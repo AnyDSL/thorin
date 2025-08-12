@@ -345,15 +345,19 @@ private:
     void rebuild_from(thorin::Rewriter &, const thorin::Def *old) override;
     Def* stub(thorin::Rewriter &, const thorin::Type *) const override;
 
+    int self_param_ = -1;
 public:
-    void set_fn(Continuation* f);
+    void set_fn(Continuation* f, int self_param);
     void set_env(const Def* env) {
         set_op(1, env);
     }
     Continuation* fn() const;
     const Def* env() const { return op(1); }
+    int self_param() const { return self_param_; }
     static const Type*    environment_type(World&);
     static const PtrType* environment_ptr_type(World&);
+
+    const ClosureType* type() const { return Aggregate::type()->as<ClosureType>(); }
 
     friend class World;
 };

@@ -105,7 +105,8 @@ void Cleaner::eliminate_params() {
         if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_nom<Continuation>())
+                bool is_call = use->isa_nom<App>() && use.index() == App::Ops::Callee;
+                if (!is_call)
                     goto next_continuation;
             }
 

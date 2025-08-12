@@ -31,7 +31,7 @@ const Def* Importer::rewrite(const Def* const odef) {
     } else if (auto closure = odef->isa<Closure>()) {
         bool only_called = true;
         for (auto use : closure->uses()) {
-            if (use.def()->isa<App>() && use.index() == 0)
+            if (use.def()->isa<App>() && use.index() == App::Ops::Callee)
                 continue;
             only_called = false;
             break;
@@ -95,7 +95,7 @@ const Def* Importer::rewrite(const Def* const odef) {
                 // permute the arguments and call the parameter instead
                 for (auto use : cont->copy_uses()) {
                     auto uapp = use->isa<App>();
-                    if (uapp && use.index() == 0) {
+                    if (uapp && use.index() == App::Ops::Callee) {
                         todo_ = true;
                         has_calls = true;
                         break;

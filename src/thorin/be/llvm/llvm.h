@@ -137,6 +137,8 @@ protected:
     llvm::CallingConv::ID kernel_calling_convention_;
     llvm::DIScope* discope_ = nullptr;
     std::unique_ptr<Runtime> runtime_;
+    bool has_alloca_;
+    std::vector<llvm::CallInst*> potential_tailcalls_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif

@@ -1056,8 +1056,10 @@ const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debu
 }
 
 const Def* World::closure_env(const Type* type, const thorin::Def* mem, const thorin::Def* src, thorin::Debug dbg) {
-    if (auto closure = src->isa<Closure>())
+    if (auto closure = src->isa<Closure>()) {
+        assert(closure->env()->type() == type);
         return tuple({mem, closure->env()});
+    }
     return cse(new ClosureEnv(*this, type, mem, src, dbg));
 }
 

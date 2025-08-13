@@ -22,7 +22,7 @@ struct ClosureConverter {
 
         for (auto def: scope.free_frontier())
             queue.push(def);
-        entry->world().VLOG("Computing free variables for {}", entry);
+        entry->world().DLOG("Computing free variables for {}", entry);
 
         while (!queue.empty()) {
             auto free = queue.pop();
@@ -36,17 +36,23 @@ struct ClosureConverter {
                 // note: capturing basic blocks is bad
                 if (!scope.contains(cont)) {
                     auto& other_scope = forest_.get_scope(cont);
-                    if (other_scope.parent_scope()) {
-                        entry->world().VLOG("fv (non-top level) of {}: {} : {}", entry, free, free->type());
+                    // top-level continuations don't have parent scopes
+                    bool top_level = other_scope.parent_scope() == nullptr;
+                    if (!top_level) {
+                        entry->world().DLOG("fv (non-top level) of {}: {} : {}", entry, free, free->type());
                         result.insert(free);
-                    }
-                }
-            } else if (free->has_dep(Dep::Param)) {
-                entry->world().VLOG("fv of {}: {} : {}", entry, free, free->type());
+                    } else
+                        entry->world().DLOG("ignoring {} because it is top level", free);
+                } else
+                    entry->world().DLOG("ignoring {} because it's in scope of the lifted cont", free);
+            } else if (free->has_dep(Dep::Param) || free->has_dep(Dep::Cont)) {
+                entry->world().DLOG("fv of {}: {} : {}", entry, free, free->type());
                 result.insert(free);
             } else
-                free->world().VLOG("ignoring {} because it has no Param dependency", free);
+                free->world().DLOG("ignoring {} because it has no Param dependency", free);
         }
+
+        entry->world().DLOG("Computed free variables for {, }", result);
 
         return result;
     }
@@ -230,48 +236,53 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         if (!free_vars.empty())
             internal_closure = closure_param;
         body_rewriter->insert(ocont, internal_closure);
-        dst().VLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
+        dst().DLOG("converting '{}' into '{}' in {}", ocont, closure, dump());
 
         if (!free_vars.empty()) {
             // can't CC exported continuations
             assert(!ocont->is_exported());
-            dst().VLOG("slow: rewriting '{}' as '{}' in {}", ocont, ncont, dump());
+            dst().DLOG("rewriting '{}' as '{}' in {}", ocont, ncont, dump());
 
             converter_.todo_.emplace_back([=]() {
                 const Def* new_mem = ncont->mem_param();
                 auto [env_type, thin] = converter_.get_env_type(free_vars);
                 env_type = this->instantiate(env_type)->as<Type>();
 
+                dst().DLOG("Old free variables for {} = {, }", ocont, free_vars);
+
                 Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
                     auto env = instantiate(free_vars[i]);
-                    assert(env != closure);
+                    //dst().DLOG("Instantiated free variable {}:{} as {}:{}", free_vars[i], free_vars[i]->type(), env, env->type());
                     // it cannot be a basic block, and it cannot be top-level either
                     // if it used to be a continuation it should be a closure now.
                     assert(!env->isa_nom<Continuation>());
                     return env;
                 });
 
+                dst().DLOG("Instantiated free variables for {} = {, }", ocont, instantiated_free_vars);
 
                 auto env_tuple = dst().tuple(instantiated_free_vars);
                 closure->set_env(env_tuple);
+                dst().DLOG("environment of '{}' rewritten as '{}' is {}: {}", ocont, ncont, env_tuple, env_tuple->type());
                 //closure->set_env(dst().heap_cell(env_tuple));
                 //dst().wdef(ncont, "closure '{}' is leaking memory, type '{}' is too large and must be heap allocated", closure, closure->env()->type());
 
                 assert(closure_param);
-                auto env = dst().extract(closure_param, 1);
-
                 // make the wrapper load the pointer and pass each
                 // variable of the environment to the lifted continuation
-                auto env_ptr = dst().bitcast(Closure::environment_ptr_type(dst()), env);
-                //auto loaded_env = dst().load(ncont->mem_param(), dst().bitcast(dst().ptr_type(env_type), env_ptr));
                 auto loaded_env = dst().closure_env(env_type, ncont->mem_param(), closure_param);
-                auto env_data = dst().extract(loaded_env, 1_u32);;
-                //auto env_data = env;
+                auto env_data = dst().extract(loaded_env, 1_u32);
                 new_mem = dst().extract(loaded_env, 0_u32);
-                for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
-                    auto captured = dst().extract(env_data, i);
-                    captured->set_name(free_vars[i]->name() + "_captured");
-                    body_rewriter->insert(free_vars[i], captured);
+                if (free_vars.size() == 1) {
+                    auto captured = env_data;
+                    captured->set_name(free_vars[0]->name() + "_captured");
+                    body_rewriter->insert(free_vars[0], captured);
+                } else {
+                    for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
+                        auto captured = dst().extract(env_data, i);
+                        captured->set_name(free_vars[i]->name() + "_captured");
+                        body_rewriter->insert(free_vars[i], captured);
+                    }
                 }
 
                 // Map old arguments to new ones
@@ -287,7 +298,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
 
                 ncont->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
 
-                dst().VLOG("finished body of {}", ncont);
+                dst().DLOG("finished body of {}", ncont);
             });
         } else {
             dst().DLOG("dummy closure generated for '{}' -> '{}' in {}", ocont, ncont, dump());

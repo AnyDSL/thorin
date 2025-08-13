@@ -587,6 +587,8 @@ private:
 public:
     bool has_multiple_outs() const override { return true; }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+    const Type* env_type() const { return type()->types()[1]; }
+    const Def* src() const { return op(1); }
 
 private:
     const Def* rebuild(World&, const Type*, Defs) const override;

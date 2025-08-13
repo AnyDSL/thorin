@@ -62,6 +62,8 @@ set(THORIN_SOURCES
     transform/lift.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
+    transform/lower_closure_env.cpp
+    transform/lower_closure_env.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

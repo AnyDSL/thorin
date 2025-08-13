@@ -16,12 +16,9 @@ public:
     World& src() { return src_; }
     World& dst() { return dst_; }
 
-    void rewrite_world() {
+    void rewrite_externals() {
         for (auto&& [_, def] : src().externals()) {
-            if (auto cont = def->isa<Continuation>(); cont && cont->is_exported())
-                instantiate(cont);
-            if (auto global = def->isa<Global>(); global && global->is_external())
-                instantiate(global);
+            instantiate(def);
         }
     }
 

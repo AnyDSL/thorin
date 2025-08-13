@@ -322,7 +322,7 @@ std::string CCodeGen::convert(const Type* type) {
         auto as_fnt = world().fn_type(closure_t->types());
         s.fmt("typedef struct {{\t\n");
         s.fmt("{} f;\n", convert(as_fnt));
-        s.fmt("void* data;");
+        s.fmt("{} data;", convert(Closure::environment_type(world())));
         s.fmt("\b\n}} {};\n", name);
     } else if (auto pi = type->isa<FnType>()) {
         assert(lang_ == Lang::C99 || lang_ == Lang::CUDA && "Only C and CUDA support function pointers");
@@ -1217,7 +1217,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
                 bb->body << name;
                 emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
                 // thin environment
-                bb->body.fmt(" = (void*) (size_t) {};\n", eenv);
+                bb->body.fmt(" = ({}) {};\n", convert(Closure::environment_type(world())), eenv);
             }
         } else {
             assert(false && "todo");
@@ -1362,6 +1362,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         }
         return name;
     } else if (auto cell = def->isa<Cell>()) {
+        use_malloc_ = true;
         auto ptr_t = cell->type()->as<PtrType>();
         if (cell->is_heap_allocated())
             func_impls_.fmt("{} {} = malloc(sizeof({})); // heap allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));

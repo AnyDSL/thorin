@@ -42,31 +42,34 @@ struct ClosureDemoter {
                     break;
                 }
 
-                world_.VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
-                todo_ = true;
+                if (self_param_ok) {
+                    world_.VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
+                    todo_ = true;
 
-                // the wrapper type has the same params as the closure
-                auto wrapper = world_.continuation(world_.fn_type(closure->type()->types()), closure->fn()->debug());
+                    // the wrapper type has the same params as the closure
+                    auto wrapper = world_.continuation(world_.fn_type(closure->type()->types()), closure->fn()->debug());
 
-                // the regular params just get forwarded
-                std::vector<const Def*> wrapper_args;
-                for (auto p : wrapper->params_as_defs())
-                    wrapper_args.push_back(p);
+                    // the regular params just get forwarded
+                    std::vector<const Def*> wrapper_args;
+                    for (auto p: wrapper->params_as_defs())
+                        wrapper_args.push_back(p);
 
-                auto dummy_closure = world_.closure((closure->type())->as<ClosureType>());
-                // the dummy closure has a dummy function and no self param
-                dummy_closure->set_fn(world_.continuation((closure->fn()->type())->as<FnType>()), -1);
-                // the dummy closure environment is a new wrapper param (closure lives in wrapper scope)
-                auto env_param = wrapper->append_param(closure->env()->type());
-                dummy_closure->set_env(env_param);
+                    auto dummy_closure = world_.closure((closure->type())->as<ClosureType>());
+                    // the dummy closure has a dummy function and no self param
+                    dummy_closure->set_fn(world_.continuation((closure->fn()->type())->as<FnType>()), -1);
+                    // the dummy closure environment is a new wrapper param (closure lives in wrapper scope)
+                    auto env_param = wrapper->append_param(closure->env()->type());
+                    dummy_closure->set_env(env_param);
 
-                // if we had a self param, make sure we insert the closure where that was
-                if (closure->self_param() >= 0)
-                    wrapper_args.insert(wrapper_args.begin() + closure->self_param(), dummy_closure);
+                    // if we had a self param, make sure we insert the closure where that was
+                    if (closure->self_param() >= 0)
+                        wrapper_args.insert(wrapper_args.begin() + closure->self_param(), dummy_closure);
 
-                wrapper->jump(world_.run((closure->fn())), wrapper_args);
+                    world_.VLOG("simplify: old env: {} new env: {} param: {}", closure->env()->type(), dummy_closure->env()->type(), env_param->type());
+                    wrapper->jump(world_.run((closure->fn())), wrapper_args);
 
-                replace_calls(closure, wrapper);
+                    replace_calls(closure, wrapper);
+                }
             }
         }
     }

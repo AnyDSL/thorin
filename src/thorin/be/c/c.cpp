@@ -797,9 +797,10 @@ void CCodeGen::emit_jump(BB& bb, const Def* callee, ArrayRef<std::string> args) 
         // (and it's not recursion)
         if (scope.contains(cont) && cont != entry_) {
             //assert(cont->num_params() == args.size());
-            for (size_t i = 0; i != args.size(); ++i) {
-                if (auto arg = args[i]; !arg.empty())
-                    bb.tail.fmt("p_{} = {};\n", cont->param(i)->unique_name(), arg);
+            size_t i = 0;
+            for (auto param : cont->params()) {
+                if (is_concrete_type(param->type()))
+                    bb.tail.fmt("p_{} = {};\n", param->unique_name(), args[i++]);
             }
             bb.tail.fmt("goto {};", label_name(cont));
             return;

@@ -1651,8 +1651,9 @@ void CCodeGen::emit_c_int() {
 
 template <typename T, typename IsInfFn, typename IsNanFn>
 std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
-    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
+    auto emit_nn = [&] (std::string def, std::string c99, std::string cuda, std::string opencl) {
         switch (lang_) {
+            case Lang::C99:    return c99;
             case Lang::CUDA:   return cuda;
             case Lang::OpenCL: return opencl;
             default:           return def;
@@ -1661,19 +1662,19 @@ std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 
     if (is_inf(t)) {
         if (std::is_same<T, half>::value) {
-            return emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
+            return emit_nn("std::numeric_limits<half>::infinity()", "((half) INFINITY)", "__short_as_half(0x7c00)", "as_half(0x7c00)");
         } else if (std::is_same<T, float>::value) {
-            return emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
+            return emit_nn("std::numeric_limits<float>::infinity()", "((float) INFINITY)", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
         } else {
-            return emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
+            return emit_nn("std::numeric_limits<double>::infinity()", "((double) INFINITY)", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
         }
     } else if (is_nan(t)) {
         if (std::is_same<T, half>::value) {
-            return emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
+            return emit_nn("nan(\"\")", "((half) NAN)", "__short_as_half(0x7fff)", "as_half(0x7fff)");
         } else if (std::is_same<T, float>::value) {
-            return emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
+            return emit_nn("nan(\"\")", "((float) NAN)", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
         } else {
-            return emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
+            return emit_nn("nan(\"\")", "((double) NAN)", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
         }
     }
 

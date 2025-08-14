@@ -1168,6 +1168,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         return name;
     } else if (auto captured_ret = def->isa<CaptureReturn>()) {
         assert(bb);
+        world().WLOG("setjmp required at {}", captured_ret->loc());
+
         // the only valid return to capture is that of the parent cont
         use_longjmp_ = true;
 

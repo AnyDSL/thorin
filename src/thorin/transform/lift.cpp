@@ -301,7 +301,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                     } else if (param == ncont->ret_param()) {
                         // turn the ret param into a closure
                         // we will undo that with folding ops if it's consumed inside the function
-                        auto captured_ret_param = dst().capture_return(param);
+                        auto captured_ret_param = dst().capture_return(param, ocont->debug());
                         body_rewriter->insert(ocont->ret_param(), captured_ret_param);
                     } else {
                         body_rewriter->insert(ocont->param(i), param);
@@ -319,7 +319,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                  if (param == ncont->ret_param()) {
                     // turn the ret param into a closure
                     // we will undo that with folding ops if it's consumed inside the function
-                    auto captured_ret_param = dst().capture_return(param);
+                    auto captured_ret_param = dst().capture_return(param, ocont->debug());
                     body_rewriter->insert(ocont->ret_param(), captured_ret_param);
                 } else {
                     body_rewriter->insert(ocont->param(i), param);

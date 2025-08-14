@@ -58,25 +58,32 @@ bool App::verify() const {
     for (size_t i = 0; i < num_args(); i++) {
         auto pt = callee_type->op(i);
         auto at = arg(i)->type();
-        assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
+        assertf(pt == at, "app node {} argument #{} has type {} but the callee was expecting {}", this, i, at, pt);
     }
     return true;
 }
 
 //------------------------------------------------------------------------------
 
-ReturnPoint::ReturnPoint(thorin::World& world, const thorin::Continuation* destination, thorin::Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
+ReturnPoint::ReturnPoint(World& world, const Continuation* destination, Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
 
-const Def* ReturnPoint::rebuild(thorin::World& world, const thorin::Type*, thorin::Defs nops) const {
+const Def* ReturnPoint::rebuild(World& world, const Type*, Defs nops) const {
     auto def = nops.front();
     // TODO: have some kind of generalised mechanism to obtain the 'real' def
-    while (auto run = def->isa<Run>()) {
-        def = run->def();
-    }
-    while (auto closure = def->isa<Closure>()) {
-        def = closure->fn();
-    }
+    //while (auto run = def->isa<Run>()) {
+    //    def = run->def();
+    //}
+    //while (auto closure = def->isa<Closure>()) {
+    //    def = closure->fn();
+    //}
     return world.return_point(def->as<Continuation>());
+}
+
+CaptureReturn::CaptureReturn(World& world, const Def* ret, Debug dbg)
+    : Def(world, Node_CaptureReturn, world.closure_type(ret->type()->as<ReturnType>()->types()), { ret }, dbg) {}
+
+const Def* CaptureReturn::rebuild(World& w, const Type* t, Defs o) const {
+    return w.capture_return(o[0], debug());
 }
 
 //------------------------------------------------------------------------------

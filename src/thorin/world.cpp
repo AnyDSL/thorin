@@ -1169,6 +1169,10 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
             callee = ret->continuation();
             continue;
         }
+        if (auto capture = callee->isa<CaptureReturn>()) {
+            callee = capture->op(0);
+            continue;
+        }
         break;
     }
 
@@ -1218,12 +1222,25 @@ const Def* World::return_point(const thorin::Continuation* destination, thorin::
     if (destination->has_body()) {
         auto dbody = destination->body();
         assert(dbody->callee() != destination);
-        if (dbody->callee()->type()->isa<ReturnType>() && dbody->args() == destination->params_as_defs()) {
-            Scope s((Continuation*) destination);
-            if (!s.contains(dbody->callee())) {
-                VLOG("simplify: return_point with continuation {} just returns to another one {}", destination->unique_name(), dbody->callee());
-                return dbody->callee();
+
+        auto can_eta_reduce = [&]() -> bool {
+            if (dbody->args() == destination->params_as_defs()) {
+                // ensure the callee is free in destination
+                // (otherwise it might be constructed from the destination params)
+                Scope s((Continuation*) destination);
+                if (!s.contains(dbody->callee())) {
+                    return true;
+                }
             }
+            return false;
+        };
+
+        if (dbody->callee()->type()->isa<ReturnType>() && can_eta_reduce()) {
+            VLOG("simplify: return_point with continuation {} just returns to another one {}", destination->unique_name(), dbody->callee());
+            return dbody->callee();
+        } else if (auto captured_ret = dbody->callee()->isa<CaptureReturn>(); captured_ret && can_eta_reduce()) {
+            VLOG("simplify: return_point with continuation {} just calls a captured return {}", destination->unique_name(), dbody->callee());
+            return captured_ret->op(0);
         }
     }
     return cse(new ReturnPoint(*this, destination, dbg));

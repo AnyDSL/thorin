@@ -131,6 +131,9 @@ struct ClosureConverter {
                     }
                 }
             }
+            // leave old return params alone
+            if (pt->isa<ReturnType>())
+                npt = dst().return_type(npt->as<ClosureType>()->types());
             nparam_types.push_back(npt);
         }
 
@@ -177,8 +180,10 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             auto old_param_t = fn_type->op(i)->as<Type>();
             return instantiate(old_param_t)->as<Type>();
         });
-        if (fn_type->isa<ReturnType>())
-            return dst().return_type(ntypes);
+        // returning functions stay returning functions
+        if (auto ret_param = fn_type->ret_param_index(); ret_param >= 0) {
+            ntypes[ret_param] = dst().return_type(ntypes[ret_param]->as<ClosureType>()->types());
+        }
 
         // Turn all functions into closures, we'll undo it where it is specifically OK
         auto ntype = dst().closure_type(ntypes);
@@ -201,7 +206,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         const Def* ndef = nullptr;
         auto ncont = dst().continuation(dst().fn_type(nparam_types), ocont->attributes(), ocont->debug());
 
-        // only the root rewriter is a parent, we're remaking everything else
+        // make sure to rewrite everything in this scope in a fresh rewriter
         children_.emplace_back(std::make_unique<ScopeRewriter>(converter_, &scope, this));
         body_rewriter = children_.back().get();
 
@@ -251,7 +256,9 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                 dst().DLOG("Old free variables for {} = {, }", ocont, free_vars);
 
                 Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
+                    auto expected_fv_type = instantiate(free_vars[i]->type());
                     auto env = instantiate(free_vars[i]);
+                    assert(env->type() == expected_fv_type);
                     //dst().DLOG("Instantiated free variable {}:{} as {}:{}", free_vars[i], free_vars[i]->type(), env, env->type());
                     // it cannot be a basic block, and it cannot be top-level either
                     // if it used to be a continuation it should be a closure now.
@@ -285,12 +292,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                     }
                 }
 
-                // Map old arguments to new ones
+                // Map old params to new ones
                 for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
                     auto param = ncont->param(i);
                     if (ocont->mem_param() == ocont->param(i)) {
                         // use the mem obtained after the load
                         body_rewriter->insert(ocont->mem_param(), new_mem);
+                    } else if (param == ncont->ret_param()) {
+                        // turn the ret param into a closure
+                        // we will undo that with folding ops if it's consumed inside the function
+                        auto captured_ret_param = dst().capture_return(param);
+                        body_rewriter->insert(ocont->ret_param(), captured_ret_param);
                     } else {
                         body_rewriter->insert(ocont->param(i), param);
                     }
@@ -302,8 +314,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             });
         } else {
             dst().DLOG("dummy closure generated for '{}' -> '{}' in {}", ocont, ncont, dump());
-            for (size_t i = 0; i < ocont->num_params(); i++)
-                body_rewriter->insert(ocont->param(i), ncont->param(i));
+            for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
+                auto param = ncont->param(i);
+                 if (param == ncont->ret_param()) {
+                    // turn the ret param into a closure
+                    // we will undo that with folding ops if it's consumed inside the function
+                    auto captured_ret_param = dst().capture_return(param);
+                    body_rewriter->insert(ocont->ret_param(), captured_ret_param);
+                } else {
+                    body_rewriter->insert(ocont->param(i), param);
+                }
+            }
 
             closure->set_env(dst().tuple({}));
             converter_.todo_.emplace_back([=]() {
@@ -314,18 +335,30 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         assert(ndef);
         return ndef;
     } else if (auto ret_pt = odef->isa<ReturnPoint>()) {
-        return dst().return_point(converter_.as_continuation(instantiate(ret_pt->continuation())));
+        auto new_ret_pt = dst().return_point(converter_.as_continuation(instantiate(ret_pt->continuation())));
+        return dst().capture_return(new_ret_pt);
     } else if (auto closure = odef->isa<Closure>()) {
         assert(false);
     } else if (auto app = odef->isa<App>()) {
         auto ncallee = instantiate(app->callee());
-        if (auto ncont = ncallee->isa_nom<Continuation>(); ncont) {
-            std::vector<const Def*> nargs;
-            nargs.resize(app->num_args());
 
+        std::vector<const Def*> nargs;
+        nargs.resize(app->num_args());
+
+        auto ret_param_i = app->callee_type()->ret_param_index();
+        for (size_t i = 0; i < app->num_args(); i++) {
+            auto oarg = app->arg(i);
+            nargs[i] = instantiate(oarg);
+
+            // ensure return params still get a RetType
+            if ((int)i == ret_param_i) {
+                nargs[i] = dst().return_point(converter_.as_continuation(nargs[i]));
+            }
+        }
+
+        if (auto ncont = ncallee->isa_nom<Continuation>()) {
             for (size_t i = 0; i < app->num_args(); i++) {
-                auto oarg = app->arg(i);
-                nargs[i] = instantiate(oarg);
+                // ensure the BB arguments to intrinsics such as branch and match are left as continuations
                 if (ncont->is_intrinsic()) {
                     auto pt = ncont->type()->types()[i];
                     if (pt->tag() == Node_FnType)
@@ -374,8 +407,8 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                 }
             }
 
-            return dst().app(ncallee, nargs);
         }
+        return dst().app(ncallee, nargs, app->debug());
     }
     return Rewriter::rewrite(odef);
 }
@@ -407,7 +440,7 @@ void lift(Thorin& thorin) {
         f();
     }
 
-    validate_all_returning_functions_top_level(*dst);
+        validate_all_returning_functions_top_level(*dst);
 
     src.swap(dst);
     thorin.cleanup();

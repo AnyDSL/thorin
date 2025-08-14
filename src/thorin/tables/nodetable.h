@@ -38,6 +38,7 @@
         THORIN_NODE(StructAgg, struct_agg)
         THORIN_NODE(Vector, vector)
         THORIN_NODE(Closure, closure)
+        THORIN_NODE(CaptureReturn, capture_return)
         THORIN_NODE(Extract, extract)
         THORIN_NODE(Insert, insert)
         THORIN_NODE(LEA, lea)
@@ -48,7 +49,7 @@
     THORIN_NODE(Param, param)
     THORIN_NODE(Filter, filter)
     THORIN_NODE(App, app)
-    THORIN_NODE(ReturnPoint, return)
+    THORIN_NODE(ReturnPoint, return_point)
     // Type
         // PrimType
         THORIN_NODE(Star, star)

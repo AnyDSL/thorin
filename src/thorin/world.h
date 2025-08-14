@@ -280,6 +280,8 @@ public:
     Continuation* end_scope() const { return data_.end_scope_; }
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
     const Def* return_point(const Continuation* destination, Debug dbg = {});
+    /// turns a return value into a closure, which can be captured (return values cannot be captured)
+    const Def* capture_return(const Def* ret, Debug dbg = {}) { return cse(new CaptureReturn(*this, ret, dbg)); }
     const Filter* filter(const Defs, Debug dbg = {});
 
     // getters

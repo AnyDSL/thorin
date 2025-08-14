@@ -14,12 +14,31 @@ struct ClosureConverter {
         assert(&src != &dst);
     }
 
-    struct Analysis {
+    struct ScopeAnalysis {
+        ClosureConverter& converter;
+        Scope& scope;
         DefSet free_vars;
-        bool convert = false;
+        DefSet rematerialize;
+        bool convert_to_closure = false;
+
+        ScopeAnalysis(ClosureConverter& conv, Scope& s) : converter(conv), scope(s) {}
+
+        void promote_to_closure() {
+            // if we have to be closure converted - check out the free variables
+            if (!convert_to_closure) {
+                convert_to_closure = true;
+                converter.spillable_free_defs(scope.entry(), free_vars, rematerialize);
+                for (auto fv : free_vars) {
+                    if (auto spill_this = fv->isa_nom<Continuation>()) {
+                        converter.src().DLOG("{} appears as a free variable in {} and therefore must also be converted", fv, scope.entry());
+                        converter.lookup(spill_this).promote_to_closure();
+                    }
+                }
+            }
+        }
     };
 
-    Analysis& lookup(Continuation* c) {
+    ScopeAnalysis& lookup(Continuation* c) {
         auto& found = analysis_[c];
         assert(found);
         return *found.get();
@@ -38,15 +57,15 @@ struct ClosureConverter {
                     return true;
             }
         }
-        if (auto tuple = use->isa<Tuple>()) {
-            // if the tuple is consumed appropriately, this is OK
-            // this is necessary because match() takes tuples nowadays
-            for (auto tu : tuple->uses()) {
-                if (!is_acceptable_use_for_bb(tu))
-                    return false;
-            }
-            return true;
-        }
+        //if (auto tuple = use->isa<Tuple>()) {
+        //    // if the tuple is consumed appropriately, this is OK
+        //    // this is necessary because match() takes tuples nowadays
+        //    for (auto tu : tuple->uses()) {
+        //        if (!is_acceptable_use_for_bb(tu))
+        //            return false;
+        //    }
+        //    return true;
+        //}
 
         return false;
     }
@@ -64,7 +83,8 @@ struct ClosureConverter {
         for (auto entry : siblings) {
             auto& found = analysis_[entry];
             assert(!found);
-            found = std::make_unique<Analysis>();
+            Scope& scope = forest_.get_scope(entry);
+            found = std::make_unique<ScopeAnalysis>(*this, scope);
         }
 
         for (auto entry : siblings) {
@@ -75,41 +95,29 @@ struct ClosureConverter {
 
     void scan_scope(Scope& scope) {
         //src().DLOG("Scanning scope: {}", scope.entry());
-        Analysis& a = lookup(scope.entry());
+        ScopeAnalysis& a = lookup(scope.entry());
 
         scan_siblings(scope.children_scopes());
 
         // convert any internal returning function
         if (scope.entry()->is_returning() && !scope.entry()->is_external()) {
-            a.convert = true;
+            a.promote_to_closure();
         }
 
         // convert any BB that's used as a closure
         else for (auto use : scope.entry()->uses()) {
             if (!is_acceptable_use_for_bb(use))
-                a.convert = true;
+                a.promote_to_closure();
         }
 
-        // if we have to be closure converted - check out the free variables
-        if (a.convert) {
-            a.free_vars = spillable_free_defs(scope.entry());
-            for (auto fv : a.free_vars) {
-                if (auto spill_this = fv->isa_nom<Continuation>()) {
-                    src().DLOG("{} appears as a free variable in {} and therefore must also be converted", fv, scope.entry());
-                    lookup(spill_this).convert = true;
-                }
-            }
-        }
-
-        src().DLOG("Needs conversion: {} = {}", scope.entry(), a.convert);
+        src().DLOG("Needs conversion: {} = {}", scope.entry(), a.convert_to_closure);
 
         if (scope.entry()->is_external()) {
-            assert(!a.convert);
+            assert(!a.convert_to_closure);
         }
     }
 
-    DefSet spillable_free_defs(Continuation* entry) {
-        DefSet result;
+    DefSet spillable_free_defs(Continuation* entry, DefSet& result, DefSet& rematerialize) {
         unique_queue<DefSet> queue;
 
         auto& scope = forest_.get_scope(entry);
@@ -125,7 +133,12 @@ struct ClosureConverter {
             if (free == entry)
                 continue;
 
-            if (auto cont = free->isa_nom<Continuation>()) {
+            if (auto tuple = free->isa<Tuple>()) {
+                // always rematerialize tuples
+                rematerialize.insert(tuple);
+                for (auto elem : tuple->ops())
+                    queue.push(elem);
+            } else if (auto cont = free->isa_nom<Continuation>()) {
                 // only capture basic blocks - not top level fns
                 // note: capturing basic blocks is bad
                 if (!scope.contains(cont)) {
@@ -159,13 +172,15 @@ struct ClosureConverter {
         ScopeRewriter(ClosureConverter& converter, Scope* scope, ScopeRewriter* parent) : Rewriter(converter.src(), converter.dst()), converter_(converter), parent_(parent), scope_(scope), name_(scope ? scope->entry()->unique_name() : "root") {
             if (parent)
                 depth_ = parent->depth_ + 1;
+            if (scope)
+                analysis_ = &converter_.lookup(scope->entry());
         }
 
         int depth_ = 0;
         ClosureConverter& converter_;
         ScopeRewriter* parent_;
         Scope* scope_;
-        DefSet additional_;
+        ScopeAnalysis* analysis_;
         std::vector<std::unique_ptr<ScopeRewriter>> children_;
         std::string name_;
 
@@ -258,16 +273,20 @@ struct ClosureConverter {
 
     ScopeRewriter root_rewriter_;
     ScopesForest forest_;
-    ContinuationMap<std::unique_ptr<Analysis>> analysis_;
+    ContinuationMap<std::unique_ptr<ScopeAnalysis>> analysis_;
     ContinuationMap<std::vector<const Def*>> lifted_env_;
     DefMap<Continuation*> as_continuations_;
     std::vector<std::function<void()>> todo_;
+
+    std::vector<Continuation*> closure_fns_;
+
+    void validate_all_closure_fns_are_top_level();
 };
 
 const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
     assert(&odef->world() == &src());
     if (parent_) {
-        if (!scope_->contains(odef) && !additional_.contains(odef)) {
+        if (!scope_->contains(odef) && !(analysis_ && analysis_->rematerialize.contains(odef))) {
             //dst().DLOG("Deferring rewriting of {} to {}", odef, parent_->name_);
             return parent_->instantiate(odef);
         }
@@ -288,12 +307,12 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         return ntype;
     } else if (auto ocont = odef->isa_nom<Continuation>()) {
         auto& scope = converter_.forest_.get_scope(ocont);
-        Analysis& a = converter_.lookup(ocont);
+        ScopeAnalysis& a = converter_.lookup(ocont);
 
-        dst().DLOG("processing continuation (lift={}) '{}' in {}", a.convert, ocont, dump());
+        dst().DLOG("processing continuation (lift={}) '{}' in {}", a.convert_to_closure, ocont, dump());
 
         auto nparam_types = converter_.rewrite_param_types(*this, ocont);
-        if (!a.convert) {
+        if (!a.convert_to_closure) {
             auto ntype = dst().fn_type(nparam_types);
             auto ndef = ocont->stub(*this, ntype);
             insert(odef, ndef);
@@ -328,6 +347,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
 
         closure = dst().closure(closure_type, ocont->debug());
         closure->set_fn(ncont, closure_param ? (int) closure_param->index() : -1);
+        converter_.closure_fns_.push_back(ncont);
         ndef = closure;
         insert(ocont, closure);
         // what to use as the closure internally
@@ -482,6 +502,17 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
     return Rewriter::rewrite(odef);
 }
 
+void ClosureConverter::validate_all_closure_fns_are_top_level() {
+    ScopesForest forest(dst());
+    for (auto cont : closure_fns_) {
+        auto parent = forest.get_scope(cont).parent_scope();
+        if (parent != nullptr) {
+            dst().ELOG("closure fn {} is not top-level after closure conversion and belongs to {}'s scope", cont, parent);
+            assert(false);
+        }
+    }
+}
+
 void validate_all_returning_functions_top_level(World& world) {
     ScopesForest forest(world);
     for (auto cont : world.copy_continuations()) {
@@ -511,7 +542,8 @@ void lift(Thorin& thorin) {
         f();
     }
 
-        validate_all_returning_functions_top_level(*dst);
+    converter.validate_all_closure_fns_are_top_level();
+    validate_all_returning_functions_top_level(*dst);
 
     src.swap(dst);
     thorin.cleanup();

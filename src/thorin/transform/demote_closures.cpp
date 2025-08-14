@@ -21,21 +21,24 @@ struct ClosureDemoter {
         }
         processed_.insert(closure);
         if (closure->fn()->has_body()) {
-            //assert(!lookup(closure->fn()) && "fn can't be rewritten yet");
-            bool only_called = true;
+            // these closures will get dealt with inside World::app
+            if (closure->self_param() < 0)
+                return;
+
+            bool called_directly = false;
             for (auto use : closure->uses()) {
-                if (use.def()->isa<App>() && use.index() == App::Ops::Callee)
-                    continue;
-                only_called = false;
-                break;
+                if (use.def()->isa<App>() && use.index() == App::Ops::Callee) {
+                    called_directly = true;
+                    break;
+                }
             }
-            if (only_called) {
+
+            // if the closure is never called directly, we'd be wasting our time
+            if (called_directly) {
                 bool self_param_ok = true;
-                auto self_param = closure->fn()->params().back();
+                const Param* self_param = closure->fn()->param(closure->self_param());
                 for (auto use : self_param->uses()) {
                     // the closure argument can be used, but only to extract the environment!
-                    //if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
-                    //    continue;
                     if (use.def()->isa<ClosureEnv>())
                         continue;
                     self_param_ok = false;
@@ -43,8 +46,8 @@ struct ClosureDemoter {
                 }
 
                 if (self_param_ok) {
-                    world_.VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
-                    todo_ = true;
+                    //world_.VLOG("demote_closures: {} is called directly, which we can simplify", closure);
+                    //todo_ = true;
 
                     // the wrapper type has the same params as the closure
                     auto wrapper = world_.continuation(world_.fn_type(closure->type()->types()), closure->fn()->debug());
@@ -62,8 +65,7 @@ struct ClosureDemoter {
                     dummy_closure->set_env(env_param);
 
                     // if we had a self param, make sure we insert the closure where that was
-                    if (closure->self_param() >= 0)
-                        wrapper_args.insert(wrapper_args.begin() + closure->self_param(), dummy_closure);
+                    wrapper_args.insert(wrapper_args.begin() + closure->self_param(), dummy_closure);
 
                     world_.VLOG("simplify: old env: {} new env: {} param: {}", closure->env()->type(), dummy_closure->env()->type(), env_param->type());
                     wrapper->jump(world_.run((closure->fn())), wrapper_args);
@@ -76,7 +78,8 @@ struct ClosureDemoter {
 
     void replace_calls(const Closure* closure, Continuation* wrapper) {
         for (auto use : closure->copy_uses()) {
-            if (auto app = use.def()->isa<App>()) {
+            if (auto app = use.def()->isa<App>(); app && use.index() == App::Ops::Callee) {
+                world_.VLOG("demote_closures: {} calls closure {} which only consumes its environment, replacing with wrapper {}", app, closure, wrapper);
                 use->replace_uses(world_.app(wrapper, concat(static_cast<ArrayRef<const Def*>>(app->args()), closure->env()), app->debug()));
                 todo_ = true;
             }

@@ -1174,7 +1174,7 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
             continue;
         }
         if (auto closure = callee->isa<Closure>()) {
-            // closures without self params can be eliminated
+            // closures calls without self params can be eliminated
             if (closure->self_param() < 0) {
                 callee = closure->fn();
                 continue;

@@ -247,7 +247,7 @@ void Cleaner::cleanup_fix_point() {
         rebuild();
         eliminate_tail_rec();
         eliminate_params();
-        demote_closures();
+        //demote_closures();
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();

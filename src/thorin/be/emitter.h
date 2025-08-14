@@ -41,7 +41,7 @@ private:
         }
 
         //auto place = def->no_dep() ? entry_ : scheduler_.smart(def);
-        auto place = !scheduler_.scope().contains(def) ? entry_ : scheduler_.smart(def);
+        auto place = !scheduler_.scope().contains(def) ? entry_ : scheduler_.early(def);
 
         if (place) {
             auto& bb = cont2bb_[place];
@@ -79,7 +79,8 @@ protected:
     }
 
     void queue_scope(Continuation* entry) {
-        scopes_to_emit_.push(entry);
+        if (entry->has_body())
+            scopes_to_emit_.push(entry);
     }
 
     void emit_scopes(ScopesForest& forest) {

@@ -134,6 +134,7 @@ private:
     bool use_channels_ = false;
     bool use_align_of_ = false;
     bool use_memcpy_ = false;
+    bool use_longjmp_ = false;
     bool use_malloc_ = false;
     bool debug_;
     std::string flags_;
@@ -508,6 +509,8 @@ void CCodeGen::emit_module() {
             stream_.fmt("#include <string.h>\n");   // for 'memcpy'
         if (use_malloc_)
             stream_.fmt("#include <stdlib.h>\n");   // for 'malloc'
+        if (use_longjmp_)
+            stream_.fmt("#include <setjmp.h>\n");   // for 'longjmp'
         if (use_math_)
             stream_.fmt("#include <math.h>\n");     // for 'cos'/'sin'/...
     }
@@ -1222,6 +1225,38 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         } else {
             assert(false && "todo");
         }
+        return name;
+    } else if (auto captured_ret = def->isa<CaptureReturn>()) {
+        assert(bb);
+        // the only valid return to capture is that of the parent cont
+        assert(captured_ret->op(0)->isa<Param>());
+        use_longjmp_ = true;
+
+        auto closure_t = captured_ret->type()->as<ClosureType>();
+        auto ret_value_t = mangle_return_type(world().return_type(closure_t->types()));
+
+        // setup a setjmp return point
+        if (is_type_unit(ret_value_t))
+            func_impls_.fmt("struct {{ jmp_buf opaque; }} {}_captured_return;\n", entry_->name());
+        else
+            func_impls_.fmt("struct {{ {} value; jmp_buf opaque; }} {}_captured_return;\n", convert(ret_value_t), entry_->name());
+        func_impls_.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", entry_->name());
+        if (is_type_unit(ret_value_t))
+            func_impls_.fmt("return;\b\n");
+        else
+            func_impls_.fmt("return {}_captured_return.value;\b\n", entry_->name());
+        func_impls_.fmt("}}\n");
+
+        // create a closure that can call longjmp
+        func_impls_.fmt("{} {};\n", convert(def->type()), name);
+        bb->body << name;
+        emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 0 }));
+        auto fn_t = world().fn_type(def->type()->as<ClosureType>()->types());
+        bb->body.fmt(" = ({}) NULL /* TODO longjmp wrapper */;\n", convert(fn_t));
+        bb->body << name;
+        emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
+        // thin environment
+        bb->body.fmt(" = ({}) &{}_captured_return;\n", convert(Closure::environment_type(world())), entry_->name());
         return name;
     } else if (def->isa<Aggregate>()) {
         if (bb) {

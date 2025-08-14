@@ -93,7 +93,7 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
-    void emit_call(BB& bb, const Def* callee, ArrayRef<std::string>);
+    void emit_jump(BB& bb, const Def* callee, ArrayRef<std::string>);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -577,9 +577,33 @@ static inline bool is_passed_via_buffer(const Param* param) {
         || param->type()->isa<TupleType>();
 }
 
+std::vector<int> get_concrete_param_indices(ArrayRef<const Type*> param_types) {
+    int i = 0;
+    std::vector<int> r;
+    for (auto pt : param_types) {
+        if (is_concrete_type(pt))
+            r.push_back(i);
+        i++;
+    }
+    return r;
+}
+
+std::vector<std::string> unpack_args(ArrayRef<const Type*> param_types, std::string packed) {
+    std::vector<std::string> ret_args;
+    auto ret_val_swizzle = get_concrete_param_indices(param_types);
+    if (ret_val_swizzle.size() == 1)
+        ret_args = { packed };
+    else {
+        for (size_t i = 0; i < ret_val_swizzle.size(); i++) {
+            ret_args.push_back(packed + std::string(".e") + std::to_string(i));
+        }
+    }
+    return ret_args;
+}
+
 const Type* CCodeGen::mangle_return_type(const ReturnType* return_type) {
     // treat non-returning calls as if they return nothing, for now
-    if(!return_type)
+    if (!return_type)
         return world().unit_type();
     return return_type->mangle_for_codegen();
 }
@@ -740,14 +764,40 @@ const Param* CCodeGen::get_channel_read_output(Continuation* cont) {
     return n == 1 ? values[0] : nullptr;
 }
 
-void CCodeGen::emit_call(BB& bb, const Def* callee, ArrayRef<std::string> args) {
+void CCodeGen::emit_jump(BB& bb, const Def* callee, ArrayRef<std::string> args) {
+    if (auto ret_pt = callee->isa<ReturnPoint>())
+        callee = ret_pt->continuation();
+
+    if (auto ret_type = callee->type()->isa<ReturnType>()) { // return
+        assert((callee == entry_->ret_param()) && "In the C backend, the only callable return typed values should be fn returns");
+        std::string packed_return;
+        switch (args.size()) {
+            case 0: packed_return = lang_ == Lang::HLS ? "void()" : ""; break;
+            case 1: packed_return = args[0]; break;
+            default:
+                auto tuple = convert(mangle_return_type(ret_type));
+                bb.tail.fmt("{} fn_ret_val;\n", tuple);
+                for (size_t i = 0, e = args.size(); i != e; ++i)
+                    bb.tail.fmt("fn_ret_val.e{} = {};\n", i, args[i]);
+                packed_return = "fn_ret_val";
+                break;
+        }
+
+        // local return
+        if (packed_return.empty())
+            bb.tail.fmt("return;");
+        else
+            bb.tail.fmt("return {};", packed_return);
+        return;
+    }
+
     if (auto cont = callee->isa_nom<Continuation>()) {
         auto& scope = forest_.get_scope(entry_);
         // Use goto syntax when calling within the local scope
         // (and it's not recursion)
         if (scope.contains(cont) && cont != entry_) {
-            assert(cont->num_params() == args.size());
-            for (size_t i = 0, size = cont->num_params(); i != size; ++i) {
+            //assert(cont->num_params() == args.size());
+            for (size_t i = 0; i != args.size(); ++i) {
                 if (auto arg = args[i]; !arg.empty())
                     bb.tail.fmt("p_{} = {};\n", cont->param(i)->unique_name(), arg);
             }
@@ -776,41 +826,7 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
-    if (body->callee()->type()->isa<ReturnType>()) { // return
-        std::vector<std::string> values;
-        std::vector<const Type*> types;
-
-        for (auto arg : body->args()) {
-            if (auto val = emit_unsafe(arg); !val.empty()) {
-                values.emplace_back(val);
-                types.emplace_back(arg->type());
-            }
-        }
-
-        std::string emitted_return;
-
-        switch (values.size()) {
-            case 0: emitted_return = lang_ == Lang::HLS ? "void()" : ""; break;
-            case 1: emitted_return = values[0]; break;
-            default:
-                auto tuple = convert(world().tuple_type(types));
-                bb.tail.fmt("{} ret_val;\n", tuple);
-                for (size_t i = 0, e = types.size(); i != e; ++i)
-                    bb.tail.fmt("ret_val.e{} = {};\n", i, values[i]);
-                emitted_return = "ret_val";
-                break;
-        }
-
-        if (body->callee() == entry_->ret_param()) {
-            // local return
-            if (emitted_return.empty())
-                bb.tail.fmt("return;");
-            else
-                bb.tail.fmt("return {};", emitted_return);
-        } else {
-            assert(false && "TODO: implement capturing returns");
-        }
-    } else if (body->callee() == world().branch()) {
+    if (body->callee() == world().branch()) {
         emit_unsafe(body->arg(0));
         auto c = emit(body->arg(1));
         auto t = label_name(body->arg(2));
@@ -830,13 +846,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
-        assert(callee->num_params() == body->num_args());
-        for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
-            if (auto arg = emit_unsafe(body->arg(i)); !arg.empty())
-                bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
-        }
-        bb.tail.fmt("goto {};", label_name(callee));
     } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
             emit_unsafe(body->arg(0));
@@ -902,96 +911,27 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         }
     } else { // function/closure call
         auto callee_type = body->callee()->type()->as<FnType>();
-        int ret_param = callee_type->ret_param_index();
-        const Def* ret = nullptr;
-        if (ret_param >= 0)
-            ret = body->arg(ret_param);
+        const Def* ret_arg = body->ret_arg();
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
-            if (arg == ret) continue;
+            if (arg == ret_arg) continue;
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
         }
 
-        bool channel_transaction = false, no_function_call = false;
-
-        if (auto known_callee = body->callee()->isa_nom<Continuation>()) {
-            auto name = (known_callee->is_exported() || known_callee->empty()) ? known_callee->name() : known_callee->unique_name();
-            if (lang_ == Lang::OpenCL && use_channels_ && known_callee->is_channel()) {
-                auto [usage, _] = builtin_funcs_.emplace(known_callee, FuncMode::Read);
-
-                if (name.find("write") != std::string::npos) {
-                    usage->second = FuncMode::Write;
-                } else if (name.find("read") != std::string::npos) {
-                    usage->second = FuncMode::Read;
-                    auto channel_read_result = get_channel_read_output(ret->as_nom<ReturnPoint>()->continuation());
-                    assert(channel_read_result != nullptr);
-                    args.emplace(args.begin(), emit(channel_read_result));
-                } else
-                    THORIN_UNREACHABLE;
-                channel_transaction = true;
-            } else if (lang_ == Lang::HLS && known_callee->is_channel()) {
-                int i = 0;
-                for (auto arg: body->args()) {
-                    if (!is_concrete(arg)) continue;
-                    if (i == 0)
-                        bb.tail.fmt("*{}", emit(arg));
-                    if (i == 1) {
-                        if (name.find("write_channel") != std::string::npos) {
-                            bb.tail.fmt(" << {};\n", emit(arg));
-                        } else
-                            THORIN_UNREACHABLE;
-                    }
-                    if (name.find("read_channel") != std::string::npos)
-                        bb.tail.fmt(" >> {};\n", emit(get_channel_read_output(ret->as_nom<ReturnPoint>()->continuation())));
-                    i++;
-                }
-                no_function_call = true;
-                //TODO: Check it
-                channel_transaction = true;
-            }
-        }
-
         // Do not store the result of `void` calls
-        auto ret_type = mangle_return_type(callee_type->return_param_type());
-        if (!is_type_unit(ret_type) && !channel_transaction)
-            bb.tail.fmt("{} ret_val = ", convert(ret_type));
+        auto returned_value_type = mangle_return_type(callee_type->return_param_type());
+        if (!is_type_unit(returned_value_type))
+            bb.tail.fmt("{} ret_val = ", convert(returned_value_type));
 
-        if (!no_function_call) {
-            emit_call(bb, body->callee(), args);
-        }
+        // TODO: tailcalls
+        emit_jump(bb, body->callee(), args);
 
-        if (auto ret_pt = ret->isa<ReturnPoint>()) {
-            // Pass the result to the phi nodes of the return continuation
-            if (!is_type_unit(ret_type)) {
-                size_t i = 0;
-                for (auto param: ret_pt->continuation()->params()) {
-                    if (!is_concrete(param))
-                        continue;
-                    bb.tail.fmt("\n");
-                    if (ret_type->isa<TupleType>())
-                        bb.tail.fmt("p_{} = ret_val.e{};", param->unique_name(), i++);
-                    else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
-                        bb.tail.fmt(" p_{} = {};", emit(get_channel_read_output(ret_pt->continuation())),
-                                    param->unique_name());
-                    else
-                        bb.tail.fmt("p_{} = ret_val;", param->unique_name());
-                }
-            }
-
-            if (!hls_top_scope) {
-                bb.tail.fmt("\ngoto {};", label_name(ret_pt->continuation()));
-            }
-        } else if (ret && ret == entry_->ret_param()) {
-            // TODO: tail call annotations ?
-            if (!is_type_unit(ret_type)) {
-                bb.tail.fmt("\n");
-                bb.tail.fmt("return ret_val;");
-            }
-        } else {
-            assert(!ret);
-            // TODO: dummy return statements ?
+        // forward the returned values to the return param (typically a BB)
+        if (ret_arg) {
+            bb.tail.fmt("\n");
+            emit_jump(bb, ret_arg, unpack_args(ret_arg->type()->as<ReturnType>()->domain(), "ret_val"));
         }
     }
 }

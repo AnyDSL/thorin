@@ -1169,7 +1169,6 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
     } else if (auto captured_ret = def->isa<CaptureReturn>()) {
         assert(bb);
         // the only valid return to capture is that of the parent cont
-        assert(captured_ret->op(0)->isa<Param>());
         use_longjmp_ = true;
 
         auto closure_t = captured_ret->type()->as<ClosureType>();
@@ -1177,15 +1176,12 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
         // setup a setjmp return point
         if (is_type_unit(ret_value_t))
-            func_impls_.fmt("struct {{ jmp_buf opaque; }} {}_captured_return;\n", entry_->name());
+            func_impls_.fmt("struct {{ jmp_buf opaque; }} {}_captured_return;\n", name);
         else
-            func_impls_.fmt("struct {{ {} value; jmp_buf opaque; }} {}_captured_return;\n", convert(ret_value_t), entry_->name());
-        func_impls_.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", entry_->name());
-        if (is_type_unit(ret_value_t))
-            func_impls_.fmt("return;\b\n");
-        else
-            func_impls_.fmt("return {}_captured_return.value;\b\n", entry_->name());
-        func_impls_.fmt("}}\n");
+            func_impls_.fmt("struct {{ {} value; jmp_buf opaque; }} {}_captured_return;\n", convert(ret_value_t), name);
+        bb->tail.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", name);
+        emit_jump(*bb, captured_ret->op(0), unpack_args(closure_t->domain(), name + "_captured_return.value"));
+        bb->tail.fmt("\b\n}}\n");
 
         // create a closure that can call longjmp
         func_impls_.fmt("{} {};\n", convert(def->type()), name);
@@ -1196,7 +1192,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         bb->body << name;
         emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
         // thin environment
-        bb->body.fmt(" = ({}) &{}_captured_return;\n", convert(Closure::environment_type(world())), entry_->name());
+        bb->body.fmt(" = ({}) &{}_captured_return;\n", convert(Closure::environment_type(world())), name);
         return name;
     } else if (def->isa<Aggregate>()) {
         if (bb) {

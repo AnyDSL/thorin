@@ -111,6 +111,8 @@ private:
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
     const Type* mangle_return_type(const ReturnType* return_type);
+    std::vector<std::string> unpack_args(ArrayRef<const Type*> param_types, std::string packed);
+    std::string pack_args(StringStream&, const Type* packed_type, std::vector<std::string> args);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
     const Param* get_channel_read_output(Continuation*);
 
@@ -146,6 +148,8 @@ private:
     StringStream vars_decls_;
     /// Tracks defs that have been emitted as local variables of the current function
     DefSet func_defs_;
+
+    GIDSet<const ReturnType*> longjmp_closures_;
 
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
@@ -548,6 +552,25 @@ void CCodeGen::emit_module() {
 
     stream_ << func_decls_.str();
 
+    for (auto ret_t : longjmp_closures_) {
+        stream_ << "void longjmp_closure_" << return_name(ret_t) << "(";
+        int i = 0;
+        for (auto p : ret_t->domain()) {
+            if (!is_concrete_type(p))
+                continue;
+            if (i > 0)
+                stream_ << ", ";
+            stream_ << convert(p);
+            stream_ << " arg" << i;
+            i++;
+        }
+        if (i > 0)
+            stream_ << ", ";
+        stream_.fmt("{} self", convert(world().closure_type(ret_t->types())));
+        stream_ << ")";
+        stream_ << ";\n";
+    }
+
     if (lang_ == Lang::OpenCL)
         stream_ << "#endif /* __xilinx__ */\n";
     else if (lang_ == Lang::HLS)
@@ -566,6 +589,35 @@ void CCodeGen::emit_module() {
     }
 
     stream_.endl() << func_impls_.str();
+
+    for (auto ret_t : longjmp_closures_) {
+        stream_ << "void longjmp_closure_" << return_name(ret_t) << "(";
+        int i = 0;
+        std::vector<std::string> args;
+        for (auto p : ret_t->domain()) {
+            if (!is_concrete_type(p))
+                continue;
+            if (i > 0)
+                stream_ << ", ";
+            stream_ << convert(p);
+            stream_ << " arg" << i;
+            args.push_back(std::string("arg") + std::to_string(i));
+            i++;
+        }
+        if (i > 0)
+            stream_ << ", ";
+        stream_.fmt("{} self", convert(world().closure_type(ret_t->types())));
+        stream_ << ")";
+        stream_.fmt(" {{\t");
+        stream_.fmt("\n{}* ret_env = ({}*) self.data;", return_name(ret_t), return_name(ret_t));
+        StringStream s;
+        auto packed = pack_args(s, mangle_return_type(ret_t), args);
+        stream_.fmt("{}", s.str());
+        if (packed.size() > 0)
+            stream_.fmt("\nret_env->value = {};", packed);
+        stream_.fmt("\nlongjmp(ret_env->opaque, 1);");
+        stream_.fmt("\b\n}}\n");
+    }
 
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");
@@ -588,7 +640,7 @@ std::vector<int> get_concrete_param_indices(ArrayRef<const Type*> param_types) {
     return r;
 }
 
-std::vector<std::string> unpack_args(ArrayRef<const Type*> param_types, std::string packed) {
+std::vector<std::string> CCodeGen::unpack_args(ArrayRef<const Type*> param_types, std::string packed) {
     std::vector<std::string> ret_args;
     auto ret_val_swizzle = get_concrete_param_indices(param_types);
     if (ret_val_swizzle.size() == 1)
@@ -599,6 +651,23 @@ std::vector<std::string> unpack_args(ArrayRef<const Type*> param_types, std::str
         }
     }
     return ret_args;
+}
+
+std::string CCodeGen::pack_args(StringStream& s, const Type* packed_type, std::vector<std::string> args) {
+    std::string packed_return;
+    switch (args.size()) {
+        case 0: return "";
+        case 1: return args[0];
+        default: {
+            auto tuple = convert(packed_type);
+            s.fmt("{} packed;\n", tuple);
+            for (size_t i = 0, e = args.size(); i != e; ++i)
+                s.fmt("packed.e{} = {};\n", i, args[i]);
+            packed_return = "packed";
+            break;
+        }
+    }
+    return packed_return;
 }
 
 const Type* CCodeGen::mangle_return_type(const ReturnType* return_type) {
@@ -1145,7 +1214,8 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         func_impls_.fmt("{} {}; // indefinite array: bottom\n", convert(def->type()), name);
         func_defs_.insert(def);
         return name;
-    } else if (def->isa<Closure>()) {
+    } else if (auto closure = def->isa<Closure>()) {
+        queue_scope(closure->fn());
         if (bb) {
             if (!func_defs_.contains(def))
                 func_impls_.fmt("{} {};\n", convert(def->type()), name);
@@ -1175,13 +1245,20 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         use_longjmp_ = true;
 
         auto closure_t = captured_ret->type()->as<ClosureType>();
-        auto ret_value_t = mangle_return_type(world().return_type(closure_t->types()));
+        auto ret_t = world().return_type(closure_t->types());
+
+        if (!longjmp_closures_.contains(ret_t)) {
+            longjmp_closures_.insert(ret_t);
+
+            auto ret_value_t = mangle_return_type(ret_t);
+            if (is_type_unit(ret_value_t))
+                type_decls_.fmt("typedef struct {{ jmp_buf opaque; }} {};\n", return_name(ret_t));
+            else
+                type_decls_.fmt("typedef struct {{ {} value; jmp_buf opaque; }} {};\n", convert(ret_value_t), return_name(ret_t));
+        }
 
         // setup a setjmp return point
-        if (is_type_unit(ret_value_t))
-            func_impls_.fmt("struct {{ jmp_buf opaque; }} {}_captured_return;\n", name);
-        else
-            func_impls_.fmt("struct {{ {} value; jmp_buf opaque; }} {}_captured_return;\n", convert(ret_value_t), name);
+        func_impls_.fmt("{} {}_captured_return;\n", return_name(ret_t), name);
         bb->tail.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", name);
         emit_jump(*bb, captured_ret->op(0), unpack_args(closure_t->domain(), name + "_captured_return.value"));
         bb->tail.fmt("\b\n}}\n");
@@ -1191,7 +1268,7 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         bb->body << name;
         emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 0 }));
         auto fn_t = world().fn_type(def->type()->as<ClosureType>()->types());
-        bb->body.fmt(" = ({}) NULL /* TODO longjmp wrapper */;\n", convert(fn_t));
+        bb->body.fmt(" = ({}) longjmp_closure_{};\n", convert(fn_t), return_name(ret_t));
         bb->body << name;
         emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
         // thin environment
@@ -1508,7 +1585,7 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
         if (lang_ == Lang::C99 && param->type()->isa<ReturnType>()) {
-            defs_[param] = "&return_buf";
+            defs_[param] = "";
             continue;
         }
         if (!is_concrete(param)) {

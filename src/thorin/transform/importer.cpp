@@ -37,34 +37,51 @@ const Def* Importer::rewrite(const Def* const odef) {
             auto callee = body->callee();
             auto& scope = forest_->get_scope(cont);
             if (!scope.contains(callee)) {
-                if (src().is_external(cont) || callee->type()->tag() != Node_FnType)
+                // avoid messing with external continuations
+                if (src().is_external(cont))
                     goto rebuild;
 
+                auto only_called = [&]() -> bool {
+                    for (auto use : cont->uses()) {
+                        if (use->isa<Param>())
+                            continue;
+                        if (auto app = use->isa<App>(); app && use.index() == App::Ops::Callee)
+                            continue;
+                        return false;
+                    }
+                    return true;
+                };
+
                 if (body->args() == cont->params_as_defs()) {
-                    src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
                     // We completely replace the original continuation
                     // If we don't do so, then we miss some simplifications
-                    return instantiate(body->callee());
-                } else {
-                    // build the permutation of the arguments
-                    Array<size_t> perm(body->num_args());
-                    bool is_permutation = true;
-                    for (size_t i = 0, e = body->num_args(); i != e; ++i) {
-                        auto param_it = std::find(cont->params().begin(),
-                                                  cont->params().end(),
-                                                  body->arg(i));
+                    auto ncallee = instantiate(body->callee());
 
-                        if (param_it == cont->params().end()) {
-                            is_permutation = false;
-                            break;
-                        }
+                    // don't rewrite a continuation as a different type, unless it's only ever called
+                    if (ncallee->type()->tag() == Node_FnType || only_called()) {
+                        src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
+                        return ncallee;
+                    }
+                }
 
-                        perm[i] = param_it - cont->params().begin();
+                // build the permutation of the arguments
+                Array<size_t> perm(body->num_args());
+                bool is_permutation = true;
+                for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+                    auto param_it = std::find(cont->params().begin(),
+                                              cont->params().end(),
+                                              body->arg(i));
+
+                    if (param_it == cont->params().end()) {
+                        is_permutation = false;
+                        break;
                     }
 
-                    if (!is_permutation)
-                        goto rebuild;
+                    perm[i] = param_it - cont->params().begin();
                 }
+
+                if (!is_permutation)
+                    goto rebuild;
 
                 bool has_calls = false;
                 // for every use of the continuation at a call site,

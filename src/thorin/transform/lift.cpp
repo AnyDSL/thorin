@@ -57,15 +57,15 @@ struct ClosureConverter {
                     return true;
             }
         }
-        //if (auto tuple = use->isa<Tuple>()) {
-        //    // if the tuple is consumed appropriately, this is OK
-        //    // this is necessary because match() takes tuples nowadays
-        //    for (auto tu : tuple->uses()) {
-        //        if (!is_acceptable_use_for_bb(tu))
-        //            return false;
-        //    }
-        //    return true;
-        //}
+        if (auto tuple = use->isa<Tuple>()) {
+            // if the tuple is consumed appropriately, this is OK
+            // this is necessary because match() takes tuples nowadays
+            for (auto tu : tuple->uses()) {
+                if (!is_acceptable_use_for_bb(tu))
+                    return false;
+            }
+            return true;
+        }
 
         return false;
     }

@@ -184,6 +184,9 @@ struct ClosureConverter {
         std::vector<std::unique_ptr<ScopeRewriter>> children_;
         std::string name_;
 
+        const Def* self_ = nullptr;
+        const Continuation* self_fn_ = nullptr;
+
         const Def* lookup(const thorin::Def* odef) override {
             auto found = Rewriter::lookup(odef);
             if (found) return found;
@@ -339,13 +342,14 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
 
         auto closure_type = dst().closure_type(nparam_types);
 
-        // add a 'self' parameter to everything we're allowed to mess with
-        if (!ocont->is_external()) {
-            nparam_types.push_back(closure_type);
-            closure_param = ncont->append_param(closure_type, {"self"});
-        }
+        // add a 'self' parameter
+        nparam_types.push_back(closure_type);
+        closure_param = ncont->append_param(closure_type, {"self"});
+        body_rewriter->self_ = closure_param;
+        body_rewriter->self_fn_ = ncont;
 
         closure = dst().closure(closure_type, ocont->debug());
+        assert(closure_param);
         closure->set_fn(ncont, closure_param ? (int) closure_param->index() : -1);
         converter_.closure_fns_.push_back(ncont);
         ndef = closure;
@@ -445,18 +449,31 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             }
         }
 
+        // find the closest surrounding closure (if any)
+        ScopeRewriter* surrounding_closure = this;
+        while (surrounding_closure && surrounding_closure->self_ == nullptr) {
+            surrounding_closure = surrounding_closure->parent_;
+        }
+        if (surrounding_closure) {
+            // any direct calls to the self param get replaced by a call to the self fn + passing self to it
+            if (ncallee == surrounding_closure->self_) {
+                ncallee = surrounding_closure->self_fn_;
+                nargs.push_back(surrounding_closure->self_);
+            }
+        }
+
         if (auto ncont = ncallee->isa_nom<Continuation>()) {
-            for (size_t i = 0; i < app->num_args(); i++) {
-                // ensure the BB arguments to intrinsics such as branch and match are left as continuations
-                if (ncont->is_intrinsic()) {
+            // ensure the BB arguments to intrinsics such as branch and match are left as continuations
+            if (ncont->is_intrinsic()) {
+                for (size_t i = 0; i < app->num_args(); i++) {
                     auto pt = ncont->type()->types()[i];
                     if (pt->tag() == Node_FnType)
                         nargs[i] = converter_.as_continuation(nargs[i]);
                     else if (auto tuple_t = pt->isa<TupleType>(); tuple_t && tuple_t->types()[1]->tag() == Node_FnType) {
                         nargs[i] = dst().tuple({dst().extract(nargs[i], (u32) 0), converter_.as_continuation(dst().extract(nargs[i], (u32) 1)) });
                     }
-                }
-            };
+                };
+            }
 
             if (ncont->is_accelerator()) {
                 // there is unfortunately no standardisation on which parameter is the body parameter for accelerators

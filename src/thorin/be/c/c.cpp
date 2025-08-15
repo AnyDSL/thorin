@@ -93,7 +93,7 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
-    void emit_jump(BB& bb, const Def* callee, ArrayRef<std::string>);
+    void emit_jump(Stream&, const Def* callee, ArrayRef<std::string>);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -833,7 +833,7 @@ const Param* CCodeGen::get_channel_read_output(Continuation* cont) {
     return n == 1 ? values[0] : nullptr;
 }
 
-void CCodeGen::emit_jump(BB& bb, const Def* callee, ArrayRef<std::string> args) {
+void CCodeGen::emit_jump(Stream& s, const Def* callee, ArrayRef<std::string> args) {
     if (auto ret_pt = callee->isa<ReturnPoint>())
         callee = ret_pt->continuation();
 
@@ -845,18 +845,18 @@ void CCodeGen::emit_jump(BB& bb, const Def* callee, ArrayRef<std::string> args) 
             case 1: packed_return = args[0]; break;
             default:
                 auto tuple = convert(mangle_return_type(ret_type));
-                bb.tail.fmt("{} fn_ret_val;\n", tuple);
+                s.fmt("{} fn_ret_val;\n", tuple);
                 for (size_t i = 0, e = args.size(); i != e; ++i)
-                    bb.tail.fmt("fn_ret_val.e{} = {};\n", i, args[i]);
+                    s.fmt("fn_ret_val.e{} = {};\n", i, args[i]);
                 packed_return = "fn_ret_val";
                 break;
         }
 
         // local return
         if (packed_return.empty())
-            bb.tail.fmt("return;");
+            s.fmt("return;");
         else
-            bb.tail.fmt("return {};", packed_return);
+            s.fmt("return {};", packed_return);
         return;
     }
 
@@ -869,9 +869,9 @@ void CCodeGen::emit_jump(BB& bb, const Def* callee, ArrayRef<std::string> args) 
             size_t i = 0;
             for (auto param : cont->params()) {
                 if (is_concrete_type(param->type()))
-                    bb.tail.fmt("p_{} = {};\n", param->unique_name(), args[i++]);
+                    s.fmt("p_{} = {};\n", param->unique_name(), args[i++]);
             }
-            bb.tail.fmt("goto {};", label_name(cont));
+            s.fmt("goto {};", label_name(cont));
             return;
         }
     }
@@ -880,9 +880,9 @@ void CCodeGen::emit_jump(BB& bb, const Def* callee, ArrayRef<std::string> args) 
     if (auto closure_t = callee->type()->isa<ClosureType>()) {
         auto appended = concat(args, ecallee);
         auto as_fnt = world().fn_type(concat(closure_t->types(), closure_t->as<Type>()));
-        bb.tail.fmt("(({}) {}.f)({, });", convert(as_fnt), ecallee, appended);
+        s.fmt("(({}) {}.f)({, });", convert(as_fnt), ecallee, appended);
     } else
-        bb.tail.fmt("{}({, });", ecallee, args);
+        s.fmt("{}({, });", ecallee, args);
 }
 
 void CCodeGen::emit_epilogue(Continuation* cont) {
@@ -996,12 +996,12 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
             bb.tail.fmt("{} ret_val = ", convert(returned_value_type));
 
         // TODO: tailcalls
-        emit_jump(bb, body->callee(), args);
+        emit_jump(bb.tail, body->callee(), args);
 
         // forward the returned values to the return param (typically a BB)
         if (ret_arg) {
             bb.tail.fmt("\n");
-            emit_jump(bb, ret_arg, unpack_args(ret_arg->type()->as<ReturnType>()->domain(), "ret_val"));
+            emit_jump(bb.tail, ret_arg, unpack_args(ret_arg->type()->as<ReturnType>()->domain(), "ret_val"));
         }
     }
 }
@@ -1259,9 +1259,9 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
 
         // setup a setjmp return point
         func_impls_.fmt("{} {}_captured_return;\n", return_name(ret_t), name);
-        bb->tail.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", name);
-        emit_jump(*bb, captured_ret->op(0), unpack_args(closure_t->domain(), name + "_captured_return.value"));
-        bb->tail.fmt("\b\n}}\n");
+        bb->body.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", name);
+        emit_jump(bb->body, captured_ret->op(0), unpack_args(closure_t->domain(), name + "_captured_return.value"));
+        bb->body.fmt("\b\n}}\n");
 
         // create a closure that can call longjmp
         func_impls_.fmt("{} {};\n", convert(def->type()), name);

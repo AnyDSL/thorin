@@ -140,15 +140,16 @@ Assembly::Assembly(World& world, const Type *type, Defs inputs, std::string asm_
 {}
 
 void Closure::set_fn(thorin::Continuation* f, int self_param_i) {
-    if (self_param_i >= 0) {
-        auto self_param = f->param(self_param_i);
-        auto self_param_t = self_param->type()->isa<ClosureType>();
-        assert(self_param_t && "closure fn self param has to be a closure type");
-        assert(self_param_t == type() && "self param of closure function has to match type of closure");
-        auto f_type_minus_self = world().fn_type(f->type()->types().skip_back(1));
-        auto expected_fn_t = world().fn_type(type()->types());
-        assert(f_type_minus_self == expected_fn_t && "param types of closure fn have to match params of closure");
-    }
+    assert(self_param_i >= 0);
+    //if (self_param_i >= 0) {
+    //    auto self_param = f->param(self_param_i);
+    //    auto self_param_t = self_param->type()->isa<ClosureType>();
+    //    assert(self_param_t && "closure fn self param has to be a closure type");
+    //    assert(self_param_t == type() && "self param of closure function has to match type of closure");
+    //    auto f_type_minus_self = world().fn_type(f->type()->types().skip_back(1));
+    //    auto expected_fn_t = world().fn_type(type()->types());
+    //    assert(f_type_minus_self == expected_fn_t && "param types of closure fn have to match params of closure");
+    //}
     self_param_ = self_param_i;
     set_op(0, f);
 }

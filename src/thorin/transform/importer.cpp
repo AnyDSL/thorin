@@ -1,6 +1,7 @@
 #include "thorin/transform/importer.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/primop.h"
+#include "partial_evaluation.h"
 
 namespace thorin {
 
@@ -28,31 +29,6 @@ const Def* Importer::rewrite(const Def* const odef) {
                 return instantiate(callee->body());
             }
         }
-    } else if (auto closure = odef->isa<Closure>()) {
-        bool only_called = true;
-        for (auto use : closure->uses()) {
-            if (use.def()->isa<App>() && use.index() == 0)
-                continue;
-            only_called = false;
-            break;
-        }
-        if (only_called) {
-            bool self_param_ok = true;
-            for (auto use: closure->fn()->params().back()->uses()) {
-                // the closure argument can be used, but only to extract the environment!
-                if (auto extract = use.def()->isa<Extract>(); extract && is_primlit(extract->index(), 1))
-                    continue;
-                self_param_ok = false;
-                break;
-            }
-            if (self_param_ok) {
-                src().VLOG("simplify: eliminating closure {} as it is never passed as an argument, and is not recursive", closure);
-                Array<const Def*> args(closure->fn()->num_params());
-                args.back() = closure;
-                todo_ = true;
-                return instantiate(drop(closure->fn(), args));
-            }
-        }
     } else if (auto cont = odef->isa_nom<Continuation>()) {
         if (cont->has_body()) {
             auto body = cont->body();
@@ -61,41 +37,58 @@ const Def* Importer::rewrite(const Def* const odef) {
             auto callee = body->callee();
             auto& scope = forest_->get_scope(cont);
             if (!scope.contains(callee)) {
-                if (src().is_external(cont) || callee->type()->tag() != Node_FnType)
+                // avoid messing with external continuations
+                if (src().is_external(cont))
                     goto rebuild;
 
+                auto only_called = [&]() -> bool {
+                    for (auto use : cont->uses()) {
+                        if (use->isa<Param>())
+                            continue;
+                        if (auto app = use->isa<App>(); app && use.index() == App::Ops::Callee)
+                            continue;
+                        return false;
+                    }
+                    return true;
+                };
+
                 if (body->args() == cont->params_as_defs()) {
-                    src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
                     // We completely replace the original continuation
                     // If we don't do so, then we miss some simplifications
-                    return instantiate(body->callee());
-                } else {
-                    // build the permutation of the arguments
-                    Array<size_t> perm(body->num_args());
-                    bool is_permutation = true;
-                    for (size_t i = 0, e = body->num_args(); i != e; ++i) {
-                        auto param_it = std::find(cont->params().begin(),
-                                                  cont->params().end(),
-                                                  body->arg(i));
+                    auto ncallee = instantiate(body->callee());
 
-                        if (param_it == cont->params().end()) {
-                            is_permutation = false;
-                            break;
-                        }
+                    // don't rewrite a continuation as a different type, unless it's only ever called
+                    if (ncallee->type()->tag() == Node_FnType || only_called()) {
+                        src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
+                        return ncallee;
+                    }
+                }
 
-                        perm[i] = param_it - cont->params().begin();
+                // build the permutation of the arguments
+                Array<size_t> perm(body->num_args());
+                bool is_permutation = true;
+                for (size_t i = 0, e = body->num_args(); i != e; ++i) {
+                    auto param_it = std::find(cont->params().begin(),
+                                              cont->params().end(),
+                                              body->arg(i));
+
+                    if (param_it == cont->params().end()) {
+                        is_permutation = false;
+                        break;
                     }
 
-                    if (!is_permutation)
-                        goto rebuild;
+                    perm[i] = param_it - cont->params().begin();
                 }
+
+                if (!is_permutation)
+                    goto rebuild;
 
                 bool has_calls = false;
                 // for every use of the continuation at a call site,
                 // permute the arguments and call the parameter instead
                 for (auto use : cont->copy_uses()) {
                     auto uapp = use->isa<App>();
-                    if (uapp && use.index() == 0) {
+                    if (uapp && use.index() == App::Ops::Callee) {
                         todo_ = true;
                         has_calls = true;
                         break;

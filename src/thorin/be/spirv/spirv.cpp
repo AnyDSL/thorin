@@ -123,13 +123,15 @@ void CodeGen::emit_stream(std::ostream& out) {
     forest.for_each<false>([&](const Scope& scope) {
         if (scope.entry()->is_intrinsic() || scope.entry()->cc() == CC::Device)
             return;
-        emit_scope(scope, forest);
+        queue_scope(scope.entry());
     });
 
     for (auto def : world().defs()) {
         if (auto global = def->isa<Global>())
             builder.interface.push_back(emit(global));
     }
+
+    emit_scopes(forest);
 
     int entry_points_count = 0;
     for (auto& cont : world().copy_continuations()) {
@@ -218,15 +220,9 @@ static bool is_return_block(thorin::Continuation* cont) {
     for (auto use : cont->copy_uses()) {
         if (use.def()->isa<Param>())
             continue; // the block can have params
-        else if (auto app = use.def()->isa<App>()) {
-            if (auto callee = app->callee()->isa_nom<Continuation>()) {
-                auto arg_index = use.index() - App::FirstArg;
-                auto ret_param = callee->ret_param();
-                if (ret_param && arg_index == ret_param->index()) {
-                    uses_as_ret_param++;
-                    continue;
-                }
-            }
+        if (use.def()->isa<ReturnPoint>()) {
+            uses_as_ret_param++;
+            continue; // the block can be returned to (once)
         }
         return false; // any other use disqualifies the block
     }
@@ -336,15 +332,19 @@ Id CodeGen::emit_as_bb(thorin::Continuation* cont) {
     return cont2bb_[cont]->label;
 }
 
-void CodeGen::emit_epilogue(Continuation* continuation) {
-    if (!continuation->has_body())
-        return;
+void CodeGen::emit_jump(BasicBlockBuilder* bb, const Def* to, std::vector<Id> args) {
+    if (auto ret_point = to->isa<ReturnPoint>()) {
+        to = ret_point->continuation();
+    }
 
-    BasicBlockBuilder* bb = cont2bb_[continuation];
-
-    // Handles the potential nuances of jumping to another continuation
-    auto jump_to_next_cont_with_args = [&](Continuation* succ, std::vector<Id> args) {
-        assert(succ->is_basicblock());
+    if (to == entry_->ret_param()) {
+        switch (args.size()) {
+            case 0:  bb->terminator.return_void(); break;
+            case 1:  bb->terminator.return_value(args[0]); break;
+            default: bb->terminator.return_value(emit_composite(bb, builder_->current_fn_->fn_ret_type, args));
+        }
+    } else if (auto succ = to->isa_nom<Continuation>(); succ && scope_->contains(succ)) {
+        // local BB jump
         BasicBlockBuilder* dstbb = cont2bb_[succ];
 
         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
@@ -359,48 +359,37 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
                 defs_[param] = args[j];
             } else {
                 auto& phi = cont2bb_[succ]->phis_map[param];
-                phi.preds.emplace_back(args[j], emit_as_bb(continuation));
+                phi.preds.emplace_back(args[j], bb->label);
             }
             j++;
         }
         bb->terminator.branch(emit(succ));
-    };
+    }
+}
 
+void CodeGen::emit_epilogue(Continuation* continuation) {
+    if (!continuation->has_body())
+        return;
+
+    BasicBlockBuilder* bb = cont2bb_[continuation];
     auto& app = *continuation->body();
 
-    if (app.callee() == entry_->ret_param()) {
-        std::vector<Id> values;
-
+    // calls to intrinsics involve passing basic blocks, which aren't first-class values
+    // however this isn't encoded in their type (fn[...]), and establishing whether they are is hard
+    // instead we can just lazily emit the arguments and deal with the special-case control-flow intrinsics first
+    auto emit_args = [&]() {
+        std::vector<Id> args;
         for (auto arg : app.args()) {
-            assert(arg->order() == 0);
             if (!should_emit(arg->type())) {
                 emit_unsafe(arg);
                 continue;
             }
-            auto val = emit(arg);
-            values.emplace_back(val);
+            args.emplace_back(emit(arg));
         }
+        return args;
+    };
 
-        switch (values.size()) {
-            case 0:  bb->terminator.return_void(); break;
-            case 1:  bb->terminator.return_value(values[0]); break;
-            default: bb->terminator.return_value(emit_composite(bb, builder_->current_fn_->fn_ret_type, values));
-        }
-    } else if (auto dst_cont = app.callee()->isa_nom<Continuation>(); dst_cont && dst_cont->is_basicblock()) { // ordinary jump
-        int index = -1;
-        for (auto& arg : app.args()) {
-            index++;
-            if (!should_emit(arg->type())) {
-                emit_unsafe(arg);
-                continue;
-            }
-            auto val = emit(arg);
-            auto* param = dst_cont->param(index);
-            auto& phi = cont2bb_[dst_cont]->phis_map[param];
-            phi.preds.emplace_back(val, emit_as_bb(continuation));
-        }
-        bb->terminator.branch(emit(dst_cont));
-    } else if (app.callee() == world().branch()) {
+    if (app.callee() == world().branch()) {
         auto mem = app.arg(0);
         emit_unsafe(mem);
 
@@ -428,31 +417,15 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         emit_unsafe(app.arg(0));
 
         auto productions = emit_intrinsic(app, intrinsic, bb);
-        auto succ = app.args().back()->isa_nom<Continuation>();
-        jump_to_next_cont_with_args(succ, productions);
-    } else { // function/closure call
-        // put all first-order args into an array
-        std::vector<Id> call_args;
-        const Def* ret_arg = nullptr;
-        for (auto arg : app.args()) {
-            if (arg->order() == 0) {
-                auto arg_type = arg->type();
-                if (arg_type == world().unit_type() || arg_type == world().mem_type()) {
-                    emit_unsafe(arg);
-                    continue;
-                }
-                auto arg_val = emit(arg);
-                call_args.push_back(arg_val);
-            } else {
-                assert(!ret_arg);
-                ret_arg = arg;
-            }
-        }
+        emit_jump(bb, app.ret_arg(), productions);
+    } else if (auto codom = app.callee_type()->codomain()) { // function/closure call
+        auto args = emit_args();
 
         Id call_result;
         if (auto called_continuation = app.callee()->isa_nom<Continuation>()) {
+            // TODO: fn calls
             auto ret_type = get_codom_type(called_continuation->type());
-            call_result = bb->call(ret_type, emit(called_continuation), call_args);
+            call_result = bb->call(ret_type, emit(called_continuation), args);
         } else {
             // must be a closure
             THORIN_UNREACHABLE;
@@ -462,35 +435,33 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
             // call = irbuilder.CreateCall(irbuilder.CreateExtractValue(closure, 0), args);
         }
 
-        // must be call + continuation --- call + return has been removed by codegen_prepare
-        auto succ = ret_arg->isa_nom<Continuation>();
-
-        size_t real_params_count = 0;
-        const Param* last_param = nullptr;
-        for (auto param : succ->params()) {
-            if (!should_emit(param->type()))
+        // count the number of params the return point will have
+        size_t return_values_count = 0;
+        for (auto param_type : *codom) {
+            if (!should_emit(param_type))
                 continue;
-            last_param = param;
-            real_params_count++;
+            return_values_count++;
         }
 
-        std::vector<Id> args(real_params_count);
-
-        if (real_params_count == 1) {
-            args[0] = call_result;
-        } else if (real_params_count > 1) {
-            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                auto param = succ->param(i);
-                if (!should_emit(param->type()))
+        // map the single return value to the possibly multiple params of the return point
+        std::vector<Id> return_values(return_values_count);
+        if (return_values_count == 1) {
+            return_values[0] = call_result;
+        } else if (return_values_count > 1) {
+            for (size_t i = 0, j = 0; i != codom->size(); ++i) {
+                auto param_type = (*codom)[i];
+                if (!should_emit(param_type))
                     continue;
-                args[j] = bb->extract(convert(param->type()).id, call_result, { (uint32_t) j });
+                return_values[j] = bb->extract(convert(param_type).id, call_result, { (uint32_t) j });
                 j++;
             }
-
-            bb->terminator.branch(emit(succ));
         }
 
-        jump_to_next_cont_with_args(succ, args);
+        emit_jump(bb, app.ret_arg(), return_values);
+    } else {
+        // return, tailcall or BB call
+        auto args = emit_args();
+        emit_jump(bb, app.callee(), args);
     }
 }
 
@@ -522,20 +493,11 @@ Id CodeGen::emit_constant(const thorin::Def* def) {
             }
         }
         return constant;
+    } else if (auto rp = def->isa<ReturnPoint>()) {
+        return emit(rp->continuation());
     }
 
     assertf(false, "Incomplete emit(def) definition");
-}
-
-bool CodeGen::should_emit(const thorin::Type* type) {
-    if (type == world().mem_type())
-        return false;
-    if (auto fn_t = type->isa<FnType>())
-        return fn_t->is_returning();
-    auto converted = convert_maybe_void(type);
-    if (converted.id == builder_->declare_void_type())
-        return false;
-    return true;
 }
 
 std::vector<Id> CodeGen::emit_args(Defs defs) {

@@ -106,6 +106,12 @@ Global::Global(World& world, const Def* init, bool is_mutable, Debug dbg)
     assert(!init->has_dep(Dep::Param));
 }
 
+ClosureEnv::ClosureEnv(World& world, const Type* type, const Def* mem, const Def* src, Debug dbg)
+    : MemOp(world, Node_ClosureEnv, nullptr, {mem, src}, dbg)
+{
+    set_type(world.tuple_type({world.mem_type(), type}));
+}
+
 Alloc::Alloc(World& world, const Type* type, const Def* mem, const Def* extra, Debug dbg)
     : MemOp(world, Node_Alloc, nullptr, {mem, extra}, dbg)
 {
@@ -132,6 +138,21 @@ Assembly::Assembly(World& world, const Type *type, Defs inputs, std::string asm_
     , clobbers_(clobbers)
     , flags_(flags)
 {}
+
+void Closure::set_fn(thorin::Continuation* f, int self_param_i) {
+    assert(self_param_i >= 0);
+    //if (self_param_i >= 0) {
+    //    auto self_param = f->param(self_param_i);
+    //    auto self_param_t = self_param->type()->isa<ClosureType>();
+    //    assert(self_param_t && "closure fn self param has to be a closure type");
+    //    assert(self_param_t == type() && "self param of closure function has to match type of closure");
+    //    auto f_type_minus_self = world().fn_type(f->type()->types().skip_back(1));
+    //    auto expected_fn_t = world().fn_type(type()->types());
+    //    assert(f_type_minus_self == expected_fn_t && "param types of closure fn have to match params of closure");
+    //}
+    self_param_ = self_param_i;
+    set_op(0, f);
+}
 
 //------------------------------------------------------------------------------
 
@@ -216,8 +237,14 @@ const Def* Tuple         ::rebuild(World& w, const Type*  , Defs o) const { retu
 const Def* Variant       ::rebuild(World& w, const Type* t, Defs o) const { return w.variant(t->as<VariantType>(), o[0], index(), debug()); }
 const Def* VariantIndex  ::rebuild(World& w, const Type*  , Defs o) const { return w.variant_index(o[0], debug()); }
 const Def* VariantExtract::rebuild(World& w, const Type*  , Defs o) const { return w.variant_extract(o[0], index(), debug()); }
-const Def* Closure       ::rebuild(World& w, const Type* t, Defs o) const { return w.closure(t->as<ClosureType>(), o[0], o[1], debug()); }
 const Def* Vector        ::rebuild(World& w, const Type*  , Defs o) const { return w.vector(o, debug()); }
+const Def* ClosureEnv    ::rebuild(World& w, const Type* t, Defs o) const { return w.closure_env(t->as<TupleType>()->op(1)->as<Type>(), o[0], o[1], debug()); }
+
+const Def* Cell::rebuild(World& w, const Type* t, Defs o) const {
+    if (is_heap_allocated())
+        return w.heap_cell(o[0], debug());
+    return w.stack_cell(o[0], debug());
+}
 
 const Def* Alloc::rebuild(World& w, const Type* t, Defs o) const {
     return w.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), o[0], o[1], debug());
@@ -237,6 +264,16 @@ const Def* StructAgg::rebuild(World& w, const Type* t, Defs o) const {
 
 const Def* IndefiniteArray::rebuild(World& w, const Type* t, Defs o) const {
     return w.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), o[0], debug());
+}
+
+Def* Closure::stub(thorin::Rewriter& r, const thorin::Type* t) const {
+    return r.dst().closure(t->as<ClosureType>(), debug());
+}
+
+void Closure::rebuild_from(thorin::Rewriter& r, const thorin::Def* old) {
+    auto oclosure = old->as<Closure>();
+    set_fn(r.instantiate(oclosure->fn())->as_nom<Continuation>(), oclosure->self_param_);
+    set_env(r.instantiate(oclosure->env()));
 }
 
 //------------------------------------------------------------------------------
@@ -292,6 +329,13 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
         return get(struct_type->types(), index);
+    else if (auto closure = agg->type()->isa<ClosureType>()) {
+        switch (primlit_value<int>(index)) {
+            case 0: return closure->world().fn_type(closure->types());
+            case 1: return closure->world().type_qu64();
+            default: assert(false);
+        }
+    }
 
     THORIN_UNREACHABLE;
 }
@@ -303,7 +347,6 @@ const Enter* Enter::is_out_mem(const Def* def) {
                 return enter;
     return nullptr;
 }
-
 const Type* Closure::environment_type(World& world) {
     // We assume that ptrs are <= 64 bits, if they're not, god help you
     return world.type_qu64();

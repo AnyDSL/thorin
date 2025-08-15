@@ -48,6 +48,8 @@ set(THORIN_SOURCES
     transform/codegen_prepare.cpp
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
+    transform/demote_closures.cpp
+    transform/demote_closures.h
     transform/hoist_enters.cpp
     transform/hoist_enters.h
     transform/flatten_tuples.cpp
@@ -56,8 +58,12 @@ set(THORIN_SOURCES
     transform/importer.h
     transform/inliner.cpp
     transform/inliner.h
+    transform/lift.cpp
+    transform/lift.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
+    transform/lower_closure_env.cpp
+    transform/lower_closure_env.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

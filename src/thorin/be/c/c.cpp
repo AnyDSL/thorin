@@ -93,6 +93,7 @@ public:
     std::string emit_constant(const Def*);
     std::string emit_bottom(const Type*);
     std::string emit_def(BB*, const Def*);
+    void emit_jump(Stream&, const Def* callee, ArrayRef<std::string>);
     void emit_access(Stream&, const Type*, const Def*, const std::string_view& = ".");
     bool is_valid(const std::string& s) { return !s.empty(); }
     std::string emit_fun_head(Continuation*, bool = false);
@@ -109,13 +110,20 @@ private:
     std::string constructor_prefix(const Type*);
     std::string device_prefix();
     Stream& emit_debug_info(Stream&, const Def*);
+    const Type* mangle_return_type(const ReturnType* return_type);
+    std::vector<std::string> unpack_args(ArrayRef<const Type*> param_types, std::string packed);
+    std::string pack_args(StringStream&, const Type* packed_type, std::vector<std::string> args);
     bool get_interface(HlsInterface &interface, HlsInterface &gmem);
+    const Param* get_channel_read_output(Continuation*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::string emit_float(T, IsInfFn, IsNanFn);
 
     std::string array_name(const DefiniteArrayType*);
     std::string tuple_name(const TupleType*);
+    std::string closure_name(const ClosureType*);
+    std::string return_name(const ReturnType*);
+    std::string fn_name(const FnType*);
 
     Thorin& thorin_;
     ScopesForest forest_;
@@ -128,6 +136,7 @@ private:
     bool use_channels_ = false;
     bool use_align_of_ = false;
     bool use_memcpy_ = false;
+    bool use_longjmp_ = false;
     bool use_malloc_ = false;
     bool debug_;
     std::string flags_;
@@ -139,6 +148,8 @@ private:
     StringStream vars_decls_;
     /// Tracks defs that have been emitted as local variables of the current function
     DefSet func_defs_;
+
+    GIDSet<const ReturnType*> longjmp_closures_;
 
     std::ostringstream macro_xilinx_;
     std::ostringstream macro_intel_;
@@ -162,7 +173,8 @@ inline bool is_channel_type(const StructType* struct_type) {
 }
 
 /// Returns true when the def carries concrete data in the final generated code
-inline bool is_concrete(const Def* def) { return !is_mem(def) && def->order() == 0 && !is_unit(def);}
+inline bool is_concrete(const Def* def) { return !is_mem(def) && !is_unit(def);}
+inline bool is_concrete_type(const Type* t) { return !t->isa<MemType>() && t != t->world().unit_type(); }
 inline bool has_concrete_params(Continuation* cont) {
     return std::any_of(cont->params().begin(), cont->params().end(), [](const Param* param) { return is_concrete(param); });
 }
@@ -310,8 +322,23 @@ std::string CCodeGen::convert(const Type* type) {
         convert_primtype(s, primtype->primtype_tag(), vector_length(primtype));
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         return types_[type] = convert(array->elem_type()); // IndefiniteArrayType always occurs within a pointer
-    } else if (type->isa<FnType>()) {
-        assert(false && "todo");
+    } else if (auto closure_t = type->isa<ClosureType>()) {
+        types_[closure_t] = name = closure_name(closure_t);
+        auto as_fnt = world().fn_type(closure_t->types());
+        s.fmt("typedef struct {{\t\n");
+        s.fmt("{} f;\n", convert(as_fnt));
+        s.fmt("{} data;", convert(Closure::environment_type(world())));
+        s.fmt("\b\n}} {};\n", name);
+    } else if (auto pi = type->isa<FnType>()) {
+        assert(lang_ == Lang::C99 || lang_ == Lang::CUDA && "Only C and CUDA support function pointers");
+        name = fn_name(pi);
+        std::vector<std::string> dom;
+        for (auto p : pi->domain()) {
+            if (!is_concrete_type(p))
+                continue;
+            dom.push_back(convert(p));
+        }
+        s.fmt("typedef {} (*{})({, });\n", convert(mangle_return_type(pi->return_param_type())), name, dom);
     } else if (auto ptr = type->isa<PtrType>()) {
         // CUDA supports generic pointers, so there is no need to annotate them (moreover, annotating them triggers a bug in NVCC 11)
         s.fmt("{}{}*", lang_ != Lang::CUDA ? addr_space_prefix(ptr->addr_space()) : "", convert(ptr->pointee()));
@@ -429,12 +456,14 @@ void CCodeGen::emit_module() {
         if (scope.entry()->name() == "hls_top")
             hls_top = scope.entry();
         else if (scope.entry()->cc() != CC::Thorin && scope.entry()->is_returning())
-            emit_scope(scope, forest_);
+            queue_scope(scope.entry());
     });
     if (hls_top) {
         hls_top_scope = true;
-        emit_scope(Scope(hls_top), forest_);
+        queue_scope(hls_top);
     }
+
+    emit_scopes(forest_);
 
     if (lang_ == Lang::OpenCL) {
         if (use_channels_) {
@@ -476,13 +505,16 @@ void CCodeGen::emit_module() {
 
     if (lang_ == Lang::C99) {
         stream_.fmt(    "#include <stdbool.h>\n"    // for the 'bool' type
-                        "#include <stdint.h>\n");   // for the fixed-width integer types
+                        "#include <stdint.h>\n"     // for the fixed-width integer types
+                        "#include <stddef.h>\n");   // for size_t
         if (use_align_of_)
             stream_.fmt("#include <stdalign.h>\n"); // for 'alignof'
         if (use_memcpy_)
             stream_.fmt("#include <string.h>\n");   // for 'memcpy'
         if (use_malloc_)
             stream_.fmt("#include <stdlib.h>\n");   // for 'malloc'
+        if (use_longjmp_)
+            stream_.fmt("#include <setjmp.h>\n");   // for 'longjmp'
         if (use_math_)
             stream_.fmt("#include <math.h>\n");     // for 'cos'/'sin'/...
     }
@@ -520,6 +552,25 @@ void CCodeGen::emit_module() {
 
     stream_ << func_decls_.str();
 
+    for (auto ret_t : longjmp_closures_) {
+        stream_ << "void longjmp_closure_" << return_name(ret_t) << "(";
+        int i = 0;
+        for (auto p : ret_t->domain()) {
+            if (!is_concrete_type(p))
+                continue;
+            if (i > 0)
+                stream_ << ", ";
+            stream_ << convert(p);
+            stream_ << " arg" << i;
+            i++;
+        }
+        if (i > 0)
+            stream_ << ", ";
+        stream_.fmt("{} self", convert(world().closure_type(ret_t->types())));
+        stream_ << ")";
+        stream_ << ";\n";
+    }
+
     if (lang_ == Lang::OpenCL)
         stream_ << "#endif /* __xilinx__ */\n";
     else if (lang_ == Lang::HLS)
@@ -539,6 +590,35 @@ void CCodeGen::emit_module() {
 
     stream_.endl() << func_impls_.str();
 
+    for (auto ret_t : longjmp_closures_) {
+        stream_ << "void longjmp_closure_" << return_name(ret_t) << "(";
+        int i = 0;
+        std::vector<std::string> args;
+        for (auto p : ret_t->domain()) {
+            if (!is_concrete_type(p))
+                continue;
+            if (i > 0)
+                stream_ << ", ";
+            stream_ << convert(p);
+            stream_ << " arg" << i;
+            args.push_back(std::string("arg") + std::to_string(i));
+            i++;
+        }
+        if (i > 0)
+            stream_ << ", ";
+        stream_.fmt("{} self", convert(world().closure_type(ret_t->types())));
+        stream_ << ")";
+        stream_.fmt(" {{\t");
+        stream_.fmt("\n{}* ret_env = ({}*) self.data;", return_name(ret_t), return_name(ret_t));
+        StringStream s;
+        auto packed = pack_args(s, mangle_return_type(ret_t), args);
+        stream_.fmt("{}", s.str());
+        if (packed.size() > 0)
+            stream_.fmt("\nret_env->value = {};", packed);
+        stream_.fmt("\nlongjmp(ret_env->opaque, 1);");
+        stream_.fmt("\b\n}}\n");
+    }
+
     if (lang_ == Lang::CUDA || lang_ == Lang::HLS)
         stream_.fmt("}} /* extern \"C\" */\n");
 }
@@ -549,17 +629,52 @@ static inline bool is_passed_via_buffer(const Param* param) {
         || param->type()->isa<TupleType>();
 }
 
-static inline const Type* ret_type(const FnType* fn_type) {
-    auto ret_fn_type = (*std::find_if(
-        fn_type->types().begin(), fn_type->types().end(), [] (const Type* op) {
-            return op->order() % 2 == 1;
-        }))->as<FnType>();
-    std::vector<const Type*> types;
-    for (auto op : ret_fn_type->types()) {
-        if (op->isa<MemType>() || is_type_unit(op) || op->order() > 0) continue;
-        types.push_back(op);
+std::vector<int> get_concrete_param_indices(ArrayRef<const Type*> param_types) {
+    int i = 0;
+    std::vector<int> r;
+    for (auto pt : param_types) {
+        if (is_concrete_type(pt))
+            r.push_back(i);
+        i++;
     }
-    return fn_type->world().tuple_type(types);
+    return r;
+}
+
+std::vector<std::string> CCodeGen::unpack_args(ArrayRef<const Type*> param_types, std::string packed) {
+    std::vector<std::string> ret_args;
+    auto ret_val_swizzle = get_concrete_param_indices(param_types);
+    if (ret_val_swizzle.size() == 1)
+        ret_args = { packed };
+    else {
+        for (size_t i = 0; i < ret_val_swizzle.size(); i++) {
+            ret_args.push_back(packed + std::string(".e") + std::to_string(i));
+        }
+    }
+    return ret_args;
+}
+
+std::string CCodeGen::pack_args(StringStream& s, const Type* packed_type, std::vector<std::string> args) {
+    std::string packed_return;
+    switch (args.size()) {
+        case 0: return "";
+        case 1: return args[0];
+        default: {
+            auto tuple = convert(packed_type);
+            s.fmt("{} packed;\n", tuple);
+            for (size_t i = 0, e = args.size(); i != e; ++i)
+                s.fmt("packed.e{} = {};\n", i, args[i]);
+            packed_return = "packed";
+            break;
+        }
+    }
+    return packed_return;
+}
+
+const Type* CCodeGen::mangle_return_type(const ReturnType* return_type) {
+    // treat non-returning calls as if they return nothing, for now
+    if (!return_type)
+        return world().unit_type();
+    return return_type->mangle_for_codegen();
 }
 
 static inline const Type* pointee_or_elem_type(const PtrType* ptr_type) {
@@ -705,6 +820,71 @@ void CCodeGen::finalize(Continuation* cont) {
     func_impls_.fmt("{{\t\n{}{}{}\b\n}}\b\n", bb.head.str(), bb.body.str(), bb.tail.str());
 }
 
+const Param* CCodeGen::get_channel_read_output(Continuation* cont) {
+    size_t num_params = cont->num_params();
+    size_t n = 0;
+    Array<const Param*> values(num_params);
+    for (auto param : cont->params()) {
+        if (!is_mem(param) && !is_unit(param)) {
+            values[n] = param;
+            n++;
+        }
+    }
+    return n == 1 ? values[0] : nullptr;
+}
+
+void CCodeGen::emit_jump(Stream& s, const Def* callee, ArrayRef<std::string> args) {
+    if (auto ret_pt = callee->isa<ReturnPoint>())
+        callee = ret_pt->continuation();
+
+    if (auto ret_type = callee->type()->isa<ReturnType>()) { // return
+        assert((callee == entry_->ret_param()) && "In the C backend, the only callable return typed values should be fn returns");
+        std::string packed_return;
+        switch (args.size()) {
+            case 0: packed_return = lang_ == Lang::HLS ? "void()" : ""; break;
+            case 1: packed_return = args[0]; break;
+            default:
+                auto tuple = convert(mangle_return_type(ret_type));
+                s.fmt("{} fn_ret_val;\n", tuple);
+                for (size_t i = 0, e = args.size(); i != e; ++i)
+                    s.fmt("fn_ret_val.e{} = {};\n", i, args[i]);
+                packed_return = "fn_ret_val";
+                break;
+        }
+
+        // local return
+        if (packed_return.empty())
+            s.fmt("return;");
+        else
+            s.fmt("return {};", packed_return);
+        return;
+    }
+
+    if (auto cont = callee->isa_nom<Continuation>()) {
+        auto& scope = forest_.get_scope(entry_);
+        // Use goto syntax when calling within the local scope
+        // (and it's not recursion)
+        if (scope.contains(cont) && cont != entry_) {
+            //assert(cont->num_params() == args.size());
+            size_t i = 0;
+            for (auto param : cont->params()) {
+                if (is_concrete_type(param->type()))
+                    s.fmt("p_{} = {};\n", param->unique_name(), args[i++]);
+            }
+            s.fmt("goto {};", label_name(cont));
+            return;
+        }
+    }
+
+    auto ecallee = emit(callee);
+    if (auto closure_t = callee->type()->isa<ClosureType>()) {
+        auto appended = concat(args, ecallee);
+        auto as_fnt = world().fn_type(concat(closure_t->types(), closure_t->as<Type>()));
+        s.fmt("(({}) {}.f)({, });", convert(as_fnt), ecallee, appended);
+    } else
+        s.fmt("{}({, });", ecallee, args);
+}
+
 void CCodeGen::emit_epilogue(Continuation* cont) {
     auto&& bb = cont2bb_[cont];
     assert(cont->has_body());
@@ -716,35 +896,13 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
     if ((lang_ == Lang::OpenCL || (lang_ == Lang::HLS && hls_top_scope)) && (cont->is_exported()))
         emit_fun_decl(cont);
 
-    if (body->callee() == entry_->ret_param()) { // return
-        std::vector<std::string> values;
-        std::vector<const Type*> types;
-
-        for (auto arg : body->args()) {
-            if (auto val = emit_unsafe(arg); !val.empty()) {
-                values.emplace_back(val);
-                types.emplace_back(arg->type());
-            }
-        }
-
-        switch (values.size()) {
-            case 0: bb.tail.fmt(lang_ == Lang::HLS ? "return void();" : "return;"); break;
-            case 1: bb.tail.fmt("return {};", values[0]); break;
-            default:
-                auto tuple = convert(world().tuple_type(types));
-                bb.tail.fmt("{} ret_val;\n", tuple);
-                for (size_t i = 0, e = types.size(); i != e; ++i)
-                    bb.tail.fmt("ret_val.e{} = {};\n", i, values[i]);
-                bb.tail.fmt("return ret_val;");
-                break;
-        }
-    } else if (body->callee() == world().branch()) {
+    if (body->callee() == world().branch()) {
         emit_unsafe(body->arg(0));
         auto c = emit(body->arg(1));
         auto t = label_name(body->arg(2));
         auto f = label_name(body->arg(3));
         bb.tail.fmt("if ({}) goto {}; else goto {};", c, t, f);
-    } else if (auto callee = body->callee()->as_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
+    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->intrinsic() == Intrinsic::Match) {
         emit_unsafe(body->arg(0));
 
         bb.tail.fmt("switch ({}) {{\t\n", emit(body->arg(1)));
@@ -758,13 +916,6 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         bb.tail.fmt("\b\n}}");
     } else if (body->callee()->isa<Bottom>()) {
         bb.tail.fmt("return;  // bottom: unreachable");
-    } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_basicblock()) { // ordinary jump
-        assert(callee->num_params() == body->num_args());
-        for (size_t i = 0, size = callee->num_params(); i != size; ++i) {
-            if (auto arg = emit_unsafe(body->arg(i)); !arg.empty())
-                bb.tail.fmt("p_{} = {};\n", callee->param(i)->unique_name(), arg);
-        }
-        bb.tail.fmt("goto {};", label_name(callee));
     } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         if (callee->intrinsic() == Intrinsic::Reserve) {
             emit_unsafe(body->arg(0));
@@ -828,93 +979,30 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else {
             THORIN_UNREACHABLE;
         }
-    } else if (auto callee = body->callee()->isa_nom<Continuation>()) { // function/closure call
-        auto ret_cont = (*std::find_if(body->args().begin(), body->args().end(), [] (const Def* arg) {
-            return arg->isa_nom<Continuation>();
-        }))->as_nom<Continuation>();
+    } else { // function/closure call
+        auto callee_type = body->callee()->type()->as<FnType>();
+        const Def* ret_arg = body->ret_arg();
 
         std::vector<std::string> args;
         for (auto arg : body->args()) {
-            if (arg == ret_cont) continue;
+            if (arg == ret_arg) continue;
             if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty())
                 args.emplace_back(emitted_arg);
         }
 
-        size_t num_params = ret_cont->num_params();
-        size_t n = 0;
-        Array<const Param*> values(num_params);
-        Array<const Type*> types(num_params);
-        for (auto param : ret_cont->params()) {
-            if (!is_mem(param) && !is_unit(param)) {
-                values[n] = param;
-                types[n] = param->type();
-                n++;
-            }
-        }
-
-        const Param* channel_read_result = n == 1 ? values[0] : nullptr;
-
-        bool channel_transaction = false, no_function_call = false;
-
-        auto name = (callee->is_exported() || callee->empty()) ? callee->name() : callee->unique_name();
-        if (lang_ == Lang::OpenCL && use_channels_ && callee->is_channel()) {
-            auto [usage, _] = builtin_funcs_.emplace(callee, FuncMode::Read);
-
-            if (name.find("write") != std::string::npos) {
-                usage->second = FuncMode::Write;
-            } else if (name.find("read") != std::string::npos) {
-                usage->second = FuncMode::Read;
-                assert(channel_read_result != nullptr);
-                args.emplace(args.begin(), emit(channel_read_result));
-            } else THORIN_UNREACHABLE;
-            channel_transaction = true;
-        } else if (lang_ == Lang::HLS && callee->is_channel()) {
-            int i = 0;
-            for (auto arg : body->args()) {
-                if (!is_concrete(arg)) continue;
-                if (i == 0)
-                    bb.tail.fmt("*{}", emit(arg));
-                if (i == 1) {
-                    if (name.find("write_channel") != std::string::npos) {
-                        bb.tail.fmt(" << {};\n", emit(arg));
-                    } else THORIN_UNREACHABLE;
-                }
-                if (name.find("read_channel") != std::string::npos) {
-                    bb.tail.fmt(" >> {};\n", emit(channel_read_result));
-                }
-                i++;
-            }
-            no_function_call = true;
-            //TODO: Check it
-            channel_transaction = true;
-        }
-
         // Do not store the result of `void` calls
-        auto ret_type = thorin::c::ret_type(callee->type());
-        if (!is_type_unit(ret_type) && !channel_transaction)
-            bb.tail.fmt("{} ret_val = ", convert(ret_type));
+        auto returned_value_type = mangle_return_type(callee_type->return_param_type());
+        if (!is_type_unit(returned_value_type))
+            bb.tail.fmt("{} ret_val = ", convert(returned_value_type));
 
-        if (!no_function_call)
-            bb.tail.fmt("{}({, });\n", emit(callee), args);
+        // TODO: tailcalls
+        emit_jump(bb.tail, body->callee(), args);
 
-        // Pass the result to the phi nodes of the return continuation
-        if (!is_type_unit(ret_type)) {
-            size_t i = 0;
-            for (auto param : ret_cont->params()) {
-                if (!is_concrete(param))
-                    continue;
-                if (ret_type->isa<TupleType>())
-                    bb.tail.fmt("p_{} = ret_val.e{};\n", param->unique_name(), i++);
-                else if ((lang_ == Lang::OpenCL && use_channels_) || (lang_ == Lang::HLS))
-                    bb.tail.fmt(" p_{} = {};\n", emit(channel_read_result), param->unique_name());
-                else
-                    bb.tail.fmt("p_{} = ret_val;\n", param->unique_name());
-            }
+        // forward the returned values to the return param (typically a BB)
+        if (ret_arg) {
+            bb.tail.fmt("\n");
+            emit_jump(bb.tail, ret_arg, unpack_args(ret_arg->type()->as<ReturnType>()->domain(), "ret_val"));
         }
-        if (!hls_top_scope)
-            bb.tail.fmt("goto {};", label_name(ret_cont));
-    } else {
-        THORIN_UNREACHABLE;
     }
 }
 
@@ -977,6 +1065,12 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
         else
             world().edef(index, "only constants are supported as vector component indices");
         s.fmt("{}s{}", prefix, os.str());
+    } else if (agg_type->isa<ClosureType>()) {
+        switch (primlit_value<size_t>(index)) {
+            case 0: s.fmt("{}f", prefix); break;
+            case 1: s.fmt("{}data", prefix); break;
+            default: assert(false);
+        }
     } else {
         THORIN_UNREACHABLE;
     }
@@ -1120,6 +1214,66 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         func_impls_.fmt("{} {}; // indefinite array: bottom\n", convert(def->type()), name);
         func_defs_.insert(def);
         return name;
+    } else if (auto closure = def->isa<Closure>()) {
+        queue_scope(closure->fn());
+        if (bb) {
+            if (!func_defs_.contains(def))
+                func_impls_.fmt("{} {};\n", convert(def->type()), name);
+            func_defs_.insert(def);
+            bb->body << name;
+            emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 0 }));
+            auto fn_t = world().fn_type(def->type()->as<ClosureType>()->types());
+            bb->body.fmt(" = ({}) {};\n", convert(fn_t), emit_unsafe(def->op(0)));
+
+            auto env = def->op(1);
+            if (!is_unit(env)) {
+                auto eenv = emit_unsafe(env);
+                bb->body << name;
+                emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
+                // thin environment
+                bb->body.fmt(" = ({}) {};\n", convert(Closure::environment_type(world())), eenv);
+            }
+        } else {
+            assert(false && "todo");
+        }
+        return name;
+    } else if (auto captured_ret = def->isa<CaptureReturn>()) {
+        assert(bb);
+        world().WLOG("setjmp required at {}", captured_ret->loc());
+
+        // the only valid return to capture is that of the parent cont
+        use_longjmp_ = true;
+
+        auto closure_t = captured_ret->type()->as<ClosureType>();
+        auto ret_t = world().return_type(closure_t->types());
+
+        if (!longjmp_closures_.contains(ret_t)) {
+            longjmp_closures_.insert(ret_t);
+
+            auto ret_value_t = mangle_return_type(ret_t);
+            if (is_type_unit(ret_value_t))
+                type_decls_.fmt("typedef struct {{ jmp_buf opaque; }} {};\n", return_name(ret_t));
+            else
+                type_decls_.fmt("typedef struct {{ {} value; jmp_buf opaque; }} {};\n", convert(ret_value_t), return_name(ret_t));
+        }
+
+        // setup a setjmp return point
+        func_impls_.fmt("{} {}_captured_return;\n", return_name(ret_t), name);
+        bb->body.fmt("if (setjmp({}_captured_return.opaque) != 0) {{\t\n", name);
+        emit_jump(bb->body, captured_ret->op(0), unpack_args(closure_t->domain(), name + "_captured_return.value"));
+        bb->body.fmt("\b\n}}\n");
+
+        // create a closure that can call longjmp
+        func_impls_.fmt("{} {};\n", convert(def->type()), name);
+        bb->body << name;
+        emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 0 }));
+        auto fn_t = world().fn_type(def->type()->as<ClosureType>()->types());
+        bb->body.fmt(" = ({}) longjmp_closure_{};\n", convert(fn_t), return_name(ret_t));
+        bb->body << name;
+        emit_access(bb->body, def->type(), world().literal(thorin::pu64{ 1 }));
+        // thin environment
+        bb->body.fmt(" = ({}) &{}_captured_return;\n", convert(Closure::environment_type(world())), name);
+        return name;
     } else if (def->isa<Aggregate>()) {
         if (bb) {
             func_impls_.fmt("{} {};\n", convert(def->type()), name);
@@ -1257,6 +1411,16 @@ std::string CCodeGen::emit_def(BB* bb, const Def* def) {
         } else {
             bb->body.fmt("{} = malloc(sizeof({}));\n", name, t);
         }
+        return name;
+    } else if (auto cell = def->isa<Cell>()) {
+        use_malloc_ = true;
+        auto ptr_t = cell->type()->as<PtrType>();
+        if (cell->is_heap_allocated())
+            func_impls_.fmt("{} {} = malloc(sizeof({})); // heap allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));
+        else
+            func_impls_.fmt("{} {} = alloca(sizeof({})); // stack allocation\n", convert(ptr_t), name, convert(cell->contents()->type()));
+        defs_[cell] = name;
+        bb->body.fmt("*{} = {};\n", name, emit(cell->contents()));
         return name;
     } else if (auto enter = def->isa<Enter>()) {
         return emit_unsafe(enter->mem());
@@ -1413,13 +1577,17 @@ std::string CCodeGen::emit_fun_head(Continuation* cont, bool is_proto) {
     }
 
     s.fmt("{} {}(",
-        convert(ret_type(cont->type())),
+        convert(mangle_return_type(cont->type()->return_param_type())),
         !world().is_external(cont) ? cont->unique_name() : cont->name());
 
     // Emit and store all first-order params
     bool needs_comma = false;
     for (size_t i = 0, n = cont->num_params(); i < n; ++i) {
         auto param = cont->param(i);
+        if (lang_ == Lang::C99 && param->type()->isa<ReturnType>()) {
+            defs_[param] = "";
+            continue;
+        }
         if (!is_concrete(param)) {
             defs_[param] = {};
             continue;
@@ -1560,8 +1728,9 @@ void CCodeGen::emit_c_int() {
 
 template <typename T, typename IsInfFn, typename IsNanFn>
 std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
-    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
+    auto emit_nn = [&] (std::string def, std::string c99, std::string cuda, std::string opencl) {
         switch (lang_) {
+            case Lang::C99:    return c99;
             case Lang::CUDA:   return cuda;
             case Lang::OpenCL: return opencl;
             default:           return def;
@@ -1570,19 +1739,19 @@ std::string CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 
     if (is_inf(t)) {
         if (std::is_same<T, half>::value) {
-            return emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
+            return emit_nn("std::numeric_limits<half>::infinity()", "((half) INFINITY)", "__short_as_half(0x7c00)", "as_half(0x7c00)");
         } else if (std::is_same<T, float>::value) {
-            return emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
+            return emit_nn("std::numeric_limits<float>::infinity()", "((float) INFINITY)", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
         } else {
-            return emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
+            return emit_nn("std::numeric_limits<double>::infinity()", "((double) INFINITY)", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
         }
     } else if (is_nan(t)) {
         if (std::is_same<T, half>::value) {
-            return emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
+            return emit_nn("nan(\"\")", "((half) NAN)", "__short_as_half(0x7fff)", "as_half(0x7fff)");
         } else if (std::is_same<T, float>::value) {
-            return emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
+            return emit_nn("nan(\"\")", "((float) NAN)", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
         } else {
-            return emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
+            return emit_nn("nan(\"\")", "((double) NAN)", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
         }
     }
 
@@ -1611,6 +1780,18 @@ std::string CCodeGen::array_name(const DefiniteArrayType* array_type) {
 
 std::string CCodeGen::tuple_name(const TupleType* tuple_type) {
     return "tuple_" + std::to_string(tuple_type->gid());
+}
+
+std::string CCodeGen::fn_name(const FnType* fn_type) {
+    return "fn_" + std::to_string(fn_type->gid());
+}
+
+std::string CCodeGen::closure_name(const ClosureType* fn_type) {
+    return "closure_" + std::to_string(fn_type->gid());
+}
+
+std::string CCodeGen::return_name(const ReturnType* fn_type) {
+    return "return_" + std::to_string(fn_type->gid());
 }
 
 //------------------------------------------------------------------------------

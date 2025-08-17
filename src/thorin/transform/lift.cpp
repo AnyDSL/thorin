@@ -280,7 +280,6 @@ struct ClosureConverter {
     ScopesForest forest_;
     ContinuationMap<std::unique_ptr<ScopeAnalysis>> analysis_;
     DefMap<Continuation*> as_continuations_;
-    std::vector<std::function<void()>> todo_;
 
     std::vector<Continuation*> closure_fns_;
 
@@ -360,68 +359,65 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             internal_closure = closure_param;
         body_rewriter->insert(ocont, internal_closure);
 
-        converter_.todo_.emplace_back([=]() {
-            const Def* new_mem = ncont->mem_param();
-            auto [env_type, thin] = converter_.get_env_type(free_vars);
-            env_type = this->instantiate(env_type)->as<Type>();
+        const Def* new_mem = ncont->mem_param();
+        auto [env_type, thin] = converter_.get_env_type(free_vars);
+        env_type = this->instantiate(env_type)->as<Type>();
 
-            //dst().DLOG("Old free variables for {} = {, }", ocont, free_vars);
+        //dst().DLOG("Old free variables for {} = {, }", ocont, free_vars);
 
-            Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
-                auto expected_fv_type = instantiate(free_vars[i]->type());
-                auto env = instantiate(free_vars[i]);
-                if (env->type()->isa<ReturnType>())
-                    env = dst().capture_return(env, env->debug());
-                assert(env->type() == expected_fv_type);
-                //dst().DLOG("Instantiated free variable {}:{} as {}:{}", free_vars[i], free_vars[i]->type(), env, env->type());
-                // it cannot be a basic block, and it cannot be top-level either
-                // if it used to be a continuation it should be a closure now.
-                assert(!env->isa_nom<Continuation>());
-                return env;
-            });
-
-            dst().DLOG("Instantiated environment variables for {} = {, }", ocont, instantiated_free_vars);
-
-            auto env_tuple = dst().tuple(instantiated_free_vars);
-            closure->set_env(env_tuple);
-            dst().DLOG("environment of '{}' rewritten as '{}' is {}: {}", ocont, ncont, env_tuple, env_tuple->type());
-            //closure->set_env(dst().heap_cell(env_tuple));
-            //dst().wdef(ncont, "closure '{}' is leaking memory, type '{}' is too large and must be heap allocated", closure, closure->env()->type());
-
-            assert(closure_param);
-            // make the wrapper load the pointer and pass each
-            // variable of the environment to the lifted continuation
-            auto loaded_env = dst().closure_env(env_type, ncont->mem_param(), closure_param);
-            auto env_data = dst().extract(loaded_env, 1_u32);
-            new_mem = dst().extract(loaded_env, 0_u32);
-            if (free_vars.size() == 1) {
-                auto captured = env_data;
-                captured->set_name(free_vars[0]->name() + "_captured");
-                body_rewriter->insert(free_vars[0], captured);
-            } else {
-                for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
-                    auto captured = dst().extract(env_data, i);
-                    captured->set_name(free_vars[i]->name() + "_captured");
-                    body_rewriter->insert(free_vars[i], captured);
-                }
-            }
-
-            // Map old params to new ones
-            for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
-                auto param = ncont->param(i);
-                if (ocont->mem_param() == ocont->param(i)) {
-                    // use the mem obtained after the load
-                    body_rewriter->insert(ocont->mem_param(), new_mem);
-                } else {
-                    body_rewriter->insert(ocont->param(i), param);
-                }
-            }
-
-            ncont->rebuild_from(*body_rewriter, ocont);
-
-            dst().DLOG("finished body of {}", ncont);
+        Array<const Def*> instantiated_free_vars = Array<const Def*>(free_vars.size(), [&](const int i) -> const Def* {
+            auto expected_fv_type = instantiate(free_vars[i]->type());
+            auto env = instantiate(free_vars[i]);
+            if (env->type()->isa<ReturnType>())
+                env = dst().capture_return(env, env->debug());
+            assert(env->type() == expected_fv_type);
+            //dst().DLOG("Instantiated free variable {}:{} as {}:{}", free_vars[i], free_vars[i]->type(), env, env->type());
+            // it cannot be a basic block, and it cannot be top-level either
+            // if it used to be a continuation it should be a closure now.
+            assert(!env->isa_nom<Continuation>());
+            return env;
         });
 
+        dst().DLOG("Instantiated environment variables for {} = {, }", ocont, instantiated_free_vars);
+
+        auto env_tuple = dst().tuple(instantiated_free_vars);
+        closure->set_env(env_tuple);
+        dst().DLOG("environment of '{}' rewritten as '{}' is {}: {}", ocont, ncont, env_tuple, env_tuple->type());
+        //closure->set_env(dst().heap_cell(env_tuple));
+        //dst().wdef(ncont, "closure '{}' is leaking memory, type '{}' is too large and must be heap allocated", closure, closure->env()->type());
+
+        assert(closure_param);
+        // make the wrapper load the pointer and pass each
+        // variable of the environment to the lifted continuation
+        auto loaded_env = dst().closure_env(env_type, ncont->mem_param(), closure_param);
+        auto env_data = dst().extract(loaded_env, 1_u32);
+        new_mem = dst().extract(loaded_env, 0_u32);
+        if (free_vars.size() == 1) {
+            auto captured = env_data;
+            captured->set_name(free_vars[0]->name() + "_captured");
+            body_rewriter->insert(free_vars[0], captured);
+        } else {
+            for (size_t i = 0, e = free_vars.size(); i != e; ++i) {
+                auto captured = dst().extract(env_data, i);
+                captured->set_name(free_vars[i]->name() + "_captured");
+                body_rewriter->insert(free_vars[i], captured);
+            }
+        }
+
+        // Map old params to new ones
+        for (size_t i = 0, e = ocont->num_params(); i != e; ++i) {
+            auto param = ncont->param(i);
+            if (ocont->mem_param() == ocont->param(i)) {
+                // use the mem obtained after the load
+                body_rewriter->insert(ocont->mem_param(), new_mem);
+            } else {
+                body_rewriter->insert(ocont->param(i), param);
+            }
+        }
+
+        ncont->rebuild_from(*body_rewriter, ocont);
+
+        dst().DLOG("finished body of {}", ncont);
 
         assert(ndef);
         return ndef;
@@ -550,12 +546,6 @@ void lift(Thorin& thorin) {
 
     for (auto& external : src->externals())
         converter.root_rewriter().instantiate(external.second);
-
-    while (!converter.todo_.empty()) {
-        auto f = converter.todo_.back();
-        converter.todo_.pop_back();
-        f();
-    }
 
     converter.validate_all_closure_fns_are_top_level();
     validate_all_returning_functions_top_level(*dst);

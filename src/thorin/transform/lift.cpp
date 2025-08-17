@@ -561,6 +561,7 @@ void lift(Thorin& thorin) {
 
     converter.validate_all_closure_fns_are_top_level();
     validate_all_returning_functions_top_level(*dst);
+    dst->mark_cff(true);
 
     src.swap(dst);
     thorin.cleanup();

@@ -297,6 +297,12 @@ public:
     bool is_pe_done() const { return state_.pe_done; }
     //@}
 
+    /// @name CFF
+    //@{
+    void mark_cff(bool flag = true) { state_.cff = flag; }
+    bool is_cff() const { return state_.cff; }
+    //@}
+
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
@@ -380,6 +386,7 @@ private:
         LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
+        bool cff = false;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;
         Breakpoints breakpoints;

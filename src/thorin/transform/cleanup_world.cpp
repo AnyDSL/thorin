@@ -79,9 +79,10 @@ bool Cleaner::eliminate_tail_rec_scope(thorin::Scope& scope) {
         for (size_t i = 0; i != n; ++i) {
             if (args[i] == nullptr) {
                 new_args.emplace_back(entry->param(i));
-                if (entry->param(i)->order() != 0) {
-                    // the resulting function wouldn't be of first order so examine next scope
-                    return false;
+                if (entry->param(i)->type()->isa<ReturnType>()) {
+                    // this would create a non-top level returning function and we aren't allowed those at this point
+                    if (world().is_cff())
+                        return false;
                 }
             }
         }

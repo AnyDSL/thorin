@@ -17,7 +17,7 @@ struct ClosureConverter {
     struct ScopeAnalysis {
         ClosureConverter& converter;
         Scope& scope;
-        DefSet free_vars;
+        std::vector<const Def*> free_vars;
         DefSet rematerialize;
         bool convert_to_closure = false;
 
@@ -27,8 +27,10 @@ struct ClosureConverter {
             // if we have to be closure converted - check out the free variables
             if (!convert_to_closure) {
                 convert_to_closure = true;
-                converter.spillable_free_defs(scope.entry(), free_vars, rematerialize);
-                for (auto fv : free_vars) {
+                DefSet free_vars_set;
+                converter.spillable_free_defs(scope.entry(), free_vars_set, rematerialize);
+                for (auto fv : free_vars_set) {
+                    free_vars.push_back(fv);
                     if (auto spill_this = fv->isa_nom<Continuation>()) {
                         converter.src().DLOG("{} appears as a free variable in {} and therefore must also be converted", fv, scope.entry());
                         converter.lookup(spill_this).promote_to_closure();
@@ -277,7 +279,6 @@ struct ClosureConverter {
     ScopeRewriter root_rewriter_;
     ScopesForest forest_;
     ContinuationMap<std::unique_ptr<ScopeAnalysis>> analysis_;
-    ContinuationMap<std::vector<const Def*>> lifted_env_;
     DefMap<Continuation*> as_continuations_;
     std::vector<std::function<void()>> todo_;
 
@@ -332,10 +333,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         body_rewriter = children_.back().get();
 
         // Compute all the free variables and record additional nodes to be rebuilt in this context
-        std::vector<const Def*> free_vars;
-        for (auto free : a.free_vars) {
-            free_vars.push_back(free);
-        }
+        auto& free_vars = a.free_vars;
 
         Closure* closure = nullptr;
         const Param* closure_param = nullptr;

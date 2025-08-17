@@ -419,7 +419,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                 }
             }
 
-            ncont->set_body(body_rewriter->instantiate(ocont->body())->as<App>());
+            ncont->rebuild_from(*body_rewriter, ocont);
 
             dst().DLOG("finished body of {}", ncont);
         });

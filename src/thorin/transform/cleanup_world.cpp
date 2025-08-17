@@ -122,7 +122,8 @@ void Cleaner::eliminate_params() {
         if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                bool is_call = use->isa_nom<App>() && use.index() == App::Ops::Callee;
+                if (use->isa<Param>()) continue;
+                bool is_call = use->isa<App>() && use.index() == App::Ops::Callee;
                 if (!is_call)
                     goto next_continuation;
             }
@@ -152,10 +153,11 @@ void Cleaner::eliminate_params() {
                 ocontinuation->destroy("cleanup: calls a parameter (permutated)");
 
                 for (auto use : ocontinuation->copy_uses()) {
-                    auto uapp = use->as<App>();
-                    assert(use.index() == 0);
-                    for (auto ucontinuation : uapp->using_continuations()) {
-                        ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                    auto uapp = use->isa<App>();
+                    if (!uapp) continue;
+                    assert(use.index() == App::Ops::Callee);
+                    for (auto caller : uapp->using_continuations()) {
+                        caller->jump(ncontinuation, uapp->args().cut(proxy_idx), caller->debug());
                         todo_ = true;
                     }
                 }

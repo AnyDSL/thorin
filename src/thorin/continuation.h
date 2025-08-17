@@ -80,8 +80,11 @@ public:
     Continuations using_continuations() const {
         std::vector<Continuation*> conts;
         for (auto use : uses()) {
-            if (auto cont = use->isa_nom<Continuation>())
+            if (auto cont = use->isa_nom<Continuation>()) {
+                // currently apps are not direct-style and don't yield values, but when that changes stuff will break!
+                assert(use.index() == App::Ops::Callee);
                 conts.push_back(cont);
+            }
         }
         return conts;
     }

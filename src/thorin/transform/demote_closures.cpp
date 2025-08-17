@@ -1,5 +1,7 @@
 #include "demote_closures.h"
 
+#include "thorin/analyses/scope.h"
+
 namespace thorin {
 
 struct ClosureDemoter {
@@ -32,9 +34,6 @@ struct ClosureDemoter {
                     called_directly.push_back(app);
                     continue;
                 }
-                //if (auto app = use.def()->isa<App>(); app && app->callee() == closure->fn() && (int) use.index() == closure->self_param()) {
-                //    continue;
-                //}
                 closure_needed = true;
             }
 
@@ -50,61 +49,41 @@ struct ClosureDemoter {
                         env = e;
                         continue;
                     }
+                    if (auto app = use.def()->isa<App>(); app && app->callee() == closure->fn() && (int) use.index() == App::Ops::FirstArg +closure->self_param()) {
+                        continue;
+                    }
                     self_param_ok = false;
                     break;
                 }
 
                 if (self_param_ok && !closure_needed) {
-                    //world_.VLOG("demote_closures: {} is called directly, which we can simplify", closure);
-                    //todo_ = true;
-
-                    // the wrapper type has the same params as the closure
-                    auto wrapper = world_.continuation(world_.fn_type(closure->type()->types()), closure->fn()->debug());
-
-                    // the regular params just get forwarded
-                    std::vector<const Def*> wrapper_args;
-                    for (auto p: wrapper->params_as_defs())
-                        wrapper_args.push_back(p);
-
-                    auto dummy_closure = world_.closure((closure->type())->as<ClosureType>());
-                    // the dummy closure environment is a new wrapper param (closure lives in wrapper scope)
-                    auto env_param = wrapper->append_param(closure->env()->type());
-                    dummy_closure->set_env(env_param);
-
                     auto fn = closure->fn();
+                    auto env_param = fn->append_param(closure->env()->type());
 
-                    // if the closure isn't needed at all, get rid of the self param uses
-                    // next round of dead param elimination will do it in
-                    if (!closure_needed) {
-                        if (env)
-                            env->replace_uses(world_.tuple({env->mem(), env_param}));
-                        auto dead_fn = world_.continuation(closure->fn()->type());
-                        dummy_closure->set_fn(dead_fn, closure->self_param());
-                        closure->unset_op(0);
-                        closure->set_fn(dead_fn, closure->self_param());
-                    } else {
-                        // the dummy closure has a dummy function and no self param
-                        // TODO: this duplicates the closure and that's no good
-                        // (later replace_uses screws up the scope of one of them)
-                        dummy_closure->set_fn(closure->fn(), closure->self_param());
-                    }
+                    if (env)
+                        env->replace_uses(world_.tuple({env->mem(), env_param}));
 
-                    // if we had a self param, make sure we insert the closure where that was
-                    wrapper_args.insert(wrapper_args.begin() + closure->self_param(), dummy_closure);
+                    auto old_fn_uses = fn->copy_uses();
 
-                    world_.VLOG("demoted closure {}", closure);
-                    wrapper->jump(world_.run(fn), wrapper_args);
+                    const Def* dummy_closure = world_.bottom(closure->type());
 
-                    replace_calls(called_directly, closure, wrapper);
+                    replace_calls(closure->copy_uses(), closure, fn, dummy_closure, closure->env(), env_param, 0);
+                    replace_calls(old_fn_uses, closure, fn, dummy_closure, closure->env(), env_param, 1);
                 }
             }
         }
     }
 
-    void replace_calls(std::vector<const App*>& calls, const Closure* closure, Continuation* wrapper) {
-        for (auto app : calls) {
+    void replace_calls(ArrayRef<Use> old_uses, const Closure* closure, Continuation* wrapper, const Def* dummy, const Def* env, const Def* env_param, int cut_args) {
+        Scope s(wrapper);
+        Array<const Def*> additional_args = {dummy, env};
+        Array<const Def*> additional_args_inside = {dummy, env_param};
+        for (auto use : old_uses) {
+            auto app = use->isa<App>();
+            if (!app) continue;
             world_.VLOG("demote_closures: {} calls closure {} which only consumes its environment, replacing with wrapper {}", app, closure, wrapper);
-            app->replace_uses(world_.app(wrapper, concat(static_cast<ArrayRef<const Def*>>(app->args()), closure->env()), app->debug()));
+            auto nargs = concat(app->args().skip_back(cut_args), s.contains(app) ? additional_args_inside : additional_args);
+            app->replace_uses(world_.app(wrapper, nargs, app->debug()));
             todo_ = true;
         }
     }

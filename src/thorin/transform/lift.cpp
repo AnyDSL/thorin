@@ -102,7 +102,7 @@ struct ClosureConverter {
         scan_siblings(scope.children_scopes());
 
         // convert any internal returning function
-        if (scope.entry()->is_returning() && !scope.entry()->is_external()) {
+        if (scope.entry()->is_returning() && !(scope.entry()->is_external() || scope.entry()->is_intrinsic())) {
             a.promote_to_closure();
         }
 
@@ -114,7 +114,7 @@ struct ClosureConverter {
 
         src().DLOG("Needs conversion: {} = {}", scope.entry(), a.convert_to_closure);
 
-        if (scope.entry()->is_external()) {
+        if (scope.entry()->is_external() || scope.entry()->is_intrinsic()) {
             assert(!a.convert_to_closure);
         }
     }
@@ -457,56 +457,64 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         }
 
         if (auto ncont = ncallee->isa_nom<Continuation>()) {
-            // ensure the BB arguments to intrinsics such as branch and match are left as continuations
+            size_t kernel_i = SIZE_MAX;
+            Continuation* old_body = nullptr;
+
+            if (ncont->is_accelerator()) {
+                // there is unfortunately no standardisation on which parameter is the body parameter for accelerators
+                // so we're going to play games here: let's assume only one body is a returning continuation
+                // TODO: make accelerator signatures more consistent
+                auto dom = ncont->type()->domain();
+                for (size_t i = 0; i < dom.size(); i++) {
+                    if (auto fnt = dom[i]->isa<FnType>(); fnt && fnt->is_returning()) {
+                        assert(kernel_i == SIZE_MAX);
+                        kernel_i = i;
+                        old_body = app->arg(i)->as_nom<Continuation>();
+                    }
+                }
+                assert(kernel_i != SIZE_MAX);
+                assert(old_body);
+            }
+
             if (ncont->is_intrinsic()) {
                 for (size_t i = 0; i < app->num_args(); i++) {
+                    // function arguments to accelerators have to be left alone,
+                    // but it's easier to let them be closure converted and undo it by lambda lifting
+                    // and dropping the closure inside the wrapper
+                    if (i == kernel_i) {
+                        auto closure = nargs[kernel_i]->as<Closure>();
+                        auto& free_vars = converter_.lookup(old_body).free_vars;
+                        Array<const Type*> instantiated_free_vars = Array<const Type*>(free_vars.size(), [&](const int i) -> const Type* {
+                            return instantiate(free_vars[i]->type())->as<Type>();
+                        });
+                        auto closure_env_type = dst().tuple_type(instantiated_free_vars);
+                        auto kernel_wrapper = dst().continuation(ncallee->type()->as<FnType>()->domain()[kernel_i]->as<FnType>());
+                        // TODO: make environments lists instead of tuples
+                        auto env_param = kernel_wrapper->append_param(closure_env_type);
+                        nargs.push_back(closure->env());
+                        auto inner_closure = dst().closure(closure->type(), closure->debug());
+                        inner_closure->set_fn(closure->fn(), closure->self_param());
+                        inner_closure->set_env(env_param);
+                        kernel_wrapper->jump(inner_closure, kernel_wrapper->params_as_defs().skip_back(1));
+                        nargs[kernel_i] = kernel_wrapper;
+                        // patch the callee - make up a new intrinsic that matches the kernel wrapper signature !
+                        auto nintrinsic_types = ncont->type()->copy_types();
+                        nintrinsic_types[kernel_i] = kernel_wrapper->type();
+                        auto nintrinsic = dst().continuation(dst().fn_type(nintrinsic_types), ncont->attributes(),ncont->debug());
+                        nintrinsic->append_param(closure_env_type);
+                        ncallee = nintrinsic;
+                        continue;
+                    }
+
+                    // ensure the BB arguments to intrinsics such as branch and match are left as continuations
                     auto pt = ncont->type()->types()[i];
                     if (pt->tag() == Node_FnType)
                         nargs[i] = converter_.as_continuation(nargs[i]);
                     else if (auto tuple_t = pt->isa<TupleType>(); tuple_t && tuple_t->types()[1]->tag() == Node_FnType) {
                         nargs[i] = dst().tuple({dst().extract(nargs[i], (u32) 0), converter_.as_continuation(dst().extract(nargs[i], (u32) 1)) });
                     }
-                };
-            }
-
-            if (ncont->is_accelerator()) {
-                // there is unfortunately no standardisation on which parameter is the body parameter for accelerators
-                // so we're going to play games here: let's assume only one body is a returning continuation
-                // TODO: make accelerator signatures more consistent
-                Continuation* body = nullptr;
-                size_t body_i;
-                for (size_t i = 0; i < app->num_args(); i++) {
-                    if (auto cont = nargs[i]->isa_nom<Continuation>(); cont && cont->type()->is_returning()) {
-                        assert(!body);
-                        body = cont;
-                        body_i = i;
-                    }
-                }
-                assert(body);
-                auto lifted_body_params = converter_.lifted_env_.lookup(body);
-
-                if (auto extra_params = converter_.lifted_env_.lookup(body); extra_params.has_value()) {
-                    // Update the type of the body parameter
-                    auto ntypes = ncont->type()->copy_types();
-                    ntypes[body_i] = body->type();
-
-                    // Add new parameters to the intrinsic call
-                    Continuation* naccelerator = dst().continuation(dst().fn_type(ntypes), ncont->attributes(), ncont->debug());
-                    for (auto extra : extra_params.value()) {
-                        auto narg = instantiate(extra);
-                        nargs.push_back(narg);
-                        naccelerator->append_param(narg->type());
-                    }
-                    ncallee = naccelerator;
                 }
             }
-
-            if (auto extra_params = converter_.lifted_env_.lookup(ncont); extra_params.has_value()) {
-                for (auto extra : extra_params.value()) {
-                    nargs.push_back(instantiate(extra));
-                }
-            }
-
         }
         return dst().app(ncallee, nargs, app->debug());
     }

@@ -1473,7 +1473,7 @@ void CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation)
     for (size_t i = 2, j = 0; i < body->num_args(); ++i) {
         args[j++] = emit(body->arg(i));
     }
-    auto callee = body->arg(1)->as<Global>()->init()->as_nom<Continuation>();
+    auto callee = body->arg(1)->as_nom<Continuation>();
     world().make_external(callee);
     irbuilder.CreateCall(emit_fun_decl(callee), args);
 }

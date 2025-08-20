@@ -26,19 +26,16 @@ Scheduler::Scheduler(const Scope& s, ScopesForest& forest)
         }
     };
 
-    for (auto n : cfg().reverse_post_order()) {
-        queue.push(n->continuation());
-        auto p = done.emplace(n->continuation());
-        assert_unused(p.second);
-    }
+    assert(s.entry()->has_body());
+    done.emplace(s.entry());
+    enqueue(s.entry(), 0, s.entry()->body());
 
     while (!queue.empty()) {
         auto def = pop(queue);
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             // all reachable continuations have already been registered above
             // NOTE we might still see references to unreachable continuations in the schedule
-            if (!def->op(i)->isa<Continuation>())
-                enqueue(def, i, def->op(i));
+            enqueue(def, i, def->op(i));
         }
     }
 
@@ -77,7 +74,8 @@ Continuation* Scheduler::late(const Def* def) {
     } else {
         for (auto use : uses(def)) {
             auto cont = late(use);
-            result = result ? domtree().least_common_ancestor(cfg(result), cfg(cont))->continuation() : cont;
+            result = result ? forest_->least_common_ancestor(result, cont) : cont;
+            assert(result);
         }
     }
 
@@ -90,6 +88,10 @@ Continuation* Scheduler::smart(const Def* def) {
     auto e = cfg(early(def));
     auto l = cfg(late (def));
     auto s = l;
+
+    // if the 'early' or 'late' BB in the schedule is statically unreachable, instead emit early
+    if (!e || !l)
+        return early(def);
 
     int depth = cfg().looptree()[l]->depth();
     for (auto i = l; i != e;) {

@@ -7,6 +7,7 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "demote_closures.h"
 
 namespace thorin {
 
@@ -19,7 +20,9 @@ public:
     World& world() { return thorin_.world(); }
     void cleanup();
     void eliminate_tail_rec();
+    bool eliminate_tail_rec_scope(Scope&);
     void eliminate_params();
+    void demote_closures();
     void rebuild();
     void verify_closedness();
     void within(const Def*);
@@ -32,68 +35,83 @@ private:
     bool todo_ = true;
 };
 
+bool Cleaner::eliminate_tail_rec_scope(thorin::Scope& scope) {
+    auto entry = scope.entry();
+
+    bool only_tail_calls = true;
+    bool recursive = false;
+    for (auto use : entry->uses()) {
+        if (scope.contains(use)) {
+            if (use.index() == App::Ops::Callee && use->isa<App>()) {
+                recursive = true;
+                continue;
+            } else if (use->isa<Param>())
+                continue; // ignore params
+
+            world().ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
+            only_tail_calls = false;
+            break;
+        }
+    }
+
+    if (recursive && only_tail_calls) {
+        auto n = entry->num_params();
+        Array<const Def*> args(n);
+
+        for (size_t i = 0; i != n; ++i) {
+            args[i] = entry->param(i);
+
+            for (auto use : entry->uses()) {
+                if (scope.contains(use.def())) {
+                    auto app = use->isa<App>();
+                    if (!app) continue;
+                    auto arg = app->arg(i);
+                    if (!arg->isa<Bottom>() && arg != args[i]) {
+                        args[i] = nullptr;
+                        break;
+                    }
+                }
+            }
+        }
+
+        std::vector<const Def*> new_args;
+
+        for (size_t i = 0; i != n; ++i) {
+            if (args[i] == nullptr) {
+                new_args.emplace_back(entry->param(i));
+                if (entry->param(i)->type()->isa<ReturnType>()) {
+                    // this would create a non-top level returning function and we aren't allowed those at this point
+                    if (world().is_cff())
+                        return false;
+                }
+            }
+        }
+
+        if (new_args.size() != n) {
+            world().DLOG("tail recursive: {}", entry);
+            auto dropped = drop(scope, args);
+
+            entry->jump(dropped, new_args);
+            todo_ = true;
+            // scope.update();
+            return true;
+        }
+    }
+    return false;
+}
+
 void Cleaner::eliminate_tail_rec() {
-    ScopesForest(world()).for_each([&](Scope& scope) {
-        auto entry = scope.entry();
-
-        bool only_tail_calls = true;
-        bool recursive = false;
-        for (auto use : entry->uses()) {
-            if (scope.contains(use)) {
-                if (use.index() == 0 && use->isa<App>()) {
-                    recursive = true;
-                    continue;
-                } else if (use->isa<Param>())
-                    continue; // ignore params
-
-                world().ELOG("non-recursive usage of {} index:{} use:{}", scope.entry()->name(), use.index(), use.def()->to_string());
-                only_tail_calls = false;
-                break;
-            }
+    while (true) {
+        ScopesForest forest(world());
+        for (auto cont : world().copy_continuations()) {
+            Scope& s = forest.get_scope(cont);
+            if (eliminate_tail_rec_scope(s))
+                goto clear_scope_forest;
         }
-
-        if (recursive && only_tail_calls) {
-            auto n = entry->num_params();
-            Array<const Def*> args(n);
-
-            for (size_t i = 0; i != n; ++i) {
-                args[i] = entry->param(i);
-
-                for (auto use : entry->uses()) {
-                    if (scope.contains(use.def())) {
-                        auto app = use->isa<App>();
-                        if (!app) continue;
-                        auto arg = app->arg(i);
-                        if (!arg->isa<Bottom>() && arg != args[i]) {
-                            args[i] = nullptr;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            std::vector<const Def*> new_args;
-
-            for (size_t i = 0; i != n; ++i) {
-                if (args[i] == nullptr) {
-                    new_args.emplace_back(entry->param(i));
-                    if (entry->param(i)->order() != 0) {
-                        // the resulting function wouldn't be of first order so examine next scope
-                        return;
-                    }
-                }
-            }
-
-            if (new_args.size() != n) {
-                world().DLOG("tail recursive: {}", entry);
-                auto dropped = drop(scope, args);
-
-                entry->jump(dropped, new_args);
-                todo_ = true;
-                scope.update();
-            }
-        }
-    });
+        break;
+        clear_scope_forest:
+        continue;
+    }
 }
 
 void Cleaner::eliminate_params() {
@@ -105,7 +123,9 @@ void Cleaner::eliminate_params() {
         if (ocontinuation->has_body() && !world().is_external(ocontinuation)) {
             auto obody = ocontinuation->body();
             for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_nom<Continuation>())
+                if (use->isa<Param>()) continue;
+                bool is_call = use->isa<App>() && use.index() == App::Ops::Callee;
+                if (!is_call)
                     goto next_continuation;
             }
 
@@ -134,10 +154,11 @@ void Cleaner::eliminate_params() {
                 ocontinuation->destroy("cleanup: calls a parameter (permutated)");
 
                 for (auto use : ocontinuation->copy_uses()) {
-                    auto uapp = use->as<App>();
-                    assert(use.index() == 0);
-                    for (auto ucontinuation : uapp->using_continuations()) {
-                        ucontinuation->jump(ncontinuation, uapp->args().cut(proxy_idx), ucontinuation->debug());
+                    auto uapp = use->isa<App>();
+                    if (!uapp) continue;
+                    assert(use.index() == App::Ops::Callee);
+                    for (auto caller : uapp->using_continuations()) {
+                        caller->jump(ncontinuation, uapp->args().cut(proxy_idx), caller->debug());
                         todo_ = true;
                     }
                 }
@@ -145,6 +166,10 @@ void Cleaner::eliminate_params() {
         }
 next_continuation:;
     }
+}
+
+void Cleaner::demote_closures() {
+    todo_ |= thorin::demote_closures(*thorin_.world_container());
 }
 
 void Cleaner::rebuild() {
@@ -240,6 +265,9 @@ void Cleaner::cleanup_fix_point() {
         rebuild();
         eliminate_tail_rec();
         eliminate_params();
+        verify(world());
+        demote_closures();
+        verify(world());
         rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();

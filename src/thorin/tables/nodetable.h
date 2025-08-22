@@ -12,9 +12,11 @@
             THORIN_NODE(BlobPtr, mem_blob)
         // MemOp
             THORIN_NODE(Alloc, alloc)
+            THORIN_NODE(Cell, cell)
             // Access
                 THORIN_NODE(Load, load)
                 THORIN_NODE(Store, store)
+            THORIN_NODE(ClosureEnv, closure_env)
             THORIN_NODE(Enter, enter)
             THORIN_NODE(Leave, leave)
         THORIN_NODE(Select, select)
@@ -36,6 +38,7 @@
         THORIN_NODE(StructAgg, struct_agg)
         THORIN_NODE(Vector, vector)
         THORIN_NODE(Closure, closure)
+        THORIN_NODE(CaptureReturn, capture_return)
         THORIN_NODE(Extract, extract)
         THORIN_NODE(Insert, insert)
         THORIN_NODE(LEA, lea)
@@ -45,13 +48,15 @@
         THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
     THORIN_NODE(Filter, filter)
+    THORIN_NODE(App, app)
+    THORIN_NODE(ReturnPoint, return_point)
     // Type
         // PrimType
         THORIN_NODE(Star, star)
-        THORIN_NODE(App, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(FnType, fn)
         THORIN_NODE(ClosureType, closure_type)
+        THORIN_NODE(ReturnType, return_type)
         THORIN_NODE(FrameType, frame)
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
         THORIN_NODE(Lambda, lambda)

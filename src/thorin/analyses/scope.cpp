@@ -323,6 +323,29 @@ ContinuationSet ScopesForest::top_level_scopes() {
     return set;
 }
 
+
+std::vector<Continuation*> ScopesForest::parent_scopes_path(Continuation* s) {
+    std::vector<Continuation*> path;
+    while (s) {
+        path.insert(path.begin(), s);
+        s = get_scope(s).parent_scope();
+    }
+    return path;
+}
+
+Continuation* ScopesForest::least_common_ancestor(Continuation* a, Continuation* b) {
+    Scope& sa = get_scope(a);
+    Scope& sb = get_scope(b);
+    auto path_a = parent_scopes_path(a);
+    auto path_b = parent_scopes_path(b);
+    Continuation* best_ancestor = nullptr;
+    for (size_t i = 0; i < path_a.size() && i < path_b.size(); i++) {
+        if (path_b[i] == path_a[i])
+            best_ancestor = path_a[i];
+    }
+    return best_ancestor;
+}
+
 template<bool elide_empty>
 void ScopesForest::for_each(std::function<void(Scope&)> f) {
     for (auto cont : top_level_scopes()) {

@@ -66,16 +66,25 @@ public:
     };
 
     const Def* callee() const { return op(Ops::Callee); }
+    const FnType* callee_type() const { return callee()->type()->as<FnType>(); }
     const Def* arg(size_t i) const { return op(Ops::FirstArg + i); }
     size_t num_args() const { return num_ops() - Ops::FirstArg; }
     const Defs args() const { return ops().skip_front(Ops::FirstArg); }
+    const Def* ret_arg() const {
+        if (auto index = callee_type()->ret_param_index(); index >= 0)
+            return arg(index);
+        return nullptr;
+    }
     const Def* rebuild(World&, const Type*, Defs) const override;
 
     Continuations using_continuations() const {
         std::vector<Continuation*> conts;
         for (auto use : uses()) {
-            if (auto cont = use->isa_nom<Continuation>())
+            if (auto cont = use->isa_nom<Continuation>()) {
+                // currently apps are not direct-style and don't yield values, but when that changes stuff will break!
+                assert(use.index() == App::Ops::Callee);
                 conts.push_back(cont);
+            }
         }
         return conts;
     }
@@ -83,6 +92,23 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     bool verify() const;
 
+    friend class World;
+};
+
+class ReturnPoint : public Def {
+    ReturnPoint(World&, const Continuation* destination, Debug dbg);
+
+public:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+    Continuation* continuation() const { return op(0)->as_nom<Continuation>(); }
+    friend class World;
+};
+
+class CaptureReturn : public Def {
+    CaptureReturn(World&, const Def* ret, Debug dbg);
+
+public:
+    const Def* rebuild(World&, const Type*, Defs) const override;
     friend class World;
 };
 

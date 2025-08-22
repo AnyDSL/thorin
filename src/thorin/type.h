@@ -59,11 +59,20 @@ template<class T>
 class TypeOpsMixin {
 public:
     Types types() const {
-        Defs defs = static_cast<const T*>(this)->ops();
+        auto it = static_cast<const T*>(this);
+        Defs defs = it->ops();
         const Def* const* ptr = defs.begin();
         auto ptr2 = reinterpret_cast<const Type* const*>(ptr);
         auto types = Types(ptr2, defs.size());
         return types;
+    }
+
+    Array<const Type*> copy_types() const {
+        auto it = static_cast<const T*>(this);
+        auto copy = Array<const Type*>(it->num_ops(), [&](int i) -> const Type* {
+            return it->op(i)->template as<Type>();
+        });
+        return copy;
     }
 };
 
@@ -267,6 +276,8 @@ inline bool is_thin(const Type* type) {
     return type->isa<PrimType>() || type->isa<PtrType>() || is_type_unit(type);
 }
 
+class ReturnType;
+
 class FnType : public Type, public TypeOpsMixin<FnType> {
 protected:
     FnType(World& world, Defs ops, NodeTag tag, Debug dbg)
@@ -277,7 +288,12 @@ protected:
 
 public:
     bool is_basicblock() const { return order() == 1; }
-    bool is_returning() const;
+    bool is_returning() const { return ret_param_index() >= 0; }
+    const ReturnType* return_param_type() const;
+    int ret_param_index() const;
+
+    Array<const Type*> domain() const;
+    std::optional<Array<const Type*>> codomain() const;
 
 private:
     const Type* rebuild(World&, const Type*, Defs) const override;
@@ -300,6 +316,17 @@ public:
 
 private:
     int inner_order_;
+
+    friend class World;
+};
+
+class ReturnType : public FnType {
+private:
+    ReturnType(World& world, Defs ops, Debug dbg) : FnType(world, ops, Node_ReturnType, dbg) {}
+
+public:
+    const Type* rebuild(World&, const Type*, Defs) const override;
+    const Type* mangle_for_codegen() const;
 
     friend class World;
 };

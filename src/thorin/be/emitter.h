@@ -68,13 +68,34 @@ protected:
     /// As above but returning @c !child().is_valid(value) is permitted.
     Value emit_unsafe(const Def* def) {
         if (auto val = defs_.lookup(def)) return *val;
-        if (auto cont = def->isa_nom<Continuation>()) return defs_[cont] = child().emit_fun_decl(cont);
+        if (auto cont = def->isa_nom<Continuation>()) {
+            if (cont->has_body())
+                queue_scope(cont);
+            return defs_[cont] = child().emit_fun_decl(cont);
+        }
 
         auto val = emit_(def);
         return defs_[def] = val;
     }
 
+    void queue_scope(Continuation* entry) {
+        if (entry->has_body())
+            scopes_to_emit_.push(entry);
+    }
+
+    void emit_scopes(ScopesForest& forest) {
+        while (!scopes_to_emit_.empty()) {
+            auto entry = scopes_to_emit_.pop();
+            Scope& scope = forest.get_scope(entry);
+            emit_scope(scope, forest);
+        }
+    }
+
+private:
     void emit_scope(const Scope& scope, ScopesForest& forest) {
+        if (emitted_scopes_.contains(scope.entry()))
+            return;
+        emitted_scopes_.insert(scope.entry());
         scope_ = &scope;
         auto conts = schedule(scope);
         entry_ = scope.entry();
@@ -101,10 +122,13 @@ protected:
         scope_ = nullptr;
     }
 
+protected:
     Scheduler scheduler_;
     DefMap<Value> defs_;
     DefMap<Type> types_;
     ContinuationMap<BB> cont2bb_;
+    unique_queue<ContinuationSet> scopes_to_emit_;
+    DefSet emitted_scopes_;
     Continuation* entry_ = nullptr;
     const Scope* scope_ = nullptr;
 };

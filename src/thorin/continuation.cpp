@@ -24,6 +24,10 @@ const Def* Param::rebuild(World&, const Type*, Defs defs) const {
     const Def* c = defs[0];
     if (auto r = c->isa<Run>())
         c = r->def()->as_nom<Continuation>();
+    // required when rewriting a fn as a closure (say, during closure conversion)
+    while (auto closure = c->isa<Closure>()) {
+        c = closure->fn();
+    }
     auto cont = c->as<Continuation>();
     return cont->param(index());
 }
@@ -54,9 +58,32 @@ bool App::verify() const {
     for (size_t i = 0; i < num_args(); i++) {
         auto pt = callee_type->op(i);
         auto at = arg(i)->type();
-        assertf(pt == at, "app node argument {} has type {} but the callee was expecting {}", this, at, pt);
+        assertf(pt == at, "app node {} argument #{} has type {} but the callee was expecting {}", this, i, at, pt);
     }
     return true;
+}
+
+//------------------------------------------------------------------------------
+
+ReturnPoint::ReturnPoint(World& world, const Continuation* destination, Debug dbg) : Def(world, Node_ReturnPoint, world.return_type(destination->type()->types()), {destination }, dbg) {}
+
+const Def* ReturnPoint::rebuild(World& world, const Type*, Defs nops) const {
+    auto def = nops.front();
+    // TODO: have some kind of generalised mechanism to obtain the 'real' def
+    //while (auto run = def->isa<Run>()) {
+    //    def = run->def();
+    //}
+    //while (auto closure = def->isa<Closure>()) {
+    //    def = closure->fn();
+    //}
+    return world.return_point(def->as<Continuation>());
+}
+
+CaptureReturn::CaptureReturn(World& world, const Def* ret, Debug dbg)
+    : Def(world, Node_CaptureReturn, world.closure_type(ret->type()->as<ReturnType>()->types()), { ret }, dbg) {}
+
+const Def* CaptureReturn::rebuild(World& w, const Type* t, Defs o) const {
+    return w.capture_return(o[0], debug());
 }
 
 //------------------------------------------------------------------------------
@@ -145,14 +172,8 @@ const Param* Continuation::ret_param() const {
             return nullptr;
         default: break;
     }
-    const Param* result = nullptr;
-    for (auto param : params()) {
-        if (param->order() >= 1) {
-            assertf(is_intrinsic() || result == nullptr, "only one ret_param allowed");
-            result = param;
-        }
-    }
-    return result;
+    int ret_param = type()->ret_param_index();
+    return (ret_param > 0) ? param(ret_param) : nullptr;
 }
 
 void Continuation::destroy(const char* cause) {

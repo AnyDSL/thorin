@@ -177,7 +177,10 @@ public:
             wrapper->jump(lifted, wrapper_args);
 
             auto closure_type = convert_type(continuation->type());
-            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
+            auto closure = world_.closure(closure_type->as<ClosureType>(), continuation->debug());
+            closure->set_fn(wrapper, env_param_index);
+            closure->set_env(thin_env ? free_vars[0] : world_.tuple(free_vars));
+            return closure;
         } else {
             if (new_defs_.count(def)) return new_defs_[def];
             if (def->isa<Param>() || def->isa<Closure>())

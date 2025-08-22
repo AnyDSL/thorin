@@ -31,8 +31,10 @@
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
+#include "thorin/transform/lift.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "thorin/transform/lower_closure_env.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/util/array.h"
 
@@ -1053,6 +1055,14 @@ const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debu
     return cse(new Alloc(*this, type, mem, extra, dbg));
 }
 
+const Def* World::closure_env(const Type* type, const thorin::Def* mem, const thorin::Def* src, thorin::Debug dbg) {
+    if (auto closure = src->isa<Closure>()) {
+        assert(closure->env()->type() == type);
+        return tuple({mem, closure->env()});
+    }
+    return cse(new ClosureEnv(*this, type, mem, src, dbg));
+}
+
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
     return cse(new Global(*this, init, is_mutable, dbg));
 }
@@ -1154,6 +1164,25 @@ const Filter* World::filter(const Defs defs, Debug dbg) {
 
 /// App node does its own folding during construction, and it only sets the ops once
 const App* World::app(const Def* callee, const Defs args, Debug dbg) {
+    while (true) {
+        if (auto ret = callee->isa<ReturnPoint>()) {
+            callee = ret->continuation();
+            continue;
+        }
+        if (auto capture = callee->isa<CaptureReturn>()) {
+            callee = capture->op(0);
+            continue;
+        }
+        if (auto closure = callee->isa<Closure>()) {
+            // closures calls without self params can be eliminated
+            //if (closure->self_param() < 0) {
+            //    callee = closure->fn();
+            //    continue;
+            //}
+        }
+        break;
+    }
+
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             // See also mangle::instantiate when modifying this.
@@ -1185,12 +1214,43 @@ const App* World::app(const Def* callee, const Defs args, Debug dbg) {
         }
     }
 
-    Array<const Def*> ops(1 + args.size());
-    ops[0] = callee;
+    Array<const Def*> ops(App::Ops::FirstArg + args.size());
+    ops[App::Ops::Callee] = callee;
     for (size_t i = 0; i < args.size(); i++)
-        ops[i + 1] = args[i];
+        ops[App::Ops::FirstArg + i] = args[i];
 
     return cse(new App(*this, ops, dbg));
+}
+
+const Def* World::return_point(const thorin::Continuation* destination, thorin::Debug dbg) {
+    // We need a slightly different flavor of eta-conversion here
+    // regular eta-conversion will not turn `cont() { ret(...) }` into `ret` because the types wouldn't match
+    // but we're wrapping the cont here so we can do just that!
+    if (destination->has_body()) {
+        auto dbody = destination->body();
+        assert(dbody->callee() != destination);
+
+        auto can_eta_reduce = [&]() -> bool {
+            if (dbody->args() == destination->params_as_defs()) {
+                // ensure the callee is free in destination
+                // (otherwise it might be constructed from the destination params)
+                Scope s((Continuation*) destination);
+                if (!s.contains(dbody->callee())) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (dbody->callee()->type()->isa<ReturnType>() && can_eta_reduce()) {
+            VLOG("simplify: return_point with continuation {} just returns to another one {}", destination->unique_name(), dbody->callee());
+            return dbody->callee();
+        } else if (auto captured_ret = dbody->callee()->isa<CaptureReturn>(); captured_ret && can_eta_reduce()) {
+            VLOG("simplify: return_point with continuation {} just calls a captured return {}", destination->unique_name(), dbody->callee());
+            return captured_ret->op(0);
+        }
+    }
+    return cse(new ReturnPoint(*this, destination, dbg));
 }
 
 /*
@@ -1318,15 +1378,17 @@ void Thorin::opt() {
 }
 
     RUN_PASS(cleanup())
-    RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
+    //RUN_PASS(while (partial_evaluation(world(), true))); // lower2cff
     RUN_PASS(flatten_tuples(*this))
     RUN_PASS(split_slots(*this))
-    RUN_PASS(closure_conversion(world()))
-    RUN_PASS(lift_builtins(*this))
-    RUN_PASS(inliner(*this))
+    RUN_PASS(lift(*this));
+    //RUN_PASS(closure_conversion(world()))
+    //RUN_PASS(lift_builtins(*this))
+    //RUN_PASS(inliner(*this))
     RUN_PASS(hoist_enters(*this))
     RUN_PASS(dead_load_opt(world()))
-    RUN_PASS(cleanup())
+    RUN_PASS(lower_closure_env(*this));
+    //RUN_PASS(cleanup())
     RUN_PASS(codegen_prepare(*this))
 }
 

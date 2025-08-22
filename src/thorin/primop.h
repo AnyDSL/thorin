@@ -225,6 +225,11 @@ protected:
     Aggregate(World& world, NodeTag tag, Defs args, Debug dbg)
         : Def(world, tag, nullptr /*set later*/, args, dbg)
     {}
+
+    /// nominal aggregate ctor
+    Aggregate(World& world, NodeTag tag, const Type* t, size_t size, Debug dbg)
+        : Def(world, tag, t, size, dbg)
+    {}
 };
 
 /// Data constructor for a \p DefiniteArrayType.
@@ -331,19 +336,28 @@ public:
 /// Data constructor for a @p ClosureType.
 class Closure : public Aggregate {
 private:
-    Closure(World& world, const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg)
-        : Aggregate(world, Node_Closure, {fn, env}, dbg)
+    Closure(World& world, const ClosureType* closure_type, Debug dbg)
+        : Aggregate(world, Node_Closure, closure_type, 2, dbg)
     {
-        set_type(closure_type);
+        //dep_ = env->dep();
     }
 
-    const Def* rebuild(World&, const Type*, Defs) const override;
+    void rebuild_from(thorin::Rewriter &, const thorin::Def *old) override;
+    Def* stub(thorin::Rewriter &, const thorin::Type *) const override;
 
+    int self_param_ = -1;
 public:
+    void set_fn(Continuation* f, int self_param);
+    void set_env(const Def* env) {
+        set_op(1, env);
+    }
+    Continuation* fn() const;
+    const Def* env() const { return op(1); }
+    int self_param() const { return self_param_; }
     static const Type*    environment_type(World&);
     static const PtrType* environment_ptr_type(World&);
 
-    Continuation* fn() const;
+    const ClosureType* type() const { return Aggregate::type()->as<ClosureType>(); }
 
     friend class World;
 };
@@ -566,6 +580,22 @@ private:
     bool equal(const Def* other) const override { return this == other; }
 };
 
+class ClosureEnv : public MemOp {
+private:
+    ClosureEnv(World& world, const Type* type, const Def* mem, const Def* src, Debug dbg);
+
+public:
+    bool has_multiple_outs() const override { return true; }
+    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+    const Type* env_type() const { return type()->types()[1]; }
+    const Def* src() const { return op(1); }
+
+private:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
 /// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:
@@ -581,6 +611,21 @@ public:
 
 private:
     const Def* rebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
+/// Allocates and initialises constant memory, does not use a memory token
+class Cell : public Def {
+private:
+    Cell(World& w, const Type* t, const Def* contents, bool heap, Debug dbg) : Def(w, Node_Cell, t, {contents }, dbg), heap_(heap) {}
+public:
+
+    const Def* contents() const { return op(0); }
+    bool is_heap_allocated() const { return heap_; }
+private:
+    const Def* rebuild(World&, const Type*, Defs) const override;
+    bool heap_;
 
     friend class World;
 };

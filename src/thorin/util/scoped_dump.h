@@ -31,6 +31,7 @@ struct ScopedWorld : public Streamable<ScopedWorld> {
 
     mutable DefSet done_;
     mutable ContinuationMap<std::unique_ptr<std::vector<const Def*>>> scopes_to_defs_;
+    mutable DefSet nom_done_;
     mutable std::vector<const Def*> top_lvl_;
     Config config_;
 

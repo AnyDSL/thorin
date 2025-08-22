@@ -47,27 +47,40 @@ Id CodeGen::get_codom_type(const FnType* fn) {
     return codom;
 }
 
+bool CodeGen::should_emit(const thorin::Type* type) {
+    if (type == world().mem_type())
+        return false;
+    if (type->isa<ReturnType>())
+        return false;
+    auto converted = convert_maybe_void(type);
+    if (converted.id == builder_->declare_void_type())
+        return false;
+    return true;
+}
+
 std::tuple<std::vector<Id>, Id> CodeGen::get_dom_codom(const FnType* fn) {
-    Id ret = 0;
     std::vector<Id> ops;
-    for (auto op : fn->types()) {
-        auto fn_type = op->isa<FnType>();
-        if (fn_type && !op->isa<ClosureType>()) {
-            assert(!ret && "only one 'return' supported");
-            std::vector<const Type*> ret_types;
-            for (auto fn_op : fn_type->types()) {
-                if (!should_emit(fn_op))
-                    continue;
-                ret_types.push_back(fn_op);
-            }
-            if (ret_types.size() == 1)
-                ret = convert_maybe_void(ret_types.back()).id;
-            else
-                ret = convert_maybe_void(world().tuple_type(ret_types)).id;
-        } else if (!should_emit(op))
+    for (auto op : fn->domain()) {
+        if (!should_emit(op))
             continue;
         else
             ops.push_back(convert(op).id);
+    }
+
+    Id ret;
+    if (auto codom = fn->codomain()) {
+        std::vector<const Type*> ret_types;
+        for (auto fn_op : *codom) {
+            if (!should_emit(fn_op))
+                continue;
+            ret_types.push_back(fn_op);
+        }
+        if (ret_types.size() == 1)
+            ret = convert_maybe_void(ret_types.back()).id;
+        else
+            ret = convert_maybe_void(world().tuple_type(ret_types)).id;
+    } else {
+        ret = convert_maybe_void(world().unit_type()).id;
     }
     return std::make_tuple(ops, ret);
 }

@@ -8,11 +8,19 @@ namespace thorin {
 
 // TODO this needs serious rewriting
 
-static bool verify_calls(World& world, ScopesForest&) {
+static bool verify_calls(World& world, ScopesForest& forest) {
     bool ok = true;
     for (auto def : world.defs()) {
         if (auto cont = def->isa<Continuation>())
             ok &= cont->verify();
+        if (auto closure = def->isa<Closure>()) {
+            world.VLOG("verifying closure '{}'", closure);
+            auto& scope = forest.get_scope(closure->fn());
+            if (scope.parent_scope()) {
+                world.ELOG("Closure {} has a non-top level fn: {}", closure, closure->fn());
+                ok = false;
+            }
+        }
     }
     return ok;
 }

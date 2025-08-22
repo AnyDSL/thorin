@@ -129,8 +129,11 @@ void ScopedWorld::stream_def(thorin::Stream& s, const thorin::Def* def) const {
         return;
     }
     if (def->isa_nom()) {
-        s.fmt("{}", def->unique_name());
-        return;
+        if (nom_done_.contains(def)) {
+            s.fmt("{}", def->unique_name());
+            return;
+        }
+        nom_done_.insert(def);
     }
 
     s.fmt(Green);

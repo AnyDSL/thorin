@@ -124,6 +124,7 @@ public:
     const FnType* fn_type() { return fn_type({}); } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args);
     const ClosureType* closure_type(Types args);
+    const ReturnType* return_type(Types args);
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim);
     const IndefiniteArrayType* indefinite_array_type(const Type* elem);
 
@@ -195,7 +196,7 @@ public:
     const Def* variant_index  (const Def* value, Debug dbg = {});
     const Def* variant_extract(const Def* value, size_t index, Debug dbg = {});
 
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(*this, closure_type, fn, env, dbg)); }
+    Closure* closure(const ClosureType* closure_type, Debug dbg = {}) { return put<Closure>(*this, closure_type, dbg); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(cse(new Vector(*this, args, dbg)));
@@ -250,6 +251,9 @@ public:
     const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(*this, type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* closure_env(const Type* env_type, const Def* mem, const Def* closure, Debug dbg = {});
+    const Def* heap_cell(const Def* contents, Debug dbg = {}) { return cse(new Cell(*this, ptr_type(contents->type()), contents, true, dbg)); }
+    const Def* stack_cell(const Def* contents, Debug dbg = {}) { return cse(new Cell(*this, ptr_type(contents->type()), contents, false, dbg)); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
@@ -275,6 +279,9 @@ public:
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return data_.end_scope_; }
     const App* app(const Def* callee, const Defs args, Debug dbg = {});
+    const Def* return_point(const Continuation* destination, Debug dbg = {});
+    /// turns a return value into a closure, which can be captured (return values cannot be captured)
+    const Def* capture_return(const Def* ret, Debug dbg = {}) { return cse(new CaptureReturn(*this, ret, dbg)); }
     const Filter* filter(const Defs, Debug dbg = {});
 
     // getters
@@ -288,6 +295,12 @@ public:
     //@{
     void mark_pe_done(bool flag = true) { state_.pe_done = flag; }
     bool is_pe_done() const { return state_.pe_done; }
+    //@}
+
+    /// @name CFF
+    //@{
+    void mark_cff(bool flag = true) { state_.cff = flag; }
+    bool is_cff() const { return state_.cff; }
     //@}
 
 #if THORIN_ENABLE_CHECKS
@@ -373,6 +386,7 @@ private:
         LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
+        bool cff = false;
 #if THORIN_ENABLE_CHECKS
         bool track_history = false;
         Breakpoints breakpoints;

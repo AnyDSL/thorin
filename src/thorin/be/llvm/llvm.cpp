@@ -141,29 +141,28 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_ClosureType:
         case Node_FnType: {
             // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
-            llvm::Type* ret = nullptr;
+            auto tfn_type = type->as<FnType>();
+            llvm::Type* ret = llvm::Type::getVoidTy(context()); // top-level non-returning continuations should be void
             std::vector<llvm::Type*> ops;
-            for (auto op : fn->types()) {
+            for (auto op : tfn_type->domain()) {
                 if (op->isa<MemType>() || op == world().unit_type()) continue;
-                auto fn = op->isa<FnType>();
-                if (fn && !op->isa<ClosureType>()) {
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<llvm::Type*> ret_types;
-                    for (auto fn_op : fn->types()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
-                        ret_types.push_back(convert(fn_op));
-                    }
-                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
-                    else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(context(), ret_types);
-                } else
-                    ops.push_back(convert(op));
+                ops.push_back(convert(op));
             }
 
-            if (!ret) {
-                ret = llvm::Type::getVoidTy(context());
+            if (tfn_type->is_returning()) {
+                auto ret_ty = tfn_type->return_param_type();
+                assert(ret_ty);
+                std::vector<llvm::Type*> ret_types;
+                for (auto fn_op : ret_ty->types()) {
+                    if (fn_op->isa<MemType>() || fn_op == world().unit_type()) continue;
+                    ret_types.push_back(convert(fn_op));
+                }
+                if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context());
+                else if (ret_types.size() == 1) ret = ret_types.back();
+                else                            ret = llvm::StructType::get(context(), ret_types);
             }
+
+            assert(ret);
 
             if (type->tag() == Node_FnType) {
                 auto llvm_type = llvm::FunctionType::get(ret, ops, false);
@@ -171,9 +170,16 @@ llvm::Type* CodeGen::convert(const Type* type) {
             }
 
             auto env_type = convert(Closure::environment_type(world()));
-            auto ptr_type = llvm::PointerType::get(context(), 0);
+            ops.push_back(env_type);
+            auto fn_type = llvm::FunctionType::get(ret, ops, false);
+            auto ptr_type = llvm::PointerType::get(fn_type, 0);
             llvm_type = llvm::StructType::get(context(), { ptr_type, env_type });
             return types_[type] = llvm_type;
+        }
+        case Node_ReturnType: {
+            auto ret_t = type->as<ReturnType>();
+            auto tuple_t = world().tuple_type({ ret_t->mangle_for_codegen(), world().definite_array_type(world().type_qu8(), 200) });
+            return types_[type] = convert(world().ptr_type(tuple_t));
         }
 
         case Node_StructType: {
@@ -334,7 +340,7 @@ CodeGen::emit_module() {
 
         Scope& scope = forest.get_scope(todo);
 
-        emit_scope(scope, forest);
+        queue_scope(todo);
 
         for(auto free : scope.free_frontier()) {
             if (const Continuation* cont_const = free->isa<Continuation>()) {
@@ -350,6 +356,8 @@ CodeGen::emit_module() {
         }
     }
 
+    emit_scopes(forest);
+
     if (debug()) dibuilder_.finalize();
 
 #if THORIN_ENABLE_RV
@@ -359,6 +367,8 @@ CodeGen::emit_module() {
 
     rv::lowerIntrinsics(module());
 #endif
+
+    emit_scopes(forest);
 
     verify();
     optimize();
@@ -427,6 +437,9 @@ llvm::Function* CodeGen::prepare(const Scope& scope) {
         discope_ = disub_program;
     }
 
+    has_alloca_ = false;
+    potential_tailcalls_.clear();
+
     return fct;
 }
 
@@ -478,6 +491,10 @@ void CodeGen::finalize(const Scope&) {
         if (auto variant = def->isa<Variant>(); variant && !variant->value()->has_dep(Dep::Param))
             to_remove.push_back(def);
     }
+    if (!has_alloca_) for (auto call : potential_tailcalls_) {
+        call->setTailCall(true);
+        // call->setTailCallKind(llvm::CallInst::TCK_MustTail);
+    }
     for (auto& def : to_remove)
         defs_.erase(def);
 }
@@ -522,13 +539,15 @@ llvm::CallInst* CodeGen::emit_call(llvm::IRBuilder<>& irbuilder, const Def* call
             }
         }
         return nullptr;
+    } else if (auto return_point = callee->isa<ReturnPoint>()) { // for direct-style calls, just forward to the destination
+        return emit_call(irbuilder, return_point->continuation(), args);
     } else if (callee->isa<Bottom>()) {
         irbuilder.CreateUnreachable();
         return nullptr;
     } else if (auto cont = callee->isa_nom<Continuation>(); cont && scope_->contains(cont) && cont != entry_) {
         assert(cont->is_basicblock());
         size_t j = 0, i = 0;
-        for (auto t: cont->type()->types()) {
+        for (auto t: cont->type()->domain()) {
             i++;
             assert(t->order() == 0);
             if (t->isa<MemType>() || t == world().unit_type())
@@ -601,7 +620,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
     } else if (auto callee = body->callee()->isa_nom<Continuation>(); callee && callee->is_intrinsic()) {
         auto args = emit_intrinsic(irbuilder, continuation);
-        call_instr = emit_call(irbuilder, body->arg(callee->ret_param()->index()), args);
+        call_instr = emit_call(irbuilder, body->arg(callee->type()->ret_param_index()), args);
     } else {
         // plain continuation call: we can just emit all the arguments
         std::vector<llvm::Value*> args;
@@ -617,11 +636,11 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         }
 
         call_instr = emit_call(irbuilder, body->callee(), args);
-        if (body->callee()->type()->as<FnType>()->is_returning() && !body->callee()->isa<Bottom>()) {
+        if (auto codom = body->callee()->type()->as<FnType>()->codomain()) {
             assert(call_instr && "returning calls always involve one of those");
             assert(ret_arg && "we need a return argument too!");
 
-            auto ret_args = split_values(irbuilder, ret_arg->type()->as<FnType>()->types(), call_instr);
+            auto ret_args = split_values(irbuilder, *codom, call_instr);
             call_instr = emit_call(irbuilder, ret_arg, ret_args);
         }
     }
@@ -629,7 +648,7 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
     if (call_instr) {
         // we need to add a dummy return terminator if the last instruction is a call
         if (entry_->type()->is_returning()) {
-            auto entry_return_t = mangle_for_codegen(world(), entry_->ret_param()->type()->as<FnType>()->types());
+            auto entry_return_t = entry_->type()->return_param_type()->mangle_for_codegen();
             if (entry_return_t != world().unit_type()) {
                 irbuilder.CreateRet(llvm::UndefValue::get(convert(entry_return_t)));
             } else
@@ -1071,6 +1090,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type*
     else
         alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
     alloca->setAlignment(layout.getABITypeAlign(type));
+    has_alloca_ = true;
     return alloca;
 }
 
@@ -1429,10 +1449,10 @@ llvm::Value* CodeGen::emit_reserve_shared(llvm::IRBuilder<>& irbuilder, const Co
     if (!body->arg(1)->isa<PrimLit>())
         world().edef(body->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = body->arg(1)->as<PrimLit>()->ps32_value();
-    auto cont = body->arg(2)->as_nom<Continuation>();
-    auto type = convert(cont->param(1)->type());
+    auto cont_t = body->arg(2)->type()->as<FnType>();
+    auto type = convert(cont_t->domain()[1]);
     // construct array type
-    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+    auto elem_type = cont_t->domain()[1]->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
     auto name = continuation->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -1453,7 +1473,7 @@ void CodeGen::emit_hls(llvm::IRBuilder<>& irbuilder, Continuation* continuation)
     for (size_t i = 2, j = 0; i < body->num_args(); ++i) {
         args[j++] = emit(body->arg(i));
     }
-    auto callee = body->arg(1)->as<Global>()->init()->as_nom<Continuation>();
+    auto callee = body->arg(1)->as_nom<Continuation>();
     world().make_external(callee);
     irbuilder.CreateCall(emit_fun_decl(callee), args);
 }

@@ -9,6 +9,12 @@
 
 namespace thorin {
 
+bool is_closure_convertible(Continuation* cont) {
+    if (cont->is_external() || cont->is_intrinsic())
+        return false;
+    return true;
+}
+
 struct ClosureConverter {
     ClosureConverter(World& src, World& dst) : src_(src), dst_(dst), root_rewriter_(*this, nullptr, nullptr), forest_(src) {
         assert(&src != &dst);
@@ -101,20 +107,24 @@ struct ClosureConverter {
 
         scan_siblings(scope.children_scopes());
 
-        // convert any internal returning function
-        if (scope.entry()->is_returning() && !(scope.entry()->is_external() || scope.entry()->is_intrinsic())) {
-            a.promote_to_closure();
-        }
+        // these are banned from being turned into closures
+        bool convertible = is_closure_convertible(scope.entry());
 
-        // convert any BB that's used as a closure
-        else for (auto use : scope.entry()->uses()) {
-            if (!is_acceptable_use_for_bb(use))
+        if (convertible) {
+            // convert any internal returning function
+            if (scope.entry()->is_returning()) {
                 a.promote_to_closure();
+            }
+            // convert any BB that's used as a closure
+            else for (auto use: scope.entry()->uses()) {
+                if (!is_acceptable_use_for_bb(use))
+                    a.promote_to_closure();
+            }
         }
 
         src().DLOG("Needs conversion: {} = {}", scope.entry(), a.convert_to_closure);
 
-        if (scope.entry()->is_external() || scope.entry()->is_intrinsic()) {
+        if (!convertible) {
             assert(!a.convert_to_closure);
         }
     }
@@ -258,17 +268,35 @@ struct ClosureConverter {
         return nparam_types;
     }
 
-    Continuation* as_continuation(const Def* ndef) {
-        if (auto found = as_continuations_.lookup(ndef))
+    /// make sure the wrappee is a continuation (it's type is a FnType)
+    Continuation* wrap_in_cont(const Def* wrappee) {
+        if (auto found = wrapped_.lookup(wrappee))
             return found.value();
 
-        if (auto ncont = ndef->isa_nom<Continuation>())
-            return ncont;
-        Debug wr_dbg = ndef->debug();
-        auto wrapper = dst().continuation(dst().fn_type(ndef->type()->as<FnType>()->types()), wr_dbg);
-        wrapper->jump(ndef, wrapper->params_as_defs());
-        as_continuations_[ndef] = wrapper;
+        if (auto cont = wrappee->isa_nom<Continuation>())
+            return cont;
+
+        auto& world = wrappee->world();
+        auto wrapper = world.continuation(world.fn_type(wrappee->type()->as<FnType>()->types()), wrappee->debug());
+        wrapper->jump(wrappee, wrapper->params_as_defs());
+        wrapped_[wrappee] = wrapper;
         return wrapper;
+    }
+
+    Closure* wrap_in_closure(const Continuation* wrappee) {
+        auto closure_type = dst().closure_type(wrappee->type()->types());
+
+        auto ncont = dst().continuation(wrappee->type(), wrappee->debug());
+        ncont->jump(wrappee, ncont->params_as_defs());
+
+        // add a 'self' parameter
+        auto closure_param = ncont->append_param(closure_type, {"self"});
+
+        auto closure = dst().closure(closure_type, wrappee->debug());
+        assert(closure_param);
+        closure->set_fn(ncont, closure_param ? (int) closure_param->index() : -1);
+        closure->set_env(dst().tuple({}));
+        return closure;
     }
 
     World& src_;
@@ -279,7 +307,7 @@ struct ClosureConverter {
     ScopeRewriter root_rewriter_;
     ScopesForest forest_;
     ContinuationMap<std::unique_ptr<ScopeAnalysis>> analysis_;
-    DefMap<Continuation*> as_continuations_;
+    DefMap<Continuation*> wrapped_;
 
     std::vector<Continuation*> closure_fns_;
 
@@ -422,7 +450,7 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
         assert(ndef);
         return ndef;
     } else if (auto ret_pt = odef->isa<ReturnPoint>()) {
-        auto new_ret_pt = dst().return_point(converter_.as_continuation(instantiate(ret_pt->continuation())));
+        auto new_ret_pt = dst().return_point(converter_.wrap_in_cont(instantiate(ret_pt->continuation())));
         return dst().capture_return(new_ret_pt);
     } else if (auto closure = odef->isa<Closure>()) {
         assert(false);
@@ -437,9 +465,18 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
             auto oarg = app->arg(i);
             nargs[i] = instantiate(oarg);
 
+            if (auto ocont = oarg->isa_nom<Continuation>()) {
+                // if we're passing something that wasn't convertible to
+                if (!is_closure_convertible(ocont) && ncallee->type()->as<FnType>()->types()[i]->tag() != Node_FnType) {
+                    auto ncont = nargs[i]->isa<Continuation>();
+                    assert(ncont);
+                    nargs[i] = converter_.wrap_in_closure(ncont);
+                }
+            }
+
             // ensure return params still get a RetType
             if ((int)i == ret_param_i) {
-                nargs[i] = dst().return_point(converter_.as_continuation(nargs[i]));
+                nargs[i] = dst().return_point(converter_.wrap_in_cont(nargs[i]));
             }
         }
 
@@ -509,9 +546,9 @@ const Def* ClosureConverter::ScopeRewriter::rewrite(const Def* const odef) {
                     // ensure the BB arguments to intrinsics such as branch and match are left as continuations
                     auto pt = ncont->type()->types()[i];
                     if (pt->tag() == Node_FnType)
-                        nargs[i] = converter_.as_continuation(nargs[i]);
+                        nargs[i] = converter_.wrap_in_cont(nargs[i]);
                     else if (auto tuple_t = pt->isa<TupleType>(); tuple_t && tuple_t->types()[1]->tag() == Node_FnType) {
-                        nargs[i] = dst().tuple({dst().extract(nargs[i], (u32) 0), converter_.as_continuation(dst().extract(nargs[i], (u32) 1)) });
+                        nargs[i] = dst().tuple({dst().extract(nargs[i], (u32) 0), converter_.wrap_in_cont(dst().extract(nargs[i], (u32) 1)) });
                     }
                 }
             }

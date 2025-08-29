@@ -16,6 +16,11 @@ void ScopedWorld::stream_cont(thorin::Stream& s, Continuation* cont) const {
         default: s.fmt("cc(?)"); break;
     }
 
+    const Def* filter = cont->filter();
+    if (filter && !filter->empty()) {
+        s.fmt("{} ", filter);
+    }
+
     s.fmt(Green);
     s.fmt("cont ");
     s.fmt(Reset);

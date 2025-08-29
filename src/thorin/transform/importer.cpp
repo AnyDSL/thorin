@@ -57,8 +57,8 @@ const Def* Importer::rewrite(const Def* const odef) {
                     // If we don't do so, then we miss some simplifications
                     auto ncallee = instantiate(body->callee());
 
-                    // don't rewrite a continuation as a different type, unless it's only ever called
-                    if (ncallee->type()->tag() == Node_FnType || only_called()) {
+                    // don't rewrite a continuation as a different def, unless it's only ever called
+                    if (ncallee->isa<Continuation>() || only_called()) {
                         src().VLOG("simplify: continuation {} calls a free def: {}", cont->unique_name(), body->callee());
                         return ncallee;
                     }

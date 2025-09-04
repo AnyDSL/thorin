@@ -1741,6 +1741,7 @@ std::unique_ptr<ApiConfig> CCodeGen::special_device_api(const Continuation* cont
     // 1) AIE APIs with tepmlate type and non-type parameters
     if      (name == "aie::broadcast")       *api_config = {2, TempTypeParams{ { 0, ret_type } } };// <type,const>
     else if (name == "aie::zeros")           *api_config = {2, TempTypeParams{ { 0, ret_type } } };
+    else if (name == "aie::from_vector")     *api_config = {1, TempTypeParams{ { 0, ret_type } } };
     else if (name == "aie::vector_cast")     *api_config = {1, TempTypeParams{ { 0, ret_type } } };
     else if (name == "aie::mmul")            *api_config = {5, TempTypeParams{ { 3, type_of_arg(1) }, { 4, type_of_arg(2) } } };
     else if (name == "aie::sliding_mul_ops") *api_config = {7, TempTypeParams{ { 5, type_of_arg(3) }, { 6, type_of_arg(4) } } };

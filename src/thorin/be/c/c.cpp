@@ -611,6 +611,14 @@ std::string CCodeGen::prefix_type(const Param* param) {
             return std::make_pair(start_node, end_node);
         };
 
+        auto any_pl_dep = [&] (const Dependence& dependence) {
+            auto first  = dependence.first->as<Param>()->continuation();
+            auto second = dependence.second->as<Param>()->continuation();
+
+            return (first->is_cgra_graph() || second->is_cgra_graph());
+        };
+
+
         // MODIFIED: get_node_indices to differentiate between PLIOs and Kernels
         auto get_node_indices = [&] (const Dependence dependence, Cont2Index& cont2index) {
             auto from_cont = dependence.first->as<Param>()->continuation();
@@ -829,6 +837,16 @@ std::string CCodeGen::prefix_type(const Param* param) {
             auto edge_label = get_edge_label(dependence);
             auto method = get_connection_method(dependence);
             edge_impls.fmt("adf::connect{} {}({}.out[{}], {}.in[{}]);\n", method, edge_label, start_node, start_index, end_node, end_index);
+
+
+            // AIE mapper cannot map buffers with  window interface
+            auto first  = get_continuation(dependence.first)->get_interface();
+            auto second = get_continuation(dependence.second)->get_interface();
+
+            if (first == Interface::Stream || second == Interface::Stream) {
+                int depth = any_pl_dep(dependence) ? 2048 : 256;
+                 edge_impls.fmt("adf::fifo_depth({}) = {};\n", edge_label, depth);
+            }
         };
 
         // Helper lambda for processing CGRA graph connections

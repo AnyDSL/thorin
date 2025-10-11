@@ -59,7 +59,7 @@ void CodeGen::emit_vectorize_continuation(llvm::IRBuilder<>& irbuilder, Continua
     emit_unsafe(body->arg(0));
 
     // arguments
-    auto kernel = body->arg(VectorizeArgs::Body)->as<Global>()->init()->as_nom<Continuation>();
+    auto kernel = body->arg(VectorizeArgs::Body)->as_nom<Continuation>();
     const size_t num_kernel_args = body->num_args() - VectorizeArgs::Num;
 
     // build simd-function signature

@@ -65,9 +65,13 @@ std::tuple<spv::Scope, spv::MemorySemanticsMask> addrspace_atomics_params(World&
 }
 
 std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intrinsic, BasicBlockBuilder* bb) {
+    auto get_produced_types = [&]() {
+        auto fn_type = intrinsic->type();
+        return *(fn_type->codomain());
+    };
+
     auto get_produced_type = [&]() {
-        auto ret_type = (*intrinsic->params().back()).type()->as<FnType>();
-        return ret_type->types()[1];
+        return get_produced_types()[1];
     };
 
     SpirMathOps& impl = opencl_std;
@@ -106,7 +110,7 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
                 productions.push_back(found->second);
             } else {
                 auto desired_type = get_produced_type()->as<PtrType>();
-                auto id = builder_->variable(convert(desired_type).id, static_cast<spv::StorageClass>(convert(desired_type->addr_space())));
+                auto id = builder_->global_variable(convert(desired_type).id, static_cast<spv::StorageClass>(convert(desired_type->addr_space())));
                 builder_->interface.push_back(id);
                 builder_->decorate(id, spv::Decoration::DecorationBuiltIn, { spv_builtin });
                 builder_->builtins_[spv_builtin] = id;
@@ -126,7 +130,7 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
         else {
             auto in_bytes = size->value().get_u64() * convert(pointee).layout->size;
             auto type = world().definite_array_type(world().type_pu8(), in_bytes);
-            Id id = builder_->variable(convert(world().ptr_type(type, 1, AddrSpace::Shared)).id, static_cast<spv::StorageClass>(convert(AddrSpace::Shared)));
+            Id id = builder_->global_variable(convert(world().ptr_type(type, 1, AddrSpace::Shared)).id, static_cast<spv::StorageClass>(convert(AddrSpace::Shared)));
             id = bb->convert(spv::Op::OpBitcast, convert(produced_t).id, id);
             return { id };
         }
@@ -198,6 +202,11 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
         auto args = emit_args(app.args().skip_back());
         auto result = bb->op_with_result(spv::Op::OpGroupAll, convert(get_produced_type()).id,  { literal(spv::Scope::ScopeInvocation), emit(app.arg(1)) });
         return { result };
+    } else if (intrinsic->name() == "spirv.printf") {
+        Array<const Def*> args = app.args().skip_back();
+        while (auto bitcast = args[1]->isa<Bitcast>())
+            args[1] = bitcast->from();
+        return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::Printf }, emit_args(args)) };
     }
     world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());
     exit(-1);

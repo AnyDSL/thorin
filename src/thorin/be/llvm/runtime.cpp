@@ -76,7 +76,7 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
 
     auto it_space = body->arg(KernelLaunchArgs::Space);
     auto it_config = body->arg(KernelLaunchArgs::Config);
-    auto kernel = body->arg(KernelLaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
+    auto kernel = body->arg(KernelLaunchArgs::Body)->as<Continuation>();
 
     auto& world = continuation->world();
     //auto kernel_name = builder.CreateGlobalString(kernel->name() == "hls_top" ? kernel->name() : kernel->name());
@@ -115,8 +115,8 @@ void Runtime::emit_host_code(CodeGen& code_gen, llvm::IRBuilder<>& builder, Plat
             auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->pointee();
 
-            if (!rtype->isa<ArrayType>())
-                world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
+            //if (!rtype->isa<ArrayType>())
+            //    world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
             auto alloca = code_gen.emit_alloca(builder, builder.getPtrTy(), target_arg->name());
             auto target_ptr = builder.CreatePointerCast(target_val, builder.getPtrTy());

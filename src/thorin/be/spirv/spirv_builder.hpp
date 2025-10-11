@@ -293,12 +293,14 @@ struct FileBuilder {
         return id;
     }
 
-    Id variable(Id type, spv::StorageClass storage_class) {
-        types_constants.begin_op(spv::Op::OpVariable, 4);
+    Id global_variable(Id type, spv::StorageClass storage_class, std::optional<Id> init = std::nullopt) {
+        types_constants.begin_op(spv::Op::OpVariable, init ? 5 : 4);
         types_constants.ref_id(type);
         auto id = generate_fresh_id();
         types_constants.ref_id(id);
         types_constants.literal_int(storage_class);
+        if (init)
+            types_constants.literal_int(*init);
         return id;
     }
 
@@ -596,7 +598,19 @@ struct BasicBlockBuilder : public SectionBuilder {
             ref_id(selector);
             ref_id(default_case);
             for (size_t i = 0; i < literals.size(); i++) {
-                ref_id(literals[i]);
+                literal_int(literals[i]);
+                ref_id(cases[i]);
+            }
+        }
+
+        void branch_switch64(Id selector, Id default_case, std::vector<uint64_t> literals, std::vector<uint32_t> cases) {
+            assert(literals.size() == cases.size());
+            begin_op(spv::Op::OpSwitch, 3 + literals.size() * 3);
+            ref_id(selector);
+            ref_id(default_case);
+            for (size_t i = 0; i < literals.size(); i++) {
+                literal_int(literals[i] >> 32);
+                literal_int(literals[i]);
                 ref_id(cases[i]);
             }
         }

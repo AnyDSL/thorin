@@ -10,40 +10,20 @@ namespace thorin {
 /// Mangles a continuation's scope
 /// @p args has the size of the original continuation, a null entry means the parameter remains, non-null substitutes it in scope and removes it from the signature
 /// @p lift lists defs that should be replaced by a fresh param, to be appended at the end of the signature
-Mangler::Mangler(const Scope& scope, Continuation* entry, Defs args, Defs lift)
+Mangler::Mangler(const Scope& scope, Continuation* entry, Defs args)
     : Rewriter(scope.world())
     , scope_(scope)
     , args_(args)
-    , lift_(lift)
     , old_entry_(entry)
     , defs_(scope.defs().capacity())
 {
     assert(old_entry()->has_body());
     assert(args.size() == old_entry()->num_params());
 
-    // TODO correctly deal with continuations here
-    std::queue<const Def*> queue;
-    auto enqueue = [&](const Def* def) {
-        if (!within(def)) {
-            defs_.insert(def);
-            queue.push(def);
-        }
-    };
-
-    for (auto def : lift)
-        enqueue(def);
-
-    while (!queue.empty()) {
-        for (auto use : pop(queue)->uses())
-            enqueue(use);
-    }
-
     is_dropping_ = std::any_of(args.begin(), args.end(), [&](const auto& item) {
         return item != nullptr;
     });
-}
 
-Continuation* Mangler::mangle() {
     // create new_entry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
@@ -65,10 +45,33 @@ Continuation* Mangler::mangle() {
             new_param->set_name(old_param->name());
         }
     }
+}
 
-    for (auto def : lift_)
-        insert(def, new_entry()->append_param(def->type()));
+void Mangler::add_to_scope(const thorin::Def* def) {
+    // TODO correctly deal with continuations here
+    std::queue<const Def*> queue;
+    auto enqueue = [&](const Def* def) {
+        if (!within(def)) {
+            defs_.insert(def);
+            queue.push(def);
+        }
+    };
 
+    enqueue(def);
+
+    while (!queue.empty()) {
+        for (auto use : pop(queue)->uses())
+            enqueue(use);
+    }
+}
+
+const Def* Mangler::add_param(const thorin::Type* def) {
+    auto p = new_entry()->append_param(def);
+    nparams_.push_back(p);
+    return p;
+}
+
+Continuation* Mangler::mangle() {
     // if we are dropping parameters, we can't necessarily rewrite the entry, see also note about applications in Mangler::rewrite()
     if (is_dropping_)
         insert(old_entry(), old_entry());
@@ -80,8 +83,8 @@ Continuation* Mangler::mangle() {
         for (auto p : recursion_wrapper->params_as_defs())
             args.push_back(p);
         size_t i = 0;
-        for ([[maybe_unused]] auto def : lift_)
-            args.push_back(new_entry()->param(recursion_wrapper->num_params() + i++));
+        for (auto nparam : nparams_)
+            args.push_back(nparam);
         recursion_wrapper->jump(new_entry(), args);
     }
 
@@ -153,7 +156,7 @@ const Def* Mangler::rewrite(const Def* old_def) {
             }
 
             if (substitute) {
-                const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
+                const auto& args = concat(nargs.cut(cut), nparams_);
                 return dst().app(new_entry(), args, old_def->debug()); // TODO debug
             }
         }
@@ -164,7 +167,12 @@ const Def* Mangler::rewrite(const Def* old_def) {
 //------------------------------------------------------------------------------
 
 Continuation* mangle(const Scope& scope, Continuation* entry, Defs args, Defs lift) {
-    return Mangler(scope, entry, args, lift).mangle();
+    Mangler mangler(scope, entry, args);
+    for (auto def : lift) {
+        mangler.add_to_scope(def);
+        mangler.insert(def, mangler.add_param(def->type()));
+    }
+    return mangler.mangle();
 }
 
 Continuation* drop(const Def* callee, const Defs specialized_args) {

@@ -7,27 +7,30 @@
 
 namespace thorin {
 
-class Mangler : Rewriter {
+class Mangler : public Rewriter {
 public:
-    Mangler(const Scope& scope, Continuation* entry, Defs args, Defs lift);
+    Mangler(const Scope& scope, Continuation* entry, Defs args);
 
     const Scope& scope() const { return scope_; }
     Continuation* mangle();
     Continuation* old_entry() const { return old_entry_; }
     Continuation* new_entry() const { return new_entry_; }
 
-private:
+    void add_to_scope(const Def*);
+    const Def* add_param(const Type*);
+
     const Def* rewrite(const Def* odef) override;
+private:
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 
     bool is_dropping_;
 
     const Scope& scope_;
     Defs args_;
-    Defs lift_;
     Continuation* old_entry_;
     Continuation* new_entry_;
     DefSet defs_;
+    std::vector<const Def*> nparams_;
 };
 
 

@@ -16,6 +16,12 @@ public:
     World& src() { return src_; }
     World& dst() { return dst_; }
 
+    void rewrite_externals() {
+        for (auto&& [_, def] : src().externals()) {
+            instantiate(def);
+        }
+    }
+
 protected:
     explicit Rewriter(World& src, World& dst, Rewriter& parent);
     virtual const Def* lookup(const Def* odef);

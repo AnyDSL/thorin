@@ -98,6 +98,9 @@ public:
 
     ContinuationSet top_level_scopes();
 
+    std::vector<Continuation*> parent_scopes_path(Continuation*);
+    Continuation* least_common_ancestor(Continuation* a, Continuation* b);
+
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.

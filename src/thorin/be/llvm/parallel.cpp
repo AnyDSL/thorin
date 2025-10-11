@@ -23,7 +23,7 @@ void CodeGen::emit_parallel(llvm::IRBuilder<>& irbuilder, Continuation* continua
     auto num_threads = emit(body->arg(PAR_ARG_NUMTHREADS));
     auto lower = emit(body->arg(PAR_ARG_LOWER));
     auto upper = emit(body->arg(PAR_ARG_UPPER));
-    auto kernel = body->arg(PAR_ARG_BODY)->as<Global>()->init()->as_nom<Continuation>();
+    auto kernel = body->arg(PAR_ARG_BODY)->as_nom<Continuation>();
 
     const size_t num_kernel_args = body->num_args() - PAR_NUM_ARGS;
 
@@ -114,7 +114,7 @@ void CodeGen::emit_fibers(llvm::IRBuilder<>& irbuilder, Continuation* continuati
     auto num_threads = emit(body->arg(FIB_ARG_NUMTHREADS));
     auto num_blocks = emit(body->arg(FIB_ARG_NUMBLOCKS));
     auto num_warps = emit(body->arg(FIB_ARG_NUMWARPS));
-    auto kernel = body->arg(FIB_ARG_BODY)->as<Global>()->init()->as_nom<Continuation>();
+    auto kernel = body->arg(FIB_ARG_BODY)->as_nom<Continuation>();
 
     const size_t num_kernel_args = body->num_args() - FIB_NUM_ARGS;
 
@@ -198,7 +198,7 @@ llvm::Value* CodeGen::emit_spawn(llvm::IRBuilder<>& irbuilder, Continuation* con
     // Emit memory dependencies up to this point
     emit_unsafe(body->arg(FIB_ARG_MEM));
 
-    auto kernel = body->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_nom<Continuation>();
+    auto kernel = body->arg(SPAWN_ARG_BODY)->as_nom<Continuation>();
     const size_t num_kernel_args = body->num_args() - SPAWN_NUM_ARGS;
 
     // build parallel-function signature

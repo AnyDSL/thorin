@@ -105,7 +105,6 @@ enum class Intrinsic : uint8_t {
     LevelZero_SPIRV,            ///< Internal SPIRV for Level0-Backend.
     AMDGPUHSA,                  ///< Internal AMDGPU-HSA-Backend.
     AMDGPUPAL,                  ///< Internal AMDGPU-PAL-Backend.
-    ShadyCompute,               ///< Internal Shady Compute Backend.
     HLS,                        ///< Internal HLS-Backend.
     OffloadEnd = HLS,
     Parallel,                   ///< Internal Parallel-CPU-Backend.

@@ -261,7 +261,6 @@ void Continuation::set_intrinsic() {
     else if (name() == "levelzero")      attributes().intrinsic = Intrinsic::LevelZero_SPIRV;
     else if (name() == "amdgpu_hsa")     attributes().intrinsic = Intrinsic::AMDGPUHSA;
     else if (name() == "amdgpu_pal")     attributes().intrinsic = Intrinsic::AMDGPUPAL;
-    else if (name() == "shady_compute")  attributes().intrinsic = Intrinsic::ShadyCompute;
     else if (name() == "hls")            attributes().intrinsic = Intrinsic::HLS;
     else if (name() == "parallel")       attributes().intrinsic = Intrinsic::Parallel;
     else if (name() == "fibers")         attributes().intrinsic = Intrinsic::Fibers;

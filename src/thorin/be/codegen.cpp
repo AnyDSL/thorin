@@ -9,12 +9,6 @@
 #include "thorin/be/llvm/amdgpu_pal.h"
 #endif
 
-#if THORIN_ENABLE_SHADY
-#include "thorin/be/shady/shady.h"
-#undef empty
-#undef nodes
-#endif
-
 #if THORIN_ENABLE_SPIRV
 #include "thorin/be/spirv/spirv.h"
 #endif
@@ -197,18 +191,6 @@ struct NVVMBackend : public Backend {
 };
 #endif
 
-#if THORIN_ENABLE_SHADY
-struct ShadyBackend : public Backend {
-    explicit ShadyBackend(DeviceBackends2& b, World& src) : Backend(b, src) {
-        b.register_intrinsic(Intrinsic::ShadyCompute, get_gpu_kernel_config);
-    }
-
-    std::unique_ptr<CodeGen> create_cg(const Cont2Config& config) override {
-        return std::make_unique<shady_be::CodeGen>(device_code_, config, backends_.debug());
-    }
-};
-#endif
-
 struct HLSBackend : public Backend {
     explicit HLSBackend(DeviceBackends& b, World& src, std::string& hls_flags) : Backend(b, src), hls_flags_(hls_flags) {
         b.register_intrinsic(Intrinsic::HLS, *this, [&](const App* app, Continuation* imported) {
@@ -264,9 +246,6 @@ DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::s
     register_backend(std::make_unique<AMDHSABackend>(*this, world));
     register_backend(std::make_unique<AMDPALBackend>(*this, world));
     register_backend(std::make_unique<NVVMBackend>(*this, world));
-#endif
-#if THORIN_ENABLE_SHADY
-    register_backend(std::make_unique<ShadyBackend>(*this, world))
 #endif
 #if THORIN_ENABLE_SPIRV
     register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));

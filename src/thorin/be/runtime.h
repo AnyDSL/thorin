@@ -11,7 +11,6 @@ enum Platform {
     HSA_PLATFORM,
     PAL_PLATFORM,
     LEVEL_ZERO_PLATFORM,
-    SHADY_PLATFORM,
 };
 
 enum KernelLaunchArgs {

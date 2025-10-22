@@ -112,12 +112,6 @@ if(LLVM_FOUND)
     )
 endif()
 
-if (THORIN_ENABLE_SHADY)
-    list(APPEND THORIN_SOURCES
-        be/shady/shady.cpp
-    )
-endif()
-
 if(THORIN_ENABLE_JSON)
     list(APPEND THORIN_SOURCES
         be/json/json.cpp
@@ -147,14 +141,6 @@ if(LLVM_FOUND)
         list(APPEND Thorin_LLVM_COMPONENTS analysis passes transformutils)
     endif()
     llvm_config(thorin ${AnyDSL_LLVM_LINK_SHARED} ${Thorin_LLVM_COMPONENTS})
-endif()
-
-if (THORIN_ENABLE_SHADY)
-    if (shady_FOUND)
-        target_link_libraries(thorin PRIVATE shady::shady)
-    else()
-        target_link_libraries(thorin PRIVATE shady)
-    endif()
 endif()
 
 if(THORIN_ENABLE_JSON)

@@ -41,7 +41,7 @@ struct RuntimeAPI {
             auto found = world.find_cont(name.c_str());
             if (found)
                 return found;
-            auto r = codom ? world.return_type({mem_ty, codom}) : world.return_type({mem_ty});
+            auto r = codom ? world.fn_type({mem_ty, codom}) : world.fn_type({mem_ty});
             Array<const Type*> p = concat<const Type*>(mem_ty, concat<const Type*>(dom, r));
             auto c = world.continuation(world.fn_type(p), name);
             c->attributes_.cc = CC::C;
@@ -291,7 +291,7 @@ void emit_parallel(RuntimeAPI& api, Continuation* continuation) {
     // for (int i=lower; i<upper; ++i)
     //   body(i, <closure_elems>);
 
-    auto wrapper = world.continuation(world.fn_type({world.mem_type(), ptr_ty, world.type_qs32(), world.type_qs32(), world.return_type({world.mem_type()})}));
+    auto wrapper = world.continuation(world.fn_type({world.mem_type(), ptr_ty, world.type_qs32(), world.type_qs32(), world.fn_type({world.mem_type()})}));
     world.make_external(wrapper);
     const Def* wrapper_mem = wrapper->mem_param();
     auto inner_lower = wrapper->param(2);
@@ -304,7 +304,7 @@ void emit_parallel(RuntimeAPI& api, Continuation* continuation) {
     auto loop_exit = world.continuation(world.fn_type({world.mem_type()}), "loop_exit");
     loop_head->branch(loop_head->mem_param(), world.cmp_lt(loop_head->param(1), inner_upper), loop_body, loop_exit);
 
-    Array<const Def*> prefix {loop_body->mem_param(), world.bitcast(fun->param(1)->type(), loop_head->param(1)), world.return_point(loop_continue) };
+    Array<const Def*> prefix {loop_body->mem_param(), world.bitcast(fun->param(1)->type(), loop_head->param(1)), loop_continue };
     loop_body->jump(fun, concat(prefix, recovered));
     loop_continue->jump(loop_head, { loop_continue->mem_param(), world.arithop_add(loop_head->param(1), world.literal_qs32(1, {})) });
     loop_exit->jump(wrapper->ret_param(), loop_exit->params_as_defs());
@@ -337,7 +337,7 @@ void emit_fibers(RuntimeAPI& api, Continuation* continuation) {
     auto fun = body->arg(static_cast<size_t>(SpawnFibersArgs::Fun))->as<Continuation>();
     auto ret = body->arg(static_cast<size_t>(SpawnFibersArgs::Return));
 
-    auto wrapper = world.continuation(world.fn_type({world.mem_type(), ptr_ty, i32, i32, world.return_type({world.mem_type()})}));
+    auto wrapper = world.continuation(world.fn_type({world.mem_type(), ptr_ty, i32, i32, world.fn_type({world.mem_type()})}));
     const Def* wrapper_mem = wrapper->mem_param();
     auto [args, recovered] = spill(mem, body->args().skip_front(static_cast<size_t>(SpawnThreadArgs::Num)), wrapper_mem, wrapper->param(1));
     Array<const Def*> prefix = {mem, wrapper->param(2), wrapper->param(3)};
@@ -363,7 +363,7 @@ void emit_spawn(RuntimeAPI& api, Continuation* continuation) {
     auto fun = body->arg(static_cast<size_t>(SpawnThreadArgs::Fun));
     auto ret = body->arg(static_cast<size_t>(SpawnThreadArgs::Return));
 
-    auto wrapper = world.continuation(world.fn_type({world.mem_type(), ptr_ty, world.return_type({world.mem_type()})}));
+    auto wrapper = world.continuation(world.fn_type({world.mem_type(), ptr_ty, world.fn_type({world.mem_type()})}));
     const Def* wrapper_mem = wrapper->mem_param();
     auto [args, recovered] = spill(mem, body->args().skip_front(static_cast<size_t>(SpawnThreadArgs::Num)), wrapper_mem, wrapper->param(1));
     wrapper->jump(fun, concat<const Def*>(concat<const Def*>(mem, recovered.ref()), {wrapper->ret_param()}));
@@ -398,7 +398,6 @@ void lower_offload_intrinsics(World& world, DeviceBackends& backends) {
                 case Intrinsic::LevelZero_SPIRV: emit_host_code(api, call, Platform::LEVEL_ZERO_PLATFORM, ".spv",    continuation); break;
                 case Intrinsic::AMDGPUHSA:       emit_host_code(api, call, Platform::HSA_PLATFORM,        ".amdgpu", continuation); break;
                 case Intrinsic::AMDGPUPAL:       emit_host_code(api, call, Platform::PAL_PLATFORM,        ".amdgpu", continuation); break;
-                case Intrinsic::VulkanCS_SPIRV:  emit_host_code(api, call, Platform::VULKAN_PLATFORM,     ".spv",    continuation); break;
 
                 case Intrinsic::Parallel:        emit_parallel(api, continuation); break;
                 case Intrinsic::Fibers:          emit_fibers(api, continuation);   break;

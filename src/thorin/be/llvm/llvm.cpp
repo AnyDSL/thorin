@@ -55,8 +55,15 @@ CodeGen::CodeGen(
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(std::make_unique<Runtime>(context(), module()))
 {}
+
+llvm::Function* CodeGen::get(CodeGen& code_gen, const char* name) {
+    auto result = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, module_->getFunction(name)->getFunctionType()).getCallee()->stripPointerCasts());
+    result->addFnAttr("target-cpu", code_gen.machine().getTargetCPU());
+    result->addFnAttr("target-features", code_gen.machine().getTargetFeatureString());
+    assert(result != nullptr && "Required runtime function could not be resolved");
+    return result;
+}
 
 void CodeGen::optimize() {
     llvm::PassBuilder PB;
@@ -362,10 +369,6 @@ CodeGen::emit_module() {
 
     verify();
     optimize();
-
-    // We need to delete the runtime at this point, since the ownership of
-    // the context and module is handed away.
-    runtime_.reset();
     return std::pair { std::move(context_), std::move(module_) };
 }
 
@@ -1041,7 +1044,7 @@ void CodeGen::emit_phi_arg(llvm::IRBuilder<>& irbuilder, const Param* param, llv
  */
 
 llvm::Value* CodeGen::emit_alloc(llvm::IRBuilder<>& irbuilder, const Type* type, const Def* extra) {
-    auto llvm_malloc = runtime_->get(*this, get_alloc_name().c_str());
+    auto llvm_malloc = get(*this, get_alloc_name().c_str());
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module().getDataLayout();
@@ -1303,19 +1306,7 @@ std::vector<llvm::Value*> CodeGen::emit_intrinsic(llvm::IRBuilder<>& irbuilder, 
         case Intrinsic::CmpXchgWeak:     return emit_cmpxchg(irbuilder, continuation, true);
         case Intrinsic::Fence:           emit_fence(irbuilder, continuation); break;
         case Intrinsic::Reserve:         return { emit_reserve(irbuilder, continuation) };
-        case Intrinsic::CUDA:            runtime_->emit_host_code(*this, irbuilder, Platform::CUDA_PLATFORM,       ".cu",     continuation); break;
-        case Intrinsic::NVVM:            runtime_->emit_host_code(*this, irbuilder, Platform::CUDA_PLATFORM,       ".nvvm",   continuation); break;
-        case Intrinsic::OpenCL:          runtime_->emit_host_code(*this, irbuilder, Platform::OPENCL_PLATFORM,     ".cl",     continuation); break;
-        case Intrinsic::OpenCL_SPIRV:    runtime_->emit_host_code(*this, irbuilder, Platform::OPENCL_PLATFORM,     ".spv",    continuation); break;
-        case Intrinsic::LevelZero_SPIRV: runtime_->emit_host_code(*this, irbuilder, Platform::LEVEL_ZERO_PLATFORM, ".spv",    continuation); break;
-        case Intrinsic::AMDGPUHSA:       runtime_->emit_host_code(*this, irbuilder, Platform::HSA_PLATFORM,        ".amdgpu", continuation); break;
-        case Intrinsic::AMDGPUPAL:       runtime_->emit_host_code(*this, irbuilder, Platform::PAL_PLATFORM,        ".amdgpu", continuation); break;
-        case Intrinsic::ShadyCompute:    runtime_->emit_host_code(*this, irbuilder, Platform::SHADY_PLATFORM,      ".shady",  continuation); break;
         case Intrinsic::HLS:             emit_hls(irbuilder, continuation);      break;
-        case Intrinsic::Parallel:        emit_parallel(irbuilder, continuation); break;
-        case Intrinsic::Fibers:          emit_fibers(irbuilder, continuation);   break;
-        case Intrinsic::Spawn:           return { emit_spawn(irbuilder, continuation) };
-        case Intrinsic::Sync:            emit_sync(irbuilder, continuation);     break;
 #if THORIN_ENABLE_RV
         case Intrinsic::Vectorize:    emit_vectorize_continuation(irbuilder, continuation); break;
 #else

@@ -33,6 +33,8 @@ set(THORIN_SOURCES
     be/emitter.h
     be/c/c.cpp
     be/c/c.h
+    be/lower_offload_intrinsics.cpp
+    be/lower_offload_intrinsics.h
     be/runtime.h
     be/kernel_config.h
     tables/allnodes.h
@@ -104,10 +106,6 @@ if(LLVM_FOUND)
         be/llvm/amdgpu_pal.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
-        be/llvm/parallel.cpp
-        be/llvm/runtime.inc
-        be/llvm/runtime.cpp
-        be/llvm/runtime.h
         be/llvm/vectorize.cpp
     )
 endif()

@@ -43,7 +43,6 @@ protected:
     Thorin device_code_;
     std::unique_ptr<Importer> importer_;
 
-    std::vector<Continuation*> kernels_;
     Cont2Config kernel_configs_;
 
     void prepare_kernel_configs();
@@ -52,6 +51,8 @@ protected:
 
 struct DeviceBackends {
     DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);
+
+    DeviceBackends(DeviceBackends&) = delete;
 
     World& world();
     std::vector<std::unique_ptr<CodeGen>> cgs;
@@ -63,6 +64,7 @@ struct DeviceBackends {
     using GetKernelConfigFn = std::function<std::unique_ptr<KernelConfig>(const App*, Continuation*)>;
     void register_intrinsic(Intrinsic, Backend&, GetKernelConfigFn);
 
+    void register_kernel_for_offloading(const App* launch, Continuation*);
 private:
     World& world_;
     std::vector<std::unique_ptr<Backend>> backends_;
@@ -70,8 +72,6 @@ private:
 
     int opt_;
     bool debug_;
-
-    void search_for_device_code();
 friend Backend;
 };
 

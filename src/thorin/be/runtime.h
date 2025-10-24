@@ -24,6 +24,39 @@ enum KernelLaunchArgs {
     Num
 };
 
+enum class ParallelForArgs {
+    Mem = 0,
+    NumThreads,
+    Lower,
+    Upper,
+    Fun,
+    Return,
+    Num
+};
+
+enum class SpawnFibersArgs {
+    Mem = 0,
+    NumThreads,
+    NumBlocks,
+    NumWarps,
+    Fun,
+    Return,
+    Num
+};
+
+enum class SpawnThreadArgs {
+    Mem = 0,
+    Fun,
+    Return,
+    Num
+};
+
+enum class SyncArgs {
+    Mem = 0,
+    Id,
+    Return,
+};
+
 }
 
 #endif

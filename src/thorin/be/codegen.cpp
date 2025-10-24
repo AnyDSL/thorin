@@ -21,14 +21,17 @@
 
 #include "thorin/transform/hls_channels.h"
 #include "thorin/transform/hls_kernel_launch.h"
+#include "lower_offload_intrinsics.h"
 
 namespace thorin {
 
 void Backend::prepare_kernel_configs() {
     device_code_.opt();
 
+    Cont2Config adjusted_configs_map;
+
     auto conts = device_code_.world().copy_continuations();
-    for (auto continuation : kernels_) {
+    for (auto& [continuation, config] : kernel_configs_) {
         // recover the imported continuation (lost after the call to opt)
         Continuation* imported = nullptr;
         for (auto original_cont : conts) {
@@ -37,27 +40,13 @@ void Backend::prepare_kernel_configs() {
             if (original_cont->name() == continuation->name())
                 imported = original_cont;
         }
+        assert(imported && "we lost a kernel ?");
         if (!imported) continue;
 
-        visit_uses(continuation, [&] (Continuation* use) {
-            assert(use->has_body());
-
-            auto handler = backends_.intrinsics_.find(use->body()->callee()->as<Continuation>()->intrinsic());
-            assert(handler != backends_.intrinsics_.end());
-            auto [backend2, get_config] = handler->second;
-            assert(backend2 == this);
-
-            auto config = get_config(use->body(), imported);
-            if (config) {
-                auto p = kernel_configs_.emplace(imported, std::move(config));
-                assert_unused(p.second && "single kernel config entry expected");
-            }
-            return false;
-        }, true);
-
-        continuation->world().make_external(continuation);
-        continuation->destroy("codegen");
+        adjusted_configs_map[imported] = std::move(config);
     }
+
+    std::swap(kernel_configs_, adjusted_configs_map);
 }
 
 static const App* get_alloc_call(const Def* def) {
@@ -211,7 +200,7 @@ struct ShadyBackend : public Backend {
 
 struct HLSBackend : public Backend {
     explicit HLSBackend(DeviceBackends& b, World& src, std::string& hls_flags) : Backend(b, src), hls_flags_(hls_flags) {
-        b.register_intrinsic(Intrinsic::HLS, *this, [&](const App* app, Continuation* imported) {
+        b.register_intrinsic(Intrinsic::HLS, *this, [&](const App* app, Continuation* kernel) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = hls_free_vars_offset, e = app->num_args(); i != e; ++i) {
                 auto arg = app->arg(i);
@@ -237,7 +226,7 @@ struct HLSBackend : public Backend {
                     b.world().edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
-                param_sizes.emplace(imported->param(i - hls_free_vars_offset + 2), num_elems);
+                param_sizes.emplace(kernel->param(i - hls_free_vars_offset + 2), num_elems);
             }
             return std::make_unique<HLSKernelConfig>(param_sizes);
         });
@@ -257,13 +246,13 @@ struct HLSBackend : public Backend {
     std::string& hls_flags_;
 };
 
-DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::string& hls_flags) : world_(world), opt_(opt), debug_(debug) {
-    register_backend(std::make_unique<CudaBackend>(*this, world));
-    register_backend(std::make_unique<OpenCLBackend>(*this, world));
+DeviceBackends::DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags) : world_(world), opt_(opt), debug_(debug) {
+    register_backend(std::make_unique<CudaBackend>(*this, world_));
+    register_backend(std::make_unique<OpenCLBackend>(*this, world_));
 #if THORIN_ENABLE_LLVM
-    register_backend(std::make_unique<AMDHSABackend>(*this, world));
-    register_backend(std::make_unique<AMDPALBackend>(*this, world));
-    register_backend(std::make_unique<NVVMBackend>(*this, world));
+    register_backend(std::make_unique<AMDHSABackend>(*this, world_));
+    register_backend(std::make_unique<AMDPALBackend>(*this, world_));
+    register_backend(std::make_unique<NVVMBackend>(*this, world_));
 #endif
 #if THORIN_ENABLE_SHADY
     register_backend(std::make_unique<ShadyBackend>(*this, world))
@@ -272,9 +261,17 @@ DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::s
     register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));
     register_backend(std::make_unique<LevelZeroSPIRVBackend>(*this, world));
 #endif
-    register_backend(std::make_unique<HLSBackend>(*this, world, hls_flags));
+    register_backend(std::make_unique<HLSBackend>(*this, world_, hls_flags));
 
-    search_for_device_code();
+    lower_offload_intrinsics(world, *this);
+
+    for (auto& backend : backends_) {
+        if (backend->thorin().world().empty())
+            continue;
+
+        backend->prepare_kernel_configs();
+        cgs.emplace_back(backend->create_cg());
+    }
 }
 
 void DeviceBackends::register_backend(std::unique_ptr<Backend> backend) {
@@ -289,50 +286,21 @@ void DeviceBackends::register_intrinsic(thorin::Intrinsic intrinsic, Backend& ba
     intrinsics_[intrinsic] = std::make_pair(&backend, f);
 }
 
-void DeviceBackends::search_for_device_code() {
-    // determine different parts of the world which need to be compiled differently
-    ScopesForest(world_).for_each([&] (const Scope& scope) {
-        auto continuation = scope.entry();
-        Continuation* imported = nullptr;
+void DeviceBackends::register_kernel_for_offloading(const App* launch, Continuation* kernel) {
+    Continuation* intrinsic_cont = launch->callee()->as_nom<Continuation>();
+    auto handler = intrinsics_.find(intrinsic_cont->intrinsic());
+    assert(handler != intrinsics_.end());
+    auto [backend, get_config] = handler->second;
 
-        Intrinsic intrinsic = Intrinsic::None;
-        visit_capturing_intrinsics(continuation, [&] (Continuation* continuation) {
-            if (continuation->is_offload_intrinsic()) {
-                intrinsic = continuation->intrinsic();
-                return true;
-            }
-            return false;
-        });
+    // Import the continuation in the destination world
+    Continuation* imported = backend->importer_->import(kernel)->as_nom<Continuation>();
+    assert(imported);
+    imported->world().make_external(imported);
+    imported->attributes().cc = CC::C;
 
-        if (intrinsic == Intrinsic::None)
-            return;
-
-        auto handler = intrinsics_.find(intrinsic);
-        assert(handler != intrinsics_.end());
-        auto [backend, get_config] = handler->second;
-
-        imported = backend->importer_->import(continuation)->as_nom<Continuation>();
-        if (imported == nullptr)
-            return;
-
-        // Necessary so that the names match in the original and imported worlds
-        imported->set_name(continuation->unique_name());
-        continuation->set_name(continuation->unique_name());
-        for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->set_name(continuation->param(i)->name());
-        imported->world().make_external(imported);
-        imported->attributes().cc = CC::C;
-
-        backend->kernels_.emplace_back(continuation);
-    });
-
-    for (auto& backend : backends_) {
-        if (backend->thorin().world().empty())
-            continue;
-
-        backend->prepare_kernel_configs();
-        cgs.emplace_back(backend->create_cg());
-    }
+    // Obtain the kernel config now
+    auto config = get_config(launch, kernel);
+    backend->kernel_configs_[kernel] = std::move(config);
 }
 
 CodeGen::CodeGen(Thorin& thorin, bool debug)

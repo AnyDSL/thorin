@@ -106,10 +106,6 @@ if(LLVM_FOUND)
         be/llvm/amdgpu_pal.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
-        be/llvm/parallel.cpp
-        be/llvm/runtime.inc
-        be/llvm/runtime.cpp
-        be/llvm/runtime.h
         be/llvm/vectorize.cpp
     )
 endif()

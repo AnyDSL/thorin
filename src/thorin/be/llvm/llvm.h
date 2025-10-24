@@ -11,7 +11,6 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/be/codegen.h"
 #include "thorin/be/emitter.h"
-#include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
 #include "thorin/transform/importer.h"
 
@@ -43,6 +42,7 @@ public:
     const llvm::Module& module() const { return *module_; }
     llvm::TargetMachine& machine() { return *machine_; }
     int opt() const { return opt_; }
+    llvm::Function* get(CodeGen& code_gen, const char* name);
     //@}
 
     const char* file_ext() const override { return ".ll"; }
@@ -106,10 +106,6 @@ private:
     Continuation* emit_peinfo(llvm::IRBuilder<>&, Continuation*);
     std::vector<llvm::Value*> emit_intrinsic(llvm::IRBuilder<>&, Continuation*);
     void emit_hls(llvm::IRBuilder<>&, Continuation*);
-    void emit_parallel(llvm::IRBuilder<>&, Continuation*);
-    void emit_fibers(llvm::IRBuilder<>&, Continuation*);
-    llvm::Value* emit_spawn(llvm::IRBuilder<>&, Continuation*);
-    void emit_sync(llvm::IRBuilder<>&, Continuation*);
     void emit_vectorize_continuation(llvm::IRBuilder<>&, Continuation*);
     llvm::Value* emit_atomic(llvm::IRBuilder<>&, Continuation*);
     std::vector<llvm::Value*> emit_cmpxchg(llvm::IRBuilder<>&, Continuation*, bool);
@@ -136,7 +132,6 @@ protected:
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
     llvm::DIScope* discope_ = nullptr;
-    std::unique_ptr<Runtime> runtime_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif

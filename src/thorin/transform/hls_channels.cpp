@@ -77,6 +77,7 @@ void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& c
         auto& name = std::get<1>(tuple);
         auto kernel = find_kernel_by_name(name);
         assert(kernel && "where did my kernel go");
+        assert(cont2config.find(kernel) != cont2config.end());
         auto param  = kernel->param(std::get<2>(tuple));
         auto config = cont2config[kernel]->as<HLSKernelConfig>();
         param_sizes[hls_top->param(std::get<0>(tuple))] = config->param_size(param);
@@ -151,7 +152,7 @@ bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kern
  * @return corresponding hls_top parameter for hls_launch_kernel in another world (params before rewriting kernels)
  */
 
-DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2kernel, World& /* old_world */) {
+DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2kernel, Cont2Config& kernel_configs) {
     auto& world = thorin.world();
     std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
@@ -185,6 +186,8 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
             else
                 new_kernels.emplace_back(new_kernel);
 
+            kernel_configs[new_kernel] = std::move(kernel_configs[old_kernel]);
+
             for (size_t i = old_kernel->num_params(); i < new_kernel->num_params(); i++) {
                 auto param = new_kernel->param(i);
                 assert(param);
@@ -213,9 +216,11 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
                 }
             }
         }
+        //kernel->set_name(kernel->name() + "_lifted");
     }
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
+
     for (auto tuple : param_index) {
         // (non-channel params, top params as kernel call args)
         auto param = std::get<0>(tuple)->param(std::get<1>(tuple));
@@ -368,7 +373,7 @@ DeviceParams hls_channels(Thorin& thorin, Importer& importer, Top2Kernel& top2ke
     world.make_external(hls_top);
 
     debug_verify(world);
-    thorin.cleanup();
+    //thorin.cleanup();
 
     return old_kernels_params;
 }

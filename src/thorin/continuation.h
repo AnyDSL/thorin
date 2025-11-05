@@ -107,8 +107,8 @@ enum class Intrinsic : uint8_t {
     AMDGPUPAL,                  ///< Internal AMDGPU-PAL-Backend.
     ShadyCompute,               ///< Internal Shady Compute Backend.
     HLS,                        ///< Internal HLS-Backend.
-    OffloadEnd = HLS,
-    Parallel,                   ///< Internal Parallel-CPU-Backend.
+    OffloadEnd,
+    Parallel = OffloadEnd,      ///< Internal Parallel-CPU-Backend.
     Fibers,                     ///< Internal Parallel-CPU-Backend using resumable fibers.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.

@@ -210,6 +210,8 @@ struct ShadyBackend : public Backend {
 #endif
 
 struct HLSBackend : public Backend {
+    DeviceParams hls_host_params;
+
     explicit HLSBackend(DeviceBackends& b, World& src, std::string& hls_flags) : Backend(b, src), hls_flags_(hls_flags) {
         b.register_intrinsic(Intrinsic::HLS, *this, [&](const App* app, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
@@ -245,11 +247,11 @@ struct HLSBackend : public Backend {
 
     std::unique_ptr<CodeGen> create_cg() override {
         Top2Kernel top2kernel;
-        DeviceParams hls_host_params;
 
-        hls_host_params = hls_channels(device_code_, *importer_, top2kernel, backends_.world());
+
+        hls_host_params = hls_channels(device_code_, *importer_, top2kernel, kernel_configs_);
         hls_annotate_top(device_code_.world(), top2kernel, kernel_configs_);
-        hls_kernel_launch(device_code_.world(), hls_host_params);
+        hls_kernel_launch(backends_.world(), hls_host_params);
 
         return std::make_unique<c::CodeGen>(device_code_, kernel_configs_, c::Lang::HLS, backends_.debug(), hls_flags_);
     }

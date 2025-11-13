@@ -205,6 +205,14 @@ public:
             // struct types cannot be rebuilt and need to be put in the map first to avoid infinite recursion
             new_type = world_.struct_type(type->as<StructType>()->name(), ops.size());
             new_types_[type] = new_type;
+        } else if (type->isa<VariantType>()) {
+            // struct types cannot be rebuilt and need to be put in the map first to avoid infinite recursion
+            new_type = world_.variant_type(type->as<VariantType>()->name(), ops.size());
+            new_types_[type] = new_type;
+        } else if (type->isa<ExternType>()) {
+            // struct types cannot be rebuilt and need to be put in the map first to avoid infinite recursion
+            new_type = world_.extern_type(type->as<ExternType>()->name(), ops.size());
+            new_types_[type] = new_type;
         }
 
         // accept one parameter of order 1 (the return continuation) for function types
@@ -223,6 +231,14 @@ public:
             StructType* struct_type = const_cast<StructType*>(new_type->as<StructType>());
             for (size_t i = 0, e = ops.size(); i != e; ++i)
                 struct_type->set_op(i, ops[i]);
+        } else if (type->isa<VariantType>()) {
+            VariantType* variant_type = const_cast<VariantType*>(new_type->as<VariantType>());
+            for (size_t i = 0, e = ops.size(); i != e; ++i)
+                variant_type->set_op(i, ops[i]);
+        } else if (type->isa<ExternType>()) {
+            ExternType* extern_type = const_cast<ExternType*>(new_type->as<ExternType>());
+            for (size_t i = 0, e = ops.size(); i != e; ++i)
+                extern_type->set_op(i, ops[i]);
         } else {
             new_type = type->rebuild(world_, type->type(), ops)->as<Type>();
         }

@@ -133,6 +133,17 @@ public:
     friend class World;
 };
 
+class ExternType : public NominalType {
+private:
+    ExternType(World& world, Symbol name, size_t size, Debug dbg)
+        : NominalType(world, Node_ExternType, name, size, dbg) {}
+
+public:
+    virtual ExternType* stub(Rewriter&, const Type*) const override;
+
+    friend class World;
+};
+
 /// The type of the memory monad.
 class MemType : public Type {
 private:

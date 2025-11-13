@@ -57,6 +57,7 @@
         THORIN_NODE(Lambda, lambda)
         THORIN_NODE(MemType, mem)
         THORIN_NODE(BotType, bot_ty)
+        THORIN_NODE(ExternType, ext_ty)
         THORIN_NODE(PtrType, ptr)
         THORIN_NODE(StructType, struct_type)
         THORIN_NODE(VariantType, variant_type)

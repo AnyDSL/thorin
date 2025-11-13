@@ -112,6 +112,7 @@ public:
     const TupleType* unit_type() { return tuple_type({})->as<TupleType>(); } ///< Returns unit, i.e., an empty @p TupleType.
     VariantType* variant_type(Symbol name, size_t size);
     StructType* struct_type(Symbol name, size_t size);
+    ExternType* extern_type(Symbol name, size_t size, Debug = {});
 
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T(size_t length = 1) { return prim_type(PrimType_##T, length); }

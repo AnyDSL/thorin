@@ -351,7 +351,7 @@ public:
             pos.verify();
             assert(pos.table_ == this && "iterator does not match to this table");
             assert(!empty());
-            assert(pos != end() && !is_invalid(pos.ptr_));
+            assert(pos != cend() && !is_invalid(pos.ptr_));
             --size_;
             value_type empty;
             key(&empty) = H::sentinel();

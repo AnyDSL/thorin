@@ -31,6 +31,8 @@ struct Target {
     };
 
     Dialect dialect = OpenCL;
+
+    uint32_t subgroup_size = 16;
 };
 
 struct ConvertedType {

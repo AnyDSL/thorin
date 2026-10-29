@@ -51,7 +51,7 @@ protected:
 };
 
 struct DeviceBackends {
-    DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags);
+    DeviceBackends(World& world, int opt, bool debug, std::string& hls_flags, int spirv_subgroup_size);
 
     World& world();
     std::vector<std::unique_ptr<CodeGen>> cgs;

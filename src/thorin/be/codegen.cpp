@@ -154,12 +154,19 @@ struct OpenCLSPIRVBackend : public Backend {
 };
 
 struct LevelZeroSPIRVBackend : public Backend {
-    explicit LevelZeroSPIRVBackend(DeviceBackends& b, World& src) : Backend(b, src) {
+    explicit LevelZeroSPIRVBackend(DeviceBackends& b, World& src, int subgroup_size) : Backend(b, src), subgroup_size(subgroup_size) {
         b.register_intrinsic(Intrinsic::LevelZero_SPIRV, *this, get_gpu_kernel_config);
     }
 
+    int subgroup_size;
+
     std::unique_ptr<CodeGen> create_cg() override {
         spirv::Target target;
+
+        if (subgroup_size != -1) {
+            target.subgroup_size = subgroup_size;
+        }
+
         return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
     }
 };
@@ -257,7 +264,7 @@ struct HLSBackend : public Backend {
     std::string& hls_flags_;
 };
 
-DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::string& hls_flags) : world_(world), opt_(opt), debug_(debug) {
+DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::string& hls_flags, int spirv_subgroup_size) : world_(world), opt_(opt), debug_(debug) {
     register_backend(std::make_unique<CudaBackend>(*this, world));
     register_backend(std::make_unique<OpenCLBackend>(*this, world));
 #if THORIN_ENABLE_LLVM
@@ -270,7 +277,7 @@ DeviceBackends::DeviceBackends(thorin::World& world, int opt, bool debug, std::s
 #endif
 #if THORIN_ENABLE_SPIRV
     register_backend(std::make_unique<OpenCLSPIRVBackend>(*this, world));
-    register_backend(std::make_unique<LevelZeroSPIRVBackend>(*this, world));
+    register_backend(std::make_unique<LevelZeroSPIRVBackend>(*this, world, spirv_subgroup_size));
 #endif
     register_backend(std::make_unique<HLSBackend>(*this, world, hls_flags));
 

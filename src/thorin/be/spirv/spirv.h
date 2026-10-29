@@ -54,7 +54,9 @@ public:
     const char* file_ext() const override { return ".spv"; }
 
     bool is_valid(Id id) {
-        return id > 0;
+        //Id == 0 is possible if the spirv_literal intrinsic is used.
+        return true;
+        //return id > 0;
     }
 
     uint32_t convert(AddrSpace);

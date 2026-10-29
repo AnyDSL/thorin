@@ -143,6 +143,13 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
         } else
             world().ELOG("spirv.operation requires an integer literal as the first argument");
 
+    } else if (intrinsic->name() == "spirv.literal") {
+        if (auto spv_lit = app.arg(1)->isa<PrimLit>()) {
+            auto literal = spv_lit->value().get_u32();
+            return { literal };
+        } else
+            world().ELOG("spirv.literal requires an integer literal as the first argument");
+
     } else if (intrinsic->name() == "spirv.extension") {
         auto string = app.arg(1)->op(0)->op(0); //TODO: this can fail!
         if (auto arr_type = string->type()->isa<DefiniteArrayType>(); arr_type->elem_type() == world().type_pu8()) {

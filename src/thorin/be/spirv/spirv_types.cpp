@@ -319,6 +319,9 @@ ConvertedType CodeGen::convert(const Type* type) {
                         auto def = extern_type->op(src_op++);
                         if (auto t = def->isa<Type>())
                             o.push_back(convert(t).id);
+                        //Weird ambiguous case: Using this, statics are included as literals, without this code, statics spawn constant expressions.
+                        else if (auto global = def->isa<Global>(); global && !global->is_mutable() && global->init())
+                            o.push_back(emit_constant(global->init()));
                         else
                             o.push_back(emit_constant(def));
                         continue;

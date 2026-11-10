@@ -90,10 +90,11 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Continuation* /* imported */) {
+static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Continuation* imported) {
     // determine whether or not this kernel uses restrict pointers
     bool has_restrict = true;
     DefSet allocs;
+
     for (size_t i = KernelLaunchArgs::Num, e = app->num_args(); has_restrict && i != e; ++i) {
         auto arg = app->arg(i);
         if (!arg->type()->isa<PtrType>()) continue;
@@ -103,16 +104,35 @@ static std::unique_ptr<GPUKernelConfig> get_gpu_kernel_config(const App* app, Co
         has_restrict &= p.second;
     }
 
+    //Default to 32, as most backends support that.
+    int subgroup_size = 32;
+
+    auto scope = Scope(imported);
+    for (auto def : scope.defs()) {
+        auto app = def->isa<App>();
+        if (!app)
+            continue;
+
+        auto callee = app->callee()->isa<Continuation>();
+        if (!callee)
+            continue;
+
+        if (callee->cc() == CC::Device && callee->name() == "gpu_set_subgroup_size") {
+            subgroup_size = app->arg(1)->as<PrimLit>()->qu32_value().data();
+        }
+    }
+
     auto it_config = app->arg(KernelLaunchArgs::Config)->isa<Tuple>();
     if (it_config &&
         it_config->op(0)->isa<PrimLit>() &&
         it_config->op(1)->isa<PrimLit>() &&
         it_config->op(2)->isa<PrimLit>()) {
+
         return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{
                 it_config->op(0)->as<PrimLit>()->qu32_value().data(),
                 it_config->op(1)->as<PrimLit>()->qu32_value().data(),
                 it_config->op(2)->as<PrimLit>()->qu32_value().data()
-        }, has_restrict);
+        }, has_restrict, subgroup_size);
     }
     return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int>{-1, -1, -1}, has_restrict);
 }
@@ -160,6 +180,7 @@ struct LevelZeroSPIRVBackend : public Backend {
 
     std::unique_ptr<CodeGen> create_cg() override {
         spirv::Target target;
+
         return std::make_unique<spirv::CodeGen>(device_code_, target, backends_.debug(), &kernel_configs_);
     }
 };

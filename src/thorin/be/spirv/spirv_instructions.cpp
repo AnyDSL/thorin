@@ -264,6 +264,10 @@ std::vector<Id> CodeGen::emit_intrinsic(const App& app, const Continuation* intr
         while (auto bitcast = args[1]->isa<Bitcast>())
             args[1] = bitcast->from();
         return { bb->ext_instruction(convert(get_produced_type()).id, { .set_name = "OpenCL.std", .id = OpenCLLIB::Printf }, emit_args(args)) };
+
+    } else if (intrinsic->name() == "gpu_set_subgroup_size") {
+        return { };
+
     }
     world().ELOG("thorin/spirv: Intrinsic '{}' isn't recognised", intrinsic->name());
     exit(-1);

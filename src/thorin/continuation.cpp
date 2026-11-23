@@ -278,6 +278,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "cmpxchg_weak")   attributes().intrinsic = Intrinsic::CmpXchgWeak;
     else if (name() == "fence")          attributes().intrinsic = Intrinsic::Fence;
     else if (name() == "undef")          attributes().intrinsic = Intrinsic::Undef;
+    else if (name() == "cuda_launch_device") attributes().intrinsic = Intrinsic::CUDA_LAUNCH_DEVICE;
     else world().ELOG("unsupported thorin intrinsic '{}'", name());
 }
 

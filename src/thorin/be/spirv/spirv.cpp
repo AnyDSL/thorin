@@ -58,7 +58,7 @@ switch (bitwidth) { \
 
 #define GET_PRIMTYPE_WITH_KIND_F(kind) \
 switch (bitwidth) { \
-    case 8: world.ELOG("8-bit floats do not exist"); \
+    case 8: world.ELOG("8-bit floats do not exist"); THORIN_UNREACHABLE; \
     case 16: return world.type_p##kind##16(length); \
     case 32: return world.type_p##kind##32(length); \
     case 64: return world.type_p##kind##64(length); \
@@ -466,11 +466,9 @@ void CodeGen::emit_epilogue(Continuation* continuation) {
         auto succ = ret_arg->isa_nom<Continuation>();
 
         size_t real_params_count = 0;
-        const Param* last_param = nullptr;
         for (auto param : succ->params()) {
             if (!should_emit(param->type()))
                 continue;
-            last_param = param;
             real_params_count++;
         }
 
@@ -790,7 +788,7 @@ Id CodeGen::emit_bb(BasicBlockBuilder* bb, const Def* def) {
         //}
         auto type = convert(lea->type()).id;
         auto offset = emit(lea->index());
-        if (auto arr_type = lea->ptr_pointee()->isa<ArrayType>()) {
+        if (lea->ptr_pointee()->isa<ArrayType>()) {
             auto base = bb->convert(spv::OpBitcast, type, emit(lea->ptr()));
             return bb->ptr_access_chain(type, base, offset, {  });
         }

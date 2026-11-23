@@ -1487,11 +1487,18 @@ void CodeGen::create_loop(llvm::IRBuilder<>& irbuilder, llvm::Value* lower, llvm
 
 llvm::Value* CodeGen::create_tmp_alloca(llvm::IRBuilder<>& irbuilder, llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
     auto alloca = emit_alloca(irbuilder, type, "tmp_alloca");
-    auto size = irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
 
+#if LLVM_VERSION_MAJOR >= 22
+    irbuilder.CreateLifetimeStart(alloca);
+    auto result = fun(alloca);
+    irbuilder.CreateLifetimeEnd(alloca);
+#else
+    auto size = irbuilder.getInt64(module().getDataLayout().getTypeAllocSize(type));
     irbuilder.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);
     irbuilder.CreateLifetimeEnd(alloca, size);
+#endif
+
     return result;
 }
 

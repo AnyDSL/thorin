@@ -121,7 +121,7 @@ ConvertedType CodeGen::convert(const Type* type) {
 
     // Vector types are stupid and dangerous!
 
-    ConvertedType converted = { 0, std::nullopt };
+    ConvertedType converted = { 0, std::nullopt, std::nullopt };
 
     if (auto vec = type->isa<VectorType>(); vec && vec->length() > 1) {
         auto component = vec->scalarize();
@@ -227,7 +227,6 @@ ConvertedType CodeGen::convert(const Type* type) {
         case Node_StructType:
         case Node_TupleType: {
             std::vector<Id> spv_types;
-            size_t total_serialized_size = 0;
             converted.layout = { 0, 0 };
             for (auto member : type->ops()) {
                 auto member_type = member->as<Type>();

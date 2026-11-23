@@ -535,6 +535,13 @@ void CCodeGen::emit_module() {
             stream_.fmt("__device__ inline int blockDim_{}() {{ return blockDim.{}; }}\n", x, x);
             stream_.fmt("__device__ inline int gridDim_{}() {{ return gridDim.{}; }}\n", x, x);
         }
+
+        stream_.fmt("\n\
+__device__ cudaError_t cudaLaunchDevice(void *func, void *parameterBuffer,\n\
+                                        dim3 gridDimension, dim3 blockDimension,\n\
+                                        unsigned int sharedMemSize,\n\
+                                        cudaStream_t stream);\n\
+__device__ void *cudaGetParameterBuffer(size_t alignment, size_t size);\n");
     }
 
     stream_.endl() << func_impls_.str();
@@ -825,6 +832,93 @@ void CCodeGen::emit_epilogue(Continuation* cont) {
         } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
             emit_unsafe(body->arg(0));
             bb.tail.fmt("goto {};", label_name(callee));
+        } else if (callee->intrinsic() == Intrinsic::CUDA || callee->intrinsic() == Intrinsic::CUDA_LAUNCH_DEVICE) {
+            emit_unsafe(body->arg(0));
+            //auto dev = body->arg(1); //This must be present for get_gpu_kernel_config.
+            auto grid = body->arg(2)->as<Tuple>();
+            auto block = body->arg(3)->as<Tuple>();
+            auto kernel = body->arg(4)->as<Global>()->init();
+            auto ret_cont = body->arg(5);
+
+            //Build a chain of sizeof and offsetof operations to match the parameter buffer layout.
+            //TODO: There has to be an easier way to do this. The CUDA compiler should collapse this to constants, but this still smells something fierce.
+            std::vector<std::string> args;
+            std::vector<std::string> types;
+            std::vector<std::string> offsets;
+            std::string last_size = "0";
+            std::string last_type = "";
+
+            for (size_t i = 6; i < body->num_args(); i++) {
+                auto arg = body->arg(i);
+                if (arg == ret_cont) continue;
+                if (auto emitted_arg = emit_unsafe(arg); !emitted_arg.empty()) {
+                    args.emplace_back(emitted_arg);
+                    auto arg_type = convert(arg->type());
+                    types.emplace_back(arg_type);
+
+                    if (last_type != "" && last_type != arg_type) {
+                        //Make sure we are aligned to the new type.
+                        auto myalignof = "alignof(" + arg_type + ")";
+                        last_size = "(" + last_size + " + " + myalignof + " - 1) / " + myalignof + " * " + myalignof;
+                    }
+
+                    offsets.emplace_back(last_size);
+                    if (last_type != "")
+                        last_size += " + sizeof(" + arg_type + ")";
+                    else
+                        last_size = "sizeof(" + arg_type + ")";
+
+                    last_type = arg_type;
+                }
+            }
+
+            std::string param_buffer = "NULL";
+
+            if (body->num_args() > 6) {
+                param_buffer = "param_" + std::to_string(callee->gid());
+                //TODO: Right now, we can pass 64 for alignment, which is the default anyways. "However, it is recommended to pass the correct alignment requirement value - which is the largest alignment of any parameter to be placed in the parameter buffer - to cudaGetParameterBuffer() to ensure portability in the future."
+                bb.tail.fmt("char * {} = (char*) cudaGetParameterBuffer(64, {});\n", param_buffer, last_size);
+                for (size_t i = 0; i < args.size(); i++) {
+                    bb.tail.fmt("* (({}*) (&{}[{}])) = {};\n", types[i], param_buffer, offsets[i], args[i]);
+                }
+            }
+
+            assert(kernel);
+            auto kernel_name = kernel->name();
+
+            func_decls_.fmt("{};\n", emit_fun_head(kernel->as_nom<Continuation>(), true));
+
+            bb.tail.fmt("cudaLaunchDevice((void*) &{}, {}, {{", kernel_name, param_buffer);
+
+            for (int i = 0; i < 3; i++) {
+                if (i != 0)
+                    bb.tail.fmt(", ");
+                if (auto primlit = grid->op(i)->isa<PrimLit>()) {
+                    bb.tail.fmt("{} / ", primlit_value<unsigned int>(primlit));
+                } else {
+                    bb.tail.fmt("(unsigned int) {} / ", emit(grid->op(i)));
+                }
+                if (auto primlit = block->op(i)->isa<PrimLit>()) {
+                    bb.tail.fmt("{}", primlit_value<unsigned int>(primlit));
+                } else {
+                    bb.tail.fmt("{}", emit(block->op(i)));
+                }
+            }
+
+            bb.tail.fmt("}}, {{");
+
+            for (int i = 0; i < 3; i++) {
+                if (i != 0)
+                    bb.tail.fmt(", ");
+                if (auto primlit = block->op(i)->isa<PrimLit>()) {
+                    bb.tail.fmt("{}", primlit_value<unsigned int>(primlit));
+                } else {
+                    bb.tail.fmt("(unsigned int) {}", emit(block->op(i)));
+                }
+            }
+            bb.tail.fmt("}}, 0, 0);\n");
+
+            bb.tail.fmt("goto {};", label_name(ret_cont));
         } else {
             THORIN_UNREACHABLE;
         }
@@ -972,11 +1066,28 @@ void CCodeGen::emit_access(Stream& s, const Type* agg_type, const Def* index, co
     } else if (agg_type->isa<VectorType>()) {
         std::ostringstream os;
         // OpenCL indices must be in hex format
-        if (index->isa<PrimLit>())
-            os << std::hex << primlit_value<size_t>(index);
-        else
-            world().edef(index, "only constants are supported as vector component indices");
-        s.fmt("{}s{}", prefix, os.str());
+        if (lang_ == Lang::CUDA) {
+            if (index->isa<PrimLit>()) {
+                if (primlit_value<size_t>(index) == 0)
+                    os << "x";
+                else if (primlit_value<size_t>(index) == 1)
+                    os << "y";
+                else if (primlit_value<size_t>(index) == 2)
+                    os << "z";
+                else if (primlit_value<size_t>(index) == 3)
+                    os << "w";
+                else
+                    world().edef(index, "only up to vec4 supported.");
+            } else
+                world().edef(index, "only constants are supported as vector component indices");
+            s.fmt("{}{}", prefix, os.str());
+        } else {
+            if (index->isa<PrimLit>())
+                os << std::hex << primlit_value<size_t>(index);
+            else
+                world().edef(index, "only constants are supported as vector component indices");
+            s.fmt("{}s{}", prefix, os.str());
+        }
     } else {
         THORIN_UNREACHABLE;
     }

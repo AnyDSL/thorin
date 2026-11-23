@@ -99,6 +99,7 @@ enum class Intrinsic : uint8_t {
     AcceleratorBegin,
     OffloadBegin = AcceleratorBegin,
     CUDA = OffloadBegin,    ///< Internal CUDA-Backend.
+    CUDA_LAUNCH_DEVICE,
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     OpenCL_SPIRV,               ///< Internal OpenCL-Backend.

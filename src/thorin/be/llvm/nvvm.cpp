@@ -26,10 +26,20 @@ NVVMCodeGen::NVVMCodeGen(Thorin& thorin, const Cont2Config& kernel_config, int /
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
     if (triple.isArch32Bit()) {
         module().setDataLayout("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
+#if LLVM_VERSION_MAJOR >= 21
+        llvm::Triple triple("nvptx-nvidia-cuda");
+        module().setTargetTriple(triple);
+#else
         module().setTargetTriple("nvptx-nvidia-cuda");
+#endif
     } else {
         module().setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
+#if LLVM_VERSION_MAJOR >= 21
+        llvm::Triple triple("nvptx64-nvidia-cuda");
+        module().setTargetTriple(triple);
+#else
         module().setTargetTriple("nvptx64-nvidia-cuda");
+#endif
     }
     // nvvmir.version
     auto nvvmir_version_md = module().getOrInsertNamedMetadata("nvvmir.version");
@@ -123,7 +133,7 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun(llvm::IRBuilder<>& irbuilder
     // %tex_ref = call i64 @llvm.nvvm.texsurf.handle.p1i64(metadata !{i64 addrspace(1)* @texture, metadata !"texture", i32 1}, i64 addrspace(1)* @texture)
     llvm::Type* types[2] = {
         llvm::Type::getMetadataTy(context()),
-        llvm::PointerType::get(irbuilder.getInt64Ty(), 1)
+        llvm::PointerType::get(context(), 1)
     };
     auto type = llvm::FunctionType::get(irbuilder.getInt64Ty(), types, false);
     return llvm::cast<llvm::Function>(module().getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());

@@ -21,11 +21,15 @@
 
 #include "thorin/transform/hls_channels.h"
 #include "thorin/transform/hls_kernel_launch.h"
+#include "thorin/transform/codegen_prepare.h"
 
 namespace thorin {
 
 void Backend::prepare_kernel_configs() {
-    device_code_.opt();
+    //TODO The second round of closure conversion fails if this is executed on device code that still contains launch calls.
+    //For CUDA, codegen_prepare seems to work just fine.
+    //device_code_.opt();
+    codegen_prepare(device_code_);
 
     auto conts = device_code_.world().copy_continuations();
     for (auto continuation : kernels_) {
@@ -122,6 +126,10 @@ Backend::Backend(thorin::DeviceBackends& backends, World& src) : backends_(backe
 struct CudaBackend : public Backend {
     explicit CudaBackend(DeviceBackends& b, World& src) : Backend(b, src) {
         b.register_intrinsic(Intrinsic::CUDA, *this, get_gpu_kernel_config);
+
+        //TODO: I don't see get_gpu_kernel_config being called for this intrinsic.
+        //Not sure why. Not sure if it matters either.
+        b.register_intrinsic(Intrinsic::CUDA_LAUNCH_DEVICE, *this, get_gpu_kernel_config);
     }
 
     std::unique_ptr<CodeGen> create_cg() override {

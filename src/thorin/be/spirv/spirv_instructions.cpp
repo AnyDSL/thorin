@@ -48,8 +48,14 @@ Id CodeGen::emit_mathop(BasicBlockBuilder* bb, const thorin::MathOp& mathop) {
         switch (mathop.mathop_tag()) {
 #define THORIN_MATHOP(mathop_name) case MathOp_##mathop_name: return bb->ext_instruction(convert(type).id, impl.mathop_name, ops);
 #include "thorin/tables/mathoptable.h"
+        default:
+            world().ELOG("Unsupported mathop: {}", (int) mathop.mathop_tag());
+            THORIN_UNREACHABLE;
         }
     }
+
+    world().ELOG("mathops only supoprt float type.");
+    THORIN_UNREACHABLE;
 }
 
 std::tuple<spv::Scope, spv::MemorySemanticsMask> addrspace_atomics_params(World& world, AddrSpace as) {
